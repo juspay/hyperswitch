@@ -2,7 +2,11 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
+use common_utils::{
+    crypto,
+    ext_traits::{ByteSliceExt, Encode},
+    request::RequestContent,
+};
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
@@ -19,6 +23,7 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
+    events::connector_api_logs::ConnectorEvent,
     headers,
     services::{
         self,
@@ -29,7 +34,6 @@ use crate::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
     },
-    utils,
     utils::BytesExt,
 };
 
@@ -89,6 +93,7 @@ impl ConnectorCommon for Checkout {
     fn build_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: checkout::ErrorResponse = if res.response.is_empty() {
             let (error_codes, error_type) = if res.status_code == 401 {
@@ -110,7 +115,9 @@ impl ConnectorCommon for Checkout {
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
         };
 
-        router_env::logger::info!(error_response=?response);
+        event_builder.map(|i| i.set_error_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         let errors_list = response.error_codes.clone().unwrap_or_default();
         let option_error_code_message = conn_utils::get_error_code_error_message_based_on_priority(
             self.clone(),
@@ -133,7 +140,7 @@ impl ConnectorCommon for Checkout {
                 .map(|errors| errors.join(" & "))
                 .or(response.error_type),
             attempt_status: None,
-            connector_transaction_id: None,
+            connector_transaction_id: response.request_id,
         })
     }
 }
@@ -142,6 +149,7 @@ impl ConnectorValidation for Checkout {
     fn validate_capture_method(
         &self,
         capture_method: Option<enums::CaptureMethod>,
+        _pmt: Option<enums::PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
         match capture_method {
@@ -237,6 +245,7 @@ impl
     fn handle_response(
         &self,
         data: &types::TokenizationRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::TokenizationRouterData, errors::ConnectorError>
     where
@@ -246,8 +255,8 @@ impl
             .response
             .parse_struct("CheckoutTokenResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -259,8 +268,9 @@ impl
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -362,14 +372,15 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn handle_response(
         &self,
         data: &types::PaymentsCaptureRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
         let response: checkout::PaymentCaptureResponse = res
             .response
             .parse_struct("CaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -381,8 +392,9 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -436,6 +448,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     fn handle_response(
         &self,
         data: &types::PaymentsSyncRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError>
     where
@@ -449,6 +462,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                     .response
                     .parse_struct("checkout::PaymentsResponseEnum")
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
                 types::RouterData::try_from(types::ResponseRouterData {
                     response,
@@ -462,6 +476,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                     .response
                     .parse_struct("PaymentsResponse")
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
                 types::RouterData::try_from(types::ResponseRouterData {
                     response,
@@ -482,8 +497,9 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -549,12 +565,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn handle_response(
         &self,
         data: &types::PaymentsAuthorizeRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: checkout::PaymentsResponse = res
             .response
             .parse_struct("PaymentIntentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -567,8 +585,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -624,14 +643,18 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     fn handle_response(
         &self,
         data: &types::PaymentsCancelRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
         let mut response: checkout::PaymentVoidResponse = res
             .response
             .parse_struct("PaymentVoidResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+
         response.status = res.status_code;
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -643,8 +666,9 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -717,12 +741,14 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn handle_response(
         &self,
         data: &types::RefundsRouterData<api::Execute>,
+        event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
         let response: checkout::RefundResponse = res
             .response
             .parse_struct("checkout::RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         let response = checkout::CheckoutRefundResponse {
             response,
@@ -740,8 +766,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -785,6 +812,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     fn handle_response(
         &self,
         data: &types::RefundsRouterData<api::RSync>,
+        event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::RefundsRouterData<api::RSync>, errors::ConnectorError> {
         let refund_action_id = data.request.get_connector_refund_id()?;
@@ -793,6 +821,8 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .response
             .parse_struct("checkout::CheckoutRefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
         let response = response
@@ -811,8 +841,9 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -870,6 +901,7 @@ impl
     fn handle_response(
         &self,
         data: &types::AcceptDisputeRouterData,
+        _event_builder: Option<&mut ConnectorEvent>,
         _res: types::Response,
     ) -> CustomResult<types::AcceptDisputeRouterData, errors::ConnectorError> {
         Ok(types::AcceptDisputeRouterData {
@@ -884,8 +916,9 @@ impl
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -983,6 +1016,7 @@ impl ConnectorIntegration<api::Upload, types::UploadFileRequestData, types::Uplo
     fn handle_response(
         &self,
         data: &types::UploadFileRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<
         types::RouterData<api::Upload, types::UploadFileRequestData, types::UploadFileResponse>,
@@ -992,6 +1026,7 @@ impl ConnectorIntegration<api::Upload, types::UploadFileRequestData, types::Uplo
             .response
             .parse_struct("Checkout FileUploadResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         Ok(types::UploadFileRouterData {
             response: Ok(types::UploadFileResponse {
@@ -1004,8 +1039,9 @@ impl ConnectorIntegration<api::Upload, types::UploadFileRequestData, types::Uplo
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -1077,6 +1113,7 @@ impl
     fn handle_response(
         &self,
         data: &types::SubmitEvidenceRouterData,
+        _event_builder: Option<&mut ConnectorEvent>,
         _res: types::Response,
     ) -> CustomResult<types::SubmitEvidenceRouterData, errors::ConnectorError> {
         Ok(types::SubmitEvidenceRouterData {
@@ -1091,8 +1128,9 @@ impl
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -1148,6 +1186,7 @@ impl
     fn handle_response(
         &self,
         data: &types::DefendDisputeRouterData,
+        _event_builder: Option<&mut ConnectorEvent>,
         _res: types::Response,
     ) -> CustomResult<types::DefendDisputeRouterData, errors::ConnectorError> {
         Ok(types::DefendDisputeRouterData {
@@ -1162,8 +1201,9 @@ impl
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -1260,7 +1300,8 @@ impl api::IncomingWebhook for Checkout {
         } else {
             // if payment_event, construct PaymentResponse and then serialize it to json and return.
             let payment_response = checkout::PaymentsResponse::try_from(request)?;
-            utils::Encode::<checkout::PaymentsResponse>::encode_to_value(&payment_response)
+            payment_response
+                .encode_to_value()
                 .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?
         };
         // Ideally this should be a strict type that has type information

@@ -42,6 +42,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
+        _payment_confirm_source: Option<common_enums::PaymentSource>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsCancelRequest, Ctx>> {
         let db = &*state.store;
         let merchant_id = &merchant_account.merchant_id;
@@ -77,26 +78,32 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        let shipping_address = helpers::create_or_find_address_for_payment_by_request(
+        let shipping_address = helpers::get_address_by_id(
             db,
-            None,
-            payment_intent.shipping_address_id.as_deref(),
-            merchant_id,
-            payment_intent.customer_id.as_ref(),
+            payment_intent.shipping_address_id.clone(),
             key_store,
             &payment_intent.payment_id,
+            merchant_id,
             merchant_account.storage_scheme,
         )
         .await?;
 
-        let billing_address = helpers::create_or_find_address_for_payment_by_request(
+        let billing_address = helpers::get_address_by_id(
             db,
-            None,
-            payment_intent.billing_address_id.as_deref(),
-            merchant_id,
-            payment_intent.customer_id.as_ref(),
+            payment_intent.billing_address_id.clone(),
             key_store,
             &payment_intent.payment_id,
+            merchant_id,
+            merchant_account.storage_scheme,
+        )
+        .await?;
+
+        let payment_method_billing = helpers::get_address_by_id(
+            db,
+            payment_attempt.payment_method_billing_address_id.clone(),
+            key_store,
+            &payment_intent.payment_id,
+            merchant_id,
             merchant_account.storage_scheme,
         )
         .await?;
@@ -148,13 +155,19 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             mandate_id: None,
             mandate_connector: None,
             setup_mandate: None,
+            customer_acceptance: None,
             token: None,
+            token_data: None,
             address: PaymentAddress {
                 shipping: shipping_address.as_ref().map(|a| a.into()),
                 billing: billing_address.as_ref().map(|a| a.into()),
+                payment_method_billing: payment_method_billing
+                    .as_ref()
+                    .map(|address| address.into()),
             },
             confirm: None,
             payment_method_data: None,
+            payment_method_info: None,
             force_sync: None,
             refunds: vec![],
             disputes: vec![],
@@ -163,6 +176,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             card_cvc: None,
             creds_identifier,
             pm_token: None,
+            payment_method_status: None,
             connector_customer_id: None,
             recurring_mandate_payment_data: None,
             ephemeral_key: None,
@@ -174,6 +188,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             incremental_authorization_details: None,
             authorizations: vec![],
             frm_metadata: None,
+            authentication: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

@@ -23,7 +23,7 @@ use crate::{
     admin::*,
     analytics::{
         api_event::*, connector_events::ConnectorEventsRequest,
-        outgoing_webhook_event::OutgoingWebhookLogsRequest, sdk_events::*, *,
+        outgoing_webhook_event::OutgoingWebhookLogsRequest, sdk_events::*, search::*, *,
     },
     api_keys::*,
     cards_info::*,
@@ -95,7 +95,14 @@ impl_misc_api_event_type!(
     SdkEventsRequest,
     ReportRequest,
     ConnectorEventsRequest,
-    OutgoingWebhookLogsRequest
+    OutgoingWebhookLogsRequest,
+    GetGlobalSearchRequest,
+    GetSearchRequest,
+    GetSearchResponse,
+    GetSearchRequestWithIndex,
+    GetDisputeFilterRequest,
+    DisputeFiltersResponse,
+    GetDisputeMetricRequest
 );
 
 #[cfg(feature = "stripe")]

@@ -76,6 +76,7 @@ pub async fn construct_fulfillment_router_data<'a>(
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
         amount_captured: payment_intent.amount_captured,
+        payment_method_status: None,
         request: FraudCheckFulfillmentData {
             amount: payment_attempt.amount,
             order_details: payment_intent.order_details.clone(),
@@ -106,6 +107,8 @@ pub async fn construct_fulfillment_router_data<'a>(
         external_latency: None,
         apple_pay_flow: None,
         frm_metadata: None,
+        refund_id: None,
+        dispute_id: None,
     };
     Ok(router_data)
 }

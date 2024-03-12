@@ -118,7 +118,7 @@ pub async fn retrieve_mandates_list(
 ) -> HttpResponse {
     let flow = Flow::MandatesList;
     let payload = payload.into_inner();
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -132,6 +132,6 @@ pub async fn retrieve_mandates_list(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }

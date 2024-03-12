@@ -86,6 +86,7 @@ pub trait RouterData {
     fn get_payout_method_data(&self) -> Result<api::PayoutMethodData, Error>;
     #[cfg(feature = "payouts")]
     fn get_quote_id(&self) -> Result<String, Error>;
+    fn get_billing_address_details_as_optional(&self) -> Option<api::AddressDetails>;
 }
 
 pub trait PaymentResponseRouterData {
@@ -180,6 +181,14 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .as_ref()
             .and_then(|a| a.address.as_ref())
             .ok_or_else(missing_field_err("billing.address"))
+    }
+
+    fn get_billing_address_details_as_optional(&self) -> Option<api::AddressDetails> {
+        self.address
+            .billing
+            .as_ref()
+            .and_then(|a| a.address.as_ref())
+            .cloned()
     }
 
     fn get_billing_address_with_phone_number(&self) -> Result<&api::Address, Error> {
@@ -949,7 +958,6 @@ impl ApplePayDecrypt for Box<ApplePayPredecryptData> {
         Ok(Secret::new(format!(
             "20{}",
             self.application_expiration_date
-                .peek()
                 .get(0..2)
                 .ok_or(errors::ConnectorError::RequestEncodingFailed)?
         )))
@@ -958,7 +966,6 @@ impl ApplePayDecrypt for Box<ApplePayPredecryptData> {
     fn get_expiry_month(&self) -> Result<Secret<String>, Error> {
         Ok(Secret::new(
             self.application_expiration_date
-                .peek()
                 .get(2..4)
                 .ok_or(errors::ConnectorError::RequestEncodingFailed)?
                 .to_owned(),
@@ -1824,6 +1831,7 @@ pub fn is_refund_failure(status: enums::RefundStatus) -> bool {
         | common_enums::RefundStatus::Success => false,
     }
 }
+
 #[cfg(test)]
 mod error_code_error_message_tests {
     #![allow(clippy::unwrap_used)]

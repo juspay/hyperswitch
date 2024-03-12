@@ -145,6 +145,7 @@ impl<const T: u8>
 }
 
 default_imp_for_complete_authorize!(
+    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Bitpay,
@@ -210,6 +211,7 @@ impl<const T: u8>
 {
 }
 default_imp_for_webhook_source_verification!(
+    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -292,6 +294,7 @@ impl<const T: u8>
 }
 
 default_imp_for_create_customer!(
+    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -374,6 +377,7 @@ impl<const T: u8> services::ConnectorRedirectResponse for connector::DummyConnec
 }
 
 default_imp_for_connector_redirect_response!(
+    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Bitpay,
@@ -393,7 +397,6 @@ default_imp_for_connector_redirect_response!(
     connector::Klarna,
     connector::Multisafepay,
     connector::Nexinets,
-    connector::Nmi,
     connector::Opayo,
     connector::Opennode,
     connector::Payeezy,
@@ -426,6 +429,7 @@ macro_rules! default_imp_for_connector_request_id {
 impl<const T: u8> api::ConnectorTransactionId for connector::DummyConnector<T> {}
 
 default_imp_for_connector_request_id!(
+    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -510,6 +514,7 @@ impl<const T: u8>
 }
 
 default_imp_for_accept_dispute!(
+    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -614,6 +619,7 @@ impl<const T: u8>
 }
 
 default_imp_for_file_upload!(
+    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -695,6 +701,7 @@ impl<const T: u8>
 }
 
 default_imp_for_submit_evidence!(
+    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -776,6 +783,7 @@ impl<const T: u8>
 }
 
 default_imp_for_defend_dispute!(
+    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -858,6 +866,7 @@ impl<const T: u8>
 }
 
 default_imp_for_pre_processing_steps!(
+    connector::Threedsecureio,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -916,6 +925,7 @@ macro_rules! default_imp_for_payouts {
 impl<const T: u8> api::Payouts for connector::DummyConnector<T> {}
 
 default_imp_for_payouts!(
+    connector::Threedsecureio,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -998,6 +1008,7 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_create!(
+    connector::Threedsecureio,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1083,6 +1094,7 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_eligibility!(
+    connector::Threedsecureio,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1165,6 +1177,7 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_fulfill!(
+    connector::Threedsecureio,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1247,6 +1260,7 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_cancel!(
+    connector::Threedsecureio,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1329,6 +1343,7 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_quote!(
+    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1412,6 +1427,7 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient!(
+    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1494,6 +1510,7 @@ impl<const T: u8>
 }
 
 default_imp_for_approve!(
+    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1577,6 +1594,7 @@ impl<const T: u8>
 }
 
 default_imp_for_reject!(
+    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1644,6 +1662,7 @@ macro_rules! default_imp_for_fraud_check {
 impl<const T: u8> api::FraudCheck for connector::DummyConnector<T> {}
 
 default_imp_for_fraud_check!(
+    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1727,6 +1746,7 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_sale!(
+    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1810,6 +1830,7 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_checkout!(
+    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1893,6 +1914,7 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_transaction!(
+    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1976,6 +1998,7 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_fulfillment!(
+    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2059,6 +2082,7 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_record_return!(
+    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2140,6 +2164,7 @@ impl<const T: u8>
 }
 
 default_imp_for_incremental_authorization!(
+    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2220,6 +2245,7 @@ impl<const T: u8>
 {
 }
 default_imp_for_revoking_mandates!(
+    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2234,6 +2260,128 @@ default_imp_for_revoking_mandates!(
     connector::Checkout,
     connector::Cryptopay,
     connector::Coinbase,
+    connector::Dlocal,
+    connector::Fiserv,
+    connector::Forte,
+    connector::Globalpay,
+    connector::Globepay,
+    connector::Gocardless,
+    connector::Helcim,
+    connector::Iatapay,
+    connector::Klarna,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Nexinets,
+    connector::Nmi,
+    connector::Nuvei,
+    connector::Opayo,
+    connector::Opennode,
+    connector::Payeezy,
+    connector::Payme,
+    connector::Paypal,
+    connector::Payu,
+    connector::Placetopay,
+    connector::Powertranz,
+    connector::Prophetpay,
+    connector::Rapyd,
+    connector::Riskified,
+    connector::Signifyd,
+    connector::Square,
+    connector::Stax,
+    connector::Stripe,
+    connector::Shift4,
+    connector::Trustpay,
+    connector::Tsys,
+    connector::Volt,
+    connector::Wise,
+    connector::Worldline,
+    connector::Worldpay,
+    connector::Zen
+);
+
+macro_rules! default_imp_for_connector_authentication {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl api::ExternalAuthentication for $path::$connector {}
+            impl api::ConnectorAuthentication for $path::$connector {}
+            impl api::ConnectorPreAuthentication for $path::$connector {}
+            impl api::ConnectorPostAuthentication for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+            api::Authentication,
+            types::authentication::ConnectorAuthenticationRequestData,
+            types::authentication::AuthenticationResponseData,
+        > for $path::$connector
+        {}
+        impl
+            services::ConnectorIntegration<
+            api::PreAuthentication,
+            types::authentication::PreAuthNRequestData,
+            types::authentication::AuthenticationResponseData,
+        > for $path::$connector
+        {}
+        impl
+            services::ConnectorIntegration<
+            api::PostAuthentication,
+            types::authentication::ConnectorPostAuthenticationRequestData,
+            types::authentication::AuthenticationResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::ExternalAuthentication for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::ConnectorPreAuthentication for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::ConnectorAuthentication for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::ConnectorPostAuthentication for connector::DummyConnector<T> {}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::Authentication,
+        types::authentication::ConnectorAuthenticationRequestData,
+        types::authentication::AuthenticationResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::PreAuthentication,
+        types::authentication::PreAuthNRequestData,
+        types::authentication::AuthenticationResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::PostAuthentication,
+        types::authentication::ConnectorPostAuthenticationRequestData,
+        types::authentication::AuthenticationResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+default_imp_for_connector_authentication!(
+    connector::Aci,
+    connector::Adyen,
+    connector::Airwallex,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bankofamerica,
+    connector::Bitpay,
+    connector::Bluesnap,
+    connector::Boku,
+    connector::Braintree,
+    connector::Cashtocode,
+    connector::Checkout,
+    connector::Cryptopay,
+    connector::Coinbase,
+    connector::Cybersource,
     connector::Dlocal,
     connector::Fiserv,
     connector::Forte,

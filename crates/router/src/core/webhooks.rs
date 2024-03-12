@@ -11,7 +11,11 @@ use api_models::{
 use common_utils::{errors::ReportSwitchExt, events::ApiEventsType, request::RequestContent};
 use error_stack::{report, IntoReport, ResultExt};
 use masking::ExposeInterface;
-use router_env::{instrument, tracing, tracing_actix_web::RequestId};
+use router_env::{
+    instrument,
+    tracing::{self, Instrument},
+    tracing_actix_web::RequestId,
+};
 
 use super::{errors::StorageErrorExt, metrics};
 #[cfg(feature = "stripe")]
@@ -28,6 +32,7 @@ use crate::{
     events::{
         api_logs::ApiEvent,
         outgoing_webhook_logs::{OutgoingWebhookEvent, OutgoingWebhookEventMetric},
+        RawEvent,
     },
     logger,
     routes::{app::AppStateInfo, lock_utils, metrics::request::add_attributes, AppState},
@@ -39,15 +44,13 @@ use crate::{
         transformers::{ForeignInto, ForeignTryInto},
     },
     utils::{self as helper_utils, generate_id, OptionExt, ValueExt},
+    workflows::outgoing_webhook_retry,
 };
 
 const OUTGOING_WEBHOOK_TIMEOUT_SECS: u64 = 5;
 const MERCHANT_ID: &str = "merchant_id";
 
-pub async fn payments_incoming_webhook_flow<
-    W: types::OutgoingWebhookType,
-    Ctx: PaymentMethodRetrieve,
->(
+pub async fn payments_incoming_webhook_flow<Ctx: PaymentMethodRetrieve>(
     state: AppState,
     merchant_account: domain::MerchantAccount,
     business_profile: diesel_models::business_profile::BusinessProfile,
@@ -165,7 +168,7 @@ pub async fn payments_incoming_webhook_flow<
 
             // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
             if let Some(outgoing_event_type) = event_type {
-                create_event_and_trigger_outgoing_webhook::<W>(
+                create_event_and_trigger_outgoing_webhook(
                     state,
                     merchant_account,
                     business_profile,
@@ -192,7 +195,7 @@ pub async fn payments_incoming_webhook_flow<
 
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
-pub async fn refunds_incoming_webhook_flow<W: types::OutgoingWebhookType>(
+pub async fn refunds_incoming_webhook_flow(
     state: AppState,
     merchant_account: domain::MerchantAccount,
     business_profile: diesel_models::business_profile::BusinessProfile,
@@ -214,7 +217,7 @@ pub async fn refunds_incoming_webhook_flow<W: types::OutgoingWebhookType>(
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)
-                .attach_printable_lazy(|| "Failed fetching the refund")?,
+                .attach_printable("Failed to fetch the refund")?,
             api_models::webhooks::RefundIdType::ConnectorRefundId(id) => db
                 .find_refund_by_merchant_id_connector_refund_id_connector(
                     &merchant_account.merchant_id,
@@ -224,7 +227,7 @@ pub async fn refunds_incoming_webhook_flow<W: types::OutgoingWebhookType>(
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)
-                .attach_printable_lazy(|| "Failed fetching the refund")?,
+                .attach_printable("Failed to fetch the refund")?,
         },
         _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
             .into_report()
@@ -250,12 +253,7 @@ pub async fn refunds_incoming_webhook_flow<W: types::OutgoingWebhookType>(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
-        .attach_printable_lazy(|| {
-            format!(
-                "Failed while updating refund: refund_id: {}",
-                refund_id.to_owned()
-            )
-        })?
+        .attach_printable_lazy(|| format!("Failed while updating refund: refund_id: {refund_id}"))?
     } else {
         refunds::refund_retrieve_core(
             state.clone(),
@@ -268,12 +266,7 @@ pub async fn refunds_incoming_webhook_flow<W: types::OutgoingWebhookType>(
             },
         )
         .await
-        .attach_printable_lazy(|| {
-            format!(
-                "Failed while updating refund: refund_id: {}",
-                refund_id.to_owned()
-            )
-        })?
+        .attach_printable_lazy(|| format!("Failed while updating refund: refund_id: {refund_id}"))?
     };
     let event_type: Option<enums::EventType> = updated_refund.refund_status.foreign_into();
 
@@ -281,7 +274,7 @@ pub async fn refunds_incoming_webhook_flow<W: types::OutgoingWebhookType>(
     if let Some(outgoing_event_type) = event_type {
         let refund_response: api_models::refunds::RefundResponse =
             updated_refund.clone().foreign_into();
-        create_event_and_trigger_outgoing_webhook::<W>(
+        create_event_and_trigger_outgoing_webhook(
             state,
             merchant_account,
             business_profile,
@@ -340,6 +333,7 @@ pub async fn get_payment_attempt_from_object_reference_id(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn get_or_update_dispute_object(
     state: AppState,
     option_dispute: Option<diesel_models::dispute::Dispute>,
@@ -347,6 +341,7 @@ pub async fn get_or_update_dispute_object(
     merchant_id: &str,
     payment_attempt: &data_models::payments::payment_attempt::PaymentAttempt,
     event_type: api_models::webhooks::IncomingWebhookEvent,
+    business_profile: &diesel_models::business_profile::BusinessProfile,
     connector_name: &str,
 ) -> CustomResult<diesel_models::dispute::Dispute, errors::ApiErrorResponse> {
     let db = &*state.store;
@@ -356,7 +351,7 @@ pub async fn get_or_update_dispute_object(
             let dispute_id = generate_id(consts::ID_LENGTH, "dp");
             let new_dispute = diesel_models::dispute::DisputeNew {
                 dispute_id,
-                amount: dispute_details.amount,
+                amount: dispute_details.amount.clone(),
                 currency: dispute_details.currency,
                 dispute_stage: dispute_details.dispute_stage,
                 dispute_status: event_type
@@ -375,9 +370,10 @@ pub async fn get_or_update_dispute_object(
                 challenge_required_by: dispute_details.challenge_required_by,
                 connector_created_at: dispute_details.created_at,
                 connector_updated_at: dispute_details.updated_at,
-                profile_id: None,
+                profile_id: Some(business_profile.profile_id.clone()),
                 evidence: None,
                 merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
+                dispute_amount: dispute_details.amount.parse::<i64>().unwrap_or(0),
             };
             state
                 .store
@@ -417,7 +413,7 @@ pub async fn get_or_update_dispute_object(
     }
 }
 
-pub async fn mandates_incoming_webhook_flow<W: types::OutgoingWebhookType>(
+pub async fn mandates_incoming_webhook_flow(
     state: AppState,
     merchant_account: domain::MerchantAccount,
     business_profile: diesel_models::business_profile::BusinessProfile,
@@ -474,7 +470,7 @@ pub async fn mandates_incoming_webhook_flow<W: types::OutgoingWebhookType>(
         );
         let event_type: Option<enums::EventType> = updated_mandate.mandate_status.foreign_into();
         if let Some(outgoing_event_type) = event_type {
-            create_event_and_trigger_outgoing_webhook::<W>(
+            create_event_and_trigger_outgoing_webhook(
                 state,
                 merchant_account,
                 business_profile,
@@ -499,7 +495,7 @@ pub async fn mandates_incoming_webhook_flow<W: types::OutgoingWebhookType>(
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
-pub async fn disputes_incoming_webhook_flow<W: types::OutgoingWebhookType>(
+pub async fn disputes_incoming_webhook_flow(
     state: AppState,
     merchant_account: domain::MerchantAccount,
     business_profile: diesel_models::business_profile::BusinessProfile,
@@ -534,13 +530,14 @@ pub async fn disputes_incoming_webhook_flow<W: types::OutgoingWebhookType>(
             &merchant_account.merchant_id,
             &payment_attempt,
             event_type,
+            &business_profile,
             connector.id(),
         )
         .await?;
         let disputes_response = Box::new(dispute_object.clone().foreign_into());
         let event_type: enums::EventType = dispute_object.dispute_status.foreign_into();
 
-        create_event_and_trigger_outgoing_webhook::<W>(
+        create_event_and_trigger_outgoing_webhook(
             state,
             merchant_account,
             business_profile,
@@ -564,7 +561,7 @@ pub async fn disputes_incoming_webhook_flow<W: types::OutgoingWebhookType>(
     }
 }
 
-async fn bank_transfer_webhook_flow<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetrieve>(
+async fn bank_transfer_webhook_flow<Ctx: PaymentMethodRetrieve>(
     state: AppState,
     merchant_account: domain::MerchantAccount,
     business_profile: diesel_models::business_profile::BusinessProfile,
@@ -603,7 +600,7 @@ async fn bank_transfer_webhook_flow<W: types::OutgoingWebhookType, Ctx: PaymentM
             services::api::AuthFlow::Merchant,
             payments::CallConnectorAction::Trigger,
             None,
-            HeaderPayload::default(),
+            HeaderPayload::with_source(common_enums::PaymentSource::Webhook),
         ))
         .await
     } else {
@@ -626,7 +623,7 @@ async fn bank_transfer_webhook_flow<W: types::OutgoingWebhookType, Ctx: PaymentM
 
             // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
             if let Some(outgoing_event_type) = event_type {
-                create_event_and_trigger_outgoing_webhook::<W>(
+                create_event_and_trigger_outgoing_webhook(
                     state,
                     merchant_account,
                     business_profile,
@@ -651,7 +648,7 @@ async fn bank_transfer_webhook_flow<W: types::OutgoingWebhookType, Ctx: PaymentM
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
-pub async fn create_event_and_trigger_appropriate_outgoing_webhook(
+pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     state: AppState,
     merchant_account: domain::MerchantAccount,
     business_profile: diesel_models::business_profile::BusinessProfile,
@@ -662,53 +659,21 @@ pub async fn create_event_and_trigger_appropriate_outgoing_webhook(
     primary_object_type: enums::EventObjectType,
     content: api::OutgoingWebhookContent,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
-    match merchant_account.get_compatible_connector() {
-        #[cfg(feature = "stripe")]
-        Some(api_models::enums::Connector::Stripe) => {
-            create_event_and_trigger_outgoing_webhook::<stripe_webhooks::StripeOutgoingWebhook>(
-                state.clone(),
-                merchant_account,
-                business_profile,
-                event_type,
-                event_class,
-                intent_reference_id,
-                primary_object_id,
-                primary_object_type,
-                content,
-            )
-            .await
-        }
-        _ => {
-            create_event_and_trigger_outgoing_webhook::<api_models::webhooks::OutgoingWebhook>(
-                state.clone(),
-                merchant_account,
-                business_profile,
-                event_type,
-                event_class,
-                intent_reference_id,
-                primary_object_id,
-                primary_object_type,
-                content,
-            )
-            .await
-        }
-    }
-}
+    let event_id = format!("{primary_object_id}_{event_type}");
 
-#[allow(clippy::too_many_arguments)]
-#[instrument(skip_all)]
-pub async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhookType>(
-    state: AppState,
-    merchant_account: domain::MerchantAccount,
-    business_profile: diesel_models::business_profile::BusinessProfile,
-    event_type: enums::EventType,
-    event_class: enums::EventClass,
-    intent_reference_id: Option<String>,
-    primary_object_id: String,
-    primary_object_type: enums::EventObjectType,
-    content: api::OutgoingWebhookContent,
-) -> CustomResult<(), errors::ApiErrorResponse> {
-    let event_id = format!("{primary_object_id}_{}", event_type);
+    if !state.conf.webhooks.outgoing_enabled
+        || get_webhook_url_from_business_profile(&business_profile).is_err()
+    {
+        logger::debug!(
+            business_profile_id=%business_profile.profile_id,
+            %event_id,
+            "Outgoing webhooks are disabled in application configuration, or merchant webhook URL \
+             could not be obtained; skipping outgoing webhooks for event"
+        );
+        return Ok(());
+    }
+
+    let merchant_id = business_profile.merchant_id.clone();
     let new_event = storage::EventNew {
         event_id: event_id.clone(),
         event_type,
@@ -725,7 +690,7 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhook
         Ok(event) => Ok(event),
         Err(error) => {
             if error.current_context().is_db_unique_violation() {
-                logger::info!("Merchant already notified about the event {event_id}");
+                logger::debug!("Event `{event_id}` already exists in the database");
                 return Ok(());
             } else {
                 logger::error!(event_insertion_failure=?error);
@@ -736,76 +701,157 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhook
         }
     }?;
 
-    if state.conf.webhooks.outgoing_enabled {
-        let outgoing_webhook = api::OutgoingWebhook {
-            merchant_id: merchant_account.merchant_id.clone(),
-            event_id: event.event_id.clone(),
-            event_type: event.event_type,
-            content: content.clone(),
-            timestamp: event.created_at,
-        };
-        let state_clone = state.clone();
-        // Using a tokio spawn here and not arbiter because not all caller of this function
-        // may have an actix arbiter
-        tokio::spawn(async move {
-            let mut error = None;
-            let result =
-                trigger_webhook_to_merchant::<W>(business_profile, outgoing_webhook, state).await;
+    let outgoing_webhook = api::OutgoingWebhook {
+        merchant_id: merchant_id.clone(),
+        event_id: event.event_id.clone(),
+        event_type: event.event_type,
+        content: content.clone(),
+        timestamp: event.created_at,
+    };
 
-            if let Err(e) = result {
-                error.replace(
-                    serde_json::to_value(e.current_context())
-                        .into_report()
-                        .attach_printable("Failed to serialize json error response")
-                        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-                        .ok()
-                        .into(),
-                );
-                logger::error!(?e);
-            }
-            let outgoing_webhook_event_type = content.get_outgoing_webhook_event_type();
-            let webhook_event = OutgoingWebhookEvent::new(
-                merchant_account.merchant_id.clone(),
-                event.event_id.clone(),
+    let process_tracker = add_outgoing_webhook_retry_task_to_process_tracker(
+        &*state.store,
+        &business_profile,
+        &event,
+    )
+    .await
+    .map_err(|error| {
+        logger::error!(
+            ?error,
+            "Failed to add outgoing webhook retry task to process tracker"
+        );
+        error
+    })
+    .ok();
+
+    // Using a tokio spawn here and not arbiter because not all caller of this function
+    // may have an actix arbiter
+    tokio::spawn(
+        async move {
+            trigger_appropriate_webhook_and_raise_event(
+                state,
+                merchant_account,
+                business_profile,
+                outgoing_webhook,
+                types::WebhookDeliveryAttempt::InitialAttempt,
+                content,
+                event.event_id,
                 event_type,
-                outgoing_webhook_event_type,
-                error.is_some(),
-                error,
-            );
-            match webhook_event.clone().try_into() {
-                Ok(event) => {
-                    state_clone.event_handler().log_event(event);
-                }
-                Err(err) => {
-                    logger::error!(error=?err, event=?webhook_event, "Error Logging Outgoing Webhook Event");
-                }
-            }
-        });
-    }
+                process_tracker,
+            )
+            .await;
+        }
+        .in_current_span(),
+    );
 
     Ok(())
 }
 
-pub async fn trigger_webhook_to_merchant<W: types::OutgoingWebhookType>(
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn trigger_appropriate_webhook_and_raise_event(
+    state: AppState,
+    merchant_account: domain::MerchantAccount,
+    business_profile: diesel_models::business_profile::BusinessProfile,
+    outgoing_webhook: api::OutgoingWebhook,
+    delivery_attempt: types::WebhookDeliveryAttempt,
+    content: api::OutgoingWebhookContent,
+    event_id: String,
+    event_type: enums::EventType,
+    process_tracker: Option<storage::ProcessTracker>,
+) {
+    match merchant_account.get_compatible_connector() {
+        #[cfg(feature = "stripe")]
+        Some(api_models::enums::Connector::Stripe) => {
+            trigger_webhook_and_raise_event::<stripe_webhooks::StripeOutgoingWebhook>(
+                state,
+                business_profile,
+                outgoing_webhook,
+                delivery_attempt,
+                content,
+                event_id,
+                event_type,
+                process_tracker,
+            )
+            .await
+        }
+        _ => {
+            trigger_webhook_and_raise_event::<api_models::webhooks::OutgoingWebhook>(
+                state,
+                business_profile,
+                outgoing_webhook,
+                delivery_attempt,
+                content,
+                event_id,
+                event_type,
+                process_tracker,
+            )
+            .await
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn trigger_webhook_and_raise_event<W: types::OutgoingWebhookType>(
+    state: AppState,
+    business_profile: diesel_models::business_profile::BusinessProfile,
+    outgoing_webhook: api::OutgoingWebhook,
+    delivery_attempt: types::WebhookDeliveryAttempt,
+    content: api::OutgoingWebhookContent,
+    event_id: String,
+    event_type: enums::EventType,
+    process_tracker: Option<storage::ProcessTracker>,
+) {
+    let merchant_id = business_profile.merchant_id.clone();
+    let trigger_webhook_result = trigger_webhook_to_merchant::<W>(
+        state.clone(),
+        business_profile,
+        outgoing_webhook,
+        delivery_attempt,
+        process_tracker,
+    )
+    .await;
+
+    raise_webhooks_analytics_event(
+        state,
+        trigger_webhook_result,
+        content,
+        &merchant_id,
+        &event_id,
+        event_type,
+    );
+}
+
+async fn trigger_webhook_to_merchant<W: types::OutgoingWebhookType>(
+    state: AppState,
     business_profile: diesel_models::business_profile::BusinessProfile,
     webhook: api::OutgoingWebhook,
-    state: AppState,
+    delivery_attempt: types::WebhookDeliveryAttempt,
+    process_tracker: Option<storage::ProcessTracker>,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
-    let webhook_details_json = business_profile
-        .webhook_details
-        .get_required_value("webhook_details")
-        .change_context(errors::WebhooksFlowError::MerchantWebhookDetailsNotFound)?;
-
-    let webhook_details: api::WebhookDetails =
-        webhook_details_json
-            .parse_value("WebhookDetails")
-            .change_context(errors::WebhooksFlowError::MerchantWebhookDetailsNotFound)?;
-
-    let webhook_url = webhook_details
-        .webhook_url
-        .get_required_value("webhook_url")
-        .change_context(errors::WebhooksFlowError::MerchantWebhookURLNotConfigured)
-        .map(ExposeInterface::expose)?;
+    let webhook_url = match (
+        get_webhook_url_from_business_profile(&business_profile),
+        process_tracker.clone(),
+    ) {
+        (Ok(webhook_url), _) => Ok(webhook_url),
+        (Err(error), Some(process_tracker)) => {
+            if !error
+                .current_context()
+                .is_webhook_delivery_retryable_error()
+            {
+                logger::debug!("Failed to obtain merchant webhook URL, aborting retries");
+                state
+                    .store
+                    .as_scheduler()
+                    .finish_process_with_business_status(process_tracker, "FAILURE".into())
+                    .await
+                    .change_context(
+                        errors::WebhooksFlowError::OutgoingWebhookProcessTrackerTaskUpdateFailed,
+                    )?;
+            }
+            Err(error)
+        }
+        (Err(error), None) => Err(error),
+    }?;
 
     let outgoing_webhook_event_id = webhook.event_id.clone();
 
@@ -816,7 +862,7 @@ pub async fn trigger_webhook_to_merchant<W: types::OutgoingWebhookType>(
 
     let mut header = vec![(
         reqwest::header::CONTENT_TYPE.to_string(),
-        "application/json".into(),
+        mime::APPLICATION_JSON.essence_str().into(),
     )];
 
     if let Some(signature) = outgoing_webhooks_signature {
@@ -846,45 +892,182 @@ pub async fn trigger_webhook_to_merchant<W: types::OutgoingWebhookType>(
     );
     logger::debug!(outgoing_webhook_response=?response);
 
-    match response {
-        Err(e) => {
-            // [#217]: Schedule webhook for retry.
-            Err(e).change_context(errors::WebhooksFlowError::CallToMerchantFailed)?;
-        }
-        Ok(res) => {
-            if res.status().is_success() {
-                metrics::WEBHOOK_OUTGOING_RECEIVED_COUNT.add(
-                    &metrics::CONTEXT,
-                    1,
-                    &[metrics::KeyValue::new(
-                        MERCHANT_ID,
-                        business_profile.merchant_id.clone(),
-                    )],
-                );
-                let update_event = storage::EventUpdate::UpdateWebhookNotified {
-                    is_webhook_notified: Some(true),
-                };
-                state
+    let api_client_error_handler =
+        |client_error: error_stack::Report<errors::ApiClientError>,
+         delivery_attempt: types::WebhookDeliveryAttempt| {
+            let error =
+                client_error.change_context(errors::WebhooksFlowError::CallToMerchantFailed);
+            logger::error!(
+                ?error,
+                ?delivery_attempt,
+                "An error occurred when sending webhook to merchant"
+            );
+        };
+    let success_response_handler =
+        |state: AppState,
+         merchant_id: String,
+         outgoing_webhook_event_id: String,
+         process_tracker: Option<storage::ProcessTracker>,
+         business_status: &'static str| async move {
+            metrics::WEBHOOK_OUTGOING_RECEIVED_COUNT.add(
+                &metrics::CONTEXT,
+                1,
+                &[metrics::KeyValue::new(MERCHANT_ID, merchant_id)],
+            );
+
+            let update_event = storage::EventUpdate::UpdateWebhookNotified {
+                is_webhook_notified: Some(true),
+            };
+            state
+                .store
+                .update_event(outgoing_webhook_event_id, update_event)
+                .await
+                .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)?;
+
+            match process_tracker {
+                Some(process_tracker) => state
                     .store
-                    .update_event(outgoing_webhook_event_id, update_event)
+                    .as_scheduler()
+                    .finish_process_with_business_status(process_tracker, business_status.into())
                     .await
-                    .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)?;
-            } else {
-                metrics::WEBHOOK_OUTGOING_NOT_RECEIVED_COUNT.add(
-                    &metrics::CONTEXT,
-                    1,
-                    &[metrics::KeyValue::new(
-                        MERCHANT_ID,
-                        business_profile.merchant_id.clone(),
-                    )],
-                );
-                // [#217]: Schedule webhook for retry.
-                Err(errors::WebhooksFlowError::NotReceivedByMerchant).into_report()?;
+                    .change_context(
+                        errors::WebhooksFlowError::OutgoingWebhookProcessTrackerTaskUpdateFailed,
+                    ),
+                None => Ok(()),
+            }
+        };
+    let error_response_handler = |merchant_id: String,
+                                  delivery_attempt: types::WebhookDeliveryAttempt,
+                                  status_code: u16,
+                                  log_message: &'static str| {
+        metrics::WEBHOOK_OUTGOING_NOT_RECEIVED_COUNT.add(
+            &metrics::CONTEXT,
+            1,
+            &[metrics::KeyValue::new(MERCHANT_ID, merchant_id)],
+        );
+
+        let error = report!(errors::WebhooksFlowError::NotReceivedByMerchant);
+        logger::warn!(?error, ?delivery_attempt, ?status_code, %log_message);
+    };
+
+    match delivery_attempt {
+        types::WebhookDeliveryAttempt::InitialAttempt => match response {
+            Err(client_error) => api_client_error_handler(client_error, delivery_attempt),
+            Ok(response) => {
+                if response.status().is_success() {
+                    success_response_handler(
+                        state.clone(),
+                        business_profile.merchant_id,
+                        outgoing_webhook_event_id,
+                        process_tracker,
+                        "INITIAL_DELIVERY_ATTEMPT_SUCCESSFUL",
+                    )
+                    .await?;
+                } else {
+                    error_response_handler(
+                        business_profile.merchant_id,
+                        delivery_attempt,
+                        response.status().as_u16(),
+                        "Ignoring error when sending webhook to merchant",
+                    );
+                }
+            }
+        },
+        types::WebhookDeliveryAttempt::AutomaticRetry => {
+            let process_tracker = process_tracker
+                .get_required_value("process_tracker")
+                .change_context(errors::WebhooksFlowError::OutgoingWebhookRetrySchedulingFailed)
+                .attach_printable("`process_tracker` is unavailable in automatic retry flow")?;
+            match response {
+                Err(client_error) => {
+                    api_client_error_handler(client_error, delivery_attempt);
+                    // Schedule a retry attempt for webhook delivery
+                    outgoing_webhook_retry::retry_webhook_delivery_task(
+                        &*state.store,
+                        &business_profile.merchant_id,
+                        process_tracker,
+                    )
+                    .await
+                    .change_context(
+                        errors::WebhooksFlowError::OutgoingWebhookRetrySchedulingFailed,
+                    )?;
+                }
+                Ok(response) => {
+                    if response.status().is_success() {
+                        success_response_handler(
+                            state.clone(),
+                            business_profile.merchant_id,
+                            outgoing_webhook_event_id,
+                            Some(process_tracker),
+                            "COMPLETED_BY_PT",
+                        )
+                        .await?;
+                    } else {
+                        error_response_handler(
+                            business_profile.merchant_id.clone(),
+                            delivery_attempt,
+                            response.status().as_u16(),
+                            "An error occurred when sending webhook to merchant",
+                        );
+                        // Schedule a retry attempt for webhook delivery
+                        outgoing_webhook_retry::retry_webhook_delivery_task(
+                            &*state.store,
+                            &business_profile.merchant_id,
+                            process_tracker,
+                        )
+                        .await
+                        .change_context(
+                            errors::WebhooksFlowError::OutgoingWebhookRetrySchedulingFailed,
+                        )?;
+                    }
+                }
             }
         }
     }
 
     Ok(())
+}
+
+fn raise_webhooks_analytics_event(
+    state: AppState,
+    trigger_webhook_result: CustomResult<(), errors::WebhooksFlowError>,
+    content: api::OutgoingWebhookContent,
+    merchant_id: &str,
+    event_id: &str,
+    event_type: enums::EventType,
+) {
+    let error = if let Err(error) = trigger_webhook_result {
+        logger::error!(?error, "Failed to send webhook to merchant");
+
+        serde_json::to_value(error.current_context())
+            .into_report()
+            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+            .map_err(|error| {
+                logger::error!(?error, "Failed to serialize outgoing webhook error as JSON");
+                error
+            })
+            .ok()
+    } else {
+        None
+    };
+
+    let outgoing_webhook_event_content = content.get_outgoing_webhook_event_content();
+    let webhook_event = OutgoingWebhookEvent::new(
+        merchant_id.to_owned(),
+        event_id.to_owned(),
+        event_type,
+        outgoing_webhook_event_content,
+        error,
+    );
+
+    match RawEvent::try_from(webhook_event.clone()) {
+        Ok(event) => {
+            state.event_handler().log_event(event);
+        }
+        Err(error) => {
+            logger::error!(?error, event=?webhook_event, "Error logging outgoing webhook event");
+        }
+    }
 }
 
 pub async fn webhooks_wrapper<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetrieve>(
@@ -988,16 +1171,15 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
     // Fetch the merchant connector account to get the webhooks source secret
     // `webhooks source secret` is a secret shared between the merchant and connector
     // This is used for source verification and webhooks integrity
-    let (merchant_connector_account, connector) = fetch_mca_and_connector(
+    let (merchant_connector_account, connector) = fetch_optional_mca_and_connector(
         &state,
         &merchant_account,
         connector_name_or_mca_id,
         &key_store,
-        &request_details,
     )
     .await?;
 
-    let connector_name = merchant_connector_account.clone().connector_name;
+    let connector_name = connector.connector_name.to_string();
 
     let connector = connector.connector;
 
@@ -1075,7 +1257,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
 
     logger::info!(process_webhook=?process_webhook_further);
 
-    let flow_type: api::WebhookFlow = event_type.to_owned().into();
+    let flow_type: api::WebhookFlow = event_type.into();
     let mut event_object: Box<dyn masking::ErasedMaskSerialize> = Box::new(serde_json::Value::Null);
     let webhook_effect = if process_webhook_further
         && !matches!(flow_type, api::WebhookFlow::ReturnResponse)
@@ -1093,6 +1275,20 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
                 format!("unable to parse connector name {connector_name:?}")
             })?;
         let connectors_with_source_verification_call = &state.conf.webhook_source_verification_call;
+
+        let merchant_connector_account = match merchant_connector_account {
+            Some(merchant_connector_account) => merchant_connector_account,
+            None => {
+                helper_utils::get_mca_from_object_reference_id(
+                    &*state.clone().store,
+                    object_ref_id.clone(),
+                    &merchant_account,
+                    &connector_name,
+                    &key_store,
+                )
+                .await?
+            }
+        };
 
         let source_verified = if connectors_with_source_verification_call
             .connectors_with_webhook_source_verification_call
@@ -1163,9 +1359,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
             resource_object: serde_json::to_vec(&event_object)
                 .into_report()
                 .change_context(errors::ParsingError::EncodeError("byte-vec"))
-                .attach_printable_lazy(|| {
-                    "Unable to convert webhook paylaod to a value".to_string()
-                })
+                .attach_printable("Unable to convert webhook payload to a value")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(
                     "There was an issue when encoding the incoming webhook body to bytes",
@@ -1188,7 +1382,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
             })?;
 
         match flow_type {
-            api::WebhookFlow::Payment => Box::pin(payments_incoming_webhook_flow::<W, Ctx>(
+            api::WebhookFlow::Payment => Box::pin(payments_incoming_webhook_flow::<Ctx>(
                 state.clone(),
                 merchant_account,
                 business_profile,
@@ -1199,7 +1393,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
             .await
             .attach_printable("Incoming webhook flow for payments failed")?,
 
-            api::WebhookFlow::Refund => Box::pin(refunds_incoming_webhook_flow::<W>(
+            api::WebhookFlow::Refund => Box::pin(refunds_incoming_webhook_flow(
                 state.clone(),
                 merchant_account,
                 business_profile,
@@ -1212,7 +1406,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
             .await
             .attach_printable("Incoming webhook flow for refunds failed")?,
 
-            api::WebhookFlow::Dispute => disputes_incoming_webhook_flow::<W>(
+            api::WebhookFlow::Dispute => disputes_incoming_webhook_flow(
                 state.clone(),
                 merchant_account,
                 business_profile,
@@ -1225,7 +1419,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
             .await
             .attach_printable("Incoming webhook flow for disputes failed")?,
 
-            api::WebhookFlow::BankTransfer => Box::pin(bank_transfer_webhook_flow::<W, Ctx>(
+            api::WebhookFlow::BankTransfer => Box::pin(bank_transfer_webhook_flow::<Ctx>(
                 state.clone(),
                 merchant_account,
                 business_profile,
@@ -1238,7 +1432,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
 
             api::WebhookFlow::ReturnResponse => WebhookResponseTracker::NoEffect,
 
-            api::WebhookFlow::Mandate => mandates_incoming_webhook_flow::<W>(
+            api::WebhookFlow::Mandate => mandates_incoming_webhook_flow(
                 state.clone(),
                 merchant_account,
                 business_profile,
@@ -1317,14 +1511,17 @@ pub async fn get_payment_id(
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
 }
 
-async fn fetch_mca_and_connector(
+/// This function fetches the merchant connector account ( if the url used is /{merchant_connector_id})
+/// if merchant connector id is not passed in the request, then this will return None for mca
+async fn fetch_optional_mca_and_connector(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
     connector_name_or_mca_id: &str,
     key_store: &domain::MerchantKeyStore,
-    request_details: &api::IncomingWebhookRequestDetails<'_>,
-) -> CustomResult<(domain::MerchantConnectorAccount, api::ConnectorData), errors::ApiErrorResponse>
-{
+) -> CustomResult<
+    (Option<domain::MerchantConnectorAccount>, api::ConnectorData),
+    errors::ApiErrorResponse,
+> {
     let db = &state.store;
     if connector_name_or_mca_id.starts_with("mca_") {
         let mca = db
@@ -1352,7 +1549,7 @@ async fn fetch_mca_and_connector(
         })
         .attach_printable("Failed construction of ConnectorData")?;
 
-        Ok((mca, connector))
+        Ok((Some(mca), connector))
     } else {
         // Merchant connector account is already being queried, it is safe to set connector id as None
         let connector = api::ConnectorData::get_connector_by_name(
@@ -1366,38 +1563,92 @@ async fn fetch_mca_and_connector(
         })
         .attach_printable("Failed construction of ConnectorData")?;
 
-        let object_ref_id = connector
-            .connector
-            .get_webhook_object_reference_id(request_details)
-            .switch()
-            .attach_printable("Could not find object reference id in incoming webhook body")?;
-
-        let profile_id = helper_utils::get_profile_id_using_object_reference_id(
-            &*state.store,
-            object_ref_id,
-            merchant_account,
-            connector_name_or_mca_id,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "object reference id",
-        })
-        .attach_printable("Could not find profile id from object reference id")?;
-
-        let mca = db
-            .find_merchant_connector_account_by_profile_id_connector_name(
-                &profile_id,
-                connector_name_or_mca_id,
-                key_store,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: format!(
-                    "profile_id {profile_id} and connector name {connector_name_or_mca_id}"
-                ),
-            })
-            .attach_printable("error while fetching merchant_connector_account from profile_id")?;
-
-        Ok((mca, connector))
+        Ok((None, connector))
     }
+}
+
+pub async fn add_outgoing_webhook_retry_task_to_process_tracker(
+    db: &dyn StorageInterface,
+    business_profile: &diesel_models::business_profile::BusinessProfile,
+    event: &storage::Event,
+) -> CustomResult<storage::ProcessTracker, errors::StorageError> {
+    let schedule_time = outgoing_webhook_retry::get_webhook_delivery_retry_schedule_time(
+        db,
+        &business_profile.merchant_id,
+        0,
+    )
+    .await
+    .ok_or(errors::StorageError::ValueNotFound(
+        "Process tracker schedule time".into(), // Can raise a better error here
+    ))
+    .into_report()
+    .attach_printable("Failed to obtain initial process tracker schedule time")?;
+
+    let tracking_data = types::OutgoingWebhookTrackingData {
+        merchant_id: business_profile.merchant_id.clone(),
+        business_profile_id: business_profile.profile_id.clone(),
+        event_type: event.event_type,
+        event_class: event.event_class,
+        primary_object_id: event.primary_object_id.clone(),
+        primary_object_type: event.primary_object_type,
+    };
+
+    let runner = storage::ProcessTrackerRunner::OutgoingWebhookRetryWorkflow;
+    let task = "OUTGOING_WEBHOOK_RETRY";
+    let tag = ["OUTGOING_WEBHOOKS"];
+    let process_tracker_id = scheduler::utils::get_process_tracker_id(
+        runner,
+        task,
+        &event.event_id,
+        &business_profile.merchant_id,
+    );
+    let process_tracker_entry = storage::ProcessTrackerNew::new(
+        process_tracker_id,
+        task,
+        runner,
+        tag,
+        tracking_data,
+        schedule_time,
+    )
+    .map_err(errors::StorageError::from)?;
+
+    match db.insert_process(process_tracker_entry).await {
+        Ok(process_tracker) => {
+            crate::routes::metrics::TASKS_ADDED_COUNT.add(
+                &metrics::CONTEXT,
+                1,
+                &[add_attributes("flow", "OutgoingWebhookRetry")],
+            );
+            Ok(process_tracker)
+        }
+        Err(error) => {
+            crate::routes::metrics::TASK_ADDITION_FAILURES_COUNT.add(
+                &metrics::CONTEXT,
+                1,
+                &[add_attributes("flow", "OutgoingWebhookRetry")],
+            );
+            Err(error)
+        }
+    }
+}
+
+fn get_webhook_url_from_business_profile(
+    business_profile: &diesel_models::business_profile::BusinessProfile,
+) -> CustomResult<String, errors::WebhooksFlowError> {
+    let webhook_details_json = business_profile
+        .webhook_details
+        .clone()
+        .get_required_value("webhook_details")
+        .change_context(errors::WebhooksFlowError::MerchantWebhookDetailsNotFound)?;
+
+    let webhook_details: api::WebhookDetails =
+        webhook_details_json
+            .parse_value("WebhookDetails")
+            .change_context(errors::WebhooksFlowError::MerchantWebhookDetailsNotFound)?;
+
+    webhook_details
+        .webhook_url
+        .get_required_value("webhook_url")
+        .change_context(errors::WebhooksFlowError::MerchantWebhookUrlNotConfigured)
+        .map(ExposeInterface::expose)
 }

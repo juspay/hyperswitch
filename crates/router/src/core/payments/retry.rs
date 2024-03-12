@@ -1,5 +1,6 @@
 use std::{str::FromStr, vec::IntoIter};
 
+use common_utils::ext_traits::Encode;
 use diesel_models::enums as storage_enums;
 use error_stack::{IntoReport, ResultExt};
 use router_env::{
@@ -20,8 +21,7 @@ use crate::{
     db::StorageInterface,
     routes,
     routes::{app, metrics},
-    services::{self, RedirectForm},
-    types,
+    services, types,
     types::{api, domain, storage},
     utils,
 };
@@ -352,7 +352,8 @@ where
             let encoded_data = payment_data.payment_attempt.encoded_data.clone();
 
             let authentication_data = redirection_data
-                .map(|data| utils::Encode::<RedirectForm>::encode_to_value(&data))
+                .as_ref()
+                .map(Encode::encode_to_value)
                 .transpose()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Could not parse the connector response")?;
@@ -376,7 +377,7 @@ where
                     mandate_id: payment_data
                         .mandate_id
                         .clone()
-                        .map(|mandate| mandate.mandate_id),
+                        .and_then(|mandate| mandate.mandate_id),
                     connector_metadata,
                     payment_token: None,
                     error_code: None,

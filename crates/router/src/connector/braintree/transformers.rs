@@ -1,6 +1,6 @@
 use api_models::payments;
 use base64::Engine;
-use masking::{PeekInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -77,7 +77,7 @@ pub enum PaymentMethodType {
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct Nonce {
-    payment_method_nonce: String,
+    payment_method_nonce: Secret<String>,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -129,14 +129,53 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
                         api_models::payments::WalletData::PaypalSdk(wallet_data) => {
                             Ok(wallet_data.token.to_owned())
                         }
-                        _ => Err(errors::ConnectorError::InvalidWallet),
-                    }?,
+                        api_models::payments::WalletData::ApplePay(_)
+                        | api_models::payments::WalletData::GooglePay(_)
+                        | api_models::payments::WalletData::SamsungPay(_)
+                        | api_models::payments::WalletData::AliPayQr(_)
+                        | api_models::payments::WalletData::AliPayRedirect(_)
+                        | api_models::payments::WalletData::AliPayHkRedirect(_)
+                        | api_models::payments::WalletData::MomoRedirect(_)
+                        | api_models::payments::WalletData::KakaoPayRedirect(_)
+                        | api_models::payments::WalletData::GoPayRedirect(_)
+                        | api_models::payments::WalletData::GcashRedirect(_)
+                        | api_models::payments::WalletData::ApplePayRedirect(_)
+                        | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
+                        | api_models::payments::WalletData::DanaRedirect {}
+                        | api_models::payments::WalletData::GooglePayRedirect(_)
+                        | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
+                        | api_models::payments::WalletData::MbWayRedirect(_)
+                        | api_models::payments::WalletData::MobilePayRedirect(_)
+                        | api_models::payments::WalletData::PaypalRedirect(_)
+                        | api_models::payments::WalletData::TwintRedirect {}
+                        | api_models::payments::WalletData::VippsRedirect {}
+                        | api_models::payments::WalletData::TouchNGoRedirect(_)
+                        | api_models::payments::WalletData::WeChatPayRedirect(_)
+                        | api_models::payments::WalletData::WeChatPayQr(_)
+                        | api_models::payments::WalletData::CashappQr(_)
+                        | api_models::payments::WalletData::SwishQr(_) => {
+                            Err(errors::ConnectorError::NotImplemented(
+                                utils::get_unimplemented_payment_method_error_message("braintree"),
+                            ))
+                        }
+                    }?
+                    .into(),
                 }))
             }
-            _ => Err(errors::ConnectorError::NotImplemented(format!(
-                "Current Payment Method - {:?}",
-                item.request.payment_method_data
-            ))),
+            api::PaymentMethodData::PayLater(_)
+            | api::PaymentMethodData::BankRedirect(_)
+            | api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::CardRedirect(_)
+            | api::PaymentMethodData::MandatePayment
+            | api::PaymentMethodData::Reward
+            | api::PaymentMethodData::Upi(_)
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("braintree"),
+            )),
         }?;
         let braintree_transaction_body = TransactionBody {
             amount,
@@ -178,7 +217,7 @@ impl TryFrom<&types::ConnectorAuthType> for BraintreeAuthType {
     }
 }
 
-#[derive(Debug, Default, Clone, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Default, Clone, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BraintreePaymentStatus {
     Succeeded,
@@ -210,7 +249,9 @@ impl From<BraintreePaymentStatus> for enums::AttemptStatus {
             | BraintreePaymentStatus::SettlementDeclined => Self::Failure,
             BraintreePaymentStatus::Authorized => Self::Authorized,
             BraintreePaymentStatus::Voided => Self::Voided,
-            _ => Self::Pending,
+            BraintreePaymentStatus::SubmittedForSettlement
+            | BraintreePaymentStatus::SettlementPending
+            | BraintreePaymentStatus::SettlementConfirmed => Self::Pending,
         }
     }
 }
@@ -263,7 +304,7 @@ impl<F, T>
             response: Ok(types::PaymentsResponseData::SessionResponse {
                 session_token: types::api::SessionToken::Paypal(Box::new(
                     payments::PaypalSessionTokenResponse {
-                        session_token: item.response.client_token.value,
+                        session_token: item.response.client_token.value.expose(),
                     },
                 )),
             }),
@@ -272,25 +313,25 @@ impl<F, T>
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BraintreePaymentsResponse {
     transaction: TransactionResponse,
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientToken {
-    pub value: String,
+    pub value: Secret<String>,
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BraintreeSessionTokenResponse {
     pub client_token: ClientToken,
 }
 
-#[derive(Default, Debug, Clone, Deserialize, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TransactionResponse {
     id: String,
@@ -299,42 +340,42 @@ pub struct TransactionResponse {
     status: BraintreePaymentStatus,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BraintreeApiErrorResponse {
     pub api_error_response: ApiErrorResponse,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ErrorsObject {
     pub errors: Vec<ErrorObject>,
     pub transaction: Option<TransactionError>,
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TransactionError {
     pub errors: Vec<ErrorObject>,
     pub credit_card: Option<CreditCardError>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct CreditCardError {
     pub errors: Vec<ErrorObject>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ErrorObject {
     pub code: String,
     pub message: String,
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BraintreeErrorResponse {
     pub errors: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
 
@@ -343,7 +384,7 @@ pub enum ErrorResponse {
     BraintreeErrorResponse(Box<BraintreeErrorResponse>),
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ApiErrorResponse {
     pub message: String,
     pub errors: ErrorsObject,
@@ -378,7 +419,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for BraintreeRefundRequest {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Default, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize, Clone, Serialize)]
 pub enum RefundStatus {
     Succeeded,
     Failed,
@@ -396,7 +437,7 @@ impl From<RefundStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct RefundResponse {
     pub id: String,
     pub status: RefundStatus,

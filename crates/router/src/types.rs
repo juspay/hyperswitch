@@ -7,6 +7,7 @@
 // Separation of concerns instead of separation of forms.
 
 pub mod api;
+pub mod authentication;
 pub mod domain;
 #[cfg(feature = "frm")]
 pub mod fraud_check;
@@ -24,7 +25,7 @@ pub use api_models::{
 use common_enums::MandateStatus;
 pub use common_utils::request::{RequestBody, RequestContent};
 use common_utils::{pii, pii::Email};
-use data_models::mandates::MandateData;
+use data_models::mandates::{CustomerAcceptance, MandateData};
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
 use serde::Serialize;
@@ -35,6 +36,7 @@ pub use crate::core::payments::{CustomerDetails, PaymentAddress};
 use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW;
 use crate::{
     core::{
+        authentication as authentication_core,
         errors::{self, RouterResult},
         payments::{types, PaymentData, RecurringMandatePaymentData},
     },
@@ -319,6 +321,10 @@ pub struct RouterData<Flow, Request, Response> {
     pub apple_pay_flow: Option<storage_enums::ApplePayFlow>,
 
     pub frm_metadata: Option<serde_json::Value>,
+
+    pub dispute_id: Option<String>,
+    pub refund_id: Option<String>,
+    pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -331,9 +337,9 @@ pub enum PaymentMethodToken {
 #[serde(rename_all = "camelCase")]
 pub struct ApplePayPredecryptData {
     pub application_primary_account_number: Secret<String>,
-    pub application_expiration_date: Secret<String>,
-    pub currency_code: Secret<String>,
-    pub transaction_amount: Secret<i64>,
+    pub application_expiration_date: String,
+    pub currency_code: String,
+    pub transaction_amount: i64,
     pub device_manufacturer_identifier: Secret<String>,
     pub payment_data_type: Secret<String>,
     pub payment_data: ApplePayCryptogramData,
@@ -343,7 +349,7 @@ pub struct ApplePayPredecryptData {
 #[serde(rename_all = "camelCase")]
 pub struct ApplePayCryptogramData {
     pub online_payment_cryptogram: Secret<String>,
-    pub eci_indicator: Option<Secret<String>>,
+    pub eci_indicator: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -405,6 +411,7 @@ pub struct PaymentsAuthorizeData {
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub mandate_id: Option<api_models::payments::MandateIds>,
     pub off_session: Option<bool>,
+    pub customer_acceptance: Option<CustomerAcceptance>,
     pub setup_mandate_details: Option<MandateData>,
     pub browser_info: Option<BrowserInformation>,
     pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
@@ -418,6 +425,7 @@ pub struct PaymentsAuthorizeData {
     pub customer_id: Option<String>,
     pub request_incremental_authorization: bool,
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub authentication_data: Option<authentication_core::types::AuthenticationData>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -531,6 +539,7 @@ pub struct PaymentsSyncData {
     pub connector_meta: Option<serde_json::Value>,
     pub sync_type: SyncRequestType,
     pub mandate_id: Option<api_models::payments::MandateIds>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -580,6 +589,7 @@ pub struct SetupMandateRequestData {
     pub amount: Option<i64>,
     pub confirm: bool,
     pub statement_descriptor_suffix: Option<String>,
+    pub customer_acceptance: Option<CustomerAcceptance>,
     pub mandate_id: Option<api_models::payments::MandateIds>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
@@ -591,6 +601,7 @@ pub struct SetupMandateRequestData {
     pub return_url: Option<String>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub request_incremental_authorization: bool,
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone)]
@@ -1418,6 +1429,8 @@ impl From<&SetupMandateRouterData> for PaymentsAuthorizeData {
             surcharge_details: None,
             request_incremental_authorization: data.request.request_incremental_authorization,
             metadata: None,
+            authentication_data: None,
+            customer_acceptance: data.request.customer_acceptance.clone(),
         }
     }
 }
@@ -1460,12 +1473,15 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             #[cfg(feature = "payouts")]
             quote_id: data.quote_id.clone(),
             test_mode: data.test_mode,
+            payment_method_status: None,
             payment_method_balance: data.payment_method_balance.clone(),
             connector_api_version: data.connector_api_version.clone(),
             connector_http_status_code: data.connector_http_status_code,
             external_latency: data.external_latency,
             apple_pay_flow: data.apple_pay_flow.clone(),
             frm_metadata: data.frm_metadata.clone(),
+            dispute_id: data.dispute_id.clone(),
+            refund_id: data.refund_id.clone(),
         }
     }
 }
@@ -1517,11 +1533,14 @@ impl<F1, F2>
             quote_id: data.quote_id.clone(),
             test_mode: data.test_mode,
             payment_method_balance: None,
+            payment_method_status: None,
             connector_api_version: None,
             connector_http_status_code: data.connector_http_status_code,
             external_latency: data.external_latency,
             apple_pay_flow: None,
             frm_metadata: None,
+            refund_id: None,
+            dispute_id: None,
         }
     }
 }

@@ -100,6 +100,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
         Option<api::PaymentMethodData>,
+        Option<String>,
     )> {
         helpers::make_pm_data(
             Box::new(self),
@@ -131,6 +132,16 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         _key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, request.routing.clone()).await
+    }
+
+    #[instrument(skip_all)]
+    async fn guard_payment_against_blocklist<'a>(
+        &'a self,
+        _state: &AppState,
+        _merchant_account: &domain::MerchantAccount,
+        _payment_data: &mut PaymentData<F>,
+    ) -> CustomResult<bool, errors::ApiErrorResponse> {
+        Ok(false)
     }
 }
 
@@ -198,6 +209,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
+        _payment_confirm_source: Option<common_enums::PaymentSource>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest, Ctx>>
     {
         get_tracker_for_sync(
@@ -227,7 +239,7 @@ async fn get_tracker_for_sync<
     operation: Op,
     storage_scheme: enums::MerchantStorageScheme,
 ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest, Ctx>> {
-    let (payment_intent, payment_attempt, currency, amount);
+    let (payment_intent, mut payment_attempt, currency, amount);
 
     (payment_intent, payment_attempt) = get_payment_intent_payment_attempt(
         db,
@@ -248,8 +260,8 @@ async fn get_tracker_for_sync<
         db,
         payment_intent.shipping_address_id.clone(),
         mechant_key_store,
-        payment_intent.payment_id.clone(),
-        merchant_account.merchant_id.clone(),
+        &payment_intent.payment_id.clone(),
+        &merchant_account.merchant_id,
         merchant_account.storage_scheme,
     )
     .await?;
@@ -257,11 +269,23 @@ async fn get_tracker_for_sync<
         db,
         payment_intent.billing_address_id.clone(),
         mechant_key_store,
-        payment_intent.payment_id.clone(),
-        merchant_account.merchant_id.clone(),
+        &payment_intent.payment_id.clone(),
+        &merchant_account.merchant_id,
         merchant_account.storage_scheme,
     )
     .await?;
+
+    let payment_method_billing = helpers::get_address_by_id(
+        db,
+        payment_attempt.payment_method_billing_address_id.clone(),
+        mechant_key_store,
+        &payment_intent.payment_id.clone(),
+        &merchant_account.merchant_id,
+        merchant_account.storage_scheme,
+    )
+    .await?;
+
+    payment_attempt.encoded_data = request.param.clone();
 
     let attempts = match request.expand_attempts {
         Some(true) => {
@@ -386,18 +410,24 @@ async fn get_tracker_for_sync<
             .mandate_id
             .clone()
             .map(|id| api_models::payments::MandateIds {
-                mandate_id: id,
+                mandate_id: Some(id),
                 mandate_reference_id: None,
             }),
         mandate_connector: None,
         setup_mandate: None,
+        customer_acceptance: None,
         token: None,
+        token_data: None,
         address: PaymentAddress {
             shipping: shipping_address.as_ref().map(|a| a.into()),
             billing: billing_address.as_ref().map(|a| a.into()),
+            payment_method_billing: payment_method_billing
+                .as_ref()
+                .map(|address| address.into()),
         },
         confirm: Some(request.force_sync),
         payment_method_data: None,
+        payment_method_info: None,
         force_sync: Some(
             request.force_sync
                 && (helpers::check_force_psync_precondition(&payment_attempt.status)
@@ -411,6 +441,7 @@ async fn get_tracker_for_sync<
         card_cvc: None,
         creds_identifier,
         pm_token: None,
+        payment_method_status: None,
         connector_customer_id: None,
         recurring_mandate_payment_data: None,
         ephemeral_key: None,
@@ -421,6 +452,7 @@ async fn get_tracker_for_sync<
         frm_message: frm_response.ok(),
         incremental_authorization_details: None,
         authorizations,
+        authentication: None,
         frm_metadata: None,
     };
 

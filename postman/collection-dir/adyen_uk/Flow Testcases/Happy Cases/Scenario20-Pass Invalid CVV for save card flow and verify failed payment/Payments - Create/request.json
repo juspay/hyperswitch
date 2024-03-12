@@ -33,6 +33,14 @@
       "authentication_type": "no_three_ds",
       "return_url": "https://google.com",
       "setup_future_usage": "on_session",
+      "customer_acceptance": {
+        "acceptance_type": "offline",
+        "accepted_at": "1963-05-03T04:07:52.723Z",
+        "online": {
+          "ip_address": "127.0.0.1",
+          "user_agent": "amet irure esse"
+        }
+      },
       "payment_method": "card",
       "payment_method_type": "credit",
       "payment_method_data": {
@@ -89,12 +97,8 @@
   },
   "url": {
     "raw": "{{baseUrl}}/payments",
-    "host": [
-      "{{baseUrl}}"
-    ],
-    "path": [
-      "payments"
-    ]
+    "host": ["{{baseUrl}}"],
+    "path": ["payments"]
   },
   "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
 }

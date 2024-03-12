@@ -13,12 +13,6 @@ use data_models::{
 use diesel_models::enums;
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
-#[cfg(feature = "hashicorp-vault")]
-use external_services::hashicorp_vault;
-#[cfg(feature = "hashicorp-vault")]
-use external_services::hashicorp_vault::decrypt::VaultFetch;
-#[cfg(feature = "kms")]
-use external_services::kms;
 use josekit::jwe;
 use masking::{ExposeInterface, PeekInterface};
 use openssl::{
@@ -42,6 +36,7 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::{cards, vault, PaymentMethodRetrieve},
         payments,
+        pm_auth::retrieve_payment_method_from_auth_service,
     },
     db::StorageInterface,
     routes::{metrics, payment_methods, AppState},
@@ -181,6 +176,14 @@ pub async fn create_or_update_address_for_payment_by_request(
                             .as_ref()
                             .and_then(|value| value.country_code.clone()),
                         updated_by: storage_scheme.to_string(),
+                        email: address
+                            .email
+                            .as_ref()
+                            .cloned()
+                            .async_lift(|inner| {
+                                types::encrypt_optional(inner.map(|inner| inner.expose()), key)
+                            })
+                            .await?,
                     })
                 }
                 .await
@@ -370,6 +373,12 @@ pub async fn get_domain_address_for_payments(
                 .await?,
             payment_id: Some(payment_id.to_owned()),
             updated_by: storage_scheme.to_string(),
+            email: address
+                .email
+                .as_ref()
+                .cloned()
+                .async_lift(|inner| types::encrypt_optional(inner.map(|inner| inner.expose()), key))
+                .await?,
         })
     }
     .await
@@ -379,16 +388,16 @@ pub async fn get_address_by_id(
     db: &dyn StorageInterface,
     address_id: Option<String>,
     merchant_key_store: &domain::MerchantKeyStore,
-    payment_id: String,
-    merchant_id: String,
+    payment_id: &str,
+    merchant_id: &str,
     storage_scheme: storage_enums::MerchantStorageScheme,
 ) -> CustomResult<Option<domain::Address>, errors::ApiErrorResponse> {
     match address_id {
         None => Ok(None),
         Some(address_id) => Ok(db
             .find_address_by_merchant_id_payment_id_address_id(
-                &merchant_id,
-                &payment_id,
+                merchant_id,
+                payment_id,
                 &address_id,
                 merchant_key_store,
                 storage_scheme,
@@ -669,8 +678,11 @@ pub fn validate_amount_to_capture_and_capture_method(
             .unwrap_or(0);
         let total_capturable_amount =
             original_amount.map(|original_amount| original_amount + surcharge_amount);
+        let amount_to_capture = request
+            .amount_to_capture
+            .or(payment_attempt.and_then(|pa| pa.amount_to_capture));
         if let Some((total_capturable_amount, amount_to_capture)) =
-            total_capturable_amount.zip(request.amount_to_capture)
+            total_capturable_amount.zip(amount_to_capture)
         {
             utils::when(amount_to_capture != total_capturable_amount, || {
                 Err(report!(errors::ApiErrorResponse::PreconditionFailed {
@@ -779,7 +791,7 @@ pub fn validate_mandate(
     let req: api::MandateValidationFields = req.into();
     match req.validate_and_get_mandate_type().change_context(
         errors::ApiErrorResponse::MandateValidationFailed {
-            reason: "Expected one out of mandate_id and mandate_data but got both".to_string(),
+            reason: "Expected one out of mandate_id and mandate_data but got both".into(),
         },
     )? {
         Some(api::MandateTransactionType::NewMandateTransaction) => {
@@ -813,16 +825,6 @@ fn validate_new_mandate_request(
         .mandate_data
         .clone()
         .get_required_value("mandate_data")?;
-
-    if api_enums::FutureUsage::OnSession
-        == req
-            .setup_future_usage
-            .get_required_value("setup_future_usage")?
-    {
-        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-            message: "`setup_future_usage` must be `off_session` for mandates".into()
-        }))?
-    };
 
     // Only use this validation if the customer_acceptance is present
     if mandate_data
@@ -894,6 +896,17 @@ pub fn create_redirect_url(
     ) + creds_identifier_path.as_ref()
 }
 
+pub fn create_authorize_url(
+    router_base_url: &String,
+    payment_attempt: &PaymentAttempt,
+    connector_name: &String,
+) -> String {
+    format!(
+        "{}/payments/{}/{}/authorize/{}",
+        router_base_url, payment_attempt.payment_id, payment_attempt.merchant_id, connector_name
+    )
+}
+
 pub fn create_webhook_url(
     router_base_url: &String,
     merchant_id: &String,
@@ -950,7 +963,7 @@ pub fn verify_mandate_details(
                 .unwrap_or(true),
             || {
                 Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
-                    reason: "request amount is greater than mandate amount".to_string()
+                    reason: "request amount is greater than mandate amount".into()
                 }))
             },
         ),
@@ -963,7 +976,7 @@ pub fn verify_mandate_details(
                 .unwrap_or(false),
             || {
                 Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
-                    reason: "request amount is greater than mandate amount".to_string()
+                    reason: "request amount is greater than mandate amount".into()
                 }))
             },
         ),
@@ -975,7 +988,7 @@ pub fn verify_mandate_details(
             .unwrap_or(false),
         || {
             Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
-                reason: "cross currency mandates not supported".to_string()
+                reason: "cross currency mandates not supported".into()
             }))
         },
     )
@@ -983,7 +996,7 @@ pub fn verify_mandate_details(
 
 #[instrument(skip_all)]
 pub fn payment_attempt_status_fsm(
-    payment_method_data: &Option<api::PaymentMethodData>,
+    payment_method_data: &Option<api::payments::PaymentMethodDataRequest>,
     confirm: Option<bool>,
 ) -> storage_enums::AttemptStatus {
     match payment_method_data {
@@ -996,7 +1009,7 @@ pub fn payment_attempt_status_fsm(
 }
 
 pub fn payment_intent_status_fsm(
-    payment_method_data: &Option<api::PaymentMethodData>,
+    payment_method_data: &Option<api::PaymentMethodDataRequest>,
     confirm: Option<bool>,
 ) -> storage_enums::IntentStatus {
     match payment_method_data {
@@ -1032,7 +1045,6 @@ where
                     );
                     super::add_process_sync_task(&*state.store, payment_attempt, stime)
                         .await
-                        .into_report()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed while adding task to process tracker")
                 } else {
@@ -1097,6 +1109,7 @@ pub(crate) async fn get_payment_method_create_request(
                         payment_method_issuer: card.card_issuer.clone(),
                         payment_method_issuer_code: None,
                         bank_transfer: None,
+                        wallet: None,
                         card: Some(card_detail),
                         metadata: None,
                         customer_id: Some(customer_id),
@@ -1114,11 +1127,13 @@ pub(crate) async fn get_payment_method_create_request(
                         payment_method_issuer: None,
                         payment_method_issuer_code: None,
                         bank_transfer: None,
+                        wallet: None,
                         card: None,
                         metadata: None,
                         customer_id: Some(customer.customer_id.to_owned()),
                         card_network: None,
                     };
+
                     Ok(payment_method_request)
                 }
             },
@@ -1390,6 +1405,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, Ctx>(
                             modified_at: common_utils::date_time::now(),
                             connector_customer: None,
                             address_id: None,
+                            default_payment_method_id: None,
                         })
                     }
                     .await
@@ -1533,7 +1549,8 @@ pub async fn retrieve_payment_method_with_temporary_token(
 
 pub async fn retrieve_card_with_permanent_token(
     state: &AppState,
-    token: &str,
+    locker_id: &str,
+    payment_method_id: &str,
     payment_intent: &PaymentIntent,
     card_token_data: Option<&CardToken>,
 ) -> RouterResult<api::PaymentMethodData> {
@@ -1544,11 +1561,11 @@ pub async fn retrieve_card_with_permanent_token(
         .change_context(errors::ApiErrorResponse::UnprocessableEntity {
             message: "no customer id provided for the payment".to_string(),
         })?;
-
-    let card = cards::get_card_from_locker(state, customer_id, &payment_intent.merchant_id, token)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("failed to fetch card information from the permanent locker")?;
+    let card =
+        cards::get_card_from_locker(state, customer_id, &payment_intent.merchant_id, locker_id)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed to fetch card information from the permanent locker")?;
 
     // The card_holder_name from locker retrieved card is considered if it is a non-empty string or else card_holder_name is picked
     // from payment_method_data.card_token object
@@ -1581,8 +1598,92 @@ pub async fn retrieve_card_with_permanent_token(
         card_issuing_country: None,
         bank_code: None,
     };
-
+    cards::update_last_used_at(payment_method_id, state).await?;
     Ok(api::PaymentMethodData::Card(api_card))
+}
+
+pub async fn retrieve_payment_method_from_db_with_token_data(
+    state: &AppState,
+    token_data: &storage::PaymentTokenData,
+) -> RouterResult<Option<storage::PaymentMethod>> {
+    match token_data {
+        storage::PaymentTokenData::PermanentCard(data) => {
+            if let Some(ref payment_method_id) = data.payment_method_id {
+                state
+                    .store
+                    .find_payment_method(payment_method_id)
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
+                    .attach_printable("error retrieving payment method from DB")
+                    .map(Some)
+            } else {
+                Ok(None)
+            }
+        }
+
+        storage::PaymentTokenData::WalletToken(data) => state
+            .store
+            .find_payment_method(&data.payment_method_id)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
+            .attach_printable("error retrieveing payment method from DB")
+            .map(Some),
+
+        storage::PaymentTokenData::Temporary(_)
+        | storage::PaymentTokenData::TemporaryGeneric(_)
+        | storage::PaymentTokenData::Permanent(_)
+        | storage::PaymentTokenData::AuthBankDebit(_) => Ok(None),
+    }
+}
+
+pub async fn retrieve_payment_token_data(
+    state: &AppState,
+    token: String,
+    payment_method: Option<storage_enums::PaymentMethod>,
+) -> RouterResult<storage::PaymentTokenData> {
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
+
+    let key = format!(
+        "pm_token_{}_{}_hyperswitch",
+        token,
+        payment_method.get_required_value("payment_method")?
+    );
+
+    let token_data_string = redis_conn
+        .get_key::<Option<String>>(&key)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch the token from redis")?
+        .ok_or(error_stack::Report::new(
+            errors::ApiErrorResponse::UnprocessableEntity {
+                message: "Token is invalid or expired".to_owned(),
+            },
+        ))?;
+
+    let token_data_result = token_data_string
+        .clone()
+        .parse_struct("PaymentTokenData")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to deserialize hyperswitch token data");
+
+    let token_data = match token_data_result {
+        Ok(data) => data,
+        Err(e) => {
+            // The purpose of this logic is backwards compatibility to support tokens
+            // in redis that might be following the old format.
+            if token_data_string.starts_with('{') {
+                return Err(e);
+            } else {
+                storage::PaymentTokenData::temporary_generic(token_data_string)
+            }
+        }
+    };
+
+    Ok(token_data)
 }
 
 pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
@@ -1594,6 +1695,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
 ) -> RouterResult<(
     BoxedOperation<'a, F, R, Ctx>,
     Option<api::PaymentMethodData>,
+    Option<String>,
 )> {
     let request = &payment_data.payment_method_data.clone();
 
@@ -1612,91 +1714,37 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
         }
     }
 
-    let token = payment_data.token.clone();
-
-    let hyperswitch_token = match payment_data.mandate_id {
-        Some(_) => token.map(storage::PaymentTokenData::temporary_generic),
-        None => {
-            if let Some(token) = token {
-                let redis_conn = state
-                    .store
-                    .get_redis_conn()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to get redis connection")?;
-
-                let key = format!(
-                    "pm_token_{}_{}_hyperswitch",
-                    token,
-                    payment_data
-                        .payment_attempt
-                        .payment_method
-                        .to_owned()
-                        .get_required_value("payment_method")?,
-                );
-
-                let token_data_string = redis_conn
-                    .get_key::<Option<String>>(&key)
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to fetch the token from redis")?
-                    .ok_or(error_stack::Report::new(
-                        errors::ApiErrorResponse::UnprocessableEntity {
-                            message: "Token is invalid or expired".to_owned(),
-                        },
-                    ))?;
-
-                let token_data_result = token_data_string
-                    .clone()
-                    .parse_struct("PaymentTokenData")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("failed to deserialize hyperswitch token data");
-
-                let token_data = match token_data_result {
-                    Ok(data) => data,
-                    Err(e) => {
-                        // The purpose of this logic is backwards compatibility to support tokens
-                        // in redis that might be following the old format.
-                        if token_data_string.starts_with('{') {
-                            return Err(e);
-                        } else {
-                            storage::PaymentTokenData::temporary_generic(token_data_string)
-                        }
-                    }
-                };
-
-                Some(token_data)
-            } else {
-                None
-            }
-        }
-    };
-
     // TODO: Handle case where payment method and token both are present in request properly.
-    let payment_method = match (request, hyperswitch_token) {
+    let (payment_method, pm_id) = match (request, payment_data.token_data.as_ref()) {
         (_, Some(hyperswitch_token)) => {
-            let payment_method_details = Ctx::retrieve_payment_method_with_token(
+            let pm_data = Ctx::retrieve_payment_method_with_token(
                 state,
                 merchant_key_store,
-                &hyperswitch_token,
+                hyperswitch_token,
                 &payment_data.payment_intent,
                 card_token_data.as_ref(),
                 customer,
             )
-            .await
-            .attach_printable("in 'make_pm_data'")?;
+            .await;
+
+            let payment_method_details = pm_data.attach_printable("in 'make_pm_data'")?;
 
             Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(
-                if let Some((payment_method_data, payment_method)) = payment_method_details {
-                    payment_data.payment_attempt.payment_method = Some(payment_method);
-                    Some(payment_method_data)
+                if let Some(payment_method_data) = payment_method_details.payment_method_data {
+                    payment_data.payment_attempt.payment_method =
+                        payment_method_details.payment_method;
+                    (
+                        Some(payment_method_data),
+                        payment_method_details.payment_method_id,
+                    )
                 } else {
-                    None
+                    (None, payment_method_details.payment_method_id)
                 },
             )
         }
 
         (Some(_), _) => {
-            let payment_method_data = Ctx::retrieve_payment_method(
+            let (payment_method_data, payment_token) = Ctx::retrieve_payment_method(
                 request,
                 state,
                 &payment_data.payment_intent,
@@ -1705,14 +1753,14 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
             )
             .await?;
 
-            payment_data.token = payment_method_data.1;
+            payment_data.token = payment_token;
 
-            Ok(payment_method_data.0)
+            Ok((payment_method_data, None))
         }
-        _ => Ok(None),
+        _ => Ok((None, None)),
     }?;
 
-    Ok((operation, payment_method))
+    Ok((operation, payment_method, pm_id))
 }
 
 pub async fn store_in_vault_and_generate_ppmt(
@@ -1933,7 +1981,7 @@ pub(crate) fn validate_payment_method_fields_present(
                 .map_or(Ok(()), |req_payment_method_data| {
                     req.payment_method.map_or(Ok(()), |req_payment_method| {
                         validate_payment_method_and_payment_method_data(
-                            req_payment_method_data,
+                            req_payment_method_data.payment_method_data,
                             req_payment_method,
                         )
                     })
@@ -2670,6 +2718,7 @@ mod tests {
                 common_utils::date_time::now()
                     .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
             ),
+            request_external_three_ds_authentication: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -2725,6 +2774,7 @@ mod tests {
                 common_utils::date_time::now()
                     .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
             ),
+            request_external_three_ds_authentication: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -2779,6 +2829,7 @@ mod tests {
                 common_utils::date_time::now()
                     .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
             ),
+            request_external_three_ds_authentication: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -2888,16 +2939,13 @@ pub async fn get_merchant_connector_account(
                     },
                 )?;
 
-            #[cfg(feature = "kms")]
             let private_key = state
-                .kms_secrets
+                .conf
                 .jwekey
-                .peek()
+                .get_inner()
                 .tunnel_private_key
+                .peek()
                 .as_bytes();
-
-            #[cfg(not(feature = "kms"))]
-            let private_key = state.conf.jwekey.tunnel_private_key.as_bytes();
 
             let decrypted_mca = services::decrypt_jwe(mca_config.config.as_str(), services::KeyIdCheck::SkipKeyIdCheck, private_key, jwe::RSA_OAEP_256)
                                      .await
@@ -2952,7 +3000,7 @@ pub async fn get_merchant_connector_account(
 /// # Arguments
 ///
 /// * `router_data` - original router data
-/// * `request` - new request
+/// * `request` - new request core/helper
 /// * `response` - new response
 pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
     router_data: RouterData<F1, Req1, Res1>,
@@ -2979,6 +3027,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         attempt_id: router_data.attempt_id,
         access_token: router_data.access_token,
         session_token: router_data.session_token,
+        payment_method_status: router_data.payment_method_status,
         reference_id: router_data.reference_id,
         payment_method_token: router_data.payment_method_token,
         customer_id: router_data.customer_id,
@@ -2997,6 +3046,8 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         external_latency: router_data.external_latency,
         apple_pay_flow: router_data.apple_pay_flow,
         frm_metadata: router_data.frm_metadata,
+        refund_id: router_data.refund_id,
+        dispute_id: router_data.dispute_id,
     }
 }
 
@@ -3126,7 +3177,7 @@ impl AttemptType {
     // In case if fields are not overridden by the request then they contain the same data that was in the previous attempt provided it is populated in this function.
     #[inline(always)]
     fn make_new_payment_attempt(
-        payment_method_data: &Option<api_models::payments::PaymentMethodData>,
+        payment_method_data: &Option<api_models::payments::PaymentMethodDataRequest>,
         old_payment_attempt: PaymentAttempt,
         new_attempt_count: i16,
         storage_scheme: enums::MerchantStorageScheme,
@@ -3197,6 +3248,14 @@ impl AttemptType {
             unified_code: None,
             unified_message: None,
             net_amount: old_payment_attempt.amount,
+            external_three_ds_authentication_attempted: old_payment_attempt
+                .external_three_ds_authentication_attempted,
+            authentication_connector: None,
+            authentication_id: None,
+            mandate_data: old_payment_attempt.mandate_data,
+            // New payment method billing address can be passed for a retry
+            payment_method_billing_address_id: None,
+            fingerprint_id: None,
         }
     }
 
@@ -3433,9 +3492,16 @@ pub async fn get_additional_payment_data(
                 _ => api_models::payments::AdditionalPaymentData::BankRedirect { bank_name: None },
             }
         }
-        api_models::payments::PaymentMethodData::Wallet(_) => {
-            api_models::payments::AdditionalPaymentData::Wallet {}
-        }
+        api_models::payments::PaymentMethodData::Wallet(wallet) => match wallet {
+            api_models::payments::WalletData::ApplePay(apple_pay_wallet_data) => {
+                api_models::payments::AdditionalPaymentData::Wallet(Some(
+                    api_models::payments::Wallets::ApplePay(
+                        apple_pay_wallet_data.payment_method.to_owned(),
+                    ),
+                ))
+            }
+            _ => api_models::payments::AdditionalPaymentData::Wallet(None),
+        },
         api_models::payments::PaymentMethodData::PayLater(_) => {
             api_models::payments::AdditionalPaymentData::PayLater {}
         }
@@ -3531,38 +3597,13 @@ impl ApplePayData {
         &self,
         state: &AppState,
     ) -> CustomResult<String, errors::ApplePayDecryptionError> {
-        let apple_pay_ppc = async {
-            #[cfg(feature = "hashicorp-vault")]
-            let client =
-                external_services::hashicorp_vault::get_hashicorp_client(&state.conf.hc_vault)
-                    .await
-                    .change_context(errors::ApplePayDecryptionError::DecryptionFailed)
-                    .attach_printable("Failed while creating client")?;
-
-            #[cfg(feature = "hashicorp-vault")]
-            let output =
-                masking::Secret::new(state.conf.applepay_decrypt_keys.apple_pay_ppc.clone())
-                    .fetch_inner::<hashicorp_vault::Kv2>(client)
-                    .await
-                    .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?
-                    .expose();
-
-            #[cfg(not(feature = "hashicorp-vault"))]
-            let output = state.conf.applepay_decrypt_keys.apple_pay_ppc.clone();
-
-            Ok::<_, error_stack::Report<errors::ApplePayDecryptionError>>(output)
-        }
-        .await?;
-
-        #[cfg(feature = "kms")]
-        let cert_data = kms::get_kms_client(&state.conf.kms)
-            .await
-            .decrypt(&apple_pay_ppc)
-            .await
-            .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?;
-
-        #[cfg(not(feature = "kms"))]
-        let cert_data = &apple_pay_ppc;
+        let cert_data = state
+            .conf
+            .applepay_decrypt_keys
+            .get_inner()
+            .apple_pay_ppc
+            .clone()
+            .expose();
 
         let base64_decode_cert_data = BASE64_ENGINE
             .decode(cert_data)
@@ -3614,39 +3655,14 @@ impl ApplePayData {
             .change_context(errors::ApplePayDecryptionError::KeyDeserializationFailed)
             .attach_printable("Failed to deserialize the public key")?;
 
-        let apple_pay_ppc_key = async {
-            #[cfg(feature = "hashicorp-vault")]
-            let client =
-                external_services::hashicorp_vault::get_hashicorp_client(&state.conf.hc_vault)
-                    .await
-                    .change_context(errors::ApplePayDecryptionError::DecryptionFailed)
-                    .attach_printable("Failed while creating client")?;
+        let decrypted_apple_pay_ppc_key = state
+            .conf
+            .applepay_decrypt_keys
+            .get_inner()
+            .apple_pay_ppc_key
+            .clone()
+            .expose();
 
-            #[cfg(feature = "hashicorp-vault")]
-            let output =
-                masking::Secret::new(state.conf.applepay_decrypt_keys.apple_pay_ppc_key.clone())
-                    .fetch_inner::<hashicorp_vault::Kv2>(client)
-                    .await
-                    .change_context(errors::ApplePayDecryptionError::DecryptionFailed)
-                    .attach_printable("Failed while creating client")?
-                    .expose();
-
-            #[cfg(not(feature = "hashicorp-vault"))]
-            let output = state.conf.applepay_decrypt_keys.apple_pay_ppc_key.clone();
-
-            Ok::<_, error_stack::Report<errors::ApplePayDecryptionError>>(output)
-        }
-        .await?;
-
-        #[cfg(feature = "kms")]
-        let decrypted_apple_pay_ppc_key = kms::get_kms_client(&state.conf.kms)
-            .await
-            .decrypt(&apple_pay_ppc_key)
-            .await
-            .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?;
-
-        #[cfg(not(feature = "kms"))]
-        let decrypted_apple_pay_ppc_key = &apple_pay_ppc_key;
         // Create PKey objects from EcKey
         let private_key = PKey::private_key_from_pem(decrypted_apple_pay_ppc_key.as_bytes())
             .into_report()
@@ -3882,6 +3898,142 @@ pub fn validate_session_expiry(session_expiry: u32) -> Result<(), errors::ApiErr
     if !(consts::MIN_SESSION_EXPIRY..=consts::MAX_SESSION_EXPIRY).contains(&session_expiry) {
         Err(errors::ApiErrorResponse::InvalidRequestData {
             message: "session_expiry should be between 60(1 min) to 7890000(3 months).".to_string(),
+        })
+    } else {
+        Ok(())
+    }
+}
+
+pub async fn get_payment_method_details_from_payment_token(
+    state: &AppState,
+    payment_attempt: &PaymentAttempt,
+    payment_intent: &PaymentIntent,
+    key_store: &domain::MerchantKeyStore,
+) -> RouterResult<Option<(api::PaymentMethodData, enums::PaymentMethod)>> {
+    let hyperswitch_token = if let Some(token) = payment_attempt.payment_token.clone() {
+        let redis_conn = state
+            .store
+            .get_redis_conn()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get redis connection")?;
+        let key = format!(
+            "pm_token_{}_{}_hyperswitch",
+            token,
+            payment_attempt
+                .payment_method
+                .to_owned()
+                .get_required_value("payment_method")?,
+        );
+        let token_data_string = redis_conn
+            .get_key::<Option<String>>(&key)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to fetch the token from redis")?
+            .ok_or(error_stack::Report::new(
+                errors::ApiErrorResponse::UnprocessableEntity {
+                    message: "Token is invalid or expired".to_owned(),
+                },
+            ))?;
+        let token_data_result = token_data_string
+            .clone()
+            .parse_struct("PaymentTokenData")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed to deserialize hyperswitch token data");
+        let token_data = match token_data_result {
+            Ok(data) => data,
+            Err(e) => {
+                // The purpose of this logic is backwards compatibility to support tokens
+                // in redis that might be following the old format.
+                if token_data_string.starts_with('{') {
+                    return Err(e);
+                } else {
+                    storage::PaymentTokenData::temporary_generic(token_data_string)
+                }
+            }
+        };
+        Some(token_data)
+    } else {
+        None
+    };
+    let token = hyperswitch_token
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .into_report()
+        .attach_printable("missing hyperswitch_token")?;
+    match token {
+        storage::PaymentTokenData::TemporaryGeneric(generic_token) => {
+            retrieve_payment_method_with_temporary_token(
+                state,
+                &generic_token.token,
+                payment_intent,
+                key_store,
+                None,
+            )
+            .await
+        }
+
+        storage::PaymentTokenData::Temporary(generic_token) => {
+            retrieve_payment_method_with_temporary_token(
+                state,
+                &generic_token.token,
+                payment_intent,
+                key_store,
+                None,
+            )
+            .await
+        }
+
+        storage::PaymentTokenData::Permanent(card_token) => retrieve_card_with_permanent_token(
+            state,
+            &card_token.token,
+            card_token
+                .payment_method_id
+                .as_ref()
+                .unwrap_or(&card_token.token),
+            payment_intent,
+            None,
+        )
+        .await
+        .map(|card| Some((card, enums::PaymentMethod::Card))),
+
+        storage::PaymentTokenData::PermanentCard(card_token) => retrieve_card_with_permanent_token(
+            state,
+            &card_token.token,
+            card_token
+                .payment_method_id
+                .as_ref()
+                .unwrap_or(&card_token.token),
+            payment_intent,
+            None,
+        )
+        .await
+        .map(|card| Some((card, enums::PaymentMethod::Card))),
+
+        storage::PaymentTokenData::AuthBankDebit(auth_token) => {
+            retrieve_payment_method_from_auth_service(
+                state,
+                key_store,
+                &auth_token,
+                payment_intent,
+                &None,
+            )
+            .await
+        }
+
+        storage::PaymentTokenData::WalletToken(_) => Ok(None),
+    }
+}
+
+// This function validates the  mandate_data with its setup_future_usage
+pub fn validate_mandate_data_and_future_usage(
+    setup_future_usages: Option<api_enums::FutureUsage>,
+    mandate_details_present: bool,
+) -> Result<(), errors::ApiErrorResponse> {
+    if mandate_details_present
+        && (Some(api_enums::FutureUsage::OnSession) == setup_future_usages
+            || setup_future_usages.is_none())
+    {
+        Err(errors::ApiErrorResponse::PreconditionFailed {
+            message: "`setup_future_usage` must be `off_session` for mandates".into(),
         })
     } else {
         Ok(())

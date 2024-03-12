@@ -19,9 +19,10 @@ pub mod refund;
 mod reverse_lookup;
 mod utils;
 
+use common_utils::errors::CustomResult;
 use database::store::PgPool;
 pub use mock_db::MockDb;
-use redis_interface::errors::RedisError;
+use redis_interface::{errors::RedisError, SaddReply};
 
 pub use crate::database::store::DatabaseStore;
 
@@ -225,6 +226,11 @@ impl<T: DatabaseStore> KVRouterStore<T> {
                     .change_context(RedisError::JsonSerializationFailed)?,
             )
             .await
+            .map(|_| metrics::KV_PUSHED_TO_DRAINER.add(&metrics::CONTEXT, 1, &[]))
+            .map_err(|err| {
+                metrics::KV_FAILED_TO_PUSH_TO_DRAINER.add(&metrics::CONTEXT, 1, &[]);
+                err
+            })
             .change_context(RedisError::StreamAppendFailed)
     }
 }
@@ -252,5 +258,76 @@ pub(crate) fn diesel_error_to_data_error(
             key: None,
         },
         _ => StorageError::DatabaseError(error_stack::report!(*diesel_error)),
+    }
+}
+
+#[async_trait::async_trait]
+pub trait UniqueConstraints {
+    fn unique_constraints(&self) -> Vec<String>;
+    fn table_name(&self) -> &str;
+    async fn check_for_constraints(
+        &self,
+        redis_conn: &Arc<redis_interface::RedisConnectionPool>,
+    ) -> CustomResult<(), RedisError> {
+        let constraints = self.unique_constraints();
+        let sadd_result = redis_conn
+            .sadd(
+                &format!("unique_constraint:{}", self.table_name()),
+                constraints,
+            )
+            .await?;
+
+        match sadd_result {
+            SaddReply::KeyNotSet => Err(error_stack::report!(RedisError::SetAddMembersFailed)),
+            SaddReply::KeySet => Ok(()),
+        }
+    }
+}
+
+impl UniqueConstraints for diesel_models::Address {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!("address_{}", self.address_id)]
+    }
+    fn table_name(&self) -> &str {
+        "Address"
+    }
+}
+
+impl UniqueConstraints for diesel_models::PaymentIntent {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!("pi_{}_{}", self.merchant_id, self.payment_id)]
+    }
+    fn table_name(&self) -> &str {
+        "PaymentIntent"
+    }
+}
+
+impl UniqueConstraints for diesel_models::PaymentAttempt {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!(
+            "pa_{}_{}_{}",
+            self.merchant_id, self.payment_id, self.attempt_id
+        )]
+    }
+    fn table_name(&self) -> &str {
+        "PaymentAttempt"
+    }
+}
+
+impl UniqueConstraints for diesel_models::Refund {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!("refund_{}_{}", self.merchant_id, self.refund_id)]
+    }
+    fn table_name(&self) -> &str {
+        "Refund"
+    }
+}
+
+impl UniqueConstraints for diesel_models::ReverseLookup {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!("reverselookup_{}", self.lookup_id)]
+    }
+    fn table_name(&self) -> &str {
+        "ReverseLookup"
     }
 }
