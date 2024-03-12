@@ -380,8 +380,11 @@ where
                     let request_url = request.url.clone();
                     let request_method = request.method;
                     let current_time = Instant::now();
-                    let response = call_connector_api(state, request).await;
+                    let response =
+                        call_connector_api(state, request, "execute_connector_processing_step")
+                            .await;
                     let external_latency = current_time.elapsed().as_millis();
+                    logger::info!(connector_request=?masked_request_body);
                     logger::debug!(connector_response=?response);
                     let status_code = response
                         .as_ref()
@@ -562,16 +565,26 @@ where
 pub async fn call_connector_api(
     state: &AppState,
     request: Request,
+    flow_name: &str,
 ) -> CustomResult<Result<types::Response, types::Response>, errors::ApiClientError> {
     let current_time = Instant::now();
-
+    let headers = request.headers.clone();
+    let url = request.url.clone();
     let response = state
         .api_client
         .send_request(state, request, None, true)
         .await;
 
-    let elapsed_time = current_time.elapsed();
-    logger::info!(request_time=?elapsed_time);
+    let _ = response.as_ref().map(|resp| {
+        let status_code = resp.status().as_u16();
+        let elapsed_time = current_time.elapsed();
+        logger::info!(
+            headers=?headers,
+            url=?url,
+            status_code=?status_code,
+            flow=?flow_name,
+            elapsed_time=?elapsed_time)
+    });
 
     handle_response(response).await
 }
