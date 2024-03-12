@@ -981,6 +981,15 @@ pub enum SyncStatus {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub enum RSyncStatus {
+    RefundSettledSuccessfully,
+    RefundPendingSettlement,
+    Declined,
+    GeneralError,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SyncTransactionResponse {
     #[serde(rename = "transId")]
     transaction_id: String,
@@ -993,21 +1002,18 @@ pub struct AuthorizedotnetSyncResponse {
     messages: ResponseMessages,
 }
 
-impl From<SyncStatus> for enums::RefundStatus {
-    fn from(transaction_status: SyncStatus) -> Self {
-        match transaction_status {
-            SyncStatus::RefundSettledSuccessfully => Self::Success,
-            SyncStatus::RefundPendingSettlement => Self::Pending,
-            SyncStatus::AuthorizedPendingCapture
-            | SyncStatus::CapturedPendingSettlement
-            | SyncStatus::SettledSuccessfully
-            | SyncStatus::Declined
-            | SyncStatus::Voided
-            | SyncStatus::CouldNotVoid
-            | SyncStatus::GeneralError
-            | SyncStatus::FDSPendingReview => Self::Failure,
-        }
-    }
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RSyncTransactionResponse {
+    #[serde(rename = "transId")]
+    transaction_id: String,
+    transaction_status: RSyncStatus,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct AuthorizedotnetRSyncResponse {
+    transaction: Option<RSyncTransactionResponse>,
+    messages: ResponseMessages,
 }
 
 impl From<SyncStatus> for enums::AttemptStatus {
@@ -1027,13 +1033,23 @@ impl From<SyncStatus> for enums::AttemptStatus {
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, AuthorizedotnetSyncResponse>>
+impl From<RSyncStatus> for enums::RefundStatus {
+    fn from(transaction_status: RSyncStatus) -> Self {
+        match transaction_status {
+            RSyncStatus::RefundSettledSuccessfully => Self::Success,
+            RSyncStatus::RefundPendingSettlement => Self::Pending,
+            RSyncStatus::Declined | RSyncStatus::GeneralError => Self::Failure,
+        }
+    }
+}
+
+impl TryFrom<types::RefundsResponseRouterData<api::RSync, AuthorizedotnetRSyncResponse>>
     for types::RefundsRouterData<api::RSync>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, AuthorizedotnetSyncResponse>,
+        item: types::RefundsResponseRouterData<api::RSync, AuthorizedotnetRSyncResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response.transaction {
             Some(transaction) => {
