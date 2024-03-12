@@ -384,8 +384,8 @@ where
                         call_connector_api(state, request, "execute_connector_processing_step")
                             .await;
                     let external_latency = current_time.elapsed().as_millis();
-                    logger::info!(connector_request=?masked_request_body);
-                    logger::debug!(connector_response=?response);
+                    logger::info!(raw_connector_request=?masked_request_body);
+                    logger::info!(raw_connector_response=?response);
                     let status_code = response
                         .as_ref()
                         .map(|i| {
