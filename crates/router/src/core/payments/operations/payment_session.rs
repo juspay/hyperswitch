@@ -169,6 +169,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             mandate_connector: None,
             customer_acceptance: None,
             token: None,
+            token_data: None,
             setup_mandate: None,
             address: payments::PaymentAddress {
                 shipping: shipping_address.as_ref().map(|a| a.into()),
@@ -179,6 +180,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             },
             confirm: None,
             payment_method_data: None,
+            payment_method_info: None,
             force_sync: None,
             refunds: vec![],
             disputes: vec![],
