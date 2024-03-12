@@ -216,7 +216,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             payment_id,
             merchant_account,
             key_store,
-            &state,
+            state,
             request,
             self,
             merchant_account.storage_scheme,

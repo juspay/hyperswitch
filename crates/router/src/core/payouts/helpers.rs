@@ -398,24 +398,11 @@ pub async fn update_payment_method_with_ntid(
     pm: Option<storage::PaymentMethod>,
     payment_response: Result<crate::types::PaymentsResponseData, crate::types::ErrorResponse>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
-    // let network_transaction_id = match payment_response {
-    //     Ok(res) => {
-    //         match res {
-    //             crate::types::PaymentsResponseData::TransactionResponse { network_txn_id, .. } => {
-    //                 network_txn_id
-    //             }
-    //             _ => None,
-    //         }
-    //     },
-    //     Err(_) => None, //error
-    // };
-
     let network_transaction_id = payment_response
         .map(|resp| match resp {
-            crate::types::PaymentsResponseData::TransactionResponse {
-                network_transaction_id,
-                ..
-            } => network_transaction_id,
+            crate::types::PaymentsResponseData::TransactionResponse { network_txn_id, .. } => {
+                network_txn_id
+            }
             _ => None,
         })
         .ok()
@@ -426,16 +413,13 @@ pub async fn update_payment_method_with_ntid(
             network_transaction_id,
         };
 
-    match pm {
-        Some(pm) => {
-            state
-                .store
-                .update_payment_method(pm, pm_update)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to update network transaction id in payment_method")?;
-        }
-        None => (),
+    if let Some(pm) = pm {
+        state
+            .store
+            .update_payment_method(pm, pm_update)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to update network transaction id in payment_method")?;
     }
     Ok(())
 }

@@ -272,7 +272,7 @@ where
                     //add connector http status code metrics
                     add_connector_http_status_code_metrics(connector_http_status_code);
                     crate::core::payouts::helpers::update_payment_method_with_ntid(
-                        &state,
+                        state,
                         payment_data.payment_method_info.clone(),
                         router_data.response.clone(),
                     )

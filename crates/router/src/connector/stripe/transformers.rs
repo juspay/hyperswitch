@@ -2367,7 +2367,7 @@ impl<F, T>
 
         //Note: we might have to call retrieve_setup_intent to get the network_transaction_id in case its not sent in PaymentIntentResponse
         // Or we identify the mandate txns before hand and always call SetupIntent in case of mandate payment call
-        let network_transaction_id = Option::foreign_from(item.response.latest_attempt);
+        let network_txn_id = Option::foreign_from(item.response.latest_attempt);
 
         let connector_metadata =
             get_connector_metadata(item.response.next_action.as_ref(), item.response.amount)?;
@@ -2386,7 +2386,7 @@ impl<F, T>
                 redirection_data,
                 mandate_reference,
                 connector_metadata,
-                network_transaction_id,
+                network_txn_id,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
             })
@@ -2536,7 +2536,7 @@ impl<F, T>
                 redirection_data,
                 mandate_reference,
                 connector_metadata,
-                network_transaction_id: None,
+                network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id.clone()),
                 incremental_authorization_allowed: None,
             })
@@ -2581,7 +2581,7 @@ impl<F, T>
                 Some(LatestAttempt::PaymentIntentAttempt(attempt)) => attempt
                     .payment_method_details
                     .and_then(|payment_method_details| match payment_method_details.card {
-                        Some(card) => card.network_transaction_id.map(|network_id| network_id),
+                        Some(card) => card.network_transaction_id,
                         _ => None,
                     }),
                 _ => None,
@@ -2592,7 +2592,7 @@ impl<F, T>
                 redirection_data,
                 mandate_reference,
                 connector_metadata: None,
-                network_transaction_id,
+                network_txn_id: network_transaction_id,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
             })
@@ -3233,7 +3233,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ChargesResponse, T, types::Payme
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: Some(connector_metadata),
-                network_transaction_id: None,
+                network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
             })

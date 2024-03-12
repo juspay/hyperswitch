@@ -177,7 +177,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 metadata: None,
                 payment_method_data: None,
                 last_used_at: None,
-                network_transaction_id: network_transaction_id,
+                network_transaction_id,
             },
         }
     }

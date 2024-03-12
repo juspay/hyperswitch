@@ -888,7 +888,7 @@ pub enum PaymentsResponseData {
         redirection_data: Option<services::RedirectForm>,
         mandate_reference: Option<MandateReference>,
         connector_metadata: Option<serde_json::Value>,
-        network_transaction_id: Option<String>,
+        network_txn_id: Option<String>,
         connector_response_reference_id: Option<String>,
         incremental_authorization_allowed: Option<bool>,
     },

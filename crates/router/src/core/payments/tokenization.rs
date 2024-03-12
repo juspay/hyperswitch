@@ -58,10 +58,9 @@ where
                 .unwrap_or(false);
 
             let network_transaction_id = match responses.clone() {
-                types::PaymentsResponseData::TransactionResponse {
-                    network_transaction_id,
-                    ..
-                } => network_transaction_id,
+                types::PaymentsResponseData::TransactionResponse { network_txn_id, .. } => {
+                    network_txn_id
+                }
                 _ => None,
             };
 
