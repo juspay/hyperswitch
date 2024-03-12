@@ -3,7 +3,8 @@
     "Pre-requisites",
     "#1 Connector integration sanity",
     "#2 Payout in stages - create + confirm + fulfill API calls",
-    "#3 Payouts using saved payment methods",
-    "#4 Payouts routing module"
+    "#3 Smart Retries",
+    "#4 Payouts using saved payment methods",
+    "#5 Payouts routing module"
   ]
 }

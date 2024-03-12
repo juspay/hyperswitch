@@ -1,0 +1,87 @@
+{
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json"
+    },
+    {
+      "key": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "body": {
+    "mode": "raw",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "amount": 1,
+      "currency": "EUR",
+      "customer_id": "{{customer_id}}",
+      "email": "payout_customer@example.com",
+      "name": "John Doe",
+      "phone": "999999999",
+      "phone_country_code": "+65",
+      "description": "Its my first payout request",
+      "payout_type": "bank",
+      "payout_method_data": {
+        "bank": {
+          "bic": "ABNANL2A",
+          "iban": "NL46TEST0136169112",
+          "bank_name": "Deutsche Bank",
+          "bank_country_code": "KR",
+          "bank_city": "Amsterdam"
+        }
+      },
+      "billing": {
+        "address": {
+          "line1": "1467",
+          "line2": "Harrison Street",
+          "line3": "Harrison Street",
+          "city": "San Fransico",
+          "state": "NY",
+          "zip": "94122",
+          "country": "US",
+          "first_name": "John",
+          "last_name": "Doe"
+        },
+        "phone": {
+          "number": "8056594427",
+          "country_code": "+91"
+        }
+      },
+      "entity_type": "Individual",
+      "recurring": false,
+      "metadata": {
+        "ref": "123"
+      },
+      "connector": [
+        "adyen",
+        "wise"
+      ],
+      "routing": {
+        "type": "single",
+        "data": {
+          "connector": "adyen",
+          "merchant_connector_id": "{{mca_1_id}}"
+        }
+      },
+      "confirm": true,
+      "auto_fulfill": false
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/payouts/create",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "payouts",
+      "create"
+    ]
+  },
+  "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
+}
