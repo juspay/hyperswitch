@@ -1256,6 +1256,7 @@ pub enum ConnectorAuthType {
     OpenBankingAuth {
         api_key: Secret<String>,
         key1: Secret<String>,
+        #[serde(skip_serializing)]
         merchant_data: MerchantRecipientData,
     },
     #[default]
