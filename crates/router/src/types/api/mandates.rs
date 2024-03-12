@@ -51,7 +51,10 @@ impl MandateResponseExt for MandateResponse {
                     state,
                     &payment_method.customer_id,
                     &payment_method.merchant_id,
-                    &payment_method.payment_method_id,
+                    payment_method
+                        .locker_id
+                        .as_ref()
+                        .unwrap_or(&payment_method.payment_method_id),
                 )
                 .await?;
 
@@ -112,6 +115,7 @@ impl From<api::payment_methods::CardDetailFromLocker> for MandateCardDetails {
             card_issuer: card_details_from_locker.card_issuer,
             card_network: card_details_from_locker.card_network,
             card_type: card_details_from_locker.card_type,
+            nick_name: card_details_from_locker.nick_name,
         }
         .into()
     }

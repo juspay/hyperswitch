@@ -13,22 +13,16 @@ pub mod recon;
 #[cfg(feature = "email")]
 pub mod email;
 
-#[cfg(any(feature = "kms", feature = "hashicorp-vault"))]
-use data_models::errors::StorageError;
 use data_models::errors::StorageResult;
 use error_stack::{IntoReport, ResultExt};
-#[cfg(feature = "hashicorp-vault")]
-use external_services::hashicorp_vault::decrypt::VaultFetch;
-#[cfg(feature = "kms")]
-use external_services::kms::{self, decrypt::KmsDecrypt};
-use masking::{PeekInterface, StrongSecret};
+use masking::{ExposeInterface, StrongSecret};
 #[cfg(feature = "kv_store")]
 use storage_impl::KVRouterStore;
 use storage_impl::RouterStore;
 use tokio::sync::oneshot;
 
 pub use self::{api::*, encryption::*};
-use crate::{configs::settings, consts, core::errors};
+use crate::{configs::Settings, consts, core::errors};
 
 #[cfg(not(feature = "olap"))]
 pub type StoreType = storage_impl::database::store::Store;
@@ -40,60 +34,25 @@ pub type Store = RouterStore<StoreType>;
 #[cfg(feature = "kv_store")]
 pub type Store = KVRouterStore<StoreType>;
 
+/// # Panics
+///
+/// Will panic if hex decode of master key fails
+#[allow(clippy::expect_used)]
 pub async fn get_store(
-    config: &settings::Settings,
+    config: &Settings,
     shut_down_signal: oneshot::Sender<()>,
     test_transaction: bool,
 ) -> StorageResult<Store> {
-    #[cfg(feature = "kms")]
-    let kms_client = kms::get_kms_client(&config.kms).await;
-
-    #[cfg(feature = "hashicorp-vault")]
-    let hc_client = external_services::hashicorp_vault::get_hashicorp_client(&config.hc_vault)
-        .await
-        .change_context(StorageError::InitializationError)?;
-
-    let master_config = config.master_database.clone();
-
-    #[cfg(feature = "hashicorp-vault")]
-    let master_config = master_config
-        .fetch_inner::<external_services::hashicorp_vault::Kv2>(hc_client)
-        .await
-        .change_context(StorageError::InitializationError)
-        .attach_printable("Failed to fetch data from hashicorp vault")?;
-
-    #[cfg(feature = "kms")]
-    let master_config = master_config
-        .decrypt_inner(kms_client)
-        .await
-        .change_context(StorageError::InitializationError)
-        .attach_printable("Failed to decrypt master database config")?;
+    let master_config = config.master_database.clone().into_inner();
 
     #[cfg(feature = "olap")]
-    let replica_config = config.replica_database.clone();
+    let replica_config = config.replica_database.clone().into_inner();
 
-    #[cfg(all(feature = "olap", feature = "hashicorp-vault"))]
-    let replica_config = replica_config
-        .fetch_inner::<external_services::hashicorp_vault::Kv2>(hc_client)
-        .await
-        .change_context(StorageError::InitializationError)
-        .attach_printable("Failed to fetch data from hashicorp vault")?;
+    #[allow(clippy::expect_used)]
+    let master_enc_key = hex::decode(config.secrets.get_inner().master_enc_key.clone().expose())
+        .map(StrongSecret::new)
+        .expect("Failed to decode master key from hex");
 
-    #[cfg(all(feature = "olap", feature = "kms"))]
-    let replica_config = replica_config
-        .decrypt_inner(kms_client)
-        .await
-        .change_context(StorageError::InitializationError)
-        .attach_printable("Failed to decrypt replica database config")?;
-
-    let master_enc_key = get_master_enc_key(
-        config,
-        #[cfg(feature = "kms")]
-        kms_client,
-        #[cfg(feature = "hashicorp-vault")]
-        hc_client,
-    )
-    .await;
     #[cfg(not(feature = "olap"))]
     let conf = master_config.into();
     #[cfg(feature = "olap")]
@@ -123,34 +82,6 @@ pub async fn get_store(
     );
 
     Ok(store)
-}
-
-#[allow(clippy::expect_used)]
-async fn get_master_enc_key(
-    conf: &crate::configs::settings::Settings,
-    #[cfg(feature = "kms")] kms_client: &kms::KmsClient,
-    #[cfg(feature = "hashicorp-vault")]
-    hc_client: &external_services::hashicorp_vault::HashiCorpVault,
-) -> StrongSecret<Vec<u8>> {
-    let master_enc_key = conf.secrets.master_enc_key.clone();
-
-    #[cfg(feature = "hashicorp-vault")]
-    let master_enc_key = master_enc_key
-        .fetch_inner::<external_services::hashicorp_vault::Kv2>(hc_client)
-        .await
-        .expect("Failed to fetch master enc key");
-
-    #[cfg(feature = "kms")]
-    let master_enc_key = masking::Secret::<_, masking::WithType>::new(
-        master_enc_key
-            .decrypt_inner(kms_client)
-            .await
-            .expect("Failed to decrypt master enc key"),
-    );
-
-    let master_enc_key = hex::decode(master_enc_key.peek()).expect("Failed to decode from hex");
-
-    StrongSecret::new(master_enc_key)
 }
 
 #[inline]

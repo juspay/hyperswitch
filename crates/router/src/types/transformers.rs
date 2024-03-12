@@ -5,17 +5,21 @@ use common_utils::{
     consts::X_HS_LATENCY,
     crypto::Encryptable,
     ext_traits::{StringExt, ValueExt},
+    fp_utils::when,
     pii,
 };
 use diesel_models::enums as storage_enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, IntoReport, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 
 use super::domain;
 use crate::{
-    core::errors,
+    core::{authentication::types::AuthenticationData, errors},
     services::authentication::get_header_value_by_key,
-    types::{api as api_types, api::routing as routing_types, storage},
+    types::{
+        api::{self as api_types, routing as routing_types},
+        storage,
+    },
 };
 
 pub trait ForeignInto<T> {
@@ -259,6 +263,12 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::DummyConnector6 => Self::DummyConnector6,
             #[cfg(feature = "dummy_connector")]
             api_enums::Connector::DummyConnector7 => Self::DummyConnector7,
+            api_enums::Connector::Threedsecureio => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "threedsecureio is not a routable connector".to_string(),
+                })
+                .into_report()?
+            }
         })
     }
 }
@@ -573,8 +583,19 @@ impl<'a> ForeignFrom<&'a api_types::ConfigUpdate> for storage::ConfigUpdate {
 
 impl<'a> From<&'a domain::Address> for api_types::Address {
     fn from(address: &domain::Address) -> Self {
-        Self {
-            address: Some(api_types::AddressDetails {
+        // If all the fields of address are none, then
+        let address_details = if address.city.is_none()
+            && address.line1.is_none()
+            && address.line2.is_none()
+            && address.line3.is_none()
+            && address.state.is_none()
+            && address.zip.is_none()
+            && address.first_name.is_none()
+            && address.last_name.is_none()
+        {
+            None
+        } else {
+            Some(api_types::AddressDetails {
                 city: address.city.clone(),
                 country: address.country,
                 line1: address.line1.clone().map(Encryptable::into_inner),
@@ -584,11 +605,16 @@ impl<'a> From<&'a domain::Address> for api_types::Address {
                 zip: address.zip.clone().map(Encryptable::into_inner),
                 first_name: address.first_name.clone().map(Encryptable::into_inner),
                 last_name: address.last_name.clone().map(Encryptable::into_inner),
-            }),
+            })
+        };
+
+        Self {
+            address: address_details,
             phone: Some(api_types::PhoneDetails {
                 number: address.phone_number.clone().map(Encryptable::into_inner),
                 country_code: address.country_code.clone(),
             }),
+            email: address.email.clone().map(pii::Email::from),
         }
     }
 }
@@ -693,6 +719,8 @@ impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponse {
             connector_created_at: dispute.connector_created_at,
             connector_updated_at: dispute.connector_updated_at,
             created_at: dispute.created_at,
+            profile_id: dispute.profile_id,
+            merchant_connector_id: dispute.merchant_connector_id,
         }
     }
 }
@@ -706,6 +734,35 @@ impl ForeignFrom<storage::Authorization> for payments::IncrementalAuthorizationR
             error_code: authorization.error_code,
             error_message: authorization.error_message,
             previously_authorized_amount: authorization.previously_authorized_amount,
+        }
+    }
+}
+
+impl ForeignFrom<&(storage::Authentication, AuthenticationData)>
+    for payments::ExternalAuthenticationDetailsResponse
+{
+    fn foreign_from(authn_data: &(storage::Authentication, AuthenticationData)) -> Self {
+        let (ds_transaction_id, version) = if authn_data.0.authentication_data.is_some() {
+            (
+                Some(authn_data.1.threeds_server_transaction_id.clone()),
+                Some(format!(
+                    "{}.{}.{}",
+                    authn_data.1.maximum_supported_version.0,
+                    authn_data.1.maximum_supported_version.1,
+                    authn_data.1.maximum_supported_version.2
+                )),
+            )
+        } else {
+            (None, None)
+        };
+        Self {
+            authentication_flow: authn_data.0.authentication_type,
+            electronic_commerce_indicator: authn_data.1.eci.clone(),
+            status: authn_data.0.authentication_status,
+            ds_transaction_id,
+            version,
+            error_code: authn_data.0.error_code.clone(),
+            error_message: authn_data.0.error_message.clone(),
         }
     }
 }
@@ -859,6 +916,16 @@ impl ForeignFrom<storage::Capture> for api_models::payments::CaptureResponse {
     }
 }
 
+impl ForeignFrom<api_models::payouts::PayoutMethodData> for api_enums::PaymentMethodType {
+    fn foreign_from(value: api_models::payouts::PayoutMethodData) -> Self {
+        match value {
+            api_models::payouts::PayoutMethodData::Bank(bank) => Self::foreign_from(bank),
+            api_models::payouts::PayoutMethodData::Card(_) => Self::Debit,
+            api_models::payouts::PayoutMethodData::Wallet(wallet) => Self::foreign_from(wallet),
+        }
+    }
+}
+
 impl ForeignFrom<api_models::payouts::Bank> for api_enums::PaymentMethodType {
     fn foreign_from(value: api_models::payouts::Bank) -> Self {
         match value {
@@ -869,11 +936,20 @@ impl ForeignFrom<api_models::payouts::Bank> for api_enums::PaymentMethodType {
     }
 }
 
+impl ForeignFrom<api_models::payouts::Wallet> for api_enums::PaymentMethodType {
+    fn foreign_from(value: api_models::payouts::Wallet) -> Self {
+        match value {
+            api_models::payouts::Wallet::Paypal(_) => Self::Paypal,
+        }
+    }
+}
+
 impl ForeignFrom<api_models::payouts::PayoutMethodData> for api_enums::PaymentMethod {
     fn foreign_from(value: api_models::payouts::PayoutMethodData) -> Self {
         match value {
             api_models::payouts::PayoutMethodData::Bank(_) => Self::BankTransfer,
             api_models::payouts::PayoutMethodData::Card(_) => Self::Card,
+            api_models::payouts::PayoutMethodData::Wallet(_) => Self::Wallet,
         }
     }
 }
@@ -883,6 +959,7 @@ impl ForeignFrom<api_models::enums::PayoutType> for api_enums::PaymentMethod {
         match value {
             api_models::enums::PayoutType::Bank => Self::BankTransfer,
             api_models::enums::PayoutType::Card => Self::Card,
+            api_models::enums::PayoutType::Wallet => Self::Wallet,
         }
     }
 }
@@ -905,11 +982,19 @@ impl ForeignTryFrom<&HeaderMap> for api_models::payments::HeaderPayload {
                         )
                 })
                 .transpose()?;
-
+        when(
+            payment_confirm_source.is_some_and(|payment_confirm_source| {
+                payment_confirm_source.is_for_internal_use_only()
+            }),
+            || {
+                Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Invalid data received in payment_confirm_source header".into(),
+                }))
+            },
+        )?;
         let x_hs_latency = get_header_value_by_key(X_HS_LATENCY.into(), headers)
             .map(|value| value == Some("true"))
             .unwrap_or(false);
-
         Ok(Self {
             payment_confirm_source,
             x_hs_latency: Some(x_hs_latency),

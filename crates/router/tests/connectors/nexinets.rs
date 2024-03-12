@@ -124,6 +124,7 @@ async fn should_sync_authorized_payment() {
                 sync_type: types::SyncRequestType::SinglePaymentSync,
                 connector_meta,
                 mandate_id: None,
+                payment_method_type: None,
             }),
             None,
         )

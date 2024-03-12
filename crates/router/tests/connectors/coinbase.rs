@@ -40,8 +40,9 @@ static CONNECTOR: CoinbaseTest = CoinbaseTest {};
 
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     Some(utils::PaymentInfo {
-        address: Some(PaymentAddress {
-            billing: Some(api::Address {
+        address: Some(PaymentAddress::new(
+            None,
+            Some(api::Address {
                 address: Some(api::AddressDetails {
                     first_name: Some(Secret::new("first".to_string())),
                     last_name: Some(Secret::new("last".to_string())),
@@ -56,9 +57,10 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                     number: Some(Secret::new("1234567890".to_string())),
                     country_code: Some("+91".to_string()),
                 }),
+                email: None,
             }),
-            ..Default::default()
-        }),
+            None,
+        )),
         connector_meta_data: Some(json!({"pricing_type": "fixed_price"})),
         ..Default::default()
     })
@@ -97,6 +99,8 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
         surcharge_details: None,
         request_incremental_authorization: false,
         metadata: None,
+        authentication_data: None,
+        customer_acceptance: None,
     })
 }
 

@@ -6,7 +6,7 @@ use common_utils::{
     pii::{self, Email},
 };
 use error_stack::{report, ResultExt};
-use masking::{PeekInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
@@ -461,6 +461,10 @@ fn is_payment_failed(payment_status: &str) -> (bool, &'static str) {
         "100.380.401" => (true, "User authentication failed"),
         "100.380.501" => (true, "Risk management transaction timeout"),
         "100.390.103" => (true, "PARes validation failed - problem with signature"),
+        "100.390.105" => (
+            true,
+            "Transaction rejected because of technical error in 3DSecure system",
+        ),
         "100.390.111" => (
             true,
             "Communication error to VISA/Mastercard Directory Server",
@@ -946,7 +950,7 @@ pub struct ResultInfo {
     pub correlation_id: Option<String>,
 }
 
-#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct TrustpayAuthUpdateResponse {
     pub access_token: Option<Secret<String>>,
     pub token_type: Option<String>,
@@ -955,7 +959,7 @@ pub struct TrustpayAuthUpdateResponse {
     pub result_info: ResultInfo,
 }
 
-#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct TrustpayAccessTokenErrorResponse {
     pub result_info: ResultInfo,
@@ -1038,7 +1042,7 @@ impl TryFrom<&TrustpayRouterData<&types::PaymentsPreProcessingRouterData>>
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TrustpayCreateIntentResponse {
     // TrustPay's authorization secrets used by client
@@ -1050,14 +1054,14 @@ pub struct TrustpayCreateIntentResponse {
     pub instance_id: String,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum InitResultData {
     AppleInitResultData(TrustpayApplePayResponse),
     GoogleInitResultData(TrustpayGooglePayResponse),
 }
 
-#[derive(Clone, Default, Debug, Deserialize)]
+#[derive(Clone, Default, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GooglePayTransactionInfo {
     pub country_code: api_models::enums::CountryAlpha2,
@@ -1066,14 +1070,14 @@ pub struct GooglePayTransactionInfo {
     pub total_price: String,
 }
 
-#[derive(Clone, Default, Debug, Deserialize)]
+#[derive(Clone, Default, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GooglePayMerchantInfo {
-    pub merchant_name: String,
-    pub merchant_id: String,
+    pub merchant_name: Secret<String>,
+    pub merchant_id: Secret<String>,
 }
 
-#[derive(Clone, Default, Debug, Deserialize)]
+#[derive(Clone, Default, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GooglePayAllowedPaymentMethods {
     #[serde(rename = "type")]
@@ -1082,14 +1086,14 @@ pub struct GooglePayAllowedPaymentMethods {
     pub tokenization_specification: GpayTokenizationSpecification,
 }
 
-#[derive(Clone, Default, Debug, Deserialize)]
+#[derive(Clone, Default, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GpayTokenParameters {
     pub gateway: String,
-    pub gateway_merchant_id: String,
+    pub gateway_merchant_id: Secret<String>,
 }
 
-#[derive(Clone, Default, Debug, Deserialize)]
+#[derive(Clone, Default, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GpayTokenizationSpecification {
     #[serde(rename = "type")]
@@ -1097,14 +1101,14 @@ pub struct GpayTokenizationSpecification {
     pub parameters: GpayTokenParameters,
 }
 
-#[derive(Clone, Default, Debug, Deserialize)]
+#[derive(Clone, Default, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GpayAllowedMethodsParameters {
     pub allowed_auth_methods: Vec<String>,
     pub allowed_card_networks: Vec<String>,
 }
 
-#[derive(Clone, Default, Debug, Deserialize)]
+#[derive(Clone, Default, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TrustpayGooglePayResponse {
     pub merchant_info: GooglePayMerchantInfo,
@@ -1112,14 +1116,14 @@ pub struct TrustpayGooglePayResponse {
     pub transaction_info: GooglePayTransactionInfo,
 }
 
-#[derive(Clone, Default, Debug, Deserialize)]
+#[derive(Clone, Default, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SdkSecretInfo {
     pub display: Secret<String>,
     pub payment: Secret<String>,
 }
 
-#[derive(Clone, Default, Debug, Deserialize)]
+#[derive(Clone, Default, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TrustpayApplePayResponse {
     pub country_code: api_models::enums::CountryAlpha2,
@@ -1129,7 +1133,7 @@ pub struct TrustpayApplePayResponse {
     pub total: ApplePayTotalInfo,
 }
 
-#[derive(Clone, Default, Debug, Deserialize)]
+#[derive(Clone, Default, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplePayTotalInfo {
     pub label: String,
@@ -1291,8 +1295,8 @@ impl From<GooglePayTransactionInfo> for api_models::payments::GpayTransactionInf
 impl From<GooglePayMerchantInfo> for api_models::payments::GpayMerchantInfo {
     fn from(value: GooglePayMerchantInfo) -> Self {
         Self {
-            merchant_id: Some(value.merchant_id),
-            merchant_name: value.merchant_name,
+            merchant_id: Some(value.merchant_id.expose()),
+            merchant_name: value.merchant_name.expose(),
         }
     }
 }
@@ -1329,7 +1333,7 @@ impl From<GpayTokenParameters> for api_models::payments::GpayTokenParameters {
     fn from(value: GpayTokenParameters) -> Self {
         Self {
             gateway: value.gateway,
-            gateway_merchant_id: Some(value.gateway_merchant_id),
+            gateway_merchant_id: Some(value.gateway_merchant_id.expose()),
             stripe_version: None,
             stripe_publishable_key: None,
         }

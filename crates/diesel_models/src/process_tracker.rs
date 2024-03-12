@@ -1,8 +1,10 @@
+use common_utils::ext_traits::Encode;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{enums as storage_enums, schema::process_tracker};
+use crate::{enums as storage_enums, errors, schema::process_tracker, StorageResult};
 
 #[derive(
     Clone,
@@ -37,6 +39,13 @@ pub struct ProcessTracker {
     pub updated_at: PrimitiveDateTime,
 }
 
+impl ProcessTracker {
+    #[inline(always)]
+    pub fn is_valid_business_status(&self, valid_statuses: &[&str]) -> bool {
+        valid_statuses.iter().any(|&x| x == self.business_status)
+    }
+}
+
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = process_tracker)]
 pub struct ProcessTrackerNew {
@@ -53,6 +62,42 @@ pub struct ProcessTrackerNew {
     pub event: Vec<String>,
     pub created_at: PrimitiveDateTime,
     pub updated_at: PrimitiveDateTime,
+}
+
+impl ProcessTrackerNew {
+    pub fn new<T>(
+        process_tracker_id: impl Into<String>,
+        task: impl Into<String>,
+        runner: ProcessTrackerRunner,
+        tag: impl IntoIterator<Item = impl Into<String>>,
+        tracking_data: T,
+        schedule_time: PrimitiveDateTime,
+    ) -> StorageResult<Self>
+    where
+        T: Serialize + std::fmt::Debug,
+    {
+        const BUSINESS_STATUS_PENDING: &str = "Pending";
+
+        let current_time = common_utils::date_time::now();
+        Ok(Self {
+            id: process_tracker_id.into(),
+            name: Some(task.into()),
+            tag: tag.into_iter().map(Into::into).collect(),
+            runner: Some(runner.to_string()),
+            retry_count: 0,
+            schedule_time: Some(schedule_time),
+            rule: String::new(),
+            tracking_data: tracking_data
+                .encode_to_value()
+                .change_context(errors::DatabaseError::Others)
+                .attach_printable("Failed to serialize process tracker tracking data")?,
+            business_status: String::from(BUSINESS_STATUS_PENDING),
+            status: storage_enums::ProcessTrackerStatus::New,
+            event: vec![],
+            created_at: current_time,
+            updated_at: current_time,
+        })
+    }
 }
 
 #[derive(Debug)]
@@ -164,4 +209,41 @@ pub struct ProcessData {
     db_name: String,
     cache_name: String,
     process_tracker: ProcessTracker,
+}
+
+#[derive(
+    serde::Serialize,
+    serde::Deserialize,
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    strum::EnumString,
+    strum::Display,
+)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+pub enum ProcessTrackerRunner {
+    PaymentsSyncWorkflow,
+    RefundWorkflowRouter,
+    DeleteTokenizeDataWorkflow,
+    ApiKeyExpiryWorkflow,
+    OutgoingWebhookRetryWorkflow,
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used)]
+    use common_utils::ext_traits::StringExt;
+
+    use super::ProcessTrackerRunner;
+
+    #[test]
+    fn test_enum_to_string() {
+        let string_format = "PAYMENTS_SYNC_WORKFLOW".to_string();
+        let enum_format: ProcessTrackerRunner =
+            string_format.parse_enum("ProcessTrackerRunner").unwrap();
+        assert_eq!(enum_format, ProcessTrackerRunner::PaymentsSyncWorkflow);
+    }
 }

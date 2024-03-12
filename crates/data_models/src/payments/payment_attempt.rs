@@ -4,7 +4,11 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use super::PaymentIntent;
-use crate::{errors, mandates::MandateTypeDetails, ForeignIDRef};
+use crate::{
+    errors,
+    mandates::{MandateDataType, MandateDetails},
+    ForeignIDRef,
+};
 
 #[async_trait::async_trait]
 pub trait PaymentAttemptInterface {
@@ -143,7 +147,7 @@ pub struct PaymentAttempt {
     pub straight_through_algorithm: Option<serde_json::Value>,
     pub preprocessing_step_id: Option<String>,
     // providing a location to store mandate details intermediately for transaction
-    pub mandate_details: Option<MandateTypeDetails>,
+    pub mandate_details: Option<MandateDataType>,
     pub error_reason: Option<String>,
     pub multiple_capture_count: Option<i16>,
     // reference to the payment at connector side
@@ -155,6 +159,12 @@ pub struct PaymentAttempt {
     pub merchant_connector_id: Option<String>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
+    pub external_three_ds_authentication_attempted: Option<bool>,
+    pub authentication_connector: Option<String>,
+    pub authentication_id: Option<String>,
+    pub mandate_data: Option<MandateDetails>,
+    pub payment_method_billing_address_id: Option<String>,
+    pub fingerprint_id: Option<String>,
 }
 
 impl PaymentAttempt {
@@ -221,7 +231,7 @@ pub struct PaymentAttemptNew {
     pub business_sub_label: Option<String>,
     pub straight_through_algorithm: Option<serde_json::Value>,
     pub preprocessing_step_id: Option<String>,
-    pub mandate_details: Option<MandateTypeDetails>,
+    pub mandate_details: Option<MandateDataType>,
     pub error_reason: Option<String>,
     pub connector_response_reference_id: Option<String>,
     pub multiple_capture_count: Option<i16>,
@@ -232,6 +242,12 @@ pub struct PaymentAttemptNew {
     pub merchant_connector_id: Option<String>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
+    pub external_three_ds_authentication_attempted: Option<bool>,
+    pub authentication_connector: Option<String>,
+    pub authentication_id: Option<String>,
+    pub mandate_data: Option<MandateDetails>,
+    pub payment_method_billing_address_id: Option<String>,
+    pub fingerprint_id: Option<String>,
 }
 
 impl PaymentAttemptNew {
@@ -264,6 +280,7 @@ pub enum PaymentAttemptUpdate {
         capture_method: Option<storage_enums::CaptureMethod>,
         surcharge_amount: Option<i64>,
         tax_amount: Option<i64>,
+        fingerprint_id: Option<String>,
         updated_by: String,
     },
     UpdateTrackers {
@@ -301,8 +318,20 @@ pub enum PaymentAttemptUpdate {
         surcharge_amount: Option<i64>,
         tax_amount: Option<i64>,
         merchant_connector_id: Option<String>,
+        external_three_ds_authentication_attempted: Option<bool>,
+        authentication_connector: Option<String>,
+        authentication_id: Option<String>,
+        payment_method_billing_address_id: Option<String>,
+        fingerprint_id: Option<String>,
+        payment_method_id: Option<String>,
     },
     RejectUpdate {
+        status: storage_enums::AttemptStatus,
+        error_code: Option<Option<String>>,
+        error_message: Option<Option<String>>,
+        updated_by: String,
+    },
+    BlocklistUpdate {
         status: storage_enums::AttemptStatus,
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
@@ -389,6 +418,13 @@ pub enum PaymentAttemptUpdate {
     IncrementalAuthorizationAmountUpdate {
         amount: i64,
         amount_capturable: i64,
+    },
+    AuthenticationUpdate {
+        status: storage_enums::AttemptStatus,
+        external_three_ds_authentication_attempted: Option<bool>,
+        authentication_connector: Option<String>,
+        authentication_id: Option<String>,
+        updated_by: String,
     },
 }
 

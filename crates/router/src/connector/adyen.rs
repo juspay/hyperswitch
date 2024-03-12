@@ -2,20 +2,22 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use api_models::webhooks::IncomingWebhookEvent;
+use api_models::{enums::PaymentMethodType, webhooks::IncomingWebhookEvent};
 use base64::Engine;
 use common_utils::request::RequestContent;
 use diesel_models::{enums as storage_enums, enums};
 use error_stack::{IntoReport, ResultExt};
+use masking::ExposeInterface;
 use ring::hmac;
 use router_env::{instrument, tracing};
 
 use self::transformers as adyen;
-use super::utils as connector_utils;
 use crate::{
+    capture_method_not_supported,
     configs::settings,
     consts,
     core::errors::{self, CustomResult},
+    events::connector_api_logs::ConnectorEvent,
     headers, logger,
     services::{
         self,
@@ -30,6 +32,8 @@ use crate::{
     },
     utils::{crypto, ByteSliceExt, BytesExt, OptionExt},
 };
+
+const ADYEN_API_VERSION: &str = "v68";
 
 #[derive(Debug, Clone)]
 pub struct Adyen;
@@ -61,18 +65,23 @@ impl ConnectorCommon for Adyen {
     fn build_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: adyen::ErrorResponse = res
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_error_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response.error_code,
-            message: response.message,
-            reason: None,
+            message: response.message.to_owned(),
+            reason: Some(response.message),
             attempt_status: None,
-            connector_transaction_id: None,
+            connector_transaction_id: response.psp_reference,
         })
     }
 }
@@ -81,15 +90,138 @@ impl ConnectorValidation for Adyen {
     fn validate_capture_method(
         &self,
         capture_method: Option<storage_enums::CaptureMethod>,
+        pmt: Option<PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            enums::CaptureMethod::Automatic
-            | enums::CaptureMethod::Manual
-            | enums::CaptureMethod::ManualMultiple => Ok(()),
-            enums::CaptureMethod::Scheduled => Err(
-                connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
-            ),
+        let connector = self.id();
+        match pmt {
+            Some(payment_method_type) => match payment_method_type {
+                PaymentMethodType::Affirm
+                | PaymentMethodType::AfterpayClearpay
+                | PaymentMethodType::ApplePay
+                | PaymentMethodType::Credit
+                | PaymentMethodType::Debit
+                | PaymentMethodType::GooglePay
+                | PaymentMethodType::MobilePay
+                | PaymentMethodType::PayBright
+                | PaymentMethodType::Sepa
+                | PaymentMethodType::Vipps
+                | PaymentMethodType::Paypal => match capture_method {
+                    enums::CaptureMethod::Automatic
+                    | enums::CaptureMethod::Manual
+                    | enums::CaptureMethod::ManualMultiple => Ok(()),
+                    enums::CaptureMethod::Scheduled => {
+                        capture_method_not_supported!(
+                            connector,
+                            capture_method,
+                            payment_method_type
+                        )
+                    }
+                },
+                PaymentMethodType::Ach
+                | PaymentMethodType::Alma
+                | PaymentMethodType::Bacs
+                | PaymentMethodType::Givex
+                | PaymentMethodType::Klarna
+                | PaymentMethodType::Twint
+                | PaymentMethodType::Walley => match capture_method {
+                    enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+                    enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => {
+                        capture_method_not_supported!(
+                            connector,
+                            capture_method,
+                            payment_method_type
+                        )
+                    }
+                },
+
+                PaymentMethodType::AliPay
+                | PaymentMethodType::AliPayHk
+                | PaymentMethodType::Atome
+                | PaymentMethodType::BancontactCard
+                | PaymentMethodType::Benefit
+                | PaymentMethodType::Bizum
+                | PaymentMethodType::Blik
+                | PaymentMethodType::Boleto
+                | PaymentMethodType::Dana
+                | PaymentMethodType::Eps
+                | PaymentMethodType::OnlineBankingFpx
+                | PaymentMethodType::Gcash
+                | PaymentMethodType::GoPay
+                | PaymentMethodType::Ideal
+                | PaymentMethodType::KakaoPay
+                | PaymentMethodType::Knet
+                | PaymentMethodType::MbWay
+                | PaymentMethodType::Momo
+                | PaymentMethodType::MomoAtm
+                | PaymentMethodType::OnlineBankingFinland
+                | PaymentMethodType::OnlineBankingPoland
+                | PaymentMethodType::OnlineBankingSlovakia
+                | PaymentMethodType::OnlineBankingThailand
+                | PaymentMethodType::Oxxo
+                | PaymentMethodType::PaySafeCard
+                | PaymentMethodType::Pix
+                | PaymentMethodType::Swish
+                | PaymentMethodType::TouchNGo
+                | PaymentMethodType::Trustly
+                | PaymentMethodType::WeChatPay
+                | PaymentMethodType::DanamonVa
+                | PaymentMethodType::BcaBankTransfer
+                | PaymentMethodType::BriVa
+                | PaymentMethodType::BniVa
+                | PaymentMethodType::CimbVa
+                | PaymentMethodType::MandiriVa
+                | PaymentMethodType::Alfamart
+                | PaymentMethodType::Indomaret
+                | PaymentMethodType::FamilyMart
+                | PaymentMethodType::Sofort
+                | PaymentMethodType::Giropay
+                | PaymentMethodType::Seicomart
+                | PaymentMethodType::PayEasy
+                | PaymentMethodType::MiniStop
+                | PaymentMethodType::Lawson
+                | PaymentMethodType::SevenEleven
+                | PaymentMethodType::OpenBankingUk
+                | PaymentMethodType::OnlineBankingCzechRepublic
+                | PaymentMethodType::PermataBankTransfer => match capture_method {
+                    enums::CaptureMethod::Automatic => Ok(()),
+                    enums::CaptureMethod::Manual
+                    | enums::CaptureMethod::ManualMultiple
+                    | enums::CaptureMethod::Scheduled => {
+                        capture_method_not_supported!(
+                            connector,
+                            capture_method,
+                            payment_method_type
+                        )
+                    }
+                },
+                PaymentMethodType::CardRedirect
+                | PaymentMethodType::Interac
+                | PaymentMethodType::Multibanco
+                | PaymentMethodType::Przelewy24
+                | PaymentMethodType::Becs
+                | PaymentMethodType::ClassicReward
+                | PaymentMethodType::Pse
+                | PaymentMethodType::Efecty
+                | PaymentMethodType::PagoEfectivo
+                | PaymentMethodType::RedCompra
+                | PaymentMethodType::RedPagos
+                | PaymentMethodType::CryptoCurrency
+                | PaymentMethodType::SamsungPay
+                | PaymentMethodType::Evoucher
+                | PaymentMethodType::Cashapp
+                | PaymentMethodType::UpiCollect => {
+                    capture_method_not_supported!(connector, capture_method, payment_method_type)
+                }
+            },
+            None => match capture_method {
+                enums::CaptureMethod::Automatic
+                | enums::CaptureMethod::Manual
+                | enums::CaptureMethod::ManualMultiple => Ok(()),
+                enums::CaptureMethod::Scheduled => {
+                    capture_method_not_supported!(connector, capture_method)
+                }
+            },
         }
     }
     fn validate_psync_reference_id(
@@ -138,6 +270,25 @@ impl
     // Not Implemented (R)
 }
 
+fn build_env_specific_endpoint(
+    base_url: &str,
+    test_mode: Option<bool>,
+    connector_metadata: &Option<common_utils::pii::SecretSerdeValue>,
+) -> CustomResult<String, errors::ConnectorError> {
+    if test_mode.unwrap_or(true) {
+        Ok(base_url.to_string())
+    } else {
+        let adyen_connector_metadata_object =
+            transformers::AdyenConnectorMetadataObject::try_from(connector_metadata)?;
+        let endpoint_prefix = adyen_connector_metadata_object.endpoint_prefix.ok_or(
+            errors::ConnectorError::InvalidConnectorConfig {
+                config: "metadata.endpoint_prefix",
+            },
+        )?;
+        Ok(base_url.replace("{{merchant_endpoint_prefix}}", &endpoint_prefix))
+    }
+}
+
 impl
     services::ConnectorIntegration<
         api::SetupMandate,
@@ -163,10 +314,15 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::SetupMandateRouterData,
+        req: &types::SetupMandateRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}{}", self.base_url(connectors), "v68/payments"))
+        let endpoint = build_env_specific_endpoint(
+            self.base_url(connectors),
+            req.test_mode,
+            &req.connector_meta_data,
+        )?;
+        Ok(format!("{}{}/payments", endpoint, ADYEN_API_VERSION))
     }
     fn get_request_body(
         &self,
@@ -207,6 +363,7 @@ impl
     fn handle_response(
         &self,
         data: &types::SetupMandateRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<
         types::RouterData<
@@ -225,6 +382,8 @@ impl
             .response
             .parse_struct("AdyenPaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from((
             types::ResponseRouterData {
                 response,
@@ -233,25 +392,23 @@ impl
             },
             None,
             false,
+            data.request.payment_method_type,
         ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: adyen::ErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(types::ErrorResponse {
-            status_code: res.status_code,
-            code: response.error_code,
-            message: response.message,
-            reason: None,
-            attempt_status: None,
-            connector_transaction_id: None,
-        })
+        self.build_error_response(res, event_builder)
+    }
+    fn get_5xx_error_response(
+        &self,
+        res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -294,11 +451,15 @@ impl
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let id = req.request.connector_transaction_id.as_str();
-        Ok(format!(
-            "{}{}/{}/captures",
+
+        let endpoint = build_env_specific_endpoint(
             self.base_url(connectors),
-            "v68/payments",
-            id
+            req.test_mode,
+            &req.connector_meta_data,
+        )?;
+        Ok(format!(
+            "{}{}/payments/{}/captures",
+            endpoint, ADYEN_API_VERSION, id
         ))
     }
     fn get_request_body(
@@ -337,12 +498,16 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsCaptureRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
         let response: adyen::AdyenCaptureResponse = res
             .response
             .parse_struct("AdyenCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -354,19 +519,16 @@ impl
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: adyen::ErrorResponse = res
-            .response
-            .parse_struct("adyen::ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(types::ErrorResponse {
-            status_code: res.status_code,
-            code: response.error_code,
-            message: response.message,
-            reason: None,
-            attempt_status: None,
-            connector_transaction_id: None,
-        })
+        self.build_error_response(res, event_builder)
+    }
+    fn get_5xx_error_response(
+        &self,
+        res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -442,13 +604,17 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
+        req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}{}",
+        let endpoint = build_env_specific_endpoint(
             self.base_url(connectors),
-            "v68/payments/details"
+            req.test_mode,
+            &req.connector_meta_data,
+        )?;
+        Ok(format!(
+            "{}{}/payments/details",
+            endpoint, ADYEN_API_VERSION
         ))
     }
 
@@ -487,6 +653,7 @@ impl
     fn handle_response(
         &self,
         data: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
+        event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
         logger::debug!(payment_sync_response=?res);
@@ -494,6 +661,10 @@ impl
             .response
             .parse_struct("AdyenPaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         let is_multiple_capture_sync = match data.request.sync_type {
             types::SyncRequestType::MultipleCaptureSync(_) => true,
             types::SyncRequestType::SinglePaymentSync => false,
@@ -506,6 +677,7 @@ impl
             },
             data.request.capture_method,
             is_multiple_capture_sync,
+            data.request.payment_method_type,
         ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
@@ -513,25 +685,22 @@ impl
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: adyen::ErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(types::ErrorResponse {
-            status_code: res.status_code,
-            code: response.error_code,
-            message: response.message,
-            reason: None,
-            attempt_status: None,
-            connector_transaction_id: None,
-        })
+        self.build_error_response(res, event_builder)
     }
 
     fn get_multiple_capture_sync_method(
         &self,
     ) -> CustomResult<services::CaptureSyncMethod, errors::ConnectorError> {
         Ok(services::CaptureSyncMethod::Individual)
+    }
+    fn get_5xx_error_response(
+        &self,
+        res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -567,10 +736,15 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentsAuthorizeRouterData,
+        req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}{}", self.base_url(connectors), "v68/payments"))
+        let endpoint = build_env_specific_endpoint(
+            self.base_url(connectors),
+            req.test_mode,
+            &req.connector_meta_data,
+        )?;
+        Ok(format!("{}{}/payments", endpoint, ADYEN_API_VERSION))
     }
 
     fn get_request_body(
@@ -613,12 +787,15 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsAuthorizeRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: adyen::AdyenPaymentResponse = res
             .response
             .parse_struct("AdyenPaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from((
             types::ResponseRouterData {
                 response,
@@ -627,6 +804,7 @@ impl
             },
             data.request.capture_method,
             false,
+            data.request.payment_method_type,
         ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
@@ -634,19 +812,17 @@ impl
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: adyen::ErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(types::ErrorResponse {
-            status_code: res.status_code,
-            code: response.error_code,
-            message: response.message,
-            reason: None,
-            attempt_status: None,
-            connector_transaction_id: None,
-        })
+        self.build_error_response(res, event_builder)
+    }
+
+    fn get_5xx_error_response(
+        &self,
+        res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -677,12 +853,17 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentsPreProcessingRouterData,
+        req: &types::PaymentsPreProcessingRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        let endpoint = build_env_specific_endpoint(
+            self.base_url(connectors),
+            req.test_mode,
+            &req.connector_meta_data,
+        )?;
         Ok(format!(
-            "{}v69/paymentMethods/balance",
-            self.base_url(connectors)
+            "{}{}/paymentMethods/balance",
+            endpoint, ADYEN_API_VERSION
         ))
     }
 
@@ -721,12 +902,15 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsPreProcessingRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::PaymentsPreProcessingRouterData, errors::ConnectorError> {
         let response: adyen::AdyenBalanceResponse = res
             .response
             .parse_struct("AdyenBalanceResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
 
         let currency = match data.request.currency {
             Some(currency) => currency,
@@ -766,8 +950,17 @@ impl
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
+    }
+
+    fn get_5xx_error_response(
+        &self,
+        res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -799,11 +992,16 @@ impl
         req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let id = req.request.connector_transaction_id.as_str();
-        Ok(format!(
-            "{}v68/payments/{}/cancels",
+        let id = req.request.connector_transaction_id.clone();
+
+        let endpoint = build_env_specific_endpoint(
             self.base_url(connectors),
-            id
+            req.test_mode,
+            &req.connector_meta_data,
+        )?;
+        Ok(format!(
+            "{}{}/payments/{}/cancels",
+            endpoint, ADYEN_API_VERSION, id
         ))
     }
 
@@ -837,12 +1035,15 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsCancelRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
         let response: adyen::AdyenCancelResponse = res
             .response
             .parse_struct("AdyenCancelResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -854,19 +1055,16 @@ impl
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: adyen::ErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(types::ErrorResponse {
-            status_code: res.status_code,
-            code: response.error_code,
-            message: response.message,
-            reason: None,
-            attempt_status: None,
-            connector_transaction_id: None,
-        })
+        self.build_error_response(res, event_builder)
+    }
+    fn get_5xx_error_response(
+        &self,
+        res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -886,12 +1084,17 @@ impl services::ConnectorIntegration<api::PoCancel, types::PayoutsData, types::Pa
 {
     fn get_url(
         &self,
-        _req: &types::PayoutsRouterData<api::PoCancel>,
+        req: &types::PayoutsRouterData<api::PoCancel>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        let endpoint = build_env_specific_endpoint(
+            connectors.adyen.secondary_base_url.as_str(),
+            req.test_mode,
+            &req.connector_meta_data,
+        )?;
         Ok(format!(
-            "{}pal/servlet/Payout/v68/declineThirdParty",
-            connectors.adyen.secondary_base_url
+            "{}pal/servlet/Payout/{}/declineThirdParty",
+            endpoint, ADYEN_API_VERSION
         ))
     }
 
@@ -947,12 +1150,15 @@ impl services::ConnectorIntegration<api::PoCancel, types::PayoutsData, types::Pa
     fn handle_response(
         &self,
         data: &types::PayoutsRouterData<api::PoCancel>,
+        event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::PayoutsRouterData<api::PoCancel>, errors::ConnectorError> {
         let response: adyen::AdyenPayoutResponse = res
             .response
             .parse_struct("AdyenPayoutResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -963,8 +1169,16 @@ impl services::ConnectorIntegration<api::PoCancel, types::PayoutsData, types::Pa
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
+    }
+    fn get_5xx_error_response(
+        &self,
+        res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -974,12 +1188,17 @@ impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::Pa
 {
     fn get_url(
         &self,
-        _req: &types::PayoutsRouterData<api::PoCreate>,
+        req: &types::PayoutsRouterData<api::PoCreate>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        let endpoint = build_env_specific_endpoint(
+            connectors.adyen.secondary_base_url.as_str(),
+            req.test_mode,
+            &req.connector_meta_data,
+        )?;
         Ok(format!(
-            "{}pal/servlet/Payout/v68/storeDetailAndSubmitThirdParty",
-            connectors.adyen.secondary_base_url
+            "{}pal/servlet/Payout/{}/storeDetailAndSubmitThirdParty",
+            endpoint, ADYEN_API_VERSION
         ))
     }
 
@@ -1036,12 +1255,15 @@ impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::Pa
     fn handle_response(
         &self,
         data: &types::PayoutsRouterData<api::PoCreate>,
+        event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::PayoutsRouterData<api::PoCreate>, errors::ConnectorError> {
         let response: adyen::AdyenPayoutResponse = res
             .response
             .parse_struct("AdyenPayoutResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -1052,8 +1274,16 @@ impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::Pa
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
+    }
+    fn get_5xx_error_response(
+        &self,
+        res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -1067,10 +1297,15 @@ impl
 {
     fn get_url(
         &self,
-        _req: &types::PayoutsRouterData<api::PoEligibility>,
+        req: &types::PayoutsRouterData<api::PoEligibility>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}v68/payments", self.base_url(connectors),))
+        let endpoint = build_env_specific_endpoint(
+            self.base_url(connectors),
+            req.test_mode,
+            &req.connector_meta_data,
+        )?;
+        Ok(format!("{}{}/payments", endpoint, ADYEN_API_VERSION))
     }
 
     fn get_headers(
@@ -1130,12 +1365,15 @@ impl
     fn handle_response(
         &self,
         data: &types::PayoutsRouterData<api::PoEligibility>,
+        event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::PayoutsRouterData<api::PoEligibility>, errors::ConnectorError> {
         let response: adyen::AdyenPayoutResponse = res
             .response
             .parse_struct("AdyenPayoutResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -1146,8 +1384,16 @@ impl
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
+    }
+    fn get_5xx_error_response(
+        &self,
+        res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -1160,11 +1406,18 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
         req: &types::PayoutsRouterData<api::PoFulfill>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        let endpoint = build_env_specific_endpoint(
+            connectors.adyen.secondary_base_url.as_str(),
+            req.test_mode,
+            &req.connector_meta_data,
+        )?;
         Ok(format!(
-            "{}pal/servlet/Payout/v68/{}",
-            connectors.adyen.secondary_base_url,
+            "{}pal/servlet/Payout/{}/{}",
+            endpoint,
+            ADYEN_API_VERSION,
             match req.request.payout_type {
-                storage_enums::PayoutType::Bank => "confirmThirdParty".to_string(),
+                storage_enums::PayoutType::Bank | storage_enums::PayoutType::Wallet =>
+                    "confirmThirdParty".to_string(),
                 storage_enums::PayoutType::Card => "payout".to_string(),
             }
         ))
@@ -1186,7 +1439,7 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
         let mut api_key = vec![(
             headers::X_API_KEY.to_string(),
             match req.request.payout_type {
-                storage_enums::PayoutType::Bank => {
+                storage_enums::PayoutType::Bank | storage_enums::PayoutType::Wallet => {
                     auth.review_key.unwrap_or(auth.api_key).into_masked()
                 }
                 storage_enums::PayoutType::Card => auth.api_key.into_masked(),
@@ -1235,12 +1488,15 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
     fn handle_response(
         &self,
         data: &types::PayoutsRouterData<api::PoFulfill>,
+        event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::PayoutsRouterData<api::PoFulfill>, errors::ConnectorError> {
         let response: adyen::AdyenPayoutResponse = res
             .response
             .parse_struct("AdyenPayoutResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -1251,8 +1507,16 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
+    }
+    fn get_5xx_error_response(
+        &self,
+        res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -1285,10 +1549,15 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_payment_id = req.request.connector_transaction_id.clone();
-        Ok(format!(
-            "{}v68/payments/{}/refunds",
+
+        let endpoint = build_env_specific_endpoint(
             self.base_url(connectors),
-            connector_payment_id
+            req.test_mode,
+            &req.connector_meta_data,
+        )?;
+        Ok(format!(
+            "{}{}/payments/{}/refunds",
+            endpoint, ADYEN_API_VERSION, connector_payment_id
         ))
     }
 
@@ -1332,12 +1601,15 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn handle_response(
         &self,
         data: &types::RefundsRouterData<api::Execute>,
+        event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
         let response: adyen::AdyenRefundResponse = res
             .response
             .parse_struct("AdyenRefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -1349,19 +1621,16 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: adyen::ErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(types::ErrorResponse {
-            status_code: res.status_code,
-            code: response.error_code,
-            message: response.message,
-            reason: None,
-            attempt_status: None,
-            connector_transaction_id: None,
-        })
+        self.build_error_response(res, event_builder)
+    }
+    fn get_5xx_error_response(
+        &self,
+        res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -1403,7 +1672,7 @@ impl api::IncomingWebhook for Adyen {
         let notif_item = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
-        let base64_signature = notif_item.additional_data.hmac_signature;
+        let base64_signature = notif_item.additional_data.hmac_signature.expose();
         Ok(base64_signature.as_bytes().to_vec())
     }
 
@@ -1476,7 +1745,7 @@ impl api::IncomingWebhook for Adyen {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
         // for capture_event, original_reference field will have the authorized payment's PSP reference
-        if adyen::is_capture_event(&notif.event_code) {
+        if adyen::is_capture_or_cancel_event(&notif.event_code) {
             return Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                 api_models::payments::PaymentIdType::ConnectorTransactionId(
                     notif
@@ -1515,6 +1784,7 @@ impl api::IncomingWebhook for Adyen {
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
         Ok(IncomingWebhookEvent::foreign_from((
             notif.event_code,
+            notif.success,
             notif.additional_data.dispute_status,
         )))
     }
@@ -1526,7 +1796,7 @@ impl api::IncomingWebhook for Adyen {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
 
-        let response: adyen::Response = notif.into();
+        let response = adyen::AdyenWebhookResponse::from(notif);
 
         Ok(Box::new(response))
     }

@@ -441,8 +441,7 @@ impl<T> TryFrom<&types::RouterData<T, types::PaymentsAuthorizeData, types::Payme
         item: &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let billing_address = item
-            .address
-            .billing
+            .get_optional_billing()
             .as_ref()
             .and_then(|billing| billing.address.as_ref());
         let address = get_address_details(billing_address);
@@ -555,7 +554,7 @@ pub struct Shift4WebhookObjectResource {
     pub data: serde_json::Value,
 }
 
-#[derive(Default, Debug, Deserialize)]
+#[derive(Default, Debug, Deserialize, Serialize)]
 pub struct Shift4NonThreeDsResponse {
     pub id: String,
     pub currency: String,
@@ -566,7 +565,7 @@ pub struct Shift4NonThreeDsResponse {
     pub flow: Option<FlowResponse>,
 }
 
-#[derive(Default, Debug, Deserialize)]
+#[derive(Default, Debug, Deserialize, Serialize)]
 pub struct Shift4ThreeDsResponse {
     pub enrolled: bool,
     pub version: Option<String>,
@@ -575,7 +574,7 @@ pub struct Shift4ThreeDsResponse {
     pub token: Token,
 }
 
-#[derive(Default, Debug, Deserialize)]
+#[derive(Default, Debug, Deserialize, Serialize)]
 pub struct Token {
     pub id: String,
     pub created: i64,
@@ -593,7 +592,7 @@ pub struct Token {
     pub three_d_secure_info: ThreeDSecureInfo,
 }
 
-#[derive(Default, Debug, Deserialize)]
+#[derive(Default, Debug, Deserialize, Serialize)]
 pub struct ThreeDSecureInfo {
     pub amount: i64,
     pub currency: String,
@@ -605,7 +604,7 @@ pub struct ThreeDSecureInfo {
     pub authentication_flow: Option<SecretSerdeValue>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FlowResponse {
     pub next_action: Option<NextAction>,
@@ -613,13 +612,13 @@ pub struct FlowResponse {
     pub return_url: Option<Url>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Redirect {
     pub redirect_url: Option<Url>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum NextAction {
     Redirect,
@@ -810,12 +809,12 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct ErrorResponse {
     pub error: ApiErrorResponse,
 }
 
-#[derive(Default, Debug, Clone, Deserialize, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ApiErrorResponse {
     pub code: Option<String>,
     pub message: String,

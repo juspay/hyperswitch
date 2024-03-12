@@ -5,7 +5,11 @@ use common_enums::{
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{enums::MandateTypeDetails, schema::payment_attempt, PaymentAttemptNew};
+use crate::{
+    enums::{MandateDataType, MandateDetails},
+    schema::payment_attempt,
+    PaymentAttemptNew,
+};
 
 #[derive(
     Clone, Debug, Default, diesel::Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize,
@@ -50,7 +54,7 @@ pub struct PaymentAttemptBatchNew {
     pub business_sub_label: Option<String>,
     pub straight_through_algorithm: Option<serde_json::Value>,
     pub preprocessing_step_id: Option<String>,
-    pub mandate_details: Option<MandateTypeDetails>,
+    pub mandate_details: Option<MandateDataType>,
     pub error_reason: Option<String>,
     pub connector_response_reference_id: Option<String>,
     pub connector_transaction_id: Option<String>,
@@ -63,6 +67,12 @@ pub struct PaymentAttemptBatchNew {
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
     pub net_amount: Option<i64>,
+    pub external_three_ds_authentication_attempted: Option<bool>,
+    pub authentication_connector: Option<String>,
+    pub authentication_id: Option<String>,
+    pub mandate_data: Option<MandateDetails>,
+    pub payment_method_billing_address_id: Option<String>,
+    pub fingerprint_id: Option<String>,
 }
 
 #[allow(dead_code)]
@@ -116,6 +126,13 @@ impl PaymentAttemptBatchNew {
             unified_code: self.unified_code,
             unified_message: self.unified_message,
             net_amount: self.net_amount,
+            external_three_ds_authentication_attempted: self
+                .external_three_ds_authentication_attempted,
+            authentication_connector: self.authentication_connector,
+            authentication_id: self.authentication_id,
+            mandate_data: self.mandate_data,
+            payment_method_billing_address_id: self.payment_method_billing_address_id,
+            fingerprint_id: self.fingerprint_id,
         }
     }
 }

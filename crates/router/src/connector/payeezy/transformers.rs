@@ -1,7 +1,7 @@
 use cards::CardNumber;
 use common_utils::ext_traits::Encode;
 use error_stack::ResultExt;
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -108,7 +108,7 @@ pub struct StoredCredentials {
     pub sequence: Sequence,
     pub initiator: Initiator,
     pub is_scheduled: bool,
-    pub cardbrand_original_transaction_id: Option<String>,
+    pub cardbrand_original_transaction_id: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -203,7 +203,7 @@ fn get_transaction_type_and_stored_creds(
                     },
                     is_scheduled: true,
                     // In case of first mandate payment connector_mandate_id would be None, otherwise holds some value
-                    cardbrand_original_transaction_id: connector_mandate_id,
+                    cardbrand_original_transaction_id: connector_mandate_id.map(Secret::new),
                 }),
             )
         } else {
@@ -298,7 +298,7 @@ impl TryFrom<&types::ConnectorAuthType> for PayeezyAuthType {
 }
 // PaymentsResponse
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum PayeezyPaymentStatus {
     Approved,
@@ -308,7 +308,7 @@ pub enum PayeezyPaymentStatus {
     NotProcessed,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct PayeezyPaymentsResponse {
     pub correlation_id: String,
     pub transaction_status: PayeezyPaymentStatus,
@@ -327,9 +327,9 @@ pub struct PayeezyPaymentsResponse {
     pub reference: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct PaymentsStoredCredentials {
-    cardbrand_original_transaction_id: String,
+    cardbrand_original_transaction_id: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -407,11 +407,7 @@ impl<F, T>
         let metadata = item
             .response
             .transaction_tag
-            .map(|txn_tag| {
-                Encode::<'_, PayeezyPaymentsMetadata>::encode_to_value(
-                    &construct_payeezy_payments_metadata(txn_tag),
-                )
-            })
+            .map(|txn_tag| construct_payeezy_payments_metadata(txn_tag).encode_to_value())
             .transpose()
             .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
@@ -420,7 +416,7 @@ impl<F, T>
             .stored_credentials
             .map(|credentials| credentials.cardbrand_original_transaction_id)
             .map(|id| types::MandateReference {
-                connector_mandate_id: Some(id),
+                connector_mandate_id: Some(id.expose()),
                 payment_method_id: None,
             });
         let status = enums::AttemptStatus::foreign_from((
@@ -502,7 +498,7 @@ impl<F> TryFrom<&PayeezyRouterData<&types::RefundsRouterData<F>>> for PayeezyRef
 
 // Type definition for Refund Response
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Default, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum RefundStatus {
     Approved,
@@ -522,7 +518,7 @@ impl From<RefundStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug, Serialize)]
 pub struct RefundResponse {
     pub correlation_id: String,
     pub transaction_status: RefundStatus,
@@ -556,18 +552,18 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Message {
     pub code: String,
     pub description: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct PayeezyError {
     pub messages: Vec<Message>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct PayeezyErrorResponse {
     pub transaction_status: String,
     #[serde(rename = "Error")]

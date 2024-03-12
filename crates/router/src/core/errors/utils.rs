@@ -509,3 +509,34 @@ impl RedisErrorExt for error_stack::Report<errors::RedisError> {
         }
     }
 }
+
+#[cfg(feature = "olap")]
+impl<T> StorageErrorExt<T, errors::UserErrors> for error_stack::Result<T, errors::StorageError> {
+    #[track_caller]
+    fn to_not_found_response(
+        self,
+        not_found_response: errors::UserErrors,
+    ) -> error_stack::Result<T, errors::UserErrors> {
+        self.map_err(|e| {
+            if e.current_context().is_db_not_found() {
+                e.change_context(not_found_response)
+            } else {
+                e.change_context(errors::UserErrors::InternalServerError)
+            }
+        })
+    }
+
+    #[track_caller]
+    fn to_duplicate_response(
+        self,
+        duplicate_response: errors::UserErrors,
+    ) -> error_stack::Result<T, errors::UserErrors> {
+        self.map_err(|e| {
+            if e.current_context().is_db_unique_violation() {
+                e.change_context(duplicate_response)
+            } else {
+                e.change_context(errors::UserErrors::InternalServerError)
+            }
+        })
+    }
+}

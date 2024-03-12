@@ -8,6 +8,7 @@ use rdkafka::{
 };
 
 use crate::events::EventType;
+mod dispute;
 mod payment_attempt;
 mod payment_intent;
 mod refund;
@@ -17,8 +18,10 @@ use serde::Serialize;
 use time::OffsetDateTime;
 
 use self::{
-    payment_attempt::KafkaPaymentAttempt, payment_intent::KafkaPaymentIntent, refund::KafkaRefund,
+    dispute::KafkaDispute, payment_attempt::KafkaPaymentAttempt,
+    payment_intent::KafkaPaymentIntent, refund::KafkaRefund,
 };
+use crate::types::storage::Dispute;
 // Using message queue result here to avoid confusion with Kafka result provided by library
 pub type MQResult<T> = CustomResult<T, KafkaError>;
 
@@ -82,6 +85,7 @@ pub struct KafkaSettings {
     api_logs_topic: String,
     connector_logs_topic: String,
     outgoing_webhook_logs_topic: String,
+    dispute_analytics_topic: String,
 }
 
 impl KafkaSettings {
@@ -135,6 +139,12 @@ impl KafkaSettings {
             },
         )?;
 
+        common_utils::fp_utils::when(self.dispute_analytics_topic.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "Kafka Dispute Logs topic must not be empty".into(),
+            ))
+        })?;
+
         Ok(())
     }
 }
@@ -148,6 +158,7 @@ pub struct KafkaProducer {
     api_logs_topic: String,
     connector_logs_topic: String,
     outgoing_webhook_logs_topic: String,
+    dispute_analytics_topic: String,
 }
 
 struct RdKafkaProducer(ThreadedProducer<DefaultProducerContext>);
@@ -186,6 +197,7 @@ impl KafkaProducer {
             api_logs_topic: conf.api_logs_topic.clone(),
             connector_logs_topic: conf.connector_logs_topic.clone(),
             outgoing_webhook_logs_topic: conf.outgoing_webhook_logs_topic.clone(),
+            dispute_analytics_topic: conf.dispute_analytics_topic.clone(),
         })
     }
 
@@ -306,6 +318,27 @@ impl KafkaProducer {
         })
     }
 
+    pub async fn log_dispute(
+        &self,
+        dispute: &Dispute,
+        old_dispute: Option<Dispute>,
+    ) -> MQResult<()> {
+        if let Some(negative_event) = old_dispute {
+            self.log_kafka_event(
+                &self.dispute_analytics_topic,
+                &KafkaEvent::old(&KafkaDispute::from_storage(&negative_event)),
+            )
+            .attach_printable_lazy(|| {
+                format!("Failed to add negative dispute event {negative_event:?}")
+            })?;
+        };
+        self.log_kafka_event(
+            &self.dispute_analytics_topic,
+            &KafkaEvent::new(&KafkaDispute::from_storage(dispute)),
+        )
+        .attach_printable_lazy(|| format!("Failed to add positive dispute event {dispute:?}"))
+    }
+
     pub fn get_topic(&self, event: EventType) -> &str {
         match event {
             EventType::ApiLogs => &self.api_logs_topic,
@@ -314,6 +347,7 @@ impl KafkaProducer {
             EventType::Refund => &self.refund_analytics_topic,
             EventType::ConnectorApiLogs => &self.connector_logs_topic,
             EventType::OutgoingWebhookLogs => &self.outgoing_webhook_logs_topic,
+            EventType::Dispute => &self.dispute_analytics_topic,
         }
     }
 }

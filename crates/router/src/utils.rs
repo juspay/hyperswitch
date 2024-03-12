@@ -26,6 +26,7 @@ pub use common_utils::{
 use data_models::payments::PaymentIntent;
 use error_stack::{IntoReport, ResultExt};
 use image::Luma;
+use masking::ExposeInterface;
 use nanoid::nanoid;
 use qrcode;
 use serde::de::DeserializeOwned;
@@ -326,14 +327,26 @@ pub async fn find_payment_intent_from_mandate_id_type(
     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
 }
 
-pub async fn get_profile_id_using_object_reference_id(
+pub async fn get_mca_from_object_reference_id(
     db: &dyn StorageInterface,
     object_reference_id: webhooks::ObjectReferenceId,
     merchant_account: &domain::MerchantAccount,
     connector_name: &str,
-) -> CustomResult<String, errors::ApiErrorResponse> {
+    key_store: &domain::MerchantKeyStore,
+) -> CustomResult<domain::MerchantConnectorAccount, errors::ApiErrorResponse> {
+    let merchant_id = merchant_account.merchant_id.clone();
+
     match merchant_account.default_profile.as_ref() {
-        Some(profile_id) => Ok(profile_id.clone()),
+        Some(profile_id) => db
+            .find_merchant_connector_account_by_profile_id_connector_name(
+                profile_id,
+                connector_name,
+                key_store,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: format!("profile_id {profile_id} and connector_name {connector_name}"),
+            }),
         _ => {
             let payment_intent = match object_reference_id {
                 webhooks::ObjectReferenceId::PaymentId(payment_id_type) => {
@@ -355,19 +368,56 @@ pub async fn get_profile_id_using_object_reference_id(
                 }
             };
 
-            let profile_id = utils::get_profile_id_from_business_details(
-                payment_intent.business_country,
-                payment_intent.business_label.as_ref(),
-                merchant_account,
-                payment_intent.profile_id.as_ref(),
-                db,
-                false,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("profile_id is not set in payment_intent")?;
+            let payment_attempt = db
+                .find_payment_attempt_by_attempt_id_merchant_id(
+                    &payment_intent.active_attempt.get_id(),
+                    &merchant_id,
+                    merchant_account.storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-            Ok(profile_id)
+            match payment_attempt.merchant_connector_id {
+                Some(merchant_connector_id) => db
+                    .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                        &merchant_id,
+                        &merchant_connector_id,
+                        key_store,
+                    )
+                    .await
+                    .to_not_found_response(
+                        errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                            id: merchant_connector_id,
+                        },
+                    ),
+                None => {
+                    let profile_id = utils::get_profile_id_from_business_details(
+                        payment_intent.business_country,
+                        payment_intent.business_label.as_ref(),
+                        merchant_account,
+                        payment_intent.profile_id.as_ref(),
+                        db,
+                        false,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("profile_id is not set in payment_intent")?;
+
+                    db.find_merchant_connector_account_by_profile_id_connector_name(
+                        &profile_id,
+                        connector_name,
+                        key_store,
+                    )
+                    .await
+                    .to_not_found_response(
+                        errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                            id: format!(
+                                "profile_id {profile_id} and connector_name {connector_name}"
+                            ),
+                        },
+                    )
+                }
+            }
         }
     }
 }
@@ -515,6 +565,12 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                     .await?,
                 country_code: self.phone_country_code.clone(),
                 updated_by: storage_scheme.to_string(),
+                email: self
+                    .email
+                    .as_ref()
+                    .cloned()
+                    .async_lift(|inner| encrypt_optional(inner.map(|inner| inner.expose()), key))
+                    .await?,
             })
         }
         .await
@@ -574,6 +630,12 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                 created_at: common_utils::date_time::now(),
                 modified_at: common_utils::date_time::now(),
                 updated_by: storage_scheme.to_string(),
+                email: self
+                    .email
+                    .as_ref()
+                    .cloned()
+                    .async_lift(|inner| encrypt_optional(inner.map(|inner| inner.expose()), key))
+                    .await?,
             })
         }
         .await
@@ -740,21 +802,19 @@ where
             if let Some(event_type) = event_type {
                 tokio::spawn(
                     async move {
-                        Box::pin(
-                            webhooks_core::create_event_and_trigger_appropriate_outgoing_webhook(
-                                m_state,
-                                merchant_account,
-                                business_profile,
-                                event_type,
-                                diesel_models::enums::EventClass::Payments,
-                                None,
-                                payment_id,
-                                diesel_models::enums::EventObjectType::PaymentDetails,
-                                webhooks::OutgoingWebhookContent::PaymentDetails(
-                                    payments_response_json,
-                                ),
+                        Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
+                            m_state,
+                            merchant_account,
+                            business_profile,
+                            event_type,
+                            diesel_models::enums::EventClass::Payments,
+                            None,
+                            payment_id,
+                            diesel_models::enums::EventObjectType::PaymentDetails,
+                            webhooks::OutgoingWebhookContent::PaymentDetails(
+                                payments_response_json,
                             ),
-                        )
+                        ))
                         .await
                     }
                     .in_current_span(),

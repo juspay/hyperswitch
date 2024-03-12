@@ -13,7 +13,6 @@ use time::PrimitiveDateTime;
 #[serde(rename_all = "snake_case")]
 pub struct MandateDetails {
     pub update_mandate_id: Option<String>,
-    pub mandate_type: Option<MandateDataType>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -23,13 +22,6 @@ pub enum MandateDataType {
     MultiUse(Option<MandateAmountData>),
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-#[serde(untagged)]
-pub enum MandateTypeDetails {
-    MandateType(MandateDataType),
-    MandateDetails(MandateDetails),
-}
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct MandateAmountData {
     pub amount: i64,
@@ -121,6 +113,16 @@ impl From<ApiCustomerAcceptance> for CustomerAcceptance {
     }
 }
 
+impl From<CustomerAcceptance> for ApiCustomerAcceptance {
+    fn from(value: CustomerAcceptance) -> Self {
+        Self {
+            acceptance_type: value.acceptance_type.into(),
+            accepted_at: value.accepted_at,
+            online: value.online.map(|d| d.into()),
+        }
+    }
+}
+
 impl From<ApiAcceptanceType> for AcceptanceType {
     fn from(value: ApiAcceptanceType) -> Self {
         match value {
@@ -129,9 +131,25 @@ impl From<ApiAcceptanceType> for AcceptanceType {
         }
     }
 }
+impl From<AcceptanceType> for ApiAcceptanceType {
+    fn from(value: AcceptanceType) -> Self {
+        match value {
+            AcceptanceType::Online => Self::Online,
+            AcceptanceType::Offline => Self::Offline,
+        }
+    }
+}
 
 impl From<ApiOnlineMandate> for OnlineMandate {
     fn from(value: ApiOnlineMandate) -> Self {
+        Self {
+            ip_address: value.ip_address,
+            user_agent: value.user_agent,
+        }
+    }
+}
+impl From<OnlineMandate> for ApiOnlineMandate {
+    fn from(value: OnlineMandate) -> Self {
         Self {
             ip_address: value.ip_address,
             user_agent: value.user_agent,

@@ -1,5 +1,4 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
-use router_env::tracing::{self, instrument};
 
 use crate::{
     enums,
@@ -13,7 +12,6 @@ use crate::{
 };
 
 impl DashboardMetadataNew {
-    #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<DashboardMetadata> {
         generics::generic_insert(conn, self).await
     }
@@ -105,7 +103,7 @@ impl DashboardMetadata {
         .await
     }
 
-    pub async fn delete_user_scoped_dashboard_metadata_by_merchant_id(
+    pub async fn delete_all_user_scoped_dashboard_metadata_by_merchant_id(
         conn: &PgPooledConn,
         user_id: String,
         merchant_id: String,
@@ -115,6 +113,22 @@ impl DashboardMetadata {
             dsl::user_id
                 .eq(user_id)
                 .and(dsl::merchant_id.eq(merchant_id)),
+        )
+        .await
+    }
+
+    pub async fn delete_user_scoped_dashboard_metadata_by_merchant_id_data_key(
+        conn: &PgPooledConn,
+        user_id: String,
+        merchant_id: String,
+        data_key: enums::DashboardMetadata,
+    ) -> StorageResult<Self> {
+        generics::generic_delete_one_with_result::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::user_id
+                .eq(user_id)
+                .and(dsl::merchant_id.eq(merchant_id))
+                .and(dsl::data_key.eq(data_key)),
         )
         .await
     }

@@ -64,7 +64,7 @@ pub struct MolliePaymentsRequest {
     payment_method_data: PaymentMethodData,
     metadata: Option<MollieMetadata>,
     sequence_type: SequenceType,
-    mandate_id: Option<String>,
+    mandate_id: Option<Secret<String>>,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -92,7 +92,7 @@ pub enum PaymentMethodData {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplePayMethodData {
-    apple_pay_payment_token: String,
+    apple_pay_payment_token: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -333,7 +333,7 @@ fn get_payment_method_for_wallet(
         }
         api_models::payments::WalletData::ApplePay(applepay_wallet_data) => {
             Ok(PaymentMethodData::Applepay(Box::new(ApplePayMethodData {
-                apple_pay_payment_token: applepay_wallet_data.payment_data.to_owned(),
+                apple_pay_payment_token: Secret::new(applepay_wallet_data.payment_data.to_owned()),
             })))
         }
         _ => Err(errors::ConnectorError::NotImplemented(
@@ -347,9 +347,7 @@ fn get_shipping_details(
     item: &types::PaymentsAuthorizeRouterData,
 ) -> Result<Option<Address>, Error> {
     let shipping_address = item
-        .address
-        .shipping
-        .as_ref()
+        .get_optional_shipping()
         .and_then(|shipping| shipping.address.as_ref());
     get_address_details(shipping_address)
 }
@@ -358,9 +356,7 @@ fn get_billing_details(
     item: &types::PaymentsAuthorizeRouterData,
 ) -> Result<Option<Address>, Error> {
     let billing_address = item
-        .address
-        .billing
-        .as_ref()
+        .get_optional_billing()
         .and_then(|billing| billing.address.as_ref());
     get_address_details(billing_address)
 }
@@ -388,7 +384,7 @@ fn get_address_details(
     Ok(address_details)
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MolliePaymentsResponse {
     pub resource: String,
@@ -451,16 +447,16 @@ pub struct Links {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CardDetails {
-    pub card_number: String,
-    pub card_holder: String,
-    pub card_expiry_date: String,
-    pub card_cvv: String,
+    pub card_number: Secret<String>,
+    pub card_holder: Secret<String>,
+    pub card_expiry_date: Secret<String>,
+    pub card_cvv: Secret<String>,
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct BankDetails {
-    billing_email: String,
+    billing_email: Email,
 }
 
 pub struct MollieAuthType {
@@ -625,7 +621,7 @@ impl<T> TryFrom<types::RefundsResponseRouterData<T, RefundResponse>>
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ErrorResponse {
     pub status: u16,
     pub title: Option<String>,

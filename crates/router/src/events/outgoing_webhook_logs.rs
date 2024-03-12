@@ -43,10 +43,10 @@ pub enum OutgoingWebhookEventContent {
     },
 }
 pub trait OutgoingWebhookEventMetric {
-    fn get_outgoing_webhook_event_type(&self) -> Option<OutgoingWebhookEventContent>;
+    fn get_outgoing_webhook_event_content(&self) -> Option<OutgoingWebhookEventContent>;
 }
 impl OutgoingWebhookEventMetric for OutgoingWebhookContent {
-    fn get_outgoing_webhook_event_type(&self) -> Option<OutgoingWebhookEventContent> {
+    fn get_outgoing_webhook_event_content(&self) -> Option<OutgoingWebhookEventContent> {
         match self {
             Self::PaymentDetails(payment_payload) => Some(OutgoingWebhookEventContent::Payment {
                 payment_id: payment_payload.payment_id.clone(),
@@ -82,7 +82,6 @@ impl OutgoingWebhookEvent {
         event_id: String,
         event_type: OutgoingWebhookEventType,
         content: Option<OutgoingWebhookEventContent>,
-        is_error: bool,
         error: Option<Value>,
     ) -> Self {
         Self {
@@ -90,7 +89,7 @@ impl OutgoingWebhookEvent {
             event_id,
             event_type,
             content,
-            is_error,
+            is_error: error.is_some(),
             error,
             created_at_timestamp: OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000,
         }
