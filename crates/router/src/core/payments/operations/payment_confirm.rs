@@ -565,14 +565,12 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             setup_mandate,
             customer_acceptance,
             token,
+            address: PaymentAddress::new(
+                shipping_address.as_ref().map(From::from),
+                billing_address.as_ref().map(From::from),
+                payment_method_billing.as_ref().map(From::from),
+            ),
             token_data,
-            address: PaymentAddress {
-                shipping: shipping_address.as_ref().map(|a| a.into()),
-                billing: billing_address.as_ref().map(|a| a.into()),
-                payment_method_billing: payment_method_billing
-                    .as_ref()
-                    .map(|address| address.into()),
-            },
             confirm: request.confirm,
             payment_method_data: payment_method_data_after_card_bin_call,
             payment_method_info,

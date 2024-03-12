@@ -24,6 +24,7 @@ use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
 use helpers::ApplePayData;
 use masking::Secret;
+pub use payment_address::PaymentAddress;
 use redis_interface::errors::RedisError;
 use router_env::{instrument, tracing};
 #[cfg(feature = "olap")]
@@ -2034,11 +2035,52 @@ pub enum CallConnectorAction {
     HandleResponse(Vec<u8>),
 }
 
-#[derive(Clone, Default, Debug)]
-pub struct PaymentAddress {
-    pub shipping: Option<api::Address>,
-    pub billing: Option<api::Address>,
-    pub payment_method_billing: Option<api::Address>,
+pub mod payment_address {
+    use super::*;
+
+    #[derive(Clone, Default, Debug)]
+    pub struct PaymentAddress {
+        shipping: Option<api::Address>,
+        billing: Option<api::Address>,
+        payment_method_billing: Option<api::Address>,
+    }
+
+    impl PaymentAddress {
+        pub fn new(
+            shipping: Option<api::Address>,
+            billing: Option<api::Address>,
+            payment_method_billing: Option<api::Address>,
+        ) -> Self {
+            let payment_method_billing = match (payment_method_billing, billing.clone()) {
+                (Some(payment_method_billing), Some(order_billing)) => Some(api::Address {
+                    address: payment_method_billing.address.or(order_billing.address),
+                    phone: payment_method_billing.phone.or(order_billing.phone),
+                    email: payment_method_billing.email.or(order_billing.email),
+                }),
+                (Some(payment_method_billing), None) => Some(payment_method_billing),
+                (None, Some(order_billing)) => Some(order_billing),
+                (None, None) => None,
+            };
+
+            Self {
+                shipping,
+                billing,
+                payment_method_billing,
+            }
+        }
+
+        pub fn get_shipping(&self) -> Option<&api::Address> {
+            self.shipping.as_ref()
+        }
+
+        pub fn get_payment_method_billing(&self) -> Option<&api::Address> {
+            self.payment_method_billing.as_ref()
+        }
+
+        pub fn get_payment_billing(&self) -> Option<&api::Address> {
+            self.billing.as_ref()
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -2980,8 +3022,7 @@ where
         state: &state,
         country: payment_data
             .address
-            .billing
-            .as_ref()
+            .get_payment_method_billing()
             .and_then(|address| address.address.as_ref())
             .and_then(|details| details.country),
         key_store,
