@@ -1,7 +1,5 @@
 {
   "childrenOrder": [
-    "Add Config for Enabling Merchant",
-    "Add Config for Retry Count",
     "[Bank] Payout Create - Adyen"
   ]
 }
