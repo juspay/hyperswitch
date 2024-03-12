@@ -1,4 +1,9 @@
-use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Table};
+use async_bb8_diesel::AsyncRunQueryDsl;
+use diesel::{
+    associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods,
+    QueryDsl, Table,
+};
+use error_stack::{IntoReport, ResultExt};
 
 use super::generics;
 use crate::{
@@ -94,6 +99,34 @@ impl PaymentMethod {
             Some(dsl::last_used_at.desc()),
         )
         .await
+    }
+
+    pub async fn get_count_by_customer_id_merchant_id_status(
+        conn: &PgPooledConn,
+        customer_id: &str,
+        merchant_id: &str,
+        status: common_enums::PaymentMethodStatus,
+    ) -> StorageResult<i64> {
+        let filter = <Self as HasTable>::table()
+            .count()
+            .filter(
+                dsl::customer_id
+                    .eq(customer_id.to_owned())
+                    .and(dsl::merchant_id.eq(merchant_id.to_owned()))
+                    .and(dsl::status.eq(status.to_owned())),
+            )
+            .into_boxed();
+
+        router_env::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
+
+        generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
+            filter.get_result_async::<i64>(conn),
+            generics::db_metrics::DatabaseOperation::Count,
+        )
+        .await
+        .into_report()
+        .change_context(errors::DatabaseError::Others)
+        .attach_printable("Failed to get a count of payment methods")
     }
 
     pub async fn find_by_customer_id_merchant_id_status(
