@@ -126,6 +126,9 @@ pub enum PaymentMethodUpdate {
     LastUsedUpdate {
         last_used_at: PrimitiveDateTime,
     },
+    StatusUpdate {
+        status: Option<storage_enums::PaymentMethodStatus>,
+    },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -134,6 +137,7 @@ pub struct PaymentMethodUpdateInternal {
     metadata: Option<serde_json::Value>,
     payment_method_data: Option<Encryption>,
     last_used_at: Option<PrimitiveDateTime>,
+    status: Option<storage_enums::PaymentMethodStatus>,
 }
 
 impl PaymentMethodUpdateInternal {
@@ -151,6 +155,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 metadata,
                 payment_method_data: None,
                 last_used_at: None,
+                status: None,
             },
             PaymentMethodUpdate::PaymentMethodDataUpdate {
                 payment_method_data,
@@ -158,11 +163,19 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 metadata: None,
                 payment_method_data,
                 last_used_at: None,
+                status: None,
             },
             PaymentMethodUpdate::LastUsedUpdate { last_used_at } => Self {
                 metadata: None,
                 payment_method_data: None,
                 last_used_at: Some(last_used_at),
+                status: None,
+            },
+            PaymentMethodUpdate::StatusUpdate { status } => Self {
+                metadata: None,
+                payment_method_data: None,
+                last_used_at: None,
+                status,
             },
         }
     }
