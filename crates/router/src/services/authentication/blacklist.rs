@@ -17,6 +17,7 @@ use crate::{
 use crate::{
     core::errors::{UserErrors, UserResult},
     routes::AppState,
+    services::authorization as authz,
 };
 
 #[cfg(feature = "olap")]
@@ -48,7 +49,20 @@ pub async fn insert_role_in_blacklist(state: &AppState, role_id: &str) -> UserRe
             expiry,
         )
         .await
+        .change_context(UserErrors::InternalServerError)?;
+    invalidate_role_cache(state, role_id)
+        .await
         .change_context(UserErrors::InternalServerError)
+}
+
+#[cfg(feature = "olap")]
+async fn invalidate_role_cache(state: &AppState, role_id: &str) -> RouterResult<()> {
+    let redis_conn = get_redis_connection(state)?;
+    redis_conn
+        .delete_key(authz::get_cache_key_from_role_id(role_id).as_str())
+        .await
+        .map(|_| ())
+        .change_context(ApiErrorResponse::InternalServerError)
 }
 
 pub async fn check_user_in_blacklist<A: AppStateInfo>(

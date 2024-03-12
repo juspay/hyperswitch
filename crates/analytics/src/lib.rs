@@ -12,10 +12,17 @@ pub mod connector_events;
 pub mod health_check;
 pub mod outgoing_webhook_event;
 pub mod sdk_events;
+pub mod search;
 mod sqlx;
 mod types;
 use api_event::metrics::{ApiEventMetric, ApiEventMetricRow};
+use common_utils::errors::CustomResult;
 use disputes::metrics::{DisputeMetric, DisputeMetricRow};
+use hyperswitch_interfaces::secrets_interface::{
+    secret_handler::SecretsHandler,
+    secret_state::{RawSecret, SecretStateContainer, SecuredSecret},
+    SecretManagementInterface, SecretsManagementError,
+};
 pub use types::AnalyticsDomain;
 pub mod lambda_utils;
 pub mod utils;
@@ -598,6 +605,51 @@ pub enum AnalyticsConfig {
     },
 }
 
+#[async_trait::async_trait]
+impl SecretsHandler for AnalyticsConfig {
+    async fn convert_to_raw_secret(
+        value: SecretStateContainer<Self, SecuredSecret>,
+        secret_management_client: &dyn SecretManagementInterface,
+    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
+        let analytics_config = value.get_inner();
+        let decrypted_password = match analytics_config {
+            // Todo: Perform kms decryption of clickhouse password
+            Self::Clickhouse { .. } => masking::Secret::new(String::default()),
+            Self::Sqlx { sqlx }
+            | Self::CombinedCkh { sqlx, .. }
+            | Self::CombinedSqlx { sqlx, .. } => {
+                secret_management_client
+                    .get_secret(sqlx.password.clone())
+                    .await?
+            }
+        };
+
+        Ok(value.transition_state(|conf| match conf {
+            Self::Sqlx { sqlx } => Self::Sqlx {
+                sqlx: Database {
+                    password: decrypted_password,
+                    ..sqlx
+                },
+            },
+            Self::Clickhouse { clickhouse } => Self::Clickhouse { clickhouse },
+            Self::CombinedCkh { sqlx, clickhouse } => Self::CombinedCkh {
+                sqlx: Database {
+                    password: decrypted_password,
+                    ..sqlx
+                },
+                clickhouse,
+            },
+            Self::CombinedSqlx { sqlx, clickhouse } => Self::CombinedSqlx {
+                sqlx: Database {
+                    password: decrypted_password,
+                    ..sqlx
+                },
+                clickhouse,
+            },
+        }))
+    }
+}
+
 impl Default for AnalyticsConfig {
     fn default() -> Self {
         Self::Sqlx {
@@ -612,4 +664,43 @@ pub struct ReportConfig {
     pub refund_function: String,
     pub dispute_function: String,
     pub region: String,
+}
+
+#[derive(Clone, Debug, serde::Deserialize)]
+#[serde(tag = "auth")]
+#[serde(rename_all = "lowercase")]
+pub enum OpensearchAuth {
+    Basic { username: String, password: String },
+    Aws { region: String },
+}
+
+#[derive(Clone, Debug, serde::Deserialize)]
+pub struct OpensearchIndexes {
+    pub payment_attempts: String,
+    pub payment_intents: String,
+    pub refunds: String,
+}
+
+#[derive(Clone, Debug, serde::Deserialize)]
+pub struct OpensearchConfig {
+    host: String,
+    auth: OpensearchAuth,
+    indexes: OpensearchIndexes,
+}
+
+impl Default for OpensearchConfig {
+    fn default() -> Self {
+        Self {
+            host: "https://localhost:9200".to_string(),
+            auth: OpensearchAuth::Basic {
+                username: "admin".to_string(),
+                password: "admin".to_string(),
+            },
+            indexes: OpensearchIndexes {
+                payment_attempts: "hyperswitch-payment-attempt-events".to_string(),
+                payment_intents: "hyperswitch-payment-intent-events".to_string(),
+                refunds: "hyperswitch-refund-events".to_string(),
+            },
+        }
+    }
 }

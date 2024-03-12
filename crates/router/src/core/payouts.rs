@@ -150,7 +150,7 @@ pub async fn make_connector_decision(
 ) -> RouterResult<PayoutData> {
     match connector_call_type {
         api::ConnectorCallType::PreDetermined(connector_data) => {
-            call_connector_payout(
+            payout_data = call_connector_payout(
                 state,
                 merchant_account,
                 key_store,
@@ -158,7 +158,32 @@ pub async fn make_connector_decision(
                 &connector_data,
                 &mut payout_data,
             )
-            .await
+            .await?;
+
+            #[cfg(feature = "payout_retry")]
+            {
+                use crate::core::payouts::retry::{self, GsmValidation};
+                let config_bool = retry::config_should_call_gsm_payout(
+                    &*state.store,
+                    &merchant_account.merchant_id,
+                    retry::PayoutRetryType::SingleConnector,
+                )
+                .await;
+
+                if config_bool && payout_data.should_call_gsm() {
+                    payout_data = retry::do_gsm_single_connector_actions(
+                        state,
+                        connector_data,
+                        payout_data,
+                        merchant_account,
+                        key_store,
+                        req,
+                    )
+                    .await?;
+                }
+            }
+
+            Ok(payout_data)
         }
         api::ConnectorCallType::Retryable(connectors) => {
             let mut connectors = connectors.into_iter();
@@ -178,16 +203,36 @@ pub async fn make_connector_decision(
             #[cfg(feature = "payout_retry")]
             {
                 use crate::core::payouts::retry::{self, GsmValidation};
-                let config_bool = retry::config_should_call_gsm_payout(
+                let config_multiple_connector_bool = retry::config_should_call_gsm_payout(
                     &*state.store,
                     &merchant_account.merchant_id,
+                    retry::PayoutRetryType::MultiConnector,
                 )
                 .await;
 
-                if config_bool && payout_data.should_call_gsm() {
-                    payout_data = retry::do_gsm_actions(
+                if config_multiple_connector_bool && payout_data.should_call_gsm() {
+                    payout_data = retry::do_gsm_multiple_connector_actions(
                         state,
                         connectors,
+                        connector_data.clone(),
+                        payout_data,
+                        merchant_account,
+                        key_store,
+                        req,
+                    )
+                    .await?;
+                }
+
+                let config_single_connector_bool = retry::config_should_call_gsm_payout(
+                    &*state.store,
+                    &merchant_account.merchant_id,
+                    retry::PayoutRetryType::SingleConnector,
+                )
+                .await;
+
+                if config_single_connector_bool && payout_data.should_call_gsm() {
+                    payout_data = retry::do_gsm_single_connector_actions(
+                        state,
                         connector_data,
                         payout_data,
                         merchant_account,
@@ -349,74 +394,52 @@ pub async fn payouts_update_core(
         }
     }
 
-    payout_data = match (
-        req.connector.clone(),
-        payout_data.payout_attempt.connector.clone(),
-    ) {
+    if (
+        req.connector.is_none(),
+        payout_data.payout_attempt.connector.is_some(),
+    ) != (true, true)
+    {
         // if the connector is not updated but was provided during payout create
-        (None, Some(connector)) => {
-            let connector_data = api::ConnectorData::get_payout_connector_by_name(
-                &state.conf.connectors,
-                connector.as_str(),
-                api::GetToken::Connector,
-                payout_attempt.merchant_connector_id.clone(),
-            )
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to get the connector data")?;
+        payout_data.payout_attempt.connector = None;
+        payout_data.payout_attempt.routing_info = None;
 
-            call_connector_payout(
+        //fetch payout_method_data
+        payout_data.payout_method_data = Some(
+            helpers::make_payout_method_data(
                 &state,
-                &merchant_account,
+                req.payout_method_data.as_ref(),
+                payout_data.payout_attempt.payout_token.as_deref(),
+                &payout_data.payout_attempt.customer_id,
+                &payout_data.payout_attempt.merchant_id,
+                &payout_data.payout_attempt.payout_id,
+                Some(&payouts.payout_type),
                 &key_store,
-                &req,
-                &connector_data,
-                &mut payout_data,
             )
             .await?
-        }
-        // if the connector is updated or not present both in create and update call
-        _ => {
-            payout_data.payout_attempt.connector = None;
-            payout_data.payout_attempt.routing_info = None;
-
-            //fetch payout_method_data
-            payout_data.payout_method_data = Some(
-                helpers::make_payout_method_data(
-                    &state,
-                    req.payout_method_data.as_ref(),
-                    payout_data.payout_attempt.payout_token.as_deref(),
-                    &payout_data.payout_attempt.customer_id,
-                    &payout_data.payout_attempt.merchant_id,
-                    &payout_data.payout_attempt.payout_id,
-                    Some(&payouts.payout_type),
-                    &key_store,
-                )
-                .await?
-                .get_required_value("payout_method_data")?,
-            );
-
-            let connector_call_type = get_connector_choice(
-                &state,
-                &merchant_account,
-                &key_store,
-                None,
-                req.routing.clone(),
-                &mut payout_data,
-                req.connector.clone(),
-            )
-            .await?;
-
-            make_connector_decision(
-                &state,
-                &merchant_account,
-                &key_store,
-                &req,
-                connector_call_type,
-                payout_data,
-            )
-            .await?
-        }
+            .get_required_value("payout_method_data")?,
+        );
     };
+
+    let connector_call_type = get_connector_choice(
+        &state,
+        &merchant_account,
+        &key_store,
+        None,
+        req.routing.clone(),
+        &mut payout_data,
+        req.connector.clone(),
+    )
+    .await?;
+
+    payout_data = make_connector_decision(
+        &state,
+        &merchant_account,
+        &key_store,
+        &req,
+        connector_call_type,
+        payout_data,
+    )
+    .await?;
 
     response_handler(
         &state,

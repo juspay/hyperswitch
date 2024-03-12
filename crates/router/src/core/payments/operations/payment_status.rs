@@ -100,6 +100,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
         Option<api::PaymentMethodData>,
+        Option<String>,
     )> {
         helpers::make_pm_data(
             Box::new(self),
@@ -409,12 +410,14 @@ async fn get_tracker_for_sync<
             .mandate_id
             .clone()
             .map(|id| api_models::payments::MandateIds {
-                mandate_id: id,
+                mandate_id: Some(id),
                 mandate_reference_id: None,
             }),
         mandate_connector: None,
         setup_mandate: None,
+        customer_acceptance: None,
         token: None,
+        token_data: None,
         address: PaymentAddress {
             shipping: shipping_address.as_ref().map(|a| a.into()),
             billing: billing_address.as_ref().map(|a| a.into()),
@@ -424,6 +427,7 @@ async fn get_tracker_for_sync<
         },
         confirm: Some(request.force_sync),
         payment_method_data: None,
+        payment_method_info: None,
         force_sync: Some(
             request.force_sync
                 && (helpers::check_force_psync_precondition(&payment_attempt.status)
@@ -437,6 +441,7 @@ async fn get_tracker_for_sync<
         card_cvc: None,
         creds_identifier,
         pm_token: None,
+        payment_method_status: None,
         connector_customer_id: None,
         recurring_mandate_payment_data: None,
         ephemeral_key: None,
@@ -447,6 +452,7 @@ async fn get_tracker_for_sync<
         frm_message: frm_response.ok(),
         incremental_authorization_details: None,
         authorizations,
+        authentication: None,
         frm_metadata: None,
     };
 

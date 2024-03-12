@@ -200,7 +200,8 @@ impl AppState {
             };
 
             #[cfg(feature = "olap")]
-            let pool = crate::analytics::AnalyticsProvider::from_conf(&conf.analytics).await;
+            let pool =
+                crate::analytics::AnalyticsProvider::from_conf(conf.analytics.get_inner()).await;
 
             #[cfg(feature = "email")]
             let email_client = Arc::new(create_email_client(&conf).await);
@@ -363,6 +364,9 @@ impl Payments {
                 )
                 .service(
                     web::resource("/{payment_id}/incremental_authorization").route(web::post().to(payments_incremental_authorization)),
+                )
+                .service(
+                    web::resource("/{payment_id}/3ds/authentication").route(web::post().to(payments_external_authentication)),
                 );
         }
         route
@@ -1119,7 +1123,10 @@ impl User {
         // User management
         route = route.service(
             web::scope("/user")
-                .service(web::resource("/list").route(web::get().to(get_user_details)))
+                .service(web::resource("").route(web::get().to(get_user_role_details)))
+                .service(
+                    web::resource("/list").route(web::get().to(list_users_for_merchant_account)),
+                )
                 .service(web::resource("/invite").route(web::post().to(invite_user)))
                 .service(
                     web::resource("/invite_multiple").route(web::post().to(invite_multiple_user)),

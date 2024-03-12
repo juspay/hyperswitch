@@ -131,6 +131,12 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             }
         }
 
+        let token_data = if let Some(token) = token.clone() {
+            Some(helpers::retrieve_payment_token_data(state, token, payment_method).await?)
+        } else {
+            None
+        };
+
         payment_attempt.payment_method = payment_method.or(payment_attempt.payment_method);
         payment_attempt.browser_info = browser_info;
         payment_attempt.payment_method_type =
@@ -215,6 +221,12 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         // The operation merges mandate data from both request and payment_attempt
         let setup_mandate = setup_mandate.map(Into::into);
 
+        let mandate_details_present =
+            payment_attempt.mandate_details.is_some() || request.mandate_data.is_some();
+        helpers::validate_mandate_data_and_future_usage(
+            payment_intent.setup_future_usage,
+            mandate_details_present,
+        )?;
         let profile_id = payment_intent
             .profile_id
             .as_ref()
@@ -239,7 +251,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             mandate_id: None,
             mandate_connector,
             setup_mandate,
+            customer_acceptance: None,
             token,
+            token_data,
             address: PaymentAddress {
                 shipping: shipping_address.as_ref().map(|a| a.into()),
                 billing: billing_address.as_ref().map(|a| a.into()),
@@ -252,6 +266,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 .payment_method_data
                 .as_ref()
                 .map(|pmd| pmd.payment_method_data.clone()),
+            payment_method_info: None,
             force_sync: None,
             refunds: vec![],
             disputes: vec![],
@@ -266,10 +281,12 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             multiple_capture_data: None,
             redirect_response,
             surcharge_details: None,
+            payment_method_status: None,
             frm_message: None,
             payment_link_data: None,
             incremental_authorization_details: None,
             authorizations: vec![],
+            authentication: None,
             frm_metadata: None,
         };
 
@@ -332,8 +349,9 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
         Option<api::PaymentMethodData>,
+        Option<String>,
     )> {
-        let (op, payment_method_data) = helpers::make_pm_data(
+        let (op, payment_method_data, pm_id) = helpers::make_pm_data(
             Box::new(self),
             state,
             payment_data,
@@ -341,7 +359,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
             customer,
         )
         .await?;
-        Ok((op, payment_method_data))
+        Ok((op, payment_method_data, pm_id))
     }
 
     #[instrument(skip_all)]

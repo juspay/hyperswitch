@@ -382,8 +382,10 @@ pub async fn save_payout_data_to_locker(
         Some(stored_resp.card_reference),
         &merchant_account.merchant_id,
         None,
+        None,
         card_details_encrypted,
         key_store,
+        None,
     )
     .await?;
 
@@ -598,7 +600,7 @@ pub async fn decide_payout_connector(
         merchant_account,
         &payout_data.business_profile,
         key_store,
-        &TransactionData::<()>::Payout(payout_data),
+        TransactionData::<()>::Payout(payout_data),
         routing_data,
         eligible_connectors,
     )
