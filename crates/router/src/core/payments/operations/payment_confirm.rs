@@ -779,12 +779,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                 .into_report()
                 .attach_printable("No authentication_connector found from merchant_account.authentication_details")?
                 .to_string();
-            let profile_id = payment_data
-                .payment_intent
-                .profile_id
-                .as_ref()
-                .get_required_value("profile_id")
-                .attach_printable("'profile_id' not set in payment intent")?;
+            let profile_id = &business_profile.profile_id;
             let authentication_connector_mca = helpers::get_merchant_connector_account(
                 state,
                 &business_profile.merchant_id,
