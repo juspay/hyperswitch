@@ -55,7 +55,6 @@ pub struct SubError {
     pub message: String,
     pub path: Option<String>,
     pub field: Option<String>,
-    pub arguments: Option<Vec<String>>,
 }
 
 // Payouts
@@ -293,9 +292,9 @@ pub enum WiseStatus {
 
 #[cfg(feature = "payouts")]
 fn get_payout_address_details(
-    address: &Option<api_models::payments::Address>,
+    address: Option<&api_models::payments::Address>,
 ) -> Option<WiseAddressDetails> {
-    address.as_ref().and_then(|add| {
+    address.and_then(|add| {
         add.address.as_ref().map(|a| WiseAddressDetails {
             country: a.country,
             country_code: a.country,
@@ -310,7 +309,7 @@ fn get_payout_address_details(
 #[cfg(feature = "payouts")]
 fn get_payout_bank_details(
     payout_method_data: PayoutMethodData,
-    address: &Option<api_models::payments::Address>,
+    address: Option<&api_models::payments::Address>,
     entity_type: PayoutEntityType,
 ) -> Result<WiseBankDetails, errors::ConnectorError> {
     let wise_address_details = match get_payout_address_details(address) {
@@ -358,9 +357,7 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for WiseRecipientCreateRequest {
         let payout_method_data = item.get_payout_method_data()?;
         let bank_details = get_payout_bank_details(
             payout_method_data.to_owned(),
-            &item
-                .get_optional_billing()
-                .map(|billing| billing.to_owned()),
+            item.get_optional_billing(),
             item.request.entity_type,
         )?;
         let source_id = match item.connector_auth_type.to_owned() {

@@ -160,9 +160,9 @@ pub struct OutgoingWebhook {
 
     /// This is specific to the flow, for ex: it will be `PaymentsResponse` for payments flow
     pub content: OutgoingWebhookContent,
-    #[serde(default, with = "custom_serde::iso8601")]
 
     /// The time at which webhook was sent
+    #[serde(default, with = "custom_serde::iso8601")]
     pub timestamp: PrimitiveDateTime,
 }
 

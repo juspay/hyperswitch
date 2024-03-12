@@ -64,7 +64,7 @@ impl UserFromToken {
     }
 
     pub async fn get_role_info_from_db(&self, state: &AppState) -> UserResult<RoleInfo> {
-        roles::get_role_info_from_role_id(state, &self.role_id, &self.merchant_id, &self.org_id)
+        roles::RoleInfo::from_role_id(state, &self.role_id, &self.merchant_id, &self.org_id)
             .await
             .change_context(UserErrors::InternalServerError)
     }
@@ -87,7 +87,7 @@ pub async fn generate_jwt_auth_token(
 }
 
 pub async fn generate_jwt_auth_token_with_custom_role_attributes(
-    state: AppState,
+    state: &AppState,
     user: &UserFromStorage,
     merchant_id: String,
     org_id: String,
@@ -169,4 +169,11 @@ pub async fn get_user_from_db_by_email(
         .find_user_by_email(email.get_secret().expose().as_str())
         .await
         .map(UserFromStorage::from)
+}
+
+pub fn get_token_from_signin_response(resp: &user_api::SignInResponse) -> Secret<String> {
+    match resp {
+        user_api::SignInResponse::DashboardEntry(data) => data.token.clone(),
+        user_api::SignInResponse::MerchantSelect(data) => data.token.clone(),
+    }
 }

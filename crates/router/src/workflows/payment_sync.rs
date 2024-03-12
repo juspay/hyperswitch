@@ -248,12 +248,12 @@ pub async fn get_sync_process_schedule_time(
         });
     let mapping = match mapping {
         Ok(x) => x,
-        Err(err) => {
-            logger::info!("Redis Mapping Error: {}", err);
+        Err(error) => {
+            logger::info!(?error, "Redis Mapping Error");
             process_data::ConnectorPTMapping::default()
         }
     };
-    let time_delta = scheduler_utils::get_schedule_time(mapping, merchant_id, retry_count + 1);
+    let time_delta = scheduler_utils::get_schedule_time(mapping, merchant_id, retry_count);
 
     Ok(scheduler_utils::get_time_from_delta(time_delta))
 }
@@ -268,7 +268,7 @@ pub async fn retry_sync_task(
     pt: storage::ProcessTracker,
 ) -> Result<bool, sch_errors::ProcessTrackerError> {
     let schedule_time =
-        get_sync_process_schedule_time(db, &connector, &merchant_id, pt.retry_count).await?;
+        get_sync_process_schedule_time(db, &connector, &merchant_id, pt.retry_count + 1).await?;
 
     match schedule_time {
         Some(s_time) => {

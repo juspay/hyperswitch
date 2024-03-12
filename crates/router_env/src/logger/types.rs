@@ -49,11 +49,16 @@ pub enum Tag {
 
     /// Event: general.
     Event,
+
+    /// Compatibility Layer Request
+    CompatibilityLayerRequest,
 }
 
 /// API Flow
 #[derive(Debug, Display, Clone, PartialEq, Eq)]
 pub enum Flow {
+    /// Health check
+    HealthCheck,
     /// Deep health Check
     DeepHealthCheck,
     /// Merchants account create flow.
@@ -118,10 +123,14 @@ pub enum Flow {
     PaymentMethodsUpdate,
     /// Payment methods delete flow.
     PaymentMethodsDelete,
+    /// Default Payment method flow.
+    DefaultPaymentMethodsSet,
     /// Payments create flow.
     PaymentsCreate,
     /// Payments Retrieve flow.
     PaymentsRetrieve,
+    /// Payments Retrieve force sync flow.
+    PaymentsRetrieveForceSync,
     /// Payments update flow.
     PaymentsUpdate,
     /// Payments confirm flow.
@@ -163,6 +172,8 @@ pub enum Flow {
     RefundsCreate,
     /// Refunds retrieve flow.
     RefundsRetrieve,
+    /// Refunds retrieve force sync flow.
+    RefundsRetrieveForceSync,
     /// Refunds update flow.
     RefundsUpdate,
     /// Refunds list flow.
@@ -298,7 +309,7 @@ pub enum Flow {
     /// Set Dashboard Metadata flow
     SetDashboardMetadata,
     /// Get Multiple Dashboard Metadata flow
-    GetMutltipleDashboardMetadata,
+    GetMultipleDashboardMetadata,
     /// Payment Connector Verify
     VerifyPaymentConnector,
     /// Internal user signup
@@ -325,8 +336,10 @@ pub enum Flow {
     DeleteSampleData,
     /// List merchant accounts for user
     UserMerchantAccountList,
-    /// Get users for merchant account
+    /// Get details of a user in a merchant account
     GetUserDetails,
+    /// List users for merchant account
+    ListUsersForMerchantAccount,
     /// PaymentMethodAuth Link token create
     PmAuthLinkTokenCreate,
     /// PaymentMethodAuth Exchange token create
@@ -363,6 +376,10 @@ pub enum Flow {
     UpdateUserAccountDetails,
     /// Accept user invitation
     AcceptInvitation,
+    /// Initiate external authentication for a payment
+    PaymentsExternalAuthentication,
+    /// Authorize the payment after external 3ds authentication
+    PaymentsAuthorize,
     /// Create Role
     CreateRole,
     /// Update Role

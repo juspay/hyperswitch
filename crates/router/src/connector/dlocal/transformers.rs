@@ -139,7 +139,7 @@ impl TryFrom<&DlocalRouterData<&types::PaymentsAuthorizeRouterData>> for DlocalP
                             .request
                             .mandate_id
                             .as_ref()
-                            .map(|ids| ids.mandate_id.clone()),
+                            .and_then(|ids| ids.mandate_id.clone()),
                         // [#595[FEATURE] Pass Mandate history information in payment flows/request]
                         installments: item
                             .router_data

@@ -22,7 +22,7 @@ use crate::{
     },
 };
 
-#[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
+#[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone, Debug)]
 pub struct StripeBillingDetails {
     pub address: Option<AddressDetails>,
     pub email: Option<Email>,
@@ -65,7 +65,7 @@ pub struct StripeCard {
 }
 
 // ApplePay wallet param is not available in stripe Docs
-#[derive(Serialize, PartialEq, Eq, Deserialize, Clone)]
+#[derive(Serialize, PartialEq, Eq, Deserialize, Clone, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum StripeWallet {
     ApplePay(payments::ApplePayWalletData),
@@ -95,7 +95,7 @@ impl From<StripePaymentMethodType> for api_enums::PaymentMethod {
     }
 }
 
-#[derive(Default, PartialEq, Eq, Deserialize, Clone)]
+#[derive(Default, PartialEq, Eq, Deserialize, Clone, Debug)]
 pub struct StripePaymentMethodData {
     #[serde(rename = "type")]
     pub stype: StripePaymentMethodType,
@@ -105,7 +105,7 @@ pub struct StripePaymentMethodData {
     pub metadata: Option<SecretSerdeValue>,
 }
 
-#[derive(PartialEq, Eq, Deserialize, Clone)]
+#[derive(PartialEq, Eq, Deserialize, Clone, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum StripePaymentMethodDetails {
     Card(StripeCard),
@@ -159,7 +159,7 @@ impl From<StripePaymentMethodDetails> for payments::PaymentMethodData {
     }
 }
 
-#[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
+#[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone, Debug)]
 pub struct Shipping {
     pub address: AddressDetails,
     pub name: Option<masking::Secret<String>>,
@@ -168,7 +168,7 @@ pub struct Shipping {
     pub tracking_number: Option<masking::Secret<String>>,
 }
 
-#[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
+#[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone, Debug)]
 pub struct AddressDetails {
     pub city: Option<String>,
     pub country: Option<api_enums::CountryAlpha2>,
@@ -201,7 +201,7 @@ impl From<Shipping> for payments::Address {
     }
 }
 
-#[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
+#[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone, Debug)]
 pub struct MandateData {
     pub customer_acceptance: CustomerAcceptance,
     pub mandate_type: Option<StripeMandateType>,
@@ -212,7 +212,7 @@ pub struct MandateData {
     pub end_date: Option<PrimitiveDateTime>,
 }
 
-#[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
+#[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone, Debug)]
 pub struct CustomerAcceptance {
     #[serde(rename = "type")]
     pub acceptance_type: Option<AcceptanceType>,
@@ -235,7 +235,7 @@ pub struct OnlineMandate {
     pub user_agent: String,
 }
 
-#[derive(Deserialize, Clone)]
+#[derive(Deserialize, Clone, Debug)]
 pub struct StripePaymentIntentRequest {
     pub id: Option<String>,
     pub amount: Option<i64>, // amount in cents, hence passed as integer
@@ -868,6 +868,12 @@ pub(crate) fn into_stripe_next_action(
         } => StripeNextAction::WaitScreenInformation {
             display_from_timestamp,
             display_to_timestamp,
+        },
+        payments::NextActionData::ThreeDsInvoke { .. } => StripeNextAction::RedirectToUrl {
+            redirect_to_url: RedirectUrl {
+                return_url: None,
+                url: None,
+            },
         },
     })
 }

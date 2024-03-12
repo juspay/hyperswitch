@@ -145,13 +145,13 @@ pub fn get_unimplemented_payment_method_error_message(connector: &str) -> String
 impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Response> {
     fn get_billing(&self) -> Result<&api::Address, Error> {
         self.address
-            .get_billing()
+            .get_payment_method_billing()
             .ok_or_else(missing_field_err("billing"))
     }
 
     fn get_billing_country(&self) -> Result<api_models::enums::CountryAlpha2, Error> {
         self.address
-            .get_billing()
+            .get_payment_method_billing()
             .and_then(|a| a.address.as_ref())
             .and_then(|ad| ad.country)
             .ok_or_else(missing_field_err("billing.address.country"))
@@ -159,13 +159,13 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
 
     fn get_billing_phone(&self) -> Result<&api::PhoneDetails, Error> {
         self.address
-            .get_billing()
+            .get_payment_method_billing()
             .and_then(|a| a.phone.as_ref())
             .ok_or_else(missing_field_err("billing.phone"))
     }
 
     fn get_optional_billing(&self) -> Option<&api::Address> {
-        self.address.get_billing()
+        self.address.get_payment_method_billing()
     }
 
     fn get_optional_shipping(&self) -> Option<&api::Address> {
@@ -184,7 +184,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
     }
     fn get_billing_address(&self) -> Result<&api::AddressDetails, Error> {
         self.address
-            .get_billing()
+            .get_payment_method_billing()
             .as_ref()
             .and_then(|a| a.address.as_ref())
             .ok_or_else(missing_field_err("billing.address"))

@@ -11,7 +11,7 @@ use crate::settings::{Database, Settings};
 impl SecretsHandler for Database {
     async fn convert_to_raw_secret(
         value: SecretStateContainer<Self, SecuredSecret>,
-        secret_management_client: Box<dyn SecretManagementInterface>,
+        secret_management_client: &dyn SecretManagementInterface,
     ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
         let secured_db_config = value.get_inner();
         let raw_db_password = secret_management_client
@@ -28,10 +28,9 @@ impl SecretsHandler for Database {
 /// # Panics
 ///
 /// Will panic even if fetching raw secret fails for at least one config value
-#[allow(clippy::unwrap_used)]
 pub async fn fetch_raw_secrets(
     conf: Settings<SecuredSecret>,
-    secret_management_client: Box<dyn SecretManagementInterface>,
+    secret_management_client: &dyn SecretManagementInterface,
 ) -> Settings<RawSecret> {
     #[allow(clippy::expect_used)]
     let database = Database::convert_to_raw_secret(conf.master_database, secret_management_client)
