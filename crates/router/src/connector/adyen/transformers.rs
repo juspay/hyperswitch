@@ -1128,6 +1128,7 @@ pub struct AdyenCard {
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
     cvc: Option<Secret<String>>,
+    holder_name: Option<Secret<String>>,
     brand: Option<CardBrand>, //Mandatory for mandate using network_txns_id
     network_payment_reference: Option<Secret<String>>,
 }
@@ -1981,6 +1982,7 @@ impl<'a> TryFrom<&api::Card> for AdyenPaymentMethod<'a> {
             expiry_month: card.card_exp_month.clone(),
             expiry_year: card.get_expiry_year_4_digit(),
             cvc: Some(card.card_cvc.clone()),
+            holder_name: card.card_holder_name.clone(),
             brand: None,
             network_payment_reference: None,
         };
@@ -2585,6 +2587,7 @@ impl<'a>
                             expiry_month: card.card_exp_month.clone(),
                             expiry_year: card.card_exp_year.clone(),
                             cvc: None,
+                            holder_name: card.card_holder_name.clone(),
                             brand: Some(brand),
                             network_payment_reference: Some(Secret::new(network_mandate_id)),
                         };
