@@ -4,6 +4,45 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.03.11.1
+
+### Features
+
+- **router:** Add routing support for token-based mit payments ([#4012](https://github.com/juspay/hyperswitch/pull/4012)) ([`43ebfbc`](https://github.com/juspay/hyperswitch/commit/43ebfbc47f03eaaaf274847290861dcb00db26a5))
+- **users:** Implemented Set-Cookie ([#3865](https://github.com/juspay/hyperswitch/pull/3865)) ([`44eef46`](https://github.com/juspay/hyperswitch/commit/44eef46e5d7f0a198be80602ceae1c843449319c))
+
+### Refactors
+
+- **connector:**
+  - [Multisafepay] Mask PII data ([#3869](https://github.com/juspay/hyperswitch/pull/3869)) ([`c2b1561`](https://github.com/juspay/hyperswitch/commit/c2b15615e3c61e6f497180be8fa66d008ed150bb))
+  - [Globalpay] Mask PII data ([#3840](https://github.com/juspay/hyperswitch/pull/3840)) ([`13f6d6c`](https://github.com/juspay/hyperswitch/commit/13f6d6c10ce421329a7eb8b494fbb3bd31aed91f))
+  - [Iatapay] Mask PII data ([#3850](https://github.com/juspay/hyperswitch/pull/3850)) ([`bd7accb`](https://github.com/juspay/hyperswitch/commit/bd7accb2c250b5f330b6bbb87f6f6edf4a479a61))
+  - [Payme][Payeezy] Mask PII data ([#3926](https://github.com/juspay/hyperswitch/pull/3926)) ([`ffcb2bc`](https://github.com/juspay/hyperswitch/commit/ffcb2bcf2b7a26d8fc7fc45f9878d41ba74d2fe0))
+  - [Nexinets] Mask PII data ([#3874](https://github.com/juspay/hyperswitch/pull/3874)) ([`9ea5310`](https://github.com/juspay/hyperswitch/commit/9ea531068d87b76e8f41ee7d9e9d26fd755bced4))
+  - [Noon] Mask PII data ([#3879](https://github.com/juspay/hyperswitch/pull/3879)) ([`96efc2a`](https://github.com/juspay/hyperswitch/commit/96efc2abf94e3e9174f625bee2270236bad50278))
+  - [stripe] capture error_code and error_message for psync ([#3771](https://github.com/juspay/hyperswitch/pull/3771)) ([`614182a`](https://github.com/juspay/hyperswitch/commit/614182ae4cdc7a762e0ce90d1336b1ff16fc9fa3))
+  - [Trustpay][Volt] Mask PII data ([#3932](https://github.com/juspay/hyperswitch/pull/3932)) ([`a179b9c`](https://github.com/juspay/hyperswitch/commit/a179b9c90c2b9a419f1ce394d06158f80c29ee45))
+  - [Nuvie] Mask PII data ([#3924](https://github.com/juspay/hyperswitch/pull/3924)) ([`6b2f71c`](https://github.com/juspay/hyperswitch/commit/6b2f71c850ff2ea36365375a81a7026fd8c87ebc))
+  - [adyen] add more fields in the payments request ([#4010](https://github.com/juspay/hyperswitch/pull/4010)) ([`5584f11`](https://github.com/juspay/hyperswitch/commit/5584f1131ae4180020be23d4c735b8356482c22d))
+- **core:** Updated payments response with payment_method_id & payment_method_status ([#3883](https://github.com/juspay/hyperswitch/pull/3883)) ([`7391416`](https://github.com/juspay/hyperswitch/commit/7391416e2473eab0474bd01bb155a9ecc96da263))
+
+**Full Changelog:** [`2024.03.11.0...2024.03.11.1`](https://github.com/juspay/hyperswitch/compare/2024.03.11.0...2024.03.11.1)
+
+- - -
+
+## 2024.03.11.0
+
+### Features
+
+- **connector:**
+  - Add threedsecureio three_ds authentication connector ([#4004](https://github.com/juspay/hyperswitch/pull/4004)) ([`06c3096`](https://github.com/juspay/hyperswitch/commit/06c30967cf626e7406aa9be8643fb73288aae383))
+  - [Checkout] add support for external authentication for checkout connector ([#4006](https://github.com/juspay/hyperswitch/pull/4006)) ([`142a22c`](https://github.com/juspay/hyperswitch/commit/142a22c752a7c623cee62a6d552e6ffda73df777))
+- **router:** Add payments authentication api flow ([#3996](https://github.com/juspay/hyperswitch/pull/3996)) ([`41556ba`](https://github.com/juspay/hyperswitch/commit/41556baed98c59373e0a053c023c32f2f7346b51))
+
+**Full Changelog:** [`2024.03.09.0...2024.03.11.0`](https://github.com/juspay/hyperswitch/compare/2024.03.09.0...2024.03.11.0)
+
+- - -
+
 ## 2024.03.09.0
 
 ### Features

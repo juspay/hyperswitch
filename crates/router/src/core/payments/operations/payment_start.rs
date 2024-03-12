@@ -114,6 +114,15 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         )
         .await?;
 
+        let token_data = if let Some(token) = payment_attempt.payment_token.clone() {
+            Some(
+                helpers::retrieve_payment_token_data(state, token, payment_attempt.payment_method)
+                    .await?,
+            )
+        } else {
+            None
+        };
+
         payment_intent.shipping_address_id = shipping_address.clone().map(|i| i.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|i| i.address_id);
 
@@ -152,9 +161,11 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 billing_address.as_ref().map(From::from),
                 payment_method_billing.as_ref().map(From::from),
             ),
+            token_data,
             confirm: Some(payment_attempt.confirm),
             payment_attempt,
             payment_method_data: None,
+            payment_method_info: None,
             force_sync: None,
             refunds: vec![],
             disputes: vec![],
@@ -170,6 +181,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             redirect_response: None,
             surcharge_details: None,
             frm_message: None,
+            payment_method_status: None,
             payment_link_data: None,
             incremental_authorization_details: None,
             authorizations: vec![],
@@ -293,6 +305,7 @@ where
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsStartRequest, Ctx>,
         Option<api::PaymentMethodData>,
+        Option<String>,
     )> {
         if payment_data
             .payment_attempt
@@ -310,7 +323,7 @@ where
             )
             .await
         } else {
-            Ok((Box::new(self), None))
+            Ok((Box::new(self), None, None))
         }
     }
 

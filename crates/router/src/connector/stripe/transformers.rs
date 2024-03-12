@@ -2175,18 +2175,10 @@ impl Deref for PaymentSyncResponse {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct LastPaymentError {
-    code: String,
-    message: String,
-    decline_code: Option<String>,
-}
-
 #[derive(Deserialize, Debug, Serialize)]
 pub struct PaymentIntentSyncResponse {
     #[serde(flatten)]
     payment_intent_fields: PaymentIntentResponse,
-    pub last_payment_error: Option<LastPaymentError>,
     pub latest_charge: Option<StripeChargeEnum>,
 }
 
@@ -2261,7 +2253,6 @@ pub enum StripePaymentMethodDetailsResponse {
 pub struct SetupIntentSyncResponse {
     #[serde(flatten)]
     setup_intent_fields: SetupIntentResponse,
-    pub last_payment_error: Option<LastPaymentError>,
 }
 
 impl Deref for SetupIntentSyncResponse {
@@ -2276,7 +2267,6 @@ impl From<SetupIntentSyncResponse> for PaymentIntentSyncResponse {
     fn from(value: SetupIntentSyncResponse) -> Self {
         Self {
             payment_intent_fields: value.setup_intent_fields.into(),
-            last_payment_error: value.last_payment_error,
             latest_charge: None,
         }
     }
@@ -2296,7 +2286,7 @@ impl From<SetupIntentResponse> for PaymentIntentResponse {
             metadata: value.metadata,
             next_action: value.next_action,
             payment_method_options: value.payment_method_options,
-            last_payment_error: None,
+            last_payment_error: value.last_setup_error,
             ..Default::default()
         }
     }

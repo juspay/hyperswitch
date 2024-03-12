@@ -740,7 +740,7 @@ pub enum MandateTransactionType {
 
 #[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct MandateIds {
-    pub mandate_id: String,
+    pub mandate_id: Option<String>,
     pub mandate_reference_id: Option<MandateReferenceId>,
 }
 
@@ -767,7 +767,7 @@ pub struct UpdateHistory {
 impl MandateIds {
     pub fn new(mandate_id: String) -> Self {
         Self {
-            mandate_id,
+            mandate_id: Some(mandate_id),
             mandate_reference_id: None,
         }
     }
@@ -2717,6 +2717,13 @@ pub struct PaymentsResponse {
 
     /// Payment Fingerprint
     pub fingerprint: Option<String>,
+
+    /// Payment Method Id
+    pub payment_method_id: Option<String>,
+
+    /// Payment Method Status
+    #[schema(value_type = Option<PaymentMethodStatus>)]
+    pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
 }
 
 #[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema)]

@@ -224,7 +224,7 @@ dependencies = [
  "bytes 1.5.0",
  "bytestring",
  "cfg-if 1.0.0",
- "cookie",
+ "cookie 0.16.2",
  "derive_more",
  "encoding_rs",
  "futures-core",
@@ -616,7 +616,7 @@ dependencies = [
  "base64 0.21.5",
  "bytes 1.5.0",
  "cfg-if 1.0.0",
- "cookie",
+ "cookie 0.16.2",
  "derive_more",
  "futures-core",
  "futures-util",
@@ -1764,6 +1764,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "cookie"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3cd91cf61412820176e137621345ee43b3f4423e589e7ae4e50d601d93e35ef8"
+dependencies = [
+ "time",
+ "version_check",
+]
+
+[[package]]
 name = "cookie-factory"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2524,7 +2534,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "65f0fbe245d714b596ba5802b46f937f5ce68dcae0f32f9a70b5c3b04d3c6f64"
 dependencies = [
  "base64 0.13.1",
- "cookie",
+ "cookie 0.16.2",
  "futures-core",
  "futures-util",
  "http",
@@ -5219,6 +5229,7 @@ dependencies = [
  "common_enums",
  "common_utils",
  "config",
+ "cookie 0.18.0",
  "currency_conversion",
  "data_models",
  "derive_deref",
@@ -6414,7 +6425,7 @@ dependencies = [
  "async-trait",
  "base64 0.13.1",
  "chrono",
- "cookie",
+ "cookie 0.16.2",
  "fantoccini",
  "futures 0.3.28",
  "http",
@@ -7461,7 +7472,7 @@ checksum = "9973cb72c8587d5ad5efdb91e663d36177dc37725e6c90ca86c626b0cc45c93f"
 dependencies = [
  "base64 0.13.1",
  "bytes 1.5.0",
- "cookie",
+ "cookie 0.16.2",
  "http",
  "log",
  "serde",
