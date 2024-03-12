@@ -4,6 +4,8 @@
     "Create API Key",
     "Add Adyen Connector",
     "Add Wise Connector",
+    "Add Config for Enabling Merchant",
+    "Add Config for Retry Count",
     "Create Customer"
   ]
 }
