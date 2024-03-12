@@ -1,7 +1,6 @@
 use base64::Engine;
 use common_utils::errors::CustomResult;
 use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
 use masking::{PeekInterface, Secret};
 use serde::Serialize;
 
@@ -47,22 +46,8 @@ fn fetch_payment_instrument(
     match payment_method {
         api::PaymentMethodData::Card(card) => Ok(PaymentInstrument::Card(CardPayment {
             card_expiry_date: CardExpiryDate {
-                month: Secret::new(
-                    card.card_exp_month
-                        .peek()
-                        .clone()
-                        .parse::<i8>()
-                        .into_report()
-                        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
-                ),
-                year: Secret::new(
-                    card.card_exp_year
-                        .peek()
-                        .clone()
-                        .parse::<i32>()
-                        .into_report()
-                        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
-                ),
+                month: utils::CardData::get_expiry_month_as_i8(&card)?,
+                year: utils::CardData::get_expiry_year_as_i32(&card)?,
             },
             card_number: card.card_number,
             ..CardPayment::default()
