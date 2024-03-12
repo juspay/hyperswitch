@@ -915,8 +915,6 @@ pub struct PaymentMethodCountryCurrencyList {
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CurrenciesCountriesBasedOnPm {
-    pub connector: api_enums::Connector,
-    pub payment_method_type: api_enums::PaymentMethodType,
     pub currencies: Option<HashSet<api_enums::Currency>>,
     pub countries: Option<HashSet<CountryCodeWithName>>,
 }

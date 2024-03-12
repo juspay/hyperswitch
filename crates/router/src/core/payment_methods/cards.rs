@@ -3533,13 +3533,10 @@ pub async fn retrieve_countries_currencies_based_on_pmt(
 ) -> errors::RouterResponse<CurrenciesCountriesBasedOnPm> {
     let config = &state.conf.pm_filters;
 
-    let connector = req.connector;
-    let payment_method_type = req.payment_method_type;
-
-    let key = settings::PaymentMethodFilterKey::PaymentMethodType(payment_method_type);
+    let key = settings::PaymentMethodFilterKey::PaymentMethodType(req.payment_method_type);
     let pm_filter = config
         .0
-        .get(&connector.to_string())
+        .get(&req.connector.to_string())
         .or_else(|| config.0.get("default"))
         .and_then(|filter| filter.0.get(&key));
 
@@ -3558,8 +3555,6 @@ pub async fn retrieve_countries_currencies_based_on_pmt(
                     })
                     .collect()
             }),
-            connector,
-            payment_method_type,
         },
     ))
 }

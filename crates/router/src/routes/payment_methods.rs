@@ -8,7 +8,7 @@ use time::PrimitiveDateTime;
 use super::app::AppState;
 use crate::{
     core::{api_locking, errors, payment_methods::cards},
-    services::{api, authentication as auth},
+    services::{api, authentication as auth, authorization::permissions::Permission},
     types::{
         api::payment_methods::{self, PaymentMethodId},
         storage::payment_method::PaymentTokenData,
@@ -276,11 +276,14 @@ pub async fn payment_method_countries_currencies_retrieve_api(
         &req,
         payload,
         |state, _auth, req| cards::retrieve_countries_currencies_based_on_pmt(state, req),
+        #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::ApiKeyAuth,
-            &auth::DashboardNoPermissionAuth,
+            &auth::JWTAuth(Permission::MerchantConnectorAccountWrite),
             req.headers(),
         ),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth(Permission::MerchantConnectorAccountWrite),
         api_locking::LockAction::NotApplicable,
     ))
     .await
