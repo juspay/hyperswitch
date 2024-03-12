@@ -254,6 +254,12 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             )?;
         }
 
+        let token_data = if let Some(token) = token.clone() {
+            Some(helpers::retrieve_payment_token_data(state, token, payment_method).await?)
+        } else {
+            None
+        };
+
         let mandate_id = request
             .mandate_id
             .as_ref()
@@ -268,7 +274,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                         mandate_obj.connector_mandate_ids,
                     ) {
                         (Some(network_tx_id), _) => Ok(api_models::payments::MandateIds {
-                            mandate_id: mandate_obj.mandate_id,
+                            mandate_id: Some(mandate_obj.mandate_id),
                             mandate_reference_id: Some(
                                 api_models::payments::MandateReferenceId::NetworkMandateId(
                                     network_tx_id,
@@ -280,14 +286,14 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                         .change_context(errors::ApiErrorResponse::MandateNotFound)
                         .map(|connector_id: api_models::payments::ConnectorMandateReferenceId| {
                             api_models::payments::MandateIds {
-                                mandate_id: mandate_obj.mandate_id,
+                                mandate_id: Some(mandate_obj.mandate_id),
                                 mandate_reference_id: Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
                                     api_models::payments::ConnectorMandateReferenceId {connector_mandate_id:connector_id.connector_mandate_id,payment_method_id:connector_id.payment_method_id, update_history: None },
                                 ))
                             }
                          }),
                         (_, _) => Ok(api_models::payments::MandateIds {
-                            mandate_id: mandate_obj.mandate_id,
+                            mandate_id: Some(mandate_obj.mandate_id),
                             mandate_reference_id: None,
                         }),
                     }
@@ -326,6 +332,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             }
             None => storage_enums::IntentStatus::RequiresPaymentMethod,
         };
+        payment_intent.request_external_three_ds_authentication = request
+            .request_external_three_ds_authentication
+            .or(payment_intent.request_external_three_ds_authentication);
 
         Self::populate_payment_attempt_with_request(&mut payment_attempt, request);
 
@@ -383,18 +392,20 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             mandate_id,
             mandate_connector,
             token,
+            token_data,
             setup_mandate,
             customer_acceptance,
-            address: PaymentAddress {
-                shipping: shipping_address.as_ref().map(|a| a.into()),
-                billing: billing_address.as_ref().map(|a| a.into()),
-                payment_method_billing: payment_method_billing.as_ref().map(|a| a.into()),
-            },
+            address: PaymentAddress::new(
+                shipping_address.as_ref().map(From::from),
+                billing_address.as_ref().map(From::from),
+                payment_method_billing.as_ref().map(From::from),
+            ),
             confirm: request.confirm,
             payment_method_data: request
                 .payment_method_data
                 .as_ref()
                 .map(|pmd| pmd.payment_method_data.clone()),
+            payment_method_info: None,
             force_sync: None,
             refunds: vec![],
             disputes: vec![],
@@ -410,6 +421,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             redirect_response: None,
             surcharge_details,
             frm_message: None,
+            payment_method_status: None,
             payment_link_data: None,
             incremental_authorization_details: None,
             authorizations: vec![],
@@ -468,6 +480,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
         Option<api::PaymentMethodData>,
+        Option<String>,
     )> {
         helpers::make_pm_data(
             Box::new(self),

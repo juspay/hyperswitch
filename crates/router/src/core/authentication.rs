@@ -209,6 +209,7 @@ pub async fn perform_pre_authentication<F: Clone + Send>(
             if authentication_data
                 .as_ref()
                 .is_some_and(|authentication_data| authentication_data.is_separate_authn_required())
+                || authentication.authentication_status.is_failed()
             {
                 *should_continue_confirm_transaction = false;
             }

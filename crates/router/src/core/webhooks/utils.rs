@@ -109,6 +109,7 @@ pub async fn construct_webhook_router_data<'a>(
         quote_id: None,
         test_mode: None,
         payment_method_balance: None,
+        payment_method_status: None,
         connector_api_version: None,
         connector_http_status_code: None,
         external_latency: None,
