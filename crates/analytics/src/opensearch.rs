@@ -1,12 +1,43 @@
+use aws_config::{self, meta::region::RegionProviderChain, Region};
+use common_utils::errors::CustomResult;
+use diesel_models::StorageResult;
+use error_stack::{report, IntoReport, ResultExt};
+use opensearch::{
+    auth::Credentials,
+    cert::CertificateValidation,
+    http::{
+        request::JsonBody,
+        transport::{SingleNodeConnectionPool, TransportBuilder},
+        Url,
+    },
+    MsearchParts, OpenSearch, SearchParts,
+};
+use storage_impl::errors::{ApplicationError, StorageError};
+
 #[derive(Clone, Debug, serde::Deserialize)]
-pub struct OpensearchConfig {
+#[serde(tag = "auth")]
+#[serde(rename_all = "lowercase")]
+pub enum OpenSearchAuth {
+    Basic { username: String, password: String },
+    Aws { region: String },
+}
+
+#[derive(Clone, Debug, serde::Deserialize)]
+pub struct OpenSearchIndexes {
+    pub payment_attempts: String,
+    pub payment_intents: String,
+    pub refunds: String,
+}
+
+#[derive(Clone, Debug, serde::Deserialize)]
+pub struct OpenSearchConfig {
     host: String,
-    auth: OpensearchAuth,
-    indexes: OpensearchIndexes,
+    auth: OpenSearchAuth,
+    indexes: OpenSearchIndexes,
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum OpensearchError {
+pub enum OpenSearchError {
     #[error("Opensearch connection error")]
     ConnectionError,
     #[error("Opensearch NON-200 response content: '{0}'")]
@@ -15,15 +46,15 @@ pub enum OpensearchError {
     ResponseError,
 }
 
-impl Default for OpensearchConfig {
+impl Default for OpenSearchConfig {
     fn default() -> Self {
         Self {
             host: "https://localhost:9200".to_string(),
-            auth: OpensearchAuth::Basic {
+            auth: OpenSearchAuth::Basic {
                 username: "admin".to_string(),
                 password: "admin".to_string(),
             },
-            indexes: OpensearchIndexes {
+            indexes: OpenSearchIndexes {
                 payment_attempts: "hyperswitch-payment-attempt-events".to_string(),
                 payment_intents: "hyperswitch-payment-intent-events".to_string(),
                 refunds: "hyperswitch-refund-events".to_string(),
@@ -33,27 +64,28 @@ impl Default for OpensearchConfig {
 }
 
 pub struct OpenSearchClient {
-    client: OpenSearch,
-    indexes: OpensearchIndexes,
+    pub client: OpenSearch,
+    pub indexes: OpenSearchIndexes,
 }
 
 #[allow(unused)]
 impl OpenSearchClient {
-    pub async fn create(conf: &OpensearchConfig) -> CustomResult<Self, OpensearchError> {
+    pub async fn create(conf: &OpenSearchConfig) -> CustomResult<Self, OpenSearchError> {
         Ok(Self {
             client: {
-                let url = Url::parse(&conf.host).map_err(|_| OpensearchError::ConnectionError)?;
-                let transport = match conf.auth {
-                    OpensearchAuth::Basic { username, password } => {
-                        let credentials = Credentials::Basic(username, password);
+                let url = Url::parse(&conf.host).map_err(|_| OpenSearchError::ConnectionError)?;
+                let transport = match &conf.auth {
+                    OpenSearchAuth::Basic { username, password } => {
+                        let credentials = Credentials::Basic(username.clone(), password.clone());
                         TransportBuilder::new(SingleNodeConnectionPool::new(url))
                             .cert_validation(CertificateValidation::None)
                             .auth(credentials)
                             .build()
-                            .map_err(|_| OpensearchError::ConnectionError)?
+                            .map_err(|_| OpenSearchError::ConnectionError)?
                     }
-                    OpensearchAuth::Aws { region } => {
-                        let region_provider = RegionProviderChain::first_try(Region::new(region));
+                    OpenSearchAuth::Aws { region } => {
+                        let region_provider =
+                            RegionProviderChain::first_try(Region::new(region.clone()));
                         let sdk_config =
                             aws_config::from_env().region(region_provider).load().await;
                         let conn_pool = SingleNodeConnectionPool::new(url);
@@ -62,11 +94,11 @@ impl OpenSearchClient {
                                 sdk_config
                                     .clone()
                                     .try_into()
-                                    .map_err(|_| OpensearchError::ConnectionError)?,
+                                    .map_err(|_| OpenSearchError::ConnectionError)?,
                             )
                             .service_name("es")
                             .build()
-                            .map_err(|_| OpensearchError::ConnectionError)?
+                            .map_err(|_| OpenSearchError::ConnectionError)?
                     }
                 };
                 OpenSearch::new(transport)
@@ -76,11 +108,21 @@ impl OpenSearchClient {
     }
 }
 
-impl OpensearchIndexes {
+// #[async_trait::async_trait]
+// impl HealthCheck for OpenSearchClient {
+//     async fn deep_health_check(&self) -> CustomResult<(), OpenSearchError> {
+//         sqlx::query("SELECT 1")
+//             .fetch_all(&self.pool)
+//             .await
+//             .map(|_| ())
+//             .into_report()
+//             .change_context(OpenSearchError::ConnectionError)
+//     }
+// }
+
+impl OpenSearchIndexes {
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::ext_traits::ConfigExt;
-
-        use crate::core::errors::ApplicationError;
 
         common_utils::fp_utils::when(self.payment_attempts.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
@@ -104,21 +146,19 @@ impl OpensearchIndexes {
     }
 }
 
-impl OpensearchAuth {
+impl OpenSearchAuth {
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::ext_traits::ConfigExt;
 
-        use crate::core::errors::ApplicationError;
-
         match self {
             Self::Basic { username, password } => {
-                common_utils::fp_utils::when(self.username.is_default_or_empty(), || {
+                common_utils::fp_utils::when(username.is_default_or_empty(), || {
                     Err(ApplicationError::InvalidConfigurationValueError(
                         "Opensearch Basic auth username must not be empty".into(),
                     ))
                 })?;
 
-                common_utils::fp_utils::when(self.password.is_default_or_empty(), || {
+                common_utils::fp_utils::when(password.is_default_or_empty(), || {
                     Err(ApplicationError::InvalidConfigurationValueError(
                         "Opensearch Basic auth password must not be empty".into(),
                     ))
@@ -126,7 +166,7 @@ impl OpensearchAuth {
             }
 
             Self::Aws { region } => {
-                common_utils::fp_utils::when(self.password.is_default_or_empty(), || {
+                common_utils::fp_utils::when(region.is_default_or_empty(), || {
                     Err(ApplicationError::InvalidConfigurationValueError(
                         "Opensearch Aws auth region must not be empty".into(),
                     ))
@@ -138,17 +178,15 @@ impl OpensearchAuth {
     }
 }
 
-impl OpensearchConfig {
+impl OpenSearchConfig {
     pub async fn get_opensearch_client(&self) -> StorageResult<OpenSearchClient> {
         Ok(OpenSearchClient::create(self)
             .await
-            .change_context(StorageError::InitializationError)?)
+            .map_err(|_| StorageError::DatabaseConnectionError)?)
     }
 
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::ext_traits::ConfigExt;
-
-        use crate::core::errors::ApplicationError;
 
         common_utils::fp_utils::when(self.host.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(

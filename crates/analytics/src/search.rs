@@ -17,7 +17,10 @@ use opensearch::{
 use serde_json::{json, Value};
 use strum::IntoEnumIterator;
 
-use crate::{errors::AnalyticsError, OpensearchAuth, OpensearchConfig, OpensearchIndexes};
+use crate::{
+    errors::AnalyticsError, opensearch::{OpenSearchClient, OpenSearchIndexes}, OpensearchAuth, OpensearchConfig,
+    OpensearchIndexes,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum OpensearchError {
@@ -29,7 +32,7 @@ pub enum OpensearchError {
     ResponseError,
 }
 
-pub fn search_index_to_opensearch_index(index: SearchIndex, config: &OpensearchIndexes) -> String {
+pub fn search_index_to_opensearch_index(index: SearchIndex, config: &OpenSearchIndexes) -> String {
     match index {
         SearchIndex::PaymentAttempts => config.payment_attempts.clone(),
         SearchIndex::PaymentIntents => config.payment_intents.clone(),
