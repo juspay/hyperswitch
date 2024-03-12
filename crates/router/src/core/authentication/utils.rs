@@ -13,7 +13,7 @@ use crate::{
     routes::AppState,
     services::{self, execute_connector_processing_step},
     types::{
-        api,
+        api::{self, ConnectorCallType},
         authentication::{AuthNFlowType, AuthenticationResponseData},
         storage,
         transformers::ForeignFrom,
@@ -21,6 +21,34 @@ use crate::{
     },
     utils::OptionExt,
 };
+
+pub fn get_connector_name_if_separate_authn_supported(
+    connector_call_type: &ConnectorCallType,
+) -> Option<String> {
+    match connector_call_type {
+        ConnectorCallType::PreDetermined(connector_data) => {
+            if connector_data
+                .connector_name
+                .is_separate_authentication_supported()
+            {
+                Some(connector_data.connector_name.to_string())
+            } else {
+                None
+            }
+        }
+        ConnectorCallType::Retryable(connectors) => connectors.first().and_then(|connector_data| {
+            if connector_data
+                .connector_name
+                .is_separate_authentication_supported()
+            {
+                Some(connector_data.connector_name.to_string())
+            } else {
+                None
+            }
+        }),
+        ConnectorCallType::SessionMultiple(_) => None,
+    }
+}
 
 pub async fn update_trackers<F: Clone, Req>(
     state: &AppState,

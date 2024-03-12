@@ -2133,6 +2133,15 @@ pub enum PaymentSource {
     ExternalAuthenticator,
 }
 
+impl PaymentSource {
+    pub fn is_for_internal_use_only(&self) -> bool {
+        match self {
+            Self::Dashboard | Self::Sdk | Self::MerchantServer | Self::Postman => false,
+            Self::Webhook | Self::ExternalAuthenticator => true,
+        }
+    }
+}
+
 #[derive(
     Clone,
     Copy,

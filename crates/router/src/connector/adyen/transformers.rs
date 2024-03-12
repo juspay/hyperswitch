@@ -1128,6 +1128,7 @@ pub struct AdyenCard {
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
     cvc: Option<Secret<String>>,
+    holder_name: Option<Secret<String>>,
     brand: Option<CardBrand>, //Mandatory for mandate using network_txns_id
     network_payment_reference: Option<Secret<String>>,
 }
@@ -1784,10 +1785,9 @@ fn get_line_items(item: &AdyenRouterData<&types::PaymentsAuthorizeRouterData>) -
 
 fn get_telephone_number(item: &types::PaymentsAuthorizeRouterData) -> Option<Secret<String>> {
     let phone = item
-        .address
-        .billing
-        .as_ref()
+        .get_optional_billing()
         .and_then(|billing| billing.phone.as_ref());
+
     phone.as_ref().and_then(|phone| {
         phone.number.as_ref().and_then(|number| {
             phone
@@ -1981,6 +1981,7 @@ impl<'a> TryFrom<&api::Card> for AdyenPaymentMethod<'a> {
             expiry_month: card.card_exp_month.clone(),
             expiry_year: card.get_expiry_year_4_digit(),
             cvc: Some(card.card_cvc.clone()),
+            holder_name: card.card_holder_name.clone(),
             brand: None,
             network_payment_reference: None,
         };
@@ -2585,6 +2586,7 @@ impl<'a>
                             expiry_month: card.card_exp_month.clone(),
                             expiry_year: card.card_exp_year.clone(),
                             cvc: None,
+                            holder_name: card.card_holder_name.clone(),
                             brand: Some(brand),
                             network_payment_reference: Some(Secret::new(network_mandate_id)),
                         };
@@ -2664,13 +2666,13 @@ impl<'a>
             get_recurring_processing_model(item.router_data)?;
         let browser_info = get_browser_info(item.router_data)?;
         let billing_address =
-            get_address_info(item.router_data.address.billing.as_ref()).transpose()?;
-        let country_code = get_country_code(item.router_data.address.billing.as_ref());
+            get_address_info(item.router_data.get_optional_billing()).transpose()?;
+        let country_code = get_country_code(item.router_data.get_optional_billing());
         let additional_data = get_additional_data(item.router_data);
         let return_url = item.router_data.request.get_return_url()?;
         let payment_method = AdyenPaymentMethod::try_from(card_data)?;
         let shopper_email = item.router_data.request.email.clone();
-        let shopper_name = get_shopper_name(item.router_data.address.billing.as_ref());
+        let shopper_name = get_shopper_name(item.router_data.get_optional_billing());
 
         Ok(AdyenPaymentRequest {
             amount,
@@ -2724,7 +2726,7 @@ impl<'a>
         let additional_data = get_additional_data(item.router_data);
         let return_url = item.router_data.request.get_return_url()?;
         let payment_method = AdyenPaymentMethod::try_from(bank_debit_data)?;
-        let country_code = get_country_code(item.router_data.address.billing.as_ref());
+        let country_code = get_country_code(item.router_data.get_optional_billing());
         let request = AdyenPaymentRequest {
             amount,
             merchant_account: auth_type.merchant_account,
@@ -3080,7 +3082,7 @@ impl<'a>
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_auth_type)?;
         let browser_info = get_browser_info(item.router_data)?;
         let additional_data = get_additional_data(item.router_data);
-        let country_code = get_country_code(item.router_data.address.billing.as_ref());
+        let country_code = get_country_code(item.router_data.get_optional_billing());
         let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
         let shopper_reference = build_shopper_reference(
             &item.router_data.customer_id,
@@ -3090,12 +3092,12 @@ impl<'a>
             get_recurring_processing_model(item.router_data)?;
         let return_url = item.router_data.request.get_return_url()?;
         let shopper_name: Option<ShopperName> =
-            get_shopper_name(item.router_data.address.billing.as_ref());
+            get_shopper_name(item.router_data.get_optional_billing());
         let shopper_email = item.router_data.request.email.clone();
         let billing_address =
-            get_address_info(item.router_data.address.billing.as_ref()).transpose()?;
+            get_address_info(item.router_data.get_optional_billing()).transpose()?;
         let delivery_address =
-            get_address_info(item.router_data.address.shipping.as_ref()).transpose()?;
+            get_address_info(item.router_data.get_optional_shipping()).transpose()?;
         let line_items = Some(get_line_items(item));
         let telephone_number = get_telephone_number(item.router_data);
         let payment_method = AdyenPaymentMethod::try_from((
@@ -3156,7 +3158,7 @@ impl<'a>
         let payment_method = AdyenPaymentMethod::try_from(card_redirect_data)?;
         let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
         let return_url = item.router_data.request.get_return_url()?;
-        let shopper_name = get_shopper_name(item.router_data.address.billing.as_ref());
+        let shopper_name = get_shopper_name(item.router_data.get_optional_billing());
         let shopper_email = item.router_data.request.email.clone();
         let telephone_number = item
             .router_data
@@ -4665,8 +4667,8 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
                     },
                     date_of_birth: None,
                     entity_type: Some(item.router_data.request.entity_type),
-                    nationality: get_country_code(item.router_data.address.billing.as_ref()),
-                    billing_address: get_address_info(item.router_data.address.billing.as_ref())
+                    nationality: get_country_code(item.router_data.get_optional_billing()),
+                    billing_address: get_address_info(item.router_data.get_optional_billing())
                         .transpose()?,
                 })
             }
@@ -4705,8 +4707,8 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
                     },
                     date_of_birth: None,
                     entity_type: Some(item.router_data.request.entity_type),
-                    nationality: get_country_code(item.router_data.address.billing.as_ref()),
-                    billing_address: get_address_info(item.router_data.address.billing.as_ref())
+                    nationality: get_country_code(item.router_data.get_optional_billing()),
+                    billing_address: get_address_info(item.router_data.get_optional_billing())
                         .transpose()?,
                 })
             }
@@ -4752,7 +4754,7 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutF
                         first_name: Some(address.get_first_name()?.to_owned()), // it is a required field for payouts
                         last_name: Some(address.get_last_name()?.to_owned()), // it is a required field for payouts
                     },
-                    nationality: get_country_code(item.router_data.address.billing.as_ref()),
+                    nationality: get_country_code(item.router_data.get_optional_billing()),
                     entity_type: Some(item.router_data.request.entity_type),
                 })))
             }

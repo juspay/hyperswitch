@@ -219,6 +219,16 @@ pub async fn trigger_refund_to_gateway(
                             updated_by: storage_scheme.to_string(),
                         })
                     }
+                    errors::ConnectorError::NotSupported { message, connector } => {
+                        Some(storage::RefundUpdate::ErrorUpdate {
+                            refund_status: Some(enums::RefundStatus::Failure),
+                            refund_error_message: Some(format!(
+                                "{message} is not supported by {connector}"
+                            )),
+                            refund_error_code: Some("NOT_SUPPORTED".to_string()),
+                            updated_by: storage_scheme.to_string(),
+                        })
+                    }
                     _ => None,
                 });
         // Update the refund status as failure if connector_error is NotImplemented
@@ -891,7 +901,7 @@ pub async fn sync_refund_with_gateway_workflow(
         .find_merchant_account_by_merchant_id(&refund_core.merchant_id, &key_store)
         .await?;
 
-    let response = refund_retrieve_core(
+    let response = Box::pin(refund_retrieve_core(
         state.clone(),
         merchant_account,
         key_store,
@@ -900,7 +910,7 @@ pub async fn sync_refund_with_gateway_workflow(
             force_sync: Some(true),
             merchant_connector_details: None,
         },
-    )
+    ))
     .await?;
     let terminal_status = [
         enums::RefundStatus::Success,
