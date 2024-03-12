@@ -385,7 +385,7 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>>
                 country: address.country,
             });
         let transaction_request = TransactionRequest {
-            transaction_type: TransactionType::from(item.router_data.request.capture_method),
+            transaction_type: TransactionType::try_from(item.router_data.request.capture_method)?,
             amount: item.amount,
             currency_code: item.router_data.request.currency.to_string(),
             payment: payment_details,
@@ -1118,14 +1118,24 @@ fn construct_refund_payment_details(masked_number: String) -> PaymentDetails {
     })
 }
 
-impl From<Option<enums::CaptureMethod>> for TransactionType {
-    fn from(capture_method: Option<enums::CaptureMethod>) -> Self {
+impl TryFrom<Option<enums::CaptureMethod>> for TransactionType {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(capture_method: Option<enums::CaptureMethod>) -> Result<Self, Self::Error> {
         match capture_method {
-            Some(enums::CaptureMethod::Manual) => Self::Authorization,
-            Some(enums::CaptureMethod::Automatic)
-            | Some(enums::CaptureMethod::ManualMultiple)
-            | Some(enums::CaptureMethod::Scheduled)
-            | None => Self::Payment,
+            Some(enums::CaptureMethod::Manual) => Ok(Self::Authorization),
+            Some(enums::CaptureMethod::Automatic) | None => Ok(Self::Payment),
+            Some(enums::CaptureMethod::ManualMultiple) => {
+                Err(utils::construct_not_supported_error_report(
+                    enums::CaptureMethod::ManualMultiple,
+                    "authorizedotnet",
+                ))?
+            }
+            Some(enums::CaptureMethod::Scheduled) => {
+                Err(utils::construct_not_supported_error_report(
+                    enums::CaptureMethod::Scheduled,
+                    "authorizedotnet",
+                ))?
+            }
         }
     }
 }
@@ -1372,12 +1382,19 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsCompleteAuthorizeRouterD
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
                 .payer_id;
         let transaction_type = match item.router_data.request.capture_method {
-            Some(enums::CaptureMethod::Manual) => TransactionType::ContinueAuthorization,
-            Some(enums::CaptureMethod::Automatic)
-            | Some(enums::CaptureMethod::ManualMultiple)
-            | Some(enums::CaptureMethod::Scheduled)
-            | None => TransactionType::ContinueCapture,
-        };
+            Some(enums::CaptureMethod::Manual) => Ok(TransactionType::ContinueAuthorization),
+            Some(enums::CaptureMethod::Automatic) | None => Ok(TransactionType::ContinueCapture),
+            Some(enums::CaptureMethod::ManualMultiple) => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: enums::CaptureMethod::ManualMultiple.to_string(),
+                    connector: "authorizedotnet",
+                })
+            }
+            Some(enums::CaptureMethod::Scheduled) => Err(errors::ConnectorError::NotSupported {
+                message: enums::CaptureMethod::Scheduled.to_string(),
+                connector: "authorizedotnet",
+            }),
+        }?;
         let transaction_request = TransactionConfirmRequest {
             transaction_type,
             payment: PaypalPaymentConfirm {
