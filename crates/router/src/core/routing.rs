@@ -37,12 +37,11 @@ use crate::{core::errors, services::api as service_api, types::storage};
 #[cfg(feature = "business_profile_routing")]
 use crate::{errors, services::api as service_api};
 
-#[derive(Clone)]
 pub enum TransactionData<'a, F>
 where
     F: Clone,
 {
-    Payment(&'a payments::PaymentData<F>),
+    Payment(&'a mut payments::PaymentData<F>),
     #[cfg(feature = "payouts")]
     Payout(&'a payouts::PayoutData),
 }

@@ -2567,3 +2567,11 @@ key1 = "Adyen Account Id"
 [wise_payout.connector_auth.BodyKey]
 api_key = "Wise API Key"
 key1 = "Wise Account Id"
+
+[threedsecureio]
+[threedsecureio.connector_auth.HeaderKey]
+api_key="Api Key"
+[threedsecureio.metadata]
+mcc="MCC"
+merchant_country_code="3 digit numeric country code"
+merchant_name="Name of the merchant"
