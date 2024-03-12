@@ -187,13 +187,13 @@ impl ConnectorValidation for Braintree {
                 connector_utils::construct_mandate_not_implemented_error(pm_type, self.id()),
             ),
             api_models::payments::PaymentMethodData::Wallet(wallet) => match wallet {
-                api_models::payments::WalletData::PaypalRedirect(_) 
+                api_models::payments::WalletData::PaypalRedirect(_)
                 | api_models::payments::WalletData::GooglePay(_)
                 | api_models::payments::WalletData::ApplePay(_)
                 | api_models::payments::WalletData::SamsungPay(_) => Err(
                     connector_utils::construct_mandate_not_implemented_error(pm_type, self.id()),
                 ),
-                 api_models::payments::WalletData::KakaoPayRedirect(_)
+                api_models::payments::WalletData::KakaoPayRedirect(_)
                 | api_models::payments::WalletData::DanaRedirect {}
                 | api_models::payments::WalletData::GcashRedirect(_)
                 | api_models::payments::WalletData::TouchNGoRedirect(_)

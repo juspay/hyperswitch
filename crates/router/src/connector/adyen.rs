@@ -15,6 +15,7 @@ use self::transformers as adyen;
 use crate::{
     capture_method_not_supported,
     configs::settings,
+    connector::utils as connector_utils,
     consts,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
