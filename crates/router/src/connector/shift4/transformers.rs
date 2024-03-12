@@ -441,8 +441,7 @@ impl<T> TryFrom<&types::RouterData<T, types::PaymentsAuthorizeData, types::Payme
         item: &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let billing_address = item
-            .address
-            .billing
+            .get_optional_billing()
             .as_ref()
             .and_then(|billing| billing.address.as_ref());
         let address = get_address_details(billing_address);
