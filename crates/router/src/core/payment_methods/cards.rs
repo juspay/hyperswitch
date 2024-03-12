@@ -8,10 +8,11 @@ use api_models::{
     enums::{self as api_enums},
     payment_methods::{
         BankAccountConnectorDetails, CardDetailsPaymentMethod, CardNetworkTypes,
-        CurrenciesCountriesBasedOnPm, CustomerDefaultPaymentMethodResponse, MaskedBankDetails,
-        PaymentExperienceTypes, PaymentMethodCountryCurrencyList, PaymentMethodsData,
-        RequestPaymentMethodTypes, RequiredFieldInfo, ResponsePaymentMethodIntermediate,
-        ResponsePaymentMethodTypes, ResponsePaymentMethodsEnabled,
+        CountryCodeWithName, CurrenciesCountriesBasedOnPm, CustomerDefaultPaymentMethodResponse,
+        MaskedBankDetails, PaymentExperienceTypes, PaymentMethodCountryCurrencyList,
+        PaymentMethodsData, RequestPaymentMethodTypes, RequiredFieldInfo,
+        ResponsePaymentMethodIntermediate, ResponsePaymentMethodTypes,
+        ResponsePaymentMethodsEnabled,
     },
     payments::BankCodeResponse,
     pm_auth::PaymentMethodAuthConfig,
@@ -3534,18 +3535,31 @@ pub async fn retrieve_countries_currencies_based_on_pmt(
 
     let connector = req.connector;
     let payment_method_type = req.payment_method_type;
-    let pm_filter = config.0.get(&connector).or_else(|| config.0.get("default"));
+
     let key = settings::PaymentMethodFilterKey::PaymentMethodType(payment_method_type);
+    let pm_filter = config
+        .0
+        .get(&connector.to_string())
+        .or_else(|| config.0.get("default"))
+        .and_then(|filter| filter.0.get(&key));
 
-    let b = pm_filter
-        .and_then(|f| {
-            f.0.get(&key).map(|cc| CurrenciesCountriesBasedOnPm {
-                country: cc.country.clone(),
-                currency: cc.currency.clone(),
-            })
-        })
-        .unwrap_or_default();
+    let currencies = pm_filter.and_then(|filter| filter.currency.clone());
+    let country_codes = pm_filter.and_then(|filter| filter.country.clone());
 
-    println!("filter_pm{:?}", b);
-    Ok(services::ApplicationResponse::Json(b))
+    Ok(services::ApplicationResponse::Json(
+        CurrenciesCountriesBasedOnPm {
+            currencies,
+            countries: country_codes.map(|country_codes| {
+                country_codes
+                    .into_iter()
+                    .map(|country_code| CountryCodeWithName {
+                        code: country_code,
+                        name: common_enums::Country::from_alpha2(country_code),
+                    })
+                    .collect()
+            }),
+            connector,
+            payment_method_type,
+        },
+    ))
 }

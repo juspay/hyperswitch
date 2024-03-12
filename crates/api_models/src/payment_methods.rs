@@ -908,16 +908,25 @@ pub struct TokenizedCardValue1 {
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentMethodCountryCurrencyList {
-    pub connector: String,
+    pub connector: api_enums::Connector,
     pub payment_method_type: api_enums::PaymentMethodType,
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize, Default)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CurrenciesCountriesBasedOnPm {
-    pub currency: Option<HashSet<api_enums::Currency>>,
-    pub country: Option<HashSet<api_enums::CountryAlpha2>>,
+    pub connector: api_enums::Connector,
+    pub payment_method_type: api_enums::PaymentMethodType,
+    pub currencies: Option<HashSet<api_enums::Currency>>,
+    pub countries: Option<HashSet<CountryCodeWithName>>,
 }
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Eq, Hash, PartialEq)]
+pub struct CountryCodeWithName {
+    pub code: api_enums::CountryAlpha2,
+    pub name: api_enums::Country,
+}
+
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TokenizedCardValue2 {

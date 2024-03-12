@@ -276,7 +276,11 @@ pub async fn payment_method_countries_currencies_retrieve_api(
         &req,
         payload,
         |state, _auth, req| cards::retrieve_countries_currencies_based_on_pmt(state, req),
-        &auth::ApiKeyAuth,
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::DashboardNoPermissionAuth,
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await
