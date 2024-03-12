@@ -418,7 +418,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
 #[derive(Debug, Serialize, Clone)]
 pub struct CaptureRequest {
     amount: Option<i64>,
-    receipt_email: Option<String>,
+    receipt_email: Option<Secret<String>>,
     statement_descriptor: Option<String>,
 }
 
