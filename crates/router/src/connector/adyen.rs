@@ -1761,7 +1761,7 @@ impl api::IncomingWebhook for Adyen {
         }
         if adyen::is_refund_event(&notif.event_code) {
             return Ok(api_models::webhooks::ObjectReferenceId::RefundId(
-                api_models::webhooks::RefundIdType::ConnectorRefundId(notif.psp_reference),
+                api_models::webhooks::RefundIdType::RefundId(notif.merchant_reference),
             ));
         }
         if adyen::is_chargeback_event(&notif.event_code) {
