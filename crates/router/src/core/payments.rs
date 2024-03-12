@@ -271,6 +271,12 @@ where
                     external_latency = router_data.external_latency;
                     //add connector http status code metrics
                     add_connector_http_status_code_metrics(connector_http_status_code);
+                    crate::core::payouts::helpers::update_payment_method_with_ntid(
+                        &state,
+                        payment_data.payment_method_info.clone(),
+                        router_data.response.clone(),
+                    )
+                    .await?;
                     operation
                         .to_post_update_tracker()?
                         .update_tracker(

@@ -667,10 +667,11 @@ impl
 
         match id.get_connector_transaction_id() {
             Ok(x) if x.starts_with("set") => Ok(format!(
-                "{}{}/{}",
+                "{}{}/{}{}",
                 self.base_url(connectors),
                 "v1/setup_intents",
-                x
+                x,
+                "?expand[0]=latest_attempt"
             )),
             Ok(x) => Ok(format!(
                 "{}{}/{}{}",

@@ -57,6 +57,14 @@ where
                 .map(|token_filter| token_filter.long_lived_token)
                 .unwrap_or(false);
 
+            let network_transaction_id = match responses.clone() {
+                types::PaymentsResponseData::TransactionResponse {
+                    network_transaction_id,
+                    ..
+                } => network_transaction_id,
+                _ => None,
+            };
+
             let connector_token = if token_store {
                 let tokens = resp
                     .payment_method_token
@@ -221,6 +229,7 @@ where
                                             pm_data_encrypted,
                                             key_store,
                                             connector_mandate_details,
+                                            network_transaction_id,
                                         )
                                         .await
                                     } else {
@@ -284,6 +293,7 @@ where
                                                     customer_acceptance,
                                                     locker_id,
                                                     connector_mandate_details,
+                                                    network_transaction_id,
                                                 )
                                                 .await
                                             } else {
@@ -402,6 +412,7 @@ where
                             pm_data_encrypted,
                             key_store,
                             connector_mandate_details,
+                            network_transaction_id,
                         )
                         .await?;
                     }

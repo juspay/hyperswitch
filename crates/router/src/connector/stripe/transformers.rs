@@ -2367,7 +2367,7 @@ impl<F, T>
 
         //Note: we might have to call retrieve_setup_intent to get the network_transaction_id in case its not sent in PaymentIntentResponse
         // Or we identify the mandate txns before hand and always call SetupIntent in case of mandate payment call
-        let network_txn_id = Option::foreign_from(item.response.latest_attempt);
+        let network_transaction_id = Option::foreign_from(item.response.latest_attempt);
 
         let connector_metadata =
             get_connector_metadata(item.response.next_action.as_ref(), item.response.amount)?;
@@ -2386,7 +2386,7 @@ impl<F, T>
                 redirection_data,
                 mandate_reference,
                 connector_metadata,
-                network_txn_id,
+                network_transaction_id,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
             })
@@ -2536,7 +2536,7 @@ impl<F, T>
                 redirection_data,
                 mandate_reference,
                 connector_metadata,
-                network_txn_id: None,
+                network_transaction_id: None,
                 connector_response_reference_id: Some(item.response.id.clone()),
                 incremental_authorization_allowed: None,
             })
@@ -2577,12 +2577,22 @@ impl<F, T>
                 item.response.id.clone(),
             ))
         } else {
+            let network_transaction_id = match item.response.latest_attempt {
+                Some(LatestAttempt::PaymentIntentAttempt(attempt)) => attempt
+                    .payment_method_details
+                    .and_then(|payment_method_details| match payment_method_details.card {
+                        Some(card) => card.network_transaction_id.map(|network_id| network_id),
+                        _ => None,
+                    }),
+                _ => None,
+            };
+
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data,
                 mandate_reference,
                 connector_metadata: None,
-                network_txn_id: Option::foreign_from(item.response.latest_attempt),
+                network_transaction_id,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
             })
@@ -3028,7 +3038,18 @@ pub enum LatestAttempt {
 }
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct LatestPaymentAttempt {
+    pub payment_method_details: Option<StripePaymentMethodDetails>,
     pub payment_method_options: Option<StripePaymentMethodOptions>,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
+pub struct StripePaymentMethodDetails {
+    pub card: Option<Card>,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
+pub struct Card {
+    pub network_transaction_id: Option<String>,
 }
 // #[derive(Deserialize, Debug, Clone, Eq, PartialEq)]
 // pub struct Card
@@ -3212,7 +3233,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ChargesResponse, T, types::Payme
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: Some(connector_metadata),
-                network_txn_id: None,
+                network_transaction_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
             })

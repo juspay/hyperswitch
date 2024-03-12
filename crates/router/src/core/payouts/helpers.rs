@@ -13,8 +13,8 @@ use crate::{
     core::{
         errors::{self, RouterResult},
         payment_methods::{
-            cards, transformers,
-            transformers::{StoreCardReq, StoreGenericReq, StoreLockerReq},
+            cards,
+            transformers::{self, StoreCardReq, StoreGenericReq, StoreLockerReq},
             vault,
         },
         payments::{
@@ -386,9 +386,57 @@ pub async fn save_payout_data_to_locker(
         card_details_encrypted,
         key_store,
         None,
+        None,
     )
     .await?;
 
+    Ok(())
+}
+
+pub async fn update_payment_method_with_ntid(
+    state: &AppState,
+    pm: Option<storage::PaymentMethod>,
+    payment_response: Result<crate::types::PaymentsResponseData, crate::types::ErrorResponse>,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    // let network_transaction_id = match payment_response {
+    //     Ok(res) => {
+    //         match res {
+    //             crate::types::PaymentsResponseData::TransactionResponse { network_txn_id, .. } => {
+    //                 network_txn_id
+    //             }
+    //             _ => None,
+    //         }
+    //     },
+    //     Err(_) => None, //error
+    // };
+
+    let network_transaction_id = payment_response
+        .map(|resp| match resp {
+            crate::types::PaymentsResponseData::TransactionResponse {
+                network_transaction_id,
+                ..
+            } => network_transaction_id,
+            _ => None,
+        })
+        .ok()
+        .flatten();
+
+    let pm_update =
+        diesel_models::payment_method::PaymentMethodUpdate::NetworkTransactionIdUpdate {
+            network_transaction_id,
+        };
+
+    match pm {
+        Some(pm) => {
+            state
+                .store
+                .update_payment_method(pm, pm_update)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to update network transaction id in payment_method")?;
+        }
+        None => (),
+    }
     Ok(())
 }
 
