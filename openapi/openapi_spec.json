@@ -4208,9 +4208,18 @@
         "operationId": "Set the Payment Method as Default",
         "parameters": [
           {
-            "name": "method_id",
+            "name": "customer_id",
             "in": "path",
-            "description": "Set the Payment Method as Default for the Customer",
+            "description": "The unique identifier for the Customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "payment_method_id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method",
             "required": true,
             "schema": {
               "type": "string"
