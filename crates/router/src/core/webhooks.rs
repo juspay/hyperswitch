@@ -673,9 +673,11 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     let delivery_attempt = types::WebhookDeliveryAttempt::InitialAttempt;
     let idempotent_event_id =
         utils::get_idempotent_event_id(&primary_object_id, event_type, delivery_attempt);
+    let webhook_url_result = get_webhook_url_from_business_profile(&business_profile);
 
     if !state.conf.webhooks.outgoing_enabled
-        || get_webhook_url_from_business_profile(&business_profile).is_err()
+        || webhook_url_result.is_err()
+        || webhook_url_result.as_ref().is_ok_and(String::is_empty)
     {
         logger::debug!(
             business_profile_id=%business_profile.profile_id,
