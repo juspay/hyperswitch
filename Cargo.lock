@@ -5579,7 +5579,6 @@ dependencies = [
  "common_enums",
  "common_utils",
  "config",
- "connector_configs",
  "cookie 0.18.0",
  "currency_conversion",
  "data_models",
