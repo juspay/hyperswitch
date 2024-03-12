@@ -12,6 +12,8 @@ ALTER TABLE events
 
 -- The following queries must be run after the older version of the application is deployed.
 ALTER TABLE events
+    DROP COLUMN merchant_id,
+    DROP COLUMN business_profile_id,
     DROP COLUMN primary_object_created_at,
     DROP COLUMN idempotent_event_id,
     DROP COLUMN initial_attempt_id,

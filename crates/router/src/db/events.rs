@@ -197,6 +197,7 @@ mod tests {
             .expect("Failed to create Mock store");
         let event_id = "test_event_id";
         let merchant_id = "merchant1";
+        let business_profile_id = "profile1";
 
         let master_key = mockdb.get_master_key();
         mockdb
@@ -230,6 +231,8 @@ mod tests {
                     primary_object_id: "primary_object_tet".into(),
                     primary_object_type: enums::EventObjectType::PaymentDetails,
                     created_at: common_utils::date_time::now(),
+                    merchant_id: Some(merchant_id.to_owned()),
+                    business_profile_id: Some(business_profile_id.to_owned()),
                     primary_object_created_at: Some(common_utils::date_time::now()),
                     idempotent_event_id: Some(event_id.into()),
                     initial_attempt_id: Some(event_id.into()),

@@ -714,6 +714,8 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         primary_object_id,
         primary_object_type,
         created_at: now,
+        merchant_id: Some(business_profile.merchant_id.clone()),
+        business_profile_id: Some(business_profile.profile_id.clone()),
         primary_object_created_at,
         idempotent_event_id: Some(idempotent_event_id.clone()),
         initial_attempt_id: Some(event_id.clone()),

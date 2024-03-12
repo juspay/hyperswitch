@@ -346,6 +346,10 @@ diesel::table! {
         primary_object_id -> Varchar,
         primary_object_type -> EventObjectType,
         created_at -> Timestamp,
+        #[max_length = 64]
+        merchant_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        business_profile_id -> Nullable<Varchar>,
         primary_object_created_at -> Nullable<Timestamp>,
         #[max_length = 64]
         idempotent_event_id -> Nullable<Varchar>,

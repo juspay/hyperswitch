@@ -1,5 +1,7 @@
 -- The following queries must be run before the newer version of the application is deployed.
 ALTER TABLE events
+    ADD COLUMN merchant_id VARCHAR(64) DEFAULT NULL,
+    ADD COLUMN business_profile_id VARCHAR(64) DEFAULT NULL,
     ADD COLUMN primary_object_created_at TIMESTAMP DEFAULT NULL,
     ADD COLUMN idempotent_event_id VARCHAR(64) DEFAULT NULL,
     ADD COLUMN initial_attempt_id VARCHAR(64) DEFAULT NULL,
