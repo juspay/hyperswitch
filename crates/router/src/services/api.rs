@@ -575,16 +575,24 @@ pub async fn call_connector_api(
         .send_request(state, request, None, true)
         .await;
 
-    let _ = response.as_ref().map(|resp| {
-        let status_code = resp.status().as_u16();
-        let elapsed_time = current_time.elapsed();
-        logger::info!(
-            headers=?headers,
-            url=?url,
-            status_code=?status_code,
-            flow=?flow_name,
-            elapsed_time=?elapsed_time)
-    });
+    match response.as_ref() {
+        Ok(resp) => {
+            let status_code = resp.status().as_u16();
+            let elapsed_time = current_time.elapsed();
+            logger::info!(
+                headers=?headers,
+                url=?url,
+                status_code=?status_code,
+                flow=?flow_name,
+                elapsed_time=?elapsed_time
+            );
+        }
+        Err(err) => {
+            logger::info!(
+                call_connector_api_error=?err
+            );
+        }
+    }
 
     handle_response(response).await
 }
