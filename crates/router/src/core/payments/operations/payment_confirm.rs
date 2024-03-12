@@ -383,6 +383,23 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             &token,
         )?;
 
+        let (token_data, payment_method_info) = if let Some(token) = token.clone() {
+            let token_data = helpers::retrieve_payment_token_data(
+                state,
+                token,
+                payment_method.or(payment_attempt.payment_method),
+            )
+            .await?;
+
+            let payment_method_info =
+                helpers::retrieve_payment_method_from_db_with_token_data(state, &token_data)
+                    .await?;
+
+            (Some(token_data), payment_method_info)
+        } else {
+            (None, None)
+        };
+
         payment_attempt.payment_method = payment_method.or(payment_attempt.payment_method);
         payment_attempt.browser_info = browser_info;
         payment_attempt.payment_method_type =
@@ -548,6 +565,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             setup_mandate,
             customer_acceptance,
             token,
+            token_data,
             address: PaymentAddress {
                 shipping: shipping_address.as_ref().map(|a| a.into()),
                 billing: billing_address.as_ref().map(|a| a.into()),
@@ -557,6 +575,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             },
             confirm: request.confirm,
             payment_method_data: payment_method_data_after_card_bin_call,
+            payment_method_info,
             force_sync: None,
             refunds: vec![],
             disputes: vec![],
@@ -565,6 +584,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             card_cvc: request.card_cvc.clone(),
             creds_identifier,
             pm_token: None,
+            payment_method_status: None,
             connector_customer_id: None,
             recurring_mandate_payment_data,
             ephemeral_key: None,
@@ -630,15 +650,16 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
         Option<api::PaymentMethodData>,
+        Option<String>,
     )> {
-        let (op, payment_method_data) =
+        let (op, payment_method_data, pm_id) =
             helpers::make_pm_data(Box::new(self), state, payment_data, key_store, customer).await?;
 
         utils::when(payment_method_data.is_none(), || {
             Err(errors::ApiErrorResponse::PaymentMethodNotFound)
         })?;
 
-        Ok((op, payment_method_data))
+        Ok((op, payment_method_data, pm_id))
     }
 
     #[instrument(skip_all)]
@@ -811,6 +832,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             .unwrap_or(payment_data.payment_attempt.amount);
 
         let m_payment_data_payment_attempt = payment_data.payment_attempt.clone();
+        let m_payment_method_id = payment_data.payment_attempt.payment_method_id.clone();
         let m_browser_info = browser_info.clone();
         let m_connector = connector.clone();
         let m_payment_token = payment_token.clone();
@@ -860,6 +882,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                         authentication_id: None,
                         payment_method_billing_address_id,
                         fingerprint_id: m_fingerprint_id,
+                        payment_method_id: m_payment_method_id,
                     },
                     storage_scheme,
                 )

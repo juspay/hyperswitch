@@ -157,6 +157,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             setup_mandate: None,
             customer_acceptance: None,
             token: None,
+            token_data: None,
             address: PaymentAddress {
                 shipping: shipping_address.as_ref().map(|a| a.into()),
                 billing: billing_address.as_ref().map(|a| a.into()),
@@ -166,6 +167,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             },
             confirm: None,
             payment_method_data: None,
+            payment_method_info: None,
             force_sync: None,
             refunds: vec![],
             disputes: vec![],
@@ -174,6 +176,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             card_cvc: None,
             creds_identifier,
             pm_token: None,
+            payment_method_status: None,
             connector_customer_id: None,
             recurring_mandate_payment_data: None,
             ephemeral_key: None,

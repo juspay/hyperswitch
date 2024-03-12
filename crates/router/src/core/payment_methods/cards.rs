@@ -1344,42 +1344,50 @@ pub async fn list_payment_methods(
         .await?;
     }
 
-    // Filter out applepay payment method from mca if customer has already saved it
-    response
-        .iter()
-        .position(|pm| {
-            pm.payment_method == enums::PaymentMethod::Wallet
-                && pm.payment_method_type == enums::PaymentMethodType::ApplePay
-        })
+    // Filter out wallet payment method from mca if customer has already saved it
+    customer
         .as_ref()
-        .zip(customer.as_ref())
-        .async_map(|(index, customer)| async {
-            match db
-                .find_payment_method_by_customer_id_merchant_id_list(
-                    &customer.customer_id,
-                    &merchant_account.merchant_id,
-                    None,
-                )
-                .await
-            {
-                Ok(customer_payment_methods) => {
-                    if customer_payment_methods.iter().any(|pm| {
-                        pm.payment_method == enums::PaymentMethod::Wallet
-                            && pm.payment_method_type == Some(enums::PaymentMethodType::ApplePay)
-                    }) {
-                        response.remove(*index);
-                    }
-                    Ok(())
-                }
-                Err(error) => {
-                    if error.current_context().is_db_not_found() {
+        .async_map(|customer| async {
+            let wallet_pm_exists = response
+                .iter()
+                .any(|mca| mca.payment_method == enums::PaymentMethod::Wallet);
+            if wallet_pm_exists {
+                match db
+                    .find_payment_method_by_customer_id_merchant_id_list(
+                        &customer.customer_id,
+                        &merchant_account.merchant_id,
+                        None,
+                    )
+                    .await
+                {
+                    Ok(customer_payment_methods) => {
+                        let customer_wallet_pm = customer_payment_methods
+                            .iter()
+                            .filter(|cust_pm| {
+                                cust_pm.payment_method == enums::PaymentMethod::Wallet
+                            })
+                            .collect::<Vec<_>>();
+
+                        response.retain(|mca| {
+                            !(mca.payment_method == enums::PaymentMethod::Wallet
+                                && customer_wallet_pm.iter().any(|cust_pm| {
+                                    cust_pm.payment_method_type == Some(mca.payment_method_type)
+                                }))
+                        });
                         Ok(())
-                    } else {
-                        Err(error)
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("failed to find payment methods for a customer")
+                    }
+                    Err(error) => {
+                        if error.current_context().is_db_not_found() {
+                            Ok(())
+                        } else {
+                            Err(error)
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable("failed to find payment methods for a customer")
+                        }
                     }
                 }
+            } else {
+                Ok(())
             }
         })
         .await
