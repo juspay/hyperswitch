@@ -160,6 +160,7 @@ impl<const T: u8>
 }
 
 default_imp_for_complete_authorize!(
+    connector::Plaid,
     connector::Aci,
     connector::Adyen,
     connector::Bitpay,
@@ -225,6 +226,7 @@ impl<const T: u8>
 {
 }
 default_imp_for_webhook_source_verification!(
+    connector::Plaid,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -307,6 +309,7 @@ impl<const T: u8>
 }
 
 default_imp_for_create_customer!(
+    connector::Plaid,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -389,6 +392,7 @@ impl<const T: u8> services::ConnectorRedirectResponse for connector::DummyConnec
 }
 
 default_imp_for_connector_redirect_response!(
+    connector::Plaid,
     connector::Aci,
     connector::Adyen,
     connector::Bitpay,
@@ -440,6 +444,7 @@ macro_rules! default_imp_for_connector_request_id {
 impl<const T: u8> api::ConnectorTransactionId for connector::DummyConnector<T> {}
 
 default_imp_for_connector_request_id!(
+    connector::Plaid,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -524,6 +529,7 @@ impl<const T: u8>
 }
 
 default_imp_for_accept_dispute!(
+    connector::Plaid,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -628,6 +634,7 @@ impl<const T: u8>
 }
 
 default_imp_for_file_upload!(
+    connector::Plaid,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -709,6 +716,7 @@ impl<const T: u8>
 }
 
 default_imp_for_submit_evidence!(
+    connector::Plaid,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -790,6 +798,7 @@ impl<const T: u8>
 }
 
 default_imp_for_defend_dispute!(
+    connector::Plaid,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -887,6 +896,7 @@ impl<const T: u8>
 }
 
 default_imp_for_pre_processing_steps!(
+    connector::Plaid,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1013,6 +1023,7 @@ macro_rules! default_imp_for_payouts {
 impl<const T: u8> api::Payouts for connector::DummyConnector<T> {}
 
 default_imp_for_payouts!(
+    connector::Plaid,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1095,6 +1106,7 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_create!(
+    connector::Plaid,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1180,6 +1192,7 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_eligibility!(
+    connector::Plaid,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1262,6 +1275,7 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_fulfill!(
+    connector::Plaid,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1344,6 +1358,7 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_cancel!(
+    connector::Plaid,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1426,6 +1441,7 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_quote!(
+    connector::Plaid,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1509,6 +1525,7 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient!(
+    connector::Plaid,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1591,6 +1608,7 @@ impl<const T: u8>
 }
 
 default_imp_for_approve!(
+    connector::Plaid,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1674,6 +1692,7 @@ impl<const T: u8>
 }
 
 default_imp_for_reject!(
+    connector::Plaid,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1741,6 +1760,7 @@ macro_rules! default_imp_for_fraud_check {
 impl<const T: u8> api::FraudCheck for connector::DummyConnector<T> {}
 
 default_imp_for_fraud_check!(
+    connector::Plaid,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1824,6 +1844,7 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_sale!(
+    connector::Plaid,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1907,6 +1928,7 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_checkout!(
+    connector::Plaid,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1990,6 +2012,7 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_transaction!(
+    connector::Plaid,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2073,6 +2096,7 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_fulfillment!(
+    connector::Plaid,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2156,6 +2180,7 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_record_return!(
+    connector::Plaid,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2237,6 +2262,7 @@ impl<const T: u8>
 }
 
 default_imp_for_incremental_authorization!(
+    connector::Plaid,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2317,6 +2343,7 @@ impl<const T: u8>
 {
 }
 default_imp_for_revoking_mandates!(
+    connector::Plaid,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,

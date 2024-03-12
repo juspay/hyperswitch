@@ -46,6 +46,7 @@ mod payme;
 mod paypal;
 mod payu;
 mod placetopay;
+mod plaid;
 mod powertranz;
 #[cfg(feature = "dummy_connector")]
 mod prophetpay;
