@@ -219,6 +219,16 @@ pub async fn trigger_refund_to_gateway(
                             updated_by: storage_scheme.to_string(),
                         })
                     }
+                    errors::ConnectorError::NotSupported { message, connector } => {
+                        Some(storage::RefundUpdate::ErrorUpdate {
+                            refund_status: Some(enums::RefundStatus::Failure),
+                            refund_error_message: Some(format!(
+                                "{message} is not supported by {connector}"
+                            )),
+                            refund_error_code: Some("NOT_SUPPORTED".to_string()),
+                            updated_by: storage_scheme.to_string(),
+                        })
+                    }
                     _ => None,
                 });
         // Update the refund status as failure if connector_error is NotImplemented
