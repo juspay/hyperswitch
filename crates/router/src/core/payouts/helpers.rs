@@ -393,37 +393,6 @@ pub async fn save_payout_data_to_locker(
     Ok(())
 }
 
-pub async fn update_payment_method_with_ntid(
-    state: &AppState,
-    pm: Option<storage::PaymentMethod>,
-    payment_response: Result<crate::types::PaymentsResponseData, crate::types::ErrorResponse>,
-) -> CustomResult<(), errors::ApiErrorResponse> {
-    let network_transaction_id = payment_response
-        .map(|resp| match resp {
-            crate::types::PaymentsResponseData::TransactionResponse { network_txn_id, .. } => {
-                network_txn_id
-            }
-            _ => None,
-        })
-        .ok()
-        .flatten();
-
-    let pm_update =
-        diesel_models::payment_method::PaymentMethodUpdate::NetworkTransactionIdUpdate {
-            network_transaction_id,
-        };
-
-    if let Some(pm) = pm {
-        state
-            .store
-            .update_payment_method(pm, pm_update)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to update network transaction id in payment_method")?;
-    }
-    Ok(())
-}
-
 pub async fn get_or_create_customer_details(
     state: &AppState,
     customer_details: &CustomerDetails,
