@@ -1,6 +1,6 @@
 use common_utils::crypto::{self, GenerateDigest};
 use error_stack::{IntoReport, ResultExt};
-use masking::{PeekInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use rand::distributions::DistString;
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -164,8 +164,8 @@ impl TryFrom<&types::RefreshTokenRouterData> for GlobalpayRefreshTokenRequest {
 
         Ok(Self {
             app_id: globalpay_auth.app_id,
-            nonce,
-            secret,
+            nonce: Secret::new(nonce),
+            secret: Secret::new(secret),
             grant_type: "client_credentials".to_string(),
         })
     }
@@ -215,7 +215,7 @@ fn get_payment_response(
             .as_ref()
             .and_then(|card| card.brand_reference.to_owned())
             .map(|id| types::MandateReference {
-                connector_mandate_id: Some(id),
+                connector_mandate_id: Some(id.expose()),
                 payment_method_id: None,
             })
     });

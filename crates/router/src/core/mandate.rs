@@ -326,48 +326,52 @@ where
         Err(_) => {}
         Ok(_) => match resp.request.get_mandate_id() {
             Some(mandate_id) => {
-                let mandate_id = &mandate_id.mandate_id;
-                let mandate = state
-                    .store
-                    .find_mandate_by_merchant_id_mandate_id(resp.merchant_id.as_ref(), mandate_id)
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
-                let mandate = match mandate.mandate_type {
-                    storage_enums::MandateType::SingleUse => state
+                if let Some(ref mandate_id) = mandate_id.mandate_id {
+                    let mandate = state
                         .store
-                        .update_mandate_by_merchant_id_mandate_id(
-                            &resp.merchant_id,
+                        .find_mandate_by_merchant_id_mandate_id(
+                            resp.merchant_id.as_ref(),
                             mandate_id,
-                            storage::MandateUpdate::StatusUpdate {
-                                mandate_status: storage_enums::MandateStatus::Revoked,
-                            },
                         )
                         .await
-                        .change_context(errors::ApiErrorResponse::MandateUpdateFailed),
-                    storage_enums::MandateType::MultiUse => state
-                        .store
-                        .update_mandate_by_merchant_id_mandate_id(
-                            &resp.merchant_id,
-                            mandate_id,
-                            storage::MandateUpdate::CaptureAmountUpdate {
-                                amount_captured: Some(
-                                    mandate.amount_captured.unwrap_or(0)
-                                        + resp.request.get_amount(),
-                                ),
-                            },
-                        )
-                        .await
-                        .change_context(errors::ApiErrorResponse::MandateUpdateFailed),
-                }?;
-                metrics::SUBSEQUENT_MANDATE_PAYMENT.add(
-                    &metrics::CONTEXT,
-                    1,
-                    &[metrics::request::add_attributes(
-                        "connector",
-                        mandate.connector,
-                    )],
-                );
-                resp.payment_method_id = Some(mandate.payment_method_id);
+                        .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
+                    let mandate = match mandate.mandate_type {
+                        storage_enums::MandateType::SingleUse => state
+                            .store
+                            .update_mandate_by_merchant_id_mandate_id(
+                                &resp.merchant_id,
+                                mandate_id,
+                                storage::MandateUpdate::StatusUpdate {
+                                    mandate_status: storage_enums::MandateStatus::Revoked,
+                                },
+                            )
+                            .await
+                            .change_context(errors::ApiErrorResponse::MandateUpdateFailed),
+                        storage_enums::MandateType::MultiUse => state
+                            .store
+                            .update_mandate_by_merchant_id_mandate_id(
+                                &resp.merchant_id,
+                                mandate_id,
+                                storage::MandateUpdate::CaptureAmountUpdate {
+                                    amount_captured: Some(
+                                        mandate.amount_captured.unwrap_or(0)
+                                            + resp.request.get_amount(),
+                                    ),
+                                },
+                            )
+                            .await
+                            .change_context(errors::ApiErrorResponse::MandateUpdateFailed),
+                    }?;
+                    metrics::SUBSEQUENT_MANDATE_PAYMENT.add(
+                        &metrics::CONTEXT,
+                        1,
+                        &[metrics::request::add_attributes(
+                            "connector",
+                            mandate.connector,
+                        )],
+                    );
+                    resp.payment_method_id = Some(mandate.payment_method_id);
+                }
             }
             None => {
                 if resp.request.get_setup_mandate_details().is_some() {
@@ -409,7 +413,7 @@ where
                         logger::debug!("{:?}", new_mandate_data);
                         resp.request
                         .set_mandate_id(Some(api_models::payments::MandateIds {
-                            mandate_id: new_mandate_data.mandate_id.clone(),
+                            mandate_id: Some(new_mandate_data.mandate_id.clone()),
                             mandate_reference_id: new_mandate_data
                                 .connector_mandate_ids
                                 .clone()
