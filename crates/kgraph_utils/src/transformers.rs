@@ -283,6 +283,9 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
             api_enums::PaymentMethodType::CardRedirect => {
                 Ok(dirval!(CardRedirectType = CardRedirect))
             }
+            api_enums::PaymentMethodType::OpenBanking => {
+                Ok(dirval!(BankRedirectType = OpenBanking))
+            }
         }
     }
 }

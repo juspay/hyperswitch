@@ -848,8 +848,18 @@ pub(crate) fn into_stripe_next_action(
             bank_transfer_steps_and_charges_details,
         },
         payments::NextActionData::ThirdPartySdkSessionToken { session_token } => {
-            StripeNextAction::ThirdPartySdkSessionToken { session_token }
+            match session_token {
+                Some(payments::SessionTokenType::Wallet(token)) => {
+                    StripeNextAction::ThirdPartySdkSessionToken {
+                        session_token: Some(token),
+                    }
+                }
+                _ => StripeNextAction::ThirdPartySdkSessionToken {
+                    session_token: None,
+                },
+            }
         }
+
         payments::NextActionData::QrCodeInformation {
             image_data_url,
             display_to_timestamp,

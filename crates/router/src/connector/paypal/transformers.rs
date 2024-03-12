@@ -398,6 +398,7 @@ fn get_payment_source(
         | BankRedirectData::OnlineBankingPoland { .. }
         | BankRedirectData::OnlineBankingSlovakia { .. }
         | BankRedirectData::OpenBankingUk { .. }
+        | BankRedirectData::OpenBanking { .. }
         | BankRedirectData::Trustly { .. }
         | BankRedirectData::OnlineBankingFpx { .. }
         | BankRedirectData::OnlineBankingThailand { .. } => {

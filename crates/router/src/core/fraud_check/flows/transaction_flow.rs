@@ -16,7 +16,7 @@ use crate::{
             FraudCheckResponseData, FraudCheckTransactionData, FrmTransactionRouterData,
         },
         storage::enums as storage_enums,
-        ConnectorAuthType, ResponseId, RouterData,
+        ConnectorAuthType, MerchantRecipientData, ResponseId, RouterData,
     },
     AppState,
 };
@@ -37,6 +37,7 @@ impl
         _key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        _merchant_recipient_data: Option<MerchantRecipientData>,
     ) -> RouterResult<
         RouterData<frm_api::Transaction, FraudCheckTransactionData, FraudCheckResponseData>,
     > {

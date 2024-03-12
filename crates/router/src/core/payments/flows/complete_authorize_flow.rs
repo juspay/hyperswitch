@@ -28,6 +28,7 @@ impl
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        merchant_recipient_data: Option<types::MerchantRecipientData>,
     ) -> RouterResult<
         types::RouterData<
             api::CompleteAuthorize,
@@ -46,6 +47,7 @@ impl
             key_store,
             customer,
             merchant_connector_account,
+            merchant_recipient_data,
         ))
         .await
     }

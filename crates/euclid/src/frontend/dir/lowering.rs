@@ -159,6 +159,7 @@ impl From<enums::BankRedirectType> for global_enums::PaymentMethodType {
             enums::BankRedirectType::OpenBankingUk => Self::OpenBankingUk,
             enums::BankRedirectType::Przelewy24 => Self::Przelewy24,
             enums::BankRedirectType::Trustly => Self::Trustly,
+            enums::BankRedirectType::OpenBanking => Self::OpenBanking,
         }
     }
 }

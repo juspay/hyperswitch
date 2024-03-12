@@ -47,6 +47,8 @@ pub type PaymentsAuthorizeRouterData =
     RouterData<api::Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
 pub type PaymentsPreProcessingRouterData =
     RouterData<api::PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>;
+pub type PaymentsPostProcessingRouterData =
+    RouterData<api::PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>;
 pub type PaymentsAuthorizeSessionTokenRouterData =
     RouterData<api::AuthorizeSessionToken, AuthorizeSessionTokenData, PaymentsResponseData>;
 pub type PaymentsCompleteAuthorizeRouterData =
@@ -126,6 +128,11 @@ pub type MandateRevokeType = dyn services::ConnectorIntegration<
 pub type PaymentsPreProcessingType = dyn services::ConnectorIntegration<
     api::PreProcessing,
     PaymentsPreProcessingData,
+    PaymentsResponseData,
+>;
+pub type PaymentsPostProcessingType = dyn services::ConnectorIntegration<
+    api::PostProcessing,
+    PaymentsPostProcessingData,
     PaymentsResponseData,
 >;
 pub type PaymentsCompleteAuthorizeType = dyn services::ConnectorIntegration<
@@ -495,6 +502,24 @@ pub struct PaymentsPreProcessingData {
     pub browser_info: Option<BrowserInformation>,
     pub connector_transaction_id: Option<String>,
     pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PaymentsPostProcessingData {
+    pub payment_method_data: payments::PaymentMethodData,
+    pub amount: i64,
+    pub email: Option<Email>,
+    pub customer_id: Option<String>,
+    pub currency: storage_enums::Currency,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub setup_mandate_details: Option<MandateData>,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
+    pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+    pub router_return_url: Option<String>,
+    pub webhook_url: Option<String>,
+    pub complete_authorize_url: Option<String>,
+    pub browser_info: Option<BrowserInformation>,
+    pub connector_transaction_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -925,6 +950,9 @@ pub enum PaymentsResponseData {
         connector_authorization_id: Option<String>,
         error_code: Option<String>,
         error_message: Option<String>,
+    },
+    PostProcessingResponse {
+        session_token: Option<api::OpenBankingSessionToken>,
     },
 }
 

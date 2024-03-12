@@ -2,15 +2,16 @@ pub use api_models::payments::{
     AcceptanceType, Address, AddressDetails, Amount, AuthenticationForStartResponse, Card,
     CryptoData, CustomerAcceptance, HeaderPayload, MandateAmountData, MandateData,
     MandateTransactionType, MandateType, MandateValidationFields, NextActionType, OnlineMandate,
-    PayLaterData, PaymentIdType, PaymentListConstraints, PaymentListFilterConstraints,
-    PaymentListFilters, PaymentListResponse, PaymentListResponseV2, PaymentMethodData,
-    PaymentMethodDataRequest, PaymentMethodDataResponse, PaymentOp, PaymentRetrieveBody,
-    PaymentRetrieveBodyWithCredentials, PaymentsApproveRequest, PaymentsCancelRequest,
-    PaymentsCaptureRequest, PaymentsIncrementalAuthorizationRequest, PaymentsRedirectRequest,
-    PaymentsRedirectionResponse, PaymentsRejectRequest, PaymentsRequest, PaymentsResponse,
-    PaymentsResponseForm, PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse,
-    PaymentsStartRequest, PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken,
-    TimeRange, UrlDetails, VerifyRequest, VerifyResponse, WalletData,
+    OpenBankingSessionToken, PayLaterData, PaymentIdType, PaymentListConstraints,
+    PaymentListFilterConstraints, PaymentListFilters, PaymentListResponse, PaymentListResponseV2,
+    PaymentMethodData, PaymentMethodDataRequest, PaymentMethodDataResponse, PaymentOp,
+    PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials, PaymentsApproveRequest,
+    PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsIncrementalAuthorizationRequest,
+    PaymentsRedirectRequest, PaymentsRedirectionResponse, PaymentsRejectRequest, PaymentsRequest,
+    PaymentsResponse, PaymentsResponseForm, PaymentsRetrieveRequest, PaymentsSessionRequest,
+    PaymentsSessionResponse, PaymentsStartRequest, PgRedirectResponse, PhoneDetails,
+    RedirectionResponse, SessionToken, SessionTokenType, TimeRange, UrlDetails, VerifyRequest,
+    VerifyResponse, WalletData,
 };
 use error_stack::{IntoReport, ResultExt};
 
@@ -81,6 +82,9 @@ pub struct SetupMandate;
 
 #[derive(Debug, Clone)]
 pub struct PreProcessing;
+
+#[derive(Debug, Clone)]
+pub struct PostProcessing;
 
 #[derive(Debug, Clone)]
 pub struct IncrementalAuthorization;
@@ -213,6 +217,15 @@ pub trait PaymentsPreProcessing:
 {
 }
 
+pub trait PaymentsPostProcessing:
+    api::ConnectorIntegration<
+    PostProcessing,
+    types::PaymentsPostProcessingData,
+    types::PaymentsResponseData,
+>
+{
+}
+
 pub trait Payment:
     api_types::ConnectorCommon
     + api_types::ConnectorValidation
@@ -227,6 +240,7 @@ pub trait Payment:
     + PaymentSession
     + PaymentToken
     + PaymentsPreProcessing
+    + PaymentsPostProcessing
     + ConnectorCustomer
     + PaymentIncrementalAuthorization
 {

@@ -417,6 +417,7 @@ fn make_bank_redirect_request(
         | payments::BankRedirectData::OnlineBankingPoland { .. }
         | payments::BankRedirectData::OnlineBankingSlovakia { .. }
         | payments::BankRedirectData::OpenBankingUk { .. }
+        | payments::BankRedirectData::OpenBanking { .. }
         | payments::BankRedirectData::Przelewy24 { .. }
         | payments::BankRedirectData::Sofort { .. }
         | payments::BankRedirectData::Trustly { .. }

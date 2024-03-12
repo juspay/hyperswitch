@@ -17,6 +17,7 @@ use crate::{
     },
     consts,
     core::errors,
+    headers::NONCE,
     services,
     types::{self, api, storage::enums, BrowserInformation},
 };
@@ -246,6 +247,7 @@ impl TryFrom<&BankRedirectData> for TrustpayPaymentMethod {
             | api_models::payments::BankRedirectData::OnlineBankingPoland { .. }
             | api_models::payments::BankRedirectData::OnlineBankingSlovakia { .. }
             | api_models::payments::BankRedirectData::OpenBankingUk { .. }
+            | api_models::payments::BankRedirectData::OpenBanking { .. }
             | api_models::payments::BankRedirectData::Przelewy24 { .. }
             | api_models::payments::BankRedirectData::Trustly { .. }
             | api_models::payments::BankRedirectData::OnlineBankingFpx { .. }

@@ -24,6 +24,7 @@ impl
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        merchant_recipient_data: Option<types::MerchantRecipientData>,
     ) -> RouterResult<types::PaymentsApproveRouterData> {
         Box::pin(transformers::construct_payment_router_data::<
             api::Approve,
@@ -36,6 +37,7 @@ impl
             key_store,
             customer,
             merchant_connector_account,
+            merchant_recipient_data,
         ))
         .await
     }
