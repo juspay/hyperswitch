@@ -4,7 +4,7 @@ use std::{
 };
 
 #[cfg(feature = "olap")]
-use analytics::ReportConfig;
+use analytics::{OpensearchConfig, ReportConfig};
 use api_models::{enums, payment_methods::RequiredFieldInfo};
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
@@ -112,6 +112,8 @@ pub struct Settings<S: SecretState> {
     pub frm: Frm,
     #[cfg(feature = "olap")]
     pub report_download_config: ReportConfig,
+    #[cfg(feature = "olap")]
+    pub opensearch: OpensearchConfig,
     pub events: EventsConfig,
     #[cfg(feature = "olap")]
     pub connector_onboarding: SecretStateContainer<ConnectorOnboarding, S>,

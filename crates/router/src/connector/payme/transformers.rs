@@ -544,9 +544,7 @@ impl<F>
                 let currency_code = item.data.request.get_currency()?;
                 let country_code = item
                     .data
-                    .address
-                    .billing
-                    .as_ref()
+                    .get_optional_billing()
                     .and_then(|billing| billing.address.as_ref())
                     .and_then(|address| address.country);
                 let amount = item.data.request.get_amount()?;
