@@ -332,6 +332,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             }
             None => storage_enums::IntentStatus::RequiresPaymentMethod,
         };
+        payment_intent.request_external_three_ds_authentication = request
+            .request_external_three_ds_authentication
+            .or(payment_intent.request_external_three_ds_authentication);
 
         Self::populate_payment_attempt_with_request(&mut payment_attempt, request);
 

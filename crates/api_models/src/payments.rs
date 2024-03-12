@@ -354,6 +354,7 @@ pub struct PaymentsRequest {
     pub mandate_data: Option<MandateData>,
 
     /// Passing this object during payments confirm . The customer_acceptance sub object is usually passed by the SDK or client
+    #[schema(value_type = Option<CustomerAcceptance>)]
     pub customer_acceptance: Option<CustomerAcceptance>,
 
     /// A unique identifier to link the payment to a mandate. To do Recurring payments after a mandate has been created, pass the mandate_id instead of payment_method_data
@@ -2708,7 +2709,7 @@ pub struct PaymentsResponse {
     pub external_authentication_details: Option<ExternalAuthenticationDetailsResponse>,
 
     /// Flag indicating if external 3ds authentication is made or not
-    pub request_external_3ds_authentication: Option<bool>,
+    pub external_3ds_authentication_attempted: Option<bool>,
 
     /// Date Time expiry of the payment
     #[schema(example = "2022-09-10T10:11:12Z")]

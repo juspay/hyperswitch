@@ -917,7 +917,8 @@ impl PaymentCreate {
             authorization_count: None,
             fingerprint_id: None,
             session_expiry: Some(session_expiry),
-            request_external_three_ds_authentication: None,
+            request_external_three_ds_authentication: request
+                .request_external_three_ds_authentication,
         })
     }
 
