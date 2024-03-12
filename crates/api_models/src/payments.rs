@@ -2708,7 +2708,7 @@ pub struct PaymentsResponse {
     pub external_authentication_details: Option<ExternalAuthenticationDetailsResponse>,
 
     /// Flag indicating if external 3ds authentication is made or not
-    pub request_external_3ds_authentication: Option<bool>,
+    pub external_3ds_authentication_attempted: Option<bool>,
 
     /// Date Time expiry of the payment
     #[schema(example = "2022-09-10T10:11:12Z")]

@@ -374,7 +374,8 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>>
         };
         let bill_to = item
             .router_data
-            .get_billing_address_details_as_optional()
+            .get_optional_billing()
+            .and_then(|billing_address| billing_address.address.as_ref())
             .map(|address| BillTo {
                 first_name: address.first_name.clone(),
                 last_name: address.last_name.clone(),
