@@ -2736,6 +2736,16 @@ pub async fn list_customer_payment_method(
         }
     };
 
+    let off_session_payment_flag = payment_intent
+        .as_ref()
+        .map(|pi| {
+            matches!(
+                pi.setup_future_usage,
+                Some(common_enums::FutureUsage::OffSession)
+            )
+        })
+        .unwrap_or(false);
+
     let customer = db
         .find_customer_by_customer_id_merchant_id(
             customer_id,
@@ -2872,7 +2882,8 @@ pub async fn list_customer_payment_method(
             bank_transfer: pmd,
             bank: bank_details,
             surcharge_details: None,
-            requires_cvv,
+            requires_cvv: requires_cvv
+                && !(off_session_payment_flag && pm.connector_mandate_details.is_some()),
             last_used_at: Some(pm.last_used_at),
             default_payment_method_set: customer.default_payment_method_id.is_some()
                 && customer.default_payment_method_id == Some(pm.payment_method_id),
