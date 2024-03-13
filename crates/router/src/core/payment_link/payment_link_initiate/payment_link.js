@@ -165,8 +165,6 @@ function invert(color, bw) {
 // @ts-ignore
 {{ payment_details_js_script }}
 
-{{ payment_link_logging }}
-
 // @ts-ignore
 window.state = {
   prevHeight: window.innerHeight,
@@ -194,7 +192,6 @@ var hyper = null;
 
 function boot() {
 
-  initiateLogListener();
   // @ts-ignore
   var paymentDetails = window.__PAYMENT_DETAILS;
   var orderDetails = paymentDetails.order_details;

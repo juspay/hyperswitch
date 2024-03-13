@@ -1984,9 +1984,6 @@ pub fn build_payment_link_html(
         }
     };
 
-    // Add logging for payment link
-    let logging_template = include_str!("../core/payment_link/fe_logging.js").to_string();
-
     // Add modification to js template with dynamic data
     let js_template =
         include_str!("../core/payment_link/payment_link_initiate/payment_link.js").to_string();
@@ -1994,7 +1991,6 @@ pub fn build_payment_link_html(
     let _ = tera.add_raw_template("payment_link_js", &js_template);
 
     context.insert("payment_details_js_script", &payment_link_data.js_script);
-    context.insert("payment_link_logging", &logging_template);
 
     let rendered_js = match tera.render("payment_link_js", &context) {
         Ok(rendered_js) => rendered_js,
