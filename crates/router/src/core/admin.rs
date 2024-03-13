@@ -2086,61 +2086,60 @@ fn validate_bank_account_data(data: &types::MerchantAccountData) -> RouterResult
                 }
                 .into());
             }
-                let pattern = Regex::new(r"^[A-Z0-9]*$")
-                    .into_report()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("failed to create regex pattern")?;
+            let pattern = Regex::new(r"^[A-Z0-9]*$")
+                .into_report()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("failed to create regex pattern")?;
 
-                let mut iban = iban.peek().to_string();
+            let mut iban = iban.peek().to_string();
 
-                if !pattern.is_match(iban.as_str()) {
-                    return Err(errors::ApiErrorResponse::InvalidRequestData {
-                        message: "IBAN data must be alphanumeric".to_string(),
-                    }
-                    .into());
+            if !pattern.is_match(iban.as_str()) {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "IBAN data must be alphanumeric".to_string(),
                 }
+                .into());
+            }
 
-                // MOD check
-                let first_4 = iban.chars().take(4).collect::<String>();
-                iban.push_str(first_4.as_str());
-                let len = iban.len();
+            // MOD check
+            let first_4 = iban.chars().take(4).collect::<String>();
+            iban.push_str(first_4.as_str());
+            let len = iban.len();
 
-                let rearranged_iban = iban
-                    .chars()
-                    .rev()
-                    .take(len - 4)
-                    .collect::<String>()
-                    .chars()
-                    .rev()
-                    .collect::<String>();
+            let rearranged_iban = iban
+                .chars()
+                .rev()
+                .take(len - 4)
+                .collect::<String>()
+                .chars()
+                .rev()
+                .collect::<String>();
 
-                let mut result = String::new();
+            let mut result = String::new();
 
-                for c in rearranged_iban.chars() {
-                    match c {
-                        'A'..='Z' => {
-                            let digit = (c as u8 - b'A') + 10;
-                            result.push_str(&format!("{:02}", digit));
-                        }
-                        _ => result.push(c),
+            for c in rearranged_iban.chars() {
+                match c {
+                    'A'..='Z' => {
+                        let digit = (c as u8 - b'A') + 10;
+                        result.push_str(&format!("{:02}", digit));
                     }
+                    _ => result.push(c),
                 }
+            }
 
-                let num = result
-                    .parse::<u128>()
-                    .into_report()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("failed to validate IBAN")?;
+            let num = result
+                .parse::<u128>()
+                .into_report()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("failed to validate IBAN")?;
 
-                if num % 97 != 1 {
-                    return Err(errors::ApiErrorResponse::InvalidRequestData {
-                        message: "Invalid IBAN".to_string(),
-                    }
-                    .into());
+            if num % 97 != 1 {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Invalid IBAN".to_string(),
                 }
+                .into());
+            }
 
-                Ok(())
-
+            Ok(())
         }
         types::MerchantAccountData::Bacs {
             account_number,
