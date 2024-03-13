@@ -869,9 +869,6 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     )?;
 
     payment_data.payment_intent = payment_intent;
-    // if let Some(status) = router_data.payment_method_status {
-    //     payment_data.payment_method_info.as_mut().map(|info| info.status = status);
-    // }
     router_data.payment_method_status.and_then(|status| payment_data.payment_method_info.as_mut().map(|info| info.status = status));
     Ok(payment_data)
 }
