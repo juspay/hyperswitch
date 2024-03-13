@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
-use common_utils::ext_traits::AsyncExt;
+use common_utils::ext_traits::{AsyncExt, ValueExt};
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -10,6 +10,7 @@ use router_env::{instrument, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
+        authentication,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::PaymentMethodRetrieve,
         payments::{
@@ -400,6 +401,33 @@ async fn get_tracker_for_sync<
             id: profile_id.to_string(),
         })?;
 
+    let authentication = match payment_attempt.authentication_id.clone() {
+        Some(authentication_id) => {
+            let authentication = db
+                .find_authentication_by_merchant_id_authentication_id(
+                    merchant_account.merchant_id.to_string(),
+                    authentication_id.clone(),
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable_lazy(|| format!("Error while fetching authentication record with authentication_id {authentication_id}"))?;
+            let authentication_data: authentication::types::AuthenticationData = authentication
+                .authentication_data
+                .clone()
+                .map(|authentication_data_value| {
+                    authentication_data_value
+                        .parse_value("AuthenticationData")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Error while parsing authentication_data")
+                })
+                .transpose()?
+                .unwrap_or_default();
+
+            Some((authentication, authentication_data))
+        }
+        None => None,
+    };
+
     let payment_data = PaymentData {
         flow: PhantomData,
         payment_intent,
@@ -417,14 +445,12 @@ async fn get_tracker_for_sync<
         setup_mandate: None,
         customer_acceptance: None,
         token: None,
+        address: PaymentAddress::new(
+            shipping_address.as_ref().map(From::from),
+            billing_address.as_ref().map(From::from),
+            payment_method_billing.as_ref().map(From::from),
+        ),
         token_data: None,
-        address: PaymentAddress {
-            shipping: shipping_address.as_ref().map(|a| a.into()),
-            billing: billing_address.as_ref().map(|a| a.into()),
-            payment_method_billing: payment_method_billing
-                .as_ref()
-                .map(|address| address.into()),
-        },
         confirm: Some(request.force_sync),
         payment_method_data: None,
         payment_method_info: None,
@@ -451,7 +477,7 @@ async fn get_tracker_for_sync<
         frm_message: frm_response.ok(),
         incremental_authorization_details: None,
         authorizations,
-        authentication: None,
+        authentication,
         frm_metadata: None,
     };
 

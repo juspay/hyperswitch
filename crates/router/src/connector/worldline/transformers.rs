@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-    connector::utils::{self, BankRedirectBillingData, CardData},
+    connector::utils::{self, BankRedirectBillingData, CardData, RouterData},
     core::errors,
     services,
     types::{
@@ -263,8 +263,9 @@ impl
             ))?,
         };
 
-        let customer =
-            build_customer_info(&item.router_data.address, &item.router_data.request.email)?;
+        let billing_address = item.router_data.get_billing()?;
+
+        let customer = build_customer_info(billing_address, &item.router_data.request.email)?;
         let order = Order {
             amount_of_money: AmountOfMoney {
                 amount: item.amount,
@@ -278,9 +279,7 @@ impl
 
         let shipping = item
             .router_data
-            .address
-            .shipping
-            .as_ref()
+            .get_optional_shipping()
             .and_then(|shipping| shipping.address.clone())
             .map(Shipping::from);
         Ok(Self {
@@ -436,20 +435,19 @@ fn make_bank_redirect_request(
 }
 
 fn get_address(
-    payment_address: &types::PaymentAddress,
+    billing: &payments::Address,
 ) -> Option<(&payments::Address, &payments::AddressDetails)> {
-    let billing = payment_address.billing.as_ref()?;
     let address = billing.address.as_ref()?;
     address.country.as_ref()?;
     Some((billing, address))
 }
 
 fn build_customer_info(
-    payment_address: &types::PaymentAddress,
+    billing_address: &payments::Address,
     email: &Option<Email>,
 ) -> Result<Customer, error_stack::Report<errors::ConnectorError>> {
     let (billing, address) =
-        get_address(payment_address).ok_or(errors::ConnectorError::MissingRequiredField {
+        get_address(billing_address).ok_or(errors::ConnectorError::MissingRequiredField {
             field_name: "billing.address.country",
         })?;
 

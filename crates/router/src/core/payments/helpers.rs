@@ -896,6 +896,16 @@ pub fn create_redirect_url(
     ) + creds_identifier_path.as_ref()
 }
 
+pub fn create_authentication_url(
+    router_base_url: &String,
+    payment_attempt: &PaymentAttempt,
+) -> String {
+    format!(
+        "{router_base_url}/payments/{}/3ds/authentication",
+        payment_attempt.payment_id
+    )
+}
+
 pub fn create_authorize_url(
     router_base_url: &String,
     payment_attempt: &PaymentAttempt,
@@ -1811,7 +1821,8 @@ pub async fn store_payment_method_data_in_vault(
         &state.conf.temp_locker_enable_config,
         payment_attempt.connector.clone(),
         payment_method,
-    ) {
+    ) || payment_intent.request_external_three_ds_authentication == Some(true)
+    {
         let parent_payment_method_token = store_in_vault_and_generate_ppmt(
             state,
             payment_method_data,
@@ -2910,6 +2921,13 @@ impl MerchantConnectorAccountType {
     pub fn get_mca_id(&self) -> Option<String> {
         match self {
             Self::DbVal(db_val) => Some(db_val.merchant_connector_id.to_string()),
+            Self::CacheVal(_) => None,
+        }
+    }
+
+    pub fn get_connector_name(&self) -> Option<String> {
+        match self {
+            Self::DbVal(db_val) => Some(db_val.connector_name.to_string()),
             Self::CacheVal(_) => None,
         }
     }
