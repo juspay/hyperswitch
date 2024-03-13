@@ -255,7 +255,7 @@ pub async fn refunds_incoming_webhook_flow(
         .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
         .attach_printable_lazy(|| format!("Failed while updating refund: refund_id: {refund_id}"))?
     } else {
-        refunds::refund_retrieve_core(
+        Box::pin(refunds::refund_retrieve_core(
             state.clone(),
             merchant_account.clone(),
             key_store,
@@ -264,7 +264,7 @@ pub async fn refunds_incoming_webhook_flow(
                 force_sync: Some(true),
                 merchant_connector_details: None,
             },
-        )
+        ))
         .await
         .attach_printable_lazy(|| format!("Failed while updating refund: refund_id: {refund_id}"))?
     };

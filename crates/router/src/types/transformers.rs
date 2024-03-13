@@ -5,10 +5,11 @@ use common_utils::{
     consts::X_HS_LATENCY,
     crypto::Encryptable,
     ext_traits::{StringExt, ValueExt},
+    fp_utils::when,
     pii,
 };
 use diesel_models::enums as storage_enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, IntoReport, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 
 use super::domain;
@@ -262,6 +263,12 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::DummyConnector6 => Self::DummyConnector6,
             #[cfg(feature = "dummy_connector")]
             api_enums::Connector::DummyConnector7 => Self::DummyConnector7,
+            api_enums::Connector::Threedsecureio => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "threedsecureio is not a routable connector".to_string(),
+                })
+                .into_report()?
+            }
         })
     }
 }
@@ -576,8 +583,19 @@ impl<'a> ForeignFrom<&'a api_types::ConfigUpdate> for storage::ConfigUpdate {
 
 impl<'a> From<&'a domain::Address> for api_types::Address {
     fn from(address: &domain::Address) -> Self {
-        Self {
-            address: Some(api_types::AddressDetails {
+        // If all the fields of address are none, then
+        let address_details = if address.city.is_none()
+            && address.line1.is_none()
+            && address.line2.is_none()
+            && address.line3.is_none()
+            && address.state.is_none()
+            && address.zip.is_none()
+            && address.first_name.is_none()
+            && address.last_name.is_none()
+        {
+            None
+        } else {
+            Some(api_types::AddressDetails {
                 city: address.city.clone(),
                 country: address.country,
                 line1: address.line1.clone().map(Encryptable::into_inner),
@@ -587,7 +605,11 @@ impl<'a> From<&'a domain::Address> for api_types::Address {
                 zip: address.zip.clone().map(Encryptable::into_inner),
                 first_name: address.first_name.clone().map(Encryptable::into_inner),
                 last_name: address.last_name.clone().map(Encryptable::into_inner),
-            }),
+            })
+        };
+
+        Self {
+            address: address_details,
             phone: Some(api_types::PhoneDetails {
                 number: address.phone_number.clone().map(Encryptable::into_inner),
                 country_code: address.country_code.clone(),
@@ -965,11 +987,19 @@ impl ForeignTryFrom<&HeaderMap> for api_models::payments::HeaderPayload {
                         )
                 })
                 .transpose()?;
-
+        when(
+            payment_confirm_source.is_some_and(|payment_confirm_source| {
+                payment_confirm_source.is_for_internal_use_only()
+            }),
+            || {
+                Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Invalid data received in payment_confirm_source header".into(),
+                }))
+            },
+        )?;
         let x_hs_latency = get_header_value_by_key(X_HS_LATENCY.into(), headers)
             .map(|value| value == Some("true"))
             .unwrap_or(false);
-
         Ok(Self {
             payment_confirm_source,
             x_hs_latency: Some(x_hs_latency),
