@@ -160,6 +160,12 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 }
                 .into()
             }
+            errors::ConnectorError::NotSupported { message, connector } => {
+                errors::ApiErrorResponse::NotSupported {
+                    message: format!("{message} is not supported by {connector}"),
+                }
+                .into()
+            }
             errors::ConnectorError::FailedToObtainIntegrationUrl
             | errors::ConnectorError::RequestEncodingFailed
             | errors::ConnectorError::RequestEncodingFailedWithReason(_)
@@ -178,7 +184,6 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
             | errors::ConnectorError::FailedToObtainCertificate
             | errors::ConnectorError::NoConnectorMetaData
             | errors::ConnectorError::FailedToObtainCertificateKey
-            | errors::ConnectorError::NotSupported { .. }
             | errors::ConnectorError::FlowNotSupported { .. }
             | errors::ConnectorError::CaptureMethodNotSupported
             | errors::ConnectorError::MissingConnectorMandateID

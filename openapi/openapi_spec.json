@@ -2606,6 +2606,14 @@
                     "authentication_type": "no_three_ds",
                     "confirm": true,
                     "currency": "USD",
+                    "customer_acceptance": {
+                      "acceptance_type": "offline",
+                      "accepted_at": "1963-05-03T04:07:52.723Z",
+                      "online": {
+                        "ip_address": "127.0.0.1",
+                        "user_agent": "amet irure esse"
+                      }
+                    },
                     "customer_id": "StripeCustomer123",
                     "mandate_data": {
                       "customer_acceptance": {
@@ -3153,6 +3161,14 @@
               "examples": {
                 "Confirm a payment with payment method data": {
                   "value": {
+                    "customer_acceptance": {
+                      "acceptance_type": "offline",
+                      "accepted_at": "1963-05-03T04:07:52.723Z",
+                      "online": {
+                        "ip_address": "127.0.0.1",
+                        "user_agent": "amet irure esse"
+                      }
+                    },
                     "payment_method": "card",
                     "payment_method_data": {
                       "card": {
@@ -4208,9 +4224,18 @@
         "operationId": "Set the Payment Method as Default",
         "parameters": [
           {
-            "name": "method_id",
+            "name": "customer_id",
             "in": "path",
-            "description": "Set the Payment Method as Default for the Customer",
+            "description": "The unique identifier for the Customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "payment_method_id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method",
             "required": true,
             "schema": {
               "type": "string"

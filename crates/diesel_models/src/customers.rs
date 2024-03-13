@@ -52,5 +52,5 @@ pub struct CustomerUpdateInternal {
     pub modified_at: Option<PrimitiveDateTime>,
     pub connector_customer: Option<serde_json::Value>,
     pub address_id: Option<String>,
-    pub default_payment_method_id: Option<String>,
+    pub default_payment_method_id: Option<Option<String>>,
 }

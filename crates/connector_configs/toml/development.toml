@@ -743,8 +743,6 @@ merchant_secret="Source verification key"
   payment_method_type = "apple_pay"
 [[checkout.wallet]]
   payment_method_type = "google_pay"
-[[checkout.wallet]]
-  payment_method_type = "paypal"
 [checkout.connector_auth.SignatureKey]
 api_key="Checkout API Public Key"
 key1="Processing Channel ID"

@@ -131,6 +131,12 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             }
         }
 
+        let token_data = if let Some(token) = token.clone() {
+            Some(helpers::retrieve_payment_token_data(state, token, payment_method).await?)
+        } else {
+            None
+        };
+
         payment_attempt.payment_method = payment_method.or(payment_attempt.payment_method);
         payment_attempt.browser_info = browser_info;
         payment_attempt.payment_method_type =
@@ -247,18 +253,18 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             setup_mandate,
             customer_acceptance: None,
             token,
-            address: PaymentAddress {
-                shipping: shipping_address.as_ref().map(|a| a.into()),
-                billing: billing_address.as_ref().map(|a| a.into()),
-                payment_method_billing: payment_method_billing
-                    .as_ref()
-                    .map(|address| address.into()),
-            },
+            token_data,
+            address: PaymentAddress::new(
+                shipping_address.as_ref().map(From::from),
+                billing_address.as_ref().map(From::from),
+                payment_method_billing.as_ref().map(From::from),
+            ),
             confirm: request.confirm,
             payment_method_data: request
                 .payment_method_data
                 .as_ref()
                 .map(|pmd| pmd.payment_method_data.clone()),
+            payment_method_info: None,
             force_sync: None,
             refunds: vec![],
             disputes: vec![],

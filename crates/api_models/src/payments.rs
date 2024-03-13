@@ -354,6 +354,7 @@ pub struct PaymentsRequest {
     pub mandate_data: Option<MandateData>,
 
     /// Passing this object during payments confirm . The customer_acceptance sub object is usually passed by the SDK or client
+    #[schema(value_type = Option<CustomerAcceptance>)]
     pub customer_acceptance: Option<CustomerAcceptance>,
 
     /// A unique identifier to link the payment to a mandate. To do Recurring payments after a mandate has been created, pass the mandate_id instead of payment_method_data
@@ -740,7 +741,7 @@ pub enum MandateTransactionType {
 
 #[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct MandateIds {
-    pub mandate_id: String,
+    pub mandate_id: Option<String>,
     pub mandate_reference_id: Option<MandateReferenceId>,
 }
 
@@ -767,7 +768,7 @@ pub struct UpdateHistory {
 impl MandateIds {
     pub fn new(mandate_id: String) -> Self {
         Self {
-            mandate_id,
+            mandate_id: Some(mandate_id),
             mandate_reference_id: None,
         }
     }

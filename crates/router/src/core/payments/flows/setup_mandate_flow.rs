@@ -107,6 +107,8 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                 merchant_account,
                 self.request.payment_method_type,
                 key_store,
+                resp.request.amount,
+                Some(resp.request.currency),
             ))
             .await?;
 
@@ -244,6 +246,8 @@ impl types::SetupMandateRouterData {
                     merchant_account,
                     payment_method_type,
                     key_store,
+                    resp.request.amount,
+                    Some(resp.request.currency),
                 ))
                 .await?;
 
@@ -330,6 +334,8 @@ impl types::SetupMandateRouterData {
                 merchant_account,
                 self.request.payment_method_type,
                 key_store,
+                resp.request.amount,
+                Some(resp.request.currency),
             ))
             .await?
             .0;

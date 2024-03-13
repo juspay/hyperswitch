@@ -438,22 +438,22 @@ async fn get_tracker_for_sync<
             .mandate_id
             .clone()
             .map(|id| api_models::payments::MandateIds {
-                mandate_id: id,
+                mandate_id: Some(id),
                 mandate_reference_id: None,
             }),
         mandate_connector: None,
         setup_mandate: None,
         customer_acceptance: None,
         token: None,
-        address: PaymentAddress {
-            shipping: shipping_address.as_ref().map(|a| a.into()),
-            billing: billing_address.as_ref().map(|a| a.into()),
-            payment_method_billing: payment_method_billing
-                .as_ref()
-                .map(|address| address.into()),
-        },
+        address: PaymentAddress::new(
+            shipping_address.as_ref().map(From::from),
+            billing_address.as_ref().map(From::from),
+            payment_method_billing.as_ref().map(From::from),
+        ),
+        token_data: None,
         confirm: Some(request.force_sync),
         payment_method_data: None,
+        payment_method_info: None,
         force_sync: Some(
             request.force_sync
                 && (helpers::check_force_psync_precondition(&payment_attempt.status)
