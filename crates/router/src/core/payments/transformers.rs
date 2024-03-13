@@ -729,7 +729,9 @@ where
                         .set_incremental_authorizations(incremental_authorizations_response)
                         .set_expires_on(payment_intent.session_expiry)
                         .set_payment_method_id(payment_attempt.payment_method_id)
-                        .set_payment_method_status(payment_data.payment_method_info.map(|info| info.status))
+                        .set_payment_method_status(
+                            payment_data.payment_method_info.map(|info| info.status),
+                        )
                         .to_owned(),
                     headers,
                 ))
