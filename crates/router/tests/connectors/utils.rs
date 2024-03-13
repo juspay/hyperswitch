@@ -34,7 +34,7 @@ pub trait Connector {
     }
 
     #[cfg(feature = "payouts")]
-    fn get_payout_data(&self) -> Option<types::api::PayoutConnectorData> {
+    fn get_payout_data(&self) -> Option<types::api::ConnectorData> {
         None
     }
 }
@@ -480,6 +480,7 @@ pub trait ConnectorActions: Connector {
             payment_id: uuid::Uuid::new_v4().to_string(),
             attempt_id: uuid::Uuid::new_v4().to_string(),
             status: enums::AttemptStatus::default(),
+            payment_method_id: None,
             auth_type: info
                 .clone()
                 .map_or(enums::AuthenticationType::NoThreeDs, |a| {
@@ -490,9 +491,9 @@ pub trait ConnectorActions: Connector {
             connector_auth_type: self.get_auth_token(),
             description: Some("This is a test".to_string()),
             return_url: info.clone().and_then(|a| a.return_url),
+            payment_method_status: None,
             request: req,
             response: Err(types::ErrorResponse::default()),
-            payment_method_id: None,
             address: info
                 .clone()
                 .and_then(|a| a.address)
@@ -524,6 +525,8 @@ pub trait ConnectorActions: Connector {
             apple_pay_flow: None,
             external_latency: None,
             frm_metadata: None,
+            refund_id: None,
+            dispute_id: None,
         }
     }
 
@@ -913,6 +916,8 @@ impl Default for PaymentAuthorizeType {
             surcharge_details: None,
             request_incremental_authorization: false,
             metadata: None,
+            authentication_data: None,
+            customer_acceptance: None,
         };
         Self(data)
     }
@@ -969,6 +974,7 @@ impl Default for PaymentSyncType {
             capture_method: None,
             sync_type: types::SyncRequestType::SinglePaymentSync,
             connector_meta: None,
+            payment_method_type: None,
         };
         Self(data)
     }

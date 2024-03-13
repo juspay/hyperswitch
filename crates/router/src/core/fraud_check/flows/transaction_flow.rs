@@ -107,8 +107,11 @@ impl
             connector_http_status_code: None,
             external_latency: None,
             connector_api_version: None,
+            payment_method_status: None,
             apple_pay_flow: None,
             frm_metadata: None,
+            refund_id: None,
+            dispute_id: None,
         };
 
         Ok(router_data)

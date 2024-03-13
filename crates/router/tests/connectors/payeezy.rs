@@ -56,15 +56,17 @@ impl PayeezyTest {
 
     fn get_payment_info() -> Option<PaymentInfo> {
         Some(PaymentInfo {
-            address: Some(types::PaymentAddress {
-                billing: Some(Address {
+            address: Some(types::PaymentAddress::new(
+                None,
+                Some(Address {
                     address: Some(AddressDetails {
                         ..Default::default()
                     }),
                     phone: None,
+                    email: None,
                 }),
-                ..Default::default()
-            }),
+                None,
+            )),
             ..Default::default()
         })
     }

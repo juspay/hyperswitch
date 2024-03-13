@@ -70,21 +70,25 @@ impl CashtocodeTest {
             surcharge_details: None,
             request_incremental_authorization: false,
             metadata: None,
+            authentication_data: None,
+            customer_acceptance: None,
         })
     }
 
     fn get_payment_info() -> Option<utils::PaymentInfo> {
         Some(utils::PaymentInfo {
-            address: Some(types::PaymentAddress {
-                billing: Some(Address {
+            address: Some(types::PaymentAddress::new(
+                None,
+                Some(Address {
                     address: Some(AddressDetails {
                         country: Some(api_models::enums::CountryAlpha2::US),
                         ..Default::default()
                     }),
                     phone: None,
+                    email: None,
                 }),
-                ..Default::default()
-            }),
+                None,
+            )),
             return_url: Some("https://google.com".to_owned()),
             ..Default::default()
         })

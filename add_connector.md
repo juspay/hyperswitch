@@ -9,14 +9,13 @@ This is a guide to contributing new connector to Router. This guide includes ins
 - Understanding of the Connector APIs which you wish to integrate with Router
 - Setup of Router repository and running it on local
 - Access to API credentials for testing the Connector API (you can quickly sign up for sandbox/uat credentials by visiting the website of the connector you wish to integrate)
--  Ensure that you have the nightly toolchain installed because the connector template script includes code formatting.
+- Ensure that you have the nightly toolchain installed because the connector template script includes code formatting.
 
- Install it using `rustup`:
+Install it using `rustup`:
 
-  ```bash
-    rustup toolchain install nightly
-   ```
-
+```bash
+  rustup toolchain install nightly
+```
 
 In Router, there are Connectors and Payment Methods, examples of both are shown below from which the difference is apparent.
 
@@ -28,7 +27,7 @@ A connector is an integration to fulfill payments. Related use cases could be an
 - Fraud and Risk management platform (like Signifyd, Riskified etc.,)
 - Payment network (Visa, Master)
 - Payment authentication services (Cardinal etc.,)
-Currently, the router is compatible with 'Payment Processors' and 'Fraud and Risk Management' platforms. Support for additional categories will be expanded in the near future.
+  Currently, the router is compatible with 'Payment Processors' and 'Fraud and Risk Management' platforms. Support for additional categories will be expanded in the near future.
 
 ### What is a Payment Method ?
 
@@ -127,11 +126,13 @@ Let's define `PaymentSource`
 For request types that involve an amount, the implementation of `TryFrom<&ConnectorRouterData<&T>>` is required:
 
 ```rust
-impl TryFrom<&CheckoutRouterData<&T>> for PaymentsRequest 
+impl TryFrom<&CheckoutRouterData<&T>> for PaymentsRequest
 ```
-else 
+
+else
+
 ```rust
-impl TryFrom<T> for PaymentsRequest 
+impl TryFrom<T> for PaymentsRequest
 ```
 
 where `T` is a generic type which can be `types::PaymentsAuthorizeRouterData`, `types::PaymentsCaptureRouterData`, etc.
@@ -214,6 +215,7 @@ impl ForeignFrom<(CheckoutPaymentStatus, Option<Balances>)> for enums::AttemptSt
     }
 }
 ```
+
 If you're converting ConnectorPaymentStatus to AttemptStatus without any additional conditions, you can employ the `impl From<ConnectorPaymentStatus> for enums::AttemptStatus`.
 
 Note: A payment intent can have multiple payment attempts. `enums::AttemptStatus` represents the status of a payment attempt.
@@ -334,25 +336,26 @@ Some recommended fields that needs to be set on connector request and response
 ```rust
   reference: item.router_data.connector_request_reference_id.clone(),
 ```
+
 - **connector_response_reference_id :** Merchants might face ambiguity when deciding which ID to use in the connector dashboard for payment identification. It is essential to populate the connector_response_reference_id with the appropriate reference ID, allowing merchants to recognize the transaction. This field can be linked to either `merchant_reference` or `connector_transaction_id`, depending on the field that the connector dashboard search functionality supports.
 
 ```rust
   connector_response_reference_id: item.response.reference.or(Some(item.response.id))
 ```
 
-- **resource_id :** The connector assigns an identifier to a payment attempt, referred to as `connector_transaction_id`. This identifier is represented as an enum variant for the `resource_id`.  If the connector does not provide a `connector_transaction_id`, the resource_id is set to `NoResponseId`.   
+- **resource_id :** The connector assigns an identifier to a payment attempt, referred to as `connector_transaction_id`. This identifier is represented as an enum variant for the `resource_id`. If the connector does not provide a `connector_transaction_id`, the resource_id is set to `NoResponseId`.
 
 ```rust
   resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
 ```
+
 - **redirection_data :** For the implementation of a redirection flow (3D Secure, bank redirects, etc.), assign the redirection link to the `redirection_data`.
 
-```rust 
+```rust
   let redirection_data = item.response.links.redirect.map(|href| {
       services::RedirectForm::from((href.redirection_url, services::Method::Get))
   });
 ```
-
 
 And finally the error type implementation
 
@@ -379,100 +382,110 @@ The following trait implementations are mandatory
 
 Within the `ConnectorCommon` trait, you'll find the following methods :
 
-  -  `id` method corresponds directly to the connector name.
-  ```rust
-    fn id(&self) -> &'static str {
-        "checkout"
-    }
-  ```
-  - `get_currency_unit` method anticipates you to [specify the accepted currency unit](#set-the-currency-unit) for the connector.
-  ```rust
-    fn get_currency_unit(&self) -> api::CurrencyUnit {
-        api::CurrencyUnit::Minor
-    }
-  ```
-  - `common_get_content_type` method requires you to provide the accepted content type for the connector API.
-  ```rust
-    fn common_get_content_type(&self) -> &'static str {
-        "application/json"
-    }
-  ```
-  - `get_auth_header` method accepts common HTTP Authorization headers that are accepted in all `ConnectorIntegration` flows.
-  ```rust
-    fn get_auth_header(
-        &self,
-        auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth: checkout::CheckoutAuthType = auth_type
-            .try_into()
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", auth.api_secret.peek()).into_masked(),
-        )])
-    }
-  ```
+- `id` method corresponds directly to the connector name.
 
-  - `base_url` method is for fetching the base URL of connector's API. Base url needs to be consumed from configs.
-  ```rust
-    fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
-        connectors.checkout.base_url.as_ref()
-    }
-  ```
-  - `build_error_response` method is  common error response handling for a connector if it is same in all cases
+```rust
+  fn id(&self) -> &'static str {
+      "checkout"
+  }
+```
 
-  ```rust 
-    fn build_error_response(
-        &self,
-        res: types::Response,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: checkout::ErrorResponse = if res.response.is_empty() {
-            let (error_codes, error_type) = if res.status_code == 401 {
-                (
-                    Some(vec!["Invalid api key".to_string()]),
-                    Some("invalid_api_key".to_string()),
-                )
-            } else {
-                (None, None)
-            };
-            checkout::ErrorResponse {
-                request_id: None,
-                error_codes,
-                error_type,
-            }
-        } else {
-            res.response
-                .parse_struct("ErrorResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
-        };
+- `get_currency_unit` method anticipates you to [specify the accepted currency unit](#set-the-currency-unit) for the connector.
 
-        router_env::logger::info!(error_response=?response);
-        let errors_list = response.error_codes.clone().unwrap_or_default();
-        let option_error_code_message = conn_utils::get_error_code_error_message_based_on_priority(
-            self.clone(),
-            errors_list
-                .into_iter()
-                .map(|errors| errors.into())
-                .collect(),
-        );
-        Ok(types::ErrorResponse {
-            status_code: res.status_code,
-            code: option_error_code_message
-                .clone()
-                .map(|error_code_message| error_code_message.error_code)
-                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-            message: option_error_code_message
-                .map(|error_code_message| error_code_message.error_message)
-                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response
-                .error_codes
-                .map(|errors| errors.join(" & "))
-                .or(response.error_type),
-            attempt_status: None,
-            connector_transaction_id: None,
-        })
-    }
-  ```
+```rust
+  fn get_currency_unit(&self) -> api::CurrencyUnit {
+      api::CurrencyUnit::Minor
+  }
+```
+
+- `common_get_content_type` method requires you to provide the accepted content type for the connector API.
+
+```rust
+  fn common_get_content_type(&self) -> &'static str {
+      "application/json"
+  }
+```
+
+- `get_auth_header` method accepts common HTTP Authorization headers that are accepted in all `ConnectorIntegration` flows.
+
+```rust
+  fn get_auth_header(
+      &self,
+      auth_type: &types::ConnectorAuthType,
+  ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+      let auth: checkout::CheckoutAuthType = auth_type
+          .try_into()
+          .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+      Ok(vec![(
+          headers::AUTHORIZATION.to_string(),
+          format!("Bearer {}", auth.api_secret.peek()).into_masked(),
+      )])
+  }
+```
+
+- `base_url` method is for fetching the base URL of connector's API. Base url needs to be consumed from configs.
+
+```rust
+  fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
+      connectors.checkout.base_url.as_ref()
+  }
+```
+
+- `build_error_response` method is common error response handling for a connector if it is same in all cases
+
+```rust
+  fn build_error_response(
+      &self,
+      res: types::Response,
+      event_builder: Option<&mut ConnectorEvent>,
+  ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+      let response: checkout::ErrorResponse = if res.response.is_empty() {
+          let (error_codes, error_type) = if res.status_code == 401 {
+              (
+                  Some(vec!["Invalid api key".to_string()]),
+                  Some("invalid_api_key".to_string()),
+              )
+          } else {
+              (None, None)
+          };
+          checkout::ErrorResponse {
+              request_id: None,
+              error_codes,
+              error_type,
+          }
+      } else {
+          res.response
+              .parse_struct("ErrorResponse")
+              .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
+      };
+
+      router_env::logger::info!(error_response=?response);
+      let errors_list = response.error_codes.clone().unwrap_or_default();
+      let option_error_code_message = conn_utils::get_error_code_error_message_based_on_priority(
+          self.clone(),
+          errors_list
+              .into_iter()
+              .map(|errors| errors.into())
+              .collect(),
+      );
+      Ok(types::ErrorResponse {
+          status_code: res.status_code,
+          code: option_error_code_message
+              .clone()
+              .map(|error_code_message| error_code_message.error_code)
+              .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+          message: option_error_code_message
+              .map(|error_code_message| error_code_message.error_message)
+              .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+          reason: response
+              .error_codes
+              .map(|errors| errors.join(" & "))
+              .or(response.error_type),
+          attempt_status: None,
+          connector_transaction_id: None,
+      })
+  }
+```
 
 **ConnectorIntegration :** For every api endpoint contains the url, using request transform and response transform and headers.
 Within the `ConnectorIntegration` trait, you'll find the following methods implemented(below mentioned is example for authorized flow):
@@ -488,6 +501,7 @@ Within the `ConnectorIntegration` trait, you'll find the following methods imple
       Ok(format!("{}{}", self.base_url(connectors), "payments"))
   }
 ```
+
 - `get_headers` method accepts HTTP headers that are accepted for authorize flow. In this context, it is utilized from the `ConnectorCommonExt` trait, as the connector adheres to common headers across various flows.
 
 ```rust
@@ -517,7 +531,7 @@ Within the `ConnectorIntegration` trait, you'll find the following methods imple
       let connector_req = checkout::PaymentsRequest::try_from(&connector_router_data)?;
       let checkout_req = types::RequestBody::log_and_get_request_body(
           &connector_req,
-          utils::Encode::<checkout::PaymentsRequest>::encode_to_string_of_json,
+          utils::Encode::encode_to_string_of_json,
       )
       .change_context(errors::ConnectorError::RequestEncodingFailed)?;
       Ok(Some(checkout_req))
@@ -525,6 +539,7 @@ Within the `ConnectorIntegration` trait, you'll find the following methods imple
 ```
 
 - `build_request` method assembles the API request by providing the method, URL, headers, and request body as parameters.
+
 ```rust
   fn build_request(
       &self,
@@ -552,17 +567,22 @@ Within the `ConnectorIntegration` trait, you'll find the following methods imple
     ))
   }
 ```
+
 - `handle_response` method calls transformers where connector response data is transformed into hyperswitch response.
+
 ```rust
   fn handle_response(
       &self,
       data: &types::PaymentsAuthorizeRouterData,
+      event_builder: Option<&mut ConnectorEvent>,
       res: types::Response,
   ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
       let response: checkout::PaymentsResponse = res
           .response
           .parse_struct("PaymentIntentResponse")
           .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+            router_env::logger::info!(connector_response=?response);
       types::RouterData::try_from(types::ResponseRouterData {
           response,
           data: data.clone(),
@@ -571,18 +591,22 @@ Within the `ConnectorIntegration` trait, you'll find the following methods imple
       .change_context(errors::ConnectorError::ResponseHandlingFailed)
   }
 ```
+
 - `get_error_response` method to manage error responses. As the handling of checkout errors remains consistent across various flows, we've incorporated it from the `build_error_response` method within the `ConnectorCommon` trait.
+
 ```rust
   fn get_error_response(
       &self,
       res: types::Response,
+      event_builder: Option<&mut ConnectorEvent>,
   ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-      self.build_error_response(res)
+      self.build_error_response(res, event_builder)
   }
 ```
+
 **ConnectorCommonExt :** An enhanced trait for `ConnectorCommon` that enables functions with a generic type. This trait includes the `build_headers` method, responsible for constructing both the common headers and the Authorization headers (retrieved from the `get_auth_header` method), returning them as a vector.
 
-```rust 
+```rust
   where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {
@@ -604,18 +628,17 @@ Within the `ConnectorIntegration` trait, you'll find the following methods imple
 
 **Payment :** This trait includes several other traits and is meant to represent the functionality related to payments.
 
-**PaymentAuthorize :** This trait extends the `api::ConnectorIntegration `trait with specific types related to payment authorization. 
+**PaymentAuthorize :** This trait extends the `api::ConnectorIntegration `trait with specific types related to payment authorization.
 
-**PaymentCapture :** This trait extends the `api::ConnectorIntegration `trait with specific types related to manual payment capture. 
+**PaymentCapture :** This trait extends the `api::ConnectorIntegration `trait with specific types related to manual payment capture.
 
-**PaymentSync :** This trait extends the `api::ConnectorIntegration `trait with specific types related to payment retrieve. 
+**PaymentSync :** This trait extends the `api::ConnectorIntegration `trait with specific types related to payment retrieve.
 
 **Refund :** This trait includes several other traits and is meant to represent the functionality related to Refunds.
 
 **RefundExecute :** This trait extends the `api::ConnectorIntegration `trait with specific types related to refunds create.
 
 **RefundSync :** This trait extends the `api::ConnectorIntegration `trait with specific types related to refunds retrieve.
-
 
 And the below derive traits
 
@@ -629,9 +652,10 @@ Refer to other connector code for trait implementations. Mostly the rust compile
 Feel free to connect with us in case of any queries and if you want to confirm the status mapping.
 
 ### **Set the currency Unit**
+
 The `get_currency_unit` function, part of the ConnectorCommon trait, enables connectors to specify their accepted currency unit as either `Base` or `Minor`. For instance, Paypal designates its currency in the base unit (for example, USD), whereas Hyperswitch processes amounts in the minor unit (for example, cents). If a connector accepts amounts in the base unit, conversion is required, as illustrated.
 
-``` rust
+```rust
 impl<T>
     TryFrom<(
         &types::api::CurrencyUnit,
@@ -667,6 +691,187 @@ In the `connector/utils.rs` file, you'll discover utility functions that aid in 
 ```rust
   let json_wallet_data: CheckoutGooglePayData =wallet_data.get_wallet_token_as_json()?;
 ```
+
+### **Connector configs for control center**
+
+This section is explicitly for developers who are using the [Hyperswitch Control Center](https://github.com/juspay/hyperswitch-control-center). Below is a more detailed documentation that guides you through updating the connector configuration in the `development.toml` file in Hyperswitch and running the wasm-pack build command. Please replace placeholders such as `/absolute/path/to/` with the actual absolute paths.
+
+1. Install wasm-pack: Run the following command to install wasm-pack:
+
+```bash 
+cargo install wasm-pack
+```
+
+2. Add connector configuration:
+
+   Open the `development.toml` file located at `crates/connector_configs/toml/development.toml` in your Hyperswitch project.
+
+   Locate the [stripe] section as an example and add the configuration for the `example_connector`. Here's an example:
+
+   ```toml
+   # crates/connector_configs/toml/development.toml
+
+   # Other connector configurations...
+
+   [stripe]
+   [stripe.connector_auth.HeaderKey]
+   api_key="Secret Key"
+
+   # Add any other Stripe-specific configuration here
+
+   [example_connector]
+   # Your specific connector configuration for reference
+   # ...
+
+   ```
+
+   provide the necessary configuration details for the `example_connector`. Don't forget to save the file.
+
+3. Update paths:
+
+   Replace `/absolute/path/to/hyperswitch-control-center` with the absolute path to your Hyperswitch Control Center repository and `/absolute/path/to/hyperswitch` with the absolute path to your Hyperswitch repository.
+
+4. Run `wasm-pack` build:
+
+   Execute the following command in your terminal:
+
+   ```bash
+   wasm-pack build --target web --out-dir /absolute/path/to/hyperswitch-control-center/public/hyperswitch/wasm --out-name euclid /absolute/path/to/hyperswitch/crates/euclid_wasm -- --features dummy_connector
+   ```
+
+   This command builds the WebAssembly files for the `dummy_connector` feature and places them in the specified directory.
+
+Notes:
+
+- Ensure that you replace placeholders like `/absolute/path/to/` with the actual absolute paths in your file system.
+- Verify that your connector configurations in `development.toml` are correct and saved before running the `wasm-pack` command.
+- Check for any error messages during the build process and resolve them accordingly.
+
+By following these steps, you should be able to update the connector configuration and build the WebAssembly files successfully.
+
+Certainly! Below is a detailed documentation guide on updating the `ConnectorTypes.res` and `ConnectorUtils.res` files in your [Hyperswitch Control Center](https://github.com/juspay/hyperswitch-control-center) project.
+
+Update `ConnectorTypes.res`:
+
+1. Open `ConnectorTypes.res`:
+
+   Open the `ConnectorTypes.res` file located at `src/screens/HyperSwitch/Connectors/ConnectorTypes.res` in your Hyperswitch-Control-Center project.
+
+2. Add Connector enum:
+
+   Add the new connector name enum under the `type connectorName` section. Here's an example:
+
+   ```reason
+   /* src/screens/HyperSwitch/Connectors/ConnectorTypes.res */
+
+   type connectorName =
+     | Stripe
+     | DummyConnector
+     | YourNewConnector
+     /* Add any other connector enums as needed */
+   ```
+
+   Replace `YourNewConnector` with the name of your newly added connector.
+
+3. Save the file:
+
+   Save the changes made to `ConnectorTypes.res`.
+
+Update `ConnectorUtils.res`:
+
+1. Open `ConnectorUtils.res`:
+
+   Open the `ConnectorUtils.res` file located at `src/screens/HyperSwitch/Connectors/ConnectorUtils.res` in your [Hyperswitch Control Center](https://github.com/juspay/hyperswitch-control-center) project.
+
+2. Add Connector Description:
+
+   Update the following functions in `ConnectorUtils.res`:
+
+   ```reason
+   /* src/screens/HyperSwitch/Connectors/ConnectorUtils.res */
+
+
+   let connectorList : array<connectorName> = [Stripe,YourNewConnector]
+
+
+   let getConnectorNameString = (connectorName: connectorName) =>
+     switch connectorName {
+     | Stripe => "Stripe"
+     | DummyConnector => "Dummy Connector"
+     | YourNewConnector => "Your New Connector"
+     /* Add cases for other connectors */
+     };
+
+   let getConnectorNameTypeFromString = (str: string) =>
+     switch str {
+     | "Stripe" => Stripe
+     | "Dummy Connector" => DummyConnector
+     | "Your New Connector" => YourNewConnector
+     /* Add cases for other connectors */
+     };
+
+   let getConnectorInfo = (connectorName: connectorName) =>
+     switch connectorName {
+     | Stripe => "Stripe connector description."
+     | DummyConnector => "Dummy Connector description."
+     | YourNewConnector => "Your New Connector description."
+     /* Add descriptions for other connectors */
+     };
+
+   let getDisplayNameForConnectors = (connectorName: connectorName) =>
+     switch connectorName {
+     | Stripe => "Stripe"
+     | DummyConnector => "Dummy Connector"
+     | YourNewConnector => "Your New Connector"
+     /* Add display names for other connectors */
+     };
+   ```
+
+   Adjust the strings and descriptions according to your actual connector names and descriptions.
+
+
+4. Save the File:
+
+   Save the changes made to `ConnectorUtils.res`.
+
+Notes:
+
+- Ensure that you replace placeholders like `YourNewConnector` with the actual names of your connectors.
+- Verify that your connector enums and descriptions are correctly updated.
+- Save the files after making the changes.
+
+By following these steps, you should be able to update the `ConnectorTypes.res` and `ConnectorUtils.res` files with the new connector enum and its related information.
+
+
+
+Certainly! Below is a detailed documentation guide on how to add a new connector icon under the `public/hyperswitch/Gateway` folder in your Hyperswitch-Control-Center project.
+
+Add Connector icon:
+
+1. Prepare the icon:
+
+   Prepare your connector icon in SVG format. Ensure that the icon is named in uppercase, following the convention. For example, name it `YOURCONNECTOR.SVG`.
+
+2. Open file explorer:
+
+   Open your file explorer and navigate to the `public/hyperswitch/Gateway` folder in your Hyperswitch-Control-Center project.
+
+3. Add Icon file:
+
+   Copy and paste your SVG icon file (e.g., `YOURCONNECTOR.SVG`) into the `Gateway` folder.
+
+4. Verify file structure:
+
+   Ensure that the file structure in the `Gateway` folder follows the uppercase convention. For example:
+
+   ```
+   public
+   └── hyperswitch
+       └── Gateway
+           └── YOURCONNECTOR.SVG
+   ```
+    Save the changes made to the `Gateway` folder.
+
 
 ### **Test the connector**
 
@@ -722,8 +927,9 @@ Prior to executing tests in the shell, ensure that the API keys are configured i
 
 ```rust
   export CONNECTOR_AUTH_FILE_PATH="/hyperswitch/crates/router/tests/connectors/sample_auth.toml"
-  cargo test --package router --test connectors -- checkout --test-threads=1  
+  cargo test --package router --test connectors -- checkout --test-threads=1
 ```
+
 All tests should pass and add appropriate tests for connector specific payment flows.
 
 ### **Build payment request and response from json schema**

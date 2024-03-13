@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-    connector::utils::{self, CardData},
+    connector::utils::{self, BankRedirectBillingData, CardData, RouterData},
     core::errors,
     services,
     types::{
@@ -263,8 +263,9 @@ impl
             ))?,
         };
 
-        let customer =
-            build_customer_info(&item.router_data.address, &item.router_data.request.email)?;
+        let billing_address = item.router_data.get_billing()?;
+
+        let customer = build_customer_info(billing_address, &item.router_data.request.email)?;
         let order = Order {
             amount_of_money: AmountOfMoney {
                 amount: item.amount,
@@ -278,9 +279,7 @@ impl
 
         let shipping = item
             .router_data
-            .address
-            .shipping
-            .as_ref()
+            .get_optional_shipping()
             .and_then(|shipping| shipping.address.clone())
             .map(Shipping::from);
         Ok(Self {
@@ -385,11 +384,12 @@ fn make_bank_redirect_request(
             {
                 PaymentMethodSpecificData::PaymentProduct816SpecificInput(Box::new(Giropay {
                     bank_account_iban: BankAccountIban {
-                        account_holder_name: billing_details.billing_name.clone().ok_or(
-                            errors::ConnectorError::MissingRequiredField {
-                                field_name: "billing_details.billing_name",
-                            },
-                        )?,
+                        account_holder_name: billing_details
+                            .clone()
+                            .ok_or(errors::ConnectorError::MissingRequiredField {
+                                field_name: "giropay.billing_details",
+                            })?
+                            .get_billing_name()?,
                         iban: bank_account_iban.clone(),
                     },
                 }))
@@ -435,20 +435,19 @@ fn make_bank_redirect_request(
 }
 
 fn get_address(
-    payment_address: &types::PaymentAddress,
+    billing: &payments::Address,
 ) -> Option<(&payments::Address, &payments::AddressDetails)> {
-    let billing = payment_address.billing.as_ref()?;
     let address = billing.address.as_ref()?;
     address.country.as_ref()?;
     Some((billing, address))
 }
 
 fn build_customer_info(
-    payment_address: &types::PaymentAddress,
+    billing_address: &payments::Address,
     email: &Option<Email>,
 ) -> Result<Customer, error_stack::Report<errors::ConnectorError>> {
     let (billing, address) =
-        get_address(payment_address).ok_or(errors::ConnectorError::MissingRequiredField {
+        get_address(billing_address).ok_or(errors::ConnectorError::MissingRequiredField {
             field_name: "billing.address.country",
         })?;
 
@@ -527,7 +526,7 @@ impl TryFrom<&types::ConnectorAuthType> for WorldlineAuthType {
     }
 }
 
-#[derive(Debug, Clone, Default, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PaymentStatus {
     Captured,
@@ -572,7 +571,7 @@ impl ForeignFrom<(PaymentStatus, enums::CaptureMethod)> for enums::AttemptStatus
 /// capture_method is not part of response from connector.
 /// This is used to decide payment status while converting connector response to RouterData.
 /// To keep this try_from logic generic in case of AUTHORIZE, SYNC and CAPTURE flows capture_method will be set from RouterData request.
-#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct Payment {
     pub id: String,
     pub status: PaymentStatus,
@@ -606,20 +605,20 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, PaymentsResponseData
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentResponse {
     pub payment: Payment,
     pub merchant_action: Option<MerchantAction>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MerchantAction {
     pub redirect_data: RedirectData,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct RedirectData {
     #[serde(rename = "redirectURL")]
     pub redirect_url: Url,
@@ -687,7 +686,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for WorldlineRefundRequest {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Default, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize, Clone, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum RefundStatus {
     Cancelled,
@@ -707,7 +706,7 @@ impl From<RefundStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct RefundResponse {
     id: String,
     status: RefundStatus,
@@ -749,7 +748,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
-#[derive(Default, Debug, Deserialize, PartialEq)]
+#[derive(Default, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Error {
     pub code: Option<String>,
@@ -757,7 +756,7 @@ pub struct Error {
     pub message: Option<String>,
 }
 
-#[derive(Default, Debug, Deserialize, PartialEq)]
+#[derive(Default, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ErrorResponse {
     pub error_id: Option<String>,

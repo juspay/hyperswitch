@@ -1,10 +1,11 @@
 #[cfg(feature = "olap")]
 use analytics::health_check::HealthCheck;
+use api_models::health_check::HealthState;
 use error_stack::ResultExt;
 use router_env::logger;
 
 use crate::{
-    consts::LOCKER_HEALTH_CALL_PATH,
+    consts,
     core::errors::{self, CustomResult},
     routes::app,
     services::api as services,
@@ -12,22 +13,27 @@ use crate::{
 
 #[async_trait::async_trait]
 pub trait HealthCheckInterface {
-    async fn health_check_db(&self) -> CustomResult<(), errors::HealthCheckDBError>;
-    async fn health_check_redis(&self) -> CustomResult<(), errors::HealthCheckRedisError>;
-    async fn health_check_locker(&self) -> CustomResult<(), errors::HealthCheckLockerError>;
+    async fn health_check_db(&self) -> CustomResult<HealthState, errors::HealthCheckDBError>;
+    async fn health_check_redis(&self) -> CustomResult<HealthState, errors::HealthCheckRedisError>;
+    async fn health_check_locker(
+        &self,
+    ) -> CustomResult<HealthState, errors::HealthCheckLockerError>;
+    async fn health_check_outgoing(&self)
+        -> CustomResult<HealthState, errors::HealthCheckOutGoing>;
     #[cfg(feature = "olap")]
-    async fn health_check_analytics(&self) -> CustomResult<(), errors::HealthCheckDBError>;
+    async fn health_check_analytics(&self)
+        -> CustomResult<HealthState, errors::HealthCheckDBError>;
 }
 
 #[async_trait::async_trait]
 impl HealthCheckInterface for app::AppState {
-    async fn health_check_db(&self) -> CustomResult<(), errors::HealthCheckDBError> {
+    async fn health_check_db(&self) -> CustomResult<HealthState, errors::HealthCheckDBError> {
         let db = &*self.store;
         db.health_check_db().await?;
-        Ok(())
+        Ok(HealthState::Running)
     }
 
-    async fn health_check_redis(&self) -> CustomResult<(), errors::HealthCheckRedisError> {
+    async fn health_check_redis(&self) -> CustomResult<HealthState, errors::HealthCheckRedisError> {
         let db = &*self.store;
         let redis_conn = db
             .get_redis_conn()
@@ -54,28 +60,33 @@ impl HealthCheckInterface for app::AppState {
 
         logger::debug!("Redis delete_key was successful");
 
-        Ok(())
+        Ok(HealthState::Running)
     }
 
-    async fn health_check_locker(&self) -> CustomResult<(), errors::HealthCheckLockerError> {
+    async fn health_check_locker(
+        &self,
+    ) -> CustomResult<HealthState, errors::HealthCheckLockerError> {
         let locker = &self.conf.locker;
         if !locker.mock_locker {
             let mut url = locker.host_rs.to_owned();
-            url.push_str(LOCKER_HEALTH_CALL_PATH);
+            url.push_str(consts::LOCKER_HEALTH_CALL_PATH);
             let request = services::Request::new(services::Method::Get, &url);
             services::call_connector_api(self, request)
                 .await
                 .change_context(errors::HealthCheckLockerError::FailedToCallLocker)?
-                .ok();
+                .map_err(|_| {
+                    error_stack::report!(errors::HealthCheckLockerError::FailedToCallLocker)
+                })?;
+            Ok(HealthState::Running)
+        } else {
+            Ok(HealthState::NotApplicable)
         }
-
-        logger::debug!("Locker call was successful");
-
-        Ok(())
     }
 
     #[cfg(feature = "olap")]
-    async fn health_check_analytics(&self) -> CustomResult<(), errors::HealthCheckDBError> {
+    async fn health_check_analytics(
+        &self,
+    ) -> CustomResult<HealthState, errors::HealthCheckDBError> {
         let analytics = &self.pool;
         match analytics {
             analytics::AnalyticsProvider::Sqlx(client) => client
@@ -106,6 +117,28 @@ impl HealthCheckInterface for app::AppState {
                     .await
                     .change_context(errors::HealthCheckDBError::ClickhouseAnalyticsError)
             }
-        }
+        }?;
+
+        Ok(HealthState::Running)
+    }
+
+    async fn health_check_outgoing(
+        &self,
+    ) -> CustomResult<HealthState, errors::HealthCheckOutGoing> {
+        let request = services::Request::new(services::Method::Get, consts::OUTGOING_CALL_URL);
+        services::call_connector_api(self, request)
+            .await
+            .map_err(|err| errors::HealthCheckOutGoing::OutGoingFailed {
+                message: err.to_string(),
+            })?
+            .map_err(|err| errors::HealthCheckOutGoing::OutGoingFailed {
+                message: format!(
+                    "Got a non 200 status while making outgoing request. Error {:?}",
+                    err.response
+                ),
+            })?;
+
+        logger::debug!("Outgoing request successful");
+        Ok(HealthState::Running)
     }
 }

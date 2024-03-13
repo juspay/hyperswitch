@@ -62,8 +62,8 @@ pub enum Source {
     },
     #[allow(dead_code)]
     GooglePay {
-        data: String,
-        signature: String,
+        data: Secret<String>,
+        signature: Secret<String>,
         version: String,
     },
 }
@@ -80,8 +80,8 @@ pub struct CardData {
 #[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GooglePayToken {
-    signature: String,
-    signed_message: String,
+    signature: Secret<String>,
+    signed_message: Secret<String>,
     protocol_version: String,
 }
 
@@ -104,7 +104,7 @@ pub struct TransactionDetails {
 #[serde(rename_all = "camelCase")]
 pub struct MerchantDetails {
     merchant_id: Secret<String>,
-    terminal_id: Option<String>,
+    terminal_id: Option<Secret<String>>,
 }
 
 #[derive(Default, Debug, Serialize)]
@@ -182,9 +182,23 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
                 };
                 Source::PaymentCard { card }
             }
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment Methods".to_string(),
-            ))?,
+            api::PaymentMethodData::Wallet(_)
+            | api::PaymentMethodData::PayLater(_)
+            | api::PaymentMethodData::BankRedirect(_)
+            | api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::CardRedirect(_)
+            | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::MandatePayment
+            | api::PaymentMethodData::Reward
+            | api::PaymentMethodData::Upi(_)
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("fiserv"),
+                ))
+            }?,
         };
         Ok(Self {
             amount,
@@ -257,14 +271,14 @@ impl TryFrom<&types::PaymentsCancelRouterData> for FiservCancelRequest {
     }
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ErrorResponse {
     pub details: Option<Vec<ErrorDetails>>,
     pub error: Option<Vec<ErrorDetails>>,
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ErrorDetails {
     #[serde(rename = "type")]
@@ -306,7 +320,7 @@ impl From<FiservPaymentStatus> for enums::RefundStatus {
             | FiservPaymentStatus::Authorized
             | FiservPaymentStatus::Captured => Self::Success,
             FiservPaymentStatus::Declined | FiservPaymentStatus::Failed => Self::Failure,
-            _ => Self::Pending,
+            FiservPaymentStatus::Voided | FiservPaymentStatus::Processing => Self::Pending,
         }
     }
 }
@@ -428,7 +442,7 @@ pub struct ReferenceTransactionDetails {
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct FiservSessionObject {
-    pub terminal_id: String,
+    pub terminal_id: Secret<String>,
 }
 
 impl TryFrom<&Option<pii::SecretSerdeValue>> for FiservSessionObject {

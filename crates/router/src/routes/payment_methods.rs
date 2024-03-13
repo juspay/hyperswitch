@@ -102,6 +102,12 @@ pub async fn list_customer_payment_method_api(
     let flow = Flow::CustomerPaymentMethodsList;
     let payload = query_payload.into_inner();
     let customer_id = customer_id.into_inner().0;
+
+    let ephemeral_auth =
+        match auth::is_ephemeral_auth(req.headers(), &*state.store, &customer_id).await {
+            Ok(auth) => auth,
+            Err(err) => return api::log_and_return_error_response(err),
+        };
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -116,7 +122,7 @@ pub async fn list_customer_payment_method_api(
                 Some(&customer_id),
             )
         },
-        &auth::ApiKeyAuth,
+        &*ephemeral_auth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -157,6 +163,7 @@ pub async fn list_customer_payment_method_api_client(
         Ok((auth, _auth_flow)) => (auth, _auth_flow),
         Err(e) => return api::log_and_return_error_response(e),
     };
+
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -246,12 +253,51 @@ pub async fn payment_method_delete_api(
         state,
         &req,
         pm,
-        |state, auth, req| cards::delete_payment_method(state, auth.merchant_account, req),
+        |state, auth, req| {
+            cards::delete_payment_method(state, auth.merchant_account, req, auth.key_store)
+        },
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
 }
+
+#[instrument(skip_all, fields(flow = ?Flow::DefaultPaymentMethodsSet))]
+pub async fn default_payment_method_set_api(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<payment_methods::DefaultPaymentMethod>,
+) -> HttpResponse {
+    let flow = Flow::DefaultPaymentMethodsSet;
+    let payload = path.into_inner();
+    let customer_id = payload.clone().customer_id;
+
+    let ephemeral_auth =
+        match auth::is_ephemeral_auth(req.headers(), &*state.store, &customer_id).await {
+            Ok(auth) => auth,
+            Err(err) => return api::log_and_return_error_response(err),
+        };
+    let db = &*state.store.clone();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |_state, auth: auth::AuthenticationData, default_payment_method| {
+            cards::set_default_payment_method(
+                db,
+                auth.merchant_account.merchant_id,
+                auth.key_store,
+                &customer_id,
+                default_payment_method.payment_method_id,
+            )
+        },
+        &*ephemeral_auth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]
@@ -299,7 +345,8 @@ impl ParentPaymentMethodToken {
         token: PaymentTokenData,
         state: &AppState,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        let token_json_str = Encode::<PaymentTokenData>::encode_to_string_of_json(&token)
+        let token_json_str = token
+            .encode_to_string_of_json()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("failed to serialize hyperswitch token to json")?;
         let redis_conn = state

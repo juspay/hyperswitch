@@ -1,10 +1,8 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
-use router_env::tracing::{self, instrument};
 
 use crate::{query::generics, schema::user_roles::dsl, user_role::*, PgPooledConn, StorageResult};
 
 impl UserRoleNew {
-    #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<UserRole> {
         generics::generic_insert(conn, self).await
     }
@@ -49,6 +47,20 @@ impl UserRole {
             dsl::user_id
                 .eq(user_id)
                 .and(dsl::merchant_id.eq(merchant_id)),
+            UserRoleUpdateInternal::from(update),
+        )
+        .await
+    }
+
+    pub async fn update_by_user_id_org_id(
+        conn: &PgPooledConn,
+        user_id: String,
+        org_id: String,
+        update: UserRoleUpdate,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            dsl::user_id.eq(user_id).and(dsl::org_id.eq(org_id)),
             UserRoleUpdateInternal::from(update),
         )
         .await

@@ -168,7 +168,7 @@ impl From<CashtocodePaymentStatus> for enums::AttemptStatus {
     }
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Serialize)]
 pub struct CashtocodeErrors {
     pub message: String,
     pub path: String,
@@ -176,20 +176,20 @@ pub struct CashtocodeErrors {
     pub event_type: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum CashtocodePaymentsResponse {
     CashtoCodeError(CashtocodeErrorResponse),
     CashtoCodeData(CashtocodePaymentsResponseData),
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CashtocodePaymentsResponseData {
     pub pay_url: url::Url,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CashtocodePaymentsSyncResponse {
     pub transaction_id: String,
@@ -319,7 +319,7 @@ impl<F, T>
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct CashtocodeErrorResponse {
     pub error: serde_json::Value,
     pub error_description: String,

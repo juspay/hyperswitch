@@ -3,7 +3,7 @@ use base64::Engine;
 use cards::CardNumber;
 use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
-use masking::{PeekInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -86,7 +86,7 @@ pub struct CardDetails {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentInstrument {
-    payment_instrument_id: Option<String>,
+    payment_instrument_id: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -211,7 +211,7 @@ impl TryFrom<&types::ConnectorAuthType> for NexinetsAuthType {
     }
 }
 // PaymentsResponse
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum NexinetsPaymentStatus {
     Success,
@@ -275,7 +275,7 @@ impl TryFrom<&api_models::enums::BankNames> for NexinetsBIC {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexinetsPreAuthOrDebitResponse {
     order_id: String,
@@ -285,7 +285,7 @@ pub struct NexinetsPreAuthOrDebitResponse {
     redirect_url: Option<Url>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexinetsTransaction {
     pub transaction_id: String,
@@ -357,7 +357,7 @@ impl<F, T>
             .payment_instrument
             .payment_instrument_id
             .map(|id| types::MandateReference {
-                connector_mandate_id: Some(id),
+                connector_mandate_id: Some(id.expose()),
                 payment_method_id: None,
             });
         Ok(Self {
@@ -386,7 +386,7 @@ pub struct NexinetsCaptureOrVoidRequest {
     pub currency: enums::Currency,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexinetsOrder {
     pub order_id: String,
@@ -412,7 +412,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for NexinetsCaptureOrVoidRequest 
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexinetsPaymentResponse {
     pub transaction_id: String,
@@ -483,7 +483,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for NexinetsRefundRequest {
 }
 
 // Type definition for Refund Response
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexinetsRefundResponse {
     pub transaction_id: String,
@@ -494,7 +494,7 @@ pub struct NexinetsRefundResponse {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum RefundStatus {
     Success,
@@ -504,7 +504,7 @@ pub enum RefundStatus {
     InProgress,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum RefundType {
     Refund,
@@ -554,7 +554,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, NexinetsRefundResponse
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct NexinetsErrorResponse {
     pub status: u16,
     pub code: u16,
@@ -562,7 +562,7 @@ pub struct NexinetsErrorResponse {
     pub errors: Vec<OrderErrorDetails>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Serialize)]
 pub struct OrderErrorDetails {
     pub code: u16,
     pub message: String,
@@ -641,7 +641,7 @@ fn get_card_data(
         true => {
             let card_data = match item.request.off_session {
                 Some(true) => CardDataDetails::PaymentInstrument(Box::new(PaymentInstrument {
-                    payment_instrument_id: item.request.connector_mandate_id(),
+                    payment_instrument_id: item.request.connector_mandate_id().map(Secret::new),
                 })),
                 _ => CardDataDetails::CardDetails(Box::new(get_card_details(card)?)),
             };

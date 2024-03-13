@@ -3,7 +3,7 @@ use std::{collections::HashSet, ops, str::FromStr};
 use api_models::{
     admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
 };
-use common_utils::pii;
+use common_utils::{errors::CustomResult, pii};
 use diesel_models::{
     enums::UserStatus,
     organization as diesel_org,
@@ -21,15 +21,11 @@ use crate::{
     consts,
     core::{
         admin,
-        errors::{UserErrors, UserResult},
+        errors::{self, UserErrors, UserResult},
     },
     db::StorageInterface,
     routes::AppState,
-    services::{
-        authentication as auth,
-        authentication::UserFromToken,
-        authorization::{info, predefined_permissions},
-    },
+    services::{authentication as auth, authentication::UserFromToken, authorization::info},
     types::transformers::ForeignFrom,
     utils::{self, user::password},
 };
@@ -778,19 +774,11 @@ impl UserFromStorage {
         &self,
         state: &AppState,
         merchant_id: &str,
-    ) -> UserResult<UserRole> {
+    ) -> CustomResult<UserRole, errors::StorageError> {
         state
             .store
             .find_user_role_by_user_id_merchant_id(self.get_user_id(), merchant_id)
             .await
-            .map_err(|e| {
-                if e.current_context().is_db_not_found() {
-                    UserErrors::RoleNotFound
-                } else {
-                    UserErrors::InternalServerError
-                }
-            })
-            .into_report()
     }
 }
 
@@ -810,54 +798,16 @@ impl From<info::PermissionModule> for user_role_api::PermissionModule {
             info::PermissionModule::Payments => Self::Payments,
             info::PermissionModule::Refunds => Self::Refunds,
             info::PermissionModule::MerchantAccount => Self::MerchantAccount,
-            info::PermissionModule::Forex => Self::Forex,
             info::PermissionModule::Connectors => Self::Connectors,
             info::PermissionModule::Routing => Self::Routing,
             info::PermissionModule::Analytics => Self::Analytics,
             info::PermissionModule::Mandates => Self::Mandates,
             info::PermissionModule::Customer => Self::Customer,
             info::PermissionModule::Disputes => Self::Disputes,
-            info::PermissionModule::Files => Self::Files,
             info::PermissionModule::ThreeDsDecisionManager => Self::ThreeDsDecisionManager,
             info::PermissionModule::SurchargeDecisionManager => Self::SurchargeDecisionManager,
             info::PermissionModule::AccountCreate => Self::AccountCreate,
         }
-    }
-}
-
-impl From<info::PermissionInfo> for user_role_api::PermissionInfo {
-    fn from(value: info::PermissionInfo) -> Self {
-        Self {
-            enum_name: value.enum_name.into(),
-            description: value.description,
-        }
-    }
-}
-
-pub struct UserAndRoleJoined(pub storage_user::User, pub UserRole);
-
-impl TryFrom<UserAndRoleJoined> for user_api::UserDetails {
-    type Error = ();
-    fn try_from(user_and_role: UserAndRoleJoined) -> Result<Self, Self::Error> {
-        let status = match user_and_role.1.status {
-            UserStatus::Active => user_role_api::UserStatus::Active,
-            UserStatus::InvitationSent => user_role_api::UserStatus::InvitationSent,
-        };
-
-        let role_id = user_and_role.1.role_id;
-        let role_name = predefined_permissions::get_role_name_from_id(role_id.as_str())
-            .ok_or(())?
-            .to_string();
-
-        Ok(Self {
-            user_id: user_and_role.0.user_id,
-            email: user_and_role.0.email,
-            name: user_and_role.0.name,
-            role_id,
-            status,
-            role_name,
-            last_modified_at: user_and_role.0.last_modified_at,
-        })
     }
 }
 
@@ -911,8 +861,11 @@ impl SignInWithSingleRoleStrategy {
     async fn get_signin_response(self, state: &AppState) -> UserResult<user_api::SignInResponse> {
         let token =
             utils::user::generate_jwt_auth_token(state, &self.user, &self.user_role).await?;
+        utils::user_role::set_role_permissions_in_cache_by_user_role(state, &self.user_role).await;
+
         let dashboard_entry_response =
             utils::user::get_dashboard_entry_response(state, self.user, self.user_role, token)?;
+
         Ok(user_api::SignInResponse::DashboardEntry(
             dashboard_entry_response,
         ))
@@ -956,5 +909,34 @@ impl SignInWithMultipleRolesStrategy {
                 verification_days_left: utils::user::get_verification_days_left(state, &self.user)?,
             },
         ))
+    }
+}
+
+impl ForeignFrom<UserStatus> for user_role_api::UserStatus {
+    fn foreign_from(value: UserStatus) -> Self {
+        match value {
+            UserStatus::Active => Self::Active,
+            UserStatus::InvitationSent => Self::InvitationSent,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct RoleName(String);
+
+impl RoleName {
+    pub fn new(name: String) -> UserResult<Self> {
+        let is_empty_or_whitespace = name.trim().is_empty();
+        let is_too_long = name.graphemes(true).count() > consts::user_role::MAX_ROLE_NAME_LENGTH;
+
+        if is_empty_or_whitespace || is_too_long || name.contains(' ') {
+            Err(UserErrors::RoleNameParsingError.into())
+        } else {
+            Ok(Self(name.to_lowercase()))
+        }
+    }
+
+    pub fn get_role_name(self) -> String {
+        self.0
     }
 }

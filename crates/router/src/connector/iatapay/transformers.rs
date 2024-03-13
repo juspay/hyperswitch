@@ -60,7 +60,7 @@ impl<T>
         })
     }
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct IatapayAuthUpdateResponse {
     pub access_token: Secret<String>,
     pub token_type: String,
@@ -261,7 +261,7 @@ pub struct IatapayPaymentsResponse {
     pub status: IatapayPaymentStatus,
     pub iata_payment_id: Option<String>,
     pub iata_refund_id: Option<String>,
-    pub merchant_id: Option<String>,
+    pub merchant_id: Option<Secret<String>>,
     pub merchant_payment_id: Option<String>,
     pub amount: f64,
     pub currency: String,
@@ -428,7 +428,7 @@ pub struct RefundResponse {
     iata_payment_id: Option<String>,
     merchant_payment_id: Option<String>,
     payment_amount: Option<f64>,
-    merchant_id: Option<String>,
+    merchant_id: Option<Secret<String>>,
     account_country: Option<String>,
 }
 
@@ -507,7 +507,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct IatapayErrorResponse {
     pub status: u16,
     pub error: String,
@@ -515,7 +515,7 @@ pub struct IatapayErrorResponse {
     pub reason: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Serialize)]
 pub struct IatapayAccessTokenErrorResponse {
     pub error: String,
     pub path: String,

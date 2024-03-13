@@ -186,6 +186,7 @@ impl DashboardRequestPayload {
             merchant_account_id: None,
             merchant_id: None,
             merchant_config_currency: None,
+            endpoint_prefix: None,
         };
         let meta_data = match request.metadata {
             Some(data) => data,
@@ -196,6 +197,7 @@ impl DashboardRequestPayload {
         let merchant_account_id = meta_data.merchant_account_id.clone();
         let merchant_id = meta_data.merchant_id.clone();
         let terminal_id = meta_data.terminal_id.clone();
+        let endpoint_prefix = meta_data.endpoint_prefix.clone();
         let apple_pay = meta_data.apple_pay;
         let apple_pay_combined = meta_data.apple_pay_combined;
         let merchant_config_currency = meta_data.merchant_config_currency;
@@ -208,6 +210,7 @@ impl DashboardRequestPayload {
             merchant_id,
             merchant_config_currency,
             apple_pay_combined,
+            endpoint_prefix,
         })
     }
 

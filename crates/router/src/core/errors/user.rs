@@ -60,6 +60,12 @@ pub enum UserErrors {
     MaxInvitationsError,
     #[error("RoleNotFound")]
     RoleNotFound,
+    #[error("InvalidRoleOperationWithMessage")]
+    InvalidRoleOperationWithMessage(String),
+    #[error("RoleNameParsingError")]
+    RoleNameParsingError,
+    #[error("RoleNameAlreadyExists")]
+    RoleNameAlreadyExists,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -103,9 +109,12 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::CompanyNameParsingError => {
                 AER::BadRequest(ApiError::new(sub_code, 14, self.get_error_message(), None))
             }
-            Self::MerchantAccountCreationError(error_message) => {
-                AER::InternalServerError(ApiError::new(sub_code, 15, error_message, None))
-            }
+            Self::MerchantAccountCreationError(_) => AER::InternalServerError(ApiError::new(
+                sub_code,
+                15,
+                self.get_error_message(),
+                None,
+            )),
             Self::InvalidEmailError => {
                 AER::BadRequest(ApiError::new(sub_code, 16, self.get_error_message(), None))
             }
@@ -151,6 +160,15 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::RoleNotFound => {
                 AER::BadRequest(ApiError::new(sub_code, 32, self.get_error_message(), None))
             }
+            Self::InvalidRoleOperationWithMessage(_) => {
+                AER::BadRequest(ApiError::new(sub_code, 33, self.get_error_message(), None))
+            }
+            Self::RoleNameParsingError => {
+                AER::BadRequest(ApiError::new(sub_code, 34, self.get_error_message(), None))
+            }
+            Self::RoleNameAlreadyExists => {
+                AER::BadRequest(ApiError::new(sub_code, 35, self.get_error_message(), None))
+            }
         }
     }
 }
@@ -184,6 +202,9 @@ impl UserErrors {
             Self::InvalidDeleteOperation => "Delete Operation Not Supported",
             Self::MaxInvitationsError => "Maximum invite count per request exceeded",
             Self::RoleNotFound => "Role Not Found",
+            Self::InvalidRoleOperationWithMessage(error_message) => error_message,
+            Self::RoleNameParsingError => "Invalid Role Name",
+            Self::RoleNameAlreadyExists => "Role name already exists",
         }
     }
 }

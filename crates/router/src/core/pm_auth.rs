@@ -5,8 +5,6 @@ use api_models::{
     payment_methods::{self, BankAccountAccessCreds},
     payments::{AddressDetails, BankDebitBilling, BankDebitData, PaymentMethodData},
 };
-#[cfg(feature = "hashicorp-vault")]
-use external_services::hashicorp_vault::{self, decrypt::VaultFetch};
 use hex;
 pub mod helpers;
 pub mod transformers;
@@ -19,8 +17,6 @@ use common_utils::{
 };
 use data_models::payments::PaymentIntent;
 use error_stack::{IntoReport, ResultExt};
-#[cfg(feature = "kms")]
-pub use external_services::kms;
 use helpers::PaymentAuthConnectorDataExt;
 use masking::{ExposeInterface, PeekInterface};
 use pm_auth::{
@@ -116,8 +112,8 @@ pub async fn create_link_token(
                 &*state.store,
                 pi.billing_address_id.clone(),
                 &key_store,
-                pi.payment_id.clone(),
-                merchant_account.merchant_id.clone(),
+                &pi.payment_id,
+                &merchant_account.merchant_id,
                 merchant_account.storage_scheme,
             )
             .await
@@ -301,6 +297,7 @@ async fn store_bank_details_in_payment_methods(
         .find_payment_method_by_customer_id_merchant_id_list(
             &customer_id,
             &merchant_account.merchant_id,
+            None,
         )
         .await
         .change_context(ApiErrorResponse::InternalServerError)?;
@@ -347,33 +344,13 @@ async fn store_bank_details_in_payment_methods(
         }
     }
 
-    let pm_auth_key = async {
-        #[cfg(feature = "hashicorp-vault")]
-        let client = external_services::hashicorp_vault::get_hashicorp_client(&state.conf.hc_vault)
-            .await
-            .change_context(ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed while creating client")?;
-
-        #[cfg(feature = "hashicorp-vault")]
-        let output = masking::Secret::new(state.conf.payment_method_auth.pm_auth_key.clone())
-            .fetch_inner::<hashicorp_vault::Kv2>(client)
-            .await
-            .change_context(ApiErrorResponse::InternalServerError)?
-            .expose();
-
-        #[cfg(not(feature = "hashicorp-vault"))]
-        let output = state.conf.payment_method_auth.pm_auth_key.clone();
-
-        Ok::<_, error_stack::Report<ApiErrorResponse>>(output)
-    }
-    .await?;
-
-    #[cfg(feature = "kms")]
-    let pm_auth_key = kms::get_kms_client(&state.conf.kms)
-        .await
-        .decrypt(pm_auth_key)
-        .await
-        .change_context(ApiErrorResponse::InternalServerError)?;
+    let pm_auth_key = state
+        .conf
+        .payment_method_auth
+        .get_inner()
+        .pm_auth_key
+        .clone()
+        .expose();
 
     let mut update_entries: Vec<(storage::PaymentMethod, storage::PaymentMethodUpdate)> =
         Vec::new();
@@ -701,8 +678,8 @@ pub async fn retrieve_payment_method_from_auth_service(
         &*state.store,
         payment_intent.billing_address_id.clone(),
         key_store,
-        payment_intent.payment_id.clone(),
-        merchant_account.merchant_id.clone(),
+        &payment_intent.payment_id,
+        &merchant_account.merchant_id,
         merchant_account.storage_scheme,
     )
     .await?;

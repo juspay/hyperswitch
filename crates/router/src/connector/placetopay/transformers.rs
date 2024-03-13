@@ -204,41 +204,55 @@ impl TryFrom<&types::ConnectorAuthType> for PlacetopayAuthType {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum PlacetopayStatus {
+pub enum PlacetopayTransactionStatus {
     Ok,
     Failed,
     Approved,
+    // ApprovedPartial,
+    // PartialExpired,
     Rejected,
     Pending,
     PendingValidation,
     PendingProcess,
+    // Refunded,
+    // Reversed,
+    Error,
+    // Unknown,
+    // Manual,
+    // Dispute,
+    //The statuses that are commented out are awaiting clarification on the connector.
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlacetopayStatusResponse {
-    status: PlacetopayStatus,
+    status: PlacetopayTransactionStatus,
 }
 
-impl From<PlacetopayStatus> for enums::AttemptStatus {
-    fn from(item: PlacetopayStatus) -> Self {
+impl From<PlacetopayTransactionStatus> for enums::AttemptStatus {
+    fn from(item: PlacetopayTransactionStatus) -> Self {
         match item {
-            PlacetopayStatus::Approved | PlacetopayStatus::Ok => Self::Authorized,
-            PlacetopayStatus::Failed | PlacetopayStatus::Rejected => Self::Failure,
-            PlacetopayStatus::Pending
-            | PlacetopayStatus::PendingValidation
-            | PlacetopayStatus::PendingProcess => Self::Authorizing,
+            PlacetopayTransactionStatus::Approved | PlacetopayTransactionStatus::Ok => {
+                Self::Charged
+            }
+            PlacetopayTransactionStatus::Failed
+            | PlacetopayTransactionStatus::Rejected
+            | PlacetopayTransactionStatus::Error => Self::Failure,
+            PlacetopayTransactionStatus::Pending
+            | PlacetopayTransactionStatus::PendingValidation
+            | PlacetopayTransactionStatus::PendingProcess => Self::Pending,
         }
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlacetopayPaymentsResponse {
     status: PlacetopayStatusResponse,
     internal_reference: u64,
+    authorization: Option<String>,
 }
 
 impl<F, T>
@@ -263,7 +277,11 @@ impl<F, T>
                 ),
                 redirection_data: None,
                 mandate_reference: None,
-                connector_metadata: None,
+                connector_metadata: item
+                    .response
+                    .authorization
+                    .clone()
+                    .map(|authorization| serde_json::json!(authorization)),
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
@@ -281,55 +299,90 @@ pub struct PlacetopayRefundRequest {
     auth: PlacetopayAuth,
     internal_reference: u64,
     action: PlacetopayNextAction,
+    authorization: Option<String>,
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for PlacetopayRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        let auth = PlacetopayAuth::try_from(&item.connector_auth_type)?;
-        let internal_reference = item
-            .request
-            .connector_transaction_id
-            .parse::<u64>()
-            .into_report()
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        let action = PlacetopayNextAction::Refund;
+        if item.request.refund_amount == item.request.payment_amount {
+            let auth = PlacetopayAuth::try_from(&item.connector_auth_type)?;
 
-        Ok(Self {
-            auth,
-            internal_reference,
-            action,
-        })
+            let internal_reference = item
+                .request
+                .connector_transaction_id
+                .parse::<u64>()
+                .into_report()
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            let action = PlacetopayNextAction::Reverse;
+            let authorization = match item.request.connector_metadata.clone() {
+                Some(metadata) => metadata.as_str().map(|auth| auth.to_string()),
+                None => None,
+            };
+            Ok(Self {
+                auth,
+                internal_reference,
+                action,
+                authorization,
+            })
+        } else {
+            Err(errors::ConnectorError::NotSupported {
+                message: "Partial Refund".to_string(),
+                connector: "placetopay",
+            }
+            .into())
+        }
     }
 }
 
 impl From<PlacetopayRefundStatus> for enums::RefundStatus {
     fn from(item: PlacetopayRefundStatus) -> Self {
         match item {
-            PlacetopayRefundStatus::Refunded => Self::Success,
-            PlacetopayRefundStatus::Failed | PlacetopayRefundStatus::Rejected => Self::Failure,
-            PlacetopayRefundStatus::Pending | PlacetopayRefundStatus::PendingProcess => {
-                Self::Pending
-            }
+            PlacetopayRefundStatus::Ok
+            | PlacetopayRefundStatus::Approved
+            | PlacetopayRefundStatus::Refunded => Self::Success,
+            PlacetopayRefundStatus::Failed
+            | PlacetopayRefundStatus::Rejected
+            | PlacetopayRefundStatus::Error => Self::Failure,
+            PlacetopayRefundStatus::Pending
+            | PlacetopayRefundStatus::PendingProcess
+            | PlacetopayRefundStatus::PendingValidation => Self::Pending,
         }
     }
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PlacetopayRefundResponse {
-    status: PlacetopayRefundStatus,
-    internal_reference: u64,
-}
-
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PlacetopayRefundStatus {
-    Refunded,
-    Rejected,
+    Ok,
     Failed,
+    Approved,
+    // ApprovedPartial,
+    // PartialExpired,
+    Rejected,
     Pending,
+    PendingValidation,
     PendingProcess,
+    Refunded,
+    // Reversed,
+    Error,
+    // Unknown,
+    // Manual,
+    // Dispute,
+    //The statuses that are commented out are awaiting clarification on the connector.
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlacetopayRefundStatusResponse {
+    status: PlacetopayRefundStatus,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlacetopayRefundResponse {
+    status: PlacetopayRefundStatusResponse,
+    internal_reference: u64,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, PlacetopayRefundResponse>>
@@ -342,7 +395,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, PlacetopayRefundResp
         Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.internal_reference.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                refund_status: enums::RefundStatus::from(item.response.status.status),
             }),
             ..item.data
         })
@@ -383,20 +436,20 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, PlacetopayRefundRespon
         Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.internal_reference.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                refund_status: enums::RefundStatus::from(item.response.status.status),
             }),
             ..item.data
         })
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlacetopayErrorResponse {
     pub status: PlacetopayError,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlacetopayError {
     pub status: PlacetopayErrorStatus,
@@ -404,7 +457,7 @@ pub struct PlacetopayError {
     pub reason: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PlacetopayErrorStatus {
     Failed,
@@ -447,6 +500,7 @@ pub struct PlacetopayNextActionRequest {
 #[serde(rename_all = "camelCase")]
 pub enum PlacetopayNextAction {
     Refund,
+    Reverse,
     Void,
     Process,
     Checkout,

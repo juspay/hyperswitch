@@ -1,0 +1,111 @@
+{
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json"
+    },
+    {
+      "key": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "body": {
+    "mode": "raw",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "amount": 100,
+      "currency": "USD",
+      "confirm": true,
+      "capture_method": "automatic",
+      "connector": [
+        "nuvei"
+      ],
+      "customer_id": "futurebilling",
+      "email": "guest@example.com",
+      "name": "John Doe",
+      "phone": "999999999",
+      "phone_country_code": "+65",
+      "description": "testing",
+      "authentication_type": "no_three_ds",
+      "return_url": "https://google.com",
+      "payment_method": "card",
+      "payment_method_type": "credit",
+      "setup_future_usage": "off_session",
+      "payment_method_data": {
+        "card": {
+          "card_number": "5333583123003909",
+          "card_exp_month": "12",
+          "card_exp_year": "2030",
+          "card_holder_name": "joseph Doe",
+          "card_cvc": "123"
+        }
+      },
+      "mandate_data": {
+        "customer_acceptance": {
+          "acceptance_type": "offline",
+          "accepted_at": "1963-05-03T04:07:52.723Z",
+          "online": {
+            "ip_address": "127.0.0.1",
+            "user_agent": "amet irure esse"
+          }
+        },
+        "mandate_type": {
+          "multi_use": {
+            "amount": 100,
+            "currency": "USD",
+            "metadata": {
+              "frequency": "1"
+            },
+            "end_date": "2025-05-03T04:07:52.723Z"
+          }
+        }
+      },
+      "billing": {
+        "address": {
+          "line1": "1467",
+          "line2": "jkjj Street",
+          "line3": "no 1111 Street",
+          "city": "San Fransico",
+          "state": "California",
+          "zip": "94122",
+          "country": "JP",
+          "first_name": "joseph",
+          "last_name": "Doe"
+        }
+      },
+      "statement_descriptor_name": "joseph",
+      "metadata": {
+        "udf1": "value1",
+        "new_customer": "true",
+        "login_date": "2019-09-10T10:11:12Z"
+      },
+      "browser_info": {
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36",
+        "accept_header": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+        "language": "nl-NL",
+        "color_depth": 24,
+        "screen_height": 723,
+        "screen_width": 1536,
+        "time_zone": 0,
+        "java_enabled": true,
+        "java_script_enabled": true,
+        "ip_address": "127.0.0.1"
+      }
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/payments",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "payments"
+    ]
+  },
+  "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
+}

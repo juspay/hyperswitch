@@ -57,6 +57,7 @@ pub struct PaymentIntent {
     pub authorization_count: Option<i32>,
     pub session_expiry: Option<PrimitiveDateTime>,
     pub fingerprint_id: Option<String>,
+    pub request_external_three_ds_authentication: Option<bool>,
 }
 
 #[derive(
@@ -109,6 +110,7 @@ pub struct PaymentIntentNew {
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub session_expiry: Option<PrimitiveDateTime>,
     pub fingerprint_id: Option<String>,
+    pub request_external_three_ds_authentication: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -116,6 +118,7 @@ pub enum PaymentIntentUpdate {
     ResponseUpdate {
         status: storage_enums::IntentStatus,
         amount_captured: Option<i64>,
+        fingerprint_id: Option<String>,
         return_url: Option<String>,
         updated_by: String,
         incremental_authorization_allowed: Option<bool>,
@@ -163,6 +166,7 @@ pub enum PaymentIntentUpdate {
         updated_by: String,
         session_expiry: Option<PrimitiveDateTime>,
         fingerprint_id: Option<String>,
+        request_external_three_ds_authentication: Option<bool>,
     },
     PaymentAttemptAndAttemptCountUpdate {
         active_attempt_id: String,
@@ -230,6 +234,7 @@ pub struct PaymentIntentUpdateInternal {
     pub authorization_count: Option<i32>,
     pub session_expiry: Option<PrimitiveDateTime>,
     pub fingerprint_id: Option<String>,
+    pub request_external_three_ds_authentication: Option<bool>,
 }
 
 impl PaymentIntentUpdate {
@@ -264,6 +269,7 @@ impl PaymentIntentUpdate {
             authorization_count,
             session_expiry,
             fingerprint_id,
+            request_external_three_ds_authentication,
         } = self.into();
         PaymentIntent {
             amount: amount.unwrap_or(source.amount),
@@ -299,6 +305,8 @@ impl PaymentIntentUpdate {
             authorization_count: authorization_count.or(source.authorization_count),
             fingerprint_id: fingerprint_id.or(source.fingerprint_id),
             session_expiry: session_expiry.or(source.session_expiry),
+            request_external_three_ds_authentication: request_external_three_ds_authentication
+                .or(source.request_external_three_ds_authentication),
             ..source
         }
     }
@@ -327,6 +335,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 updated_by,
                 session_expiry,
                 fingerprint_id,
+                request_external_three_ds_authentication,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -348,6 +357,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 updated_by,
                 session_expiry,
                 fingerprint_id,
+                request_external_three_ds_authentication,
                 ..Default::default()
             },
             PaymentIntentUpdate::MetadataUpdate {
@@ -405,6 +415,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 // currency,
                 status,
                 amount_captured,
+                fingerprint_id,
                 // customer_id,
                 return_url,
                 updated_by,
@@ -414,6 +425,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 // currency: Some(currency),
                 status: Some(status),
                 amount_captured,
+                fingerprint_id,
                 // customer_id,
                 return_url,
                 modified_at: Some(common_utils::date_time::now()),
@@ -480,5 +492,58 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 ..Default::default()
             },
         }
+    }
+}
+
+mod tests {
+    #[test]
+    fn test_backwards_compatibility() {
+        let serialized_payment_intent = r#"{
+    "id": 123,
+    "payment_id": "payment_12345",
+    "merchant_id": "merchant_67890",
+    "status": "succeeded",
+    "amount": 10000,
+    "currency": "USD",
+    "amount_captured": null,
+    "customer_id": "cust_123456",
+    "description": "Test Payment",
+    "return_url": "https://example.com/return",
+    "metadata": null,
+    "connector_id": "connector_001",
+    "shipping_address_id": null,
+    "billing_address_id": null,
+    "statement_descriptor_name": null,
+    "statement_descriptor_suffix": null,
+    "created_at": "2024-02-01T12:00:00Z",
+    "modified_at": "2024-02-01T12:00:00Z",
+    "last_synced": null,
+    "setup_future_usage": null,
+    "off_session": null,
+    "client_secret": "sec_abcdef1234567890",
+    "active_attempt_id": "attempt_123",
+    "business_country": "US",
+    "business_label": null,
+    "order_details": null,
+    "allowed_payment_method_types": "credit",
+    "connector_metadata": null,
+    "feature_metadata": null,
+    "attempt_count": 1,
+    "profile_id": null,
+    "merchant_decision": null,
+    "payment_link_id": null,
+    "payment_confirm_source": null,
+    "updated_by": "admin",
+    "surcharge_applicable": null,
+    "request_incremental_authorization": null,
+    "incremental_authorization_allowed": null,
+    "authorization_count": null,
+    "session_expiry": null,
+    "fingerprint_id": null
+}"#;
+        let deserialized_payment_intent =
+            serde_json::from_str::<super::PaymentIntent>(serialized_payment_intent);
+
+        assert!(deserialized_payment_intent.is_ok());
     }
 }
