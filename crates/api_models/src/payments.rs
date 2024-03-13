@@ -776,7 +776,7 @@ impl MandateIds {
 
 // The fields on this struct are optional, as we want to allow the merchant to provide partial
 // information about creating mandates
-#[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct MandateData {
     /// A way to update the mandate's payment method details
@@ -793,30 +793,23 @@ pub struct SingleUseMandate {
     pub currency: api_enums::Currency,
 }
 
-#[derive(Clone, Eq, PartialEq, Debug, Default, ToSchema, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Eq, PartialEq, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct MandateAmountData {
     /// The maximum amount to be debited for the mandate transaction
-    #[schema(example = 6540)]
     pub amount: i64,
     /// The currency for the transaction
-    #[schema(value_type = Currency, example = "USD")]
     pub currency: api_enums::Currency,
     /// Specifying start date of the mandate
-    #[schema(example = "2022-09-10T00:00:00Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub start_date: Option<PrimitiveDateTime>,
     /// Specifying end date of the mandate
-    #[schema(example = "2023-09-10T23:59:59Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub end_date: Option<PrimitiveDateTime>,
     /// Additional details required by mandate
-    #[schema(value_type = Option<Object>, example = r#"{
-        "frequency": "DAILY"
-    }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 }
 
-#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum MandateType {
     /// If the mandate should only be valid for 1 off-session use
