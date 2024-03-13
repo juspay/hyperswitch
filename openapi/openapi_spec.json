@@ -2606,6 +2606,14 @@
                     "authentication_type": "no_three_ds",
                     "confirm": true,
                     "currency": "USD",
+                    "customer_acceptance": {
+                      "acceptance_type": "offline",
+                      "accepted_at": "1963-05-03T04:07:52.723Z",
+                      "online": {
+                        "ip_address": "127.0.0.1",
+                        "user_agent": "amet irure esse"
+                      }
+                    },
                     "customer_id": "StripeCustomer123",
                     "mandate_data": {
                       "customer_acceptance": {
@@ -2959,6 +2967,57 @@
         ]
       }
     },
+    "/payments/{payment_id}/3ds/authentication": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - External 3DS Authentication",
+        "description": "Payments - External 3DS Authentication\n\nExternal 3DS Authentication is performed and returns the AuthenticationResponse",
+        "operationId": "Initiate external authentication for a Payment",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsExternalAuthenticationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Authentication created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsExternalAuthenticationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
     "/payments/{payment_id}/cancel": {
       "post": {
         "tags": [
@@ -3102,6 +3161,14 @@
               "examples": {
                 "Confirm a payment with payment method data": {
                   "value": {
+                    "customer_acceptance": {
+                      "acceptance_type": "offline",
+                      "accepted_at": "1963-05-03T04:07:52.723Z",
+                      "online": {
+                        "ip_address": "127.0.0.1",
+                        "user_agent": "amet irure esse"
+                      }
+                    },
                     "payment_method": "card",
                     "payment_method_data": {
                       "card": {
@@ -4215,9 +4282,18 @@
         "operationId": "Set the Payment Method as Default",
         "parameters": [
           {
-            "name": "method_id",
+            "name": "customer_id",
             "in": "path",
-            "description": "Set the Payment Method as Default for the Customer",
+            "description": "The unique identifier for the Customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "payment_method_id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method",
             "required": true,
             "schema": {
               "type": "string"
@@ -6882,6 +6958,7 @@
           "square",
           "stax",
           "stripe",
+          "threedsecureio",
           "trustpay",
           "tsys",
           "volt",
@@ -12289,6 +12366,14 @@
           }
         }
       },
+      "PaymentMethodStatus": {
+        "type": "string",
+        "enum": [
+          "active",
+          "inactive",
+          "processing"
+        ]
+      },
       "PaymentMethodType": {
         "type": "string",
         "description": "Indicates the sub type of payment method. Eg: 'google_pay' & 'apple_pay' for wallets.",
@@ -14265,7 +14350,7 @@
             ],
             "nullable": true
           },
-          "request_external_3ds_authentication": {
+          "external_3ds_authentication_attempted": {
             "type": "boolean",
             "description": "Flag indicating if external 3ds authentication is made or not",
             "nullable": true
@@ -14280,6 +14365,19 @@
           "fingerprint": {
             "type": "string",
             "description": "Payment Fingerprint",
+            "nullable": true
+          },
+          "payment_method_id": {
+            "type": "string",
+            "description": "Payment Method Id",
+            "nullable": true
+          },
+          "payment_method_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodStatus"
+              }
+            ],
             "nullable": true
           }
         }

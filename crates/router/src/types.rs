@@ -30,7 +30,7 @@ use masking::Secret;
 use serde::Serialize;
 
 use self::{api::payments, storage::enums as storage_enums};
-pub use crate::core::payments::{CustomerDetails, PaymentAddress};
+pub use crate::core::payments::{payment_address::PaymentAddress, CustomerDetails};
 #[cfg(feature = "payouts")]
 use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW;
 use crate::{
@@ -323,6 +323,7 @@ pub struct RouterData<Flow, Request, Response> {
 
     pub dispute_id: Option<String>,
     pub refund_id: Option<String>,
+    pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -1471,6 +1472,7 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             #[cfg(feature = "payouts")]
             quote_id: data.quote_id.clone(),
             test_mode: data.test_mode,
+            payment_method_status: None,
             payment_method_balance: data.payment_method_balance.clone(),
             connector_api_version: data.connector_api_version.clone(),
             connector_http_status_code: data.connector_http_status_code,
@@ -1530,6 +1532,7 @@ impl<F1, F2>
             quote_id: data.quote_id.clone(),
             test_mode: data.test_mode,
             payment_method_balance: None,
+            payment_method_status: None,
             connector_api_version: None,
             connector_http_status_code: data.connector_http_status_code,
             external_latency: data.external_latency,

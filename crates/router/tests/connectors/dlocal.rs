@@ -420,9 +420,9 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
 
 pub fn get_payment_info() -> PaymentInfo {
     PaymentInfo {
-        address: Some(PaymentAddress {
-            shipping: None,
-            billing: Some(Address {
+        address: Some(PaymentAddress::new(
+            None,
+            Some(Address {
                 phone: None,
                 address: Some(api::AddressDetails {
                     city: None,
@@ -437,8 +437,8 @@ pub fn get_payment_info() -> PaymentInfo {
                 }),
                 email: None,
             }),
-            payment_method_billing: None,
-        }),
+            None,
+        )),
         auth_type: None,
         access_token: None,
         connector_meta_data: None,
