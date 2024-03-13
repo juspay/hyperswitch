@@ -61,4 +61,15 @@ impl PayoutsInterface for MockDb {
         // TODO: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
     }
+
+    #[cfg(feature = "olap")]
+    async fn filter_payouts_by_time_range_constraints(
+        &self,
+        _merchant_id: &str,
+        _time_range: &api_models::payments::TimeRange,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> CustomResult<Vec<Payouts>, StorageError> {
+        // TODO: Implement function for `MockDb`
+        Err(StorageError::MockDbError)?
+    }
 }

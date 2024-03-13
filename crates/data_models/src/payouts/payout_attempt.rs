@@ -1,7 +1,9 @@
+use api_models::enums::PayoutConnectors;
 use common_enums as storage_enums;
 use storage_enums::MerchantStorageScheme;
 use time::PrimitiveDateTime;
 
+use super::payouts::Payouts;
 use crate::errors;
 
 #[async_trait::async_trait]
@@ -32,6 +34,21 @@ pub trait PayoutAttemptInterface {
         _payout_attempt_id: &str,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PayoutAttempt, errors::StorageError>;
+
+    async fn get_filters_for_payouts(
+        &self,
+        payout: &[Payouts],
+        merchant_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PayoutListFilters, errors::StorageError>;
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PayoutListFilters {
+    pub connector: Vec<PayoutConnectors>,
+    pub currency: Vec<storage_enums::Currency>,
+    pub status: Vec<storage_enums::PayoutStatus>,
+    pub payout_method: Vec<storage_enums::PayoutType>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

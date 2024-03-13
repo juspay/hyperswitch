@@ -679,22 +679,22 @@ pub async fn payouts_list_core(
     .await
     .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
 
-    let collected_futures = payouts.into_iter().map(|po| async {
+    let collected_futures = payouts.into_iter().map(|payouts| async {
         match db
             .find_payout_attempt_by_merchant_id_payout_id(
                 merchant_id,
-                &po.payout_id,
+                &payouts.payout_id,
                 merchant_account.storage_scheme,
             )
             .await
         {
-            Ok(poa) => Some(Ok((po, poa))),
+            Ok(payout_attempt) => Some(Ok((payouts, payout_attempt))),
             Err(error) => {
                 if matches!(error.current_context(), StorageError::ValueNotFound(_)) {
                     logger::warn!(
                         ?error,
                         "payout_attempt missing for payout_id : {}",
-                        po.payout_id,
+                        payouts.payout_id,
                     );
                     return None;
                 }
@@ -725,7 +725,7 @@ pub async fn payouts_list_core(
 }
 
 #[cfg(feature = "olap")]
-pub async fn payouts_filter_core(
+pub async fn payouts_filtered_list_core(
     state: AppState,
     merchant_account: domain::MerchantAccount,
     filters: payouts::PayoutListFilterConstraints,
@@ -749,6 +749,41 @@ pub async fn payouts_filter_core(
         api::PayoutListResponse {
             size: data.len(),
             data,
+        },
+    ))
+}
+
+#[cfg(feature = "olap")]
+pub async fn payouts_list_available_filters_core(
+    state: AppState,
+    merchant_account: domain::MerchantAccount,
+    time_range: api::TimeRange,
+) -> RouterResponse<api::PayoutListFilters> {
+    let db = state.store.as_ref();
+    let payout = db
+        .filter_payouts_by_time_range_constraints(
+            &merchant_account.merchant_id,
+            &time_range,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    let filters = db
+        .get_filters_for_payouts(
+            payout.as_slice(),
+            &merchant_account.merchant_id,
+            storage_enums::MerchantStorageScheme::PostgresOnly,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    Ok(services::ApplicationResponse::Json(
+        api::PayoutListFilters {
+            connector: filters.connector,
+            currency: filters.currency,
+            status: filters.status,
+            payout_method: filters.payout_method,
         },
     ))
 }

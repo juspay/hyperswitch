@@ -962,40 +962,40 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
 #[cfg(feature = "payouts")]
 impl ForeignFrom<(storage::Payouts, storage::PayoutAttempt)> for api::PayoutCreateResponse {
     fn foreign_from(item: (storage::Payouts, storage::PayoutAttempt)) -> Self {
-        let po = item.0;
-        let poa = item.1;
+        let payout = item.0;
+        let payout_attempt = item.1;
         let attempt = PayoutAttemptResponse {
-            attempt_id: poa.payout_attempt_id,
-            status: poa.status,
-            amount: po.amount,
-            currency: Some(po.destination_currency),
-            connector: poa.connector.clone(),
-            error_code: poa.error_code,
-            error_message: poa.error_message,
-            payment_method: Some(po.payout_type),
+            attempt_id: payout_attempt.payout_attempt_id,
+            status: payout_attempt.status,
+            amount: payout.amount,
+            currency: Some(payout.destination_currency),
+            connector: payout_attempt.connector.clone(),
+            error_code: payout_attempt.error_code,
+            error_message: payout_attempt.error_message,
+            payment_method: Some(payout.payout_type),
             payout_method_type: None,
-            connector_transaction_id: Some(poa.connector_payout_id),
+            connector_transaction_id: Some(payout_attempt.connector_payout_id),
             cancellation_reason: None,
-            payout_token: poa.payout_token,
+            payout_token: payout_attempt.payout_token,
             unified_code: None,
             unified_message: None,
         };
         let attempts = vec![attempt];
         Self {
-            payout_id: po.payout_id,
-            merchant_id: po.merchant_id,
-            status: po.status,
-            amount: po.amount,
-            created: Some(po.created_at),
-            currency: po.destination_currency,
-            description: po.description,
-            metadata: po.metadata,
-            customer_id: po.customer_id,
-            connector: poa.connector,
-            payout_type: po.payout_type,
-            business_label: poa.business_label,
-            business_country: poa.business_country,
-            recurring: po.recurring,
+            payout_id: payout.payout_id,
+            merchant_id: payout.merchant_id,
+            status: payout.status,
+            amount: payout.amount,
+            created: Some(payout.created_at),
+            currency: payout.destination_currency,
+            description: payout.description,
+            metadata: payout.metadata,
+            customer_id: payout.customer_id,
+            connector: payout_attempt.connector,
+            payout_type: payout.payout_type,
+            business_label: payout_attempt.business_label,
+            business_country: payout_attempt.business_country,
+            recurring: payout.recurring,
             attempts: Some(attempts),
             ..Default::default()
         }

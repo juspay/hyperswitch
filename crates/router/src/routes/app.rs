@@ -694,11 +694,15 @@ impl Payouts {
 
         #[cfg(feature = "olap")]
         {
-            route = route.service(
-                web::resource("/list")
-                    .route(web::get().to(payouts_list))
-                    .route(web::post().to(payouts_list_by_filter)),
-            );
+            route = route
+                .service(
+                    web::resource("/list")
+                        .route(web::get().to(payouts_list))
+                        .route(web::post().to(payouts_list_by_filter)),
+                )
+                .service(
+                    web::resource("/filter").route(web::post().to(payouts_list_available_filters)),
+                );
         }
         route = route
             .service(

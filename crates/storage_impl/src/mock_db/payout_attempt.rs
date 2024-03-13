@@ -49,4 +49,13 @@ impl PayoutAttemptInterface for MockDb {
         // TODO: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
     }
+
+    async fn get_filters_for_payouts(
+        &self,
+        _payouts: &[data_models::payouts::payouts::Payouts],
+        _merchant_id: &str,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> CustomResult<data_models::payouts::payout_attempt::PayoutListFilters, StorageError> {
+        Err(StorageError::MockDbError)?
+    }
 }

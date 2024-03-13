@@ -506,41 +506,14 @@ pub struct PayoutListConstraints {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<PrimitiveDateTime>,
 
-    /// Time less than the payout created time
-    #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(
-        default,
-        with = "common_utils::custom_serde::iso8601::option",
-        rename = "created.lt"
-    )]
-    pub created_lt: Option<PrimitiveDateTime>,
-
-    /// Time greater than the payout created time
-    #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(
-        default,
-        with = "common_utils::custom_serde::iso8601::option",
-        rename = "created.gt"
-    )]
-    pub created_gt: Option<PrimitiveDateTime>,
-
-    /// Time less than or equals to the payout created time
-    #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(
-        default,
-        with = "common_utils::custom_serde::iso8601::option",
-        rename = "created.lte"
-    )]
-    pub created_lte: Option<PrimitiveDateTime>,
-
-    /// Time greater than or equals to the payout created time
-    #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    #[serde(rename = "created.gte")]
-    pub created_gte: Option<PrimitiveDateTime>,
+    /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
+    #[serde(flatten)]
+    #[schema(value_type = Option<TimeRange>)]
+    pub time_range: Option<payments::TimeRange>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct PayoutListFilterConstraints {
     /// The identifier for payout
     #[schema(
@@ -587,4 +560,16 @@ pub struct PayoutListResponse {
     pub size: usize,
     // The list of payouts response objects
     pub data: Vec<PayoutCreateResponse>,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PayoutListFilters {
+    /// The list of available connector filters
+    pub connector: Vec<api_enums::PayoutConnectors>,
+    /// The list of available currency filters
+    pub currency: Vec<common_enums::Currency>,
+    /// The list of available payment status filters
+    pub status: Vec<common_enums::PayoutStatus>,
+    /// The list of available payment method filters
+    pub payout_method: Vec<common_enums::PayoutType>,
 }

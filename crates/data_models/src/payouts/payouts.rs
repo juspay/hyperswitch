@@ -45,6 +45,14 @@ pub trait PayoutsInterface {
         _filters: &PayoutFetchConstraints,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<(Payouts, PayoutAttempt)>, errors::StorageError>;
+
+    #[cfg(feature = "olap")]
+    async fn filter_payouts_by_time_range_constraints(
+        &self,
+        merchant_id: &str,
+        time_range: &api_models::payments::TimeRange,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<Payouts>, errors::StorageError>;
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

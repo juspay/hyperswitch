@@ -226,6 +226,19 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
             .filter_payouts_and_attempts(merchant_id, filters, storage_scheme)
             .await
     }
+
+    #[cfg(feature = "olap")]
+    #[instrument[skip_all]]
+    async fn filter_payouts_by_time_range_constraints(
+        &self,
+        merchant_id: &str,
+        time_range: &api_models::payments::TimeRange,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<Payouts>, StorageError> {
+        self.router_store
+            .filter_payouts_by_time_range_constraints(merchant_id, time_range, storage_scheme)
+            .await
+    }
 }
 
 #[async_trait::async_trait]
@@ -526,6 +539,19 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
                 )
             })
             .into_report()
+    }
+
+    #[cfg(feature = "olap")]
+    #[instrument(skip_all)]
+    async fn filter_payouts_by_time_range_constraints(
+        &self,
+        merchant_id: &str,
+        time_range: &api_models::payments::TimeRange,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<Payouts>, StorageError> {
+        let payout_filters = (*time_range).into();
+        self.filter_payouts_by_constraints(merchant_id, &payout_filters, storage_scheme)
+            .await
     }
 }
 

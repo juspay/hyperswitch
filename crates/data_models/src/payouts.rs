@@ -31,8 +31,10 @@ impl From<api_models::payouts::PayoutListConstraints> for PayoutFetchConstraints
     fn from(value: api_models::payouts::PayoutListConstraints) -> Self {
         Self::List(Box::new(PayoutListParams {
             offset: 0,
-            starting_at: value.created_gte.or(value.created_gt).or(value.created),
-            ending_at: value.created_lte.or(value.created_lt).or(value.created),
+            starting_at: value
+                .time_range
+                .map_or(value.created, |t| Some(t.start_time)),
+            ending_at: value.time_range.and_then(|t| t.end_time),
             connector: None,
             currency: None,
             status: None,
@@ -90,7 +92,7 @@ impl From<api_models::payouts::PayoutListFilterConstraints> for PayoutFetchConst
                 entity_type: value.entity_type,
                 limit: Some(std::cmp::min(
                     value.limit,
-                    consts::PAYOUTS_LIST_MAX_LIMIT_GET,
+                    consts::PAYOUTS_LIST_MAX_LIMIT_POST,
                 )),
             }))
         }

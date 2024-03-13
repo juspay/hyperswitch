@@ -8,7 +8,7 @@ use super::app::AppState;
 use crate::{
     core::{api_locking, payouts::*},
     services::{api, authentication as auth},
-    types::api::payouts as payout_types,
+    types::api::{payments as payment_types, payouts as payout_types},
 };
 
 /// Payouts - Create
@@ -256,7 +256,39 @@ pub async fn payouts_list_by_filter(
         state,
         &req,
         payload,
-        |state, auth, req| payouts_filter_core(state, auth.merchant_account, req),
+        |state, auth, req| payouts_filtered_list_core(state, auth.merchant_account, req),
+        &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[utoipa::path(
+    post,
+    path = "/payouts/filter",
+    responses(
+        (status = 200, description = "Payouts filtered", body = PayoutListResponse),
+        (status = 404, description = "Payout not found")
+    ),
+    tag = "Payouts",
+    operation_id = "Filter payouts",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::PayoutsList))]
+pub async fn payouts_list_available_filters(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<payment_types::TimeRange>,
+) -> HttpResponse {
+    let flow = Flow::PayoutsList;
+    let payload = json_payload.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, req| payouts_list_available_filters_core(state, auth.merchant_account, req),
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))
