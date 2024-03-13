@@ -131,8 +131,14 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             }
         }
 
-        let token_data = if let Some(token) = token.clone() {
-            Some(helpers::retrieve_payment_token_data(state, token, payment_method).await?)
+        let token_data = if let Some((token, payment_method)) = token
+            .as_ref()
+            .zip(payment_method.or(payment_attempt.payment_method))
+        {
+            Some(
+                helpers::retrieve_payment_token_data(state, token.clone(), Some(payment_method))
+                    .await?,
+            )
         } else {
             None
         };
@@ -254,13 +260,11 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             customer_acceptance: None,
             token,
             token_data,
-            address: PaymentAddress {
-                shipping: shipping_address.as_ref().map(|a| a.into()),
-                billing: billing_address.as_ref().map(|a| a.into()),
-                payment_method_billing: payment_method_billing
-                    .as_ref()
-                    .map(|address| address.into()),
-            },
+            address: PaymentAddress::new(
+                shipping_address.as_ref().map(From::from),
+                billing_address.as_ref().map(From::from),
+                payment_method_billing.as_ref().map(From::from),
+            ),
             confirm: request.confirm,
             payment_method_data: request
                 .payment_method_data

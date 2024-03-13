@@ -899,7 +899,9 @@ fn get_card_info<F>(
         None
     };
 
-    let address = item.get_billing_address_details_as_optional();
+    let address = item
+        .get_optional_billing()
+        .and_then(|billing_details| billing_details.address.as_ref());
 
     let billing_address = match address {
         Some(address) => Some(BillingAddress {

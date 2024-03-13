@@ -792,6 +792,25 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
     payment_data.payment_attempt = payment_attempt;
 
+    payment_data.authentication = match payment_data.authentication {
+        Some((authentication, authentication_data)) => {
+            let authentication_update = storage::AuthenticationUpdate::PostAuthorizationUpdate {
+                authentication_lifecycle_status:
+                    storage::enums::AuthenticationLifecycleStatus::Used,
+            };
+            let updated_authentication = state
+                .store
+                .update_authentication_by_merchant_id_authentication_id(
+                    authentication,
+                    authentication_update,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            Some((updated_authentication, authentication_data))
+        }
+        None => None,
+    };
+
     let amount_captured = get_total_amount_captured(
         router_data.request,
         router_data.amount_captured,
