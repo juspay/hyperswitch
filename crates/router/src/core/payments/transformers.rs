@@ -625,7 +625,6 @@ where
                         connector_name,
                     )
                 });
-                // let payment_method_status = payment_data.payment_method_info.
                 services::ApplicationResponse::JsonWithHeaders((
                     response
                         .set_net_amount(payment_attempt.net_amount)
