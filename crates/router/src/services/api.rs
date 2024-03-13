@@ -1460,7 +1460,8 @@ pub fn build_redirection_form(
     config: Settings,
 ) -> maud::Markup {
     use maud::PreEscaped;
-
+    let logging_template =
+        include_str!("redirection/assets/redirect_error_logs_push.js").to_string();
     match form {
         RedirectForm::Form {
             endpoint,
@@ -1517,11 +1518,16 @@ pub fn build_redirection_form(
                     }
                 }
 
-                (PreEscaped(r#"<script type="text/javascript"> var frm = document.getElementById("payment_form"); window.setTimeout(function () { frm.submit(); }, 300); </script>"#))
+                (PreEscaped(format!("<script type=\"text/javascript\"> {logging_template} var frm = document.getElementById(\"payment_form\"); window.setTimeout(function () {{ frm.submit(); }}, 300); </script>")))
+
             }
         }
         },
-        RedirectForm::Html { html_data } => PreEscaped(html_data.to_string()),
+        RedirectForm::Html { html_data } => PreEscaped(format!(
+            "{} <script>{}</script>",
+            html_data.to_string(),
+            logging_template
+        )),
         RedirectForm::BlueSnap {
             payment_fields_token,
         } => {
@@ -1568,6 +1574,7 @@ pub fn build_redirection_form(
                     }
 
                 (PreEscaped(format!("<script>
+                    {logging_template}
                     bluesnap.threeDsPaymentsSetup(\"{payment_fields_token}\",
                     function(sdkResponse) {{
                         // console.log(sdkResponse);
@@ -1632,6 +1639,7 @@ pub fn build_redirection_form(
               }
               </script>"#))
               (PreEscaped(format!("<script>
+                {logging_template}
                 window.addEventListener(\"message\", function(event) {{
                     if (event.origin === \"https://centinelapistag.cardinalcommerce.com\" || event.origin === \"https://centinelapi.cardinalcommerce.com\") {{
                       window.location.href = window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/cybersource?referenceId={reference_id}\");
@@ -1680,11 +1688,12 @@ pub fn build_redirection_form(
                 (PreEscaped(format!("<form id=\"step-up-form\" method=\"POST\" action=\"{step_up_url}\">
                 <input type=\"hidden\" name=\"JWT\" value=\"{access_token}\">
               </form>")))
-              (PreEscaped(r#"<script>
-              window.onload = function() {
+              (PreEscaped(format!("<script>
+              {logging_template}
+              window.onload = function() {{
               var stepUpForm = document.querySelector('#step-up-form'); if(stepUpForm) stepUpForm.submit();
-              }
-              </script>"#))
+              }}
+              </script>")))
             }}
         }
         RedirectForm::Payme => {
@@ -1693,7 +1702,8 @@ pub fn build_redirection_form(
                 head {
                     (PreEscaped(r#"<script src="https://cdn.paymeservice.com/hf/v1/hostedfields.js"></script>"#))
                 }
-                (PreEscaped("<script>
+                (PreEscaped(format!("<script>
+                    {logging_template}
                     var f = document.createElement('form');
                     f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/payme\");
                     f.method='POST';
@@ -1711,7 +1721,7 @@ pub fn build_redirection_form(
                         f.submit();
                     }});
             </script>
-                ".to_string()))
+                ")))
             }
         }
         RedirectForm::Braintree {
@@ -1752,7 +1762,7 @@ pub fn build_redirection_form(
                     }
 
                     (PreEscaped(format!("<script>
-                                initiateLogListener();
+                                {logging_template}
                                 var my3DSContainer;
                                 var clientToken = \"{client_token}\";
                                 braintree.threeDSecure.create({{
@@ -1819,7 +1829,6 @@ pub fn build_redirection_form(
             order_id,
         } => {
             let public_key_val = public_key.peek();
-            let logging_template = include_str!("../core/payment_link/fe_logging.js").to_string();
             maud::html! {
                     (maud::DOCTYPE)
                     head {
@@ -1852,7 +1861,6 @@ pub fn build_redirection_form(
                     }
                     (PreEscaped(format!("<script>
                     {logging_template}
-                    initiateLogListener();
                     const gateway = Gateway.create('{public_key_val}');
 
                     // Initialize the ThreeDSService
@@ -1975,7 +1983,6 @@ pub fn build_payment_link_html(
             Err(errors::ApiErrorResponse::InternalServerError)?
         }
     };
-
 
     // Add logging for payment link
     let logging_template = include_str!("../core/payment_link/fe_logging.js").to_string();
