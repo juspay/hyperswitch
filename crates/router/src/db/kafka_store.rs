@@ -33,6 +33,7 @@ use crate::{
     db::{
         address::AddressInterface,
         api_keys::ApiKeyInterface,
+        authentication::AuthenticationInterface,
         authorization::AuthorizationInterface,
         business_profile::BusinessProfileInterface,
         capture::CaptureInterface,
@@ -1298,6 +1299,21 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
+    async fn get_payment_method_count_by_customer_id_merchant_id_status(
+        &self,
+        customer_id: &str,
+        merchant_id: &str,
+        status: common_enums::PaymentMethodStatus,
+    ) -> CustomResult<i64, errors::StorageError> {
+        self.diesel_store
+            .get_payment_method_count_by_customer_id_merchant_id_status(
+                customer_id,
+                merchant_id,
+                status,
+            )
+            .await
+    }
+
     async fn find_payment_method_by_locker_id(
         &self,
         locker_id: &str,
@@ -2342,6 +2358,41 @@ impl AuthorizationInterface for KafkaStore {
                 merchant_id,
                 authorization_id,
                 authorization,
+            )
+            .await
+    }
+}
+
+#[async_trait::async_trait]
+impl AuthenticationInterface for KafkaStore {
+    async fn insert_authentication(
+        &self,
+        authentication: storage::AuthenticationNew,
+    ) -> CustomResult<storage::Authentication, errors::StorageError> {
+        self.diesel_store
+            .insert_authentication(authentication)
+            .await
+    }
+
+    async fn find_authentication_by_merchant_id_authentication_id(
+        &self,
+        merchant_id: String,
+        authentication_id: String,
+    ) -> CustomResult<storage::Authentication, errors::StorageError> {
+        self.diesel_store
+            .find_authentication_by_merchant_id_authentication_id(merchant_id, authentication_id)
+            .await
+    }
+
+    async fn update_authentication_by_merchant_id_authentication_id(
+        &self,
+        previous_state: storage::Authentication,
+        authentication_update: storage::AuthenticationUpdate,
+    ) -> CustomResult<storage::Authentication, errors::StorageError> {
+        self.diesel_store
+            .update_authentication_by_merchant_id_authentication_id(
+                previous_state,
+                authentication_update,
             )
             .await
     }

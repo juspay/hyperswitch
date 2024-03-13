@@ -7,6 +7,7 @@
 // Separation of concerns instead of separation of forms.
 
 pub mod api;
+pub mod authentication;
 pub mod domain;
 #[cfg(feature = "frm")]
 pub mod fraud_check;
@@ -30,11 +31,12 @@ use masking::Secret;
 use serde::Serialize;
 
 use self::{api::payments, storage::enums as storage_enums};
-pub use crate::core::payments::{CustomerDetails, PaymentAddress};
+pub use crate::core::payments::{payment_address::PaymentAddress, CustomerDetails};
 #[cfg(feature = "payouts")]
 use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW;
 use crate::{
     core::{
+        authentication as authentication_core,
         errors::{self, RouterResult},
         payments::{types, PaymentData, RecurringMandatePaymentData},
     },
@@ -322,6 +324,7 @@ pub struct RouterData<Flow, Request, Response> {
 
     pub dispute_id: Option<String>,
     pub refund_id: Option<String>,
+    pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -422,6 +425,7 @@ pub struct PaymentsAuthorizeData {
     pub customer_id: Option<String>,
     pub request_incremental_authorization: bool,
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub authentication_data: Option<authentication_core::types::AuthenticationData>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -1425,6 +1429,7 @@ impl From<&SetupMandateRouterData> for PaymentsAuthorizeData {
             surcharge_details: None,
             request_incremental_authorization: data.request.request_incremental_authorization,
             metadata: None,
+            authentication_data: None,
             customer_acceptance: data.request.customer_acceptance.clone(),
         }
     }
@@ -1468,6 +1473,7 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             #[cfg(feature = "payouts")]
             quote_id: data.quote_id.clone(),
             test_mode: data.test_mode,
+            payment_method_status: None,
             payment_method_balance: data.payment_method_balance.clone(),
             connector_api_version: data.connector_api_version.clone(),
             connector_http_status_code: data.connector_http_status_code,
@@ -1527,6 +1533,7 @@ impl<F1, F2>
             quote_id: data.quote_id.clone(),
             test_mode: data.test_mode,
             payment_method_balance: None,
+            payment_method_status: None,
             connector_api_version: None,
             connector_http_status_code: data.connector_http_status_code,
             external_latency: data.external_latency,

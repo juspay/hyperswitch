@@ -118,7 +118,7 @@ pub enum CustomerUpdate {
         connector_customer: Option<serde_json::Value>,
     },
     UpdateDefaultPaymentMethod {
-        default_payment_method_id: Option<String>,
+        default_payment_method_id: Option<Option<String>>,
     },
 }
 

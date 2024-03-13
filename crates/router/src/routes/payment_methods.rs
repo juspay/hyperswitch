@@ -253,7 +253,9 @@ pub async fn payment_method_delete_api(
         state,
         &req,
         pm,
-        |state, auth, req| cards::delete_payment_method(state, auth.merchant_account, req),
+        |state, auth, req| {
+            cards::delete_payment_method(state, auth.merchant_account, req, auth.key_store)
+        },
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))
