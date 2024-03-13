@@ -148,7 +148,7 @@ where
         access_token: None,
         session_token: None,
         reference_id: None,
-        payment_method_status: payment_data.payment_method_status,
+        payment_method_status: payment_data.payment_method_info.map(|info| info.status),
         payment_method_token: payment_data.pm_token.map(types::PaymentMethodToken::Token),
         connector_customer: payment_data.connector_customer_id,
         recurring_mandate_payment_data: payment_data.recurring_mandate_payment_data,
@@ -579,6 +579,7 @@ where
                         connector_name,
                     )
                 });
+                // let payment_method_status = payment_data.payment_method_info.
                 services::ApplicationResponse::JsonWithHeaders((
                     response
                         .set_net_amount(payment_attempt.net_amount)
@@ -728,7 +729,7 @@ where
                         .set_incremental_authorizations(incremental_authorizations_response)
                         .set_expires_on(payment_intent.session_expiry)
                         .set_payment_method_id(payment_attempt.payment_method_id)
-                        .set_payment_method_status(payment_data.payment_method_status)
+                        .set_payment_method_status(payment_data.payment_method_info.map(|info| info.status))
                         .to_owned(),
                     headers,
                 ))

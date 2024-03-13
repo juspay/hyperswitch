@@ -281,7 +281,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             multiple_capture_data: None,
             redirect_response,
             surcharge_details: None,
-            payment_method_status: None,
             frm_message: None,
             payment_link_data: None,
             incremental_authorization_details: None,
