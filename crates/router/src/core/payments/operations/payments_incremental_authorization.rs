@@ -123,11 +123,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             customer_acceptance: None,
             token: None,
             token_data: None,
-            address: PaymentAddress {
-                billing: None,
-                shipping: None,
-                payment_method_billing: None,
-            },
+            address: PaymentAddress::new(None, None, None),
             confirm: None,
             payment_method_data: None,
             payment_method_info: None,

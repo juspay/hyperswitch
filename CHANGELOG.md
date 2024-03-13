@@ -4,6 +4,43 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.03.13.1
+
+### Bug Fixes
+
+- **router:** Fix token fetch logic in complete authorize flow for three ds payments ([#4052](https://github.com/juspay/hyperswitch/pull/4052)) ([`ada0002`](https://github.com/juspay/hyperswitch/commit/ada000245522662c36032034a76c3e8b57152582))
+
+**Full Changelog:** [`2024.03.13.0...2024.03.13.1`](https://github.com/juspay/hyperswitch/compare/2024.03.13.0...2024.03.13.1)
+
+- - -
+
+## 2024.03.13.0
+
+### Features
+
+- **connector:** [AUTHORIZEDOTNET] Audit Connector ([#4035](https://github.com/juspay/hyperswitch/pull/4035)) ([`7840bdb`](https://github.com/juspay/hyperswitch/commit/7840bdb95f90065f3f6d671b07c3044e77740ed2))
+- **core:** Confirm flow and authorization api changes for external authentication ([#4015](https://github.com/juspay/hyperswitch/pull/4015)) ([`ce3625c`](https://github.com/juspay/hyperswitch/commit/ce3625cb0cdccc750a073c012f0e541b014c3190))
+- **global-search:** Dashboard globalsearch apis ([#3831](https://github.com/juspay/hyperswitch/pull/3831)) ([`ac8ddd4`](https://github.com/juspay/hyperswitch/commit/ac8ddd40208f3da5f65ca97bf5033cea5ca3ebe3))
+
+### Bug Fixes
+
+- **connector:** [Adyen] update config and add required fields ([#4046](https://github.com/juspay/hyperswitch/pull/4046)) ([`16d73cb`](https://github.com/juspay/hyperswitch/commit/16d73cb5f9f469d791f8880f3a2fd79135c821cd))
+- **core:** [REFUNDS] Fix Not Supported Connector Error ([#4045](https://github.com/juspay/hyperswitch/pull/4045)) ([`7513423`](https://github.com/juspay/hyperswitch/commit/7513423631ddf0fe86ef656ec6cad76d82c807bc))
+
+### Refactors
+
+- **address:** Pass payment method billing to the connector module ([#3828](https://github.com/juspay/hyperswitch/pull/3828)) ([`195c700`](https://github.com/juspay/hyperswitch/commit/195c700e6c88e457cecc0722a7e5990db1379f22))
+- **connector:** [Checkout] remove Paypal from wasm ([#4044](https://github.com/juspay/hyperswitch/pull/4044)) ([`3eff4eb`](https://github.com/juspay/hyperswitch/commit/3eff4ebd3a60b5831cbec0158527475c8f7d7eb4))
+- **openai:** Update open-api spec to have payment changes ([#4043](https://github.com/juspay/hyperswitch/pull/4043)) ([`708cce9`](https://github.com/juspay/hyperswitch/commit/708cce926125a29b406db48cf0ebd35b217927d4))
+- **payment_methods:**
+  - Filter wallet payment method from mca based on customer pm ([#4038](https://github.com/juspay/hyperswitch/pull/4038)) ([`abe9c2a`](https://github.com/juspay/hyperswitch/commit/abe9c2ac17a0783f3625dd7fde5d28e285012ec3))
+  - Allow deletion of default payment method for a customer if only one pm exists ([#4027](https://github.com/juspay/hyperswitch/pull/4027)) ([`45ed56f`](https://github.com/juspay/hyperswitch/commit/45ed56f16516c44acbe75b75c0621b78ccdb9894))
+- [Checkout] change payment and webhooks API contract ([#4023](https://github.com/juspay/hyperswitch/pull/4023)) ([`733a560`](https://github.com/juspay/hyperswitch/commit/733a560146bb06e51fa4ee7ed9b6d1d3d9eddf12))
+
+**Full Changelog:** [`2024.03.12.0...2024.03.13.0`](https://github.com/juspay/hyperswitch/compare/2024.03.12.0...2024.03.13.0)
+
+- - -
+
 ## 2024.03.12.0
 
 ### Refactors
