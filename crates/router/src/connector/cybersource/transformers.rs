@@ -508,8 +508,15 @@ impl
             .map_or(false, |future_usage| {
                 matches!(future_usage, FutureUsage::OffSession)
             })
-            && item.router_data.request.customer_acceptance.is_some()
-        {
+            && (item.router_data.request.customer_acceptance.is_some()
+                || item
+                    .router_data
+                    .request
+                    .setup_mandate_details
+                    .clone()
+                    .map_or(false, |mandate_details| {
+                        mandate_details.customer_acceptance.is_some()
+                    })) {
             (
                 Some(vec![CybersourceActionsList::TokenCreate]),
                 Some(vec![CybersourceActionsTokenType::PaymentInstrument]),
