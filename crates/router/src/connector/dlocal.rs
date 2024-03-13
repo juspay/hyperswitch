@@ -173,7 +173,7 @@ impl ConnectorValidation for Dlocal {
 
                 api_models::payments::WalletData::AliPayRedirect(_)
                 | api_models::payments::WalletData::PaypalRedirect(_) 
-                | api_models::payments::WalletData::ApplePay(_) => Ok(()),
+                | api_models::payments::WalletData::ApplePay(_) 
                 | api_models::payments::WalletData::WeChatPayRedirect(_)
                 | api_models::payments::WalletData::SamsungPay(_)
                 | api_models::payments::WalletData::KakaoPayRedirect(_)
