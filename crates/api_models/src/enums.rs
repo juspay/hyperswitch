@@ -116,6 +116,7 @@ pub enum Connector {
     Square,
     Stax,
     Stripe,
+    Threedsecureio,
     Trustpay,
     // Tsys,
     Tsys,
@@ -148,6 +149,146 @@ impl Connector {
     pub fn requires_defend_dispute(&self) -> bool {
         matches!(self, Self::Checkout)
     }
+    pub fn is_separate_authentication_supported(&self) -> bool {
+        #[cfg(feature = "dummy_connector")]
+        match self {
+            Self::DummyConnector1
+            | Self::DummyConnector2
+            | Self::DummyConnector3
+            | Self::DummyConnector4
+            | Self::DummyConnector5
+            | Self::DummyConnector6
+            | Self::DummyConnector7 => false,
+            Self::Aci
+            | Self::Adyen
+            | Self::Airwallex
+            | Self::Authorizedotnet
+            | Self::Bambora
+            | Self::Bankofamerica
+            | Self::Bitpay
+            | Self::Bluesnap
+            | Self::Boku
+            | Self::Braintree
+            | Self::Cashtocode
+            | Self::Coinbase
+            | Self::Cryptopay
+            | Self::Dlocal
+            | Self::Fiserv
+            | Self::Forte
+            | Self::Globalpay
+            | Self::Globepay
+            | Self::Gocardless
+            | Self::Helcim
+            | Self::Iatapay
+            | Self::Klarna
+            | Self::Mollie
+            | Self::Multisafepay
+            | Self::Nexinets
+            | Self::Nmi
+            | Self::Nuvei
+            | Self::Opennode
+            | Self::Payme
+            | Self::Paypal
+            | Self::Payu
+            | Self::Placetopay
+            | Self::Powertranz
+            | Self::Prophetpay
+            | Self::Rapyd
+            | Self::Shift4
+            | Self::Square
+            | Self::Stax
+            | Self::Trustpay
+            | Self::Tsys
+            | Self::Volt
+            | Self::Wise
+            | Self::Worldline
+            | Self::Worldpay
+            | Self::Zen
+            | Self::Signifyd
+            | Self::Plaid
+            | Self::Riskified
+            | Self::Threedsecureio
+            | Self::Cybersource
+            | Self::Noon
+            | Self::Stripe => false,
+            Self::Checkout => true,
+        }
+        #[cfg(not(feature = "dummy_connector"))]
+        match self {
+            Self::Aci
+            | Self::Adyen
+            | Self::Airwallex
+            | Self::Authorizedotnet
+            | Self::Bambora
+            | Self::Bankofamerica
+            | Self::Bitpay
+            | Self::Bluesnap
+            | Self::Boku
+            | Self::Braintree
+            | Self::Cashtocode
+            | Self::Coinbase
+            | Self::Cryptopay
+            | Self::Dlocal
+            | Self::Fiserv
+            | Self::Forte
+            | Self::Globalpay
+            | Self::Globepay
+            | Self::Gocardless
+            | Self::Helcim
+            | Self::Iatapay
+            | Self::Klarna
+            | Self::Mollie
+            | Self::Multisafepay
+            | Self::Nexinets
+            | Self::Nmi
+            | Self::Nuvei
+            | Self::Opennode
+            | Self::Payme
+            | Self::Paypal
+            | Self::Payu
+            | Self::Placetopay
+            | Self::Powertranz
+            | Self::Prophetpay
+            | Self::Rapyd
+            | Self::Shift4
+            | Self::Square
+            | Self::Stax
+            | Self::Trustpay
+            | Self::Tsys
+            | Self::Volt
+            | Self::Wise
+            | Self::Worldline
+            | Self::Worldpay
+            | Self::Zen
+            | Self::Signifyd
+            | Self::Plaid
+            | Self::Riskified
+            | Self::Threedsecureio
+            | Self::Cybersource
+            | Self::Noon
+            | Self::Stripe => false,
+            Self::Checkout => true,
+        }
+    }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum AuthenticationConnectors {
+    Threedsecureio,
 }
 
 #[cfg(feature = "payouts")]
@@ -223,16 +364,6 @@ pub enum FrmConnectors {
     /// Signifyd Risk Manager. Official docs: https://docs.signifyd.com/
     Signifyd,
     Riskified,
-}
-
-#[cfg(feature = "frm")]
-impl From<FrmConnectors> for RoutableConnectors {
-    fn from(value: FrmConnectors) -> Self {
-        match value {
-            FrmConnectors::Signifyd => Self::Signifyd,
-            FrmConnectors::Riskified => Self::Riskified,
-        }
-    }
 }
 
 #[derive(
@@ -551,4 +682,8 @@ pub enum PmAuthConnectors {
 
 pub fn convert_pm_auth_connector(connector_name: &str) -> Option<PmAuthConnectors> {
     PmAuthConnectors::from_str(connector_name).ok()
+}
+
+pub fn convert_authentication_connector(connector_name: &str) -> Option<AuthenticationConnectors> {
+    AuthenticationConnectors::from_str(connector_name).ok()
 }

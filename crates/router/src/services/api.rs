@@ -9,7 +9,10 @@ use std::{
     time::{Duration, Instant},
 };
 
-use actix_web::{body, web, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError};
+use actix_web::{
+    body, http::header::HeaderValue, web, FromRequest, HttpRequest, HttpResponse, Responder,
+    ResponseError,
+};
 use api_models::enums::{CaptureMethod, PaymentMethodType};
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
 use common_enums::Currency;
@@ -20,7 +23,7 @@ use common_utils::{
     request::RequestContent,
 };
 use error_stack::{report, IntoReport, Report, ResultExt};
-use masking::{PeekInterface, Secret};
+use masking::{Maskable, PeekInterface, Secret};
 use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
 use serde::Serialize;
 use serde_json::json;
@@ -110,7 +113,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         &self,
         _req: &types::RouterData<T, Req, Resp>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![])
     }
 
@@ -847,7 +850,7 @@ pub enum ApplicationResponse<R> {
     Form(Box<RedirectionFormData>),
     PaymentLinkForm(Box<PaymentLinkAction>),
     FileData((Vec<u8>, mime::Mime)),
-    JsonWithHeaders((R, Vec<(String, String)>)),
+    JsonWithHeaders((R, Vec<(String, Maskable<String>)>)),
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -1046,7 +1049,7 @@ where
                 );
 
                 if let Some((_, value)) = headers.iter().find(|(key, _)| key == X_HS_LATENCY) {
-                    if let Ok(external_latency) = value.parse::<u128>() {
+                    if let Ok(external_latency) = value.clone().into_inner().parse::<u128>() {
                         overhead_latency.replace(external_latency);
                     }
                 }
@@ -1121,11 +1124,35 @@ where
 {
     let request_method = request.method().as_str();
     let url_path = request.path();
+
+    let unmasked_incoming_header_keys = state.conf().unmasked_headers.keys;
+
+    let incoming_request_header = request.headers();
+
+    let incoming_header_to_log: HashMap<String, HeaderValue> =
+        incoming_request_header
+            .iter()
+            .fold(HashMap::new(), |mut acc, (key, value)| {
+                let key = key.to_string();
+                if unmasked_incoming_header_keys.contains(&key.as_str().to_lowercase()) {
+                    acc.insert(key.clone(), value.clone());
+                } else {
+                    acc.insert(
+                        key.clone(),
+                        http::header::HeaderValue::from_static("**MASKED**"),
+                    );
+                }
+                acc
+            });
+
     tracing::Span::current().record("request_method", request_method);
     tracing::Span::current().record("request_url_path", url_path);
 
     let start_instant = Instant::now();
-    logger::info!(tag = ?Tag::BeginRequest, payload = ?payload);
+
+    logger::info!(
+        tag = ?Tag::BeginRequest, payload = ?payload,
+    headers = ?incoming_header_to_log);
 
     let server_wrap_util_res = metrics::request::record_request_time_metric(
         server_wrap_util(
@@ -1309,21 +1336,33 @@ pub fn http_server_error_json_response<T: body::MessageBody + 'static>(
 
 pub fn http_response_json_with_headers<T: body::MessageBody + 'static>(
     response: T,
-    mut headers: Vec<(String, String)>,
+    headers: Vec<(String, Maskable<String>)>,
     request_duration: Option<Duration>,
 ) -> HttpResponse {
     let mut response_builder = HttpResponse::Ok();
-
-    for (name, value) in headers.iter_mut() {
-        if name == X_HS_LATENCY {
+    for (header_name, header_value) in headers {
+        let is_sensitive_header = header_value.is_masked();
+        let mut header_value = header_value.into_inner();
+        if header_name == X_HS_LATENCY {
             if let Some(request_duration) = request_duration {
-                if let Ok(external_latency) = value.parse::<u128>() {
+                if let Ok(external_latency) = header_value.parse::<u128>() {
                     let updated_duration = request_duration.as_millis() - external_latency;
-                    *value = updated_duration.to_string();
+                    header_value = updated_duration.to_string();
                 }
             }
         }
-        response_builder.append_header((name.clone(), value.clone()));
+        let mut header_value = match HeaderValue::from_str(header_value.as_str()) {
+            Ok(header_value) => header_value,
+            Err(e) => {
+                logger::error!(?e);
+                return http_server_error_json_response("Something Went Wrong");
+            }
+        };
+
+        if is_sensitive_header {
+            header_value.set_sensitive(true);
+        }
+        response_builder.append_header((header_name, header_value));
     }
 
     response_builder

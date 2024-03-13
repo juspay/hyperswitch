@@ -9,6 +9,7 @@ use ::common_utils::{
     request::RequestContent,
 };
 use error_stack::{IntoReport, ResultExt};
+use masking::ExposeInterface;
 use transformers as nuvei;
 
 use super::utils::{self, RouterData};
@@ -1010,7 +1011,7 @@ impl services::ConnectorRedirectResponse for Nuvei {
                     let redirect_response: nuvei::NuveiRedirectionResponse =
                         payload.parse_value("NuveiRedirectionResponse").switch()?;
                     let acs_response: nuvei::NuveiACSResponse =
-                        utils::base64_decode(redirect_response.cres)?
+                        utils::base64_decode(redirect_response.cres.expose())?
                             .as_slice()
                             .parse_struct("NuveiACSResponse")
                             .switch()?;

@@ -97,6 +97,15 @@ pub struct MerchantAccountCreate {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct AuthenticationConnectorDetails {
+    /// List of authentication connectors
+    #[schema(value_type = Vec<AuthenticationConnectors>)]
+    pub authentication_connectors: Vec<enums::AuthenticationConnectors>,
+    /// URL of the (customer service) website that will be shown to the shopper in case of technical errors during the 3D Secure 2 process.
+    pub three_ds_requestor_url: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct MerchantAccountMetadata {
     pub compatible_connector: Option<api_enums::Connector>,
 
@@ -928,6 +937,9 @@ pub struct BusinessProfileCreate {
 
     /// Default Payment Link config for all payment links created under this business profile
     pub payment_link_config: Option<BusinessPaymentLinkConfig>,
+
+    /// External 3DS authentication details
+    pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
 }
 
 #[derive(Clone, Debug, ToSchema, Serialize)]
@@ -994,6 +1006,9 @@ pub struct BusinessProfileResponse {
 
     /// Default Payment Link config for all payment links created under this business profile
     pub payment_link_config: Option<serde_json::Value>,
+
+    /// External 3DS authentication details
+    pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -1052,6 +1067,9 @@ pub struct BusinessProfileUpdate {
 
     /// Default Payment Link config for all payment links created under this business profile
     pub payment_link_config: Option<BusinessPaymentLinkConfig>,
+
+    /// External 3DS authentication details
+    pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]

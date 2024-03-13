@@ -46,8 +46,9 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
 }
 fn get_payment_info() -> Option<PaymentInfo> {
     Some(PaymentInfo {
-        address: Some(PaymentAddress {
-            billing: Some(Address {
+        address: Some(PaymentAddress::new(
+            None,
+            Some(Address {
                 address: Some(AddressDetails {
                     first_name: Some(Secret::new("joseph".to_string())),
                     last_name: Some(Secret::new("Doe".to_string())),
@@ -56,8 +57,8 @@ fn get_payment_info() -> Option<PaymentInfo> {
                 phone: None,
                 email: None,
             }),
-            ..Default::default()
-        }),
+            None,
+        )),
         ..Default::default()
     })
 }

@@ -1,4 +1,4 @@
-use std::{fmt, num::NonZeroI64};
+use std::{collections::HashMap, fmt, num::NonZeroI64};
 
 use cards::CardNumber;
 use common_utils::{
@@ -10,7 +10,8 @@ use masking::Secret;
 use router_derive::Setter;
 use serde::{
     de::{self, Unexpected, Visitor},
-    Deserialize, Deserializer, Serialize, Serializer,
+    ser::Serializer,
+    Deserialize, Deserializer, Serialize,
 };
 use time::PrimitiveDateTime;
 use url::Url;
@@ -309,6 +310,7 @@ pub struct PaymentsRequest {
 
     /// The payment method information provided for making a payment
     #[schema(example = "bank_transfer")]
+    #[serde(with = "payment_method_data_serde", default)]
     pub payment_method_data: Option<PaymentMethodDataRequest>,
 
     /// The payment method that is to be used
@@ -348,8 +350,12 @@ pub struct PaymentsRequest {
     #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest)]
     pub client_secret: Option<String>,
 
-    /// Passing this object during payments creates a mandate. The mandate_type sub object is passed by the server usually and the customer_acceptance sub object is usually passed by the SDK or client
+    /// Passing this object during payments creates a mandate. The mandate_type sub object is passed by the server.
     pub mandate_data: Option<MandateData>,
+
+    /// Passing this object during payments confirm . The customer_acceptance sub object is usually passed by the SDK or client
+    #[schema(value_type = Option<CustomerAcceptance>)]
+    pub customer_acceptance: Option<CustomerAcceptance>,
 
     /// A unique identifier to link the payment to a mandate. To do Recurring payments after a mandate has been created, pass the mandate_id instead of payment_method_data
     #[schema(max_length = 255, example = "mandate_iwer89rnjef349dni3")]
@@ -448,6 +454,10 @@ pub struct PaymentsRequest {
 
     /// additional data related to some frm connectors
     pub frm_metadata: Option<serde_json::Value>,
+
+    /// Whether to perform external authentication (if applicable)
+    #[schema(example = true)]
+    pub request_external_three_ds_authentication: Option<bool>,
 }
 
 impl PaymentsRequest {
@@ -731,7 +741,7 @@ pub enum MandateTransactionType {
 
 #[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct MandateIds {
-    pub mandate_id: String,
+    pub mandate_id: Option<String>,
     pub mandate_reference_id: Option<MandateReferenceId>,
 }
 
@@ -758,7 +768,7 @@ pub struct UpdateHistory {
 impl MandateIds {
     pub fn new(mandate_id: String) -> Self {
         Self {
-            mandate_id,
+            mandate_id: Some(mandate_id),
             mandate_reference_id: None,
         }
     }
@@ -1049,6 +1059,100 @@ pub enum BankDebitData {
     },
 }
 
+/// Custom serializer and deserializer for PaymentMethodData
+mod payment_method_data_serde {
+
+    use super::*;
+
+    /// Deserialize `reward` payment_method as string for backwards compatibility
+    /// The api contract would be
+    /// ```json
+    /// {
+    ///   "payment_method": "reward",
+    ///   "payment_method_type": "evoucher",
+    ///   "payment_method_data": "reward",
+    /// }
+    /// ```
+    ///
+    /// For other payment methods, use the provided deserializer
+    /// ```json
+    /// "payment_method_data": {
+    ///   "card": {
+    ///     "card_number": "4242424242424242",
+    ///     "card_exp_month": "10",
+    ///     "card_exp_year": "25",
+    ///     "card_holder_name": "joseph Doe",
+    ///     "card_cvc": "123"
+    ///    }
+    /// }
+    /// ```
+    pub fn deserialize<'de, D>(
+        deserializer: D,
+    ) -> Result<Option<PaymentMethodDataRequest>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(serde::Deserialize, Debug)]
+        #[serde(untagged)]
+        enum __Inner {
+            RewardString(String),
+            OptionalPaymentMethod(serde_json::Value),
+        }
+
+        let deserialize_to_inner = __Inner::deserialize(deserializer)?;
+        match deserialize_to_inner {
+            __Inner::OptionalPaymentMethod(value) => {
+                let parsed_value = serde_json::from_value::<PaymentMethodDataRequest>(value)
+                    .map_err(|serde_json_error| {
+                        serde::de::Error::custom(serde_json_error.to_string())
+                    })?;
+
+                Ok(Some(parsed_value))
+            }
+            __Inner::RewardString(inner_string) => {
+                let payment_method_data = match inner_string.as_str() {
+                    "reward" => PaymentMethodData::Reward,
+                    _ => Err(serde::de::Error::custom("Invalid Variant"))?,
+                };
+
+                Ok(Some(PaymentMethodDataRequest {
+                    payment_method_data,
+                    billing: None,
+                }))
+            }
+        }
+    }
+
+    pub fn serialize<S>(
+        payment_method_data_request: &Option<PaymentMethodDataRequest>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        if let Some(payment_method_data_request) = payment_method_data_request {
+            match payment_method_data_request.payment_method_data {
+                PaymentMethodData::Reward => serializer.serialize_str("reward"),
+                PaymentMethodData::CardRedirect(_)
+                | PaymentMethodData::BankDebit(_)
+                | PaymentMethodData::BankRedirect(_)
+                | PaymentMethodData::BankTransfer(_)
+                | PaymentMethodData::CardToken(_)
+                | PaymentMethodData::Crypto(_)
+                | PaymentMethodData::GiftCard(_)
+                | PaymentMethodData::PayLater(_)
+                | PaymentMethodData::Upi(_)
+                | PaymentMethodData::Voucher(_)
+                | PaymentMethodData::Card(_)
+                | PaymentMethodData::MandatePayment
+                | PaymentMethodData::Wallet(_) => payment_method_data_request.serialize(serializer),
+            }
+        } else {
+            serializer.serialize_none()
+        }
+    }
+}
+
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
 pub struct PaymentMethodDataRequest {
     #[serde(flatten)]
@@ -1114,7 +1218,7 @@ impl PaymentMethodData {
             | Self::BankTransfer(_)
             | Self::Crypto(_)
             | Self::MandatePayment
-            | Self::Reward
+            | Self::Reward {}
             | Self::Upi(_)
             | Self::Voucher(_)
             | Self::GiftCard(_)
@@ -1354,12 +1458,18 @@ pub struct AdditionalCardInfo {
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
+pub enum Wallets {
+    ApplePay(ApplepayPaymentMethod),
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum AdditionalPaymentData {
     Card(Box<AdditionalCardInfo>),
     BankRedirect {
         bank_name: Option<api_enums::BankNames>,
     },
-    Wallet {},
+    Wallet(Option<Wallets>),
     PayLater {},
     BankTransfer {},
     Crypto {},
@@ -1926,13 +2036,46 @@ pub enum VoucherData {
     PayEasy(Box<JCSVoucherData>),
 }
 
+/// Use custom serializer to provide backwards compatible response for `reward` payment_method_data
+pub fn serialize_payment_method_data_response<S>(
+    payment_method_data_response: &Option<PaymentMethodDataResponseWithBilling>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    if let Some(payment_method_data_response) = payment_method_data_response {
+        match payment_method_data_response.payment_method_data {
+            PaymentMethodDataResponse::Reward {} => serializer.serialize_str("reward"),
+            PaymentMethodDataResponse::BankDebit {}
+            | PaymentMethodDataResponse::BankRedirect {}
+            | PaymentMethodDataResponse::Card(_)
+            | PaymentMethodDataResponse::CardRedirect {}
+            | PaymentMethodDataResponse::CardToken {}
+            | PaymentMethodDataResponse::Crypto {}
+            | PaymentMethodDataResponse::MandatePayment {}
+            | PaymentMethodDataResponse::GiftCard {}
+            | PaymentMethodDataResponse::PayLater {}
+            | PaymentMethodDataResponse::Paypal {}
+            | PaymentMethodDataResponse::Upi {}
+            | PaymentMethodDataResponse::Wallet(_)
+            | PaymentMethodDataResponse::BankTransfer {}
+            | PaymentMethodDataResponse::Voucher {} => {
+                payment_method_data_response.serialize(serializer)
+            }
+        }
+    } else {
+        serializer.serialize_none()
+    }
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodDataResponse {
     #[serde(rename = "card")]
     Card(Box<CardResponse>),
     BankTransfer {},
-    Wallet {},
+    Wallet(Option<Wallets>),
     PayLater {},
     Paypal {},
     BankRedirect {},
@@ -1947,7 +2090,7 @@ pub enum PaymentMethodDataResponse {
     CardToken {},
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, ToSchema, serde::Serialize)]
 pub struct PaymentMethodDataResponseWithBilling {
     // The struct is flattened in order to provide backwards compatibility
     #[serde(flatten)]
@@ -2141,6 +2284,32 @@ pub enum NextActionData {
     WaitScreenInformation {
         display_from_timestamp: i128,
         display_to_timestamp: Option<i128>,
+    },
+    /// Contains the information regarding three_ds_method_data submission, three_ds authentication, and authorization flows
+    ThreeDsInvoke { three_ds_data: ThreeDsData },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub struct ThreeDsData {
+    /// ThreeDS authentication url - to initiate authentication
+    pub three_ds_authentication_url: String,
+    /// ThreeDS authorize url - to complete the payment authorization after authentication
+    pub three_ds_authorize_url: String,
+    /// ThreeDS method details
+    pub three_ds_method_details: ThreeDsMethodData,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[serde(tag = "three_ds_method_key")]
+pub enum ThreeDsMethodData {
+    #[serde(rename = "threeDSMethodData")]
+    AcsThreeDsMethodData {
+        /// Whether ThreeDS method data submission is required
+        three_ds_method_data_submission: bool,
+        /// ThreeDS method data
+        three_ds_method_data: String,
+        /// ThreeDS method url
+        three_ds_method_url: Option<String>,
     },
 }
 
@@ -2387,6 +2556,7 @@ pub struct PaymentsResponse {
     /// The payment method information provided for making a payment
     #[schema(value_type = Option<PaymentMethod>, example = "bank_transfer")]
     #[auth_based]
+    #[serde(serialize_with = "serialize_payment_method_data_response")]
     pub payment_method_data: Option<PaymentMethodDataResponseWithBilling>,
 
     /// Provide a reference to a stored payment method
@@ -2535,6 +2705,12 @@ pub struct PaymentsResponse {
     /// List of incremental authorizations happened to the payment
     pub incremental_authorizations: Option<Vec<IncrementalAuthorizationResponse>>,
 
+    /// Details of external authentication
+    pub external_authentication_details: Option<ExternalAuthenticationDetailsResponse>,
+
+    /// Flag indicating if external 3ds authentication is made or not
+    pub external_3ds_authentication_attempted: Option<bool>,
+
     /// Date Time expiry of the payment
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
@@ -2542,6 +2718,33 @@ pub struct PaymentsResponse {
 
     /// Payment Fingerprint
     pub fingerprint: Option<String>,
+
+    /// Payment Method Id
+    pub payment_method_id: Option<String>,
+
+    /// Payment Method Status
+    #[schema(value_type = Option<PaymentMethodStatus>)]
+    pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
+}
+
+#[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema)]
+pub struct ExternalAuthenticationDetailsResponse {
+    /// Authentication Type - Challenge / Frictionless
+    #[schema(value_type = Option<DecoupledAuthenticationType>)]
+    pub authentication_flow: Option<enums::DecoupledAuthenticationType>,
+    /// Electronic Commerce Indicator (eci)
+    pub electronic_commerce_indicator: Option<String>,
+    /// Authentication Status
+    #[schema(value_type = AuthenticationStatus)]
+    pub status: enums::AuthenticationStatus,
+    /// DS Transaction ID
+    pub ds_transaction_id: Option<String>,
+    /// Message Version
+    pub version: Option<String>,
+    /// Error Code
+    pub error_code: Option<String>,
+    /// Error Message
+    pub error_message: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
@@ -2809,7 +3012,7 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
         match payment_method_data {
             AdditionalPaymentData::Card(card) => Self::Card(Box::new(CardResponse::from(*card))),
             AdditionalPaymentData::PayLater {} => Self::PayLater {},
-            AdditionalPaymentData::Wallet {} => Self::Wallet {},
+            AdditionalPaymentData::Wallet(wallet) => Self::Wallet(wallet),
             AdditionalPaymentData::BankRedirect { .. } => Self::BankRedirect {},
             AdditionalPaymentData::Crypto {} => Self::Crypto {},
             AdditionalPaymentData::BankDebit {} => Self::BankDebit {},
@@ -3381,6 +3584,107 @@ pub struct PaymentsIncrementalAuthorizationRequest {
     pub reason: Option<String>,
 }
 
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct PaymentsExternalAuthenticationRequest {
+    /// The identifier for the payment
+    #[serde(skip)]
+    pub payment_id: String,
+    /// Client Secret
+    #[schema(value_type = String)]
+    pub client_secret: Secret<String>,
+    /// SDK Information if request is from SDK
+    pub sdk_information: Option<SdkInformation>,
+    /// Device Channel indicating whether request is coming from App or Browser
+    pub device_channel: DeviceChannel,
+    /// Indicates if 3DS method data was successfully completed or not
+    pub threeds_method_comp_ind: ThreeDsCompletionIndicator,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub enum ThreeDsCompletionIndicator {
+    /// 3DS method successfully completed
+    #[serde(rename = "Y")]
+    Success,
+    /// 3DS method was not successful
+    #[serde(rename = "N")]
+    Failure,
+    /// 3DS method URL was unavailable
+    #[serde(rename = "U")]
+    NotAvailable,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema, Eq, PartialEq)]
+pub enum DeviceChannel {
+    #[serde(rename = "APP")]
+    App,
+    #[serde(rename = "BRW")]
+    Browser,
+}
+
+#[derive(Default, Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct SdkInformation {
+    /// Unique ID created on installations of the 3DS Requestor App on a Consumer Device
+    pub sdk_app_id: String,
+    /// JWE Object containing data encrypted by the SDK for the DS to decrypt
+    pub sdk_enc_data: String,
+    /// Public key component of the ephemeral key pair generated by the 3DS SDK
+    pub sdk_ephem_pub_key: HashMap<String, String>,
+    /// Unique transaction identifier assigned by the 3DS SDK
+    pub sdk_trans_id: String,
+    /// Identifies the vendor and version for the 3DS SDK that is integrated in a 3DS Requestor App
+    pub sdk_reference_number: String,
+    /// Indicates maximum amount of time in minutes
+    pub sdk_max_timeout: u8,
+}
+
+#[derive(Clone, Default, Debug, serde::Serialize, serde::Deserialize, Eq, PartialEq, ToSchema)]
+pub enum TransactionStatus {
+    /// Authentication/ Account Verification Successful
+    #[serde(rename = "Y")]
+    Success,
+    /// Not Authenticated /Account Not Verified; Transaction denied
+    #[default]
+    #[serde(rename = "N")]
+    Failure,
+    /// Authentication/ Account Verification Could Not Be Performed; Technical or other problem, as indicated in Authentication Response(ARes) or Result Request (RReq)
+    #[serde(rename = "U")]
+    VerificationNotPerformed,
+    /// Attempts Processing Performed; Not Authenticated/Verified , but a proof of attempted authentication/verification is provided
+    #[serde(rename = "A")]
+    NotVerified,
+    /// Authentication/ Account Verification Rejected; Issuer is rejecting authentication/verification and request that authorisation not be attempted.
+    #[serde(rename = "R")]
+    Rejected,
+    /// Challenge Required; Additional authentication is required using the Challenge Request (CReq) / Challenge Response (CRes)
+    #[serde(rename = "C")]
+    ChallengeRequired,
+    /// Challenge Required; Decoupled Authentication confirmed.
+    #[serde(rename = "D")]
+    ChallengeRequiredDecoupledAuthentication,
+    /// Informational Only; 3DS Requestor challenge preference acknowledged.
+    #[serde(rename = "I")]
+    InformationOnly,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct PaymentsExternalAuthenticationResponse {
+    /// Indicates the trans status
+    #[serde(rename = "trans_status")]
+    pub transaction_status: TransactionStatus,
+    /// Access Server URL to be used for challenge submission
+    pub acs_url: Option<String>,
+    /// Challenge request which should be sent to acs_url
+    pub challenge_request: Option<String>,
+    /// Unique identifier assigned by the EMVCo
+    pub acs_reference_number: Option<String>,
+    /// Unique identifier assigned by the ACS to identify a single transaction
+    pub acs_trans_id: Option<String>,
+    /// Unique identifier assigned by the 3DS Server to identify a single transaction
+    pub three_dsserver_trans_id: Option<String>,
+    /// Contains the JWS object created by the ACS for the ARes message
+    pub acs_signed_content: Option<String>,
+}
+
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsApproveRequest {
     /// The identifier for the payment
@@ -3758,4 +4062,74 @@ pub enum PaymentLinkStatus {
 pub enum PaymentLinkStatusWrap {
     PaymentLinkStatus(PaymentLinkStatus),
     IntentStatus(api_enums::IntentStatus),
+}
+
+#[cfg(test)]
+mod payments_request_api_contract {
+    #![allow(clippy::unwrap_used)]
+    #![allow(clippy::panic)]
+    use std::str::FromStr;
+
+    use super::*;
+
+    #[test]
+    fn test_successful_card_deser() {
+        let payments_request = r#"
+        {
+            "amount": 6540,
+            "currency": "USD",
+            "payment_method": "card",
+            "payment_method_data": {
+                "card": {
+                    "card_number": "4242424242424242",
+                    "card_exp_month": "10",
+                    "card_exp_year": "25",
+                    "card_holder_name": "joseph Doe",
+                    "card_cvc": "123"
+                }
+            }
+        }
+        "#;
+
+        let expected_card_number_string = "4242424242424242";
+        let expected_card_number = CardNumber::from_str(expected_card_number_string).unwrap();
+
+        let payments_request = serde_json::from_str::<PaymentsRequest>(payments_request);
+        assert!(payments_request.is_ok());
+
+        if let PaymentMethodData::Card(card_data) = payments_request
+            .unwrap()
+            .payment_method_data
+            .unwrap()
+            .payment_method_data
+        {
+            assert_eq!(card_data.card_number, expected_card_number);
+        } else {
+            panic!("Received unexpected response")
+        }
+    }
+
+    #[test]
+    fn test_successful_payment_method_reward() {
+        let payments_request = r#"
+        {
+            "amount": 6540,
+            "currency": "USD",
+            "payment_method": "reward",
+            "payment_method_data": "reward",
+            "payment_method_type": "evoucher"
+        }
+        "#;
+
+        let payments_request = serde_json::from_str::<PaymentsRequest>(payments_request);
+        assert!(payments_request.is_ok());
+        assert_eq!(
+            payments_request
+                .unwrap()
+                .payment_method_data
+                .unwrap()
+                .payment_method_data,
+            PaymentMethodData::Reward
+        );
+    }
 }
