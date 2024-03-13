@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.03.01.0-hotfix7
+
+### Bug Fixes
+
+- **connector:** [adyen] handle Webhook reference and object ([#4062](https://github.com/juspay/hyperswitch/pull/4062)) ([`0954baf`](https://github.com/juspay/hyperswitch/commit/0954bafd404717e437d042d3658934db1d0f05d3))
+
+- - -
+
 ## 2024.03.01.0-hotfix6
 
 ### Bug Fixes
