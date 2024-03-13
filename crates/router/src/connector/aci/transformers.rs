@@ -132,9 +132,7 @@ impl TryFrom<&api_models::payments::WalletData> for PaymentDetails {
             | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
             | api_models::payments::WalletData::DanaRedirect { .. }
             | api_models::payments::WalletData::GooglePay(_)
-            | api_models::payments::WalletData::GoPayRedirect(_)
             | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
-            | api_models::payments::WalletData::MobilePayRedirect(_)
             | api_models::payments::WalletData::MobilePayRedirect(_)
             | api_models::payments::WalletData::PaypalRedirect(_)
             | api_models::payments::WalletData::PaypalSdk(_)
@@ -289,6 +287,7 @@ impl
             }
             api_models::payments::BankRedirectData::Bizum { .. }
             | api_models::payments::BankRedirectData::Blik { .. }
+            | api_models::payments::BankRedirectData::BancontactCard { .. }
             | api_models::payments::BankRedirectData::OnlineBankingCzechRepublic { .. }
             | api_models::payments::BankRedirectData::OnlineBankingFinland { .. }
             | api_models::payments::BankRedirectData::OnlineBankingFpx { .. }
