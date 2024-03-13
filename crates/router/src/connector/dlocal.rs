@@ -250,7 +250,7 @@ impl ConnectorValidation for Dlocal {
                 api_models::payments::BankDebitData::SepaBankDebit { .. }
                 | api_models::payments::BankDebitData::AchBankDebit { .. }
                 | api_models::payments::BankDebitData::BacsBankDebit { .. } => Err(
-                    connector_utils::construct_mandate_not_implemented_error(pm_type, self.id()),
+                    connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
                 ),
 
                 api_models::payments::BankDebitData::BecsBankDebit { .. } => Err(
