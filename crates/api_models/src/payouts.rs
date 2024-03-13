@@ -1,7 +1,7 @@
 use cards::CardNumber;
 use common_utils::{
     crypto,
-    pii::{self, Email},
+    pii::{self, Email}, consts::default_payouts_list_limit,
 };
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -497,7 +497,7 @@ pub struct PayoutListConstraints {
 
     /// limit on the number of objects to return
     #[schema(default = 10, maximum = 100)]
-    #[serde(default = "payments::default_limit")]
+    #[serde(default = "default_payouts_list_limit")]
     pub limit: u32,
 
     /// The time at which payout is created
@@ -555,7 +555,7 @@ pub struct PayoutListFilterConstraints {
     #[schema(example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub customer_id: Option<String>,
     /// The limit on the number of objects. The default limit is 10 and max limit is 20
-    #[serde(default = "payments::default_limit")]
+    #[serde(default = "default_payouts_list_limit")]
     pub limit: u32,
     /// The starting point within a list of objects
     pub offset: Option<u32>,

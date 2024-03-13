@@ -4,7 +4,7 @@ use cards::CardNumber;
 use common_utils::{
     crypto,
     ext_traits::Encode,
-    pii::{self, Email},
+    pii::{self, Email}, consts::default_payments_list_limit,
 };
 use masking::Secret;
 use router_derive::Setter;
@@ -2764,7 +2764,7 @@ pub struct PaymentListConstraints {
 
     /// limit on the number of objects to return
     #[schema(default = 10, maximum = 100)]
-    #[serde(default = "default_limit")]
+    #[serde(default = "default_payments_list_limit")]
     pub limit: u32,
 
     /// The time at which payment is created
@@ -2850,7 +2850,7 @@ pub struct PaymentListFilterConstraints {
     /// The identifier for customer
     pub customer_id: Option<String>,
     /// The limit on the number of objects. The default limit is 10 and max limit is 20
-    #[serde(default = "default_limit")]
+    #[serde(default = "default_payments_list_limit")]
     pub limit: u32,
     /// The starting point within a list of objects
     pub offset: Option<u32>,
@@ -2918,10 +2918,6 @@ pub struct VerifyResponse {
     pub payment_token: Option<String>,
     pub error_code: Option<String>,
     pub error_message: Option<String>,
-}
-
-pub fn default_limit() -> u32 {
-    10
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]

@@ -51,14 +51,11 @@ pub struct MockDb {
     pub user_roles: Arc<Mutex<Vec<store::user_role::UserRole>>>,
     pub authorizations: Arc<Mutex<Vec<store::authorization::Authorization>>>,
     pub dashboard_metadata: Arc<Mutex<Vec<store::user::dashboard_metadata::DashboardMetadata>>>,
-<<<<<<< HEAD
     #[cfg(feature = "payouts")]
     pub payout_attempt: Arc<Mutex<Vec<store::payout_attempt::PayoutAttempt>>>,
     #[cfg(feature = "payouts")]
     pub payouts: Arc<Mutex<Vec<store::payouts::Payouts>>>,
-=======
     pub authentications: Arc<Mutex<Vec<store::authentication::Authentication>>>,
->>>>>>> origin/main
     pub roles: Arc<Mutex<Vec<store::role::Role>>>,
 }
 
@@ -101,6 +98,7 @@ impl MockDb {
             payout_attempt: Default::default(),
             #[cfg(feature = "payouts")]
             payouts: Default::default(),
+            authentications: Default::default(),
             roles: Default::default(),
         })
     }
