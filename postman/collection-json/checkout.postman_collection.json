@@ -900,6 +900,16 @@
                   "name": "Payments - Create",
                   "event": [
                     {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "pm.environment.set(\"random_number\", _.random(1000, 100000));",
+                          ""
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
+                    {
                       "listen": "test",
                       "script": {
                         "exec": [
@@ -1907,6 +1917,16 @@
                   "name": "Payments - Create",
                   "event": [
                     {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "pm.environment.set(\"random_number\", _.random(1000, 100000));",
+                          ""
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
+                    {
                       "listen": "test",
                       "script": {
                         "exec": [
@@ -2532,6 +2552,16 @@
                 {
                   "name": "Payments - Create",
                   "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "pm.environment.set(\"random_number\", _.random(1000, 100000));",
+                          ""
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
                     {
                       "listen": "test",
                       "script": {
@@ -3176,6 +3206,16 @@
                 {
                   "name": "Payments - Create",
                   "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "pm.environment.set(\"random_number\", _.random(1000, 100000));",
+                          ""
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
                     {
                       "listen": "test",
                       "script": {
