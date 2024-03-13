@@ -2123,6 +2123,7 @@ pub mod payment_address {
         shipping: Option<api::Address>,
         billing: Option<api::Address>,
         payment_method_billing: Option<api::Address>,
+        is_payment_method_billing_passed: bool,
     }
 
     impl PaymentAddress {
@@ -2131,6 +2132,8 @@ pub mod payment_address {
             billing: Option<api::Address>,
             payment_method_billing: Option<api::Address>,
         ) -> Self {
+            let is_payment_method_billing_passed = payment_method_billing.is_some();
+
             let payment_method_billing = match (payment_method_billing, billing.clone()) {
                 (Some(payment_method_billing), Some(order_billing)) => Some(api::Address {
                     address: payment_method_billing.address.or(order_billing.address),
@@ -2146,6 +2149,7 @@ pub mod payment_address {
                 shipping,
                 billing,
                 payment_method_billing,
+                is_payment_method_billing_passed,
             }
         }
 
@@ -2155,6 +2159,14 @@ pub mod payment_address {
 
         pub fn get_payment_method_billing(&self) -> Option<&api::Address> {
             self.payment_method_billing.as_ref()
+        }
+
+        pub fn get_request_payment_method_billing(&self) -> Option<&api::Address> {
+            if self.is_payment_method_billing_passed {
+                self.payment_method_billing.as_ref()
+            } else {
+                None
+            }
         }
 
         pub fn get_payment_billing(&self) -> Option<&api::Address> {
