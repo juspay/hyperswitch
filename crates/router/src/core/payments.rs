@@ -391,6 +391,15 @@ where
                 }
             };
 
+            frm_info.as_ref().map(|i| {
+                logger::debug!(
+                    "[DEBUG] post connector calls - frm_data {:?}\nsuggested_action {:?}",
+                    i.frm_data.clone().map(|f| Some(f.fraud_check)),
+                    // i.frm_data.fraud_check,
+                    i.suggested_action
+                );
+            });
+
             #[cfg(feature = "frm")]
             if let Some(fraud_info) = &mut frm_info {
                 Box::pin(frm_core::post_payment_frm_core(

@@ -482,6 +482,12 @@ where
                 frm_info.suggested_action
             );
             Ok(Some(frm_data_updated))
+        } else if matches!(
+            frm_configs.frm_preferred_flow_type,
+            api_enums::FrmPreferredFlowTypes::Post
+        ) {
+            *should_continue_capture = false;
+            Ok(Some(frm_data.to_owned()))
         } else {
             Ok(Some(frm_data.to_owned()))
         }
@@ -503,11 +509,14 @@ pub async fn post_payment_frm_core<'a, F>(
 where
     F: Send + Clone,
 {
+    // Call post flows if payment was authorized
     if let Some(frm_data) = &mut frm_info.frm_data {
-        // Allow the Post flow only if the payment is succeeded,
-        // this logic has to be removed if we are going to call /sale or /transaction after failed transaction
         let fraud_check_operation = &mut frm_info.fraud_check_operation;
-        if payment_data.payment_attempt.status == AttemptStatus::Charged {
+        logger::debug!(
+            "[DEBUG] post payment frm {:?}",
+            payment_data.payment_attempt.status
+        );
+        if payment_data.payment_attempt.status == AttemptStatus::Authorized {
             let frm_router_data_opt = fraud_check_operation
                 .to_domain()?
                 .post_payment_frm(
@@ -625,6 +634,13 @@ where
             }
         }
         logger::debug!("frm_configs: {:?} {:?}", frm_configs, is_frm_enabled);
+        frm_info.as_ref().map(|i| {
+            logger::debug!(
+                "[DEBUG] frm_data {:?}\nsuggested_action {:?}",
+                i.frm_data.clone().map(|f| Some(f.fraud_check)),
+                i.suggested_action
+            )
+        });
         return Ok(frm_configs);
     }
     Ok(None)

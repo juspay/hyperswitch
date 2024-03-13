@@ -7,7 +7,7 @@ use data_models::payments::payment_attempt::PaymentAttempt;
 use error_stack::{report, IntoReport, ResultExt};
 use futures::FutureExt;
 use router_derive;
-use router_env::{instrument, tracing};
+use router_env::{instrument, logger, tracing};
 use storage_impl::DataModelExt;
 use tracing_futures::Instrument;
 
@@ -219,6 +219,13 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
     where
         F: 'b + Send,
     {
+        logger::debug!(
+            "[DEBUG] SYNC FLOW\npayment_intent {:?}\npayment_attempt {:?}\nfraud_message {:?}\n fraud_meta {:?}",
+            payment_data.payment_intent.clone(),
+            payment_data.payment_attempt.clone(),
+            payment_data.frm_message.clone(),
+            payment_data.frm_metadata.clone(),
+        );
         Box::pin(payment_response_update_tracker(
             db,
             payment_id,
@@ -422,6 +429,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     where
         F: 'b + Send,
     {
+        logger::debug!(
+            "[DEBUG] COMPLETE AUTH REDIRECT FLOW\npayment_intent {:?}\npayment_attempt {:?}",
+            payment_data.payment_intent.clone(),
+            payment_data.payment_attempt.clone(),
+        );
         Box::pin(payment_response_update_tracker(
             db,
             payment_id,
