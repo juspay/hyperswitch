@@ -2,24 +2,15 @@ use api_models::analytics::search::{
     GetGlobalSearchRequest, GetSearchRequestWithIndex, GetSearchResponse, OpenMsearchOutput,
     OpensearchOutput, SearchIndex,
 };
-use aws_config::{self, meta::region::RegionProviderChain, Region};
+
 use common_utils::errors::CustomResult;
-use opensearch::{
-    auth::Credentials,
-    cert::CertificateValidation,
-    http::{
-        request::JsonBody,
-        transport::{SingleNodeConnectionPool, TransportBuilder},
-        Url,
-    },
-    MsearchParts, OpenSearch, SearchParts,
-};
+use opensearch::{http::request::JsonBody, MsearchParts, SearchParts};
 use serde_json::{json, Value};
 use strum::IntoEnumIterator;
 
 use crate::{
-    errors::AnalyticsError, opensearch::{OpenSearchClient, OpenSearchIndexes}, OpensearchAuth, OpensearchConfig,
-    OpensearchIndexes,
+    errors::AnalyticsError,
+    opensearch::{OpenSearchClient, OpenSearchIndexes},
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -40,38 +31,8 @@ pub fn search_index_to_opensearch_index(index: SearchIndex, config: &OpenSearchI
     }
 }
 
-async fn get_opensearch_client(config: OpensearchConfig) -> Result<OpenSearch, OpensearchError> {
-    let url = Url::parse(&config.host).map_err(|_| OpensearchError::ConnectionError)?;
-    let transport = match config.auth {
-        OpensearchAuth::Basic { username, password } => {
-            let credentials = Credentials::Basic(username, password);
-            TransportBuilder::new(SingleNodeConnectionPool::new(url))
-                .cert_validation(CertificateValidation::None)
-                .auth(credentials)
-                .build()
-                .map_err(|_| OpensearchError::ConnectionError)?
-        }
-        OpensearchAuth::Aws { region } => {
-            let region_provider = RegionProviderChain::first_try(Region::new(region));
-            let sdk_config = aws_config::from_env().region(region_provider).load().await;
-            let conn_pool = SingleNodeConnectionPool::new(url);
-            TransportBuilder::new(conn_pool)
-                .auth(
-                    sdk_config
-                        .clone()
-                        .try_into()
-                        .map_err(|_| OpensearchError::ConnectionError)?,
-                )
-                .service_name("es")
-                .build()
-                .map_err(|_| OpensearchError::ConnectionError)?
-        }
-    };
-    Ok(OpenSearch::new(transport))
-}
-
 pub async fn msearch_results(
-    client: OpenSearchClient,
+    client: &OpenSearchClient,
     req: GetGlobalSearchRequest,
     merchant_id: &String,
 ) -> CustomResult<Vec<GetSearchResponse>, AnalyticsError> {
@@ -117,15 +78,11 @@ pub async fn msearch_results(
 }
 
 pub async fn search_results(
-    client: OpenSearchClient,
+    client: &OpenSearchClient,
     req: GetSearchRequestWithIndex,
     merchant_id: &String,
 ) -> CustomResult<GetSearchResponse, AnalyticsError> {
     let search_req = req.search_req;
-
-    // let client = get_opensearch_client(config.clone())
-    //     .await
-    //     .map_err(|_| AnalyticsError::UnknownError)?;
 
     let response = client.client
         .search(SearchParts::Index(&[&search_index_to_opensearch_index(req.index.clone(),&client.indexes)]))

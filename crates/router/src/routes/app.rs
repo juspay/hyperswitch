@@ -49,11 +49,11 @@ use crate::routes::recon as recon_routes;
 #[cfg(feature = "olap")]
 use crate::routes::verify_connector::payment_connector_verify;
 pub use crate::{
+    analytics::opensearch::OpenSearchClient,
     configs::settings,
     core::routing,
     db::{StorageImpl, StorageInterface},
     events::EventsHandler,
-    opensearch::OpenSearchClient,
     routes::cards_info::card_iin_info,
     services::get_store,
 };

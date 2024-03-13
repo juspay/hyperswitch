@@ -1,7 +1,6 @@
 use aws_config::{self, meta::region::RegionProviderChain, Region};
 use common_utils::errors::CustomResult;
-use diesel_models::StorageResult;
-use error_stack::{report, IntoReport, ResultExt};
+use data_models::errors::{StorageError, StorageResult};
 use opensearch::{
     auth::Credentials,
     cert::CertificateValidation,
@@ -12,7 +11,7 @@ use opensearch::{
     },
     MsearchParts, OpenSearch, SearchParts,
 };
-use storage_impl::errors::{ApplicationError, StorageError};
+use storage_impl::errors::ApplicationError;
 
 #[derive(Clone, Debug, serde::Deserialize)]
 #[serde(tag = "auth")]
@@ -63,6 +62,7 @@ impl Default for OpenSearchConfig {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct OpenSearchClient {
     pub client: OpenSearch,
     pub indexes: OpenSearchIndexes,
@@ -106,6 +106,8 @@ impl OpenSearchClient {
             indexes: conf.indexes.clone(),
         })
     }
+
+    pub async fn execute(&self) -> CustomResult<Self, OpenSearchError> {}
 }
 
 // #[async_trait::async_trait]
@@ -182,7 +184,7 @@ impl OpenSearchConfig {
     pub async fn get_opensearch_client(&self) -> StorageResult<OpenSearchClient> {
         Ok(OpenSearchClient::create(self)
             .await
-            .map_err(|_| StorageError::DatabaseConnectionError)?)
+            .map_err(|_| StorageError::InitializationError)?)
     }
 
     pub fn validate(&self) -> Result<(), ApplicationError> {

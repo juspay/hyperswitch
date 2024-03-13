@@ -24,6 +24,7 @@ router_env = { version = "0.1.0", path = "../router_env", features = [
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = [
     "kv_store",
 ] }
+data_models = { version = "0.1.0", path = "../data_models", default-features = false }
 
 #Third Party dependencies
 actix-web = "4.3.1"
