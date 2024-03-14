@@ -374,16 +374,19 @@ where
                                 .masked_serialize()
                                 .unwrap_or(json!({ "error": "failed to mask serialize"})),
                             RequestContent::FormData(_) => json!({"request_type": "FORM_DATA"}),
+                            RequestContent::RawBytes(_) => json!({"request_type": "RAW_BYTES"}),
                         },
                         None => serde_json::Value::Null,
                     };
                     let request_url = request.url.clone();
                     let request_method = request.method;
-
                     let current_time = Instant::now();
-                    let response = call_connector_api(state, request).await;
+                    let response =
+                        call_connector_api(state, request, "execute_connector_processing_step")
+                            .await;
                     let external_latency = current_time.elapsed().as_millis();
-                    logger::debug!(connector_response=?response);
+                    logger::info!(raw_connector_request=?masked_request_body);
+                    logger::info!(raw_connector_response=?response);
                     let status_code = response
                         .as_ref()
                         .map(|i| {
@@ -563,16 +566,34 @@ where
 pub async fn call_connector_api(
     state: &AppState,
     request: Request,
+    flow_name: &str,
 ) -> CustomResult<Result<types::Response, types::Response>, errors::ApiClientError> {
     let current_time = Instant::now();
-
+    let headers = request.headers.clone();
+    let url = request.url.clone();
     let response = state
         .api_client
         .send_request(state, request, None, true)
         .await;
 
-    let elapsed_time = current_time.elapsed();
-    logger::info!(request_time=?elapsed_time);
+    match response.as_ref() {
+        Ok(resp) => {
+            let status_code = resp.status().as_u16();
+            let elapsed_time = current_time.elapsed();
+            logger::info!(
+                headers=?headers,
+                url=?url,
+                status_code=?status_code,
+                flow=?flow_name,
+                elapsed_time=?elapsed_time
+            );
+        }
+        Err(err) => {
+            logger::info!(
+                call_connector_api_error=?err
+            );
+        }
+    }
 
     handle_response(response).await
 }
@@ -583,7 +604,7 @@ pub async fn send_request(
     request: Request,
     option_timeout_secs: Option<u64>,
 ) -> CustomResult<reqwest::Response, errors::ApiClientError> {
-    logger::debug!(method=?request.method, headers=?request.headers, payload=?request.body, ?request);
+    logger::info!(method=?request.method, headers=?request.headers, payload=?request.body, ?request);
 
     let url = reqwest::Url::parse(&request.url)
         .into_report()
@@ -623,6 +644,7 @@ pub async fn send_request(
                             .change_context(errors::ApiClientError::BodySerializationFailed)?;
                         client.body(body).header("Content-Type", "application/xml")
                     }
+                    Some(RequestContent::RawBytes(payload)) => client.body(payload),
                     None => client,
                 }
             }
@@ -638,6 +660,7 @@ pub async fn send_request(
                             .change_context(errors::ApiClientError::BodySerializationFailed)?;
                         client.body(body).header("Content-Type", "application/xml")
                     }
+                    Some(RequestContent::RawBytes(payload)) => client.body(payload),
                     None => client,
                 }
             }
@@ -653,6 +676,7 @@ pub async fn send_request(
                             .change_context(errors::ApiClientError::BodySerializationFailed)?;
                         client.body(body).header("Content-Type", "application/xml")
                     }
+                    Some(RequestContent::RawBytes(payload)) => client.body(payload),
                     None => client,
                 }
             }
