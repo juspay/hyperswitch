@@ -2019,7 +2019,7 @@ pub fn build_payment_link_html(
 
     context.insert(
         "preload_link_tags",
-        &get_preload_link_html_template(&payment_link_data.sdk_url)
+        &get_preload_link_html_template(&payment_link_data.sdk_url),
     );
 
     context.insert(
