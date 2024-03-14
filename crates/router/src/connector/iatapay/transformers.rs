@@ -63,10 +63,7 @@ impl<T>
 #[derive(Debug, Deserialize, Serialize)]
 pub struct IatapayAuthUpdateResponse {
     pub access_token: Secret<String>,
-    pub token_type: String,
     pub expires_in: i64,
-    pub scope: String,
-    pub jti: String,
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, IatapayAuthUpdateResponse, T, types::AccessToken>>
