@@ -752,7 +752,7 @@ pub async fn get_payment_method_from_hs_locker<'a>(
         .await
         .change_context(errors::VaultError::FetchPaymentMethodFailed)
         .attach_printable("Making get payment method request failed")?;
-        let response = services::call_connector_api(state, request)
+        let response = services::call_connector_api(state, request, "add_card_to_locker")
             .await
             .change_context(errors::VaultError::FetchPaymentMethodFailed)
             .attach_printable("Failed while executing call_connector_api for get_card");
@@ -804,7 +804,7 @@ pub async fn call_to_locker_hs<'a>(
         let request =
             payment_methods::mk_add_locker_request_hs(jwekey, locker, payload, locker_choice)
                 .await?;
-        let response = services::call_connector_api(state, request)
+        let response = services::call_connector_api(state, request, "add_card_to_hs_locker")
             .await
             .change_context(errors::VaultError::SaveCardFailed);
 
@@ -870,7 +870,7 @@ pub async fn get_card_from_hs_locker<'a>(
         .await
         .change_context(errors::VaultError::FetchCardFailed)
         .attach_printable("Making get card request failed")?;
-        let response = services::call_connector_api(state, request)
+        let response = services::call_connector_api(state, request, "get_card_from_locker")
             .await
             .change_context(errors::VaultError::FetchCardFailed)
             .attach_printable("Failed while executing call_connector_api for get_card");
@@ -922,7 +922,7 @@ pub async fn delete_card_from_hs_locker<'a>(
     .attach_printable("Making delete card request failed")?;
 
     if !locker.mock_locker {
-        let response = services::call_connector_api(state, request)
+        let response = services::call_connector_api(state, request, "delete_card_from_locker")
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed while executing call_connector_api for delete card");
@@ -2362,15 +2362,27 @@ fn filter_pm_based_on_config<'a>(
         .or_else(|| config.0.get("default"))
         .and_then(|inner| match payment_method_type {
             api_enums::PaymentMethodType::Credit | api_enums::PaymentMethodType::Debit => {
+                let country_currency_filter = inner
+                    .0
+                    .get(&settings::PaymentMethodFilterKey::PaymentMethodType(
+                        *payment_method_type,
+                    ))
+                    .map(|value| global_country_currency_filter(value, country, currency));
+
                 card_network_filter(country, currency, card_network, inner);
 
-                payment_attempt
+                let capture_method_filter = payment_attempt
                     .and_then(|inner| inner.capture_method)
                     .and_then(|capture_method| {
                         (capture_method == storage_enums::CaptureMethod::Manual).then(|| {
                             filter_pm_based_on_capture_method_used(inner, payment_method_type)
                         })
-                    })
+                    });
+
+                Some(
+                    country_currency_filter.unwrap_or(true)
+                        && capture_method_filter.unwrap_or(true),
+                )
             }
             payment_method_type => inner
                 .0
@@ -2742,6 +2754,16 @@ pub async fn list_customer_payment_method(
         }
     };
 
+    let off_session_payment_flag = payment_intent
+        .as_ref()
+        .map(|pi| {
+            matches!(
+                pi.setup_future_usage,
+                Some(common_enums::FutureUsage::OffSession)
+            )
+        })
+        .unwrap_or(false);
+
     let customer = db
         .find_customer_by_customer_id_merchant_id(
             customer_id,
@@ -2878,7 +2900,8 @@ pub async fn list_customer_payment_method(
             bank_transfer: pmd,
             bank: bank_details,
             surcharge_details: None,
-            requires_cvv,
+            requires_cvv: requires_cvv
+                && !(off_session_payment_flag && pm.connector_mandate_details.is_some()),
             last_used_at: Some(pm.last_used_at),
             default_payment_method_set: customer.default_payment_method_id.is_some()
                 && customer.default_payment_method_id == Some(pm.payment_method_id),
