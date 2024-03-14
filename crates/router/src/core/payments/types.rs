@@ -380,7 +380,8 @@ pub struct AuthenticationData {
     pub eci: Option<String>,
     pub cavv: String,
     pub threeds_server_transaction_id: String,
-    pub message_version: String,
+    pub message_version: common_types::SemanticVersion,
+    pub ds_trans_id: Option<String>,
 }
 
 impl ForeignTryFrom<&storage::Authentication> for AuthenticationData {
@@ -411,7 +412,8 @@ impl ForeignTryFrom<&storage::Authentication> for AuthenticationData {
                 eci: authentication.eci.clone(),
                 cavv,
                 threeds_server_transaction_id,
-                message_version: message_version.to_string(),
+                message_version,
+                ds_trans_id: authentication.ds_trans_id.clone(),
             })
         } else {
             Err(errors::ApiErrorResponse::PaymentAuthenticationFailed { data: None }.into())

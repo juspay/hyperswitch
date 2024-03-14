@@ -186,6 +186,7 @@ impl
                             types::authentication::AuthNFlowType::Frictionless
                         },
                         authentication_value: response.authentication_value,
+                        ds_trans_id: Some(response.ds_trans_id),
                     },
                 )
             }

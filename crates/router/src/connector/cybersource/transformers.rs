@@ -6,7 +6,7 @@ use api_models::{
 };
 use base64::Engine;
 use common_enums::FutureUsage;
-use common_utils::{ext_traits::ValueExt, pii};
+use common_utils::{ext_traits::ValueExt, pii, types::SemanticVersion};
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -261,7 +261,34 @@ pub struct CybersourceConsumerAuthInformation {
     xid: Option<String>,
     directory_server_transaction_id: Option<Secret<String>>,
     specification_version: Option<String>,
+    /// This field specifies the 3ds version
+    pa_specification_version: Option<PaSpecificationVersion>,
+    /// Verification response enrollment status.
+    ///
+    /// This field is supported only on Asia, Middle East, and Africa Gateway.
+    ///
+    /// For external authentication, this field will always be "Y"
+    veres_enrolled: Option<String>,
 }
+
+#[derive(Debug, Serialize)]
+pub enum PaSpecificationVersion {
+    #[serde(rename = "1")]
+    ThreeDs1,
+    #[serde(rename = "2")]
+    ThreeDs2,
+}
+
+impl From<SemanticVersion> for PaSpecificationVersion {
+    fn from(value: SemanticVersion) -> Self {
+        if value.get_major() == 2 {
+            Self::ThreeDs2
+        } else {
+            Self::ThreeDs1
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MerchantDefinedInformation {
@@ -655,6 +682,25 @@ impl
         } else {
             (None, None, None)
         };
+        // this logic is for external authenticated card
+        let commerce_indicator_for_external_authentication = item
+            .router_data
+            .request
+            .authentication_data
+            .as_ref()
+            .and_then(|authn_data| {
+                dbg!(&authn_data);
+                authn_data.eci.as_ref().map(|eci| {
+                    match eci.as_str() {
+                        "05" => "vbv",
+                        "06" => "vbv_attempted",
+                        "07" => "vbv_failure",
+                        _ => "vbv_failure",
+                    }
+                    .to_string()
+                })
+            });
+
         Ok(Self {
             capture: Some(matches!(
                 item.router_data.request.capture_method,
@@ -665,7 +711,8 @@ impl
             action_token_types,
             authorization_options,
             capture_options: None,
-            commerce_indicator,
+            commerce_indicator: commerce_indicator_for_external_authentication
+                .unwrap_or(commerce_indicator),
         })
     }
 }
@@ -852,12 +899,42 @@ impl
                 Vec::<MerchantDefinedInformation>::foreign_from(metadata.peek().to_owned())
             });
 
+        let consumer_authentication_information = item
+            .router_data
+            .request
+            .authentication_data
+            .as_ref()
+            .map(|authn_data| {
+                let (ucaf_authentication_data, cavv) =
+                    if ccard.card_network == Some(common_enums::CardNetwork::Mastercard) {
+                        (Some(Secret::new(authn_data.cavv.clone())), None)
+                    } else {
+                        (None, Some(authn_data.cavv.clone()))
+                    };
+                CybersourceConsumerAuthInformation {
+                    ucaf_collection_indicator: None,
+                    cavv,
+                    ucaf_authentication_data,
+                    xid: Some(authn_data.threeds_server_transaction_id.clone()),
+                    // xid: None,
+                    directory_server_transaction_id: authn_data
+                        .ds_trans_id
+                        .clone()
+                        .map(Secret::new),
+                    specification_version: None,
+                    pa_specification_version: Some(PaSpecificationVersion::from(
+                        authn_data.message_version.clone(),
+                    )),
+                    veres_enrolled: Some("Y".to_string()),
+                }
+            });
+
         Ok(Self {
             processing_information,
             payment_information,
             order_information,
             client_reference_information,
-            consumer_authentication_information: None,
+            consumer_authentication_information,
             merchant_defined_information,
         })
     }
@@ -922,6 +999,8 @@ impl
                 .three_ds_data
                 .directory_server_transaction_id,
             specification_version: three_ds_info.three_ds_data.specification_version,
+            pa_specification_version: None,
+            veres_enrolled: None,
         });
 
         let merchant_defined_information =
@@ -1000,6 +1079,8 @@ impl
                 xid: None,
                 directory_server_transaction_id: None,
                 specification_version: None,
+                pa_specification_version: None,
+                veres_enrolled: None,
             }),
             merchant_defined_information,
         })
@@ -1131,6 +1212,8 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                                                 xid: None,
                                                 directory_server_transaction_id: None,
                                                 specification_version: None,
+                                                pa_specification_version: None,
+                                                veres_enrolled: None,
                                             },
                                         ),
                                     })
