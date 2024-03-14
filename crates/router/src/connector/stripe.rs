@@ -87,10 +87,8 @@ impl ConnectorValidation for Stripe {
             api_models::payments::PaymentMethodData::Wallet(wallet) => match wallet {
                 api_models::payments::WalletData::ApplePay(_)
                 | api_models::payments::WalletData::GooglePay(_) => Ok(()),
-                api_models::payments::WalletData::PaypalRedirect(_) => Err(
-                    connector_utils::construct_mandate_not_implemented_error(pm_type, self.id()),
-                ),
-                api_models::payments::WalletData::WeChatPayQr(_)
+                api_models::payments::WalletData::PaypalRedirect(_)
+                | api_models::payments::WalletData::WeChatPayQr(_)
                 | api_models::payments::WalletData::AliPayRedirect(_)
                 | api_models::payments::WalletData::CashappQr(_)
                 | api_models::payments::WalletData::MobilePayRedirect(_)
@@ -113,28 +111,6 @@ impl ConnectorValidation for Stripe {
                 | api_models::payments::WalletData::TouchNGoRedirect(_)
                 | api_models::payments::WalletData::WeChatPayRedirect(_)
                 | api_models::payments::WalletData::SwishQr(_) => Err(
-                    connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
-                ),
-            },
-            api_models::payments::PaymentMethodData::CardRedirect(card_redirect) => {
-                match card_redirect {
-                    api_models::payments::CardRedirectData::Knet {}
-                    | api_models::payments::CardRedirectData::Benefit {}
-                    | api_models::payments::CardRedirectData::MomoAtm {}
-                    | api_models::payments::CardRedirectData::CardRedirect {} => Err(
-                        connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
-                    ),
-                }
-            }
-            api_models::payments::PaymentMethodData::PayLater(pay_later) => match pay_later {
-                api_models::payments::PayLaterData::KlarnaRedirect { .. }
-                | api_models::payments::PayLaterData::KlarnaSdk { .. }
-                | api_models::payments::PayLaterData::AffirmRedirect {}
-                | api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. }
-                | api_models::payments::PayLaterData::PayBrightRedirect {}
-                | api_models::payments::PayLaterData::WalleyRedirect {}
-                | api_models::payments::PayLaterData::AlmaRedirect {}
-                | api_models::payments::PayLaterData::AtomeRedirect {} => Err(
                     connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
                 ),
             },
@@ -171,7 +147,7 @@ impl ConnectorValidation for Stripe {
 
                 api_models::payments::BankDebitData::BecsBankDebit { .. }
                 | api_models::payments::BankDebitData::BacsBankDebit { .. } => Err(
-                    connector_utils::construct_mandate_not_implemented_error(pm_type, self.id()),
+                    connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
                 ),
             },
             api_models::payments::PaymentMethodData::BankTransfer(bank_transfer) => {
@@ -197,38 +173,14 @@ impl ConnectorValidation for Stripe {
                 }
             }
             api_models::payments::PaymentMethodData::MandatePayment => Ok(()),
-            api_models::payments::PaymentMethodData::Voucher(voucher) => match voucher {
-                api_models::payments::VoucherData::Boleto(_) => Err(
-                    connector_utils::construct_mandate_not_implemented_error(pm_type, self.id()),
-                ),
 
-                api_models::payments::VoucherData::Efecty
-                | api_models::payments::VoucherData::PagoEfectivo
-                | api_models::payments::VoucherData::RedCompra
-                | api_models::payments::VoucherData::RedPagos
-                | api_models::payments::VoucherData::Alfamart(_)
-                | api_models::payments::VoucherData::Indomaret(_)
-                | api_models::payments::VoucherData::Oxxo
-                | api_models::payments::VoucherData::Lawson(_)
-                | api_models::payments::VoucherData::MiniStop(_)
-                | api_models::payments::VoucherData::FamilyMart(_)
-                | api_models::payments::VoucherData::Seicomart(_)
-                | api_models::payments::VoucherData::PayEasy(_)
-                | api_models::payments::VoucherData::SevenEleven(_) => Err(
-                    connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
-                ),
-            },
-            api_models::payments::PaymentMethodData::Crypto(_) => Err(
-                connector_utils::construct_mandate_not_implemented_error(pm_type, self.id()),
-            ),
-            api_models::payments::PaymentMethodData::GiftCard(gift_card) => match *gift_card {
-                api_models::payments::GiftCardData::Givex(_)
-                | api_models::payments::GiftCardData::PaySafeCard {} => Err(
-                    connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
-                ),
-            },
-            api_models::payments::PaymentMethodData::Reward
+            api_models::payments::PaymentMethodData::CardRedirect(_)
+            | api_models::payments::PaymentMethodData::PayLater(_)
+            | api_models::payments::PaymentMethodData::Voucher(_)
+            | api_models::payments::PaymentMethodData::GiftCard(_)
+            | api_models::payments::PaymentMethodData::Reward
             | api_models::payments::PaymentMethodData::Upi(_)
+            | api_models::payments::PaymentMethodData::Crypto(_)
             | api_models::payments::PaymentMethodData::CardToken(_) => Err(
                 connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
             ),

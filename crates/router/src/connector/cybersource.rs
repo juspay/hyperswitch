@@ -223,10 +223,8 @@ impl ConnectorValidation for Cybersource {
             api_models::payments::PaymentMethodData::Wallet(wallet) => match wallet {
                 api_models::payments::WalletData::GooglePay(_)
                 | api_models::payments::WalletData::ApplePay(_) => Ok(()),
-                api_models::payments::WalletData::PaypalRedirect(_) => Err(
-                    connector_utils::construct_mandate_not_implemented_error(pm_type, self.id()),
-                ),
-                api_models::payments::WalletData::AliPayRedirect(_)
+                api_models::payments::WalletData::PaypalRedirect(_)
+                | api_models::payments::WalletData::AliPayRedirect(_)
                 | api_models::payments::WalletData::WeChatPayRedirect(_)
                 | api_models::payments::WalletData::SamsungPay(_)
                 | api_models::payments::WalletData::KakaoPayRedirect(_)
@@ -252,112 +250,15 @@ impl ConnectorValidation for Cybersource {
                     connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
                 ),
             },
-            api_models::payments::PaymentMethodData::CardRedirect(card_redirect) => {
-                match card_redirect {
-                    api_models::payments::CardRedirectData::Knet {}
-                    | api_models::payments::CardRedirectData::Benefit {}
-                    | api_models::payments::CardRedirectData::MomoAtm {}
-                    | api_models::payments::CardRedirectData::CardRedirect {} => Err(
-                        connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
-                    ),
-                }
-            }
-            api_models::payments::PaymentMethodData::PayLater(pay_later) => match pay_later {
-                api_models::payments::PayLaterData::AffirmRedirect {} => Err(
-                    connector_utils::construct_mandate_not_implemented_error(pm_type, self.id()),
-                ),
-                api_models::payments::PayLaterData::PayBrightRedirect {}
-                | api_models::payments::PayLaterData::WalleyRedirect {}
-                | api_models::payments::PayLaterData::KlarnaRedirect { .. }
-                | api_models::payments::PayLaterData::KlarnaSdk { .. }
-                | api_models::payments::PayLaterData::AlmaRedirect {}
-                | api_models::payments::PayLaterData::AtomeRedirect {}
-                | api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. } => Err(
-                    connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
-                ),
-            },
-
-            api_models::payments::PaymentMethodData::BankRedirect(bank_redirect) => {
-                match bank_redirect {
-                    api_models::payments::BankRedirectData::Sofort { .. }
-                    | api_models::payments::BankRedirectData::Ideal { .. }
-                    | api_models::payments::BankRedirectData::OnlineBankingCzechRepublic {
-                        ..
-                    }
-                    | api_models::payments::BankRedirectData::OpenBankingUk { .. }
-                    | api_models::payments::BankRedirectData::OnlineBankingFinland { .. }
-                    | api_models::payments::BankRedirectData::OnlineBankingPoland { .. }
-                    | api_models::payments::BankRedirectData::OnlineBankingSlovakia { .. }
-                    | api_models::payments::BankRedirectData::OnlineBankingFpx { .. }
-                    | api_models::payments::BankRedirectData::Bizum {}
-                    | api_models::payments::BankRedirectData::Blik { .. }
-                    | api_models::payments::BankRedirectData::Eps { .. }
-                    | api_models::payments::BankRedirectData::Giropay { .. }
-                    | api_models::payments::BankRedirectData::Przelewy24 { .. }
-                    | api_models::payments::BankRedirectData::Interac { .. }
-                    | api_models::payments::BankRedirectData::Trustly { .. }
-                    | api_models::payments::BankRedirectData::OnlineBankingThailand { .. }
-                    | api_models::payments::BankRedirectData::BancontactCard { .. } => Err(
-                        connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
-                    ),
-                }
-            }
-            api_models::payments::PaymentMethodData::BankDebit(bank_debit) => match bank_debit {
-                api_models::payments::BankDebitData::SepaBankDebit { .. }
-                | api_models::payments::BankDebitData::AchBankDebit { .. }
-                | api_models::payments::BankDebitData::BacsBankDebit { .. } => Err(
-                    connector_utils::construct_mandate_not_implemented_error(pm_type, self.id()),
-                ),
-
-                api_models::payments::BankDebitData::BecsBankDebit { .. } => Err(
-                    connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
-                ),
-            },
-            api_models::payments::PaymentMethodData::BankTransfer(bank_transfer) => {
-                match *bank_transfer {
-                    api_models::payments::BankTransferData::AchBankTransfer { .. }
-                    | api_models::payments::BankTransferData::BacsBankTransfer { .. }
-                    | api_models::payments::BankTransferData::MultibancoBankTransfer { .. }
-                    | api_models::payments::BankTransferData::BcaBankTransfer { .. }
-                    | api_models::payments::BankTransferData::SepaBankTransfer { .. }
-                    | api_models::payments::BankTransferData::PermataBankTransfer { .. }
-                    | api_models::payments::BankTransferData::BniVaBankTransfer { .. }
-                    | api_models::payments::BankTransferData::BriVaBankTransfer { .. }
-                    | api_models::payments::BankTransferData::CimbVaBankTransfer { .. }
-                    | api_models::payments::BankTransferData::DanamonVaBankTransfer { .. }
-                    | api_models::payments::BankTransferData::MandiriVaBankTransfer { .. }
-                    | api_models::payments::BankTransferData::Pix {}
-                    | api_models::payments::BankTransferData::Pse {} => Err(
-                        connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
-                    ),
-                }
-            }
             api_models::payments::PaymentMethodData::MandatePayment => Ok(()),
-            api_models::payments::PaymentMethodData::Voucher(voucher) => match voucher {
-                api_models::payments::VoucherData::Boleto(_)
-                | api_models::payments::VoucherData::Efecty
-                | api_models::payments::VoucherData::PagoEfectivo
-                | api_models::payments::VoucherData::RedCompra
-                | api_models::payments::VoucherData::RedPagos
-                | api_models::payments::VoucherData::Alfamart(_)
-                | api_models::payments::VoucherData::Indomaret(_)
-                | api_models::payments::VoucherData::Oxxo
-                | api_models::payments::VoucherData::Lawson(_)
-                | api_models::payments::VoucherData::MiniStop(_)
-                | api_models::payments::VoucherData::FamilyMart(_)
-                | api_models::payments::VoucherData::Seicomart(_)
-                | api_models::payments::VoucherData::PayEasy(_)
-                | api_models::payments::VoucherData::SevenEleven(_) => Err(
-                    connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
-                ),
-            },
-            api_models::payments::PaymentMethodData::GiftCard(gift_card) => match *gift_card {
-                api_models::payments::GiftCardData::Givex(_)
-                | api_models::payments::GiftCardData::PaySafeCard {} => Err(
-                    connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
-                ),
-            },
-            api_models::payments::PaymentMethodData::Reward
+            api_models::payments::PaymentMethodData::CardRedirect(_)
+            | api_models::payments::PaymentMethodData::PayLater(_)
+            | api_models::payments::PaymentMethodData::BankRedirect(_)
+            | api_models::payments::PaymentMethodData::BankDebit(_)
+            | api_models::payments::PaymentMethodData::BankTransfer(_)
+            | api_models::payments::PaymentMethodData::Voucher(_)
+            | api_models::payments::PaymentMethodData::GiftCard(_)
+            | api_models::payments::PaymentMethodData::Reward
             | api_models::payments::PaymentMethodData::Crypto(_)
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::CardToken(_) => Err(

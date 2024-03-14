@@ -11,6 +11,7 @@ use uuid::Uuid;
 use self::transformers::{ZenPaymentStatus, ZenWebhookTxnType};
 use crate::{
     configs::settings,
+    connector::utils as connector_utils,
     consts,
     core::{
         errors::{self, CustomResult},
@@ -143,6 +144,30 @@ impl ConnectorValidation for Zen {
     ) -> CustomResult<(), errors::ConnectorError> {
         // since we can make psync call with our reference_id, having connector_transaction_id is not an mandatory criteria
         Ok(())
+    }
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<types::storage::enums::PaymentMethodType>,
+        pm_data: api_models::payments::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        match pm_data {
+            api_models::payments::PaymentMethodData::Card(_)
+            | api_models::payments::PaymentMethodData::Wallet(_)
+            | api_models::payments::PaymentMethodData::CardRedirect(_)
+            | api_models::payments::PaymentMethodData::PayLater(_)
+            | api_models::payments::PaymentMethodData::BankRedirect(_)
+            | api_models::payments::PaymentMethodData::BankDebit(_)
+            | api_models::payments::PaymentMethodData::BankTransfer(_)
+            | api_models::payments::PaymentMethodData::MandatePayment
+            | api_models::payments::PaymentMethodData::Voucher(_)
+            | api_models::payments::PaymentMethodData::GiftCard(_)
+            | api_models::payments::PaymentMethodData::Crypto(_)
+            | api_models::payments::PaymentMethodData::Reward
+            | api_models::payments::PaymentMethodData::Upi(_)
+            | api_models::payments::PaymentMethodData::CardToken(_) => Err(
+                connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
+            ),
+        }
     }
 }
 

@@ -15,9 +15,9 @@ use masking::PeekInterface;
 use transformers as cryptopay;
 
 use self::cryptopay::CryptopayWebhookDetails;
-use super::utils;
 use crate::{
     configs::settings,
+    connector::utils as connector_utils,
     consts,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
@@ -311,6 +311,31 @@ impl ConnectorValidation for Cryptopay {
         // since we can make psync call with our reference_id, having connector_transaction_id is not an mandatory criteria
         Ok(())
     }
+
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<types::storage::enums::PaymentMethodType>,
+        pm_data: api_models::payments::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        match pm_data {
+            api_models::payments::PaymentMethodData::Card(_)
+            | api_models::payments::PaymentMethodData::Wallet(_)
+            | api_models::payments::PaymentMethodData::CardRedirect(_)
+            | api_models::payments::PaymentMethodData::PayLater(_)
+            | api_models::payments::PaymentMethodData::BankRedirect(_)
+            | api_models::payments::PaymentMethodData::BankDebit(_)
+            | api_models::payments::PaymentMethodData::BankTransfer(_)
+            | api_models::payments::PaymentMethodData::MandatePayment
+            | api_models::payments::PaymentMethodData::Voucher(_)
+            | api_models::payments::PaymentMethodData::GiftCard(_)
+            | api_models::payments::PaymentMethodData::Crypto(_)
+            | api_models::payments::PaymentMethodData::Reward
+            | api_models::payments::PaymentMethodData::Upi(_)
+            | api_models::payments::PaymentMethodData::CardToken(_) => Err(
+                connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
+            ),
+        }
+    }
 }
 
 impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
@@ -422,7 +447,7 @@ impl api::IncomingWebhook for Cryptopay {
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let base64_signature =
-            utils::get_header_key_value("X-Cryptopay-Signature", request.headers)?;
+            connector_utils::get_header_key_value("X-Cryptopay-Signature", request.headers)?;
         hex::decode(base64_signature)
             .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)

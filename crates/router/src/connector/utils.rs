@@ -1333,25 +1333,6 @@ pub fn construct_not_supported_error_report(
     .into()
 }
 
-pub fn construct_mandate_not_implemented_error(
-    // payment_method_type: String,
-    pm_type: Option<types::storage::enums::PaymentMethodType>,
-    connector_name: &'static str,
-) -> error_stack::Report<errors::ConnectorError> {
-    match pm_type {
-        Some(pm_type) => errors::ConnectorError::NotImplemented(format!(
-            "{} mandate payment in {}",
-            pm_type.to_string(),
-            connector_name
-        ))
-        .into(),
-        None => {
-            errors::ConnectorError::NotImplemented(format!("mandate payment in {}", connector_name))
-                .into()
-        }
-    }
-}
-
 pub fn construct_mandate_not_supported_error(
     // payment_method_type: String,
     pm_type: Option<types::storage::enums::PaymentMethodType>,

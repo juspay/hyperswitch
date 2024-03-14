@@ -227,7 +227,7 @@ impl ConnectorValidation for Adyen {
     }
     fn validate_mandate_payment(
         &self,
-        pm_type: Option<types::storage::enums::PaymentMethodType>,
+        pm_type: Option<PaymentMethodType>,
         pm_data: api_models::payments::PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
         match pm_data {
@@ -243,7 +243,6 @@ impl ConnectorValidation for Adyen {
                 | api_models::payments::WalletData::DanaRedirect {}
                 | api_models::payments::WalletData::TwintRedirect { .. }
                 | api_models::payments::WalletData::VippsRedirect { .. } => Ok(()),
-
                 api_models::payments::WalletData::CashappQr(_)
                 | api_models::payments::WalletData::MobilePayRedirect(_)
                 | api_models::payments::WalletData::TouchNGoRedirect(_)
@@ -258,32 +257,13 @@ impl ConnectorValidation for Adyen {
                 | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
                 | api_models::payments::WalletData::GooglePayRedirect(_)
                 | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
-                | api_models::payments::WalletData::WeChatPayRedirect(_) => Err(
+                | api_models::payments::WalletData::WeChatPayRedirect(_)
+                | api_models::payments::WalletData::SamsungPay(_) => Err(
                     connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
                 ),
-                api_models::payments::WalletData::SamsungPay(_) => Err(
-                    connector_utils::construct_mandate_not_implemented_error(pm_type, self.id()),
-                ),
             },
-
-            api_models::payments::PaymentMethodData::CardRedirect(card_redirect) => {
-                match card_redirect {
-                    api_models::payments::CardRedirectData::Knet {}
-                    | api_models::payments::CardRedirectData::Benefit {}
-                    | api_models::payments::CardRedirectData::CardRedirect {} => Err(
-                        connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
-                    ),
-                    api_models::payments::CardRedirectData::MomoAtm {} => {
-                        Err(connector_utils::construct_mandate_not_implemented_error(
-                            pm_type,
-                            self.id(),
-                        ))
-                    }
-                }
-            }
             api_models::payments::PaymentMethodData::PayLater(pay_later) => match pay_later {
                 api_models::payments::PayLaterData::KlarnaRedirect { .. } => Ok(()),
-
                 api_models::payments::PayLaterData::AlmaRedirect {}
                 | api_models::payments::PayLaterData::AtomeRedirect {}
                 | api_models::payments::PayLaterData::KlarnaSdk { .. }
@@ -303,7 +283,6 @@ impl ConnectorValidation for Adyen {
                     | api_models::payments::BankRedirectData::Giropay { .. }
                     | api_models::payments::BankRedirectData::Trustly { .. }
                     | api_models::payments::BankRedirectData::BancontactCard { .. } => Ok(()),
-
                     api_models::payments::BankRedirectData::OnlineBankingFinland { .. }
                     | api_models::payments::BankRedirectData::OnlineBankingPoland { .. }
                     | api_models::payments::BankRedirectData::OnlineBankingSlovakia { .. }
@@ -327,65 +306,18 @@ impl ConnectorValidation for Adyen {
                 api_models::payments::BankDebitData::AchBankDebit { .. }
                 | api_models::payments::BankDebitData::SepaBankDebit { .. }
                 | api_models::payments::BankDebitData::BecsBankDebit { .. } => Ok(()),
-
                 api_models::payments::BankDebitData::BacsBankDebit { .. } => Err(
-                    connector_utils::construct_mandate_not_implemented_error(pm_type, self.id()),
+                    connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
                 ),
             },
-            api_models::payments::PaymentMethodData::BankTransfer(bank_transfer) => {
-                match *bank_transfer {
-                    api_models::payments::BankTransferData::AchBankTransfer { .. }
-                    | api_models::payments::BankTransferData::BacsBankTransfer { .. }
-                    | api_models::payments::BankTransferData::MultibancoBankTransfer { .. }
-                    | api_models::payments::BankTransferData::BcaBankTransfer { .. }
-                    | api_models::payments::BankTransferData::SepaBankTransfer { .. }
-                    | api_models::payments::BankTransferData::PermataBankTransfer { .. }
-                    | api_models::payments::BankTransferData::BniVaBankTransfer { .. }
-                    | api_models::payments::BankTransferData::BriVaBankTransfer { .. }
-                    | api_models::payments::BankTransferData::CimbVaBankTransfer { .. }
-                    | api_models::payments::BankTransferData::DanamonVaBankTransfer { .. }
-                    | api_models::payments::BankTransferData::MandiriVaBankTransfer { .. }
-                    | api_models::payments::BankTransferData::Pix {}
-                    | api_models::payments::BankTransferData::Pse {} => Err(
-                        connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
-                    ),
-                }
-            }
             api_models::payments::PaymentMethodData::MandatePayment => Ok(()),
-            api_models::payments::PaymentMethodData::Voucher(voucher) => match voucher {
-                api_models::payments::VoucherData::Boleto(_) => Err(
-                    connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
-                ),
-
-                api_models::payments::VoucherData::Efecty
-                | api_models::payments::VoucherData::PagoEfectivo
-                | api_models::payments::VoucherData::RedCompra
-                | api_models::payments::VoucherData::RedPagos
-                | api_models::payments::VoucherData::Alfamart(_)
-                | api_models::payments::VoucherData::Indomaret(_)
-                | api_models::payments::VoucherData::Oxxo
-                | api_models::payments::VoucherData::Lawson(_)
-                | api_models::payments::VoucherData::MiniStop(_)
-                | api_models::payments::VoucherData::FamilyMart(_)
-                | api_models::payments::VoucherData::Seicomart(_)
-                | api_models::payments::VoucherData::PayEasy(_)
-                | api_models::payments::VoucherData::SevenEleven(_) => Err(
-                    connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
-                ),
-            },
-            api_models::payments::PaymentMethodData::Crypto(_) => Err(
-                connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
-            ),
-            api_models::payments::PaymentMethodData::GiftCard(gift_card) => match *gift_card {
-                api_models::payments::GiftCardData::Givex(_)
-                | api_models::payments::GiftCardData::PaySafeCard {} => Err(
-                    connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
-                ),
-            },
-            api_models::payments::PaymentMethodData::Upi(_) => Err(
-                connector_utils::construct_mandate_not_implemented_error(pm_type, self.id()),
-            ),
-            api_models::payments::PaymentMethodData::Reward
+            api_models::payments::PaymentMethodData::CardRedirect(_)
+            | api_models::payments::PaymentMethodData::Voucher(_)
+            | api_models::payments::PaymentMethodData::GiftCard(_)
+            | api_models::payments::PaymentMethodData::BankTransfer(_)
+            | api_models::payments::PaymentMethodData::Crypto(_)
+            | api_models::payments::PaymentMethodData::Upi(_)
+            | api_models::payments::PaymentMethodData::Reward
             | api_models::payments::PaymentMethodData::CardToken(_) => Err(
                 connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
             ),
