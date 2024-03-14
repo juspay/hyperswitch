@@ -374,6 +374,7 @@ where
                                 .masked_serialize()
                                 .unwrap_or(json!({ "error": "failed to mask serialize"})),
                             RequestContent::FormData(_) => json!({"request_type": "FORM_DATA"}),
+                            RequestContent::RawBytes(_) => json!({"request_type": "RAW_BYTES"}),
                         },
                         None => serde_json::Value::Null,
                     };
@@ -643,6 +644,7 @@ pub async fn send_request(
                             .change_context(errors::ApiClientError::BodySerializationFailed)?;
                         client.body(body).header("Content-Type", "application/xml")
                     }
+                    Some(RequestContent::RawBytes(payload)) => client.body(payload),
                     None => client,
                 }
             }
@@ -658,6 +660,7 @@ pub async fn send_request(
                             .change_context(errors::ApiClientError::BodySerializationFailed)?;
                         client.body(body).header("Content-Type", "application/xml")
                     }
+                    Some(RequestContent::RawBytes(payload)) => client.body(payload),
                     None => client,
                 }
             }
@@ -673,6 +676,7 @@ pub async fn send_request(
                             .change_context(errors::ApiClientError::BodySerializationFailed)?;
                         client.body(body).header("Content-Type", "application/xml")
                     }
+                    Some(RequestContent::RawBytes(payload)) => client.body(payload),
                     None => client,
                 }
             }
