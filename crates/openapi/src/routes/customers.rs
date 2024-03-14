@@ -124,7 +124,8 @@ pub async fn customers_mandates_list() {}
     get,
     path = "/{customer_id}/payment_methods/{payment_method_id}/default",
     params (
-        ("method_id" = String, Path, description = "Set the Payment Method as Default for the Customer"),
+        ("customer_id" = String,Path, description ="The unique identifier for the Customer"),
+        ("payment_method_id" = String,Path, description = "The unique identifier for the Payment Method"),
     ),
     responses(
         (status = 200, description = "Payment Method has been set as default", body =CustomerDefaultPaymentMethodResponse ),
