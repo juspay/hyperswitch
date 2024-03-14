@@ -4,7 +4,7 @@ use time::PrimitiveDateTime;
 
 use crate::{enums as storage_enums, schema::payment_link};
 
-#[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
+#[derive(Clone, Debug, Identifiable, Queryable, Serialize, Deserialize)]
 #[diesel(table_name = payment_link)]
 #[diesel(primary_key(payment_link_id))]
 pub struct PaymentLink {
@@ -18,14 +18,17 @@ pub struct PaymentLink {
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub last_modified_at: PrimitiveDateTime,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub fulfilment_time: Option<PrimitiveDateTime>,
+    pub custom_merchant_name: Option<String>,
+    pub payment_link_config: Option<serde_json::Value>,
+    pub description: Option<String>,
+    pub profile_id: Option<String>,
 }
 
 #[derive(
     Clone,
     Debug,
-    Default,
     Eq,
     PartialEq,
     Insertable,
@@ -45,6 +48,10 @@ pub struct PaymentLinkNew {
     pub created_at: Option<PrimitiveDateTime>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub last_modified_at: Option<PrimitiveDateTime>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub fulfilment_time: Option<PrimitiveDateTime>,
+    pub custom_merchant_name: Option<String>,
+    pub payment_link_config: Option<serde_json::Value>,
+    pub description: Option<String>,
+    pub profile_id: Option<String>,
 }

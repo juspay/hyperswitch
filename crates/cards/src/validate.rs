@@ -1,6 +1,8 @@
 use std::{fmt, ops::Deref, str::FromStr};
 
 use masking::{PeekInterface, Strategy, StrongSecret, WithType};
+#[cfg(not(target_arch = "wasm32"))]
+use router_env::{logger, which as router_env_which, Env};
 use serde::{Deserialize, Deserializer, Serialize};
 use thiserror::Error;
 
@@ -22,6 +24,13 @@ impl CardNumber {
     pub fn get_card_isin(self) -> String {
         self.0.peek().chars().take(6).collect::<String>()
     }
+
+    pub fn get_extended_card_bin(self) -> String {
+        self.0.peek().chars().take(8).collect::<String>()
+    }
+    pub fn get_card_no(self) -> String {
+        self.0.peek().chars().collect::<String>()
+    }
     pub fn get_last4(self) -> String {
         self.0
             .peek()
@@ -33,18 +42,32 @@ impl CardNumber {
             .rev()
             .collect::<String>()
     }
+    pub fn get_card_extended_bin(self) -> String {
+        self.0.peek().chars().take(8).collect::<String>()
+    }
 }
 
 impl FromStr for CardNumber {
     type Err = CCValError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match luhn::valid(s) {
-            true => {
-                let cc_no_whitespace: String = s.split_whitespace().collect();
-                Ok(Self(StrongSecret::from_str(&cc_no_whitespace)?))
-            }
-            false => Err(CCValError),
+        // Valid test cards for threedsecureio
+        let valid_test_cards = vec![
+            "4000100511112003",
+            "6000100611111203",
+            "3000100811111072",
+            "9000100111111111",
+        ];
+        #[cfg(not(target_arch = "wasm32"))]
+        let valid_test_cards = match router_env_which() {
+            Env::Development | Env::Sandbox => valid_test_cards,
+            Env::Production => vec![],
+        };
+        if luhn::valid(s) || valid_test_cards.contains(&s) {
+            let cc_no_whitespace: String = s.split_whitespace().collect();
+            Ok(Self(StrongSecret::from_str(&cc_no_whitespace)?))
+        } else {
+            Err(CCValError)
         }
     }
 }
@@ -72,7 +95,7 @@ impl<'de> Deserialize<'de> for CardNumber {
     }
 }
 
-pub struct CardNumberStrategy;
+pub enum CardNumberStrategy {}
 
 impl<T> Strategy<T> for CardNumberStrategy
 where
@@ -85,7 +108,13 @@ where
             return WithType::fmt(val, f);
         }
 
-        write!(f, "{}{}", &val_str[..6], "*".repeat(val_str.len() - 6))
+        if let Some(value) = val_str.get(..6) {
+            write!(f, "{}{}", value, "*".repeat(val_str.len() - 6))
+        } else {
+            #[cfg(not(target_arch = "wasm32"))]
+            logger::error!("Invalid card number {val_str}");
+            WithType::fmt(val, f)
+        }
     }
 }
 

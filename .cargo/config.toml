@@ -1,11 +1,16 @@
 [target.'cfg(all())']
 rustflags = [
     "-Funsafe_code",
+    "-Aclippy::option_map_unit_fn",
     "-Wclippy::as_conversions",
     "-Wclippy::expect_used",
+    "-Wclippy::index_refutable_slice",
+    "-Wclippy::indexing_slicing",
+    "-Wclippy::match_on_vec_items",
     "-Wclippy::missing_panics_doc",
-    "-Wclippy::panic_in_result_fn",
+    "-Wclippy::out_of_bounds_indexing",
     "-Wclippy::panic",
+    "-Wclippy::panic_in_result_fn",
     "-Wclippy::panicking_unwrap",
     "-Wclippy::todo",
     "-Wclippy::unimplemented",
@@ -23,10 +28,7 @@ rustflags = [
 
 
 [build]
-rustdocflags = [
-    "--cfg",
-    "uuid_unstable"
-]
+rustdocflags = ["--cfg", "uuid_unstable"]
 
 [alias]
 gen-pg = "generate --path ../../../../connector-template -n"

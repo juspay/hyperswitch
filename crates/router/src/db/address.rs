@@ -1,6 +1,5 @@
 use diesel_models::{address::AddressUpdateInternal, enums::MerchantStorageScheme};
 use error_stack::ResultExt;
-use router_env::{instrument, tracing};
 
 use super::MockDb;
 use crate::{
@@ -95,6 +94,7 @@ mod storage {
     };
     #[async_trait::async_trait]
     impl AddressInterface for Store {
+        #[instrument(skip_all)]
         async fn find_address_by_address_id(
             &self,
             address_id: &str,
@@ -114,6 +114,7 @@ mod storage {
                 .await
         }
 
+        #[instrument(skip_all)]
         async fn find_address_by_merchant_id_payment_id_address_id(
             &self,
             merchant_id: &str,
@@ -162,6 +163,7 @@ mod storage {
                 .await
         }
 
+        #[instrument(skip_all)]
         async fn update_address_for_payments(
             &self,
             this: domain::Address,
@@ -188,6 +190,7 @@ mod storage {
                 .await
         }
 
+        #[instrument(skip_all)]
         async fn insert_address_for_payments(
             &self,
             _payment_id: &str,
@@ -213,6 +216,7 @@ mod storage {
                 .await
         }
 
+        #[instrument(skip_all)]
         async fn insert_address_for_customers(
             &self,
             address: domain::Address,
@@ -236,6 +240,7 @@ mod storage {
                 .await
         }
 
+        #[instrument(skip_all)]
         async fn update_address_by_merchant_id_customer_id(
             &self,
             customer_id: &str,
@@ -295,6 +300,7 @@ mod storage {
     };
     #[async_trait::async_trait]
     impl AddressInterface for Store {
+        #[instrument(skip_all)]
         async fn find_address_by_address_id(
             &self,
             address_id: &str,
@@ -314,6 +320,7 @@ mod storage {
                 .await
         }
 
+        #[instrument(skip_all)]
         async fn find_address_by_merchant_id_payment_id_address_id(
             &self,
             merchant_id: &str,
@@ -339,7 +346,7 @@ mod storage {
                 MerchantStorageScheme::RedisKv => {
                     let key = format!("mid_{}_pid_{}", merchant_id, payment_id);
                     let field = format!("add_{}", address_id);
-                    db_utils::try_redis_get_else_try_database_get(
+                    Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
                             kv_wrapper(
                                 self,
@@ -350,7 +357,7 @@ mod storage {
                             .try_into_hget()
                         },
                         database_call,
-                    )
+                    ))
                     .await
                 }
             }?;
@@ -381,6 +388,7 @@ mod storage {
                 .await
         }
 
+        #[instrument(skip_all)]
         async fn update_address_for_payments(
             &self,
             this: domain::Address,
@@ -449,6 +457,7 @@ mod storage {
             }
         }
 
+        #[instrument(skip_all)]
         async fn insert_address_for_payments(
             &self,
             payment_id: &str,
@@ -501,6 +510,7 @@ mod storage {
                         merchant_id: address_new.merchant_id.clone(),
                         payment_id: address_new.payment_id.clone(),
                         updated_by: storage_scheme.to_string(),
+                        email: address_new.email.clone(),
                     };
 
                     let redis_entry = kv::TypedSql {
@@ -537,6 +547,7 @@ mod storage {
             }
         }
 
+        #[instrument(skip_all)]
         async fn insert_address_for_customers(
             &self,
             address: domain::Address,
@@ -560,6 +571,7 @@ mod storage {
                 .await
         }
 
+        #[instrument(skip_all)]
         async fn update_address_by_merchant_id_customer_id(
             &self,
             customer_id: &str,
@@ -649,14 +661,13 @@ impl AddressInterface for MockDb {
         }
     }
 
-    #[instrument(skip_all)]
     async fn update_address(
         &self,
         address_id: String,
         address_update: storage_types::AddressUpdate,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Address, errors::StorageError> {
-        match self
+        let updated_addr = self
             .addresses
             .lock()
             .await
@@ -667,7 +678,8 @@ impl AddressInterface for MockDb {
                     AddressUpdateInternal::from(address_update).create_address(a.clone());
                 *a = address_updated.clone();
                 address_updated
-            }) {
+            });
+        match updated_addr {
             Some(address_updated) => address_updated
                 .convert(key_store.key.get_inner())
                 .await
@@ -687,7 +699,7 @@ impl AddressInterface for MockDb {
         key_store: &domain::MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Address, errors::StorageError> {
-        match self
+        let updated_addr = self
             .addresses
             .lock()
             .await
@@ -698,7 +710,8 @@ impl AddressInterface for MockDb {
                     AddressUpdateInternal::from(address_update).create_address(a.clone());
                 *a = address_updated.clone();
                 address_updated
-            }) {
+            });
+        match updated_addr {
             Some(address_updated) => address_updated
                 .convert(key_store.key.get_inner())
                 .await
@@ -757,20 +770,22 @@ impl AddressInterface for MockDb {
         address_update: storage_types::AddressUpdate,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Address>, errors::StorageError> {
-        match self
+        let updated_addr = self
             .addresses
             .lock()
             .await
             .iter_mut()
             .find(|address| {
-                address.customer_id == customer_id && address.merchant_id == merchant_id
+                address.customer_id == Some(customer_id.to_string())
+                    && address.merchant_id == merchant_id
             })
             .map(|a| {
                 let address_updated =
                     AddressUpdateInternal::from(address_update).create_address(a.clone());
                 *a = address_updated.clone();
                 address_updated
-            }) {
+            });
+        match updated_addr {
             Some(address) => {
                 let address: domain::Address = address
                     .convert(key_store.key.get_inner())

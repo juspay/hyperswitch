@@ -3,7 +3,6 @@ use error_stack::ResultExt;
 use router_env::logger;
 use scheduler::{
     consumer::{self, types::process_data, workflows::ProcessTrackerWorkflow},
-    db::process_tracker::ProcessTrackerExt,
     errors as sch_errors, utils as scheduler_utils, SchedulerAppState,
 };
 
@@ -61,7 +60,13 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
             .await?;
 
         let (mut payment_data, _, customer, _, _) =
-            payment_flows::payments_operation_core::<api::PSync, _, _, _, Oss>(
+            Box::pin(payment_flows::payments_operation_core::<
+                api::PSync,
+                _,
+                _,
+                _,
+                Oss,
+            >(
                 state,
                 merchant_account.clone(),
                 key_store,
@@ -69,8 +74,9 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                 tracking_data.clone(),
                 payment_flows::CallConnectorAction::Trigger,
                 services::AuthFlow::Client,
+                None,
                 api::HeaderPayload::default(),
-            )
+            ))
             .await?;
 
         let terminal_status = [
@@ -84,12 +90,10 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
         ];
         match &payment_data.payment_attempt.status {
             status if terminal_status.contains(status) => {
-                let id = process.id.clone();
-                process
-                    .finish_with_status(
-                        state.get_db().as_scheduler(),
-                        format!("COMPLETED_BY_PT_{id}"),
-                    )
+                state
+                    .get_db()
+                    .as_scheduler()
+                    .finish_process_with_business_status(process, "COMPLETED_BY_PT".to_string())
                     .await?
             }
             _ => {
@@ -117,7 +121,7 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                         .as_ref()
                         .is_none()
                 {
-                    let payment_intent_update = data_models::payments::payment_intent::PaymentIntentUpdate::PGStatusUpdate { status: api_models::enums::IntentStatus::Failed,updated_by: merchant_account.storage_scheme.to_string() };
+                    let payment_intent_update = data_models::payments::payment_intent::PaymentIntentUpdate::PGStatusUpdate { status: api_models::enums::IntentStatus::Failed,updated_by: merchant_account.storage_scheme.to_string(), incremental_authorization_allowed: Some(false) };
                     let payment_attempt_update =
                         data_models::payments::payment_attempt::PaymentAttemptUpdate::ErrorUpdate {
                             connector: None,
@@ -129,6 +133,9 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                             )),
                             amount_capturable: Some(0),
                             updated_by: merchant_account.storage_scheme.to_string(),
+                            unified_code: None,
+                            unified_message: None,
+                            connector_transaction_id: None,
                         };
 
                     payment_data.payment_attempt = db
@@ -168,7 +175,11 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
 
                     // Trigger the outgoing webhook to notify the merchant about failed payment
                     let operation = operations::PaymentStatus;
-                    utils::trigger_payments_webhook::<_, api_models::payments::PaymentsRequest, _>(
+                    Box::pin(utils::trigger_payments_webhook::<
+                        _,
+                        api_models::payments::PaymentsRequest,
+                        _,
+                    >(
                         merchant_account,
                         business_profile,
                         payment_data,
@@ -176,7 +187,7 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                         customer,
                         state,
                         operation,
-                    )
+                    ))
                     .await
                     .map_err(|error| logger::warn!(payments_outgoing_webhook_error=?error))
                     .ok();
@@ -236,12 +247,12 @@ pub async fn get_sync_process_schedule_time(
         });
     let mapping = match mapping {
         Ok(x) => x,
-        Err(err) => {
-            logger::info!("Redis Mapping Error: {}", err);
+        Err(error) => {
+            logger::info!(?error, "Redis Mapping Error");
             process_data::ConnectorPTMapping::default()
         }
     };
-    let time_delta = scheduler_utils::get_schedule_time(mapping, merchant_id, retry_count + 1);
+    let time_delta = scheduler_utils::get_schedule_time(mapping, merchant_id, retry_count);
 
     Ok(scheduler_utils::get_time_from_delta(time_delta))
 }
@@ -256,15 +267,16 @@ pub async fn retry_sync_task(
     pt: storage::ProcessTracker,
 ) -> Result<bool, sch_errors::ProcessTrackerError> {
     let schedule_time =
-        get_sync_process_schedule_time(db, &connector, &merchant_id, pt.retry_count).await?;
+        get_sync_process_schedule_time(db, &connector, &merchant_id, pt.retry_count + 1).await?;
 
     match schedule_time {
         Some(s_time) => {
-            pt.retry(db.as_scheduler(), s_time).await?;
+            db.as_scheduler().retry_process(pt, s_time).await?;
             Ok(false)
         }
         None => {
-            pt.finish_with_status(db.as_scheduler(), "RETRIES_EXCEEDED".to_string())
+            db.as_scheduler()
+                .finish_process_with_business_status(pt, "RETRIES_EXCEEDED".to_string())
                 .await?;
             Ok(true)
         }
@@ -287,7 +299,10 @@ mod tests {
         let cpt_default = process_data::ConnectorPTMapping::default().default_mapping;
         assert_eq!(
             vec![schedule_time_delta, first_retry_time_delta],
-            vec![cpt_default.start_after, cpt_default.frequency[0]]
+            vec![
+                cpt_default.start_after,
+                *cpt_default.frequency.first().unwrap()
+            ]
         );
     }
 }

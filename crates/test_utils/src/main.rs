@@ -3,10 +3,10 @@ use std::process::{exit, Command};
 use test_utils::newman_runner;
 
 fn main() {
-    let mut newman_command: Command = newman_runner::command_generate();
+    let mut runner = newman_runner::generate_newman_command();
 
     // Execute the newman command
-    let output = newman_command.spawn();
+    let output = runner.newman_command.spawn();
     let mut child = match output {
         Ok(child) => child,
         Err(err) => {
@@ -15,6 +15,26 @@ fn main() {
         }
     };
     let status = child.wait();
+
+    // Filter out None values leaving behind Some(Path)
+    let paths: Vec<String> = runner.modified_file_paths.into_iter().flatten().collect();
+
+    if !paths.is_empty() {
+        let git_status = Command::new("git").arg("restore").args(&paths).output();
+
+        match git_status {
+            Ok(output) if !output.status.success() => {
+                let stderr_str = String::from_utf8_lossy(&output.stderr);
+                eprintln!("Git command failed with error: {stderr_str}");
+            }
+            Ok(_) => {
+                println!("Git restore successful!");
+            }
+            Err(e) => {
+                eprintln!("Error running Git: {e}");
+            }
+        }
+    }
 
     let exit_code = match status {
         Ok(exit_status) => {

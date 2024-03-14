@@ -1,30 +1,31 @@
-use common_utils::ext_traits::ValueExt;
-use diesel_models::enums::{self as storage_enums};
+use common_utils::{errors::ValidationError, ext_traits::ValueExt};
+use diesel_models::{enums as storage_enums, ApiKeyExpiryTrackingData};
+use router_env::logger;
+use scheduler::{workflows::ProcessTrackerWorkflow, SchedulerAppState};
 
-use super::{ApiKeyExpiryWorkflow, ProcessTrackerWorkflow};
 use crate::{
     errors,
     logger::error,
-    routes::AppState,
-    types::{
-        api,
-        storage::{self, ProcessTrackerExt},
-    },
+    routes::{metrics, AppState},
+    services::email::types::ApiKeyExpiryReminder,
+    types::{api, domain::UserEmail, storage},
     utils::OptionExt,
 };
 
+pub struct ApiKeyExpiryWorkflow;
+
 #[async_trait::async_trait]
-impl ProcessTrackerWorkflow for ApiKeyExpiryWorkflow {
+impl ProcessTrackerWorkflow<AppState> for ApiKeyExpiryWorkflow {
     async fn execute_workflow<'a>(
         &'a self,
         state: &'a AppState,
         process: storage::ProcessTracker,
     ) -> Result<(), errors::ProcessTrackerError> {
         let db = &*state.store;
-        let tracking_data: storage::ApiKeyExpiryWorkflow = process
+        let tracking_data: ApiKeyExpiryTrackingData = process
             .tracking_data
             .clone()
-            .parse_value("ApiKeyExpiryWorkflow")?;
+            .parse_value("ApiKeyExpiryTrackingData")?;
 
         let key_store = state
             .store
@@ -41,11 +42,21 @@ impl ProcessTrackerWorkflow for ApiKeyExpiryWorkflow {
         let email_id = merchant_account
             .merchant_details
             .parse_value::<api::MerchantDetails>("MerchantDetails")?
-            .primary_email;
+            .primary_email
+            .ok_or(errors::ProcessTrackerError::EValidationError(
+                ValidationError::MissingRequiredField {
+                    field_name: "email".to_string(),
+                }
+                .into(),
+            ))?;
 
         let task_id = process.id.clone();
 
         let retry_count = process.retry_count;
+
+        let api_key_name = tracking_data.api_key_name.clone();
+
+        let prefix = tracking_data.prefix.clone();
 
         let expires_in = tracking_data
             .expiry_reminder_days
@@ -53,36 +64,39 @@ impl ProcessTrackerWorkflow for ApiKeyExpiryWorkflow {
                 usize::try_from(retry_count)
                     .map_err(|_| errors::ProcessTrackerError::TypeConversionError)?,
             )
-            .ok_or(errors::ProcessTrackerError::EApiErrorResponse(
-                errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "index",
-                }
-                .into(),
-            ))?;
+            .ok_or(errors::ProcessTrackerError::EApiErrorResponse)?;
+
+        let email_contents = ApiKeyExpiryReminder {
+            recipient_email: UserEmail::from_pii_email(email_id).map_err(|err| {
+                logger::error!(%err,"Failed to convert recipient's email to UserEmail from pii::Email");
+                errors::ProcessTrackerError::EApiErrorResponse
+            })?,
+            subject: "API Key Expiry Notice",
+            expires_in: *expires_in,
+            api_key_name,
+            prefix,
+
+        };
 
         state
             .email_client
             .clone()
-            .send_email(
-                email_id.ok_or_else(|| errors::ProcessTrackerError::MissingRequiredField)?,
-                "API Key Expiry Notice".to_string(),
-                format!("Dear Merchant,\n
-It has come to our attention that your API key will expire in {expires_in} days. To ensure uninterrupted access to our platform and continued smooth operation of your services, we kindly request that you take the necessary actions as soon as possible.\n\n
-Thanks,\n
-Team Hyperswitch"),
+            .compose_and_send_email(
+                Box::new(email_contents),
+                state.conf.proxy.https_url.as_ref(),
             )
             .await
-            .map_err(|_| errors::ProcessTrackerError::FlowExecutionError {
-                flow: "ApiKeyExpiryWorkflow",
-            })?;
+            .map_err(errors::ProcessTrackerError::EEmailError)?;
 
         // If all the mails have been sent, then retry_count would be equal to length of the expiry_reminder_days vector
         if retry_count
             == i32::try_from(tracking_data.expiry_reminder_days.len() - 1)
                 .map_err(|_| errors::ProcessTrackerError::TypeConversionError)?
         {
-            process
-                .finish_with_status(db, format!("COMPLETED_BY_PT_{task_id}"))
+            state
+                .get_db()
+                .as_scheduler()
+                .finish_process_with_business_status(process, "COMPLETED_BY_PT".to_string())
                 .await?
         }
         // If tasks are remaining that has to be scheduled
@@ -93,12 +107,7 @@ Team Hyperswitch"),
                     usize::try_from(retry_count + 1)
                         .map_err(|_| errors::ProcessTrackerError::TypeConversionError)?,
                 )
-                .ok_or(errors::ProcessTrackerError::EApiErrorResponse(
-                    errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "index",
-                    }
-                    .into(),
-                ))?;
+                .ok_or(errors::ProcessTrackerError::EApiErrorResponse)?;
 
             let updated_schedule_time = tracking_data.api_key_expiry.map(|api_key_expiry| {
                 api_key_expiry.saturating_sub(time::Duration::days(i64::from(*expiry_reminder_day)))
@@ -115,6 +124,12 @@ Team Hyperswitch"),
             let task_ids = vec![task_id];
             db.process_tracker_update_process_status_by_ids(task_ids, updated_process_tracker_data)
                 .await?;
+            // Remaining tasks are re-scheduled, so will be resetting the added count
+            metrics::TASKS_RESET_COUNT.add(
+                &metrics::CONTEXT,
+                1,
+                &[metrics::request::add_attributes("flow", "ApiKeyExpiry")],
+            );
         }
 
         Ok(())

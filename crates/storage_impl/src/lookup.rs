@@ -11,6 +11,7 @@ use redis_interface::SetnxReply;
 
 use crate::{
     diesel_error_to_data_error,
+    errors::RedisErrorExt,
     redis::kv_store::{kv_wrapper, KvOperation},
     utils::{self, try_redis_get_else_try_database_get},
     DatabaseStore, KVRouterStore, RouterStore,
@@ -97,7 +98,7 @@ impl<T: DatabaseStore> ReverseLookupInterface for KVRouterStore<T> {
                     format!("reverse_lookup_{}", &created_rev_lookup.lookup_id),
                 )
                 .await
-                .change_context(errors::StorageError::KVError)?
+                .map_err(|err| err.to_redis_failed_response(&created_rev_lookup.lookup_id))?
                 .try_into_setnx()
                 {
                     Ok(SetnxReply::KeySet) => Ok(created_rev_lookup),
@@ -135,7 +136,11 @@ impl<T: DatabaseStore> ReverseLookupInterface for KVRouterStore<T> {
                     .try_into_get()
                 };
 
-                try_redis_get_else_try_database_get(redis_fut, database_call).await
+                Box::pin(try_redis_get_else_try_database_get(
+                    redis_fut,
+                    database_call,
+                ))
+                .await
             }
         }
     }

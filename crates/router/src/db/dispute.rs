@@ -1,4 +1,5 @@
 use error_stack::{IntoReport, ResultExt};
+use router_env::{instrument, tracing};
 
 use super::{MockDb, Store};
 use crate::{
@@ -48,6 +49,7 @@ pub trait DisputeInterface {
 
 #[async_trait::async_trait]
 impl DisputeInterface for Store {
+    #[instrument(skip_all)]
     async fn insert_dispute(
         &self,
         dispute: storage::DisputeNew,
@@ -60,6 +62,7 @@ impl DisputeInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_by_merchant_id_payment_id_connector_dispute_id(
         &self,
         merchant_id: &str,
@@ -78,6 +81,7 @@ impl DisputeInterface for Store {
         .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_dispute_by_merchant_id_dispute_id(
         &self,
         merchant_id: &str,
@@ -90,6 +94,7 @@ impl DisputeInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_disputes_by_merchant_id(
         &self,
         merchant_id: &str,
@@ -102,6 +107,7 @@ impl DisputeInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_disputes_by_merchant_id_payment_id(
         &self,
         merchant_id: &str,
@@ -114,6 +120,7 @@ impl DisputeInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn update_dispute(
         &self,
         this: storage::Dispute,
@@ -173,6 +180,7 @@ impl DisputeInterface for MockDb {
             profile_id: dispute.profile_id,
             evidence,
             merchant_connector_id: dispute.merchant_connector_id,
+            dispute_amount: dispute.dispute_amount,
         };
 
         locked_disputes.push(new_dispute.clone());
@@ -407,6 +415,7 @@ mod tests {
                 evidence: Some(Secret::from(Value::String("evidence".into()))),
                 profile_id: None,
                 merchant_connector_id: None,
+                dispute_amount: 1040,
             }
         }
 
@@ -572,7 +581,7 @@ mod tests {
 
             assert_eq!(1, found_disputes.len());
 
-            assert_eq!(created_dispute, found_disputes.get(0).unwrap().clone());
+            assert_eq!(created_dispute, found_disputes.first().unwrap().clone());
         }
 
         #[tokio::test]
@@ -611,7 +620,7 @@ mod tests {
 
             assert_eq!(1, found_disputes.len());
 
-            assert_eq!(created_dispute, found_disputes.get(0).unwrap().clone());
+            assert_eq!(created_dispute, found_disputes.first().unwrap().clone());
         }
 
         mod update_dispute {

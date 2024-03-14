@@ -2,6 +2,7 @@
 check-filename = true
 
 [default.extend-identifiers]
+"ABD" = "ABD"  # Aberdeenshire, UK ISO 3166-2 code
 BA = "BA"  # Bosnia and Herzegovina country code
 CAF = "CAF"  # Central African Republic country code
 flate2 = "flate2"
@@ -22,8 +23,6 @@ bottm = "bottm" # name of a css class for nexinets ui test
 klick = "klick" # Swedish word for clicks
 optin = "optin" # Boku preflow name
 optin_id = "optin_id" # Boku's id for optin flow
-deriver = "deriver"
-Deriver = "Deriver"
 
 [default.extend-words]
 aci = "aci"                   # Name of a connector
@@ -35,9 +34,13 @@ ba = "ba" # ignore minor commit conversions
 ede = "ede" # ignore minor commit conversions
 daa = "daa" # Commit id
 afe = "afe" # Commit id
+Hashi = "Hashi" # HashiCorp
+requestor = "requestor" #Used in external 3ds flows
+deriver = "deriver"
 
 [files]
 extend-exclude = [
     "config/redis.conf", # `typos` also checked "AKE" in the file, which is present as a quoted string
     "openapi/open_api_spec.yaml", # no longer updated
+    "crates/router/src/utils/user/blocker_emails.txt", # this file contains various email domains
 ]

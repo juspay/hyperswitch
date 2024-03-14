@@ -69,6 +69,7 @@ pub async fn setup_intents_create(
                 req,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                None,
                 api_types::HeaderPayload::default(),
             )
         },
@@ -77,7 +78,7 @@ pub async fn setup_intents_create(
     ))
     .await
 }
-#[instrument(skip_all, fields(flow = ?Flow::PaymentsRetrieve))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsRetrieveForceSync))]
 pub async fn setup_intents_retrieve(
     state: web::Data<routes::AppState>,
     req: HttpRequest,
@@ -102,7 +103,7 @@ pub async fn setup_intents_retrieve(
             Err(err) => return api::log_and_return_error_response(report!(err)),
         };
 
-    let flow = Flow::PaymentsRetrieve;
+    let flow = Flow::PaymentsRetrieveForceSync;
 
     Box::pin(wrap::compatibility_api_wrap::<
         _,
@@ -128,6 +129,7 @@ pub async fn setup_intents_retrieve(
                 payload,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                None,
                 api_types::HeaderPayload::default(),
             )
         },
@@ -200,6 +202,7 @@ pub async fn setup_intents_update(
                 req,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                None,
                 api_types::HeaderPayload::default(),
             )
         },
@@ -273,6 +276,7 @@ pub async fn setup_intents_confirm(
                 req,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                None,
                 api_types::HeaderPayload::default(),
             )
         },

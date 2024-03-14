@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use api_models::enums;
 use base64::Engine;
-use common_utils::ext_traits::ByteSliceExt;
+use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as square;
@@ -17,6 +17,7 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
+    events::connector_api_logs::ConnectorEvent,
     headers,
     services::{
         self,
@@ -28,7 +29,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
     },
-    utils::{self, BytesExt},
+    utils::BytesExt,
 };
 
 #[derive(Debug, Clone)]
@@ -96,11 +97,15 @@ impl ConnectorCommon for Square {
     fn build_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: square::SquareErrorResponse = res
             .response
             .parse_struct("SquareErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_error_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
 
         let mut reason_list = Vec::new();
         for error_iter in response.errors.iter() {
@@ -123,6 +128,8 @@ impl ConnectorCommon for Square {
                 .and_then(|error| error.category.clone())
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason: Some(reason),
+            attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
@@ -131,6 +138,7 @@ impl ConnectorValidation for Square {
     fn validate_capture_method(
         &self,
         capture_method: Option<enums::CaptureMethod>,
+        _pmt: Option<enums::PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
         match capture_method {
@@ -160,6 +168,20 @@ impl
         types::PaymentsResponseData,
     > for Square
 {
+    fn build_request(
+        &self,
+        _req: &types::RouterData<
+            api::SetupMandate,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(
+            errors::ConnectorError::NotImplemented("Setup Mandate flow for Square".to_string())
+                .into(),
+        )
+    }
 }
 
 #[async_trait::async_trait]
@@ -245,15 +267,11 @@ impl
     fn get_request_body(
         &self,
         req: &types::TokenizationRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_request = square::SquareTokenRequest::try_from(req)?;
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = square::SquareTokenRequest::try_from(req)?;
 
-        let square_req = types::RequestBody::log_and_get_request_body(
-            &connector_request,
-            utils::Encode::<square::SquareTokenRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(square_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -267,7 +285,9 @@ impl
                 .url(&types::TokenizationType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::TokenizationType::get_headers(self, req, connectors)?)
-                .body(types::TokenizationType::get_request_body(self, req)?)
+                .set_body(types::TokenizationType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -275,6 +295,7 @@ impl
     fn handle_response(
         &self,
         data: &types::TokenizationRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::TokenizationRouterData, errors::ConnectorError>
     where
@@ -285,6 +306,9 @@ impl
             .parse_struct("SquareTokenResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -294,8 +318,9 @@ impl
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -364,12 +389,16 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsAuthorizeSessionTokenRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeSessionTokenRouterData, errors::ConnectorError> {
         let response: square::SquareSessionResponse = res
             .response
             .parse_struct("SquareSessionResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -381,8 +410,9 @@ impl
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -412,15 +442,11 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = square::SquarePaymentsRequest::try_from(req)?;
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = square::SquarePaymentsRequest::try_from(req)?;
 
-        let square_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<square::SquarePaymentsRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(square_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -438,7 +464,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
+                .set_body(types::PaymentsAuthorizeType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -446,12 +474,17 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn handle_response(
         &self,
         data: &types::PaymentsAuthorizeRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: square::SquarePaymentsResponse = res
             .response
             .parse_struct("SquarePaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -462,8 +495,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -517,12 +551,17 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     fn handle_response(
         &self,
         data: &types::PaymentsSyncRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
         let response: square::SquarePaymentsResponse = res
             .response
             .parse_struct("SquarePaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -533,8 +572,9 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -591,12 +631,17 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn handle_response(
         &self,
         data: &types::PaymentsCaptureRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
         let response: square::SquarePaymentsResponse = res
             .response
             .parse_struct("SquarePaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -607,8 +652,9 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -657,12 +703,17 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     fn handle_response(
         &self,
         data: &types::PaymentsCancelRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
         let response: square::SquarePaymentsResponse = res
             .response
             .parse_struct("SquarePaymentsVoidResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -673,8 +724,9 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -702,14 +754,10 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = square::SquareRefundRequest::try_from(req)?;
-        let square_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<square::SquareRefundRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(square_req))
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = square::SquareRefundRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -724,7 +772,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::RefundExecuteType::get_request_body(self, req)?)
+            .set_body(types::RefundExecuteType::get_request_body(
+                self, req, connectors,
+            )?)
             .build();
         Ok(Some(request))
     }
@@ -732,12 +782,17 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn handle_response(
         &self,
         data: &types::RefundsRouterData<api::Execute>,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
         let response: square::RefundResponse = res
             .response
             .parse_struct("SquareRefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -748,8 +803,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -796,12 +852,16 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     fn handle_response(
         &self,
         data: &types::RefundSyncRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
         let response: square::RefundResponse = res
             .response
             .parse_struct("SquareRefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -813,8 +873,9 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -905,24 +966,19 @@ impl api::IncomingWebhook for Square {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let details: square::SquareWebhookBody =
             request
                 .body
                 .parse_struct("SquareWebhookObject")
                 .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-        let reference_object = match details.data.object {
+        Ok(match details.data.object {
             square::SquareWebhookObject::Payment(square_payments_response_details) => {
-                serde_json::to_value(square_payments_response_details)
-                    .into_report()
-                    .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?
+                Box::new(square_payments_response_details)
             }
             square::SquareWebhookObject::Refund(square_refund_response_details) => {
-                serde_json::to_value(square_refund_response_details)
-                    .into_report()
-                    .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?
+                Box::new(square_refund_response_details)
             }
-        };
-        Ok(reference_object)
+        })
     }
 }

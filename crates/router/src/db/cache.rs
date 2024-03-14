@@ -1,6 +1,7 @@
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 use redis_interface::errors::RedisError;
+use router_env::{instrument, tracing};
 use storage_impl::redis::{
     cache::{Cache, CacheKind, Cacheable},
     pub_sub::PubSubInterface,
@@ -12,6 +13,7 @@ use crate::{
     core::errors::{self, CustomResult},
 };
 
+#[instrument(skip_all)]
 pub async fn get_or_populate_redis<T, F, Fut>(
     store: &dyn StorageInterface,
     key: impl AsRef<str>,
@@ -52,6 +54,7 @@ where
     }
 }
 
+#[instrument(skip_all)]
 pub async fn get_or_populate_in_memory<T, F, Fut>(
     store: &dyn StorageInterface,
     key: &str,
@@ -63,7 +66,7 @@ where
     F: FnOnce() -> Fut + Send,
     Fut: futures::Future<Output = CustomResult<T, errors::StorageError>> + Send,
 {
-    let cache_val = cache.get_val::<T>(key);
+    let cache_val = cache.get_val::<T>(key).await;
     if let Some(val) = cache_val {
         Ok(val)
     } else {
@@ -73,6 +76,7 @@ where
     }
 }
 
+#[instrument(skip_all)]
 pub async fn redact_cache<T, F, Fut>(
     store: &dyn StorageInterface,
     key: &str,
@@ -100,9 +104,10 @@ where
     Ok(data)
 }
 
-pub async fn publish_into_redact_channel<'a>(
+#[instrument(skip_all)]
+pub async fn publish_into_redact_channel<'a, K: IntoIterator<Item = CacheKind<'a>> + Send>(
     store: &dyn StorageInterface,
-    key: CacheKind<'a>,
+    keys: K,
 ) -> CustomResult<usize, errors::StorageError> {
     let redis_conn = store
         .get_redis_conn()
@@ -111,12 +116,21 @@ pub async fn publish_into_redact_channel<'a>(
         ))
         .attach_printable("Failed to get redis connection")?;
 
-    redis_conn
-        .publish(consts::PUB_SUB_CHANNEL, key)
-        .await
-        .change_context(errors::StorageError::KVError)
+    let futures = keys.into_iter().map(|key| async {
+        redis_conn
+            .clone()
+            .publish(consts::PUB_SUB_CHANNEL, key)
+            .await
+            .change_context(errors::StorageError::KVError)
+    });
+
+    Ok(futures::future::try_join_all(futures)
+        .await?
+        .iter()
+        .sum::<usize>())
 }
 
+#[instrument(skip_all)]
 pub async fn publish_and_redact<'a, T, F, Fut>(
     store: &dyn StorageInterface,
     key: CacheKind<'a>,
@@ -127,6 +141,22 @@ where
     Fut: futures::Future<Output = CustomResult<T, errors::StorageError>> + Send,
 {
     let data = fun().await?;
-    publish_into_redact_channel(store, key).await?;
+    publish_into_redact_channel(store, [key]).await?;
+    Ok(data)
+}
+
+#[instrument(skip_all)]
+pub async fn publish_and_redact_multiple<'a, T, F, Fut, K>(
+    store: &dyn StorageInterface,
+    keys: K,
+    fun: F,
+) -> CustomResult<T, errors::StorageError>
+where
+    F: FnOnce() -> Fut + Send,
+    Fut: futures::Future<Output = CustomResult<T, errors::StorageError>> + Send,
+    K: IntoIterator<Item = CacheKind<'a>> + Send,
+{
+    let data = fun().await?;
+    publish_into_redact_channel(store, keys).await?;
     Ok(data)
 }

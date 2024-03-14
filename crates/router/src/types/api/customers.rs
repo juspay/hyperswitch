@@ -10,6 +10,12 @@ newtype!(
     derives = (Debug, Clone, Serialize)
 );
 
+impl common_utils::events::ApiEventMetric for CustomerResponse {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        self.0.get_api_event_type()
+    }
+}
+
 pub(crate) trait CustomerRequestExt: Sized {
     fn validate(self) -> RouterResult<Self>;
 }
@@ -26,6 +32,7 @@ impl From<(domain::Customer, Option<payments::AddressDetails>)> for CustomerResp
             created_at: cust.created_at,
             metadata: cust.metadata,
             address,
+            default_payment_method_id: cust.default_payment_method_id,
         }
         .into()
     }

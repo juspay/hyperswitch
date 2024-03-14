@@ -22,6 +22,7 @@ impl utils::Connector for PayeezyTest {
         use router::connector::Payeezy;
         types::api::ConnectorData {
             connector: Box::new(&Payeezy),
+            // Remove `dummy_connector` feature gate from module in `main.rs` when updating this to use actual connector variant
             connector_name: types::Connector::DummyConnector1,
             get_token: types::api::GetToken::Connector,
             merchant_connector_id: None,
@@ -55,15 +56,17 @@ impl PayeezyTest {
 
     fn get_payment_info() -> Option<PaymentInfo> {
         Some(PaymentInfo {
-            address: Some(types::PaymentAddress {
-                billing: Some(Address {
+            address: Some(types::PaymentAddress::new(
+                None,
+                Some(Address {
                     address: Some(AddressDetails {
                         ..Default::default()
                     }),
                     phone: None,
+                    email: None,
                 }),
-                ..Default::default()
-            }),
+                None,
+            )),
             ..Default::default()
         })
     }

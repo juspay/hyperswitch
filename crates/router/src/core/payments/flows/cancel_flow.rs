@@ -24,7 +24,10 @@ impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::Paym
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
     ) -> RouterResult<types::PaymentsCancelRouterData> {
-        transformers::construct_payment_router_data::<api::Void, types::PaymentsCancelData>(
+        Box::pin(transformers::construct_payment_router_data::<
+            api::Void,
+            types::PaymentsCancelData,
+        >(
             state,
             self.clone(),
             connector_id,
@@ -32,7 +35,7 @@ impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::Paym
             key_store,
             customer,
             merchant_connector_account,
-        )
+        ))
         .await
     }
 }

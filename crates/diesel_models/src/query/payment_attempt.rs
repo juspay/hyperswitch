@@ -6,7 +6,6 @@ use diesel::{
     QueryDsl, Table,
 };
 use error_stack::{IntoReport, ResultExt};
-use router_env::{instrument, tracing};
 
 use super::generics;
 use crate::{
@@ -21,14 +20,12 @@ use crate::{
 };
 
 impl PaymentAttemptNew {
-    #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<PaymentAttempt> {
-        generics::generic_insert(conn, self).await
+        generics::generic_insert(conn, self.populate_derived_fields()).await
     }
 }
 
 impl PaymentAttempt {
-    #[instrument(skip(conn))]
     pub async fn update_with_attempt_id(
         self,
         conn: &PgPooledConn,
@@ -44,7 +41,7 @@ impl PaymentAttempt {
             dsl::attempt_id
                 .eq(self.attempt_id.to_owned())
                 .and(dsl::merchant_id.eq(self.merchant_id.to_owned())),
-            PaymentAttemptUpdateInternal::from(payment_attempt),
+            PaymentAttemptUpdateInternal::from(payment_attempt).populate_derived_fields(&self),
         )
         .await
         {
@@ -56,7 +53,6 @@ impl PaymentAttempt {
         }
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_optional_by_payment_id_merchant_id(
         conn: &PgPooledConn,
         payment_id: &str,
@@ -71,7 +67,6 @@ impl PaymentAttempt {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_by_connector_transaction_id_payment_id_merchant_id(
         conn: &PgPooledConn,
         connector_transaction_id: &str,
@@ -120,7 +115,42 @@ impl PaymentAttempt {
         )
     }
 
-    #[instrument(skip(conn))]
+    pub async fn find_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
+        conn: &PgPooledConn,
+        payment_id: &str,
+        merchant_id: &str,
+    ) -> StorageResult<Self> {
+        // perform ordering on the application level instead of database level
+        generics::generic_filter::<
+            <Self as HasTable>::Table,
+            _,
+            <<Self as HasTable>::Table as Table>::PrimaryKey,
+            Self,
+        >(
+            conn,
+            dsl::payment_id
+                .eq(payment_id.to_owned())
+                .and(dsl::merchant_id.eq(merchant_id.to_owned()))
+                .and(
+                    dsl::status
+                        .eq(enums::AttemptStatus::Charged)
+                        .or(dsl::status.eq(enums::AttemptStatus::PartialCharged)),
+                ),
+            None,
+            None,
+            None,
+        )
+        .await?
+        .into_iter()
+        .fold(
+            Err(DatabaseError::NotFound).into_report(),
+            |acc, cur| match acc {
+                Ok(value) if value.modified_at > cur.modified_at => Ok(value),
+                _ => Ok(cur),
+            },
+        )
+    }
+
     pub async fn find_by_merchant_id_connector_txn_id(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -135,7 +165,6 @@ impl PaymentAttempt {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_by_merchant_id_attempt_id(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -150,7 +179,6 @@ impl PaymentAttempt {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_by_merchant_id_preprocessing_id(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -165,7 +193,6 @@ impl PaymentAttempt {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_by_payment_id_merchant_id_attempt_id(
         conn: &PgPooledConn,
         payment_id: &str,
@@ -183,7 +210,6 @@ impl PaymentAttempt {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_by_merchant_id_payment_id(
         conn: &PgPooledConn,
         merchant_id: &str,

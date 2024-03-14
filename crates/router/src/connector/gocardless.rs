@@ -3,7 +3,7 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use api_models::enums::enums;
-use common_utils::{crypto, ext_traits::ByteSliceExt};
+use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as gocardless;
@@ -12,6 +12,7 @@ use crate::{
     configs::settings,
     connector::utils as connector_utils,
     core::errors::{self, CustomResult},
+    events::connector_api_logs::ConnectorEvent,
     headers,
     services::{
         self,
@@ -23,7 +24,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
     },
-    utils::{self, BytesExt},
+    utils::BytesExt,
 };
 
 #[derive(Debug, Clone)]
@@ -104,11 +105,16 @@ impl ConnectorCommon for Gocardless {
     fn build_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: gocardless::GocardlessErrorResponse = res
             .response
             .parse_struct("GocardlessErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_error_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         let error_iter = response.error.errors.iter();
         let mut error_reason: Vec<String> = Vec::new();
         for error in error_iter {
@@ -122,6 +128,8 @@ impl ConnectorCommon for Gocardless {
             code: response.error.code.to_string(),
             message: response.error.error_type,
             reason: Some(error_reason.join("; ")),
+            attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
@@ -152,14 +160,10 @@ impl
     fn get_request_body(
         &self,
         req: &types::ConnectorCustomerRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = gocardless::GocardlessCustomerRequest::try_from(req)?;
-        let gocardless_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<gocardless::GocardlessCustomerRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(gocardless_req))
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = gocardless::GocardlessCustomerRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -177,7 +181,9 @@ impl
                 .headers(types::ConnectorCustomerType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::ConnectorCustomerType::get_request_body(self, req)?)
+                .set_body(types::ConnectorCustomerType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -185,6 +191,7 @@ impl
     fn handle_response(
         &self,
         data: &types::ConnectorCustomerRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<
         types::RouterData<
@@ -203,6 +210,10 @@ impl
             .response
             .parse_struct("GocardlessCustomerResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -213,8 +224,9 @@ impl
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -247,14 +259,10 @@ impl
     fn get_request_body(
         &self,
         req: &types::TokenizationRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = gocardless::GocardlessBankAccountRequest::try_from(req)?;
-        let gocardless_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<gocardless::GocardlessBankAccountRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(gocardless_req))
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = gocardless::GocardlessBankAccountRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -268,7 +276,9 @@ impl
                 .url(&types::TokenizationType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::TokenizationType::get_headers(self, req, connectors)?)
-                .body(types::TokenizationType::get_request_body(self, req)?)
+                .set_body(types::TokenizationType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -276,6 +286,7 @@ impl
     fn handle_response(
         &self,
         data: &types::TokenizationRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::TokenizationRouterData, errors::ConnectorError>
     where
@@ -287,6 +298,10 @@ impl
             .response
             .parse_struct("GocardlessBankAccountResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -297,8 +312,9 @@ impl
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -314,7 +330,8 @@ impl
 impl ConnectorValidation for Gocardless {
     fn validate_capture_method(
         &self,
-        capture_method: Option<api_models::enums::CaptureMethod>,
+        capture_method: Option<enums::CaptureMethod>,
+        _pmt: Option<enums::PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
         match capture_method {
@@ -365,14 +382,10 @@ impl
     fn get_request_body(
         &self,
         req: &types::SetupMandateRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = gocardless::GocardlessMandateRequest::try_from(req)?;
-        let gocardless_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<gocardless::GocardlessMandateRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(gocardless_req))
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = gocardless::GocardlessMandateRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -388,7 +401,9 @@ impl
                     .url(&types::SetupMandateType::get_url(self, req, connectors)?)
                     .attach_default_headers()
                     .headers(types::SetupMandateType::get_headers(self, req, connectors)?)
-                    .body(types::SetupMandateType::get_request_body(self, req)?)
+                    .set_body(types::SetupMandateType::get_request_body(
+                        self, req, connectors,
+                    )?)
                     .build(),
             ))
         } else {
@@ -399,12 +414,17 @@ impl
     fn handle_response(
         &self,
         data: &types::SetupMandateRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::SetupMandateRouterData, errors::ConnectorError> {
         let response: gocardless::GocardlessMandateResponse = res
             .response
             .parse_struct("GocardlessMandateResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -415,8 +435,9 @@ impl
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -446,20 +467,17 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = gocardless::GocardlessRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.amount,
             req,
         ))?;
-        let req_obj = gocardless::GocardlessPaymentsRequest::try_from(&connector_router_data)?;
-        let gocardless_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<gocardless::GocardlessPaymentsRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(gocardless_req))
+        let connector_req =
+            gocardless::GocardlessPaymentsRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -477,7 +495,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
+                .set_body(types::PaymentsAuthorizeType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -485,12 +505,17 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn handle_response(
         &self,
         data: &types::PaymentsAuthorizeRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: gocardless::GocardlessPaymentsResponse = res
             .response
             .parse_struct("GocardlessPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -501,8 +526,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -554,12 +580,17 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     fn handle_response(
         &self,
         data: &types::PaymentsSyncRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
         let response: gocardless::GocardlessPaymentsResponse = res
             .response
             .parse_struct("GocardlessPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -570,8 +601,9 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -611,20 +643,16 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = gocardless::GocardlessRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.refund_amount,
             req,
         ))?;
-        let req_obj = gocardless::GocardlessRefundRequest::try_from(&connector_router_data)?;
-        let gocardless_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<gocardless::GocardlessRefundRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(gocardless_req))
+        let connector_req = gocardless::GocardlessRefundRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -639,7 +667,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::RefundExecuteType::get_request_body(self, req)?)
+            .set_body(types::RefundExecuteType::get_request_body(
+                self, req, connectors,
+            )?)
             .build();
         Ok(Some(request))
     }
@@ -647,12 +677,17 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn handle_response(
         &self,
         data: &types::RefundsRouterData<api::Execute>,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
         let response: gocardless::RefundResponse = res
             .response
             .parse_struct("gocardless RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -663,8 +698,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -827,7 +863,7 @@ impl api::IncomingWebhook for Gocardless {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let details: gocardless::GocardlessWebhookEvent = request
             .body
             .parse_struct("GocardlessWebhookEvent")
@@ -835,19 +871,14 @@ impl api::IncomingWebhook for Gocardless {
         let first_event = details
             .events
             .first()
-            .ok_or_else(|| errors::ConnectorError::WebhookReferenceIdNotFound)?;
+            .ok_or_else(|| errors::ConnectorError::WebhookReferenceIdNotFound)?
+            .clone();
         match first_event.resource_type {
-            transformers::WebhookResourceType::Payments => serde_json::to_value(
-                gocardless::GocardlessPaymentsResponse::try_from(first_event)?,
-            )
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed),
-            transformers::WebhookResourceType::Refunds => serde_json::to_value(first_event)
-                .into_report()
-                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed),
-            transformers::WebhookResourceType::Mandates => serde_json::to_value(first_event)
-                .into_report()
-                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed),
+            transformers::WebhookResourceType::Payments => Ok(Box::new(
+                gocardless::GocardlessPaymentsResponse::try_from(&first_event)?,
+            )),
+            transformers::WebhookResourceType::Refunds
+            | transformers::WebhookResourceType::Mandates => Ok(Box::new(first_event)),
         }
     }
 }

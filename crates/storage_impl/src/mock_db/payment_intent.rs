@@ -11,6 +11,7 @@ use diesel_models::enums as storage_enums;
 use error_stack::{IntoReport, ResultExt};
 
 use super::MockDb;
+use crate::DataModelExt;
 
 #[async_trait::async_trait]
 impl PaymentIntentInterface for MockDb {
@@ -105,6 +106,12 @@ impl PaymentIntentInterface for MockDb {
             payment_confirm_source: new.payment_confirm_source,
             updated_by: storage_scheme.to_string(),
             surcharge_applicable: new.surcharge_applicable,
+            request_incremental_authorization: new.request_incremental_authorization,
+            incremental_authorization_allowed: new.incremental_authorization_allowed,
+            authorization_count: new.authorization_count,
+            fingerprint_id: new.fingerprint_id,
+            session_expiry: new.session_expiry,
+            request_external_three_ds_authentication: new.request_external_three_ds_authentication,
         };
         payment_intents.push(payment_intent.clone());
         Ok(payment_intent)
@@ -123,7 +130,11 @@ impl PaymentIntentInterface for MockDb {
             .iter_mut()
             .find(|item| item.id == this.id)
             .unwrap();
-        *payment_intent = update.apply_changeset(this);
+        *payment_intent = PaymentIntent::from_storage_model(
+            update
+                .to_storage_model()
+                .apply_changeset(this.to_storage_model()),
+        );
         Ok(payment_intent.clone())
     }
 

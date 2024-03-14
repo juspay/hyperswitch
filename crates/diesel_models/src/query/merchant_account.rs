@@ -1,5 +1,4 @@
 use diesel::{associations::HasTable, ExpressionMethods, Table};
-use router_env::{instrument, tracing};
 
 use super::generics;
 use crate::{
@@ -10,14 +9,12 @@ use crate::{
 };
 
 impl MerchantAccountNew {
-    #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<MerchantAccount> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl MerchantAccount {
-    #[instrument(skip(conn))]
     pub async fn update(
         self,
         conn: &PgPooledConn,
@@ -67,7 +64,6 @@ impl MerchantAccount {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_by_merchant_id(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -79,7 +75,6 @@ impl MerchantAccount {
         .await
     }
 
-    #[instrument(skip_all)]
     pub async fn find_by_publishable_key(
         conn: &PgPooledConn,
         publishable_key: &str,
@@ -91,7 +86,6 @@ impl MerchantAccount {
         .await
     }
 
-    #[instrument(skip_all)]
     pub async fn list_by_organization_id(
         conn: &PgPooledConn,
         organization_id: &str,
@@ -104,6 +98,25 @@ impl MerchantAccount {
         >(
             conn,
             dsl::organization_id.eq(organization_id.to_owned()),
+            None,
+            None,
+            None,
+        )
+        .await
+    }
+
+    pub async fn list_multiple_merchant_accounts(
+        conn: &PgPooledConn,
+        merchant_ids: Vec<String>,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<
+            <Self as HasTable>::Table,
+            _,
+            <<Self as HasTable>::Table as Table>::PrimaryKey,
+            _,
+        >(
+            conn,
+            dsl::merchant_id.eq_any(merchant_ids),
             None,
             None,
             None,

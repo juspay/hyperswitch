@@ -49,7 +49,9 @@
           "city": "San Fransico",
           "state": "California",
           "zip": "94122",
-          "country": "US"
+          "country": "US",
+          "first_name": "John",
+          "last_name": "Doe"
         }
       },
       "shipping": {
@@ -60,7 +62,9 @@
           "city": "San Fransico",
           "state": "California",
           "zip": "94122",
-          "country": "US"
+          "country": "US",
+          "first_name": "John",
+          "last_name": "Doe"
         }
       },
       "statement_descriptor_name": "joseph",

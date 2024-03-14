@@ -18,7 +18,7 @@ use crate::{
 /// Encode interface
 /// An interface for performing type conversions and serialization
 ///
-pub trait Encode<'e, P>
+pub trait Encode<'e>
 where
     Self: 'e + std::fmt::Debug,
 {
@@ -28,7 +28,7 @@ where
     /// and then performing encoding operation using the `Serialize` trait from `serde`
     /// Specifically to convert into json, by using `serde_json`
     ///
-    fn convert_and_encode(&'e self) -> CustomResult<String, errors::ParsingError>
+    fn convert_and_encode<P>(&'e self) -> CustomResult<String, errors::ParsingError>
     where
         P: TryFrom<&'e Self> + Serialize,
         Result<P, <P as TryFrom<&'e Self>>::Error>: ResultExt,
@@ -39,7 +39,7 @@ where
     /// and then performing encoding operation using the `Serialize` trait from `serde`
     /// Specifically, to convert into urlencoded, by using `serde_urlencoded`
     ///
-    fn convert_and_url_encode(&'e self) -> CustomResult<String, errors::ParsingError>
+    fn convert_and_url_encode<P>(&'e self) -> CustomResult<String, errors::ParsingError>
     where
         P: TryFrom<&'e Self> + Serialize,
         Result<P, <P as TryFrom<&'e Self>>::Error>: ResultExt,
@@ -88,11 +88,11 @@ where
         Self: Serialize;
 }
 
-impl<'e, P, A> Encode<'e, P> for A
+impl<'e, A> Encode<'e> for A
 where
     Self: 'e + std::fmt::Debug,
 {
-    fn convert_and_encode(&'e self) -> CustomResult<String, errors::ParsingError>
+    fn convert_and_encode<P>(&'e self) -> CustomResult<String, errors::ParsingError>
     where
         P: TryFrom<&'e Self> + Serialize,
         Result<P, <P as TryFrom<&'e Self>>::Error>: ResultExt,
@@ -106,7 +106,7 @@ where
         .attach_printable_lazy(|| format!("Unable to convert {self:?} to a request"))
     }
 
-    fn convert_and_url_encode(&'e self) -> CustomResult<String, errors::ParsingError>
+    fn convert_and_url_encode<P>(&'e self) -> CustomResult<String, errors::ParsingError>
     where
         P: TryFrom<&'e Self> + Serialize,
         Result<P, <P as TryFrom<&'e Self>>::Error>: ResultExt,
@@ -223,6 +223,7 @@ pub trait ByteSliceExt {
 }
 
 impl ByteSliceExt for [u8] {
+    #[track_caller]
     fn parse_struct<'de, T>(
         &'de self,
         type_name: &'static str,

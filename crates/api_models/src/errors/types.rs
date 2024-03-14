@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 
 use reqwest::StatusCode;
+use serde::Serialize;
 
 #[derive(Debug, serde::Serialize)]
 pub enum ErrorType {
@@ -78,7 +79,8 @@ pub struct Extra {
     pub reason: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Serialize, Debug, Clone)]
+#[serde(tag = "type", content = "value")]
 pub enum ApiErrorResponse {
     Unauthorized(ApiError),
     ForbiddenCommonResource(ApiError),
@@ -88,10 +90,11 @@ pub enum ApiErrorResponse {
     Unprocessable(ApiError),
     InternalServerError(ApiError),
     NotImplemented(ApiError),
-    ConnectorError(ApiError, StatusCode),
+    ConnectorError(ApiError, #[serde(skip_serializing)] StatusCode),
     NotFound(ApiError),
     MethodNotAllowed(ApiError),
     BadRequest(ApiError),
+    DomainError(ApiError),
 }
 
 impl ::core::fmt::Display for ApiErrorResponse {
@@ -120,6 +123,7 @@ impl ApiErrorResponse {
             | Self::NotFound(i)
             | Self::MethodNotAllowed(i)
             | Self::BadRequest(i)
+            | Self::DomainError(i)
             | Self::ConnectorError(i, _) => i,
         }
     }
@@ -137,6 +141,7 @@ impl ApiErrorResponse {
             | Self::NotFound(i)
             | Self::MethodNotAllowed(i)
             | Self::BadRequest(i)
+            | Self::DomainError(i)
             | Self::ConnectorError(i, _) => i,
         }
     }
@@ -154,6 +159,7 @@ impl ApiErrorResponse {
             | Self::NotFound(_)
             | Self::BadRequest(_) => "invalid_request",
             Self::InternalServerError(_) => "api",
+            Self::DomainError(_) => "blocked",
             Self::ConnectorError(_, _) => "connector",
         }
     }

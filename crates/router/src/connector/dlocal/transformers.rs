@@ -125,7 +125,10 @@ impl TryFrom<&DlocalRouterData<&types::PaymentsAuthorizeRouterData>> for DlocalP
                         document: get_doc_from_currency(country.to_string()),
                     },
                     card: Some(Card {
-                        holder_name: ccard.card_holder_name.clone(),
+                        holder_name: ccard
+                            .card_holder_name
+                            .clone()
+                            .unwrap_or(Secret::new("".to_string())),
                         number: ccard.card_number.clone(),
                         cvv: ccard.card_cvc.clone(),
                         expiration_month: ccard.card_exp_month.clone(),
@@ -136,7 +139,7 @@ impl TryFrom<&DlocalRouterData<&types::PaymentsAuthorizeRouterData>> for DlocalP
                             .request
                             .mandate_id
                             .as_ref()
-                            .map(|ids| ids.mandate_id.clone()),
+                            .and_then(|ids| ids.mandate_id.clone()),
                         // [#595[FEATURE] Pass Mandate history information in payment flows/request]
                         installments: item
                             .router_data
@@ -168,7 +171,8 @@ impl TryFrom<&DlocalRouterData<&types::PaymentsAuthorizeRouterData>> for DlocalP
             | api::PaymentMethodData::Reward
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
+            | api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
                 crate::connector::utils::get_unimplemented_payment_method_error_message("Dlocal"),
             ))?,
         }
@@ -302,7 +306,7 @@ pub struct DlocalPaymentsResponse {
     status: DlocalPaymentStatus,
     id: String,
     three_dsecure: Option<ThreeDSecureResData>,
-    order_id: String,
+    order_id: Option<String>,
 }
 
 impl<F, T>
@@ -322,12 +326,13 @@ impl<F, T>
             });
 
         let response = types::PaymentsResponseData::TransactionResponse {
-            resource_id: types::ResponseId::ConnectorTransactionId(item.response.order_id.clone()),
+            resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
             redirection_data,
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
-            connector_response_reference_id: Some(item.response.order_id.clone()),
+            connector_response_reference_id: item.response.order_id.clone(),
+            incremental_authorization_allowed: None,
         };
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
@@ -341,7 +346,7 @@ impl<F, T>
 pub struct DlocalPaymentsSyncResponse {
     status: DlocalPaymentStatus,
     id: String,
-    order_id: String,
+    order_id: Option<String>,
 }
 
 impl<F, T>
@@ -361,14 +366,13 @@ impl<F, T>
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.response.order_id.clone(),
-                ),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: Some(item.response.order_id.clone()),
+                connector_response_reference_id: item.response.order_id.clone(),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -379,7 +383,7 @@ impl<F, T>
 pub struct DlocalPaymentsCaptureResponse {
     status: DlocalPaymentStatus,
     id: String,
-    order_id: String,
+    order_id: Option<String>,
 }
 
 impl<F, T>
@@ -399,14 +403,13 @@ impl<F, T>
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.response.order_id.clone(),
-                ),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: Some(item.response.order_id.clone()),
+                connector_response_reference_id: item.response.order_id.clone(),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -443,6 +446,7 @@ impl<F, T>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order_id.clone()),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })

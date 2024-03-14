@@ -23,12 +23,14 @@ impl utils::Connector for AdyenTest {
         }
     }
 
-    fn get_payout_data(&self) -> Option<types::api::PayoutConnectorData> {
+    #[cfg(feature = "payouts")]
+    fn get_payout_data(&self) -> Option<types::api::ConnectorData> {
         use router::connector::Adyen;
-        Some(types::api::PayoutConnectorData {
+        Some(types::api::ConnectorData {
             connector: Box::new(&Adyen),
-            connector_name: types::PayoutConnectors::Adyen,
+            connector_name: types::Connector::Adyen,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         })
     }
 
@@ -49,8 +51,9 @@ impl utils::Connector for AdyenTest {
 impl AdyenTest {
     fn get_payment_info() -> Option<PaymentInfo> {
         Some(PaymentInfo {
-            address: Some(PaymentAddress {
-                billing: Some(Address {
+            address: Some(PaymentAddress::new(
+                None,
+                Some(Address {
                     address: Some(AddressDetails {
                         country: Some(api_models::enums::CountryAlpha2::US),
                         state: Some(Secret::new("California".to_string())),
@@ -61,19 +64,24 @@ impl AdyenTest {
                         ..Default::default()
                     }),
                     phone: None,
+                    email: None,
                 }),
-                ..Default::default()
-            }),
+                None,
+            )),
             ..Default::default()
         })
     }
 
+    #[cfg(feature = "payouts")]
     fn get_payout_info(payout_type: enums::PayoutType) -> Option<PaymentInfo> {
+        use common_utils::pii::Email;
+
         Some(PaymentInfo {
             country: Some(api_models::enums::CountryAlpha2::NL),
             currency: Some(enums::Currency::EUR),
-            address: Some(PaymentAddress {
-                billing: Some(Address {
+            address: Some(PaymentAddress::new(
+                None,
+                Some(Address {
                     address: Some(AddressDetails {
                         country: Some(api_models::enums::CountryAlpha2::US),
                         state: Some(Secret::new("California".to_string())),
@@ -84,25 +92,31 @@ impl AdyenTest {
                         ..Default::default()
                     }),
                     phone: None,
+                    email: None,
                 }),
-                ..Default::default()
-            }),
+                None,
+            )),
             payout_method_data: match payout_type {
                 enums::PayoutType::Card => {
                     Some(api::PayoutMethodData::Card(api::payouts::CardPayout {
                         card_number: cards::CardNumber::from_str("4111111111111111").unwrap(),
                         expiry_month: Secret::new("3".to_string()),
                         expiry_year: Secret::new("2030".to_string()),
-                        card_holder_name: Secret::new("John Doe".to_string()),
+                        card_holder_name: Some(Secret::new("John Doe".to_string())),
                     }))
                 }
                 enums::PayoutType::Bank => Some(api::PayoutMethodData::Bank(
                     api::payouts::BankPayout::Sepa(api::SepaBankTransfer {
                         iban: "NL46TEST0136169112".to_string().into(),
                         bic: Some("ABNANL2A".to_string().into()),
-                        bank_name: "Deutsche Bank".to_string(),
-                        bank_country_code: enums::CountryAlpha2::NL,
-                        bank_city: "Amsterdam".to_string(),
+                        bank_name: Some("Deutsche Bank".to_string()),
+                        bank_country_code: Some(enums::CountryAlpha2::NL),
+                        bank_city: Some("Amsterdam".to_string()),
+                    }),
+                )),
+                enums::PayoutType::Wallet => Some(api::PayoutMethodData::Wallet(
+                    api::payouts::WalletPayout::Paypal(api_models::payouts::Paypal {
+                        email: Email::from_str("EmailUsedForPayPalAccount@example.com").ok(),
                     }),
                 )),
             },
@@ -124,7 +138,7 @@ impl AdyenTest {
                 card_number: cards::CardNumber::from_str(card_number).unwrap(),
                 card_exp_month: Secret::new(card_exp_month.to_string()),
                 card_exp_year: Secret::new(card_exp_year.to_string()),
-                card_holder_name: Secret::new("John Doe".to_string()),
+                card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
                 card_cvc: Secret::new(card_cvc.to_string()),
                 card_issuer: None,
                 card_network: None,
@@ -145,6 +159,7 @@ impl AdyenTest {
             order_details: None,
             order_category: None,
             email: None,
+            customer_name: None,
             payment_experience: None,
             payment_method_type: None,
             session_token: None,
@@ -155,6 +170,10 @@ impl AdyenTest {
             complete_authorize_url: None,
             customer_id: None,
             surcharge_details: None,
+            request_incremental_authorization: false,
+            metadata: None,
+            authentication_data: None,
+            customer_acceptance: None,
         })
     }
 }

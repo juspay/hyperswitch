@@ -24,32 +24,12 @@
     {
       "key": "Accept",
       "value": "application/json"
-    },
-    {
-      "key": "x-feature",
-      "value": "router-custom",
-      "type": "text",
-      "disabled": true
     }
   ],
-  "body": {
-    "mode": "raw",
-    "raw": "",
-    "options": {
-      "raw": {
-        "language": "json"
-      }
-    }
-  },
   "url": {
     "raw": "{{baseUrl}}/account/payment_methods?client_secret={{client_secret}}",
-    "host": [
-      "{{baseUrl}}"
-    ],
-    "path": [
-      "account",
-      "payment_methods"
-    ],
+    "host": ["{{baseUrl}}"],
+    "path": ["account", "payment_methods"],
     "query": [
       {
         "key": "client_secret",

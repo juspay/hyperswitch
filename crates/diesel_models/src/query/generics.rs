@@ -20,7 +20,7 @@ use diesel::{
     Expression, Insertable, QueryDsl, QuerySource, Table,
 };
 use error_stack::{report, IntoReport, ResultExt};
-use router_env::{instrument, logger, tracing};
+use router_env::logger;
 
 use crate::{
     errors::{self},
@@ -40,6 +40,7 @@ pub mod db_metrics {
         DeleteWithResult,
         UpdateWithResults,
         UpdateOne,
+        Count,
     }
 
     #[inline]
@@ -71,7 +72,6 @@ pub mod db_metrics {
 
 use db_metrics::*;
 
-#[instrument(level = "DEBUG", skip_all)]
 pub async fn generic_insert<T, V, R>(conn: &PgPooledConn, values: V) -> StorageResult<R>
 where
     T: HasTable<Table = T> + Table + 'static + Debug,
@@ -102,7 +102,6 @@ where
     .attach_printable_lazy(|| format!("Error while inserting {debug_values}"))
 }
 
-#[instrument(level = "DEBUG", skip_all)]
 pub async fn generic_update<T, V, P>(
     conn: &PgPooledConn,
     predicate: P,
@@ -130,7 +129,6 @@ where
         .attach_printable_lazy(|| format!("Error while updating {debug_values}"))
 }
 
-#[instrument(level = "DEBUG", skip_all)]
 pub async fn generic_update_with_results<T, V, P, R>(
     conn: &PgPooledConn,
     predicate: P,
@@ -178,7 +176,6 @@ where
     }
 }
 
-#[instrument(level = "DEBUG", skip_all)]
 pub async fn generic_update_with_unique_predicate_get_result<T, V, P, R>(
     conn: &PgPooledConn,
     predicate: P,
@@ -216,7 +213,6 @@ where
         })?
 }
 
-#[instrument(level = "DEBUG", skip_all)]
 pub async fn generic_update_by_id<T, V, Pk, R>(
     conn: &PgPooledConn,
     id: Pk,
@@ -267,7 +263,6 @@ where
     }
 }
 
-#[instrument(level = "DEBUG", skip_all)]
 pub async fn generic_delete<T, P>(conn: &PgPooledConn, predicate: P) -> StorageResult<bool>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
@@ -297,7 +292,6 @@ where
         })
 }
 
-#[instrument(level = "DEBUG", skip_all)]
 pub async fn generic_delete_one_with_result<T, P, R>(
     conn: &PgPooledConn,
     predicate: P,
@@ -330,7 +324,6 @@ where
     })
 }
 
-#[instrument(level = "DEBUG", skip_all)]
 async fn generic_find_by_id_core<T, Pk, R>(conn: &PgPooledConn, id: Pk) -> StorageResult<R>
 where
     T: FindDsl<Pk> + HasTable<Table = T> + LimitDsl + Table + 'static,
@@ -355,7 +348,6 @@ where
     .attach_printable_lazy(|| format!("Error finding record by primary key: {id:?}"))
 }
 
-#[instrument(level = "DEBUG", skip_all)]
 pub async fn generic_find_by_id<T, Pk, R>(conn: &PgPooledConn, id: Pk) -> StorageResult<R>
 where
     T: FindDsl<Pk> + HasTable<Table = T> + LimitDsl + Table + 'static,
@@ -367,7 +359,6 @@ where
     generic_find_by_id_core::<T, _, _>(conn, id).await
 }
 
-#[instrument(level = "DEBUG", skip_all)]
 pub async fn generic_find_by_id_optional<T, Pk, R>(
     conn: &PgPooledConn,
     id: Pk,
@@ -383,7 +374,6 @@ where
     to_optional(generic_find_by_id_core::<T, _, _>(conn, id).await)
 }
 
-#[instrument(level = "DEBUG", skip_all)]
 async fn generic_find_one_core<T, P, R>(conn: &PgPooledConn, predicate: P) -> StorageResult<R>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
@@ -403,7 +393,6 @@ where
         .attach_printable_lazy(|| "Error finding record by predicate")
 }
 
-#[instrument(level = "DEBUG", skip_all)]
 pub async fn generic_find_one<T, P, R>(conn: &PgPooledConn, predicate: P) -> StorageResult<R>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
@@ -413,7 +402,6 @@ where
     generic_find_one_core::<T, _, _>(conn, predicate).await
 }
 
-#[instrument(level = "DEBUG", skip_all)]
 pub async fn generic_find_one_optional<T, P, R>(
     conn: &PgPooledConn,
     predicate: P,
@@ -426,7 +414,6 @@ where
     to_optional(generic_find_one_core::<T, _, _>(conn, predicate).await)
 }
 
-#[instrument(level = "DEBUG", skip_all)]
 pub async fn generic_filter<T, P, O, R>(
     conn: &PgPooledConn,
     predicate: P,

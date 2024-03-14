@@ -2,17 +2,17 @@ pub mod types;
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::payments as payment_types;
 use error_stack::report;
-use router_env::{instrument, tracing, Flow};
+use router_env::{instrument, tracing, Flow, Tag};
 
 use crate::{
     compatibility::{stripe::errors, wrap},
     core::{api_locking::GetLockingInput, payment_methods::Oss, payments},
-    routes,
+    logger, routes,
     services::{api, authentication as auth},
-    types::api::{self as api_types},
+    types::api as api_types,
 };
 
-#[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate, payment_id))]
 pub async fn payment_intents_create(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -26,6 +26,9 @@ pub async fn payment_intents_create(
         Ok(p) => p,
         Err(err) => return api::log_and_return_error_response(err),
     };
+    tracing::Span::current().record("payment_id", &payload.id.clone().unwrap_or_default());
+
+    logger::info!(tag = ?Tag::CompatibilityLayerRequest, payload = ?payload);
 
     let create_payment_req: payment_types::PaymentsRequest = match payload.try_into() {
         Ok(req) => req,
@@ -50,6 +53,7 @@ pub async fn payment_intents_create(
         &req,
         create_payment_req,
         |state, auth, req| {
+            let eligible_connectors = req.connector.clone();
             payments::payments_core::<api_types::Authorize, api_types::PaymentsResponse, _, _, _,Oss>(
                 state,
                 auth.merchant_account,
@@ -58,6 +62,7 @@ pub async fn payment_intents_create(
                 req,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                eligible_connectors,
                 api_types::HeaderPayload::default(),
             )
         },
@@ -66,7 +71,7 @@ pub async fn payment_intents_create(
     ))
     .await
 }
-#[instrument(skip_all, fields(flow = ?Flow::PaymentsRetrieve))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsRetrieveForceSync))]
 pub async fn payment_intents_retrieve(
     state: web::Data<routes::AppState>,
     req: HttpRequest,
@@ -91,7 +96,7 @@ pub async fn payment_intents_retrieve(
             Err(err) => return api::log_and_return_error_response(report!(err)),
         };
 
-    let flow = Flow::PaymentsRetrieve;
+    let flow = Flow::PaymentsRetrieveForceSync;
     let locking_action = payload.get_locking_input(flow.clone());
     Box::pin(wrap::compatibility_api_wrap::<
         _,
@@ -117,6 +122,7 @@ pub async fn payment_intents_retrieve(
                 payload,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                None,
                 api_types::HeaderPayload::default(),
             )
         },
@@ -125,7 +131,7 @@ pub async fn payment_intents_retrieve(
     ))
     .await
 }
-#[instrument(skip_all, fields(flow = ?Flow::PaymentsRetrieve))]
+#[instrument(skip_all, fields(flow))]
 pub async fn payment_intents_retrieve_with_gateway_creds(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -154,7 +160,13 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
         Err(err) => return api::log_and_return_error_response(report!(err)),
     };
 
-    let flow = Flow::PaymentsRetrieve;
+    let flow = match json_payload.force_sync {
+        Some(true) => Flow::PaymentsRetrieveForceSync,
+        _ => Flow::PaymentsRetrieve,
+    };
+
+    tracing::Span::current().record("flow", &flow.to_string());
+
     let locking_action = payload.get_locking_input(flow.clone());
     Box::pin(wrap::compatibility_api_wrap::<
         _,
@@ -180,6 +192,7 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
                 req,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                    None,
                 api_types::HeaderPayload::default(),
             )
         },
@@ -236,6 +249,7 @@ pub async fn payment_intents_update(
         &req,
         payload,
         |state, auth, req| {
+            let eligible_connectors = req.connector.clone();
             payments::payments_core::<api_types::Authorize, api_types::PaymentsResponse, _, _, _,Oss>(
                 state,
                 auth.merchant_account,
@@ -244,6 +258,7 @@ pub async fn payment_intents_update(
                 req,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                eligible_connectors,
                 api_types::HeaderPayload::default(),
             )
         },
@@ -252,7 +267,7 @@ pub async fn payment_intents_update(
     ))
     .await
 }
-#[instrument(skip_all, fields(flow = ?Flow::PaymentsConfirm))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsConfirm, payment_id))]
 pub async fn payment_intents_confirm(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -269,6 +284,10 @@ pub async fn payment_intents_confirm(
             return api::log_and_return_error_response(report!(errors::StripeErrorCode::from(err)))
         }
     };
+
+    tracing::Span::current().record("payment_id", stripe_payload.id.as_ref());
+
+    logger::info!(tag = ?Tag::CompatibilityLayerRequest, payload = ?stripe_payload);
 
     let mut payload: payment_types::PaymentsRequest = match stripe_payload.try_into() {
         Ok(req) => req,
@@ -302,6 +321,7 @@ pub async fn payment_intents_confirm(
         &req,
         payload,
         |state, auth, req| {
+            let eligible_connectors = req.connector.clone();
             payments::payments_core::<api_types::Authorize, api_types::PaymentsResponse, _, _, _,Oss>(
                 state,
                 auth.merchant_account,
@@ -310,6 +330,7 @@ pub async fn payment_intents_confirm(
                 req,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                eligible_connectors,
                 api_types::HeaderPayload::default(),
             )
         },
@@ -318,7 +339,7 @@ pub async fn payment_intents_confirm(
     ))
     .await
 }
-#[instrument(skip_all, fields(flow = ?Flow::PaymentsCapture))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsCapture, payment_id))]
 pub async fn payment_intents_capture(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -334,6 +355,10 @@ pub async fn payment_intents_capture(
             return api::log_and_return_error_response(report!(errors::StripeErrorCode::from(err)))
         }
     };
+
+    tracing::Span::current().record("payment_id", &stripe_payload.payment_id.clone());
+
+    logger::info!(tag = ?Tag::CompatibilityLayerRequest, payload = ?stripe_payload);
 
     let payload = payment_types::PaymentsCaptureRequest {
         payment_id: path.into_inner(),
@@ -366,6 +391,7 @@ pub async fn payment_intents_capture(
                 payload,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                    None,
                 api_types::HeaderPayload::default(),
             )
         },
@@ -374,7 +400,7 @@ pub async fn payment_intents_capture(
     ))
     .await
 }
-#[instrument(skip_all, fields(flow = ?Flow::PaymentsCancel))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsCancel, payment_id))]
 pub async fn payment_intents_cancel(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -391,6 +417,10 @@ pub async fn payment_intents_cancel(
             return api::log_and_return_error_response(report!(errors::StripeErrorCode::from(err)))
         }
     };
+
+    tracing::Span::current().record("payment_id", &payment_id.clone());
+
+    logger::info!(tag = ?Tag::CompatibilityLayerRequest, payload = ?stripe_payload);
 
     let mut payload: payment_types::PaymentsCancelRequest = stripe_payload.into();
     payload.payment_id = payment_id;
@@ -426,6 +456,7 @@ pub async fn payment_intents_cancel(
                 req,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                None,
                 api_types::HeaderPayload::default(),
             )
         },

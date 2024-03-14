@@ -37,6 +37,7 @@ impl From<StripeBillingDetails> for payments::Address {
                 number: details.phone,
                 country_code: None,
             }),
+            email: details.email,
         }
     }
 }
@@ -95,7 +96,7 @@ impl From<StripeCard> for payments::Card {
             card_number: card.number,
             card_exp_month: card.exp_month,
             card_exp_year: card.exp_year,
-            card_holder_name: masking::Secret::new("stripe_cust".to_owned()),
+            card_holder_name: Some(masking::Secret::new("stripe_cust".to_owned())),
             card_cvc: card.cvc,
             card_issuer: None,
             card_network: None,
@@ -143,6 +144,7 @@ impl From<Shipping> for payments::Address {
                 number: details.phone,
                 country_code: None,
             }),
+            email: None,
         }
     }
 }
@@ -185,9 +187,17 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
 
         let routing = routable_connector
             .map(|connector| {
-                crate::types::api::RoutingAlgorithm::Single(
-                    api_models::admin::RoutableConnectorChoice::ConnectorName(connector),
-                )
+                api_models::routing::RoutingAlgorithm::Single(Box::new(
+                    api_models::routing::RoutableConnectorChoice {
+                        #[cfg(feature = "backwards_compatibility")]
+                        choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
+                        connector,
+                        #[cfg(feature = "connector_choice_mca_id")]
+                        merchant_connector_id: None,
+                        #[cfg(not(feature = "connector_choice_mca_id"))]
+                        sub_label: None,
+                    },
+                ))
             })
             .map(|r| {
                 serde_json::to_value(r)
@@ -237,7 +247,10 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
             payment_method_data: item.payment_method_data.as_ref().and_then(|pmd| {
                 pmd.payment_method_details
                     .as_ref()
-                    .map(|spmd| payments::PaymentMethodData::from(spmd.to_owned()))
+                    .map(|spmd| payments::PaymentMethodDataRequest {
+                        payment_method_data: payments::PaymentMethodData::from(spmd.to_owned()),
+                        billing: pmd.billing_details.clone().map(payments::Address::from),
+                    })
             }),
             payment_method: item
                 .payment_method_data
@@ -305,7 +318,9 @@ pub enum StripeSetupStatus {
 impl From<api_enums::IntentStatus> for StripeSetupStatus {
     fn from(item: api_enums::IntentStatus) -> Self {
         match item {
-            api_enums::IntentStatus::Succeeded => Self::Succeeded,
+            api_enums::IntentStatus::Succeeded | api_enums::IntentStatus::PartiallyCaptured => {
+                Self::Succeeded
+            }
             api_enums::IntentStatus::Failed => Self::Canceled,
             api_enums::IntentStatus::Processing => Self::Processing,
             api_enums::IntentStatus::RequiresCustomerAction => Self::RequiresAction,
@@ -313,7 +328,7 @@ impl From<api_enums::IntentStatus> for StripeSetupStatus {
             api_enums::IntentStatus::RequiresPaymentMethod => Self::RequiresPaymentMethod,
             api_enums::IntentStatus::RequiresConfirmation => Self::RequiresConfirmation,
             api_enums::IntentStatus::RequiresCapture
-            | api_enums::IntentStatus::PartiallyCaptured => {
+            | api_enums::IntentStatus::PartiallyCapturedAndCapturable => {
                 logger::error!("Invalid status change");
                 Self::Canceled
             }
@@ -374,8 +389,9 @@ pub enum StripeNextAction {
         session_token: Option<payments::SessionToken>,
     },
     QrCodeInformation {
-        image_data_url: url::Url,
+        image_data_url: Option<url::Url>,
         display_to_timestamp: Option<i64>,
+        qr_code_url: Option<url::Url>,
     },
     DisplayVoucherInformation {
         voucher_details: payments::VoucherNextStepData,
@@ -410,9 +426,11 @@ pub(crate) fn into_stripe_next_action(
         payments::NextActionData::QrCodeInformation {
             image_data_url,
             display_to_timestamp,
+            qr_code_url,
         } => StripeNextAction::QrCodeInformation {
             image_data_url,
             display_to_timestamp,
+            qr_code_url,
         },
         payments::NextActionData::DisplayVoucherInformation { voucher_details } => {
             StripeNextAction::DisplayVoucherInformation { voucher_details }
@@ -423,6 +441,12 @@ pub(crate) fn into_stripe_next_action(
         } => StripeNextAction::WaitScreenInformation {
             display_from_timestamp,
             display_to_timestamp,
+        },
+        payments::NextActionData::ThreeDsInvoke { .. } => StripeNextAction::RedirectToUrl {
+            redirect_to_url: RedirectUrl {
+                return_url: None,
+                url: None,
+            },
         },
     })
 }

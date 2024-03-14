@@ -50,4 +50,10 @@ pub struct PaymentIntent {
 
     pub updated_by: String,
     pub surcharge_applicable: Option<bool>,
+    pub request_incremental_authorization: Option<storage_enums::RequestIncrementalAuthorization>,
+    pub incremental_authorization_allowed: Option<bool>,
+    pub authorization_count: Option<i32>,
+    pub fingerprint_id: Option<String>,
+    pub session_expiry: Option<PrimitiveDateTime>,
+    pub request_external_three_ds_authentication: Option<bool>,
 }

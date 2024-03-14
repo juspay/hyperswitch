@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -50,7 +50,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install mold linker
         uses: rui314/setup-mold@v1
@@ -58,20 +58,25 @@ jobs:
         with:
           make-default: true
 
+      - name: Get rust version from Cargo.toml
+        shell: bash
+        run: |
+          rust_version=$(yq -oy '.workspace.package.rust-version' Cargo.toml)
+          echo "rust_version=${rust_version}" >> $GITHUB_ENV
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.65
+          toolchain: "${{ env.rust_version }}"
 
-      - uses: Swatinem/rust-cache@v2.4.0
+      - uses: Swatinem/rust-cache@v2.7.0
         with:
           save-if: ${{ github.event_name == 'push' }}
 
       - name: Install cargo-hack
-        uses: baptiste0928/cargo-install@v2.1.0
+        uses: baptiste0928/cargo-install@v2.2.0
         with:
           crate: cargo-hack
-          version: 0.6.5
 
       - name: Deny warnings
         shell: bash
@@ -80,8 +85,8 @@ jobs:
       - name: Cargo hack
         if: ${{ github.event_name == 'push' }}
         shell: bash
-        run: cargo hack check --each-feature --no-dev-deps
-      
+        run: cargo hack check --workspace --each-feature --all-targets
+
       - name: Cargo build release
         if: ${{ github.event_name == 'merge_group' }}
         shell: bash
@@ -101,7 +106,7 @@ jobs:
 
   #   steps:
   #     - name: Checkout repository
-  #       uses: actions/checkout@v3
+  #       uses: actions/checkout@v4
 
   #     - name: Run cargo-deny
   #       uses: EmbarkStudios/cargo-deny-action@v1.3.2
@@ -121,7 +126,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install mold linker
         uses: rui314/setup-mold@v1
@@ -136,16 +141,16 @@ jobs:
           components: clippy
 
       - name: Install cargo-hack
-        uses: baptiste0928/cargo-install@v2.1.0
+        uses: baptiste0928/cargo-install@v2.2.0
         with:
           crate: cargo-hack
 
       # - name: Install cargo-nextest
-      #   uses: baptiste0928/cargo-install@v2.1.0
+      #   uses: baptiste0928/cargo-install@v2.2.0
       #   with:
       #     crate: cargo-nextest
 
-      - uses: Swatinem/rust-cache@v2.4.0
+      - uses: Swatinem/rust-cache@v2.7.0
         with:
           save-if: ${{ github.event_name == 'push' }}
 
@@ -166,7 +171,7 @@ jobs:
       - name: Cargo hack
         if: ${{ github.event_name == 'push' }}
         shell: bash
-        run: cargo hack check --each-feature --no-dev-deps
+        run: cargo hack check --workspace --each-feature --all-targets
 
       - name: Cargo build release
         if: ${{ github.event_name == 'merge_group' }}
@@ -178,7 +183,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Spell check
         uses: crate-ci/typos@master

@@ -33,7 +33,7 @@ pub enum StripeErrorCode {
         expected_format: String,
     },
 
-    #[error(error_type = StripeErrorType::InvalidRequestError, code = "IR_06",  message = "Refund amount exceeds the payment amount.")]
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "IR_06",  message = "The refund amount exceeds the amount captured.")]
     RefundAmountExceedsPaymentAmount { param: String },
 
     #[error(error_type = StripeErrorType::ApiError, code = "payment_intent_authentication_failure", message = "Payment failed while processing with connector. Retry payment.")]
@@ -129,10 +129,10 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "duplicate merchant account")]
     DuplicateMerchantAccount,
 
-    #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "The merchant connector account with the specified profile_id '{profile_id}' and connector_name '{connector_name}' already exists in our records")]
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "The merchant connector account with the specified profile_id '{profile_id}' and connector_label '{connector_label}' already exists in our records")]
     DuplicateMerchantConnectorAccount {
         profile_id: String,
-        connector_name: String,
+        connector_label: String,
     },
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "duplicate payment method")]
@@ -207,6 +207,14 @@ pub enum StripeErrorCode {
         status_code: u16,
     },
 
+    #[error(error_type = StripeErrorType::CardError, code = "", message = "{code}: {message}")]
+    PaymentBlockedError {
+        code: u16,
+        message: String,
+        status: String,
+        reason: String,
+    },
+
     #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "The connector provided in the request is incorrect or not available")]
     IncorrectConnectorNameGiven,
     #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "No such {object}: '{id}'")]
@@ -241,6 +249,10 @@ pub enum StripeErrorCode {
     LockTimeout,
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "Merchant connector account is configured with invalid {config}")]
     InvalidConnectorConfiguration { config: String },
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "HE_01", message = "Failed to convert currency to minor unit")]
+    CurrencyConversionFailed,
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "IR_25", message = "Cannot delete the default payment method")]
+    PaymentMethodDeleteFailed,
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
 
@@ -466,7 +478,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::MandateUpdateFailed
             | errors::ApiErrorResponse::MandateSerializationFailed
             | errors::ApiErrorResponse::MandateDeserializationFailed
-            | errors::ApiErrorResponse::InternalServerError => Self::InternalServerError, // not a stripe code
+            | errors::ApiErrorResponse::InternalServerError
+            | errors::ApiErrorResponse::HealthCheckError { .. } => Self::InternalServerError, // not a stripe code
             errors::ApiErrorResponse::ExternalConnectorError {
                 code,
                 message,
@@ -512,12 +525,23 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::DuplicateMerchantAccount => Self::DuplicateMerchantAccount,
             errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
                 profile_id,
-                connector_name,
+                connector_label,
             } => Self::DuplicateMerchantConnectorAccount {
                 profile_id,
-                connector_name,
+                connector_label,
             },
             errors::ApiErrorResponse::DuplicatePaymentMethod => Self::DuplicatePaymentMethod,
+            errors::ApiErrorResponse::PaymentBlockedError {
+                code,
+                message,
+                status,
+                reason,
+            } => Self::PaymentBlockedError {
+                code,
+                message,
+                status,
+                reason,
+            },
             errors::ApiErrorResponse::ClientSecretInvalid => Self::PaymentIntentInvalidParameter {
                 param: "client_secret".to_owned(),
             },
@@ -595,6 +619,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::InvalidConnectorConfiguration { config } => {
                 Self::InvalidConnectorConfiguration { config }
             }
+            errors::ApiErrorResponse::CurrencyConversionFailed => Self::CurrencyConversionFailed,
+            errors::ApiErrorResponse::PaymentMethodDeleteFailed => Self::PaymentMethodDeleteFailed,
         }
     }
 }
@@ -662,7 +688,9 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::CurrencyNotSupported { .. }
             | Self::DuplicateCustomer
             | Self::PaymentMethodUnactivated
-            | Self::InvalidConnectorConfiguration { .. } => StatusCode::BAD_REQUEST,
+            | Self::InvalidConnectorConfiguration { .. }
+            | Self::CurrencyConversionFailed
+            | Self::PaymentMethodDeleteFailed => StatusCode::BAD_REQUEST,
             Self::RefundFailed
             | Self::PayoutFailed
             | Self::PaymentLinkNotFound
@@ -673,6 +701,9 @@ impl actix_web::ResponseError for StripeErrorCode {
             Self::ReturnUrlUnavailable => StatusCode::SERVICE_UNAVAILABLE,
             Self::ExternalConnectorError { status_code, .. } => {
                 StatusCode::from_u16(*status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
+            }
+            Self::PaymentBlockedError { code, .. } => {
+                StatusCode::from_u16(*code).unwrap_or(StatusCode::OK)
             }
             Self::LockTimeout => StatusCode::LOCKED,
         }

@@ -1,12 +1,15 @@
 use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
-use masking::{ExposeInterface, PeekInterface, Secret};
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
 
 use crate::{
-    connector::utils::{self, PaymentsCaptureRequestData, RouterData, WalletData},
+    connector::utils::{
+        self, to_connector_meta, ApplePayDecrypt, PaymentsCaptureRequestData, RouterData,
+        WalletData,
+    },
     consts,
     core::errors,
     services,
@@ -138,7 +141,8 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Voucher(_)
             | api_models::payments::PaymentMethodData::CardRedirect(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_) => {
+            | api_models::payments::PaymentMethodData::GiftCard(_)
+            | api_models::payments::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("checkout"),
                 )
@@ -148,7 +152,7 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct CheckoutTokenResponse {
     token: Secret<String>,
 }
@@ -184,7 +188,7 @@ pub struct CardSource {
 pub struct WalletSource {
     #[serde(rename = "type")]
     pub source_type: CheckoutSourceTypes,
-    pub token: String,
+    pub token: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -203,7 +207,7 @@ pub struct ApplePayPredecrypt {
     token_type: String,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
-    eci: Option<Secret<String>>,
+    eci: Option<String>,
     cryptogram: Secret<String>,
 }
 
@@ -238,12 +242,28 @@ pub struct PaymentsRequest {
     pub return_url: ReturnUrl,
     pub capture: bool,
     pub reference: String,
+    pub metadata: Option<Secret<serde_json::Value>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CheckoutMeta {
+    pub psync_flow: CheckoutPaymentIntent,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+pub enum CheckoutPaymentIntent {
+    Capture,
+    Authorize,
 }
 
 #[derive(Debug, Serialize)]
 pub struct CheckoutThreeDS {
     enabled: bool,
     force_3ds: bool,
+    eci: Option<String>,
+    cryptogram: Option<String>,
+    xid: Option<String>,
+    version: Option<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for CheckoutAuthType {
@@ -286,7 +306,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                     Ok(PaymentSource::Wallets(WalletSource {
                         source_type: CheckoutSourceTypes::Token,
                         token: match item.router_data.get_payment_method_token()? {
-                            types::PaymentMethodToken::Token(token) => token,
+                            types::PaymentMethodToken::Token(token) => token.into(),
                             types::PaymentMethodToken::ApplePayDecrypt(_) => {
                                 Err(errors::ConnectorError::InvalidWalletToken)?
                             }
@@ -299,28 +319,12 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                         types::PaymentMethodToken::Token(apple_pay_payment_token) => {
                             Ok(PaymentSource::Wallets(WalletSource {
                                 source_type: CheckoutSourceTypes::Token,
-                                token: apple_pay_payment_token,
+                                token: apple_pay_payment_token.into(),
                             }))
                         }
                         types::PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
-                            let expiry_year_4_digit = Secret::new(format!(
-                                "20{}",
-                                decrypt_data
-                                    .clone()
-                                    .application_expiration_date
-                                    .peek()
-                                    .get(0..2)
-                                    .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-                            ));
-                            let exp_month = Secret::new(
-                                decrypt_data
-                                    .clone()
-                                    .application_expiration_date
-                                    .peek()
-                                    .get(2..4)
-                                    .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-                                    .to_owned(),
-                            );
+                            let exp_month = decrypt_data.get_expiry_month()?;
+                            let expiry_year_4_digit = decrypt_data.get_four_digit_expiry_year()?;
                             Ok(PaymentSource::ApplePayPredecrypt(Box::new(
                                 ApplePayPredecrypt {
                                     token: decrypt_data.application_primary_account_number,
@@ -375,21 +379,30 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Voucher(_)
             | api_models::payments::PaymentMethodData::CardRedirect(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("checkout"),
-                ))
-            }
+            | api_models::payments::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("checkout"),
+            )),
         }?;
+
+        let authentication_data = item.router_data.request.authentication_data.as_ref();
 
         let three_ds = match item.router_data.auth_type {
             enums::AuthenticationType::ThreeDs => CheckoutThreeDS {
                 enabled: true,
                 force_3ds: true,
+                eci: authentication_data.and_then(|auth| auth.eci.clone()),
+                cryptogram: authentication_data.and_then(|auth| auth.cavv.clone()),
+                xid: authentication_data.map(|auth| auth.threeds_server_transaction_id.clone()),
+                version: authentication_data.map(|auth| auth.message_version.clone()),
             },
             enums::AuthenticationType::NoThreeDs => CheckoutThreeDS {
                 enabled: false,
                 force_3ds: false,
+                eci: None,
+                cryptogram: None,
+                xid: None,
+                version: None,
             },
         };
 
@@ -416,6 +429,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
         let connector_auth = &item.router_data.connector_auth_type;
         let auth_type: CheckoutAuthType = connector_auth.try_into()?;
         let processing_channel_id = auth_type.processing_channel_id;
+        let metadata = item.router_data.request.metadata.clone();
         Ok(Self {
             source: source_var,
             amount: item.amount.to_owned(),
@@ -425,6 +439,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
             return_url,
             capture,
             reference: item.router_data.connector_request_reference_id.clone(),
+            metadata,
         })
     }
 }
@@ -438,6 +453,16 @@ pub enum CheckoutPaymentStatus {
     CardVerified,
     Declined,
     Captured,
+    #[serde(rename = "Retry Scheduled")]
+    RetryScheduled,
+    Voided,
+    #[serde(rename = "Partially Captured")]
+    PartiallyCaptured,
+    #[serde(rename = "Partially Refunded")]
+    PartiallyRefunded,
+    Refunded,
+    Canceled,
+    Expired,
 }
 
 impl TryFrom<CheckoutWebhookEventType> for CheckoutPaymentStatus {
@@ -448,7 +473,14 @@ impl TryFrom<CheckoutWebhookEventType> for CheckoutPaymentStatus {
             CheckoutWebhookEventType::PaymentCaptured => Ok(Self::Captured),
             CheckoutWebhookEventType::PaymentDeclined => Ok(Self::Declined),
             CheckoutWebhookEventType::AuthenticationStarted
-            | CheckoutWebhookEventType::AuthenticationApproved => Ok(Self::Pending),
+            | CheckoutWebhookEventType::AuthenticationApproved
+            | CheckoutWebhookEventType::AuthenticationAttempted => Ok(Self::Pending),
+            CheckoutWebhookEventType::AuthenticationExpired
+            | CheckoutWebhookEventType::AuthenticationFailed
+            | CheckoutWebhookEventType::PaymentAuthenticationFailed
+            | CheckoutWebhookEventType::PaymentCaptureDeclined => Ok(Self::Declined),
+            CheckoutWebhookEventType::PaymentCanceled => Ok(Self::Canceled),
+            CheckoutWebhookEventType::PaymentVoided => Ok(Self::Voided),
             CheckoutWebhookEventType::PaymentRefunded
             | CheckoutWebhookEventType::PaymentRefundDeclined
             | CheckoutWebhookEventType::DisputeReceived
@@ -477,15 +509,51 @@ impl ForeignFrom<(CheckoutPaymentStatus, Option<enums::CaptureMethod>)> for enum
                 if capture_method == Some(enums::CaptureMethod::Automatic)
                     || capture_method.is_none()
                 {
-                    Self::Charged
+                    Self::Pending
                 } else {
                     Self::Authorized
                 }
             }
-            CheckoutPaymentStatus::Captured => Self::Charged,
-            CheckoutPaymentStatus::Declined => Self::Failure,
+            CheckoutPaymentStatus::Captured
+            | CheckoutPaymentStatus::PartiallyRefunded
+            | CheckoutPaymentStatus::Refunded => Self::Charged,
+            CheckoutPaymentStatus::PartiallyCaptured => Self::PartialCharged,
+            CheckoutPaymentStatus::Declined
+            | CheckoutPaymentStatus::Expired
+            | CheckoutPaymentStatus::Canceled => Self::Failure,
             CheckoutPaymentStatus::Pending => Self::AuthenticationPending,
-            CheckoutPaymentStatus::CardVerified => Self::Pending,
+            CheckoutPaymentStatus::CardVerified | CheckoutPaymentStatus::RetryScheduled => {
+                Self::Pending
+            }
+            CheckoutPaymentStatus::Voided => Self::Voided,
+        }
+    }
+}
+
+impl ForeignFrom<(CheckoutPaymentStatus, CheckoutPaymentIntent)> for enums::AttemptStatus {
+    fn foreign_from(item: (CheckoutPaymentStatus, CheckoutPaymentIntent)) -> Self {
+        let (status, psync_flow) = item;
+
+        match status {
+            CheckoutPaymentStatus::Authorized => {
+                if psync_flow == CheckoutPaymentIntent::Capture {
+                    Self::Pending
+                } else {
+                    Self::Authorized
+                }
+            }
+            CheckoutPaymentStatus::Captured
+            | CheckoutPaymentStatus::PartiallyRefunded
+            | CheckoutPaymentStatus::Refunded => Self::Charged,
+            CheckoutPaymentStatus::PartiallyCaptured => Self::PartialCharged,
+            CheckoutPaymentStatus::Declined
+            | CheckoutPaymentStatus::Expired
+            | CheckoutPaymentStatus::Canceled => Self::Failure,
+            CheckoutPaymentStatus::Pending => Self::AuthenticationPending,
+            CheckoutPaymentStatus::CardVerified | CheckoutPaymentStatus::RetryScheduled => {
+                Self::Pending
+            }
+            CheckoutPaymentStatus::Voided => Self::Voided,
         }
     }
 }
@@ -505,10 +573,18 @@ impl ForeignFrom<(CheckoutPaymentStatus, Option<Balances>)> for enums::AttemptSt
                     Self::Authorized
                 }
             }
-            CheckoutPaymentStatus::Captured => Self::Charged,
-            CheckoutPaymentStatus::Declined => Self::Failure,
+            CheckoutPaymentStatus::Captured
+            | CheckoutPaymentStatus::PartiallyRefunded
+            | CheckoutPaymentStatus::Refunded => Self::Charged,
+            CheckoutPaymentStatus::PartiallyCaptured => Self::PartialCharged,
+            CheckoutPaymentStatus::Declined
+            | CheckoutPaymentStatus::Expired
+            | CheckoutPaymentStatus::Canceled => Self::Failure,
             CheckoutPaymentStatus::Pending => Self::AuthenticationPending,
-            CheckoutPaymentStatus::CardVerified => Self::Pending,
+            CheckoutPaymentStatus::CardVerified | CheckoutPaymentStatus::RetryScheduled => {
+                Self::Pending
+            }
+            CheckoutPaymentStatus::Voided => Self::Voided,
         }
     }
 }
@@ -527,6 +603,7 @@ pub struct Links {
 pub struct PaymentsResponse {
     id: String,
     amount: Option<i32>,
+    currency: Option<String>,
     action_id: Option<String>,
     status: CheckoutPaymentStatus,
     #[serde(rename = "_links")]
@@ -535,9 +612,11 @@ pub struct PaymentsResponse {
     reference: Option<String>,
     response_code: Option<String>,
     response_summary: Option<String>,
+    approved: Option<bool>,
+    processed_on: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum PaymentsResponseEnum {
     ActionResponse(Vec<ActionResponse>),
@@ -549,6 +628,24 @@ pub struct Balances {
     available_to_capture: i32,
 }
 
+fn get_connector_meta(
+    capture_method: enums::CaptureMethod,
+) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    match capture_method {
+        enums::CaptureMethod::Automatic => Ok(serde_json::json!(CheckoutMeta {
+            psync_flow: CheckoutPaymentIntent::Capture,
+        })),
+        enums::CaptureMethod::Manual | enums::CaptureMethod::ManualMultiple => {
+            Ok(serde_json::json!(CheckoutMeta {
+                psync_flow: CheckoutPaymentIntent::Authorize,
+            }))
+        }
+        enums::CaptureMethod::Scheduled => {
+            Err(errors::ConnectorError::CaptureMethodNotSupported.into())
+        }
+    }
+}
+
 impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
     for types::PaymentsAuthorizeRouterData
 {
@@ -556,6 +653,9 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
     fn try_from(
         item: types::PaymentsResponseRouterData<PaymentsResponse>,
     ) -> Result<Self, Self::Error> {
+        let connector_meta =
+            get_connector_meta(item.data.request.capture_method.unwrap_or_default())?;
+
         let redirection_data = item.response.links.redirect.map(|href| {
             services::RedirectForm::from((href.redirection_url, services::Method::Get))
         });
@@ -576,6 +676,8 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
                     .clone()
                     .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                 reason: item.response.response_summary,
+                attempt_status: None,
+                connector_transaction_id: Some(item.response.id.clone()),
             })
         } else {
             None
@@ -584,11 +686,12 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
             resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
             redirection_data,
             mandate_reference: None,
-            connector_metadata: None,
+            connector_metadata: Some(connector_meta),
             network_txn_id: None,
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
+            incremental_authorization_allowed: None,
         };
         Ok(Self {
             status,
@@ -608,8 +711,10 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
         let redirection_data = item.response.links.redirect.map(|href| {
             services::RedirectForm::from((href.redirection_url, services::Method::Get))
         });
+        let checkout_meta: CheckoutMeta =
+            to_connector_meta(item.data.request.connector_meta.clone())?;
         let status =
-            enums::AttemptStatus::foreign_from((item.response.status, item.response.balances));
+            enums::AttemptStatus::foreign_from((item.response.status, checkout_meta.psync_flow));
         let error_response = if status == enums::AttemptStatus::Failure {
             Some(types::ErrorResponse {
                 status_code: item.http_code,
@@ -623,6 +728,8 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
                     .clone()
                     .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                 reason: item.response.response_summary,
+                attempt_status: None,
+                connector_transaction_id: Some(item.response.id.clone()),
             })
         } else {
             None
@@ -636,6 +743,7 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
+            incremental_authorization_allowed: None,
         };
         Ok(Self {
             status,
@@ -676,7 +784,7 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponseEnum>>
 pub struct PaymentVoidRequest {
     reference: String,
 }
-#[derive(Clone, Default, Debug, Eq, PartialEq, Deserialize)]
+#[derive(Clone, Default, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct PaymentVoidResponse {
     #[serde(skip)]
     pub(super) status: u16,
@@ -710,6 +818,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<PaymentVoidResponse>>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
             }),
             status: response.into(),
             ..item.data
@@ -768,7 +877,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsCaptureRouterData>> for Payment
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct PaymentCaptureResponse {
     pub action_id: String,
     pub reference: Option<String>,
@@ -781,6 +890,9 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
     fn try_from(
         item: types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>,
     ) -> Result<Self, Self::Error> {
+        let connector_meta = serde_json::json!(CheckoutMeta {
+            psync_flow: CheckoutPaymentIntent::Capture,
+        });
         let (status, amount_captured) = if item.http_code == 202 {
             (
                 enums::AttemptStatus::Charged,
@@ -803,9 +915,10 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
                 resource_id: types::ResponseId::ConnectorTransactionId(resource_id),
                 redirection_data: None,
                 mandate_reference: None,
-                connector_metadata: None,
+                connector_metadata: Some(connector_meta),
                 network_txn_id: None,
                 connector_response_reference_id: item.response.reference,
+                incremental_authorization_allowed: None,
             }),
             status,
             amount_captured,
@@ -833,7 +946,7 @@ impl<F> TryFrom<&CheckoutRouterData<&types::RefundsRouterData<F>>> for RefundReq
     }
 }
 #[allow(dead_code)]
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Serialize)]
 pub struct RefundResponse {
     action_id: String,
     reference: String,
@@ -891,14 +1004,14 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, CheckoutRefundResponse
     }
 }
 
-#[derive(Debug, Default, Eq, PartialEq, Deserialize)]
+#[derive(Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct ErrorResponse {
     pub request_id: Option<String>,
     pub error_type: Option<String>,
     pub error_codes: Option<Vec<String>>,
 }
 
-#[derive(Deserialize, Debug, PartialEq)]
+#[derive(Deserialize, Debug, PartialEq, Serialize)]
 pub enum ActionType {
     Authorization,
     Void,
@@ -910,7 +1023,7 @@ pub enum ActionType {
     CardVerification,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Serialize)]
 pub struct ActionResponse {
     #[serde(rename = "id")]
     pub action_id: String,
@@ -974,10 +1087,7 @@ impl utils::MultipleCaptureSyncResponse for Box<PaymentsResponse> {
         self.status == CheckoutPaymentStatus::Captured
     }
     fn get_amount_captured(&self) -> Option<i64> {
-        match self.amount {
-            Some(amount) => amount.try_into().ok(),
-            None => None,
-        }
+        self.amount.map(Into::into)
     }
 }
 
@@ -1069,11 +1179,18 @@ pub fn is_chargeback_event(event_code: &CheckoutWebhookEventType) -> bool {
 pub enum CheckoutWebhookEventType {
     AuthenticationStarted,
     AuthenticationApproved,
+    AuthenticationAttempted,
+    AuthenticationExpired,
+    AuthenticationFailed,
     PaymentApproved,
     PaymentCaptured,
     PaymentDeclined,
     PaymentRefunded,
     PaymentRefundDeclined,
+    PaymentAuthenticationFailed,
+    PaymentCanceled,
+    PaymentCaptureDeclined,
+    PaymentVoided,
     DisputeReceived,
     DisputeExpired,
     DisputeAccepted,
@@ -1106,6 +1223,8 @@ pub struct CheckoutWebhookData {
     pub response_code: Option<String>,
     pub response_summary: Option<String>,
     pub currency: String,
+    pub processed_on: Option<String>,
+    pub approved: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1133,21 +1252,14 @@ pub struct CheckoutDisputeWebhookData {
 #[derive(Debug, Deserialize)]
 pub struct CheckoutDisputeWebhookBody {
     #[serde(rename = "type")]
-    pub transaction_type: CheckoutTransactionType,
+    pub transaction_type: CheckoutDisputeTransactionType,
     pub data: CheckoutDisputeWebhookData,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created_on: Option<PrimitiveDateTime>,
 }
 #[derive(Debug, Deserialize, strum::Display, Clone)]
 #[serde(rename_all = "snake_case")]
-pub enum CheckoutTransactionType {
-    AuthenticationStarted,
-    AuthenticationApproved,
-    PaymentApproved,
-    PaymentCaptured,
-    PaymentDeclined,
-    PaymentRefunded,
-    PaymentRefundDeclined,
+pub enum CheckoutDisputeTransactionType {
     DisputeReceived,
     DisputeExpired,
     DisputeAccepted,
@@ -1164,13 +1276,22 @@ pub enum CheckoutTransactionType {
 impl From<CheckoutWebhookEventType> for api::IncomingWebhookEvent {
     fn from(transaction_type: CheckoutWebhookEventType) -> Self {
         match transaction_type {
-            CheckoutWebhookEventType::AuthenticationStarted => Self::EventNotSupported,
-            CheckoutWebhookEventType::AuthenticationApproved => Self::EventNotSupported,
+            CheckoutWebhookEventType::AuthenticationStarted
+            | CheckoutWebhookEventType::AuthenticationApproved
+            | CheckoutWebhookEventType::AuthenticationAttempted => Self::EventNotSupported,
+            CheckoutWebhookEventType::AuthenticationExpired
+            | CheckoutWebhookEventType::AuthenticationFailed
+            | CheckoutWebhookEventType::PaymentAuthenticationFailed => {
+                Self::PaymentIntentAuthorizationFailure
+            }
             CheckoutWebhookEventType::PaymentApproved => Self::EventNotSupported,
             CheckoutWebhookEventType::PaymentCaptured => Self::PaymentIntentSuccess,
             CheckoutWebhookEventType::PaymentDeclined => Self::PaymentIntentFailure,
             CheckoutWebhookEventType::PaymentRefunded => Self::RefundSuccess,
             CheckoutWebhookEventType::PaymentRefundDeclined => Self::RefundFailure,
+            CheckoutWebhookEventType::PaymentCanceled => Self::PaymentIntentCancelFailure,
+            CheckoutWebhookEventType::PaymentCaptureDeclined => Self::PaymentIntentCaptureFailure,
+            CheckoutWebhookEventType::PaymentVoided => Self::PaymentIntentCancelled,
             CheckoutWebhookEventType::DisputeReceived
             | CheckoutWebhookEventType::DisputeEvidenceRequired => Self::DisputeOpened,
             CheckoutWebhookEventType::DisputeExpired => Self::DisputeExpired,
@@ -1189,12 +1310,20 @@ impl From<CheckoutWebhookEventType> for api::IncomingWebhookEvent {
     }
 }
 
-impl From<CheckoutTransactionType> for api_models::enums::DisputeStage {
-    fn from(code: CheckoutTransactionType) -> Self {
+impl From<CheckoutDisputeTransactionType> for api_models::enums::DisputeStage {
+    fn from(code: CheckoutDisputeTransactionType) -> Self {
         match code {
-            CheckoutTransactionType::DisputeArbitrationLost
-            | CheckoutTransactionType::DisputeArbitrationWon => Self::PreArbitration,
-            _ => Self::Dispute,
+            CheckoutDisputeTransactionType::DisputeArbitrationLost
+            | CheckoutDisputeTransactionType::DisputeArbitrationWon => Self::PreArbitration,
+            CheckoutDisputeTransactionType::DisputeReceived
+            | CheckoutDisputeTransactionType::DisputeExpired
+            | CheckoutDisputeTransactionType::DisputeAccepted
+            | CheckoutDisputeTransactionType::DisputeCanceled
+            | CheckoutDisputeTransactionType::DisputeEvidenceSubmitted
+            | CheckoutDisputeTransactionType::DisputeEvidenceAcknowledgedByScheme
+            | CheckoutDisputeTransactionType::DisputeEvidenceRequired
+            | CheckoutDisputeTransactionType::DisputeWon
+            | CheckoutDisputeTransactionType::DisputeLost => Self::Dispute,
         }
     }
 }
@@ -1229,7 +1358,7 @@ pub fn construct_file_upload_request(
     Ok(multipart)
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct FileUploadResponse {
     #[serde(rename = "id")]
     pub file_id: String,
@@ -1265,6 +1394,9 @@ impl TryFrom<&api::IncomingWebhookRequestDetails<'_>> for PaymentsResponse {
             response_code: data.response_code,
             response_summary: data.response_summary,
             action_id: data.action_id,
+            currency: Some(data.currency),
+            processed_on: data.processed_on,
+            approved: data.approved,
         };
 
         Ok(psync_struct)

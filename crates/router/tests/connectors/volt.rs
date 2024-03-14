@@ -12,7 +12,7 @@ impl utils::Connector for VoltTest {
         use router::connector::Volt;
         types::api::ConnectorData {
             connector: Box::new(&Volt),
-            connector_name: types::Connector::DummyConnector1,
+            connector_name: types::Connector::Volt,
             get_token: types::api::GetToken::Connector,
             merchant_connector_id: None,
         }

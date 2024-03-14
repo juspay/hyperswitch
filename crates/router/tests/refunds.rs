@@ -11,7 +11,7 @@ mod utils;
 #[actix_web::test]
 // verify the API-KEY/merchant id has stripe as first choice
 async fn refund_create_fail_stripe() {
-    let app = mk_service().await;
+    let app = Box::pin(mk_service()).await;
     let client = AppClient::guest();
 
     let user_client = client.user("321");
@@ -19,13 +19,13 @@ async fn refund_create_fail_stripe() {
     let payment_id = format!("test_{}", uuid::Uuid::new_v4());
     let refund: serde_json::Value = user_client.create_refund(&app, &payment_id, 10).await;
 
-    assert_eq!(refund["error"]["message"], "Access forbidden, invalid API key was used. Please create your new API key from the Dashboard Settings section.");
+    assert_eq!(refund.get("error").unwrap().get("message").unwrap(), "Access forbidden, invalid API key was used. Please create your new API key from the Dashboard Settings section.");
 }
 
 #[actix_web::test]
 // verify the API-KEY/merchant id has adyen as first choice
 async fn refund_create_fail_adyen() {
-    let app = mk_service().await;
+    let app = Box::pin(mk_service()).await;
     let client = AppClient::guest();
 
     let user_client = client.user("321");
@@ -33,13 +33,13 @@ async fn refund_create_fail_adyen() {
     let payment_id = format!("test_{}", uuid::Uuid::new_v4());
     let refund: serde_json::Value = user_client.create_refund(&app, &payment_id, 10).await;
 
-    assert_eq!(refund["error"]["message"], "Access forbidden, invalid API key was used. Please create your new API key from the Dashboard Settings section.");
+    assert_eq!(refund.get("error").unwrap().get("message").unwrap(), "Access forbidden, invalid API key was used. Please create your new API key from the Dashboard Settings section.");
 }
 
 #[actix_web::test]
 #[ignore]
 async fn refunds_todo() {
-    utils::setup().await;
+    Box::pin(utils::setup()).await;
 
     let client = awc::Client::default();
     let mut response;

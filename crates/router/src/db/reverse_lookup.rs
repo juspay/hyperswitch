@@ -24,6 +24,7 @@ pub trait ReverseLookupInterface {
 #[cfg(not(feature = "kv_store"))]
 mod storage {
     use error_stack::IntoReport;
+    use router_env::{instrument, tracing};
 
     use super::{ReverseLookupInterface, Store};
     use crate::{
@@ -37,6 +38,7 @@ mod storage {
 
     #[async_trait::async_trait]
     impl ReverseLookupInterface for Store {
+        #[instrument(skip_all)]
         async fn insert_reverse_lookup(
             &self,
             new: ReverseLookupNew,
@@ -46,6 +48,7 @@ mod storage {
             new.insert(&conn).await.map_err(Into::into).into_report()
         }
 
+        #[instrument(skip_all)]
         async fn get_lookup_by_lookup_id(
             &self,
             id: &str,
@@ -64,11 +67,13 @@ mod storage {
 mod storage {
     use error_stack::{IntoReport, ResultExt};
     use redis_interface::SetnxReply;
+    use router_env::{instrument, tracing};
     use storage_impl::redis::kv_store::{kv_wrapper, KvOperation};
 
     use super::{ReverseLookupInterface, Store};
     use crate::{
         connection,
+        core::errors::utils::RedisErrorExt,
         errors::{self, CustomResult},
         types::storage::{
             enums, kv,
@@ -79,6 +84,7 @@ mod storage {
 
     #[async_trait::async_trait]
     impl ReverseLookupInterface for Store {
+        #[instrument(skip_all)]
         async fn insert_reverse_lookup(
             &self,
             new: ReverseLookupNew,
@@ -109,7 +115,7 @@ mod storage {
                         format!("reverse_lookup_{}", &created_rev_lookup.lookup_id),
                     )
                     .await
-                    .change_context(errors::StorageError::KVError)?
+                    .map_err(|err| err.to_redis_failed_response(&created_rev_lookup.lookup_id))?
                     .try_into_setnx()
                     {
                         Ok(SetnxReply::KeySet) => Ok(created_rev_lookup),
@@ -124,6 +130,7 @@ mod storage {
             }
         }
 
+        #[instrument(skip_all)]
         async fn get_lookup_by_lookup_id(
             &self,
             id: &str,
@@ -150,7 +157,11 @@ mod storage {
                         .try_into_get()
                     };
 
-                    db_utils::try_redis_get_else_try_database_get(redis_fut, database_call).await
+                    Box::pin(db_utils::try_redis_get_else_try_database_get(
+                        redis_fut,
+                        database_call,
+                    ))
+                    .await
                 }
             }
         }

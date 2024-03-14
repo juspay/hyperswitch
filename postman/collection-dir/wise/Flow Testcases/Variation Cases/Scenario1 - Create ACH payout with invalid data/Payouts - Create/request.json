@@ -1,0 +1,72 @@
+{
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json"
+    },
+    {
+      "key": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "body": {
+    "mode": "raw",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "amount": 10000,
+      "currency": "USD",
+      "customer_id": "wise_customer",
+      "email": "payout_customer@example.com",
+      "name": "Doest John",
+      "phone": "6168205366",
+      "phone_country_code": "+1",
+      "description": "Its my first payout request",
+      "connector": ["wise"],
+      "payout_type": "bank",
+      "payout_method_data": {
+        "bank": {
+          "bank_routing_number": "110000000",
+          "bank_account_number": "000123456789",
+          "bank_name": "Stripe Test Bank",
+          "bank_country_code": "US",
+          "bank_city": "California"
+        }
+      },
+      "billing": {
+        "address": {
+          "line1": "1467",
+          "line2": "Harrison Street",
+          "line3": "Harrison Street",
+          "city": "San Fransico",
+          "state": "CA",
+          "zip": "94122",
+          "country": "US",
+          "first_name": "Doest",
+          "last_name": "John"
+        },
+        "phone": {
+          "number": "6168205366",
+          "country_code": "1"
+        }
+      },
+      "entity_type": "Individual",
+      "recurring": false,
+      "metadata": {
+        "ref": "123"
+      },
+      "confirm": true,
+      "auto_fulfill": true
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/payouts/create",
+    "host": ["{{baseUrl}}"],
+    "path": ["payouts", "create"]
+  },
+  "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
+}

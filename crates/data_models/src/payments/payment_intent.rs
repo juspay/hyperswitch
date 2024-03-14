@@ -107,6 +107,12 @@ pub struct PaymentIntentNew {
 
     pub updated_by: String,
     pub surcharge_applicable: Option<bool>,
+    pub request_incremental_authorization: Option<storage_enums::RequestIncrementalAuthorization>,
+    pub incremental_authorization_allowed: Option<bool>,
+    pub authorization_count: Option<i32>,
+    pub fingerprint_id: Option<String>,
+    pub session_expiry: Option<PrimitiveDateTime>,
+    pub request_external_three_ds_authentication: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -116,6 +122,8 @@ pub enum PaymentIntentUpdate {
         amount_captured: Option<i64>,
         return_url: Option<String>,
         updated_by: String,
+        fingerprint_id: Option<String>,
+        incremental_authorization_allowed: Option<bool>,
     },
     MetadataUpdate {
         metadata: pii::SecretSerdeValue,
@@ -137,6 +145,7 @@ pub enum PaymentIntentUpdate {
     },
     PGStatusUpdate {
         status: storage_enums::IntentStatus,
+        incremental_authorization_allowed: Option<bool>,
         updated_by: String,
     },
     Update {
@@ -157,6 +166,9 @@ pub enum PaymentIntentUpdate {
         metadata: Option<pii::SecretSerdeValue>,
         payment_confirm_source: Option<storage_enums::PaymentSource>,
         updated_by: String,
+        fingerprint_id: Option<String>,
+        session_expiry: Option<PrimitiveDateTime>,
+        request_external_three_ds_authentication: Option<bool>,
     },
     PaymentAttemptAndAttemptCountUpdate {
         active_attempt_id: String,
@@ -181,6 +193,12 @@ pub enum PaymentIntentUpdate {
     SurchargeApplicableUpdate {
         surcharge_applicable: bool,
         updated_by: String,
+    },
+    IncrementalAuthorizationAmountUpdate {
+        amount: i64,
+    },
+    AuthorizationCountUpdate {
+        authorization_count: i32,
     },
 }
 
@@ -213,35 +231,11 @@ pub struct PaymentIntentUpdateInternal {
 
     pub updated_by: String,
     pub surcharge_applicable: Option<bool>,
-}
-
-impl PaymentIntentUpdate {
-    pub fn apply_changeset(self, source: PaymentIntent) -> PaymentIntent {
-        let internal_update: PaymentIntentUpdateInternal = self.into();
-        PaymentIntent {
-            amount: internal_update.amount.unwrap_or(source.amount),
-            currency: internal_update.currency.or(source.currency),
-            status: internal_update.status.unwrap_or(source.status),
-            amount_captured: internal_update.amount_captured.or(source.amount_captured),
-            customer_id: internal_update.customer_id.or(source.customer_id),
-            return_url: internal_update.return_url.or(source.return_url),
-            setup_future_usage: internal_update
-                .setup_future_usage
-                .or(source.setup_future_usage),
-            off_session: internal_update.off_session.or(source.off_session),
-            metadata: internal_update.metadata.or(source.metadata),
-            billing_address_id: internal_update
-                .billing_address_id
-                .or(source.billing_address_id),
-            shipping_address_id: internal_update
-                .shipping_address_id
-                .or(source.shipping_address_id),
-            modified_at: common_utils::date_time::now(),
-            order_details: internal_update.order_details.or(source.order_details),
-            updated_by: internal_update.updated_by,
-            ..source
-        }
-    }
+    pub incremental_authorization_allowed: Option<bool>,
+    pub authorization_count: Option<i32>,
+    pub fingerprint_id: Option<String>,
+    pub session_expiry: Option<PrimitiveDateTime>,
+    pub request_external_three_ds_authentication: Option<bool>,
 }
 
 impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
@@ -265,6 +259,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 metadata,
                 payment_confirm_source,
                 updated_by,
+                fingerprint_id,
+                session_expiry,
+                request_external_three_ds_authentication,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -284,6 +281,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 metadata,
                 payment_confirm_source,
                 updated_by,
+                fingerprint_id,
+                session_expiry,
+                request_external_three_ds_authentication,
                 ..Default::default()
             },
             PaymentIntentUpdate::MetadataUpdate {
@@ -312,10 +312,15 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 updated_by,
                 ..Default::default()
             },
-            PaymentIntentUpdate::PGStatusUpdate { status, updated_by } => Self {
+            PaymentIntentUpdate::PGStatusUpdate {
+                status,
+                updated_by,
+                incremental_authorization_allowed,
+            } => Self {
                 status: Some(status),
                 modified_at: Some(common_utils::date_time::now()),
                 updated_by,
+                incremental_authorization_allowed,
                 ..Default::default()
             },
             PaymentIntentUpdate::MerchantStatusUpdate {
@@ -336,18 +341,22 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 // currency,
                 status,
                 amount_captured,
+                fingerprint_id,
                 // customer_id,
                 return_url,
                 updated_by,
+                incremental_authorization_allowed,
             } => Self {
                 // amount,
                 // currency: Some(currency),
                 status: Some(status),
                 amount_captured,
+                fingerprint_id,
                 // customer_id,
                 return_url,
                 modified_at: Some(common_utils::date_time::now()),
                 updated_by,
+                incremental_authorization_allowed,
                 ..Default::default()
             },
             PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
@@ -396,6 +405,16 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
             } => Self {
                 surcharge_applicable: Some(surcharge_applicable),
                 updated_by,
+                ..Default::default()
+            },
+            PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount } => Self {
+                amount: Some(amount),
+                ..Default::default()
+            },
+            PaymentIntentUpdate::AuthorizationCountUpdate {
+                authorization_count,
+            } => Self {
+                authorization_count: Some(authorization_count),
                 ..Default::default()
             },
         }

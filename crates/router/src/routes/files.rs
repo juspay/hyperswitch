@@ -39,15 +39,19 @@ pub async fn files_create(
         Ok(valid_request) => valid_request,
         Err(err) => return api::log_and_return_error_response(err),
     };
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         create_file_request,
         |state, auth, req| files_create_core(state, auth.merchant_account, auth.key_store, req),
-        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::DashboardNoPermissionAuth,
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 /// Files - Delete
@@ -77,15 +81,19 @@ pub async fn files_delete(
     let file_id = files::FileId {
         file_id: path.into_inner(),
     };
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         file_id,
         |state, auth, req| files_delete_core(state, auth.merchant_account, req),
-        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::DashboardNoPermissionAuth,
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 /// Files - Retrieve
@@ -115,14 +123,18 @@ pub async fn files_retrieve(
     let file_id = files::FileId {
         file_id: path.into_inner(),
     };
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         file_id,
         |state, auth, req| files_retrieve_core(state, auth.merchant_account, auth.key_store, req),
-        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::DashboardNoPermissionAuth,
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }

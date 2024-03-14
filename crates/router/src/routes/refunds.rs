@@ -4,7 +4,7 @@ use router_env::{instrument, tracing, Flow};
 use super::app::AppState;
 use crate::{
     core::{api_locking, refunds::*},
-    services::{api, authentication as auth},
+    services::{api, authentication as auth, authorization::permissions::Permission},
     types::api::refunds,
 };
 
@@ -31,15 +31,19 @@ pub async fn refunds_create(
     json_payload: web::Json<refunds::RefundRequest>,
 ) -> HttpResponse {
     let flow = Flow::RefundsCreate;
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         json_payload.into_inner(),
         |state, auth, req| refund_create_core(state, auth.merchant_account, auth.key_store, req),
-        &auth::ApiKeyAuth,
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::RefundWrite),
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 /// Refunds - Retrieve (GET)
@@ -59,7 +63,7 @@ pub async fn refunds_create(
     operation_id = "Retrieve a Refund",
     security(("api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::RefundsRetrieve))]
+#[instrument(skip_all, fields(flow))]
 // #[get("/{id}")]
 pub async fn refunds_retrieve(
     state: web::Data<AppState>,
@@ -72,9 +76,14 @@ pub async fn refunds_retrieve(
         force_sync: query_params.force_sync,
         merchant_connector_details: None,
     };
-    let flow = Flow::RefundsRetrieve;
+    let flow = match query_params.force_sync {
+        Some(true) => Flow::RefundsRetrieveForceSync,
+        _ => Flow::RefundsRetrieve,
+    };
 
-    api::server_wrap(
+    tracing::Span::current().record("flow", &flow.to_string());
+
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -88,9 +97,13 @@ pub async fn refunds_retrieve(
                 refund_retrieve_core,
             )
         },
-        &auth::ApiKeyAuth,
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::RefundRead),
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 /// Refunds - Retrieve (POST)
@@ -107,15 +120,21 @@ pub async fn refunds_retrieve(
     operation_id = "Retrieve a Refund",
     security(("api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::RefundsRetrieve))]
+#[instrument(skip_all, fields(flow))]
 // #[post("/sync")]
 pub async fn refunds_retrieve_with_body(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<refunds::RefundsRetrieveRequest>,
 ) -> HttpResponse {
-    let flow = Flow::RefundsRetrieve;
-    api::server_wrap(
+    let flow = match json_payload.force_sync {
+        Some(true) => Flow::RefundsRetrieveForceSync,
+        _ => Flow::RefundsRetrieve,
+    };
+
+    tracing::Span::current().record("flow", &flow.to_string());
+
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -131,7 +150,7 @@ pub async fn refunds_retrieve_with_body(
         },
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 /// Refunds - Update
@@ -161,13 +180,14 @@ pub async fn refunds_update(
     path: web::Path<String>,
 ) -> HttpResponse {
     let flow = Flow::RefundsUpdate;
-    let refund_id = path.into_inner();
+    let mut refund_update_req = json_payload.into_inner();
+    refund_update_req.refund_id = path.into_inner();
     api::server_wrap(
         flow,
         state,
         &req,
-        json_payload.into_inner(),
-        |state, auth, req| refund_update_core(state, auth.merchant_account, &refund_id, req),
+        refund_update_req,
+        |state, auth, req| refund_update_core(state, auth.merchant_account, req),
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     )
@@ -201,7 +221,11 @@ pub async fn refunds_list(
         &req,
         payload.into_inner(),
         |state, auth, req| refund_list(state, auth.merchant_account, req),
-        &auth::ApiKeyAuth,
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::RefundRead),
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     )
     .await
@@ -225,7 +249,7 @@ pub async fn refunds_list(
 pub async fn refunds_filter_list(
     state: web::Data<AppState>,
     req: HttpRequest,
-    payload: web::Json<api_models::refunds::TimeRange>,
+    payload: web::Json<api_models::payments::TimeRange>,
 ) -> HttpResponse {
     let flow = Flow::RefundsList;
     api::server_wrap(
@@ -234,7 +258,11 @@ pub async fn refunds_filter_list(
         &req,
         payload.into_inner(),
         |state, auth, req| refund_filter_list(state, auth.merchant_account, req),
-        &auth::ApiKeyAuth,
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::RefundRead),
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     )
     .await
