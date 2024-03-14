@@ -325,45 +325,45 @@ giropay = { country = "DE", currency = "EUR" }
 eps = { country = "AT", currency = "EUR" }
 sofort = { not_available_flows = { capture_method = "manual" }, country = "AT,BE,DE,ES,CH,NL", currency = "CHF,EUR" }
 ideal = { not_available_flows = { capture_method = "manual" }, country = "NL", currency = "EUR" }
-blik = { country = "PL", currency = "PLN" }
-trustly = { country = "ES,GB,SE,NO,AT,NL,DE,DK,FI,EE,LT,LV", currency = "CZK,DKK,EUR,GBP,NOK,SEK" }
-online_banking_czech_republic = { country = "CZ", currency = "EUR,CZK" }
-online_banking_finland = { country = "FI", currency = "EUR" }
-online_banking_poland = { country = "PL", currency = "PLN" }
-online_banking_slovakia = { country = "SK", currency = "EUR,CZK" }
-bancontact_card = { country = "BE", currency = "EUR" }
-ach = { country = "US", currency = "USD" }
-bacs = { country = "GB", currency = "GBP" }
-sepa = { country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT", currency = "EUR" }
-ali_pay_hk = { country = "HK", currency = "HKD" }
-bizum = { country = "ES", currency = "EUR" }
-go_pay = { country = "ID", currency = "IDR" }
-kakao_pay = { country = "KR", currency = "KRW" }
-momo = { country = "VN", currency = "VND" }
-gcash = { country = "PH", currency = "PHP" }
-online_banking_fpx = { country = "MY", currency = "MYR" }
-online_banking_thailand = { country = "TH", currency = "THB" }
-touch_n_go = { country = "MY", currency = "MYR" }
-atome = { country = "MY,SG", currency = "MYR,SGD" }
-swish = { country = "SE", currency = "SEK" }
-permata_bank_transfer = { country = "ID", currency = "IDR" }
-bca_bank_transfer = { country = "ID", currency = "IDR" }
-bni_va = { country = "ID", currency = "IDR" }
-bri_va = { country = "ID", currency = "IDR" }
-cimb_va = { country = "ID", currency = "IDR" }
-danamon_va = { country = "ID", currency = "IDR" }
-mandiri_va = { country = "ID", currency = "IDR" }
-alfamart = { country = "ID", currency = "IDR" }
-indomaret = { country = "ID", currency = "IDR" }
-open_banking_uk = { country = "GB", currency = "GBP" }
-oxxo = { country = "MX", currency = "MXN" }
-pay_safe_card = { country = "AT,AU,BE,BR,BE,CA,HR,CY,CZ,DK,FI,FR,GE,DE,GI,HU,IS,IE,KW,LV,IE,LI,LT,LU,MT,MX,MD,ME,NL,NZ,NO,PY,PE,PL,PT,RO,SA,RS,SK,SI,ES,SE,CH,TR,AE,GB,US,UY", currency = "EUR,AUD,BRL,CAD,CZK,DKK,GEL,GIP,HUF,KWD,CHF,MXN,MDL,NZD,NOK,PYG,PEN,PLN,RON,SAR,RSD,SEK,TRY,AED,GBP,USD,UYU" }
-seven_eleven = { country = "JP", currency = "JPY" }
-lawson = { country = "JP", currency = "JPY" }
-mini_stop = { country = "JP", currency = "JPY" }
-family_mart = { country = "JP", currency = "JPY" }
-seicomart = { country = "JP", currency = "JPY" }
-pay_easy = { country = "JP", currency = "JPY" }
+blik = {country = "PL", currency = "PLN"}
+trustly = {country = "ES,GB,SE,NO,AT,NL,DE,DK,FI,EE,LT,LV", currency = "CZK,DKK,EUR,GBP,NOK,SEK"}
+online_banking_czech_republic = {country = "CZ", currency = "EUR,CZK"}
+online_banking_finland = {country = "FI", currency = "EUR"}
+online_banking_poland = {country = "PL", currency = "PLN"}
+online_banking_slovakia = {country = "SK", currency = "EUR,CZK"}
+bancontact_card = {country = "BE", currency = "EUR"}
+ach = {country = "US", currency = "USD"}
+bacs = {country = "GB", currency = "GBP"}
+sepa = {country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT", currency = "EUR"}
+ali_pay_hk = {country = "HK", currency = "HKD"}
+bizum = {country = "ES", currency = "EUR"}
+go_pay = {country = "ID", currency = "IDR"}
+kakao_pay = {country = "KR", currency = "KRW"}
+momo = {country = "VN", currency = "VND"}
+gcash = {country = "PH", currency = "PHP"}
+online_banking_fpx = {country = "MY", currency = "MYR"}
+online_banking_thailand = {country = "TH", currency = "THB"}
+touch_n_go = {country = "MY", currency = "MYR"}
+atome = {country = "MY,SG", currency = "MYR,SGD"}
+swish = {country = "SE", currency = "SEK"}
+permata_bank_transfer = {country = "ID", currency = "IDR"}
+bca_bank_transfer = {country = "ID", currency = "IDR"}
+bni_va = {country = "ID", currency = "IDR"}
+bri_va = {country = "ID", currency = "IDR"}
+cimb_va = {country = "ID", currency = "IDR"}
+danamon_va = {country = "ID", currency = "IDR"}
+mandiri_va = {country = "ID", currency = "IDR"}
+alfamart = {country = "ID", currency = "IDR"}
+indomaret = {country = "ID", currency = "IDR"}
+open_banking_uk = {country = "GB", currency = "GBP"}
+oxxo = {country = "MX", currency = "MXN"}
+pay_safe_card = {country = "AT,AU,BE,BR,BE,CA,HR,CY,CZ,DK,FI,FR,GE,DE,GI,HU,IS,IE,KW,LV,IE,LI,LT,LU,MT,MX,MD,ME,NL,NZ,NO,PY,PE,PL,PT,RO,SA,RS,SK,SI,ES,SE,CH,TR,AE,GB,US,UY", currency = "EUR,AUD,BRL,CAD,CZK,DKK,GEL,GIP,HUF,KWD,CHF,MXN,MDL,NZD,NOK,PYG,PEN,PLN,RON,SAR,RSD,SEK,TRY,AED,GBP,USD,UYU"}
+seven_eleven = {country = "JP", currency = "JPY"}
+lawson = {country = "JP", currency = "JPY"}
+mini_stop = {country = "JP", currency = "JPY"}
+family_mart = {country = "JP", currency = "JPY"}
+seicomart = {country = "JP", currency = "JPY"}
+pay_easy = {country = "JP", currency = "JPY"}
 pix = { country = "BR", currency = "BRL" }
 boleto = { country = "BR", currency = "BRL" }
 
@@ -597,3 +597,22 @@ payment_attempts = "hyperswitch-payment-attempt-events"
 payment_intents = "hyperswitch-payment-intent-events"
 refunds = "hyperswitch-refund-events"
 disputes = "hyperswitch-dispute-events"
+
+[opensearch.mapping.payment_attempts]
+status = "status"
+amount = "amount"
+currency = "currency"
+connector = "connector"
+payment_method = "payment_method"
+
+[opensearch.mapping.payment_intents]
+status = "status"
+amount = "amount"
+currency = "currency"
+country = "business_country"
+
+[opensearch.mapping.refunds]
+status = "refund_status"
+amount = "refund_amount"
+currency = "currency"
+connector = "connector"

@@ -1,3 +1,4 @@
+use actix_web::web::Json;
 use api_models::analytics::search::{
     GetGlobalSearchRequest, GetSearchRequestWithIndex, GetSearchResponse, OpenMsearchOutput,
     OpensearchOutput, SearchIndex,
@@ -68,6 +69,19 @@ async fn get_opensearch_client(config: OpensearchConfig) -> Result<OpenSearch, O
     Ok(OpenSearch::new(transport))
 }
 
+pub fn search_filter_maker(
+    json_body: GetGlobalSearchRequest, 
+    merchant_id: &String,
+    config: OpensearchConfig
+) -> String {
+    let req_filters = json_body.filters;
+    let merchant_id_filter = json!({"match_phrase": {"merchant_id": merchant_id}});
+    let filters_array = [merchant_id_filter];
+    println!("");
+    return format!("{}",json!({"ok":"ok"}));
+}
+
+
 pub async fn msearch_results(
     req: GetGlobalSearchRequest,
     merchant_id: &String,
@@ -81,7 +95,11 @@ pub async fn msearch_results(
     for index in SearchIndex::iter() {
         msearch_vector
             .push(json!({"index": search_index_to_opensearch_index(index,&config.indexes)}).into());
-        msearch_vector.push(json!({"query": {"bool": {"must": {"query_string": {"query": req.query}}, "filter": {"match_phrase": {"merchant_id": merchant_id}}}}}).into());
+        let json_search_struct = json!({"query": {"bool": {"must": {"query_string": {"query": req.query}}, "filter": {"match_phrase": {"merchant_id": merchant_id}}}}}).into();
+        println!("SEARCH REQ");
+        println!("{}",(search_filter_maker(req.clone(), &merchant_id, config.clone())));
+        println!("{:?}",req);
+        msearch_vector.push(json_search_struct);
     }
 
     let response = client
