@@ -2018,6 +2018,11 @@ pub fn build_payment_link_html(
     let _ = tera.add_raw_template("payment_link", &html_template);
 
     context.insert(
+        "preload_link_tags",
+        &get_preload_link_html_template(&payment_link_data.sdk_url)
+    );
+
+    context.insert(
         "hyperloader_sdk_link",
         &get_hyper_loader_sdk(&payment_link_data.sdk_url),
     );
@@ -2035,6 +2040,11 @@ pub fn build_payment_link_html(
 
 fn get_hyper_loader_sdk(sdk_url: &str) -> String {
     format!("<script src=\"{sdk_url}\" onload=\"initializeSDK()\"></script>")
+}
+
+fn get_preload_link_html_template(sdk_url: &str) -> String {
+    format!("<link rel=\"preload\" href=\"https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800\" as=\"style\">\n
+            <link rel=\"preload\" href=\"{sdk_url}\" as =\"script\">")
 }
 
 pub fn get_payment_link_status(
