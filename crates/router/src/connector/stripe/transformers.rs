@@ -2577,12 +2577,22 @@ impl<F, T>
                 item.response.id.clone(),
             ))
         } else {
+            let network_transaction_id = match item.response.latest_attempt {
+                Some(LatestAttempt::PaymentIntentAttempt(attempt)) => attempt
+                    .payment_method_details
+                    .and_then(|payment_method_details| match payment_method_details.card {
+                        Some(card) => card.network_transaction_id,
+                        _ => None,
+                    }),
+                _ => None,
+            };
+
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data,
                 mandate_reference,
                 connector_metadata: None,
-                network_txn_id: Option::foreign_from(item.response.latest_attempt),
+                network_txn_id: network_transaction_id,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
             })
@@ -3028,7 +3038,18 @@ pub enum LatestAttempt {
 }
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct LatestPaymentAttempt {
+    pub payment_method_details: Option<StripePaymentMethodDetails>,
     pub payment_method_options: Option<StripePaymentMethodOptions>,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
+pub struct StripePaymentMethodDetails {
+    pub card: Option<Card>,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
+pub struct Card {
+    pub network_transaction_id: Option<String>,
 }
 // #[derive(Deserialize, Debug, Clone, Eq, PartialEq)]
 // pub struct Card
