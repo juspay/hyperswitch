@@ -159,18 +159,6 @@ pub enum Surcharge {
     Rate(Percentage<{ consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH }>),
 }
 
-/// For representing Semantic Version
-// #[derive(Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression)]
-// #[diesel(sql_type = Jsonb)]
-// pub struct SemanticVersion {
-//     /// Major Version number
-//     pub major: u8,
-//     /// Minor Version number
-//     pub minor: u8,
-//     /// Patch Version number
-//     pub patch: u8,
-// }
-
 /// This struct lets us represent a semantic version type
 #[derive(Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Jsonb)]
@@ -199,8 +187,6 @@ impl FromStr for SemanticVersion {
         )?))
     }
 }
-
-// impl Display
 
 impl<DB: Backend> FromSql<Jsonb, DB> for SemanticVersion
 where

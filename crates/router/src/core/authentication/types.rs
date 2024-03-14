@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     core::{errors, payments},
-    types::{authentication::AuthNFlowType, storage, transformers::ForeignTryFrom},
+    types::{storage, transformers::ForeignTryFrom},
     utils::OptionExt,
 };
 pub enum PreAuthenthenticationFlowInput<'a, F: Clone> {
@@ -28,19 +28,6 @@ pub enum PostAuthenthenticationFlowInput<'a, F: Clone> {
     PaymentMethodAuthNFlow {
         other_fields: String, //should be expanded when implementation begins
     },
-}
-
-#[derive(Clone, Default, Debug, Serialize, Deserialize)]
-pub struct AuthenticationData {
-    pub maximum_supported_version: (i64, i64, i64),
-    pub threeds_server_transaction_id: String,
-    pub cavv: Option<String>,
-    pub authn_flow_type: Option<AuthNFlowType>,
-    pub three_ds_method_data: ThreeDsMethodData,
-    pub message_version: String,
-    pub eci: Option<String>,
-    pub trans_status: common_enums::TransactionStatus,
-    pub acquirer_details: Option<AcquirerDetails>,
 }
 
 #[derive(Clone, Debug)]
@@ -73,12 +60,6 @@ impl ForeignTryFrom<&storage::Authentication> for PreAuthenticationData {
             acquirer_merchant_id: authentication.acquirer_merchant_id.clone(),
             connector_metadata: authentication.connector_metadata.clone(),
         })
-    }
-}
-
-impl AuthenticationData {
-    pub fn is_separate_authn_required(&self) -> bool {
-        self.maximum_supported_version.0 == 2
     }
 }
 
