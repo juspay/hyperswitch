@@ -422,7 +422,7 @@ where
                         .into_report()
                         .attach_printable("Frm configs label not found")?,
                     &customer,
-                    key_store,
+                    key_store.clone(),
                 ))
                 .await?;
             }
@@ -482,6 +482,7 @@ where
     crate::utils::trigger_payments_webhook(
         merchant_account,
         business_profile,
+        &key_store,
         cloned_payment_data,
         Some(cloned_request),
         cloned_customer,
