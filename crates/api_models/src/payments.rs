@@ -3641,6 +3641,7 @@ pub struct SdkInformation {
 pub struct PaymentsExternalAuthenticationResponse {
     /// Indicates the trans status
     #[serde(rename = "trans_status")]
+    #[schema(value_type = TransactionStatus)]
     pub transaction_status: common_enums::TransactionStatus,
     /// Access Server URL to be used for challenge submission
     pub acs_url: Option<String>,
