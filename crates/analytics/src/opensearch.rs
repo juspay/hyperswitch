@@ -107,7 +107,7 @@ impl OpenSearchClient {
         })
     }
 
-    pub async fn execute(&self) -> CustomResult<Self, OpenSearchError> {}
+    // pub async fn execute(&self) -> CustomResult<Self, OpenSearchError> {}
 }
 
 // #[async_trait::async_trait]

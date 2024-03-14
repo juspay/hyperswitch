@@ -11,8 +11,7 @@ use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
         payment_methods::PaymentMethodRetrieve,
-        payments::{helpers, operations, PaymentAddress, PaymentData},
-        utils as core_utils,
+        payments::{helpers, operations, PaymentData},
     },
     routes::AppState,
     services,
@@ -20,6 +19,7 @@ use crate::{
         api::{self, PaymentIdTypeExt},
         domain,
         storage::{self, enums as storage_enums},
+        PaymentAddress,
     },
     utils::OptionExt,
 };
@@ -149,15 +149,15 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             setup_mandate: None,
             customer_acceptance: None,
             token: None,
-            address: PaymentAddress {
-                shipping: shipping_address.as_ref().map(|a| a.into()),
-                billing: billing_address.as_ref().map(|a| a.into()),
-                payment_method_billing: payment_method_billing
-                    .as_ref()
-                    .map(|address| address.into()),
-            },
+            token_data: None,
+            address: PaymentAddress::new(
+                shipping_address.as_ref().map(From::from),
+                billing_address.as_ref().map(From::from),
+                payment_method_billing.as_ref().map(From::from),
+            ),
             confirm: None,
             payment_method_data: None,
+            payment_method_info: None,
             force_sync: None,
             refunds: vec![],
             disputes: vec![],
@@ -256,7 +256,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             operations::ValidateResult {
                 merchant_id: &merchant_account.merchant_id,
                 payment_id: api::PaymentIdType::PaymentIntentId(
-                    core_utils::validate_id(request.payment_id.clone(), "payment_id")
+                    crate::core::utils::validate_id(request.payment_id.clone(), "payment_id")
                         .into_report()?,
                 ),
                 mandate_type: None,

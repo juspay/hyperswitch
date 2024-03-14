@@ -88,7 +88,7 @@ vault_private_key = ""
 tunnel_private_key = ""
 
 [connectors.supported]
-wallets = ["klarna", "braintree", "applepay"]
+wallets = ["klarna", "braintree", "applepay", "adyen"]
 rewards = ["cashtocode", "zen"]
 cards = [
     "aci",
@@ -323,8 +323,8 @@ pay_bright = { country = "CA", currency = "CAD" }
 walley = { country = "SE,NO,DK,FI", currency = "DKK,EUR,NOK,SEK" }
 giropay = { country = "DE", currency = "EUR" }
 eps = { country = "AT", currency = "EUR" }
-sofort = { country = "AT,BE,DE,ES,CH,NL", currency = "CHF,EUR" }
-ideal = { country = "NL", currency = "EUR" }
+sofort = { not_available_flows = { capture_method = "manual" }, country = "AT,BE,DE,ES,CH,NL", currency = "CHF,EUR" }
+ideal = { not_available_flows = { capture_method = "manual" }, country = "NL", currency = "EUR" }
 blik = { country = "PL", currency = "PLN" }
 trustly = { country = "ES,GB,SE,NO,AT,NL,DE,DK,FI,EE,LT,LV", currency = "CZK,DKK,EUR,GBP,NOK,SEK" }
 online_banking_czech_republic = { country = "CZ", currency = "EUR,CZK" }
@@ -540,7 +540,7 @@ ttl = 900 # 15 * 60 seconds
 enabled = true
 
 [events]
-source = "kafka"
+source = "logs"
 
 [events.kafka]
 brokers = ["localhost:9092"]
