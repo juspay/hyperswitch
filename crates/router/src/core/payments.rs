@@ -2215,7 +2215,6 @@ where
     pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
 }
 
-
 #[derive(Debug, Default, Clone)]
 pub struct IncrementalAuthorizationDetails {
     pub additional_amount: i64,
