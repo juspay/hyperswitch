@@ -71,7 +71,7 @@ impl HealthCheckInterface for app::AppState {
             let mut url = locker.host_rs.to_owned();
             url.push_str(consts::LOCKER_HEALTH_CALL_PATH);
             let request = services::Request::new(services::Method::Get, &url);
-            services::call_connector_api(self, request)
+            services::call_connector_api(self, request, "health_check_for_locker")
                 .await
                 .change_context(errors::HealthCheckLockerError::FailedToCallLocker)?
                 .map_err(|_| {
@@ -126,7 +126,7 @@ impl HealthCheckInterface for app::AppState {
         &self,
     ) -> CustomResult<HealthState, errors::HealthCheckOutGoing> {
         let request = services::Request::new(services::Method::Get, consts::OUTGOING_CALL_URL);
-        services::call_connector_api(self, request)
+        services::call_connector_api(self, request, "outgoing_health_check")
             .await
             .map_err(|err| errors::HealthCheckOutGoing::OutGoingFailed {
                 message: err.to_string(),

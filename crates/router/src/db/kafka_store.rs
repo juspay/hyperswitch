@@ -483,24 +483,33 @@ impl EphemeralKeyInterface for KafkaStore {
 impl EventInterface for KafkaStore {
     async fn insert_event(
         &self,
-        event: storage::EventNew,
-    ) -> CustomResult<storage::Event, errors::StorageError> {
-        self.diesel_store.insert_event(event).await
+        event: domain::Event,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<domain::Event, errors::StorageError> {
+        self.diesel_store
+            .insert_event(event, merchant_key_store)
+            .await
     }
 
     async fn find_event_by_event_id(
         &self,
         event_id: &str,
-    ) -> CustomResult<storage::Event, errors::StorageError> {
-        self.diesel_store.find_event_by_event_id(event_id).await
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<domain::Event, errors::StorageError> {
+        self.diesel_store
+            .find_event_by_event_id(event_id, merchant_key_store)
+            .await
     }
 
     async fn update_event(
         &self,
         event_id: String,
-        event: storage::EventUpdate,
-    ) -> CustomResult<storage::Event, errors::StorageError> {
-        self.diesel_store.update_event(event_id, event).await
+        event: domain::EventUpdate,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<domain::Event, errors::StorageError> {
+        self.diesel_store
+            .update_event(event_id, event, merchant_key_store)
+            .await
     }
 }
 
