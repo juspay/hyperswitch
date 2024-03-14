@@ -1,15 +1,7 @@
-use std::{fmt, str::FromStr};
-
-use common_utils::errors;
 use diesel::{
-    backend::Backend,
-    deserialize::FromSql,
-    serialize::{Output, ToSql},
-    sql_types::Jsonb,
-    AsChangeset, AsExpression, FromSqlRow, Identifiable, Insertable, Queryable,
+    AsChangeset, Identifiable, Insertable, Queryable,
 };
-use error_stack::report;
-use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{self, Deserialize, Serialize};
 use serde_json;
 
 use crate::schema::authentication;
@@ -33,11 +25,11 @@ pub struct Authentication {
     pub error_message: Option<String>,
     pub error_code: Option<String>,
     pub connector_metadata: Option<serde_json::Value>,
-    pub maximum_supported_version: Option<SemanticVersion>,
+    pub maximum_supported_version: Option<common_utils::types::SemanticVersion>,
     pub threeds_server_transaction_id: Option<String>,
     pub cavv: Option<String>,
     pub authentication_flow_type: Option<String>,
-    pub message_version: Option<SemanticVersion>,
+    pub message_version: Option<common_utils::types::SemanticVersion>,
     pub eci: Option<String>,
     pub trans_status: Option<common_enums::TransactionStatus>,
     pub acquirer_bin: Option<String>,
@@ -56,129 +48,7 @@ impl Authentication {
     pub fn is_separate_authn_required(&self) -> bool {
         self.maximum_supported_version
             .as_ref()
-            .is_some_and(|version| version.major == 2)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression)]
-#[diesel(sql_type = Jsonb)]
-pub struct SemanticVersion {
-    pub major: u8,
-    pub minor: u8,
-    pub patch: u8,
-}
-
-impl FromStr for SemanticVersion {
-    type Err = error_stack::Report<errors::ValidationError>;
-
-    fn from_str(version_string: &str) -> Result<Self, Self::Err> {
-        let mut parts = version_string.split('.');
-        let error = errors::ValidationError::InvalidValue {
-            message: format!("Version string is invalid: {}", version_string),
-        };
-        dbg!(parts.size_hint());
-        // if parts.size_hint().0 != 3 {
-        //     return Err(report!(error.clone()));
-        // }
-        let (major, minor, patch) = (
-            parts
-                .next()
-                .ok_or(report!(error.clone()))?
-                .parse::<u8>()
-                .map_err(|_e| report!(error.clone()))?,
-            parts
-                .next()
-                .ok_or(report!(error.clone()))?
-                .parse::<u8>()
-                .map_err(|_e| report!(error.clone()))?,
-            parts
-                .next()
-                .ok_or(report!(error.clone()))?
-                .parse::<u8>()
-                .map_err(|_e| report!(error.clone()))?,
-        );
-
-        Ok(Self {
-            major,
-            minor,
-            patch,
-        })
-    }
-}
-
-impl fmt::Display for SemanticVersion {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}.{}.{}", self.major, self.minor, self.patch)
-    }
-}
-
-impl<DB: Backend> FromSql<Jsonb, DB> for SemanticVersion
-where
-    serde_json::Value: FromSql<Jsonb, DB>,
-{
-    fn from_sql(bytes: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
-        let value = <serde_json::Value as FromSql<Jsonb, DB>>::from_sql(bytes)?;
-        Ok(serde_json::from_value(value)?)
-    }
-}
-
-impl ToSql<Jsonb, diesel::pg::Pg> for SemanticVersion
-where
-    serde_json::Value: ToSql<Jsonb, diesel::pg::Pg>,
-{
-    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, diesel::pg::Pg>) -> diesel::serialize::Result {
-        let value = serde_json::to_value(self)?;
-
-        // the function `reborrow` only works in case of `Pg` backend. But, in case of other backends
-        // please refer to the diesel migration blog:
-        // https://github.com/Diesel-rs/Diesel/blob/master/guide_drafts/migration_guide.md#changed-tosql-implementations
-        <serde_json::Value as ToSql<Jsonb, diesel::pg::Pg>>::to_sql(&value, &mut out.reborrow())
-    }
-}
-
-impl Serialize for SemanticVersion {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let version_string = format!("{}.{}.{}", self.major, self.minor, self.patch);
-        serializer.serialize_str(&version_string)
-    }
-}
-
-impl<'de> Deserialize<'de> for SemanticVersion {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let version_string = String::deserialize(deserializer)?;
-        let mut parts = version_string.split('.');
-        // if parts.size_hint().0 != 3 {
-        //     return Err(serde::de::Error::custom("Invalid version format"));
-        // }
-        let (major, minor, patch) = (
-            parts
-                .next()
-                .ok_or(serde::de::Error::custom("Invalid version format"))?
-                .parse::<u8>()
-                .map_err(serde::de::Error::custom)?,
-            parts
-                .next()
-                .ok_or(serde::de::Error::custom("Invalid version format"))?
-                .parse::<u8>()
-                .map_err(serde::de::Error::custom)?,
-            parts
-                .next()
-                .ok_or(serde::de::Error::custom("Invalid version format"))?
-                .parse::<u8>()
-                .map_err(serde::de::Error::custom)?,
-        );
-
-        Ok(Self {
-            major,
-            minor,
-            patch,
-        })
+            .is_some_and(|version| version.get_major() == 2)
     }
 }
 
@@ -197,11 +67,11 @@ pub struct AuthenticationNew {
     pub error_message: Option<String>,
     pub error_code: Option<String>,
     pub connector_metadata: Option<serde_json::Value>,
-    pub maximum_supported_version: Option<SemanticVersion>,
+    pub maximum_supported_version: Option<common_utils::types::SemanticVersion>,
     pub threeds_server_transaction_id: Option<String>,
     pub cavv: Option<String>,
     pub authentication_flow_type: Option<String>,
-    pub message_version: Option<SemanticVersion>,
+    pub message_version: Option<common_utils::types::SemanticVersion>,
     pub eci: Option<String>,
     pub trans_status: Option<common_enums::TransactionStatus>,
     pub acquirer_bin: Option<String>,
@@ -220,11 +90,11 @@ pub struct AuthenticationNew {
 pub enum AuthenticationUpdate {
     PreAuthenticationUpdate {
         threeds_server_transaction_id: String,
-        maximum_supported_3ds_version: SemanticVersion,
+        maximum_supported_3ds_version: common_utils::types::SemanticVersion,
         connector_authentication_id: String,
         three_ds_method_data: String,
         three_ds_method_url: Option<String>,
-        message_version: SemanticVersion,
+        message_version: common_utils::types::SemanticVersion,
         connector_metadata: Option<serde_json::Value>,
         authentication_status: common_enums::AuthenticationStatus,
         payment_method_id: Option<String>,
@@ -272,11 +142,11 @@ pub struct AuthenticationUpdateInternal {
     pub error_message: Option<String>,
     pub error_code: Option<String>,
     pub connector_metadata: Option<serde_json::Value>,
-    pub maximum_supported_version: Option<SemanticVersion>,
+    pub maximum_supported_version: Option<common_utils::types::SemanticVersion>,
     pub threeds_server_transaction_id: Option<String>,
     pub cavv: Option<String>,
     pub authentication_flow_type: Option<String>,
-    pub message_version: Option<SemanticVersion>,
+    pub message_version: Option<common_utils::types::SemanticVersion>,
     pub eci: Option<String>,
     pub trans_status: Option<common_enums::TransactionStatus>,
     pub acquirer_bin: Option<String>,

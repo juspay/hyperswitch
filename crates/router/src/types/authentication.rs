@@ -13,11 +13,11 @@ use crate::services;
 pub enum AuthenticationResponseData {
     PreAuthNResponse {
         threeds_server_transaction_id: String,
-        maximum_supported_3ds_version: (u8, u8, u8),
+        maximum_supported_3ds_version: common_utils::types::SemanticVersion,
         connector_authentication_id: String,
         three_ds_method_data: String,
         three_ds_method_url: Option<String>,
-        message_version: String,
+        message_version: common_utils::types::SemanticVersion,
         connector_metadata: Option<serde_json::Value>,
     },
     AuthNResponse {
@@ -50,35 +50,35 @@ pub enum AuthNFlowType {
 
 impl AuthNFlowType {
     pub fn get_acs_url(&self) -> Option<String> {
-        if let AuthNFlowType::Challenge(challenge_params) = self {
+        if let Self::Challenge(challenge_params) = self {
             challenge_params.acs_url.as_ref().map(ToString::to_string)
         } else {
             None
         }
     }
     pub fn get_challenge_request(&self) -> Option<String> {
-        if let AuthNFlowType::Challenge(challenge_params) = self {
+        if let Self::Challenge(challenge_params) = self {
             challenge_params.challenge_request.clone()
         } else {
             None
         }
     }
     pub fn get_acs_reference_number(&self) -> Option<String> {
-        if let AuthNFlowType::Challenge(challenge_params) = self {
+        if let Self::Challenge(challenge_params) = self {
             challenge_params.acs_reference_number.clone()
         } else {
             None
         }
     }
     pub fn get_acs_trans_id(&self) -> Option<String> {
-        if let AuthNFlowType::Challenge(challenge_params) = self {
+        if let Self::Challenge(challenge_params) = self {
             challenge_params.acs_trans_id.clone()
         } else {
             None
         }
     }
     pub fn get_acs_signed_content(&self) -> Option<String> {
-        if let AuthNFlowType::Challenge(challenge_params) = self {
+        if let Self::Challenge(challenge_params) = self {
             challenge_params.acs_signed_content.clone()
         } else {
             None
@@ -86,8 +86,8 @@ impl AuthNFlowType {
     }
     pub fn get_decoupled_authentication_type(&self) -> common_enums::DecoupledAuthenticationType {
         match self {
-            AuthNFlowType::Challenge(_) => common_enums::DecoupledAuthenticationType::Challenge,
-            AuthNFlowType::Frictionless => common_enums::DecoupledAuthenticationType::Frictionless,
+            Self::Challenge(_) => common_enums::DecoupledAuthenticationType::Challenge,
+            Self::Frictionless => common_enums::DecoupledAuthenticationType::Frictionless,
         }
     }
 }

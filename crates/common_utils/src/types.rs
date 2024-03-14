@@ -1,4 +1,6 @@
 //! Types that can be used in other crates
+use std::{fmt::Display, str::FromStr};
+
 use diesel::{
     backend::Backend,
     deserialize::FromSql,
@@ -12,9 +14,8 @@ use serde::{de::Visitor, Deserialize, Deserializer};
 
 use crate::{
     consts,
-    errors::{CustomResult, PercentageError},
+    errors::{CustomResult, ParsingError, PercentageError},
 };
-
 /// Represents Percentage Value between 0 and 100 both inclusive
 #[derive(Clone, Default, Debug, PartialEq, serde::Serialize)]
 pub struct Percentage<const PRECISION: u8> {
@@ -170,11 +171,36 @@ pub enum Surcharge {
 //     pub patch: u8,
 // }
 
-// This struct lets us
+/// This struct lets us represent a semantic version type
 #[derive(Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Jsonb)]
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct SemanticVersion(#[serde(with = "Version")] Version);
+
+impl SemanticVersion {
+    /// returns major version number
+    pub fn get_major(&self) -> u64 {
+        self.0.major
+    }
+}
+
+impl Display for SemanticVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl FromStr for SemanticVersion {
+    type Err = error_stack::Report<ParsingError>;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(Version::from_str(s).into_report().change_context(
+            ParsingError::StructParseFailure("SemanticVersion"),
+        )?))
+    }
+}
+
+// impl Display
 
 impl<DB: Backend> FromSql<Jsonb, DB> for SemanticVersion
 where

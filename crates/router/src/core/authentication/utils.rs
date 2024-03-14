@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use error_stack::ResultExt;
 
 use crate::{
@@ -69,18 +67,11 @@ pub async fn update_trackers<F: Clone, Req>(
                 // todo!("maximum_supported_3ds_version");
                 storage::AuthenticationUpdate::PreAuthenticationUpdate {
                     threeds_server_transaction_id,
-                    maximum_supported_3ds_version: storage::authentication::SemanticVersion {
-                        major: maximum_supported_3ds_version.0,
-                        minor: maximum_supported_3ds_version.1,
-                        patch: maximum_supported_3ds_version.2,
-                    },
+                    maximum_supported_3ds_version,
                     connector_authentication_id,
                     three_ds_method_data,
                     three_ds_method_url,
-                    message_version: storage::authentication::SemanticVersion::from_str(
-                        &message_version,
-                    )
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                    message_version,
                     connector_metadata,
                     authentication_status: common_enums::AuthenticationStatus::Pending,
                     payment_method_id: token.map(|token| format!("eph_{}", token)),
