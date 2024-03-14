@@ -1471,11 +1471,11 @@ pub struct AdditionalCardInfo {
     pub card_holder_name: Option<Secret<String>>,
 
     /// Additional payment checks done on the cvv and billing address by the processors.
-    /// This is a free form field and the structure varies from processor to procesor
+    /// This is a free form field and the structure varies from processor to processor
     pub payment_checks: Option<serde_json::Value>,
 
     /// Details about the threeds environment.
-    /// This is a free form field and the structure varies from processor to procesor
+    /// This is a free form field and the structure varies from processor to processor
     pub authentication_data: Option<serde_json::Value>,
 }
 
