@@ -1525,8 +1525,7 @@ pub fn build_redirection_form(
         },
         RedirectForm::Html { html_data } => PreEscaped(format!(
             "{} <script>{}</script>",
-            html_data.to_string(),
-            logging_template
+            html_data, logging_template
         )),
         RedirectForm::BlueSnap {
             payment_fields_token,
