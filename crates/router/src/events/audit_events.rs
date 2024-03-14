@@ -1,11 +1,7 @@
 use data_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 use serde::Serialize;
 
-use super::EventsHandler;
-use crate::{
-    core::{errors::ApiErrorResponse, payments::PaymentData},
-    services::kafka::KafkaMessage,
-};
+use crate::services::kafka::KafkaMessage;
 
 #[derive(Debug, Clone, Serialize)]
 pub enum AuditEventType {
