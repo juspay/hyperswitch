@@ -2077,19 +2077,6 @@ where
     pub frm_metadata: Option<serde_json::Value>,
 }
 
-impl<F> PaymentData<F>
-where
-    F: Clone,
-{
-    pub fn get_audit_event(&self) -> AuditEventType {
-        AuditEventType::PaymentUpdate {
-            payment_id: self.payment_intent.payment_id.clone(),
-            merchant_id: self.payment_intent.merchant_id.clone(),
-            payment_intent: self.payment_intent.clone(),
-            payment_attempt: self.payment_attempt.clone(),
-        }
-    }
-}
 
 #[derive(Debug, Default, Clone)]
 pub struct IncrementalAuthorizationDetails {
