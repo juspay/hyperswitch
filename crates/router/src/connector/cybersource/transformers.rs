@@ -1,5 +1,6 @@
 use api_models::payments;
 use base64::Engine;
+use common_enums::FutureUsage;
 use common_utils::{ext_traits::ValueExt, pii};
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -500,47 +501,61 @@ impl
             Option<String>,
         ),
     ) -> Result<Self, Self::Error> {
-        let (action_list, action_token_types, authorization_options) =
-            if item.router_data.request.setup_mandate_details.is_some() {
-                (
-                    Some(vec![CybersourceActionsList::TokenCreate]),
-                    Some(vec![CybersourceActionsTokenType::PaymentInstrument]),
-                    Some(CybersourceAuthorizationOptions {
-                        initiator: Some(CybersourcePaymentInitiator {
-                            initiator_type: Some(CybersourcePaymentInitiatorTypes::Customer),
-                            credential_stored_on_file: Some(true),
-                            stored_credential_used: None,
-                        }),
-                        merchant_intitiated_transaction: None,
-                    }),
-                )
-            } else if item.router_data.request.connector_mandate_id().is_some() {
-                let original_amount = item
+        let (action_list, action_token_types, authorization_options) = if item
+            .router_data
+            .request
+            .setup_future_usage
+            .map_or(false, |future_usage| {
+                matches!(future_usage, FutureUsage::OffSession)
+            })
+            && (item.router_data.request.customer_acceptance.is_some()
+                || item
                     .router_data
-                    .get_recurring_mandate_payment_data()?
-                    .get_original_payment_amount()?;
-                let original_currency = item
-                    .router_data
-                    .get_recurring_mandate_payment_data()?
-                    .get_original_payment_currency()?;
-                (
-                    None,
-                    None,
-                    Some(CybersourceAuthorizationOptions {
-                        initiator: None,
-                        merchant_intitiated_transaction: Some(MerchantInitiatedTransaction {
-                            reason: None,
-                            original_authorized_amount: Some(utils::get_amount_as_string(
-                                &types::api::CurrencyUnit::Base,
-                                original_amount,
-                                original_currency,
-                            )?),
-                        }),
+                    .request
+                    .setup_mandate_details
+                    .clone()
+                    .map_or(false, |mandate_details| {
+                        mandate_details.customer_acceptance.is_some()
+                    })) {
+            (
+                Some(vec![CybersourceActionsList::TokenCreate]),
+                Some(vec![CybersourceActionsTokenType::PaymentInstrument]),
+                Some(CybersourceAuthorizationOptions {
+                    initiator: Some(CybersourcePaymentInitiator {
+                        initiator_type: Some(CybersourcePaymentInitiatorTypes::Customer),
+                        credential_stored_on_file: Some(true),
+                        stored_credential_used: None,
                     }),
-                )
-            } else {
-                (None, None, None)
-            };
+                    merchant_intitiated_transaction: None,
+                }),
+            )
+        } else if item.router_data.request.connector_mandate_id().is_some() {
+            let original_amount = item
+                .router_data
+                .get_recurring_mandate_payment_data()?
+                .get_original_payment_amount()?;
+            let original_currency = item
+                .router_data
+                .get_recurring_mandate_payment_data()?
+                .get_original_payment_currency()?;
+            (
+                None,
+                None,
+                Some(CybersourceAuthorizationOptions {
+                    initiator: None,
+                    merchant_intitiated_transaction: Some(MerchantInitiatedTransaction {
+                        reason: None,
+                        original_authorized_amount: Some(utils::get_amount_as_string(
+                            &types::api::CurrencyUnit::Base,
+                            original_amount,
+                            original_currency,
+                        )?),
+                    }),
+                }),
+            )
+        } else {
+            (None, None, None)
+        };
         let commerce_indicator = match network {
             Some(card_network) => match card_network.to_lowercase().as_str() {
                 "amex" => "aesk",
@@ -581,23 +596,30 @@ impl
             &CybersourceConsumerAuthValidateResponse,
         ),
     ) -> Self {
-        let (action_list, action_token_types, authorization_options) =
-            if item.router_data.request.setup_future_usage.is_some() {
-                (
-                    Some(vec![CybersourceActionsList::TokenCreate]),
-                    Some(vec![CybersourceActionsTokenType::PaymentInstrument]),
-                    Some(CybersourceAuthorizationOptions {
-                        initiator: Some(CybersourcePaymentInitiator {
-                            initiator_type: Some(CybersourcePaymentInitiatorTypes::Customer),
-                            credential_stored_on_file: Some(true),
-                            stored_credential_used: None,
-                        }),
-                        merchant_intitiated_transaction: None,
+        let (action_list, action_token_types, authorization_options) = if item
+            .router_data
+            .request
+            .setup_future_usage
+            .map_or(false, |future_usage| {
+                matches!(future_usage, FutureUsage::OffSession)
+            })
+        //TODO check for customer acceptance also
+        {
+            (
+                Some(vec![CybersourceActionsList::TokenCreate]),
+                Some(vec![CybersourceActionsTokenType::PaymentInstrument]),
+                Some(CybersourceAuthorizationOptions {
+                    initiator: Some(CybersourcePaymentInitiator {
+                        initiator_type: Some(CybersourcePaymentInitiatorTypes::Customer),
+                        credential_stored_on_file: Some(true),
+                        stored_credential_used: None,
                     }),
-                )
-            } else {
-                (None, None, None)
-            };
+                    merchant_intitiated_transaction: None,
+                }),
+            )
+        } else {
+            (None, None, None)
+        };
         Self {
             capture: Some(matches!(
                 item.router_data.request.capture_method,

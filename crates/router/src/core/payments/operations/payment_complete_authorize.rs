@@ -131,8 +131,14 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             }
         }
 
-        let token_data = if let Some(token) = token.clone() {
-            Some(helpers::retrieve_payment_token_data(state, token, payment_method).await?)
+        let token_data = if let Some((token, payment_method)) = token
+            .as_ref()
+            .zip(payment_method.or(payment_attempt.payment_method))
+        {
+            Some(
+                helpers::retrieve_payment_token_data(state, token.clone(), Some(payment_method))
+                    .await?,
+            )
         } else {
             None
         };

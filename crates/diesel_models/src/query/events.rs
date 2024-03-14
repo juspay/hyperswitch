@@ -2,7 +2,7 @@ use diesel::{associations::HasTable, ExpressionMethods};
 
 use super::generics;
 use crate::{
-    events::{Event, EventNew, EventUpdate, EventUpdateInternal},
+    events::{Event, EventNew, EventUpdateInternal},
     schema::events::dsl,
     PgPooledConn, StorageResult,
 };
@@ -25,18 +25,14 @@ impl Event {
     pub async fn update(
         conn: &PgPooledConn,
         event_id: &str,
-        event: EventUpdate,
+        event: EventUpdateInternal,
     ) -> StorageResult<Self> {
         generics::generic_update_with_unique_predicate_get_result::<
             <Self as HasTable>::Table,
             _,
             _,
             _,
-        >(
-            conn,
-            dsl::event_id.eq(event_id.to_owned()),
-            EventUpdateInternal::from(event),
-        )
+        >(conn, dsl::event_id.eq(event_id.to_owned()), event)
         .await
     }
 }
