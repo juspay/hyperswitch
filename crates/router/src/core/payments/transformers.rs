@@ -562,8 +562,8 @@ where
                             }
                         }))
                         .or(match payment_data.authentication.as_ref(){
-                            Some((_authentication, authentication_data)) => {
-                                if payment_intent.status == common_enums::IntentStatus::RequiresCustomerAction && authentication_data.cavv.is_none() && authentication_data.is_separate_authn_required(){
+                            Some(authentication) => {
+                                if payment_intent.status == common_enums::IntentStatus::RequiresCustomerAction && authentication.cavv.is_none() && authentication.is_separate_authn_required(){
                                     // if preAuthn and separate authentication needed.
                                     let payment_id = payment_attempt.payment_id.clone();
                                     let base_url = server.base_url.clone();
@@ -580,18 +580,15 @@ where
                                                 &payment_attempt,
                                                 payment_connector_name,
                                             ),
-                                            three_ds_method_details: authentication_data.three_ds_method_data.three_ds_method_url.as_ref().map(|three_ds_method_url|{
+                                            three_ds_method_details: authentication.three_ds_method_url.as_ref().zip(authentication.three_ds_method_data.as_ref()).map(|(three_ds_method_url,three_ds_method_data )|{
                                                 api_models::payments::ThreeDsMethodData::AcsThreeDsMethodData {
                                                     three_ds_method_data_submission: true,
-                                                    three_ds_method_data: authentication_data
-                                                        .three_ds_method_data
-                                                        .three_ds_method_data
-                                                        .clone(),
+                                                    three_ds_method_data: Some(three_ds_method_data.clone()),
                                                     three_ds_method_url: Some(three_ds_method_url.to_owned()),
                                                 }
                                             }).unwrap_or(api_models::payments::ThreeDsMethodData::AcsThreeDsMethodData {
                                                     three_ds_method_data_submission: false,
-                                                    three_ds_method_data: "".into(),
+                                                    three_ds_method_data: None,
                                                     three_ds_method_url: None,
                                             }),
                                         },
@@ -1204,7 +1201,10 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                     | Some(RequestIncrementalAuthorization::Default)
             ),
             metadata: additional_data.payment_data.payment_intent.metadata,
-            authentication_data: payment_data.authentication.map(|auth| auth.1),
+            authentication_data: payment_data
+                .authentication
+                .as_ref()
+                .and_then(ForeignInto::foreign_into),
             customer_acceptance: payment_data.customer_acceptance,
         })
     }

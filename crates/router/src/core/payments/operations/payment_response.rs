@@ -787,7 +787,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     payment_data.payment_attempt = payment_attempt;
 
     payment_data.authentication = match payment_data.authentication {
-        Some((authentication, authentication_data)) => {
+        Some(authentication) => {
             let authentication_update = storage::AuthenticationUpdate::PostAuthorizationUpdate {
                 authentication_lifecycle_status:
                     storage::enums::AuthenticationLifecycleStatus::Used,
@@ -800,7 +800,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-            Some((updated_authentication, authentication_data))
+            Some(updated_authentication)
         }
         None => None,
     };

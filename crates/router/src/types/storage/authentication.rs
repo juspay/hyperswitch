@@ -1,1 +1,3 @@
-pub use diesel_models::authentication::{Authentication, AuthenticationNew, AuthenticationUpdate};
+pub use diesel_models::authentication::{
+    Authentication, AuthenticationNew, AuthenticationUpdate, SemanticVersion,
+};

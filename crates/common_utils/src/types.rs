@@ -1,5 +1,13 @@
 //! Types that can be used in other crates
+use diesel::{
+    backend::Backend,
+    deserialize::FromSql,
+    serialize::{Output, ToSql},
+    sql_types::Jsonb,
+    AsExpression, FromSqlRow,
+};
 use error_stack::{IntoReport, ResultExt};
+use semver::Version;
 use serde::{de::Visitor, Deserialize, Deserializer};
 
 use crate::{
@@ -148,4 +156,46 @@ pub enum Surcharge {
     Fixed(i64),
     /// Surcharge percentage
     Rate(Percentage<{ consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH }>),
+}
+
+/// For representing Semantic Version
+// #[derive(Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression)]
+// #[diesel(sql_type = Jsonb)]
+// pub struct SemanticVersion {
+//     /// Major Version number
+//     pub major: u8,
+//     /// Minor Version number
+//     pub minor: u8,
+//     /// Patch Version number
+//     pub patch: u8,
+// }
+
+// This struct lets us
+#[derive(Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression)]
+#[diesel(sql_type = Jsonb)]
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct SemanticVersion(#[serde(with = "Version")] Version);
+
+impl<DB: Backend> FromSql<Jsonb, DB> for SemanticVersion
+where
+    serde_json::Value: FromSql<Jsonb, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
+        let value = <serde_json::Value as FromSql<Jsonb, DB>>::from_sql(bytes)?;
+        Ok(serde_json::from_value(value)?)
+    }
+}
+
+impl ToSql<Jsonb, diesel::pg::Pg> for SemanticVersion
+where
+    serde_json::Value: ToSql<Jsonb, diesel::pg::Pg>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, diesel::pg::Pg>) -> diesel::serialize::Result {
+        let value = serde_json::to_value(self)?;
+
+        // the function `reborrow` only works in case of `Pg` backend. But, in case of other backends
+        // please refer to the diesel migration blog:
+        // https://github.com/Diesel-rs/Diesel/blob/master/guide_drafts/migration_guide.md#changed-tosql-implementations
+        <serde_json::Value as ToSql<Jsonb, diesel::pg::Pg>>::to_sql(&value, &mut out.reborrow())
+    }
 }

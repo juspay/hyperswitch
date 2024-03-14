@@ -307,7 +307,7 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
             .parse_value("ThreeDSecureIoMetaData")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
-        let authentication_data = &request.authentication_data.0;
+        let pre_authentication_data = &request.pre_authentication_data;
         let sdk_information = match request.device_channel {
             DeviceChannel::App => Some(item.router_data.request.sdk_information.clone().ok_or(
                 errors::ConnectorError::MissingRequiredField {
@@ -316,21 +316,24 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
             )?),
             DeviceChannel::Browser => None,
         };
-        let acquirer_details = authentication_data
-            .acquirer_details
+        let (acquirer_bin, acquirer_merchant_id) = pre_authentication_data
+            .acquirer_bin
             .clone()
+            .zip(pre_authentication_data.acquirer_merchant_id.clone())
             .get_required_value("acquirer_details")
             .change_context(errors::ConnectorError::MissingRequiredField {
                 field_name: "acquirer_details",
             })?;
         let meta: ThreeDSecureIoConnectorMetaData =
-            to_connector_meta(request.authentication_data.1.connector_metadata.clone())?;
+            to_connector_meta(request.pre_authentication_data.connector_metadata.clone())?;
         Ok(Self {
             ds_start_protocol_version: meta.ds_start_protocol_version.clone(),
             ds_end_protocol_version: meta.ds_end_protocol_version.clone(),
             acs_start_protocol_version: meta.acs_start_protocol_version.clone(),
             acs_end_protocol_version: meta.acs_end_protocol_version.clone(),
-            three_dsserver_trans_id: authentication_data.threeds_server_transaction_id.clone(),
+            three_dsserver_trans_id: pre_authentication_data
+                .threeds_server_transaction_id
+                .clone(),
             acct_number: card_details.card_number.clone(),
             notification_url: request
                 .return_url
@@ -342,8 +345,8 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
                 request.threeds_method_comp_ind.clone(),
             ),
             three_dsrequestor_url: request.three_ds_requestor_url.clone(),
-            acquirer_bin: acquirer_details.acquirer_bin,
-            acquirer_merchant_id: acquirer_details.acquirer_merchant_id,
+            acquirer_bin,
+            acquirer_merchant_id,
             card_expiry_date: card_details.get_expiry_date_as_yymm()?.expose(),
             bill_addr_city: billing_address
                 .city
@@ -410,7 +413,7 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
             merchant_country_code: connector_meta_data.merchant_country_code,
             merchant_name: connector_meta_data.merchant_name,
             message_type: "AReq".to_string(),
-            message_version: authentication_data.message_version.clone(),
+            message_version: pre_authentication_data.message_version.clone(),
             purchase_amount: item.amount.clone(),
             purchase_currency: purchase_currency.numeric().to_string(),
             trans_type: "01".to_string(),
@@ -644,7 +647,7 @@ impl From<ThreeDsCompletionIndicator> for ThreeDSecureIoThreeDsCompletionIndicat
     }
 }
 
-impl From<ThreedsecureioTransStatus> for api_models::payments::TransactionStatus {
+impl From<ThreedsecureioTransStatus> for common_enums::TransactionStatus {
     fn from(value: ThreedsecureioTransStatus) -> Self {
         match value {
             ThreedsecureioTransStatus::Y => Self::Success,
@@ -708,7 +711,7 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::PreAuthNRouterDat
     }
 }
 
-impl ForeignTryFrom<String> for (i64, i64, i64) {
+impl ForeignTryFrom<String> for (u8, u8, u8) {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
         let mut split_version = value.split('.');

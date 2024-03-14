@@ -14,7 +14,7 @@ use crate::{
     routes::AppState,
     types::{
         storage::{self, enums as storage_enums},
-        transformers::ForeignTryFrom,
+        transformers::{ForeignFrom, ForeignTryFrom},
     },
 };
 
@@ -369,5 +369,30 @@ impl SurchargeMetadata {
         redis_conn
             .get_hash_field_and_deserialize(&redis_key, &value_key, "SurchargeDetails")
             .await
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct AuthenticationData {
+    pub eci: Option<String>,
+    pub cavv: Option<String>,
+    pub threeds_server_transaction_id: String,
+    pub message_version: String,
+}
+
+impl ForeignFrom<&storage::Authentication> for Option<AuthenticationData> {
+    fn foreign_from(authentication: &storage::Authentication) -> Self {
+        authentication
+            .threeds_server_transaction_id
+            .as_ref()
+            .zip(authentication.message_version.as_ref())
+            .map(
+                |(threeds_server_transaction_id, message_version)| AuthenticationData {
+                    eci: authentication.eci.clone(),
+                    cavv: authentication.cavv.clone(),
+                    threeds_server_transaction_id: threeds_server_transaction_id.clone(),
+                    message_version: message_version.to_string(),
+                },
+            )
     }
 }
