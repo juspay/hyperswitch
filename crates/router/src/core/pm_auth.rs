@@ -365,7 +365,7 @@ async fn store_bank_details_in_payment_methods(
                     "{}-{}-{}",
                     ach.account_number.peek(),
                     ach.routing_number.peek(),
-                    PaymentMethodType::Ach.to_string(),
+                    PaymentMethodType::Ach,
                 ),
             ),
             pm_auth_types::PaymentMethodTypeDetails::Bacs(bacs) => (
@@ -374,16 +374,12 @@ async fn store_bank_details_in_payment_methods(
                     "{}-{}-{}",
                     bacs.account_number.peek(),
                     bacs.sort_code.peek(),
-                    PaymentMethodType::Bacs.to_string()
+                    PaymentMethodType::Bacs
                 ),
             ),
             pm_auth_types::PaymentMethodTypeDetails::Sepa(sepa) => (
                 sepa.iban.clone(),
-                format!(
-                    "{}-{}",
-                    sepa.iban.expose(),
-                    PaymentMethodType::Sepa.to_string()
-                ),
+                format!("{}-{}", sepa.iban.expose(), PaymentMethodType::Sepa),
             ),
         };
 
