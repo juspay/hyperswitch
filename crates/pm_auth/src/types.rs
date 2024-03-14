@@ -55,13 +55,13 @@ pub type ExchangeTokenRouterData =
 
 #[derive(Debug, Clone)]
 pub struct BankAccountCredentialsRequest {
-    pub access_token: String,
+    pub access_token: Secret<String>,
     pub optional_ids: Option<BankAccountOptionalIDs>,
 }
 
 #[derive(Debug, Clone)]
 pub struct BankAccountOptionalIDs {
-    pub ids: Vec<String>,
+    pub ids: Vec<Secret<String>>,
 }
 
 #[derive(Debug, Clone)]
@@ -75,7 +75,7 @@ pub struct BankAccountDetails {
     pub account_details: PaymentMethodTypeDetails,
     pub payment_method_type: PaymentMethodType,
     pub payment_method: PaymentMethod,
-    pub account_id: String,
+    pub account_id: Secret<String>,
     pub account_type: Option<String>,
 }
 

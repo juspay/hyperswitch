@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use common_enums::{PaymentMethod, PaymentMethodType};
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{core::errors, types};
@@ -200,13 +200,19 @@ pub struct PlaidBankAccountCredentialsBacs {
 impl TryFrom<&types::BankDetailsRouterData> for PlaidBankAccountCredentialsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::BankDetailsRouterData) -> Result<Self, Self::Error> {
+        let options = item.request.optional_ids.as_ref().map(|bank_account_ids| {
+            let ids = bank_account_ids
+                .ids
+                .iter()
+                .map(|id| id.peek().to_string())
+                .collect::<Vec<_>>();
+
+            BankAccountCredentialsOptions { account_ids: ids }
+        });
+
         Ok(Self {
-            access_token: item.request.access_token.clone(),
-            options: item.request.optional_ids.as_ref().map(|bank_account_ids| {
-                BankAccountCredentialsOptions {
-                    account_ids: bank_account_ids.ids.clone(),
-                }
-            }),
+            access_token: item.request.access_token.peek().to_string(),
+            options,
         })
     }
 }
@@ -257,7 +263,7 @@ impl<F, T>
                 account_details,
                 payment_method_type: PaymentMethodType::Ach,
                 payment_method: PaymentMethod::BankDebit,
-                account_id: ach.account_id,
+                account_id: ach.account_id.into(),
                 account_type: acc_type,
             };
 
@@ -283,7 +289,7 @@ impl<F, T>
                 account_details,
                 payment_method_type: PaymentMethodType::Bacs,
                 payment_method: PaymentMethod::BankDebit,
-                account_id: bacs.account_id,
+                account_id: bacs.account_id.into(),
                 account_type: acc_type,
             };
 
@@ -309,7 +315,7 @@ impl<F, T>
                 account_details,
                 payment_method_type: PaymentMethodType::Sepa,
                 payment_method: PaymentMethod::BankDebit,
-                account_id: sepa.account_id,
+                account_id: sepa.account_id.into(),
                 account_type: acc_type,
             };
 

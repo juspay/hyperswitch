@@ -5,6 +5,7 @@ use api_models::{
     payment_methods::{self, BankAccountAccessCreds},
     payments::{AddressDetails, BankDebitBilling, BankDebitData, PaymentMethodData},
 };
+use common_enums::PaymentMethodType;
 use hex;
 pub mod helpers;
 pub mod transformers;
@@ -18,7 +19,7 @@ use common_utils::{
 use data_models::payments::PaymentIntent;
 use error_stack::{IntoReport, ResultExt};
 use helpers::PaymentAuthConnectorDataExt;
-use masking::{ExposeInterface, PeekInterface};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use pm_auth::{
     connector::plaid::transformers::PlaidAuthType,
     types::{
@@ -273,7 +274,7 @@ async fn store_bank_details_in_payment_methods(
     merchant_account: domain::MerchantAccount,
     state: AppState,
     bank_account_details_resp: pm_auth_types::BankAccountCredentialsResponse,
-    connector_details: (&str, String),
+    connector_details: (&str, Secret<String>),
     mca_id: String,
 ) -> RouterResult<()> {
     let key = key_store.key.get_inner().peek();
@@ -361,18 +362,29 @@ async fn store_bank_details_in_payment_methods(
             pm_auth_types::PaymentMethodTypeDetails::Ach(ach) => (
                 ach.account_number.clone(),
                 format!(
-                    "{}-{}",
+                    "{}-{}-{}",
                     ach.account_number.peek(),
-                    ach.routing_number.peek()
+                    ach.routing_number.peek(),
+                    PaymentMethodType::Ach.to_string(),
                 ),
             ),
             pm_auth_types::PaymentMethodTypeDetails::Bacs(bacs) => (
                 bacs.account_number.clone(),
-                format!("{}-{}", bacs.account_number.peek(), bacs.sort_code.peek()),
+                format!(
+                    "{}-{}-{}",
+                    bacs.account_number.peek(),
+                    bacs.sort_code.peek(),
+                    PaymentMethodType::Bacs.to_string()
+                ),
             ),
-            pm_auth_types::PaymentMethodTypeDetails::Sepa(sepa) => {
-                (sepa.iban.clone(), sepa.iban.expose())
-            }
+            pm_auth_types::PaymentMethodTypeDetails::Sepa(sepa) => (
+                sepa.iban.clone(),
+                format!(
+                    "{}-{}",
+                    sepa.iban.expose(),
+                    PaymentMethodType::Sepa.to_string()
+                ),
+            ),
         };
 
         let generated_hash = hex::encode(
@@ -489,10 +501,10 @@ pub async fn get_bank_account_creds(
     connector: PaymentAuthConnectorData,
     merchant_account: &domain::MerchantAccount,
     connector_name: &str,
-    access_token: &str,
+    access_token: &Secret<String>,
     auth_type: pm_auth_types::ConnectorAuthType,
     state: &AppState,
-    bank_account_id: Option<String>,
+    bank_account_id: Option<Secret<String>>,
 ) -> RouterResult<pm_auth_types::BankAccountCredentialsResponse> {
     let connector_integration_bank_details: BoxedConnectorIntegration<
         '_,
@@ -506,7 +518,7 @@ pub async fn get_bank_account_creds(
         merchant_id: Some(merchant_account.merchant_id.clone()),
         connector: Some(connector_name.to_string()),
         request: pm_auth_types::BankAccountCredentialsRequest {
-            access_token: access_token.to_string(),
+            access_token: access_token.clone(),
             optional_ids: bank_account_id
                 .map(|id| pm_auth_types::BankAccountOptionalIDs { ids: vec![id] }),
         },
@@ -547,7 +559,7 @@ async fn get_access_token_from_exchange_api(
     payload: &api_models::pm_auth::ExchangeTokenCreateRequest,
     auth_type: &pm_auth_types::ConnectorAuthType,
     state: &AppState,
-) -> RouterResult<String> {
+) -> RouterResult<Secret<String>> {
     let connector_integration: BoxedConnectorIntegration<
         '_,
         ExchangeToken,
@@ -590,7 +602,7 @@ async fn get_access_token_from_exchange_api(
             })?;
 
     let access_token = exchange_token_resp.access_token;
-    Ok(access_token)
+    Ok(Secret::new(access_token))
 }
 
 async fn get_selected_config_from_redis(
