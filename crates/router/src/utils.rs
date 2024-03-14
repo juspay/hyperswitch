@@ -743,9 +743,11 @@ pub fn add_apple_pay_payment_status_metrics(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn trigger_payments_webhook<F, Req, Op>(
     merchant_account: domain::MerchantAccount,
     business_profile: diesel_models::business_profile::BusinessProfile,
+    key_store: &domain::MerchantKeyStore,
     payment_data: crate::core::payments::PaymentData<F>,
     req: Option<Req>,
     customer: Option<domain::Customer>,
@@ -794,7 +796,8 @@ where
         if let services::ApplicationResponse::JsonWithHeaders((payments_response_json, _)) =
             payments_response
         {
-            let m_state = state.clone();
+            let cloned_state = state.clone();
+            let cloned_key_store = key_store.clone();
             // This spawns this futures in a background thread, the exception inside this future won't affect
             // the current thread and the lifecycle of spawn thread is not handled by runtime.
             // So when server shutdown won't wait for this thread's completion.
@@ -802,21 +805,21 @@ where
             if let Some(event_type) = event_type {
                 tokio::spawn(
                     async move {
-                        Box::pin(
-                            webhooks_core::create_event_and_trigger_appropriate_outgoing_webhook(
-                                m_state,
-                                merchant_account,
-                                business_profile,
-                                event_type,
-                                diesel_models::enums::EventClass::Payments,
-                                None,
-                                payment_id,
-                                diesel_models::enums::EventObjectType::PaymentDetails,
-                                webhooks::OutgoingWebhookContent::PaymentDetails(
-                                    payments_response_json,
-                                ),
+                        let primary_object_created_at = payments_response_json.created;
+                        Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
+                            cloned_state,
+                            merchant_account,
+                            business_profile,
+                            &cloned_key_store,
+                            event_type,
+                            diesel_models::enums::EventClass::Payments,
+                            payment_id,
+                            diesel_models::enums::EventObjectType::PaymentDetails,
+                            webhooks::OutgoingWebhookContent::PaymentDetails(
+                                payments_response_json,
                             ),
-                        )
+                            primary_object_created_at,
+                        ))
                         .await
                     }
                     .in_current_span(),

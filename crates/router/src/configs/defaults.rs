@@ -757,7 +757,8 @@ impl Default for super::settings::RequiredFields {
                                 enums::Connector::Cybersource,
                                 RequiredFieldFinal {
                                     mandate: HashMap::new(),
-                                    non_mandate: HashMap::from(
+                                    non_mandate: HashMap::new(),
+                                    common:HashMap::from(
                                         [
                                             (
                                                 "payment_method_data.card.card_number".to_string(),
@@ -792,6 +793,15 @@ impl Default for super::settings::RequiredFields {
                                                     required_field: "payment_method_data.card.card_cvc".to_string(),
                                                     display_name: "card_cvc".to_string(),
                                                     field_type: enums::FieldType::UserCardCvc,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "payment_method_data.card.card_holder_name".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_holder_name".to_string(),
+                                                    display_name: "card_holder_name".to_string(),
+                                                    field_type: enums::FieldType::UserFullName,
                                                     value: None,
                                                 }
                                             ),
@@ -873,7 +883,6 @@ impl Default for super::settings::RequiredFields {
                                             )
                                         ]
                                     ),
-                                    common:HashMap::new(),
                                 }
                             ),
                             (
@@ -2854,6 +2863,15 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
+                                                "payment_method_data.card.card_holder_name".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_holder_name".to_string(),
+                                                    display_name: "card_holder_name".to_string(),
+                                                    field_type: enums::FieldType::UserFullName,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
                                                 "email".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "email".to_string(),
@@ -4783,7 +4801,8 @@ impl Default for super::settings::RequiredFields {
                                                     field_type: enums::FieldType::UserBank,
                                                     value: None,
                                                 }
-                                            )
+                                            ),
+
                                         ]),
                                     }
                                 ),

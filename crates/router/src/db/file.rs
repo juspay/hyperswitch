@@ -1,4 +1,5 @@
 use error_stack::IntoReport;
+use router_env::{instrument, tracing};
 
 use super::{MockDb, Store};
 use crate::{
@@ -35,6 +36,7 @@ pub trait FileMetadataInterface {
 
 #[async_trait::async_trait]
 impl FileMetadataInterface for Store {
+    #[instrument(skip_all)]
     async fn insert_file_metadata(
         &self,
         file: storage::FileMetadataNew,
@@ -43,6 +45,7 @@ impl FileMetadataInterface for Store {
         file.insert(&conn).await.map_err(Into::into).into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_file_metadata_by_merchant_id_file_id(
         &self,
         merchant_id: &str,
@@ -55,6 +58,7 @@ impl FileMetadataInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn delete_file_metadata_by_merchant_id_file_id(
         &self,
         merchant_id: &str,
@@ -67,6 +71,7 @@ impl FileMetadataInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn update_file_metadata(
         &self,
         this: storage::FileMetadata,

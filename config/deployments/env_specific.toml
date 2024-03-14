@@ -42,13 +42,17 @@ client_secret = "paypal_client_secret"
 partner_id = "paypal_partner_id"
 
 [connector_request_reference_id_config]
-merchant_ids_send_payment_id_as_connector_request_id = ["merchant_id_1", "merchant_id_2", "etc.,"]
+merchant_ids_send_payment_id_as_connector_request_id = [
+    "merchant_id_1",
+    "merchant_id_2",
+    "etc.,",
+]
 
 [cors]
-max_age = 30 # Maximum time (in seconds) for which this CORS request may be cached.
-origins = "http://localhost:8080" # List of origins that are allowed to make requests.
+max_age = 30                            # Maximum time (in seconds) for which this CORS request may be cached.
+origins = "http://localhost:8080"       # List of origins that are allowed to make requests.
 allowed_methods = "GET,POST,PUT,DELETE" # List of methods that are allowed
-wildcard_origin = false # If true, allows any origin to make requests
+wildcard_origin = false                 # If true, allows any origin to make requests
 
 # EmailClient configuration. Only applicable when the `email` feature flag is enabled.
 [email]
@@ -160,20 +164,24 @@ https_url = "https://proxy_https_url" # Outgoing proxy https URL to proxy the HT
 [redis]
 host = "127.0.0.1"
 port = 6379
-pool_size = 5                                                           # Number of connections to keep open
-reconnect_max_attempts = 5                                              # Maximum number of reconnection attempts to make before failing. Set to 0 to retry forever.
-reconnect_delay = 5                                                     # Delay between reconnection attempts, in milliseconds
-default_ttl = 300                                                       # Default TTL for entries, in seconds
-default_hash_ttl = 900                                                  # Default TTL for hashes entries, in seconds
-use_legacy_version = false                                              # RESP protocol for fred crate (set this to true if using RESPv2 or redis version < 6)
-stream_read_count = 1                                                   # Default number of entries to read from stream if not provided in stream read options
-auto_pipeline = true                                                    # Whether or not the client should automatically pipeline commands across tasks when possible.
-disable_auto_backpressure = false                                       # Whether or not to disable the automatic backpressure features when pipelining is enabled.
-max_in_flight_commands = 5000                                           # The maximum number of in-flight commands (per connection) before backpressure will be applied.
-default_command_timeout = 0                                             # An optional timeout to apply to all commands.
-max_feed_count = 200                                                    # The maximum number of frames that will be fed to a socket before flushing.
-cluster_enabled = true                                                  # boolean
-cluster_urls = ["redis.cluster.uri-1:8080", "redis.cluster.uri-2:4115"] # List of redis cluster urls
+pool_size = 5 # Number of connections to keep open
+reconnect_max_attempts = 5 # Maximum number of reconnection attempts to make before failing. Set to 0 to retry forever.
+reconnect_delay = 5 # Delay between reconnection attempts, in milliseconds
+default_ttl = 300 # Default TTL for entries, in seconds
+default_hash_ttl = 900 # Default TTL for hashes entries, in seconds
+use_legacy_version = false # RESP protocol for fred crate (set this to true if using RESPv2 or redis version < 6)
+stream_read_count = 1 # Default number of entries to read from stream if not provided in stream read options
+auto_pipeline = true # Whether or not the client should automatically pipeline commands across tasks when possible.
+disable_auto_backpressure = false # Whether or not to disable the automatic backpressure features when pipelining is enabled.
+max_in_flight_commands = 5000 # The maximum number of in-flight commands (per connection) before backpressure will be applied.
+default_command_timeout = 30 # An optional timeout to apply to all commands. In seconds
+unresponsive_timeout = 10 # An optional timeout for Unresponsive commands in seconds. This should be less than default_command_timeout.
+max_feed_count = 200 # The maximum number of frames that will be fed to a socket before flushing.
+cluster_enabled = true # boolean
+cluster_urls = [
+    "redis.cluster.uri-1:8080",
+    "redis.cluster.uri-2:4115",
+] # List of redis cluster urls
 
 # Replica SQL data store credentials
 [replica_database]
@@ -191,6 +199,20 @@ dispute_function = "report_download_config_dispute_function" # Config to downloa
 payment_function = "report_download_config_payment_function" # Config to download payment report
 refund_function = "report_download_config_refund_function"   # Config to download refund report
 region = "report_download_config_region"                     # Region of the bucket
+
+[opensearch]
+host = "https://localhost:9200"
+
+[opensearch.auth]
+auth = "basic"
+username = "admin"
+password = "admin"
+region = "eu-central-1"
+
+[opensearch.indexes]
+payment_attempts = "hyperswitch-payment-attempt-events"
+payment_intents = "hyperswitch-payment-intent-events"
+refunds = "hyperswitch-refund-events"
 
 # This section provides some secret values.
 [secrets]
@@ -212,15 +234,15 @@ shutdown_timeout = 30
 request_body_limit = 32_768
 
 [secrets_management]
-secrets_manager = "aws_kms"               # Secrets manager client to be used
+secrets_manager = "aws_kms" # Secrets manager client to be used
 
 [secrets_management.aws_kms]
-key_id = "kms_key_id"                     # The AWS key ID used by the KMS SDK for decrypting data.
-region = "kms_region"                     # The AWS region used by the KMS SDK for decrypting data.
+key_id = "kms_key_id" # The AWS key ID used by the KMS SDK for decrypting data.
+region = "kms_region" # The AWS region used by the KMS SDK for decrypting data.
 
 [encryption_management]
-encryption_manager = "aws_kms"            # Encryption manager client to be used
+encryption_manager = "aws_kms" # Encryption manager client to be used
 
 [encryption_management.aws_kms]
-key_id = "kms_key_id"                     # The AWS key ID used by the KMS SDK for decrypting data.
-region = "kms_region"                     # The AWS region used by the KMS SDK for decrypting data.
+key_id = "kms_key_id" # The AWS key ID used by the KMS SDK for decrypting data.
+region = "kms_region" # The AWS region used by the KMS SDK for decrypting data.

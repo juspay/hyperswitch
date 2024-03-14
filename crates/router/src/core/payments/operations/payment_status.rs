@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
-use common_utils::ext_traits::AsyncExt;
+use common_utils::ext_traits::{AsyncExt, ValueExt};
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -10,6 +10,7 @@ use router_env::{instrument, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
+        authentication,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::PaymentMethodRetrieve,
         payments::{
@@ -100,6 +101,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
         Option<api::PaymentMethodData>,
+        Option<String>,
     )> {
         helpers::make_pm_data(
             Box::new(self),
@@ -238,7 +240,7 @@ async fn get_tracker_for_sync<
     operation: Op,
     storage_scheme: enums::MerchantStorageScheme,
 ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest, Ctx>> {
-    let (payment_intent, payment_attempt, currency, amount);
+    let (payment_intent, mut payment_attempt, currency, amount);
 
     (payment_intent, payment_attempt) = get_payment_intent_payment_attempt(
         db,
@@ -259,8 +261,8 @@ async fn get_tracker_for_sync<
         db,
         payment_intent.shipping_address_id.clone(),
         mechant_key_store,
-        payment_intent.payment_id.clone(),
-        merchant_account.merchant_id.clone(),
+        &payment_intent.payment_id.clone(),
+        &merchant_account.merchant_id,
         merchant_account.storage_scheme,
     )
     .await?;
@@ -268,11 +270,23 @@ async fn get_tracker_for_sync<
         db,
         payment_intent.billing_address_id.clone(),
         mechant_key_store,
-        payment_intent.payment_id.clone(),
-        merchant_account.merchant_id.clone(),
+        &payment_intent.payment_id.clone(),
+        &merchant_account.merchant_id,
         merchant_account.storage_scheme,
     )
     .await?;
+
+    let payment_method_billing = helpers::get_address_by_id(
+        db,
+        payment_attempt.payment_method_billing_address_id.clone(),
+        mechant_key_store,
+        &payment_intent.payment_id.clone(),
+        &merchant_account.merchant_id,
+        merchant_account.storage_scheme,
+    )
+    .await?;
+
+    payment_attempt.encoded_data = request.param.clone();
 
     let attempts = match request.expand_attempts {
         Some(true) => {
@@ -387,6 +401,33 @@ async fn get_tracker_for_sync<
             id: profile_id.to_string(),
         })?;
 
+    let authentication = match payment_attempt.authentication_id.clone() {
+        Some(authentication_id) => {
+            let authentication = db
+                .find_authentication_by_merchant_id_authentication_id(
+                    merchant_account.merchant_id.to_string(),
+                    authentication_id.clone(),
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable_lazy(|| format!("Error while fetching authentication record with authentication_id {authentication_id}"))?;
+            let authentication_data: authentication::types::AuthenticationData = authentication
+                .authentication_data
+                .clone()
+                .map(|authentication_data_value| {
+                    authentication_data_value
+                        .parse_value("AuthenticationData")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Error while parsing authentication_data")
+                })
+                .transpose()?
+                .unwrap_or_default();
+
+            Some((authentication, authentication_data))
+        }
+        None => None,
+    };
+
     let payment_data = PaymentData {
         flow: PhantomData,
         payment_intent,
@@ -397,18 +438,22 @@ async fn get_tracker_for_sync<
             .mandate_id
             .clone()
             .map(|id| api_models::payments::MandateIds {
-                mandate_id: id,
+                mandate_id: Some(id),
                 mandate_reference_id: None,
             }),
         mandate_connector: None,
         setup_mandate: None,
+        customer_acceptance: None,
         token: None,
-        address: PaymentAddress {
-            shipping: shipping_address.as_ref().map(|a| a.into()),
-            billing: billing_address.as_ref().map(|a| a.into()),
-        },
+        address: PaymentAddress::new(
+            shipping_address.as_ref().map(From::from),
+            billing_address.as_ref().map(From::from),
+            payment_method_billing.as_ref().map(From::from),
+        ),
+        token_data: None,
         confirm: Some(request.force_sync),
         payment_method_data: None,
+        payment_method_info: None,
         force_sync: Some(
             request.force_sync
                 && (helpers::check_force_psync_precondition(&payment_attempt.status)
@@ -422,6 +467,7 @@ async fn get_tracker_for_sync<
         card_cvc: None,
         creds_identifier,
         pm_token: None,
+        payment_method_status: None,
         connector_customer_id: None,
         recurring_mandate_payment_data: None,
         ephemeral_key: None,
@@ -432,6 +478,7 @@ async fn get_tracker_for_sync<
         frm_message: frm_response.ok(),
         incremental_authorization_details: None,
         authorizations,
+        authentication,
         frm_metadata: None,
     };
 

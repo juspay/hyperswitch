@@ -13,11 +13,7 @@ use data_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 use diesel_models::enums;
 
 use crate::{
-    core::{
-        errors::RouterResult,
-        payments::helpers,
-        pm_auth::{self as core_pm_auth},
-    },
+    core::{errors::RouterResult, payments::helpers, pm_auth as core_pm_auth},
     routes::AppState,
     types::{
         api::{self, payments},
@@ -44,7 +40,7 @@ pub trait PaymentMethodRetrieve {
         payment_intent: &PaymentIntent,
         card_token_data: Option<&CardToken>,
         customer: &Option<domain::Customer>,
-    ) -> RouterResult<Option<(payments::PaymentMethodData, enums::PaymentMethod)>>;
+    ) -> RouterResult<storage::PaymentMethodDataWithId>;
 }
 
 #[async_trait::async_trait]
@@ -128,8 +124,8 @@ impl PaymentMethodRetrieve for Oss {
         payment_intent: &PaymentIntent,
         card_token_data: Option<&CardToken>,
         customer: &Option<domain::Customer>,
-    ) -> RouterResult<Option<(payments::PaymentMethodData, enums::PaymentMethod)>> {
-        match token_data {
+    ) -> RouterResult<storage::PaymentMethodDataWithId> {
+        let token = match token_data {
             storage::PaymentTokenData::TemporaryGeneric(generic_token) => {
                 helpers::retrieve_payment_method_with_temporary_token(
                     state,
@@ -138,7 +134,15 @@ impl PaymentMethodRetrieve for Oss {
                     merchant_key_store,
                     card_token_data,
                 )
-                .await
+                .await?
+                .map(
+                    |(payment_method_data, payment_method)| storage::PaymentMethodDataWithId {
+                        payment_method_data: Some(payment_method_data),
+                        payment_method: Some(payment_method),
+                        payment_method_id: None,
+                    },
+                )
+                .unwrap_or_default()
             }
 
             storage::PaymentTokenData::Temporary(generic_token) => {
@@ -149,7 +153,15 @@ impl PaymentMethodRetrieve for Oss {
                     merchant_key_store,
                     card_token_data,
                 )
-                .await
+                .await?
+                .map(
+                    |(payment_method_data, payment_method)| storage::PaymentMethodDataWithId {
+                        payment_method_data: Some(payment_method_data),
+                        payment_method: Some(payment_method),
+                        payment_method_id: None,
+                    },
+                )
+                .unwrap_or_default()
             }
 
             storage::PaymentTokenData::Permanent(card_token) => {
@@ -164,7 +176,21 @@ impl PaymentMethodRetrieve for Oss {
                     card_token_data,
                 )
                 .await
-                .map(|card| Some((card, enums::PaymentMethod::Card)))
+                .map(|card| Some((card, enums::PaymentMethod::Card)))?
+                .map(
+                    |(payment_method_data, payment_method)| storage::PaymentMethodDataWithId {
+                        payment_method_data: Some(payment_method_data),
+                        payment_method: Some(payment_method),
+                        payment_method_id: Some(
+                            card_token
+                                .payment_method_id
+                                .as_ref()
+                                .unwrap_or(&card_token.token)
+                                .to_string(),
+                        ),
+                    },
+                )
+                .unwrap_or_default()
             }
 
             storage::PaymentTokenData::PermanentCard(card_token) => {
@@ -179,7 +205,21 @@ impl PaymentMethodRetrieve for Oss {
                     card_token_data,
                 )
                 .await
-                .map(|card| Some((card, enums::PaymentMethod::Card)))
+                .map(|card| Some((card, enums::PaymentMethod::Card)))?
+                .map(
+                    |(payment_method_data, payment_method)| storage::PaymentMethodDataWithId {
+                        payment_method_data: Some(payment_method_data),
+                        payment_method: Some(payment_method),
+                        payment_method_id: Some(
+                            card_token
+                                .payment_method_id
+                                .as_ref()
+                                .unwrap_or(&card_token.token)
+                                .to_string(),
+                        ),
+                    },
+                )
+                .unwrap_or_default()
             }
 
             storage::PaymentTokenData::AuthBankDebit(auth_token) => {
@@ -190,8 +230,23 @@ impl PaymentMethodRetrieve for Oss {
                     payment_intent,
                     customer,
                 )
-                .await
+                .await?
+                .map(
+                    |(payment_method_data, payment_method)| storage::PaymentMethodDataWithId {
+                        payment_method_data: Some(payment_method_data),
+                        payment_method: Some(payment_method),
+                        payment_method_id: None,
+                    },
+                )
+                .unwrap_or_default()
             }
-        }
+
+            storage::PaymentTokenData::WalletToken(_) => storage::PaymentMethodDataWithId {
+                payment_method: None,
+                payment_method_data: None,
+                payment_method_id: None,
+            },
+        };
+        Ok(token)
     }
 }
