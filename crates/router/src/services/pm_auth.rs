@@ -35,7 +35,12 @@ where
     match connector_request {
         Some(request) => {
             logger::debug!(connector_request=?request);
-            let response = services::api::call_connector_api(state, request).await;
+            let response = services::api::call_connector_api(
+                state,
+                request,
+                "execute_connector_processing_step",
+            )
+            .await;
             logger::debug!(connector_response=?response);
             match response {
                 Ok(body) => {

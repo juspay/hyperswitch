@@ -746,7 +746,7 @@ pub async fn get_payment_method_from_hs_locker<'a>(
         .await
         .change_context(errors::VaultError::FetchPaymentMethodFailed)
         .attach_printable("Making get payment method request failed")?;
-        let response = services::call_connector_api(state, request)
+        let response = services::call_connector_api(state, request, "add_card_to_locker")
             .await
             .change_context(errors::VaultError::FetchPaymentMethodFailed)
             .attach_printable("Failed while executing call_connector_api for get_card");
@@ -798,7 +798,7 @@ pub async fn call_to_locker_hs<'a>(
         let request =
             payment_methods::mk_add_locker_request_hs(jwekey, locker, payload, locker_choice)
                 .await?;
-        let response = services::call_connector_api(state, request)
+        let response = services::call_connector_api(state, request, "add_card_to_hs_locker")
             .await
             .change_context(errors::VaultError::SaveCardFailed);
 
@@ -864,7 +864,7 @@ pub async fn get_card_from_hs_locker<'a>(
         .await
         .change_context(errors::VaultError::FetchCardFailed)
         .attach_printable("Making get card request failed")?;
-        let response = services::call_connector_api(state, request)
+        let response = services::call_connector_api(state, request, "get_card_from_locker")
             .await
             .change_context(errors::VaultError::FetchCardFailed)
             .attach_printable("Failed while executing call_connector_api for get_card");
@@ -916,7 +916,7 @@ pub async fn delete_card_from_hs_locker<'a>(
     .attach_printable("Making delete card request failed")?;
 
     if !locker.mock_locker {
-        let response = services::call_connector_api(state, request)
+        let response = services::call_connector_api(state, request, "delete_card_from_locker")
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed while executing call_connector_api for delete card");
