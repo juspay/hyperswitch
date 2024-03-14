@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use api_models::payments::{DeviceChannel, ThreeDsCompletionIndicator};
 use base64::Engine;
 use common_utils::date_time;
@@ -7,7 +9,6 @@ use isocountry;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, to_string};
-use std::str::FromStr;
 
 use crate::{
     connector::utils::{to_connector_meta, AddressDetailsData, CardData, SELECTED_PAYMENT_METHOD},

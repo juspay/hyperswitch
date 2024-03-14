@@ -301,20 +301,12 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                         mandate_obj.network_transaction_id,
                         mandate_obj.connector_mandate_ids,
                     ) {
-                        (Some(network_tx_id), _) => Ok(api_models::payments::MandateIds {
-                            mandate_id: mandate_obj.mandate_id,
-                            mandate_reference_id: Some(
-                                api_models::payments::MandateReferenceId::NetworkMandateId(
-                                    network_tx_id,
-                                ),
-                            ),
-                        }),
                         (_, Some(connector_mandate_id)) => connector_mandate_id
                         .parse_value("ConnectorMandateId")
                         .change_context(errors::ApiErrorResponse::MandateNotFound)
                         .map(|connector_id: api_models::payments::ConnectorMandateReferenceId| {
                             api_models::payments::MandateIds {
-                                mandate_id: mandate_obj.mandate_id,
+                                mandate_id: Some(mandate_obj.mandate_id),
                                 mandate_reference_id: Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
                                 api_models::payments::ConnectorMandateReferenceId{
                                     connector_mandate_id: connector_id.connector_mandate_id,
@@ -324,8 +316,16 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                                 ))
                             }
                          }),
+                        (Some(network_tx_id), _) => Ok(api_models::payments::MandateIds {
+                            mandate_id: Some(mandate_obj.mandate_id),
+                            mandate_reference_id: Some(
+                                api_models::payments::MandateReferenceId::NetworkMandateId(
+                                    network_tx_id,
+                                ),
+                            ),
+                        }),
                         (_, _) => Ok(api_models::payments::MandateIds {
-                            mandate_id: mandate_obj.mandate_id,
+                            mandate_id: Some(mandate_obj.mandate_id),
                             mandate_reference_id: None,
                         }),
                     }
@@ -390,15 +390,15 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             setup_mandate,
             customer_acceptance,
             token,
-            address: PaymentAddress {
-                shipping: shipping_address.as_ref().map(|a| a.into()),
-                billing: billing_address.as_ref().map(|a| a.into()),
-                payment_method_billing: payment_method_billing_address
-                    .as_ref()
-                    .map(|address| address.into()),
-            },
+            address: PaymentAddress::new(
+                shipping_address.as_ref().map(From::from),
+                billing_address.as_ref().map(From::from),
+                payment_method_billing_address.as_ref().map(From::from),
+            ),
+            token_data: None,
             confirm: request.confirm,
             payment_method_data: payment_method_data_after_card_bin_call,
+            payment_method_info: None,
             refunds: vec![],
             disputes: vec![],
             attempts: None,

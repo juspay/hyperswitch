@@ -1,6 +1,4 @@
-use diesel::{
-    AsChangeset, Identifiable, Insertable, Queryable,
-};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{self, Deserialize, Serialize};
 use serde_json;
 

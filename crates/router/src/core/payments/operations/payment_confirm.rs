@@ -389,6 +389,23 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             &token,
         )?;
 
+        let (token_data, payment_method_info) = if let Some(token) = token.clone() {
+            let token_data = helpers::retrieve_payment_token_data(
+                state,
+                token,
+                payment_method.or(payment_attempt.payment_method),
+            )
+            .await?;
+
+            let payment_method_info =
+                helpers::retrieve_payment_method_from_db_with_token_data(state, &token_data)
+                    .await?;
+
+            (Some(token_data), payment_method_info)
+        } else {
+            (None, None)
+        };
+
         payment_attempt.payment_method = payment_method.or(payment_attempt.payment_method);
         payment_attempt.browser_info = browser_info;
         payment_attempt.payment_method_type =
@@ -566,15 +583,15 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             setup_mandate,
             customer_acceptance,
             token,
-            address: PaymentAddress {
-                shipping: shipping_address.as_ref().map(|a| a.into()),
-                billing: billing_address.as_ref().map(|a| a.into()),
-                payment_method_billing: payment_method_billing
-                    .as_ref()
-                    .map(|address| address.into()),
-            },
+            address: PaymentAddress::new(
+                shipping_address.as_ref().map(From::from),
+                billing_address.as_ref().map(From::from),
+                payment_method_billing.as_ref().map(From::from),
+            ),
+            token_data,
             confirm: request.confirm,
             payment_method_data: payment_method_data_after_card_bin_call,
+            payment_method_info,
             force_sync: None,
             refunds: vec![],
             disputes: vec![],
@@ -770,12 +787,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                 .into_report()
                 .attach_printable("No authentication_connector found from merchant_account.authentication_details")?
                 .to_string();
-            let profile_id = payment_data
-                .payment_intent
-                .profile_id
-                .as_ref()
-                .get_required_value("profile_id")
-                .attach_printable("'profile_id' not set in payment intent")?;
+            let profile_id = &business_profile.profile_id;
             let authentication_connector_mca = helpers::get_merchant_connector_account(
                 state,
                 &business_profile.merchant_id,
