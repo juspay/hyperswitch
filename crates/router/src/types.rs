@@ -345,6 +345,16 @@ pub struct ConnectorResponseData {
     pub additional_payment_method_data: Option<AdditionalPaymentMethodConnectorResponse>,
 }
 
+impl ConnectorResponseData {
+    pub fn with_additional_payment_method_data(
+        additional_payment_method_data: AdditionalPaymentMethodConnectorResponse,
+    ) -> Self {
+        Self {
+            additional_payment_method_data: Some(additional_payment_method_data),
+        }
+    }
+}
+
 #[derive(Debug, Clone, serde::Deserialize)]
 pub enum PaymentMethodToken {
     Token(String),

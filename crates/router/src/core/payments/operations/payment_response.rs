@@ -449,6 +449,19 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     storage_scheme: enums::MerchantStorageScheme,
 ) -> RouterResult<PaymentData<F>> {
     payment_data.payment_method_status = router_data.payment_method_status;
+
+    // Update additional payment data with the payment method response that we received from connector
+    let additional_payment_method_data =
+        update_additional_payment_data_with_connector_response_pm_data(
+            payment_data.payment_attempt.payment_method_data.clone(),
+            router_data
+                .connector_response
+                .as_ref()
+                .and_then(|connector_response| {
+                    connector_response.additional_payment_method_data.clone()
+                }),
+        )?;
+
     let (capture_update, mut payment_attempt_update) = match router_data.response.clone() {
         Err(err) => {
             let (capture_update, attempt_update) = match payment_data.multiple_capture_data {
@@ -479,16 +492,6 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         flow_name.clone(),
                     )
                     .await;
-
-                    let additional_payment_method_data =
-                        update_additional_payment_data_with_connector_response_pm_data(
-                            payment_data.payment_attempt.payment_method_data.clone(),
-                            router_data
-                                .connector_response
-                                .and_then(|connector_response| {
-                                    connector_response.additional_payment_method_data
-                                }),
-                        )?;
 
                     let status = match err.attempt_status {
                         // Use the status sent by connector in error_response if it's present
@@ -622,16 +625,6 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         .transpose()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Could not parse the connector response")?;
-
-                    let additional_payment_method_data =
-                        update_additional_payment_data_with_connector_response_pm_data(
-                            payment_data.payment_attempt.payment_method_data.clone(),
-                            router_data
-                                .connector_response
-                                .and_then(|connector_response| {
-                                    connector_response.additional_payment_method_data
-                                }),
-                        )?;
 
                     // incase of success, update error code and error message
                     let error_status = if router_data.status == enums::AttemptStatus::Charged {

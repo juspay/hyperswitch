@@ -580,10 +580,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .as_ref()
             .map(|payment_method_billing| payment_method_billing.address_id.clone());
 
-        payment_attempt.payment_method_billing_address_id = payment_method_billing
-            .as_ref()
-            .map(|payment_method_billing| payment_method_billing.address_id.clone());
-
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,

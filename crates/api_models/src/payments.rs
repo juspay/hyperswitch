@@ -1443,18 +1443,39 @@ pub struct GiftCardDetails {
 #[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct AdditionalCardInfo {
+    /// The name of issuer of the card
     pub card_issuer: Option<String>,
+
+    /// Card network of the card
     pub card_network: Option<api_enums::CardNetwork>,
+
+    /// Card type, can be either `credit` or `debit`
     pub card_type: Option<String>,
+
     pub card_issuing_country: Option<String>,
     pub bank_code: Option<String>,
+
+    /// Last 4 digits of the card number
     pub last4: Option<String>,
+
+    /// The ISIN of the card
     pub card_isin: Option<String>,
+
+    /// Extended bin of card, contains the first 8 digits of card number
     pub card_extended_bin: Option<String>,
+
     pub card_exp_month: Option<Secret<String>>,
+
     pub card_exp_year: Option<Secret<String>>,
+
     pub card_holder_name: Option<Secret<String>>,
+
+    /// Additional payment checks done on the cvv and billing address by the processors.
+    /// This is a free form field and the structure varies from processor to procesor
     pub payment_checks: Option<serde_json::Value>,
+
+    /// Details about the threeds environment.
+    /// This is a free form field and the structure varies from processor to procesor
     pub authentication_data: Option<serde_json::Value>,
 }
 

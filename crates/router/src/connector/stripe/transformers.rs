@@ -2372,6 +2372,21 @@ pub struct SetupIntentResponse {
     pub last_setup_error: Option<ErrorDetails>,
 }
 
+fn extract_payment_method_connector_response(
+    stripe_charge_enum: &StripeChargeEnum,
+) -> Option<types::ConnectorResponseData> {
+    if let StripeChargeEnum::ChargeObject(charge_object) = stripe_charge_enum {
+        charge_object
+            .payment_method_details
+            .as_ref()
+            .and_then(StripePaymentMethodDetailsResponse::get_additional_payment_method_data)
+    } else {
+        None
+    }
+    .map(types::AdditionalPaymentMethodConnectorResponse::from)
+    .map(types::ConnectorResponseData::with_additional_payment_method_data)
+}
+
 impl ForeignFrom<(Option<StripePaymentMethodOptions>, String)> for types::MandateReference {
     fn foreign_from(
         (payment_method_options, payment_method_id): (Option<StripePaymentMethodOptions>, String),
@@ -2455,23 +2470,11 @@ impl<F, T>
             })
         };
 
-        let connector_response_data = if let Some(StripeChargeEnum::ChargeObject(charge_object)) =
-            item.response.latest_charge
-        {
-            charge_object
-                .payment_method_details
-                .and_then(|stripe_payment_method_details| {
-                    stripe_payment_method_details.get_additional_payment_method_data()
-                })
-        } else {
-            None
-        }
-        .map(types::AdditionalPaymentMethodConnectorResponse::from)
-        .map(
-            |additional_payment_method_data| types::ConnectorResponseData {
-                additional_payment_method_data: Some(additional_payment_method_data),
-            },
-        );
+        let connector_response_data = item
+            .response
+            .latest_charge
+            .as_ref()
+            .and_then(extract_payment_method_connector_response);
 
         Ok(Self {
             status,
@@ -2606,24 +2609,11 @@ impl<F, T>
 
         let status = enums::AttemptStatus::from(item.response.status.to_owned());
 
-        let connector_response_data =
-            if let Some(StripeChargeEnum::ChargeObject(ref charge_object)) =
-                item.response.latest_charge
-            {
-                charge_object.payment_method_details.as_ref().and_then(
-                    |stripe_payment_method_details| {
-                        stripe_payment_method_details.get_additional_payment_method_data()
-                    },
-                )
-            } else {
-                None
-            }
-            .map(types::AdditionalPaymentMethodConnectorResponse::from)
-            .map(
-                |additional_payment_method_data| types::ConnectorResponseData {
-                    additional_payment_method_data: Some(additional_payment_method_data),
-                },
-            );
+        let connector_response_data = item
+            .response
+            .latest_charge
+            .as_ref()
+            .and_then(extract_payment_method_connector_response);
 
         let response = if connector_util::is_payment_failure(status) {
             types::PaymentsResponseData::try_from((

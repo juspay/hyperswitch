@@ -3973,7 +3973,7 @@ pub fn update_additional_payment_data_with_connector_response_pm_data(
         })
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("unable to parse value into payment_method_data")?;
+        .attach_printable("unable to parse value into additional_payment_method_data")?;
 
     let additional_payment_method_data = parsed_additional_payment_method_data
         .zip(connector_response_pm_data)
