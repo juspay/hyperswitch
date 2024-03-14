@@ -200,7 +200,7 @@ pub struct SessionObject {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct WalletSessionData {
-    pub terminal_uuid: Option<String>,
+    pub terminal_uuid: Option<Secret<String>>,
     pub pay_wall_secret: Option<Secret<String>>,
 }
 
@@ -513,7 +513,8 @@ impl
         let terminal_uuid = session_data
             .terminal_uuid
             .clone()
-            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+            .expose();
         let mut checkout_request = CheckoutRequest {
             merchant_transaction_id: item.router_data.connector_request_reference_id.clone(),
             specified_payment_channel,

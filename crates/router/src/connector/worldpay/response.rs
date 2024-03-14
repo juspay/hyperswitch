@@ -221,11 +221,11 @@ impl PaymentInstrumentCardIssuer {
 #[serde(rename_all = "camelCase")]
 pub struct PaymentInstrumentCardNumber {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub bin: Option<Secret<String>>,
+    pub bin: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub last4_digits: Option<Secret<String>>,
+    pub last4_digits: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub dpan: Option<Secret<String>>,
+    pub dpan: Option<String>,
 }
 
 impl PaymentInstrumentCardNumber {

@@ -12,7 +12,7 @@ pub struct BillingAddress {
     pub state: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub address3: Option<Secret<String>>,
-    pub country_code: String,
+    pub country_code: common_enums::CountryAlpha2,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub address1: Option<Secret<String>>,
 }
