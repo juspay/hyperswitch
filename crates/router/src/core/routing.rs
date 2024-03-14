@@ -9,8 +9,6 @@ use api_models::{
 };
 #[cfg(not(feature = "business_profile_routing"))]
 use common_utils::ext_traits::{Encode, StringExt};
-#[cfg(not(feature = "business_profile_routing"))]
-use diesel_models::configs;
 use diesel_models::configs;
 #[cfg(feature = "business_profile_routing")]
 use diesel_models::routing_algorithm::RoutingAlgorithm;
