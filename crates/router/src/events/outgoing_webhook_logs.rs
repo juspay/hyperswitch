@@ -17,6 +17,7 @@ pub struct OutgoingWebhookEvent {
     is_error: bool,
     error: Option<Value>,
     created_at_timestamp: i128,
+    initial_attempt_id: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -84,6 +85,7 @@ impl OutgoingWebhookEvent {
         event_type: OutgoingWebhookEventType,
         content: Option<OutgoingWebhookEventContent>,
         error: Option<Value>,
+        initial_attempt_id: Option<String>,
     ) -> Self {
         Self {
             merchant_id,
@@ -93,6 +95,7 @@ impl OutgoingWebhookEvent {
             is_error: error.is_some(),
             error,
             created_at_timestamp: OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000,
+            initial_attempt_id,
         }
     }
 }

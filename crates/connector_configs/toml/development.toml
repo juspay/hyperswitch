@@ -335,6 +335,8 @@ merchant_secret="Source verification key"
 [[authorizedotnet.debit]]
   payment_method_type = "UnionPay"
 [[authorizedotnet.wallet]]
+  payment_method_type = "apple_pay"
+[[authorizedotnet.wallet]]
   payment_method_type = "google_pay"
 [[authorizedotnet.wallet]]
   payment_method_type = "paypal"
@@ -345,6 +347,17 @@ key1="Transaction Key"
 merchant_name="Google Pay Merchant Name"
 gateway_merchant_id="Google Pay Merchant Key"
 merchant_id="Google Pay Merchant ID"
+[authorizedotnet.metadata.apple_pay.session_token_data]
+certificate="Merchant Certificate (Base64 Encoded)"
+certificate_keys="Merchant PrivateKey (Base64 Encoded)"
+merchant_identifier="Apple Merchant Identifier"
+display_name="Display Name"
+initiative="Domain"
+initiative_context="Domain Name"
+[authorizedotnet.metadata.apple_pay.payment_request_data]
+supported_networks=["visa","masterCard","amex","discover"]
+merchant_capabilities=["supports3DS"]
+label="apple"
 [authorizedotnet.connector_webhook_details]
 merchant_secret="Source verification key"
 
@@ -743,8 +756,6 @@ merchant_secret="Source verification key"
   payment_method_type = "apple_pay"
 [[checkout.wallet]]
   payment_method_type = "google_pay"
-[[checkout.wallet]]
-  payment_method_type = "paypal"
 [checkout.connector_auth.SignatureKey]
 api_key="Checkout API Public Key"
 key1="Processing Channel ID"
@@ -2565,3 +2576,11 @@ key1 = "Adyen Account Id"
 [wise_payout.connector_auth.BodyKey]
 api_key = "Wise API Key"
 key1 = "Wise Account Id"
+
+[threedsecureio]
+[threedsecureio.connector_auth.HeaderKey]
+api_key="Api Key"
+[threedsecureio.metadata]
+mcc="MCC"
+merchant_country_code="3 digit numeric country code"
+merchant_name="Name of the merchant"

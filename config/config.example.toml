@@ -54,10 +54,10 @@ use_legacy_version = false        # Resp protocol for fred crate (set this to tr
 stream_read_count = 1             # Default number of entries to read from stream if not provided in stream read options
 auto_pipeline = true              # Whether or not the client should automatically pipeline commands across tasks when possible.
 disable_auto_backpressure = false # Whether or not to disable the automatic backpressure features when pipelining is enabled.
-max_in_flight_commands = 5000 # The maximum number of in-flight commands (per connection) before backpressure will be applied.
-default_command_timeout = 30  # An optional timeout to apply to all commands. In seconds
-unresponsive_timeout = 10 # An optional timeout for Unresponsive commands in seconds. This should be less than default_command_timeout.
-max_feed_count = 200       # The maximum number of frames that will be fed to a socket before flushing.
+max_in_flight_commands = 5000     # The maximum number of in-flight commands (per connection) before backpressure will be applied.
+default_command_timeout = 30      # An optional timeout to apply to all commands. In seconds
+unresponsive_timeout = 10         # An optional timeout for Unresponsive commands in seconds. This should be less than default_command_timeout.
+max_feed_count = 200              # The maximum number of frames that will be fed to a socket before flushing.
 
 # This section provides configs for currency conversion api
 [forex_api]
@@ -216,6 +216,7 @@ square.base_url = "https://connect.squareupsandbox.com/"
 square.secondary_base_url = "https://pci-connect.squareupsandbox.com/"
 stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
+threedsecureio.base_url = "https://service.sandbox.3dsecure.io"
 stripe.base_url_file_upload = "https://files.stripe.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
@@ -273,6 +274,7 @@ cards = [
     "square",
     "stax",
     "stripe",
+    "threedsecureio",
     "worldpay",
     "zen",
 ]
@@ -296,9 +298,9 @@ lock_ttl = 160                    # the ttl being the expiry (in seconds)
 
 # Scheduler server configuration
 [scheduler.server]
-port = 3000                       # Port on which the server will listen for incoming requests
-host = "127.0.0.1"                # Host IP address to bind the server to
-workers = 1                       # Number of actix workers to handle incoming requests concurrently
+port = 3000        # Port on which the server will listen for incoming requests
+host = "127.0.0.1" # Host IP address to bind the server to
+workers = 1        # Number of actix workers to handle incoming requests concurrently
 
 batch_size = 200 # Specifies the batch size the producer will push under a single entry in the redis queue
 
@@ -319,10 +321,10 @@ paypal = { currency = "USD,INR", country = "US" }
 # If either currency or country isn't provided then, all possible values are accepted
 
 [cors]
-max_age = 30 # Maximum time (in seconds) for which this CORS request may be cached.
-origins = "http://localhost:8080" # List of origins that are allowed to make requests.
+max_age = 30                            # Maximum time (in seconds) for which this CORS request may be cached.
+origins = "http://localhost:8080"       # List of origins that are allowed to make requests.
 allowed_methods = "GET,POST,PUT,DELETE" # List of methods that are allowed
-wildcard_origin = false # If true, allows any origin to make requests
+wildcard_origin = false                 # If true, allows any origin to make requests
 
 # EmailClient configuration. Only applicable when the `email` feature flag is enabled.
 [email]
@@ -355,7 +357,7 @@ bluesnap = { payment_method = "card" }
 bankofamerica = { payment_method = "card" }
 cybersource = { payment_method = "card" }
 nmi = { payment_method = "card" }
-payme = {payment_method = "card" }
+payme = { payment_method = "card" }
 
 [dummy_connector]
 enabled = true                                  # Whether dummy connector is enabled or not
@@ -378,21 +380,21 @@ slack_invite_url = "https://www.example.com/"   # Slack invite url for hyperswit
 discord_invite_url = "https://www.example.com/" # Discord invite url for hyperswitch
 
 [mandates.supported_payment_methods]
-card.credit = { connector_list = "stripe,adyen,cybersource" }   # Mandate supported payment method type and connector for card
-wallet.paypal = { connector_list = "adyen" }        # Mandate supported payment method type and connector for wallets
-pay_later.klarna = { connector_list = "adyen" }     # Mandate supported payment method type and connector for pay_later
-bank_debit.ach = { connector_list = "gocardless" }  # Mandate supported payment method type and connector for bank_debit
-bank_debit.becs = { connector_list = "gocardless" } # Mandate supported payment method type and connector for bank_debit
-bank_debit.sepa = { connector_list = "gocardless" } # Mandate supported payment method type and connector for bank_debit
-bank_redirect.ideal = {connector_list = "stripe,adyen,globalpay"} # Mandate supported payment method type and connector for bank_redirect
-bank_redirect.sofort = {connector_list = "stripe,adyen,globalpay"}
+card.credit = { connector_list = "stripe,adyen,cybersource" }           # Mandate supported payment method type and connector for card
+wallet.paypal = { connector_list = "adyen" }                            # Mandate supported payment method type and connector for wallets
+pay_later.klarna = { connector_list = "adyen" }                         # Mandate supported payment method type and connector for pay_later
+bank_debit.ach = { connector_list = "gocardless" }                      # Mandate supported payment method type and connector for bank_debit
+bank_debit.becs = { connector_list = "gocardless" }                     # Mandate supported payment method type and connector for bank_debit
+bank_debit.sepa = { connector_list = "gocardless" }                     # Mandate supported payment method type and connector for bank_debit
+bank_redirect.ideal = { connector_list = "stripe,adyen,globalpay" }     # Mandate supported payment method type and connector for bank_redirect
+bank_redirect.sofort = { connector_list = "stripe,adyen,globalpay" }
 wallet.apple_pay = { connector_list = "stripe,adyen,cybersource,noon" }
-bank_redirect.giropay = {connector_list = "adyen,globalpay"}
+bank_redirect.giropay = { connector_list = "adyen,globalpay" }
 
 
 [mandates.update_mandate_supported]
-card.credit ={connector_list ="cybersource"}  # Update Mandate supported payment method type and connector for card 
-card.debit = {connector_list ="cybersource"}  # Update Mandate supported payment method type and connector for card 
+card.credit = { connector_list = "cybersource" } # Update Mandate supported payment method type and connector for card 
+card.debit = { connector_list = "cybersource" }  # Update Mandate supported payment method type and connector for card 
 
 # Required fields info used while listing the payment_method_data
 [required_fields.pay_later] # payment_method = "pay_later"
@@ -410,9 +412,9 @@ afterpay_clearpay = { fields = { stripe = [ # payment_method_type = afterpay_cle
 payout_eligibility = true # Defaults the eligibility of a payout method to true in case connector does not provide checks for payout eligibility
 
 [pm_filters.adyen]
-sofort = { country =  "AT,BE,DE,ES,CH,NL", currency =  "CHF,EUR"}
+sofort = { country = "AT,BE,DE,ES,CH,NL", currency = "CHF,EUR" }
 paypal = { country = "AU,NZ,CN,JP,HK,MY,TH,KR,PH,ID,AE,KW,BR,ES,GB,SE,NO,SK,AT,NL,DE,HU,CY,LU,CH,BE,FR,DK,FI,RO,HR,UA,MT,SI,GI,PT,IE,CZ,EE,LT,LV,IT,PL,IS,CA,US", currency = "AUD,BRL,CAD,CZK,DKK,EUR,HKD,HUF,INR,JPY,MYR,MXN,NZD,NOK,PHP,PLN,RUB,GBP,SGD,SEK,CHF,THB,USD" }
-klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NO,PL,PT,RO,ES,SE,CH,NL,GB,US", currency = "AUD,EUR,CAD,CZK,DKK,NOK,PLN,RON,SEK,CHF,GBP,USD"}
+klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NO,PL,PT,RO,ES,SE,CH,NL,GB,US", currency = "AUD,EUR,CAD,CZK,DKK,NOK,PLN,RON,SEK,CHF,GBP,USD" }
 ideal = { country = "NL", currency = "EUR" }
 online_banking_fpx = { country = "MY", currency = "MYR" }
 online_banking_thailand = { country = "TH", currency = "THB" }
@@ -440,7 +442,7 @@ pay_easy = { country = "JP", currency = "JPY" }
 boleto = { country = "BR", currency = "BRL" }
 
 [pm_filters.volt]
-open_banking_uk = {country = "DE,GB,AT,BE,CY,EE,ES,FI,FR,GR,HR,IE,IT,LT,LU,LV,MT,NL,PT,SI,SK,BG,CZ,DK,HU,NO,PL,RO,SE,AU,BR", currency = "EUR,GBP,DKK,NOK,PLN,SEK,AUD,BRL"}
+open_banking_uk = { country = "DE,GB,AT,BE,CY,EE,ES,FI,FR,GR,HR,IE,IT,LT,LU,LV,MT,NL,PT,SI,SK,BG,CZ,DK,HU,NO,PL,RO,SE,AU,BR", currency = "EUR,GBP,DKK,NOK,PLN,SEK,AUD,BRL" }
 
 [pm_filters.zen]
 credit = { not_available_flows = { capture_method = "manual" } }
@@ -565,22 +567,36 @@ audit_events_topic = "topic"          # Kafka topic to be used for Payment Audit
 
 # File storage configuration
 [file_storage]
-file_storage_backend = "aws_s3"            # File storage backend to be used
+file_storage_backend = "aws_s3" # File storage backend to be used
 
 [file_storage.aws_s3]
-region = "us-east-1"                      # The AWS region used by the AWS S3 for file storage
-bucket_name = "bucket1"                   # The AWS S3 bucket name for file storage
+region = "us-east-1"    # The AWS region used by the AWS S3 for file storage
+bucket_name = "bucket1" # The AWS S3 bucket name for file storage
 
 [secrets_management]
-secrets_manager = "aws_kms"               # Secrets manager client to be used
+secrets_manager = "aws_kms" # Secrets manager client to be used
 
 [secrets_management.aws_kms]
-key_id = "kms_key_id"                     # The AWS key ID used by the KMS SDK for decrypting data.
-region = "kms_region"                     # The AWS region used by the KMS SDK for decrypting data.
+key_id = "kms_key_id" # The AWS key ID used by the KMS SDK for decrypting data.
+region = "kms_region" # The AWS region used by the KMS SDK for decrypting data.
 
 [encryption_management]
-encryption_manager = "aws_kms"            # Encryption manager client to be used
+encryption_manager = "aws_kms" # Encryption manager client to be used
 
 [encryption_management.aws_kms]
-key_id = "kms_key_id"                     # The AWS key ID used by the KMS SDK for decrypting data.
-region = "kms_region"                     # The AWS region used by the KMS SDK for decrypting data.
+key_id = "kms_key_id" # The AWS key ID used by the KMS SDK for decrypting data.
+region = "kms_region" # The AWS region used by the KMS SDK for decrypting data.
+
+[opensearch]
+host = "https://localhost:9200"
+
+[opensearch.auth]
+auth = "basic"
+username = "admin"
+password = "admin"
+region = "eu-central-1"
+
+[opensearch.indexes]
+payment_attempts = "hyperswitch-payment-attempt-events"
+payment_intents = "hyperswitch-payment-intent-events"
+refunds = "hyperswitch-refund-events"

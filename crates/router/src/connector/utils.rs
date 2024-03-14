@@ -69,7 +69,6 @@ pub trait RouterData {
     fn get_return_url(&self) -> Result<String, Error>;
     fn get_billing_address(&self) -> Result<&api::AddressDetails, Error>;
     fn get_shipping_address(&self) -> Result<&api::AddressDetails, Error>;
-    fn get_billing_address_with_phone_number(&self) -> Result<&api::Address, Error>;
     fn get_shipping_address_with_phone_number(&self) -> Result<&api::Address, Error>;
     fn get_connector_meta(&self) -> Result<pii::SecretSerdeValue, Error>;
     fn get_session_token(&self) -> Result<String, Error>;
@@ -86,7 +85,9 @@ pub trait RouterData {
     fn get_payout_method_data(&self) -> Result<api::PayoutMethodData, Error>;
     #[cfg(feature = "payouts")]
     fn get_quote_id(&self) -> Result<String, Error>;
-    fn get_billing_address_details_as_optional(&self) -> Option<api::AddressDetails>;
+
+    fn get_optional_billing(&self) -> Option<&api::Address>;
+    fn get_optional_shipping(&self) -> Option<&api::Address>;
 }
 
 pub trait PaymentResponseRouterData {
@@ -144,15 +145,13 @@ pub fn get_unimplemented_payment_method_error_message(connector: &str) -> String
 impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Response> {
     fn get_billing(&self) -> Result<&api::Address, Error> {
         self.address
-            .billing
-            .as_ref()
+            .get_payment_method_billing()
             .ok_or_else(missing_field_err("billing"))
     }
 
     fn get_billing_country(&self) -> Result<api_models::enums::CountryAlpha2, Error> {
         self.address
-            .billing
-            .as_ref()
+            .get_payment_method_billing()
             .and_then(|a| a.address.as_ref())
             .and_then(|ad| ad.country)
             .ok_or_else(missing_field_err("billing.address.country"))
@@ -160,11 +159,19 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
 
     fn get_billing_phone(&self) -> Result<&api::PhoneDetails, Error> {
         self.address
-            .billing
-            .as_ref()
+            .get_payment_method_billing()
             .and_then(|a| a.phone.as_ref())
             .ok_or_else(missing_field_err("billing.phone"))
     }
+
+    fn get_optional_billing(&self) -> Option<&api::Address> {
+        self.address.get_payment_method_billing()
+    }
+
+    fn get_optional_shipping(&self) -> Option<&api::Address> {
+        self.address.get_shipping()
+    }
+
     fn get_description(&self) -> Result<String, Error> {
         self.description
             .clone()
@@ -177,26 +184,12 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
     }
     fn get_billing_address(&self) -> Result<&api::AddressDetails, Error> {
         self.address
-            .billing
+            .get_payment_method_billing()
             .as_ref()
             .and_then(|a| a.address.as_ref())
             .ok_or_else(missing_field_err("billing.address"))
     }
 
-    fn get_billing_address_details_as_optional(&self) -> Option<api::AddressDetails> {
-        self.address
-            .billing
-            .as_ref()
-            .and_then(|a| a.address.as_ref())
-            .cloned()
-    }
-
-    fn get_billing_address_with_phone_number(&self) -> Result<&api::Address, Error> {
-        self.address
-            .billing
-            .as_ref()
-            .ok_or_else(missing_field_err("billing"))
-    }
     fn get_connector_meta(&self) -> Result<pii::SecretSerdeValue, Error> {
         self.connector_meta_data
             .clone()
@@ -227,16 +220,14 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
 
     fn get_shipping_address(&self) -> Result<&api::AddressDetails, Error> {
         self.address
-            .shipping
-            .as_ref()
+            .get_shipping()
             .and_then(|a| a.address.as_ref())
             .ok_or_else(missing_field_err("shipping.address"))
     }
 
     fn get_shipping_address_with_phone_number(&self) -> Result<&api::Address, Error> {
         self.address
-            .shipping
-            .as_ref()
+            .get_shipping()
             .ok_or_else(missing_field_err("shipping"))
     }
 
