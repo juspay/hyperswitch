@@ -1342,7 +1342,7 @@ pub fn construct_mandate_not_supported_error(
         Some(pm_type) => errors::ConnectorError::NotSupported {
             message: format!(
                 "{} mandate payment through {}",
-                pm_type.to_string(),
+                pm_type,
                 connector_name
             ),
             connector: "hyperswitch",
