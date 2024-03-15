@@ -891,7 +891,7 @@ pub async fn sync_refund_with_gateway_workflow(
         .find_merchant_account_by_merchant_id(&refund_core.merchant_id, &key_store)
         .await?;
 
-    let response = refund_retrieve_core(
+    let response = Box::pin(refund_retrieve_core(
         state.clone(),
         merchant_account,
         key_store,
@@ -900,7 +900,7 @@ pub async fn sync_refund_with_gateway_workflow(
             force_sync: Some(true),
             merchant_connector_details: None,
         },
-    )
+    ))
     .await?;
     let terminal_status = [
         enums::RefundStatus::Success,

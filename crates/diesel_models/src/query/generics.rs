@@ -40,6 +40,7 @@ pub mod db_metrics {
         DeleteWithResult,
         UpdateWithResults,
         UpdateOne,
+        Count,
     }
 
     #[inline]
