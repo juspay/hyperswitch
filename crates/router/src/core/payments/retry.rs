@@ -346,6 +346,7 @@ where
             payment_data.payment_attempt.payment_method_data.clone(),
             router_data
                 .connector_response
+                .clone()
                 .and_then(|connector_response| connector_response.additional_payment_method_data),
         )?;
 
