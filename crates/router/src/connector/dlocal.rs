@@ -164,8 +164,8 @@ impl ConnectorValidation for Dlocal {
     ) -> CustomResult<(), errors::ConnectorError> {
         match pm_data {
             api_models::payments::PaymentMethodData::MandatePayment
-            | api_models::payments::PaymentMethodData::Card(_) => Ok(()),
-            api_models::payments::PaymentMethodData::Wallet(_)
+            | api_models::payments::PaymentMethodData::Card(_)
+            | api_models::payments::PaymentMethodData::Wallet(_)
             | api_models::payments::PaymentMethodData::CardRedirect(_)
             | api_models::payments::PaymentMethodData::PayLater(_)
             | api_models::payments::PaymentMethodData::BankRedirect(_)
