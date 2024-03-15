@@ -127,7 +127,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
             )?,
             pay_methods: payment_method,
             continue_url: None,
-            ext_order_id: item.connector_request_reference_id.clone(),
+            ext_order_id: Some(item.connector_request_reference_id.clone()),
         })
     }
 }
