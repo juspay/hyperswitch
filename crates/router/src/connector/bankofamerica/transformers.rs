@@ -897,6 +897,7 @@ pub enum BankofamericaPaymentStatus {
     PendingAuthentication,
     PendingReview,
     Accepted,
+    Cancelled,
     //PartialAuthorized, not being consumed yet.
 }
 
@@ -922,9 +923,9 @@ impl ForeignFrom<(BankofamericaPaymentStatus, bool)> for enums::AttemptStatus {
             BankofamericaPaymentStatus::Succeeded | BankofamericaPaymentStatus::Transmitted => {
                 Self::Charged
             }
-            BankofamericaPaymentStatus::Voided | BankofamericaPaymentStatus::Reversed => {
-                Self::Voided
-            }
+            BankofamericaPaymentStatus::Voided
+            | BankofamericaPaymentStatus::Reversed
+            | BankofamericaPaymentStatus::Cancelled => Self::Voided,
             BankofamericaPaymentStatus::Failed
             | BankofamericaPaymentStatus::Declined
             | BankofamericaPaymentStatus::AuthorizedRiskDeclined

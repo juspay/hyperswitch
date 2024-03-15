@@ -1398,6 +1398,7 @@ pub enum CybersourcePaymentStatus {
     PendingAuthentication,
     PendingReview,
     Accepted,
+    Cancelled,
     //PartialAuthorized, not being consumed yet.
 }
 
@@ -1431,7 +1432,9 @@ impl ForeignFrom<(CybersourcePaymentStatus, bool)> for enums::AttemptStatus {
             CybersourcePaymentStatus::Succeeded | CybersourcePaymentStatus::Transmitted => {
                 Self::Charged
             }
-            CybersourcePaymentStatus::Voided | CybersourcePaymentStatus::Reversed => Self::Voided,
+            CybersourcePaymentStatus::Voided
+            | CybersourcePaymentStatus::Reversed
+            | CybersourcePaymentStatus::Cancelled => Self::Voided,
             CybersourcePaymentStatus::Failed
             | CybersourcePaymentStatus::Declined
             | CybersourcePaymentStatus::AuthorizedRiskDeclined
