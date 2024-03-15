@@ -467,7 +467,10 @@ where
     let payment_method_data_response = payment_method_data.map(|payment_method_data| {
         api_models::payments::PaymentMethodDataResponseWithBilling {
             payment_method_data,
-            billing: payment_data.address.get_payment_method_billing().cloned(),
+            billing: payment_data
+                .address
+                .get_request_payment_method_billing()
+                .cloned(),
         }
     });
 

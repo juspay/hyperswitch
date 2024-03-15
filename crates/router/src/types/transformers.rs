@@ -583,7 +583,7 @@ impl<'a> ForeignFrom<&'a api_types::ConfigUpdate> for storage::ConfigUpdate {
 
 impl<'a> From<&'a domain::Address> for api_types::Address {
     fn from(address: &domain::Address) -> Self {
-        // If all the fields of address are none, then
+        // If all the fields of address are none, then pass the address as None
         let address_details = if address.city.is_none()
             && address.line1.is_none()
             && address.line2.is_none()
@@ -608,12 +608,19 @@ impl<'a> From<&'a domain::Address> for api_types::Address {
             })
         };
 
-        Self {
-            address: address_details,
-            phone: Some(api_types::PhoneDetails {
+        // If all the fields of phone are none, then pass the phone as None
+        let phone_details = if address.phone_number.is_none() && address.country_code.is_none() {
+            None
+        } else {
+            Some(api_types::PhoneDetails {
                 number: address.phone_number.clone().map(Encryptable::into_inner),
                 country_code: address.country_code.clone(),
-            }),
+            })
+        };
+
+        Self {
+            address: address_details,
+            phone: phone_details,
             email: address.email.clone().map(pii::Email::from),
         }
     }
