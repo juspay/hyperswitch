@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use common_utils::errors::CustomResult;
 use error_stack::{report, IntoReport, ResultExt};
+use events::{EventSink, EventsError};
 use rdkafka::{
     config::FromClientConfig,
     producer::{BaseRecord, DefaultProducerContext, Producer, ThreadedProducer},
@@ -15,7 +16,7 @@ mod refund;
 use data_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 use diesel_models::refund::Refund;
 use serde::Serialize;
-use time::OffsetDateTime;
+use time::{OffsetDateTime, PrimitiveDateTime};
 
 use self::{
     dispute::KafkaDispute, payment_attempt::KafkaPaymentAttempt,
@@ -366,5 +367,26 @@ impl Drop for RdKafkaProducer {
             Ok(_) => router_env::logger::info!("Kafka events flush Successful"),
             Err(error) => router_env::logger::error!("Failed to flush Kafka Events {error:?}"),
         }
+    }
+}
+
+impl EventSink for KafkaProducer {
+    fn publish_event(
+        &self,
+        data: serde_json::Value,
+        identifier: String,
+        topic: String,
+        timestamp: PrimitiveDateTime,
+    ) -> error_stack::Result<(), EventsError> {
+        self.producer
+            .0
+            .send(
+                BaseRecord::to(&topic)
+                    .key(&identifier)
+                    .payload(&data.to_string())
+                    .timestamp(timestamp.assume_utc().unix_timestamp()),
+            )
+            .map_err(|(error, record)| report!(error).attach_printable(format!("{record:?}")))
+            .change_context(EventsError::GenericError)
     }
 }

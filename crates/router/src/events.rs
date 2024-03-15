@@ -1,8 +1,10 @@
 use data_models::errors::{StorageError, StorageResult};
 use error_stack::ResultExt;
+use events::{EventSink, EventsError};
 use router_env::logger;
 use serde::{Deserialize, Serialize};
 use storage_impl::errors::ApplicationError;
+use time::PrimitiveDateTime;
 
 use crate::{
     db::KafkaProducer,
@@ -79,5 +81,23 @@ impl EventsHandler {
             }),
             Self::Logs(logger) => logger.log_event(event),
         };
+    }
+}
+
+impl EventSink for EventsHandler {
+    fn publish_event(
+        &self,
+        data: serde_json::Value,
+        identifier: String,
+        topic: String,
+        timestamp: PrimitiveDateTime,
+    ) -> error_stack::Result<(), EventsError> {
+        match self {
+            Self::Kafka(kafka) => kafka.publish_event(data, identifier, topic, timestamp),
+            Self::Logs(_) => {
+                logger::info!(event = ?data, event_type =?topic, event_id =?identifier , log_type = "event");
+                Ok(())
+            }
+        }
     }
 }

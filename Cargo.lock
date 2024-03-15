@@ -345,7 +345,7 @@ dependencies = [
  "bigdecimal",
  "common_utils",
  "diesel_models",
- "error-stack 0.3.1",
+ "error-stack",
  "external_services",
  "futures 0.3.28",
  "hyperswitch_interfaces",
@@ -405,7 +405,7 @@ dependencies = [
  "cards",
  "common_enums",
  "common_utils",
- "error-stack 0.3.1",
+ "error-stack",
  "euclid",
  "frunk",
  "frunk_core",
@@ -1714,7 +1714,7 @@ name = "cards"
 version = "0.1.0"
 dependencies = [
  "common_utils",
- "error-stack 0.3.1",
+ "error-stack",
  "luhn",
  "masking",
  "router_env",
@@ -1950,7 +1950,7 @@ dependencies = [
  "bytes 1.5.0",
  "common_enums",
  "diesel",
- "error-stack 0.3.1",
+ "error-stack",
  "fake",
  "futures 0.3.28",
  "hex",
@@ -2387,7 +2387,7 @@ dependencies = [
  "common_enums",
  "common_utils",
  "diesel_models",
- "error-stack 0.3.1",
+ "error-stack",
  "masking",
  "serde",
  "serde_json",
@@ -2545,7 +2545,7 @@ dependencies = [
  "common_enums",
  "common_utils",
  "diesel",
- "error-stack 0.3.1",
+ "error-stack",
  "frunk",
  "frunk_core",
  "masking",
@@ -2649,7 +2649,7 @@ dependencies = [
  "config",
  "diesel",
  "diesel_models",
- "error-stack 0.3.1",
+ "error-stack",
  "external_services",
  "hyperswitch_interfaces",
  "masking",
@@ -2732,16 +2732,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "error-stack"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "27a72baa257b5e0e2de241967bc5ee8f855d6072351042688621081d66b2a76b"
-dependencies = [
- "anyhow",
- "rustc_version 0.4.0",
-]
-
-[[package]]
 name = "euclid"
 version = "0.1.0"
 dependencies = [
@@ -2801,7 +2791,7 @@ checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
 name = "events"
 version = "0.1.0"
 dependencies = [
- "error-stack 0.4.1",
+ "error-stack",
  "masking",
  "serde_json",
  "thiserror",
@@ -2822,7 +2812,7 @@ dependencies = [
  "base64 0.21.7",
  "common_utils",
  "dyn-clone",
- "error-stack 0.3.1",
+ "error-stack",
  "hex",
  "hyper",
  "hyper-proxy",
@@ -4940,7 +4930,7 @@ dependencies = [
  "bytes 1.5.0",
  "common_enums",
  "common_utils",
- "error-stack 0.3.1",
+ "error-stack",
  "http 0.2.12",
  "masking",
  "mime",
@@ -5347,7 +5337,7 @@ name = "redis_interface"
 version = "0.1.0"
 dependencies = [
  "common_utils",
- "error-stack 0.3.1",
+ "error-stack",
  "fred",
  "futures 0.3.28",
  "router_env",
@@ -5647,8 +5637,9 @@ dependencies = [
  "dyn-clone",
  "encoding_rs",
  "erased-serde",
- "error-stack 0.3.1",
+ "error-stack",
  "euclid",
+ "events",
  "external_services",
  "futures 0.3.28",
  "hex",
@@ -5733,7 +5724,7 @@ version = "0.1.0"
 dependencies = [
  "cargo_metadata 0.15.4",
  "config",
- "error-stack 0.3.1",
+ "error-stack",
  "gethostname",
  "once_cell",
  "opentelemetry",
@@ -5996,7 +5987,7 @@ dependencies = [
  "async-trait",
  "common_utils",
  "diesel_models",
- "error-stack 0.3.1",
+ "error-stack",
  "external_services",
  "futures 0.3.28",
  "masking",
@@ -6561,7 +6552,7 @@ dependencies = [
  "diesel",
  "diesel_models",
  "dyn-clone",
- "error-stack 0.3.1",
+ "error-stack",
  "futures 0.3.28",
  "http 0.2.12",
  "masking",

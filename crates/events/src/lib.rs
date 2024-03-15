@@ -19,7 +19,11 @@ use time::PrimitiveDateTime;
 
 /// Errors that can occur when working with events.
 #[derive(Debug, Clone, thiserror::Error)]
-pub enum EventsError {}
+pub enum EventsError {
+    /// An error occurred when publishing the event.
+    #[error("Generic Error")]
+    GenericError,
+}
 
 /// An event that can be published.
 pub trait Event: EventInfo {
@@ -54,7 +58,7 @@ pub struct EventContext {
     metadata: Vec<Rc<Box<dyn EventInfo>>>,
 }
 
-/// intermediary structure to build inplace events
+/// intermediary structure to build events with in-place info.
 pub struct EventBuilder {
     event_sink: Rc<Box<dyn EventSink>>,
     src_metadata: Vec<Rc<Box<dyn EventInfo>>>,
@@ -63,11 +67,13 @@ pub struct EventBuilder {
 }
 
 impl EventBuilder {
+    /// Add metadata to the event.
     pub fn with<T: EventInfo + 'static>(mut self, info: T) -> Self {
         let boxed_event: Box<dyn EventInfo> = Box::new(info);
         self.event_metadata.push(boxed_event.into());
         self
     }
+    /// Emit the event.
     pub fn emit(self) -> Result<(), EventsError> {
         self.event_sink.publish_event(
             self.data()?,
@@ -93,6 +99,7 @@ impl EventInfo for EventBuilder {
 }
 
 impl EventContext {
+    /// Create a new event context.
     pub fn new(event_sink: Rc<Box<dyn EventSink>>) -> Self {
         Self {
             event_sink,
@@ -100,11 +107,13 @@ impl EventContext {
         }
     }
 
+    /// Add metadata to the event context.
     pub fn record_info<T: EventInfo + 'static>(&mut self, info: T) {
         let boxed_event: Box<dyn EventInfo> = Box::new(info);
         self.metadata.push(boxed_event.into());
     }
 
+    /// Emit an event.
     pub fn emit(&self, event: Box<dyn Event>) -> Result<(), EventsError> {
         EventBuilder {
             event_sink: self.event_sink.clone(),
@@ -115,6 +124,7 @@ impl EventContext {
         .emit()
     }
 
+    /// Create an event builder.
     pub fn event(&self, event: Box<dyn Event>) -> EventBuilder {
         EventBuilder {
             event_sink: self.event_sink.clone(),
