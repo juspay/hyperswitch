@@ -709,8 +709,7 @@ impl PaymentMethods {
             .service(
                 web::resource("")
                     .route(web::post().to(create_payment_method_api))
-                    .route(web::get().to(list_payment_method_api)) // TODO : added for sdk compatibility for now, need to deprecate this later
-                    .route(web::get().to(payment_method_countries_currencies_retrieve_api)),
+                    .route(web::get().to(list_payment_method_api)), // TODO : added for sdk compatibility for now, need to deprecate this later
             )
             .service(
                 web::resource("/{payment_method_id}")

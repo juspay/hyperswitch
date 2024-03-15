@@ -2208,12 +2208,6 @@ pub async fn filter_payment_methods(
                         true
                     };
 
-                    // let filter_10 = filter_pm_based_on_config1(
-                    //     config,
-                    //     &connector,
-                    //     &payment_method_object.payment_method_type,
-                    // );
-
                     let filter5 = filter_pm_based_on_config(
                         config,
                         &connector,
