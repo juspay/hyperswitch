@@ -198,3 +198,7 @@ key1= "Trankey"
 [threedsecureio]
 api_key="API Key"
 
+
+
+[ebanx]
+api_key="API Key"
