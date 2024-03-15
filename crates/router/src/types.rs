@@ -1261,11 +1261,7 @@ impl ForeignFrom<MerchantAccountData> for api_models::admin::MerchantAccountData
             } => Self::Iban {
                 iban,
                 name,
-                connector_recipient_id: if let Some(conn) = connector_recipient_id {
-                    Some(api_models::admin::RecipientIdType::foreign_from(conn))
-                } else {
-                    None
-                },
+                connector_recipient_id: connector_recipient_id.map(api_models::admin::RecipientIdType::foreign_from),
             },
             MerchantAccountData::Bacs {
                 account_number,
@@ -1276,11 +1272,7 @@ impl ForeignFrom<MerchantAccountData> for api_models::admin::MerchantAccountData
                 account_number,
                 sort_code,
                 name,
-                connector_recipient_id: if let Some(conn) = connector_recipient_id {
-                    Some(api_models::admin::RecipientIdType::foreign_from(conn))
-                } else {
-                    None
-                },
+                connector_recipient_id: connector_recipient_id.map(api_models::admin::RecipientIdType::foreign_from),
             },
         }
     }
@@ -1296,11 +1288,7 @@ impl From<api_models::admin::MerchantAccountData> for MerchantAccountData {
             } => Self::Iban {
                 iban,
                 name,
-                connector_recipient_id: if let Some(conn) = connector_recipient_id {
-                    Some(RecipientIdType::from(conn))
-                } else {
-                    None
-                },
+                connector_recipient_id: connector_recipient_id.map(RecipientIdType::from),
             },
             api_models::admin::MerchantAccountData::Bacs {
                 account_number,
@@ -1311,11 +1299,7 @@ impl From<api_models::admin::MerchantAccountData> for MerchantAccountData {
                 account_number,
                 sort_code,
                 name,
-                connector_recipient_id: if let Some(conn) = connector_recipient_id {
-                    Some(RecipientIdType::from(conn))
-                } else {
-                    None
-                },
+                connector_recipient_id: connector_recipient_id.map(RecipientIdType::from),
             },
         }
     }

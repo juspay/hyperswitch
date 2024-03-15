@@ -2053,7 +2053,6 @@ async fn process_open_banking_connectors(
                         )
                         .await
                     }
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("failed to get recipient_id")?;
 
                     // data.merchant_data = api_models::admin::MerchantRecipientData::RecipientID(
