@@ -4536,11 +4536,12 @@ mod payments_request_api_contract {
 
 /// Set of tests to extract billing details from payment method data
 /// These are required for backwards compatibility
+#[cfg(test)]
 mod billing_from_payment_method_data {
-    use common_enums::CountryAlpha2;
+    #![allow(clippy::unwrap_used)]
 
-    #[allow(unused_imports)]
     use super::*;
+    use common_enums::CountryAlpha2;
 
     #[allow(dead_code)]
     const TEST_COUNTRY: CountryAlpha2 = CountryAlpha2::US;
