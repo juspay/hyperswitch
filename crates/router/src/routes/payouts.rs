@@ -5,10 +5,12 @@ use actix_web::{
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
+#[cfg(feature = "olap")]
+use crate::types::api::payments as payment_types;
 use crate::{
     core::{api_locking, payouts::*},
     services::{api, authentication as auth},
-    types::api::{payments as payment_types, payouts as payout_types},
+    types::api::payouts as payout_types,
 };
 
 /// Payouts - Create
@@ -229,7 +231,7 @@ pub async fn payouts_list(
     .await
 }
 
-/// Payouts - Filter
+/// Payouts - Filtered list
 #[cfg(feature = "olap")]
 #[utoipa::path(
     post,
@@ -263,24 +265,26 @@ pub async fn payouts_list_by_filter(
     .await
 }
 
+/// Payouts - Available filters
+#[cfg(feature = "olap")]
 #[utoipa::path(
     post,
     path = "/payouts/filter",
     responses(
-        (status = 200, description = "Payouts filtered", body = PayoutListResponse),
+        (status = 200, description = "Payouts filtered", body = PayoutListFilters),
         (status = 404, description = "Payout not found")
     ),
     tag = "Payouts",
     operation_id = "Filter payouts",
     security(("api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::PayoutsList))]
+#[instrument(skip_all, fields(flow = ?Flow::PayoutsFilter))]
 pub async fn payouts_list_available_filters(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<payment_types::TimeRange>,
 ) -> HttpResponse {
-    let flow = Flow::PayoutsList;
+    let flow = Flow::PayoutsFilter;
     let payload = json_payload.into_inner();
 
     Box::pin(api::server_wrap(
