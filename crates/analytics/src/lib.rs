@@ -686,6 +686,7 @@ pub struct OpensearchIndexes {
 pub struct OpenSearchIndividualMapping{
     pub status : String,
     pub amount : String,
+    pub payemnt_method :  String,
 }
 
 #[derive(Clone, Debug, serde::Deserialize)]
@@ -700,7 +701,6 @@ pub struct OpensearchConfig {
     host: String,
     auth: OpensearchAuth,
     indexes: OpensearchIndexes,
-    mapping: OpenSearchMapping,
 }
 
 impl Default for OpensearchConfig {
@@ -721,11 +721,6 @@ impl Default for OpensearchConfig {
                 refunds: "hyperswitch-refund-events".to_string(),
                 disputes: "hyperswitch-dispute-events".to_string(),
             },
-            mapping: OpenSearchMapping{
-                payment_attempts: default_struct.clone(),
-                payment_intents: default_struct.clone(),
-                refunds: default_struct.clone(),
-            }
         }
     }
 }

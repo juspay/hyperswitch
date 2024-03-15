@@ -70,14 +70,20 @@ async fn get_opensearch_client(config: OpensearchConfig) -> Result<OpenSearch, O
 }
 
 pub fn search_filter_maker(
+    index: SearchIndex,
     json_body: GetGlobalSearchRequest, 
     merchant_id: &String,
-    config: OpensearchConfig
+    config: OpensearchConfig,
 ) -> String {
     let req_filters = json_body.filters;
     let merchant_id_filter = json!({"match_phrase": {"merchant_id": merchant_id}});
     let filters_array = [merchant_id_filter];
-    println!("");
+    for filter in &req_filters{
+        println!("---------------------");
+        format!("{:?}",filter);
+        println!("filter hai okay");
+    }
+    // println!("{:?} , {:?}",filters_array, req_filters);
     return format!("{}",json!({"ok":"ok"}));
 }
 
@@ -94,10 +100,10 @@ pub async fn msearch_results(
     let mut msearch_vector: Vec<JsonBody<Value>> = vec![];
     for index in SearchIndex::iter() {
         msearch_vector
-            .push(json!({"index": search_index_to_opensearch_index(index,&config.indexes)}).into());
+            .push(json!({"index": search_index_to_opensearch_index(index.clone(),&config.indexes)}).into());
         let json_search_struct = json!({"query": {"bool": {"must": {"query_string": {"query": req.query}}, "filter": {"match_phrase": {"merchant_id": merchant_id}}}}}).into();
-        println!("SEARCH REQ");
-        println!("{}",(search_filter_maker(req.clone(), &merchant_id, config.clone())));
+        // println!("SEARCH REQ");
+        println!("{}",(search_filter_maker(index,req.clone(), &merchant_id, config.clone())));
         println!("{:?}",req);
         msearch_vector.push(json_search_struct);
     }

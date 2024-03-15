@@ -733,14 +733,14 @@ diesel::table! {
         #[max_length = 1024]
         unified_message -> Nullable<Varchar>,
         net_amount -> Nullable<Int8>,
-        mandate_data -> Nullable<Jsonb>,
-        #[max_length = 64]
-        fingerprint_id -> Nullable<Varchar>,
         external_three_ds_authentication_attempted -> Nullable<Bool>,
         #[max_length = 64]
         authentication_connector -> Nullable<Varchar>,
         #[max_length = 64]
         authentication_id -> Nullable<Varchar>,
+        mandate_data -> Nullable<Jsonb>,
+        #[max_length = 64]
+        fingerprint_id -> Nullable<Varchar>,
         #[max_length = 64]
         payment_method_billing_address_id -> Nullable<Varchar>,
     }
