@@ -7,6 +7,7 @@ use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
+use stripe::auth_headers;
 
 use self::transformers as stripe;
 use super::utils::{self as connector_utils, RefundsRequestData};
@@ -121,12 +122,18 @@ impl
         req: &types::PaymentsPreProcessingRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            types::PaymentsPreProcessingType::get_content_type(self)
-                .to_string()
-                .into(),
-        )];
+        let mut header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                types::PaymentsPreProcessingType::get_content_type(self)
+                    .to_string()
+                    .into(),
+            ),
+            (
+                auth_headers::API_VERSION.to_string(),
+                "2023-10-16".to_string().into_masked(),
+            ),
+        ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
         Ok(header)
@@ -250,12 +257,18 @@ impl
         req: &types::ConnectorCustomerRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            types::ConnectorCustomerType::get_content_type(self)
-                .to_string()
-                .into(),
-        )];
+        let mut header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                types::ConnectorCustomerType::get_content_type(self)
+                    .to_string()
+                    .into(),
+            ),
+            (
+                auth_headers::API_VERSION.to_string(),
+                "2023-10-16".to_string().into_masked(),
+            ),
+        ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
         Ok(header)
@@ -382,12 +395,18 @@ impl
         req: &types::TokenizationRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            types::TokenizationType::get_content_type(self)
-                .to_string()
-                .into(),
-        )];
+        let mut header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                types::TokenizationType::get_content_type(self)
+                    .to_string()
+                    .into(),
+            ),
+            (
+                auth_headers::API_VERSION.to_string(),
+                "2023-10-16".to_string().into_masked(),
+            ),
+        ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
         Ok(header)
@@ -510,10 +529,16 @@ impl
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            Self::common_get_content_type(self).to_string().into(),
-        )];
+        let mut header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                Self::common_get_content_type(self).to_string().into(),
+            ),
+            (
+                auth_headers::API_VERSION.to_string(),
+                "2023-10-16".to_string().into_masked(),
+            ),
+        ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
         Ok(header)
@@ -642,12 +667,18 @@ impl
         req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            types::PaymentsSyncType::get_content_type(self)
-                .to_string()
-                .into(),
-        )];
+        let mut header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                types::PaymentsSyncType::get_content_type(self)
+                    .to_string()
+                    .into(),
+            ),
+            (
+                auth_headers::API_VERSION.to_string(),
+                "2023-10-16".to_string().into_masked(),
+            ),
+        ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
         Ok(header)
@@ -796,12 +827,18 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            types::PaymentsAuthorizeType::get_content_type(self)
-                .to_string()
-                .into(),
-        )];
+        let mut header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                types::PaymentsAuthorizeType::get_content_type(self)
+                    .to_string()
+                    .into(),
+            ),
+            (
+                auth_headers::API_VERSION.to_string(),
+                "2023-10-16".to_string().into_masked(),
+            ),
+        ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
         Ok(header)
@@ -991,12 +1028,18 @@ impl
         req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            types::PaymentsVoidType::get_content_type(self)
-                .to_string()
-                .into(),
-        )];
+        let mut header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                types::PaymentsVoidType::get_content_type(self)
+                    .to_string()
+                    .into(),
+            ),
+            (
+                auth_headers::API_VERSION.to_string(),
+                "2023-10-16".to_string().into_masked(),
+            ),
+        ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
         Ok(header)
@@ -1127,10 +1170,16 @@ impl
         >,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            Verify::get_content_type(self).to_string().into(),
-        )];
+        let mut header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                Verify::get_content_type(self).to_string().into(),
+            ),
+            (
+                auth_headers::API_VERSION.to_string(),
+                "2023-10-16".to_string().into_masked(),
+            ),
+        ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
         Ok(header)
@@ -1278,12 +1327,18 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            types::RefundExecuteType::get_content_type(self)
-                .to_string()
-                .into(),
-        )];
+        let mut header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                types::RefundExecuteType::get_content_type(self)
+                    .to_string()
+                    .into(),
+            ),
+            (
+                auth_headers::API_VERSION.to_string(),
+                "2023-10-16".to_string().into_masked(),
+            ),
+        ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
         Ok(header)
@@ -1399,12 +1454,18 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            types::RefundSyncType::get_content_type(self)
-                .to_string()
-                .into(),
-        )];
+        let mut header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                types::RefundSyncType::get_content_type(self)
+                    .to_string()
+                    .into(),
+            ),
+            (
+                auth_headers::API_VERSION.to_string(),
+                "2023-10-16".to_string().into_masked(),
+            ),
+        ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
         Ok(header)
@@ -1784,12 +1845,18 @@ impl
         req: &types::SubmitEvidenceRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            types::SubmitEvidenceType::get_content_type(self)
-                .to_string()
-                .into(),
-        )];
+        let mut header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                types::SubmitEvidenceType::get_content_type(self)
+                    .to_string()
+                    .into(),
+            ),
+            (
+                auth_headers::API_VERSION.to_string(),
+                "2023-10-16".to_string().into_masked(),
+            ),
+        ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
         Ok(header)

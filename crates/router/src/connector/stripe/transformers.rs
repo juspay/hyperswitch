@@ -32,6 +32,10 @@ use crate::{
     utils::OptionExt,
 };
 
+pub mod auth_headers {
+    pub const API_VERSION: &str = "stripe-version";
+}
+
 pub struct StripeAuthType {
     pub(super) api_key: Secret<String>,
 }
