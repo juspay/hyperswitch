@@ -3,6 +3,7 @@ import {connectorDetails  as bankOfAmericaConnectorDetails} from "./BankOfAmeric
 import {connectorDetails  as bluesnapConnectorDetails} from "./Bluesnap.js";
 import {connectorDetails  as cybersourceConnectorDetails} from "./Cybersource.js";
 import {connectorDetails  as nmiConnectorDetails} from "./Nmi.js";
+import {connectorDetails  as paypalConnectorDetails} from "./Paypal.js";
 import {connectorDetails  as stripeConnectorDetails} from "./Stripe.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
 import globalState from "../../utils/State.js";
@@ -13,6 +14,7 @@ const connectorDetails = {
     "bluesnap": bluesnapConnectorDetails,
     "cybersource": cybersourceConnectorDetails,
     "nmi": nmiConnectorDetails,
+    "paypal": paypalConnectorDetails,
     "stripe": stripeConnectorDetails,
     "trustpay": trustpayConnectorDetails
     

@@ -19,18 +19,20 @@ export const connectorDetails = {
     "3DS": {
         "card": successfulThreeDSTestCardDetails,
         "currency":"USD",
-        "successfulStates": "requires_customer_action"
+        "paymentSuccessfulStatus": "requires_customer_action",
+        "paymentSyncStatus": "succeeded"
     },
     "No3DS": {
         "card": successfulNo3DSCardDetails,
         "currency":"USD",
-        "successfulStates": "processing"
+        "paymentSuccessfulStatus": "processing",
+        "paymentSyncStatus": "succeeded"
     },
     "MandateSingleUse3DS": {
         "card": successfulThreeDSTestCardDetails,
         "currency":"USD",
-        "successfulStates": "requires_customer_action",
-        "successfulSyncStates": "processing",
+        "paymentSuccessfulStatus": "requires_customer_action",
+        "paymentSyncStatus": "processing",
         "mandate_type": {
             "single_use": {
                 "amount": 6000,
@@ -41,8 +43,8 @@ export const connectorDetails = {
     "MandateSingleUseNo3DS": {
         "card": successfulNo3DSCardDetails,
         "currency":"USD",
-        "successfulStates": "succeeded",
-        "successfulSyncStates": "succeeded",
+        "paymentSuccessfulStatus": "succeeded",
+        "paymentSyncStatus": "succeeded",
         "mandate_type": {
             "single_use": {
                 "amount": 6000,
@@ -53,8 +55,8 @@ export const connectorDetails = {
     "MandateMultiUseNo3DS": {
         "card": successfulNo3DSCardDetails,
         "currency":"USD",
-        "successfulStates": "succeeded",
-        "successfulSyncStates": "succeeded",
+        "paymentSuccessfulStatus": "succeeded",
+        "paymentSyncStatus": "succeeded",
         "mandate_type": {
             "multi_use": {
                 "amount": 6000,
@@ -65,8 +67,8 @@ export const connectorDetails = {
     "MandateMultiUse3DS": {
         "card": successfulThreeDSTestCardDetails,
         "currency":"USD",
-        "successfulStates": "requires_customer_action",
-        "successfulSyncStates": "processing",
+        "paymentSuccessfulStatus": "requires_customer_action",
+        "paymentSyncStatus": "processing",
         "mandate_type": {
             "multi_use": {
                 "amount": 6000,
