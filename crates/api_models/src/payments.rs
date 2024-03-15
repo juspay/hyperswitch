@@ -4540,8 +4540,9 @@ mod payments_request_api_contract {
 mod billing_from_payment_method_data {
     #![allow(clippy::unwrap_used)]
 
-    use super::*;
     use common_enums::CountryAlpha2;
+
+    use super::*;
 
     #[allow(dead_code)]
     const TEST_COUNTRY: CountryAlpha2 = CountryAlpha2::US;
