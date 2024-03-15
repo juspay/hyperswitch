@@ -310,7 +310,7 @@ pub struct Address {
     pub postal_code: Option<Secret<String>>,
     /// The state or region of the address. ISO 3166-2 minus the country code itself. For
     /// example, US Illinois = IL, or in the case of GB counties Wiltshire = WI or Aberdeenshire
-    /// = ABD
+    /// = AND
     pub state: Option<String>,
 }
 
