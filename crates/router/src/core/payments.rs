@@ -2222,7 +2222,6 @@ where
     pub authorizations: Vec<diesel_models::authorization::Authorization>,
     pub authentication: Option<(storage::Authentication, AuthenticationData)>,
     pub frm_metadata: Option<serde_json::Value>,
-    pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
 }
 
 #[derive(Debug, Default, Clone)]
