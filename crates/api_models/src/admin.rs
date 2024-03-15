@@ -479,6 +479,40 @@ pub struct MerchantConnectorCreate {
     pub status: Option<api_enums::ConnectorStatus>,
 }
 
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub enum RecipientIdType {
+    ConnectorId(Secret<String>),
+    LockerId(Secret<String>),
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub enum MerchantAccountData {
+    Iban {
+        iban: Secret<String>,
+        name: String,
+        connector_recipient_id: Option<RecipientIdType>,
+    },
+    Bacs {
+        account_number: Secret<String>,
+        sort_code: Secret<String>,
+        name: String,
+        connector_recipient_id: Option<RecipientIdType>,
+    },
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub enum MerchantRecipientData {
+    ConnectorRecipientId(Secret<String>),
+    WalletId(Secret<String>),
+    AccountData(MerchantAccountData),
+}
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct OpenBankingAuthType {
+    pub api_key: Secret<String>,
+    pub key1: Secret<String>,
+    pub merchant_data: MerchantRecipientData,
+}
+
 // Different patterns of authentication.
 #[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(tag = "auth_type")]
@@ -504,6 +538,11 @@ pub enum ConnectorAuthType {
     },
     CurrencyAuthKey {
         auth_key_map: HashMap<common_enums::Currency, pii::SecretSerdeValue>,
+    },
+    OpenBankingAuth {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        merchant_data: MerchantRecipientData,
     },
     #[default]
     NoKey,
