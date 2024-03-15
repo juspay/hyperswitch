@@ -130,7 +130,7 @@ impl
                     .into(),
             ),
             (
-                auth_headers::API_VERSION.to_string(),
+                auth_headers::STRIPE_API_VERSION.to_string(),
                 "2023-10-16".to_string().into_masked(),
             ),
         ];
@@ -265,7 +265,7 @@ impl
                     .into(),
             ),
             (
-                auth_headers::API_VERSION.to_string(),
+                auth_headers::STRIPE_API_VERSION.to_string(),
                 "2023-10-16".to_string().into_masked(),
             ),
         ];
@@ -403,7 +403,7 @@ impl
                     .into(),
             ),
             (
-                auth_headers::API_VERSION.to_string(),
+                auth_headers::STRIPE_API_VERSION.to_string(),
                 "2023-10-16".to_string().into_masked(),
             ),
         ];
@@ -535,7 +535,7 @@ impl
                 Self::common_get_content_type(self).to_string().into(),
             ),
             (
-                auth_headers::API_VERSION.to_string(),
+                auth_headers::STRIPE_API_VERSION.to_string(),
                 "2023-10-16".to_string().into_masked(),
             ),
         ];
@@ -675,7 +675,7 @@ impl
                     .into(),
             ),
             (
-                auth_headers::API_VERSION.to_string(),
+                auth_headers::STRIPE_API_VERSION.to_string(),
                 "2023-10-16".to_string().into_masked(),
             ),
         ];
@@ -835,7 +835,7 @@ impl
                     .into(),
             ),
             (
-                auth_headers::API_VERSION.to_string(),
+                auth_headers::STRIPE_API_VERSION.to_string(),
                 "2023-10-16".to_string().into_masked(),
             ),
         ];
@@ -1036,7 +1036,7 @@ impl
                     .into(),
             ),
             (
-                auth_headers::API_VERSION.to_string(),
+                auth_headers::STRIPE_API_VERSION.to_string(),
                 "2023-10-16".to_string().into_masked(),
             ),
         ];
@@ -1176,7 +1176,7 @@ impl
                 Verify::get_content_type(self).to_string().into(),
             ),
             (
-                auth_headers::API_VERSION.to_string(),
+                auth_headers::STRIPE_API_VERSION.to_string(),
                 "2023-10-16".to_string().into_masked(),
             ),
         ];
@@ -1335,7 +1335,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
                     .into(),
             ),
             (
-                auth_headers::API_VERSION.to_string(),
+                auth_headers::STRIPE_API_VERSION.to_string(),
                 "2023-10-16".to_string().into_masked(),
             ),
         ];
@@ -1462,7 +1462,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
                     .into(),
             ),
             (
-                auth_headers::API_VERSION.to_string(),
+                auth_headers::STRIPE_API_VERSION.to_string(),
                 "2023-10-16".to_string().into_masked(),
             ),
         ];
@@ -1853,7 +1853,7 @@ impl
                     .into(),
             ),
             (
-                auth_headers::API_VERSION.to_string(),
+                auth_headers::STRIPE_API_VERSION.to_string(),
                 "2023-10-16".to_string().into_masked(),
             ),
         ];

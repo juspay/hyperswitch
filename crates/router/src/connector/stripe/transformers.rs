@@ -33,7 +33,7 @@ use crate::{
 };
 
 pub mod auth_headers {
-    pub const API_VERSION: &str = "stripe-version";
+    pub const STRIPE_API_VERSION: &str = "stripe-version";
 }
 
 pub struct StripeAuthType {
