@@ -1010,7 +1010,6 @@ impl GetAddressFromPaymentMethodData for PayLaterData {
                     phone: None,
                 })
             }
-            Self::KlarnaSdk { .. } | Self::AffirmRedirect {} => None,
             Self::AfterpayClearpayRedirect {
                 billing_email,
                 billing_name,
@@ -1029,6 +1028,8 @@ impl GetAddressFromPaymentMethodData for PayLaterData {
             Self::PayBrightRedirect {}
             | Self::WalleyRedirect {}
             | Self::AlmaRedirect {}
+            | Self::KlarnaSdk { .. }
+            | Self::AffirmRedirect {}
             | Self::AtomeRedirect {} => None,
         }
     }
@@ -1107,17 +1108,17 @@ impl GetAddressFromPaymentMethodData for BankDebitData {
             bank_debit_billing: &BankDebitBilling,
             bank_account_holder_name: Option<&Secret<String>>,
         ) -> Option<Address> {
-            let mut address = bank_debit_billing.get_billing_address();
+            // We will always have address here
+            let mut address = bank_debit_billing.get_billing_address()?;
 
-            if let Some(address) = address.as_mut() {
-                address.address.as_mut().map(|address| {
-                    address.first_name = bank_account_holder_name
-                        .or(address.first_name.as_ref())
-                        .cloned();
-                });
-            }
+            // Prefer `account_holder_name` over `name`
+            address.address.as_mut().map(|address| {
+                address.first_name = bank_account_holder_name
+                    .or(address.first_name.as_ref())
+                    .cloned();
+            });
 
-            address
+            Some(address)
         }
 
         match self {
@@ -1754,8 +1755,32 @@ impl GetAddressFromPaymentMethodData for BankRedirectData {
 
         match self {
             Self::BancontactCard {
-                billing_details, ..
-            } => get_billing_address_inner(billing_details.as_ref(), None, None),
+                billing_details,
+                card_holder_name,
+                ..
+            } => {
+                let address = get_billing_address_inner(billing_details.as_ref(), None, None);
+
+                if let Some(mut address) = address {
+                    address.address.as_mut().map(|address| {
+                        address.first_name = card_holder_name
+                            .as_ref()
+                            .or(address.first_name.as_ref())
+                            .cloned();
+                    });
+
+                    Some(address)
+                } else {
+                    Some(Address {
+                        address: Some(AddressDetails {
+                            first_name: card_holder_name.clone(),
+                            ..AddressDetails::default()
+                        }),
+                        phone: None,
+                        email: None,
+                    })
+                }
+            }
             Self::Eps {
                 billing_details,
                 country,
@@ -4540,7 +4565,7 @@ mod billing_from_payment_method_data {
     }
 
     #[test]
-    fn test_bank_redirect_payment_method_data() {
+    fn test_bank_redirect_payment_method_data_eps() {
         let test_email = Email::try_from("example@example.com".to_string()).unwrap();
         let test_first_name = Secret::new(String::from("Chaser"));
 
@@ -4591,7 +4616,7 @@ mod billing_from_payment_method_data {
     }
 
     #[test]
-    fn test_bank_debit_payment_method_data() {
+    fn test_bank_debit_payment_method_data_ach() {
         let test_email = Email::try_from("example@example.com".to_string()).unwrap();
         let test_first_name = Secret::new(String::from("Chaser"));
 
