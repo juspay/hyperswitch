@@ -887,7 +887,6 @@ fn validate_shipping_address_against_payment_method(
 ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
     if let Some(StripePaymentMethodType::AfterpayClearpay) = payment_method {
         let missing_fields = collect_missing_value_keys!(
-            ("shipping.address.first_name", shipping_address.name),
             ("shipping.address.line1", shipping_address.line1),
             ("shipping.address.country", shipping_address.country),
             ("shipping.address.zip", shipping_address.zip)
@@ -1724,16 +1723,20 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                     line2: shipping_address.and_then(|a| a.line2.clone()),
                     zip: shipping_address.and_then(|a| a.zip.clone()),
                     state: shipping_address.and_then(|a| a.state.clone()),
-                    name: shipping_address.and_then(|a| {
-                        a.first_name.as_ref().map(|first_name| {
-                            format!(
-                                "{} {}",
-                                first_name.clone().expose(),
-                                a.last_name.clone().expose_option().unwrap_or_default()
-                            )
-                            .into()
+                    name: shipping_address
+                        .and_then(|a| {
+                            a.first_name.as_ref().map(|first_name| {
+                                format!(
+                                    "{} {}",
+                                    first_name.clone().expose(),
+                                    a.last_name.clone().expose_option().unwrap_or_default()
+                                )
+                                .into()
+                            })
                         })
-                    }),
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "shipping_address.first_name",
+                        })?,
                     phone: shipping_details.phone.as_ref().map(|p| {
                         format!(
                             "{}{}",
@@ -2930,7 +2933,7 @@ pub struct StripeShippingAddress {
     #[serde(rename = "shipping[address][state]")]
     pub state: Option<Secret<String>>,
     #[serde(rename = "shipping[name]")]
-    pub name: Option<Secret<String>>,
+    pub name: Secret<String>,
     #[serde(rename = "shipping[phone]")]
     pub phone: Option<Secret<String>>,
 }
@@ -3841,7 +3844,7 @@ mod test_validate_shipping_address_against_payment_method {
     fn should_return_ok() {
         // Arrange
         let stripe_shipping_address = create_stripe_shipping_address(
-            Some("name".to_string()),
+            "name".to_string(),
             Some("line1".to_string()),
             Some(CountryAlpha2::AD),
             Some("zip".to_string()),
@@ -3860,38 +3863,10 @@ mod test_validate_shipping_address_against_payment_method {
     }
 
     #[test]
-    fn should_return_err_for_empty_name() {
-        // Arrange
-        let stripe_shipping_address = create_stripe_shipping_address(
-            None,
-            Some("line1".to_string()),
-            Some(CountryAlpha2::AD),
-            Some("zip".to_string()),
-        );
-
-        let payment_method = &StripePaymentMethodType::AfterpayClearpay;
-
-        //Act
-        let result = validate_shipping_address_against_payment_method(
-            &stripe_shipping_address,
-            Some(payment_method),
-        );
-
-        // Assert
-        assert!(result.is_err());
-        let missing_fields = get_missing_fields(result.unwrap_err().current_context()).to_owned();
-        assert_eq!(missing_fields.len(), 1);
-        assert_eq!(
-            *missing_fields.first().unwrap(),
-            "shipping.address.first_name"
-        );
-    }
-
-    #[test]
     fn should_return_err_for_empty_line1() {
         // Arrange
         let stripe_shipping_address = create_stripe_shipping_address(
-            Some("name".to_string()),
+            "name".to_string(),
             None,
             Some(CountryAlpha2::AD),
             Some("zip".to_string()),
@@ -3916,7 +3891,7 @@ mod test_validate_shipping_address_against_payment_method {
     fn should_return_err_for_empty_country() {
         // Arrange
         let stripe_shipping_address = create_stripe_shipping_address(
-            Some("name".to_string()),
+            "name".to_string(),
             Some("line1".to_string()),
             None,
             Some("zip".to_string()),
@@ -3941,7 +3916,7 @@ mod test_validate_shipping_address_against_payment_method {
     fn should_return_err_for_empty_zip() {
         // Arrange
         let stripe_shipping_address = create_stripe_shipping_address(
-            Some("name".to_string()),
+            "name".to_string(),
             Some("line1".to_string()),
             Some(CountryAlpha2::AD),
             None,
@@ -3967,7 +3942,7 @@ mod test_validate_shipping_address_against_payment_method {
         let expected_missing_field_names: Vec<&'static str> =
             vec!["shipping.address.zip", "shipping.address.country"];
         let stripe_shipping_address = create_stripe_shipping_address(
-            Some("name".to_string()),
+            "name".to_string(),
             Some("line1".to_string()),
             None,
             None,
@@ -3997,13 +3972,13 @@ mod test_validate_shipping_address_against_payment_method {
     }
 
     fn create_stripe_shipping_address(
-        name: Option<String>,
+        name: String,
         line1: Option<String>,
         country: Option<CountryAlpha2>,
         zip: Option<String>,
     ) -> StripeShippingAddress {
         StripeShippingAddress {
-            name: name.map(Secret::new),
+            name: Secret::new(name),
             line1: line1.map(Secret::new),
             country,
             zip: zip.map(Secret::new),
