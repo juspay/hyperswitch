@@ -1261,7 +1261,8 @@ impl ForeignFrom<MerchantAccountData> for api_models::admin::MerchantAccountData
             } => Self::Iban {
                 iban,
                 name,
-                connector_recipient_id: connector_recipient_id.map(api_models::admin::RecipientIdType::foreign_from),
+                connector_recipient_id: connector_recipient_id
+                    .map(api_models::admin::RecipientIdType::foreign_from),
             },
             MerchantAccountData::Bacs {
                 account_number,
@@ -1272,7 +1273,8 @@ impl ForeignFrom<MerchantAccountData> for api_models::admin::MerchantAccountData
                 account_number,
                 sort_code,
                 name,
-                connector_recipient_id: connector_recipient_id.map(api_models::admin::RecipientIdType::foreign_from),
+                connector_recipient_id: connector_recipient_id
+                    .map(api_models::admin::RecipientIdType::foreign_from),
             },
         }
     }
