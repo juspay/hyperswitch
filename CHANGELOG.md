@@ -4,6 +4,30 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.03.15.0
+
+### Features
+
+- **connector:** [cybersource] add card holder name in dynamic fields ([#4082](https://github.com/juspay/hyperswitch/pull/4082)) ([`5185d65`](https://github.com/juspay/hyperswitch/commit/5185d65ef5d48c21b203250cbc310b94212511c9))
+- **webhooks:** Store request and response payloads in `events` table ([#4029](https://github.com/juspay/hyperswitch/pull/4029)) ([`fd67a6c`](https://github.com/juspay/hyperswitch/commit/fd67a6c2255b866ca20823e25c4a2a6fa3304fa7))
+
+### Bug Fixes
+
+- **connector:** [Iatapay] remove unused fields from auth response ([#4091](https://github.com/juspay/hyperswitch/pull/4091)) ([`e5b7bc6`](https://github.com/juspay/hyperswitch/commit/e5b7bc62fbfee7c1e6631b4d38fef5859dd736c1))
+
+### Refactors
+
+- **payment_methods:** Enable country currency filter for cards ([#4056](https://github.com/juspay/hyperswitch/pull/4056)) ([`9ae10dc`](https://github.com/juspay/hyperswitch/commit/9ae10dc4d050f3aa705c72b27e676cdcb0e379c4))
+- **router:** Add IO level application logs ([#4042](https://github.com/juspay/hyperswitch/pull/4042)) ([`ad17cc7`](https://github.com/juspay/hyperswitch/commit/ad17cc738372e7397d73d6f55cae56beafa4e849))
+
+### Miscellaneous Tasks
+
+- **config:** [AUTHORIZEDOTNET] Add apple pay manual flow to dashboard ([#4080](https://github.com/juspay/hyperswitch/pull/4080)) ([`59a2bc4`](https://github.com/juspay/hyperswitch/commit/59a2bc434dca0d9faeceaa42b965f4ba4e93b1a9))
+
+**Full Changelog:** [`2024.03.13.3...2024.03.15.0`](https://github.com/juspay/hyperswitch/compare/2024.03.13.3...2024.03.15.0)
+
+- - -
+
 ## 2024.03.13.3
 
 ### Bug Fixes
