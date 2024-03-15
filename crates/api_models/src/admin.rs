@@ -480,21 +480,29 @@ pub struct MerchantConnectorCreate {
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub enum RecipientIdType {
+    ConnectorId(Secret<String>),
+    LockerId(Secret<String>),
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub enum MerchantAccountData {
     Iban {
         iban: Secret<String>,
         name: String,
+        connector_recipient_id: Option<RecipientIdType>,
     },
     Bacs {
         account_number: Secret<String>,
         sort_code: Secret<String>,
         name: String,
+        connector_recipient_id: Option<RecipientIdType>,
     },
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub enum MerchantRecipientData {
-    RecipientId(Secret<String>),
+    ConnectorRecipientId(Secret<String>),
     WalletId(Secret<String>),
     AccountData(MerchantAccountData),
 }

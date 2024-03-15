@@ -363,6 +363,6 @@ pub(crate) async fn fetch_raw_secrets(
         connector_onboarding,
         cors: conf.cors,
         unmasked_headers: conf.unmasked_headers,
-        locker_open_banking_connectors: conf.locker_open_banking_connectors,
+        locker_based_open_banking_connectors: conf.locker_based_open_banking_connectors,
     }
 }

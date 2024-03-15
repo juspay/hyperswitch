@@ -5,11 +5,12 @@ use crate::{core::errors, types, types::transformers::ForeignTryFrom};
 impl From<types::MerchantAccountData> for pm_auth_types::MerchantAccountData {
     fn from(from: types::MerchantAccountData) -> Self {
         match from {
-            types::MerchantAccountData::Iban { iban, name } => Self::Iban { iban, name },
+            types::MerchantAccountData::Iban { iban, name, .. } => Self::Iban { iban, name },
             types::MerchantAccountData::Bacs {
                 account_number,
                 sort_code,
                 name,
+                ..
             } => Self::Bacs {
                 account_number,
                 sort_code,
@@ -22,7 +23,9 @@ impl From<types::MerchantAccountData> for pm_auth_types::MerchantAccountData {
 impl From<types::MerchantRecipientData> for pm_auth_types::MerchantRecipientData {
     fn from(value: types::MerchantRecipientData) -> Self {
         match value {
-            types::MerchantRecipientData::RecipientId(id) => Self::RecipientId(id),
+            types::MerchantRecipientData::ConnectorRecipientId(id) => {
+                Self::ConnectorRecipientId(id)
+            }
             types::MerchantRecipientData::WalletId(id) => Self::WalletId(id),
             types::MerchantRecipientData::AccountData(data) => Self::AccountData(data.into()),
         }

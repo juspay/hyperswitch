@@ -184,7 +184,7 @@ pub enum MerchantAccountData {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MerchantRecipientData {
-    RecipientId(Secret<String>),
+    ConnectorRecipientId(Secret<String>),
     WalletId(Secret<String>),
     AccountData(MerchantAccountData),
 }

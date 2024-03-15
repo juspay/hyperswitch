@@ -1153,30 +1153,134 @@ pub struct MandateRevokeResponseData {
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum MerchantAccountData {
+pub enum MerchantAccountDataResponse {
     Iban {
         iban: Secret<String>,
         name: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        connector_recipient_id: Option<Secret<String>>,
     },
     Bacs {
         account_number: Secret<String>,
         sort_code: Secret<String>,
         name: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        connector_recipient_id: Option<Secret<String>>,
     },
+}
+
+impl From<MerchantAccountData> for MerchantAccountDataResponse {
+    fn from(value: MerchantAccountData) -> Self {
+        match value {
+            MerchantAccountData::Bacs {
+                account_number,
+                sort_code,
+                name,
+                connector_recipient_id,
+            } => Self::Bacs {
+                account_number,
+                sort_code,
+                name,
+                connector_recipient_id: if let Some(conn) = connector_recipient_id {
+                    match conn {
+                        RecipientIdType::ConnectorId(id) => Some(id),
+                        RecipientIdType::LockerId(_id) => None,
+                    }
+                } else {
+                    None
+                },
+            },
+            MerchantAccountData::Iban {
+                iban,
+                name,
+                connector_recipient_id,
+            } => Self::Iban {
+                iban,
+                name,
+                connector_recipient_id: if let Some(conn) = connector_recipient_id {
+                    match conn {
+                        RecipientIdType::ConnectorId(id) => Some(id),
+                        RecipientIdType::LockerId(_id) => None,
+                    }
+                } else {
+                    None
+                },
+            },
+        }
+    }
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub enum RecipientIdType {
+    ConnectorId(Secret<String>),
+    LockerId(Secret<String>),
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+#[serde(into = "MerchantAccountDataResponse")]
+pub enum MerchantAccountData {
+    Iban {
+        iban: Secret<String>,
+        name: String,
+        connector_recipient_id: Option<RecipientIdType>,
+    },
+    Bacs {
+        account_number: Secret<String>,
+        sort_code: Secret<String>,
+        name: String,
+        connector_recipient_id: Option<RecipientIdType>,
+    },
+}
+
+impl ForeignFrom<RecipientIdType> for api_models::admin::RecipientIdType {
+    fn foreign_from(from: RecipientIdType) -> Self {
+        match from {
+            RecipientIdType::ConnectorId(id) => Self::ConnectorId(id),
+            RecipientIdType::LockerId(id) => Self::LockerId(id),
+        }
+    }
+}
+
+impl From<api_models::admin::RecipientIdType> for RecipientIdType {
+    fn from(from: api_models::admin::RecipientIdType) -> Self {
+        match from {
+            api_models::admin::RecipientIdType::ConnectorId(id) => Self::ConnectorId(id),
+            api_models::admin::RecipientIdType::LockerId(id) => Self::LockerId(id),
+        }
+    }
 }
 
 impl ForeignFrom<MerchantAccountData> for api_models::admin::MerchantAccountData {
     fn foreign_from(from: MerchantAccountData) -> Self {
         match from {
-            MerchantAccountData::Iban { iban, name } => Self::Iban { iban, name },
+            MerchantAccountData::Iban {
+                iban,
+                name,
+                connector_recipient_id,
+            } => Self::Iban {
+                iban,
+                name,
+                connector_recipient_id: if let Some(conn) = connector_recipient_id {
+                    Some(api_models::admin::RecipientIdType::foreign_from(conn))
+                } else {
+                    None
+                },
+            },
             MerchantAccountData::Bacs {
                 account_number,
                 sort_code,
                 name,
+                connector_recipient_id,
             } => Self::Bacs {
                 account_number,
                 sort_code,
                 name,
+                connector_recipient_id: if let Some(conn) = connector_recipient_id {
+                    Some(api_models::admin::RecipientIdType::foreign_from(conn))
+                } else {
+                    None
+                },
             },
         }
     }
@@ -1185,17 +1289,33 @@ impl ForeignFrom<MerchantAccountData> for api_models::admin::MerchantAccountData
 impl From<api_models::admin::MerchantAccountData> for MerchantAccountData {
     fn from(from: api_models::admin::MerchantAccountData) -> Self {
         match from {
-            api_models::admin::MerchantAccountData::Iban { iban, name } => {
-                Self::Iban { iban, name }
-            }
+            api_models::admin::MerchantAccountData::Iban {
+                iban,
+                name,
+                connector_recipient_id,
+            } => Self::Iban {
+                iban,
+                name,
+                connector_recipient_id: if let Some(conn) = connector_recipient_id {
+                    Some(RecipientIdType::from(conn))
+                } else {
+                    None
+                },
+            },
             api_models::admin::MerchantAccountData::Bacs {
                 account_number,
                 sort_code,
                 name,
+                connector_recipient_id,
             } => Self::Bacs {
                 account_number,
                 sort_code,
                 name,
+                connector_recipient_id: if let Some(conn) = connector_recipient_id {
+                    Some(RecipientIdType::from(conn))
+                } else {
+                    None
+                },
             },
         }
     }
@@ -1204,7 +1324,7 @@ impl From<api_models::admin::MerchantAccountData> for MerchantAccountData {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MerchantRecipientData {
-    RecipientId(Secret<String>),
+    ConnectorRecipientId(Secret<String>),
     WalletId(Secret<String>),
     AccountData(MerchantAccountData),
 }
@@ -1212,7 +1332,7 @@ pub enum MerchantRecipientData {
 impl ForeignFrom<MerchantRecipientData> for api_models::admin::MerchantRecipientData {
     fn foreign_from(value: MerchantRecipientData) -> Self {
         match value {
-            MerchantRecipientData::RecipientId(id) => Self::RecipientId(id),
+            MerchantRecipientData::ConnectorRecipientId(id) => Self::ConnectorRecipientId(id),
             MerchantRecipientData::WalletId(id) => Self::WalletId(id),
             MerchantRecipientData::AccountData(data) => {
                 Self::AccountData(api_models::admin::MerchantAccountData::foreign_from(data))
@@ -1224,7 +1344,9 @@ impl ForeignFrom<MerchantRecipientData> for api_models::admin::MerchantRecipient
 impl From<api_models::admin::MerchantRecipientData> for MerchantRecipientData {
     fn from(value: api_models::admin::MerchantRecipientData) -> Self {
         match value {
-            api_models::admin::MerchantRecipientData::RecipientId(id) => Self::RecipientId(id),
+            api_models::admin::MerchantRecipientData::ConnectorRecipientId(id) => {
+                Self::ConnectorRecipientId(id)
+            }
             api_models::admin::MerchantRecipientData::WalletId(id) => Self::WalletId(id),
             api_models::admin::MerchantRecipientData::AccountData(data) => {
                 Self::AccountData(data.into())
@@ -1262,7 +1384,6 @@ pub enum ConnectorAuthType {
     OpenBankingAuth {
         api_key: Secret<String>,
         key1: Secret<String>,
-        #[serde(skip_serializing)]
         merchant_data: MerchantRecipientData,
     },
     #[default]

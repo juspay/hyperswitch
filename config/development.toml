@@ -597,5 +597,5 @@ payment_attempts = "hyperswitch-payment-attempt-events"
 payment_intents = "hyperswitch-payment-intent-events"
 refunds = "hyperswitch-refund-events"
 
-[locker_open_banking_connectors]
+[locker_based_open_banking_connectors]
 connector_list = []

@@ -2036,7 +2036,7 @@ async fn process_open_banking_connectors(
                     let connector_name = api_enums::Connector::to_string(connector);
 
                     let locker_based_connector_list =
-                        state.conf.locker_open_banking_connectors.clone();
+                        state.conf.locker_based_open_banking_connectors.clone();
                     let contains = locker_based_connector_list
                         .connector_list
                         .get(connector_name.as_str());
@@ -2060,12 +2060,39 @@ async fn process_open_banking_connectors(
                     //     Secret::new(recipient_id),
                     // );
 
+                    let conn_recipient_id = if let Some(_con) = contains {
+                        Some(types::RecipientIdType::LockerId(Secret::new(recipient_id)))
+                    } else {
+                        Some(types::RecipientIdType::ConnectorId(Secret::new(
+                            recipient_id,
+                        )))
+                    };
+
+                    let account_data = match &acc_data {
+                        types::MerchantAccountData::Iban { iban, name, .. } => {
+                            types::MerchantAccountData::Iban {
+                                iban: iban.clone(),
+                                name: name.clone(),
+                                connector_recipient_id: conn_recipient_id.clone(),
+                            }
+                        }
+                        types::MerchantAccountData::Bacs {
+                            account_number,
+                            sort_code,
+                            name,
+                            ..
+                        } => types::MerchantAccountData::Bacs {
+                            account_number: account_number.clone(),
+                            sort_code: sort_code.clone(),
+                            name: name.clone(),
+                            connector_recipient_id: conn_recipient_id.clone(),
+                        },
+                    };
+
                     types::ConnectorAuthType::OpenBankingAuth {
                         api_key: api_key.clone(),
                         key1: key1.clone(),
-                        merchant_data: types::MerchantRecipientData::RecipientId(Secret::new(
-                            recipient_id,
-                        )),
+                        merchant_data: types::MerchantRecipientData::AccountData(account_data),
                     }
                 }
                 _ => auth.clone(),
@@ -2182,15 +2209,18 @@ async fn connector_recipient_create_call(
     > = connector.connector.get_connector_integration();
 
     let req = match data {
-        types::MerchantAccountData::Iban { iban, name } => pm_auth_types::RecipientCreateRequest {
-            name: name.clone(),
-            account_data: pm_auth_types::RecipientAccountData::Iban(iban.clone()),
-            address: None,
-        },
+        types::MerchantAccountData::Iban { iban, name, .. } => {
+            pm_auth_types::RecipientCreateRequest {
+                name: name.clone(),
+                account_data: pm_auth_types::RecipientAccountData::Iban(iban.clone()),
+                address: None,
+            }
+        }
         types::MerchantAccountData::Bacs {
             account_number,
             sort_code,
             name,
+            ..
         } => pm_auth_types::RecipientCreateRequest {
             name: name.clone(),
             account_data: pm_auth_types::RecipientAccountData::Bacs {
