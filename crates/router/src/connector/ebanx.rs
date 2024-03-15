@@ -75,7 +75,7 @@ impl ConnectorCommon for Ebanx {
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        api::CurrencyUnit::Base 
+        api::CurrencyUnit::Base
     }
 
     fn common_get_content_type(&self) -> &'static str {

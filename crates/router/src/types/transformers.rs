@@ -932,6 +932,7 @@ impl ForeignFrom<api_models::payouts::Bank> for api_enums::PaymentMethodType {
             api_models::payouts::Bank::Ach(_) => Self::Ach,
             api_models::payouts::Bank::Bacs(_) => Self::Bacs,
             api_models::payouts::Bank::Sepa(_) => Self::Sepa,
+            api_models::payouts::Bank::Pix(_) => Self::Pix,
         }
     }
 }
