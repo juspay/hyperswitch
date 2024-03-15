@@ -193,3 +193,8 @@ api_secret = "Secret key"
 [placetopay]
 api_key= "Login"
 key1= "Trankey"
+
+
+[threedsecureio]
+api_key="API Key"
+

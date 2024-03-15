@@ -16,6 +16,7 @@ use crate::{
     routes::AppState,
     services,
     types::{
+        self as core_types,
         api::{self, PaymentIdTypeExt},
         domain,
         storage::{self, enums, payment_attempt::PaymentAttemptExt},
@@ -200,16 +201,17 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             mandate_id: None,
             mandate_connector: None,
             setup_mandate: None,
+            customer_acceptance: None,
             token: None,
-            address: payments::PaymentAddress {
-                shipping: shipping_address.as_ref().map(|a| a.into()),
-                billing: billing_address.as_ref().map(|a| a.into()),
-                payment_method_billing: payment_method_billing
-                    .as_ref()
-                    .map(|address| address.into()),
-            },
+            token_data: None,
+            address: core_types::PaymentAddress::new(
+                shipping_address.as_ref().map(From::from),
+                billing_address.as_ref().map(From::from),
+                payment_method_billing.as_ref().map(From::from),
+            ),
             confirm: None,
             payment_method_data: None,
+            payment_method_info: None,
             refunds: vec![],
             disputes: vec![],
             attempts: None,
@@ -228,6 +230,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             incremental_authorization_details: None,
             authorizations: vec![],
             frm_metadata: None,
+            authentication: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

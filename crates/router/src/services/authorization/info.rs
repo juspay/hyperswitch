@@ -187,7 +187,7 @@ fn get_group_description(group: PermissionGroup) -> &'static str {
             "View Payments, Refunds, Mandates, Disputes and Customers"
         }
         PermissionGroup::OperationsManage => {
-            "Create,modify and delete Payments, Refunds, Mandates, Disputes and Customers"
+            "Create, modify and delete Payments, Refunds, Mandates, Disputes and Customers"
         }
         PermissionGroup::ConnectorsView => {
             "View connected Payment Processors, Payout Processors and Fraud & Risk Manager details"

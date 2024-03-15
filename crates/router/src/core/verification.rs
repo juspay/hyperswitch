@@ -46,7 +46,12 @@ pub async fn verify_merchant_creds_for_applepay(
         .add_certificate_key(Some(key_data))
         .build();
 
-    let response = services::call_connector_api(&state, apple_pay_merch_verification_req).await;
+    let response = services::call_connector_api(
+        &state,
+        apple_pay_merch_verification_req,
+        "verify_merchant_creds_for_applepay",
+    )
+    .await;
     utils::log_applepay_verification_response_if_error(&response);
 
     let applepay_response =

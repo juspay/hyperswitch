@@ -33,6 +33,7 @@ use crate::{
     db::{
         address::AddressInterface,
         api_keys::ApiKeyInterface,
+        authentication::AuthenticationInterface,
         authorization::AuthorizationInterface,
         business_profile::BusinessProfileInterface,
         capture::CaptureInterface,
@@ -482,24 +483,33 @@ impl EphemeralKeyInterface for KafkaStore {
 impl EventInterface for KafkaStore {
     async fn insert_event(
         &self,
-        event: storage::EventNew,
-    ) -> CustomResult<storage::Event, errors::StorageError> {
-        self.diesel_store.insert_event(event).await
+        event: domain::Event,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<domain::Event, errors::StorageError> {
+        self.diesel_store
+            .insert_event(event, merchant_key_store)
+            .await
     }
 
     async fn find_event_by_event_id(
         &self,
         event_id: &str,
-    ) -> CustomResult<storage::Event, errors::StorageError> {
-        self.diesel_store.find_event_by_event_id(event_id).await
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<domain::Event, errors::StorageError> {
+        self.diesel_store
+            .find_event_by_event_id(event_id, merchant_key_store)
+            .await
     }
 
     async fn update_event(
         &self,
         event_id: String,
-        event: storage::EventUpdate,
-    ) -> CustomResult<storage::Event, errors::StorageError> {
-        self.diesel_store.update_event(event_id, event).await
+        event: domain::EventUpdate,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<domain::Event, errors::StorageError> {
+        self.diesel_store
+            .update_event(event_id, event, merchant_key_store)
+            .await
     }
 }
 
@@ -1294,6 +1304,21 @@ impl PaymentMethodInterface for KafkaStore {
                 merchant_id,
                 status,
                 limit,
+            )
+            .await
+    }
+
+    async fn get_payment_method_count_by_customer_id_merchant_id_status(
+        &self,
+        customer_id: &str,
+        merchant_id: &str,
+        status: common_enums::PaymentMethodStatus,
+    ) -> CustomResult<i64, errors::StorageError> {
+        self.diesel_store
+            .get_payment_method_count_by_customer_id_merchant_id_status(
+                customer_id,
+                merchant_id,
+                status,
             )
             .await
     }
@@ -2342,6 +2367,41 @@ impl AuthorizationInterface for KafkaStore {
                 merchant_id,
                 authorization_id,
                 authorization,
+            )
+            .await
+    }
+}
+
+#[async_trait::async_trait]
+impl AuthenticationInterface for KafkaStore {
+    async fn insert_authentication(
+        &self,
+        authentication: storage::AuthenticationNew,
+    ) -> CustomResult<storage::Authentication, errors::StorageError> {
+        self.diesel_store
+            .insert_authentication(authentication)
+            .await
+    }
+
+    async fn find_authentication_by_merchant_id_authentication_id(
+        &self,
+        merchant_id: String,
+        authentication_id: String,
+    ) -> CustomResult<storage::Authentication, errors::StorageError> {
+        self.diesel_store
+            .find_authentication_by_merchant_id_authentication_id(merchant_id, authentication_id)
+            .await
+    }
+
+    async fn update_authentication_by_merchant_id_authentication_id(
+        &self,
+        previous_state: storage::Authentication,
+        authentication_update: storage::AuthenticationUpdate,
+    ) -> CustomResult<storage::Authentication, errors::StorageError> {
+        self.diesel_store
+            .update_authentication_by_merchant_id_authentication_id(
+                previous_state,
+                authentication_update,
             )
             .await
     }
