@@ -1,0 +1,15 @@
+[package]
+name = "events"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+error-stack = "0.4.1"
+masking = { version = "0.1.0", path = "../masking" }
+serde_json = "1.0.114"
+thiserror = "1.0.58"
+time = "0.3.34"
