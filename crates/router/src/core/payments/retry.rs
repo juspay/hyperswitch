@@ -341,6 +341,13 @@ where
     );
 
     let db = &*state.store;
+    let additional_payment_method_data =
+        payments::helpers::update_additional_payment_data_with_connector_response_pm_data(
+            payment_data.payment_attempt.payment_method_data.clone(),
+            router_data
+                .connector_response
+                .and_then(|connector_response| connector_response.additional_payment_method_data),
+        )?;
 
     match router_data.response {
         Ok(types::PaymentsResponseData::TransactionResponse {
@@ -357,16 +364,6 @@ where
                 .transpose()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Could not parse the connector response")?;
-
-            let additional_payment_method_data =
-                payments::helpers::update_additional_payment_data_with_connector_response_pm_data(
-                    payment_data.payment_attempt.payment_method_data.clone(),
-                    router_data
-                        .connector_response
-                        .and_then(|connector_response| {
-                            connector_response.additional_payment_method_data
-                        }),
-                )?;
 
             db.update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt.clone(),
@@ -416,16 +413,6 @@ where
         }
         Err(ref error_response) => {
             let option_gsm = get_gsm(state, &router_data).await?;
-
-            let additional_payment_method_data =
-                payments::helpers::update_additional_payment_data_with_connector_response_pm_data(
-                    payment_data.payment_attempt.payment_method_data.clone(),
-                    router_data
-                        .connector_response
-                        .and_then(|connector_response| {
-                            connector_response.additional_payment_method_data
-                        }),
-                )?;
 
             db.update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt.clone(),
