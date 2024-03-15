@@ -5,7 +5,7 @@ import State from "../../utils/State";
 
 let globalState;
 
-describe.skip("Card - ThreeDS payment flow test", () => {  
+describe("Card - ThreeDS payment flow test", () => {  
 
   before("seed global state",  () => {
     

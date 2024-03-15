@@ -83,15 +83,3 @@ describe("Connector Account Create flow test", () => {
     // }
   });
 });
-
-// function getValueByKey(jsonObject, key) {
-//   // Convert the input JSON string to a JavaScript object if it's a string
-//   const data = typeof jsonObject === 'string' ? JSON.parse(jsonObject) : jsonObject;
-
-//   // Check if the key exists in the object
-//   if (data && typeof data === 'object' && key in data) {
-//     return data[key];
-//   } else {
-//     return null; // Key not found
-//   }
-// }

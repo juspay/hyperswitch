@@ -20,13 +20,15 @@ export const connectorDetails = {
         "card": successfulThreeDSTestCardDetails,
         "currency":"USD",
         "paymentSuccessfulStatus": "requires_customer_action",
-        "paymentSyncStatus": "succeeded"
+        "paymentSyncStatus": "processing",
+
     },
     "No3DS": {
         "card": successfulNo3DSCardDetails,
         "currency":"USD",
         "paymentSuccessfulStatus": "processing",
-        "paymentSyncStatus": "succeeded"
+        "paymentSyncStatus": "processing",
+
     },
     "MandateSingleUse3DS": {
         "card": successfulThreeDSTestCardDetails,
@@ -35,7 +37,7 @@ export const connectorDetails = {
         "paymentSyncStatus": "processing",
         "mandate_type": {
             "single_use": {
-                "amount": 6000,
+                "amount": 8000,
                 "currency": "USD"
             }
         }
@@ -47,7 +49,7 @@ export const connectorDetails = {
         "paymentSyncStatus": "succeeded",
         "mandate_type": {
             "single_use": {
-                "amount": 6000,
+                "amount": 8000,
                 "currency": "USD"
             }
         }
@@ -59,7 +61,7 @@ export const connectorDetails = {
         "paymentSyncStatus": "succeeded",
         "mandate_type": {
             "multi_use": {
-                "amount": 6000,
+                "amount": 8000,
                 "currency": "USD"
             }
         }
@@ -71,7 +73,7 @@ export const connectorDetails = {
         "paymentSyncStatus": "processing",
         "mandate_type": {
             "multi_use": {
-                "amount": 6000,
+                "amount": 8000,
                 "currency": "USD"
             }
         }

@@ -1,7 +1,7 @@
 {
     "payment_id": "payment_id",
     "amount": 100,
-    "reason": "Customer returned product",
+    "reason": "FRAUD",
     "refund_type": "instant",
     "metadata": {
         "udf1": "value1",

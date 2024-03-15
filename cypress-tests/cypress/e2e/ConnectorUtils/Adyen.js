@@ -19,20 +19,26 @@ export const connectorDetails = {
     "3DS": {
         "card": successfulThreeDSTestCardDetails,
         "currency":"USD",
-        "successfulStates": "requires_customer_action",
-        "successfulSyncStates": "processing"
+        "paymentSuccessfulStatus": "requires_customer_action",
+        "paymentSyncStatus": "succeeded",
+        "refundStatus": "pending",
+        "refundSyncStatus": "pending"
     },
     "No3DS": {
         "card": successfulNo3DSCardDetails,
         "currency":"USD",
-        "successfulStates": "processing",
-        "successfulSyncStates": "succeeded"
+        "paymentSuccessfulStatus": "succeeded",
+        "paymentSyncStatus": "succeeded",
+        "refundStatus": "pending",
+        "refundSyncStatus": "pending"
     },
     "MandateSingleUse3DS": {
         "card": successfulThreeDSTestCardDetails,
         "currency":"USD",
-        "successfulStates": "requires_customer_action",
-        "successfulSyncStates": "processing",
+        "paymentSuccessfulStatus": "requires_customer_action",
+        "paymentSyncStatus": "processing",
+        "refundStatus": "pending",
+        "refundSyncStatus": "pending",
         "mandate_type": {
             "single_use": {
                 "amount": 6000,
@@ -43,8 +49,10 @@ export const connectorDetails = {
     "MandateSingleUseNo3DS": {
         "card": successfulNo3DSCardDetails,
         "currency":"USD",
-        "successfulStates": "succeeded",
-        "successfulSyncStates": "succeeded",
+        "paymentSuccessfulStatus": "succeeded",
+        "paymentSyncStatus": "succeeded",
+        "refundStatus": "pending",
+        "refundSyncStatus": "pending",
         "mandate_type": {
             "single_use": {
                 "amount": 6000,
@@ -55,8 +63,10 @@ export const connectorDetails = {
     "MandateMultiUseNo3DS": {
         "card": successfulNo3DSCardDetails,
         "currency":"USD",
-        "successfulStates": "succeeded",
-        "successfulSyncStates": "succeeded",
+        "paymentSuccessfulStatus": "succeeded",
+        "paymentSyncStatus": "succeeded",
+        "refundStatus": "pending",
+        "refundSyncStatus": "pending",
         "mandate_type": {
             "multi_use": {
                 "amount": 6000,
@@ -67,8 +77,10 @@ export const connectorDetails = {
     "MandateMultiUse3DS": {
         "card": successfulThreeDSTestCardDetails,
         "currency":"USD",
-        "successfulStates": "requires_customer_action",
-        "successfulSyncStates": "processing",
+        "paymentSuccessfulStatus": "requires_customer_action",
+        "paymentSyncStatus": "processing",
+        "refundStatus": "pending",
+        "refundSyncStatus": "pending",
         "mandate_type": {
             "multi_use": {
                 "amount": 6000,

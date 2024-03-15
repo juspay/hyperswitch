@@ -45,7 +45,8 @@ describe("Card - Refund flow test", () => {
         });
 
         it("refund-call-test", () => {
-            cy.refundCallTest(refundBody, 6500, globalState);
+            let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
+            cy.refundCallTest(refundBody, 6500, det, globalState);
         });
     });
 
@@ -72,11 +73,13 @@ describe("Card - Refund flow test", () => {
         });
 
         it("refund-call-test", () => {
-            cy.refundCallTest(refundBody, 1200, globalState);
+            let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
+            cy.refundCallTest(refundBody, 1200, det, globalState);
         });
 
         it("refund-call-test", () => {
-            cy.refundCallTest(refundBody, 1200, globalState);
+            let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
+            cy.refundCallTest(refundBody, 1200, det, globalState);
         });
     });
 

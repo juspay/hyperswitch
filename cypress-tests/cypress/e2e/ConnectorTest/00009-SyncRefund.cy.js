@@ -43,11 +43,13 @@ describe("Card - Sync Refund flow test", () => {
     });
 
     it("refund-call-test", () => {
-        cy.refundCallTest(refundBody, 6500, globalState);
+        let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
+        cy.refundCallTest(refundBody, 6500, det, globalState);
     });
 
     it("sync-refund-call-test", () => {
-        cy.syncRefundCallTest(globalState);
+        let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
+        cy.syncRefundCallTest(det, globalState);
     });
 
 });

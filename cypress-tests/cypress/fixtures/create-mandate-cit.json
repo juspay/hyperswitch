@@ -36,7 +36,7 @@
     },
     "mandate_type": {
       "single_use": {
-        "amount": 6540,
+        "amount": 8000,
         "currency": "USD"
       }
     }
@@ -73,5 +73,17 @@
     "udf1": "value1",
     "new_customer": "true",
     "login_date": "2019-09-10T10:11:12Z"
+  },
+  "browser_info": {
+    "ip_address": "129.0.0.1",
+    "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "accept_header": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+    "language": "en-US",
+    "color_depth": 30,
+    "screen_height": 1117,
+    "screen_width": 1728,
+    "time_zone": -330,
+    "java_enabled": true,
+    "java_script_enabled": true
   }
 }

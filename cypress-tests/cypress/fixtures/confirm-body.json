@@ -23,7 +23,11 @@
         "first_name": "Arun",
         "last_name": "MishraArunMishra",
         "zip": "10001",
-        "line1": "123 Main Street Apt 4B"
+        "line1": "123 Main Street Apt 4B",
+        "line2": "123 Main Street Apt 4B",
+        "line3": "123 Main Street Apt 4B"
+
+
       }
     },
     "email": "hyperswitch_sdk_demo_id@gmail.com",

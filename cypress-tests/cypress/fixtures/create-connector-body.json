@@ -18,8 +18,15 @@
                 {
                     "payment_method_type": "credit",
                     "card_networks": [
+                        "AmericanExpress",
+                        "Discover",
+                        "Interac",
+                        "JCB",
+                        "Mastercard",
                         "Visa",
-                        "Mastercard"
+                        "DinersClub",
+                        "UnionPay",
+                        "RuPay"
                     ],
                     "minimum_amount": 1,
                     "maximum_amount": 68607706,
@@ -29,8 +36,15 @@
                 {
                     "payment_method_type": "debit",
                     "card_networks": [
+                        "AmericanExpress",
+                        "Discover",
+                        "Interac",
+                        "JCB",
+                        "Mastercard",
                         "Visa",
-                        "Mastercard"
+                        "DinersClub",
+                        "UnionPay",
+                        "RuPay"
                     ],
                     "minimum_amount": 1,
                     "maximum_amount": 68607706,
@@ -42,6 +56,7 @@
     ],
     "metadata": {
         "city": "NY",
-        "unit": "245"
+        "unit": "245",
+        "endpoint_prefix":"AD"
     }
 }

@@ -50,7 +50,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
             it("capture-call-test", () => {
                 let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
                 console.log("det -> " + det.card);
-                cy.captureCallTest(captureBody, 6500, det.successfulStates, globalState);
+                cy.captureCallTest(captureBody, 6500, det.paymentSuccessfulStatus, globalState);
             });
 
             it("retrieve-payment-call-test", () => {
@@ -74,7 +74,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
             it("capture-call-test", () => {
                 let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
                 console.log("det -> " + det.card);
-                cy.captureCallTest(captureBody, 6540, det.successfulStates, globalState);
+                cy.captureCallTest(captureBody, 6540, det.paymentSuccessfulStatus, globalState);
             });
 
             it("retrieve-payment-call-test", () => {
@@ -111,7 +111,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
 
             it("capture-call-test", () => {
                 let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
-                cy.captureCallTest(captureBody, 100, det.successfulStates, globalState);
+                cy.captureCallTest(captureBody, 100, det.paymentSuccessfulStatus, globalState);
             });
 
             it("retrieve-payment-call-test", () => {
@@ -134,7 +134,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
             it("capture-call-test", () => {
                 let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
                 console.log("det -> " + det.card);
-                cy.captureCallTest(captureBody, 5000, det.successfulStates, globalState);
+                cy.captureCallTest(captureBody, 5000, det.paymentSuccessfulStatus, globalState);
             });
 
             it("retrieve-payment-call-test", () => {
