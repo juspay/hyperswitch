@@ -36,10 +36,6 @@ pub async fn msearch_results(
     req: GetGlobalSearchRequest,
     merchant_id: &String,
 ) -> CustomResult<Vec<GetSearchResponse>, AnalyticsError> {
-    // let client = get_opensearch_client(config.clone())
-    //     .await
-    //     .map_err(|_| AnalyticsError::UnknownError)?;
-
     let mut msearch_vector: Vec<JsonBody<Value>> = vec![];
     for index in SearchIndex::iter() {
         msearch_vector

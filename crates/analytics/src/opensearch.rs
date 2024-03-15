@@ -1,9 +1,12 @@
+use super::health_check::HealthCheck;
+use api_models::analytics::search::SearchIndex;
 use aws_config::{self, meta::region::RegionProviderChain, Region};
 use common_utils::errors::CustomResult;
 use data_models::errors::{StorageError, StorageResult};
 use opensearch::{
     auth::Credentials,
     cert::CertificateValidation,
+    cluster::{Cluster, ClusterHealthParts},
     http::{
         request::JsonBody,
         transport::{SingleNodeConnectionPool, TransportBuilder},
@@ -65,44 +68,42 @@ impl Default for OpenSearchConfig {
 #[derive(Clone, Debug)]
 pub struct OpenSearchClient {
     pub client: OpenSearch,
+    pub cluster: Cluster,
     pub indexes: OpenSearchIndexes,
 }
 
 #[allow(unused)]
 impl OpenSearchClient {
     pub async fn create(conf: &OpenSearchConfig) -> CustomResult<Self, OpenSearchError> {
+        let url = Url::parse(&conf.host).map_err(|_| OpenSearchError::ConnectionError)?;
+        let transport = match &conf.auth {
+            OpenSearchAuth::Basic { username, password } => {
+                let credentials = Credentials::Basic(username.clone(), password.clone());
+                TransportBuilder::new(SingleNodeConnectionPool::new(url))
+                    .cert_validation(CertificateValidation::None)
+                    .auth(credentials)
+                    .build()
+                    .map_err(|_| OpenSearchError::ConnectionError)?
+            }
+            OpenSearchAuth::Aws { region } => {
+                let region_provider = RegionProviderChain::first_try(Region::new(region.clone()));
+                let sdk_config = aws_config::from_env().region(region_provider).load().await;
+                let conn_pool = SingleNodeConnectionPool::new(url);
+                TransportBuilder::new(conn_pool)
+                    .auth(
+                        sdk_config
+                            .clone()
+                            .try_into()
+                            .map_err(|_| OpenSearchError::ConnectionError)?,
+                    )
+                    .service_name("es")
+                    .build()
+                    .map_err(|_| OpenSearchError::ConnectionError)?
+            }
+        };
         Ok(Self {
-            client: {
-                let url = Url::parse(&conf.host).map_err(|_| OpenSearchError::ConnectionError)?;
-                let transport = match &conf.auth {
-                    OpenSearchAuth::Basic { username, password } => {
-                        let credentials = Credentials::Basic(username.clone(), password.clone());
-                        TransportBuilder::new(SingleNodeConnectionPool::new(url))
-                            .cert_validation(CertificateValidation::None)
-                            .auth(credentials)
-                            .build()
-                            .map_err(|_| OpenSearchError::ConnectionError)?
-                    }
-                    OpenSearchAuth::Aws { region } => {
-                        let region_provider =
-                            RegionProviderChain::first_try(Region::new(region.clone()));
-                        let sdk_config =
-                            aws_config::from_env().region(region_provider).load().await;
-                        let conn_pool = SingleNodeConnectionPool::new(url);
-                        TransportBuilder::new(conn_pool)
-                            .auth(
-                                sdk_config
-                                    .clone()
-                                    .try_into()
-                                    .map_err(|_| OpenSearchError::ConnectionError)?,
-                            )
-                            .service_name("es")
-                            .build()
-                            .map_err(|_| OpenSearchError::ConnectionError)?
-                    }
-                };
-                OpenSearch::new(transport)
-            },
+            client: OpenSearch::new(transport),
+            cluster: Cluster::new(&transport),
             indexes: conf.indexes.clone(),
         })
     }
@@ -110,17 +111,22 @@ impl OpenSearchClient {
     // pub async fn execute(&self) -> CustomResult<Self, OpenSearchError> {}
 }
 
-// #[async_trait::async_trait]
-// impl HealthCheck for OpenSearchClient {
-//     async fn deep_health_check(&self) -> CustomResult<(), OpenSearchError> {
-//         sqlx::query("SELECT 1")
-//             .fetch_all(&self.pool)
-//             .await
-//             .map(|_| ())
-//             .into_report()
-//             .change_context(OpenSearchError::ConnectionError)
-//     }
-// }
+#[async_trait::async_trait]
+impl HealthCheck for OpenSearchClient {
+    async fn deep_health_check(&self) -> CustomResult<(), OpenSearchError> {
+        self.cluster
+            .health(ClusterHealthParts::None)
+            .send()
+            .await
+            .map_err(|_| OpenSearchError::ConnectionError)?
+            .json::<OpenSearchHealth>()
+            .await
+            .into_report()
+            .change_context(OpenSearchError::ConnectionError);
+
+        Ok(())
+    }
+}
 
 impl OpenSearchIndexes {
     pub fn validate(&self) -> Result<(), ApplicationError> {
@@ -202,4 +208,25 @@ impl OpenSearchConfig {
 
         Ok(())
     }
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct OpenSearchHealth {
+    pub status: String,
+}
+
+pub enum OpenSearchQuery {
+    Msearch,
+    Search(SearchIndex),
+    HealthCheck,
+}
+
+#[derive(Debug)]
+pub struct OpenSearchQueryBuilder {
+    pub query: Option<String>,
+    pub offset: i64,
+    pub count: i64,
+    query_type: OpenSearchQuery,
+    distinct: bool,
+    merchant_id: TableEngine,
 }
