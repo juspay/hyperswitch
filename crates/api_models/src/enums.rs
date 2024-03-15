@@ -88,7 +88,7 @@ pub enum Connector {
     Cryptopay,
     Cybersource,
     Dlocal,
-    // Ebanx,
+    Ebanx,
     Fiserv,
     Forte,
     Globalpay,
@@ -174,6 +174,7 @@ impl Connector {
             | Self::Coinbase
             | Self::Cryptopay
             | Self::Dlocal
+            | Self::Ebanx
             | Self::Fiserv
             | Self::Forte
             | Self::Globalpay
