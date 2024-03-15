@@ -1290,7 +1290,19 @@ pub trait GetAddressFromPaymentMethodData {
 impl GetAddressFromPaymentMethodData for PaymentMethodData {
     fn get_billing_address(&self) -> Option<Address> {
         match self {
-            Self::Card(_) => None,
+            Self::Card(card_data) => {
+                card_data
+                    .card_holder_name
+                    .as_ref()
+                    .map(|card_holder_name| Address {
+                        address: Some(AddressDetails {
+                            first_name: Some(card_holder_name.clone()),
+                            ..AddressDetails::default()
+                        }),
+                        email: None,
+                        phone: None,
+                    })
+            }
             Self::CardRedirect(_) => None,
             Self::Wallet(wallet_data) => wallet_data.get_billing_address(),
             Self::PayLater(pay_later_data) => pay_later_data.get_billing_address(),
@@ -4539,13 +4551,12 @@ mod payments_request_api_contract {
 #[cfg(test)]
 mod billing_from_payment_method_data {
     #![allow(clippy::unwrap_used)]
+    use super::*;
 
     use common_enums::CountryAlpha2;
 
-    use super::*;
-
-    #[allow(dead_code)]
     const TEST_COUNTRY: CountryAlpha2 = CountryAlpha2::US;
+    const TEST_FIRST_NAME: &str = "John";
 
     #[test]
     fn test_wallet_payment_method_data_paypal() {
@@ -4649,5 +4660,29 @@ mod billing_from_payment_method_data {
         assert_eq!(billing_address.email.unwrap(), test_email);
         assert_eq!(address_details.first_name.unwrap(), test_first_name);
         assert!(billing_address.phone.is_none());
+    }
+
+    #[test]
+    fn test_card_payment_method_data() {
+        let card_payment_method_data = PaymentMethodData::Card(Card {
+            card_holder_name: Some(Secret::new(TEST_FIRST_NAME.into())),
+            ..Default::default()
+        });
+
+        let billing_address = card_payment_method_data.get_billing_address().unwrap();
+
+        assert_eq!(
+            billing_address.address.unwrap().first_name.unwrap(),
+            Secret::new(TEST_FIRST_NAME.into())
+        );
+    }
+
+    #[test]
+    fn test_card_payment_method_data_empty() {
+        let card_payment_method_data = PaymentMethodData::Card(Card::default());
+
+        let billing_address = card_payment_method_data.get_billing_address();
+
+        assert!(billing_address.is_none());
     }
 }
