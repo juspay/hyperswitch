@@ -63,7 +63,7 @@ impl ConnectorCommon for Stripe {
             ),
             (
                 auth_headers::STRIPE_API_VERSION.to_string(),
-                "2023-10-16".to_string().into_masked(),
+                auth_headers::STRIPE_VERSION.to_string().into_masked(),
             ),
         ])
     }
