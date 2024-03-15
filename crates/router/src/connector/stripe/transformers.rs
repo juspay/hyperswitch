@@ -117,7 +117,7 @@ pub struct PaymentIntentRequest {
     pub setup_mandate_details: Option<StripeMandateRequest>,
     pub description: Option<String>,
     #[serde(flatten)]
-    pub shipping: StripeShippingAddress,
+    pub shipping: Option<StripeShippingAddress>,
     #[serde(flatten)]
     pub billing: StripeBillingAddress,
     #[serde(flatten)]
@@ -882,25 +882,33 @@ impl TryFrom<&api_models::enums::BankNames> for StripeBankNames {
 }
 
 fn validate_shipping_address_against_payment_method(
-    shipping_address: &StripeShippingAddress,
+    shipping_address: &Option<StripeShippingAddress>,
     payment_method: Option<&StripePaymentMethodType>,
 ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
-    if let Some(StripePaymentMethodType::AfterpayClearpay) = payment_method {
-        let missing_fields = collect_missing_value_keys!(
-            ("shipping.address.line1", shipping_address.line1),
-            ("shipping.address.country", shipping_address.country),
-            ("shipping.address.zip", shipping_address.zip)
-        );
+    match payment_method {
+        Some(StripePaymentMethodType::AfterpayClearpay) => match shipping_address {
+            Some(address) => {
+                let missing_fields = collect_missing_value_keys!(
+                    ("shipping.address.line1", address.line1),
+                    ("shipping.address.country", address.country),
+                    ("shipping.address.zip", address.zip)
+                );
 
-        if !missing_fields.is_empty() {
-            return Err(errors::ConnectorError::MissingRequiredFields {
-                field_names: missing_fields,
+                if !missing_fields.is_empty() {
+                    return Err(errors::ConnectorError::MissingRequiredFields {
+                        field_names: missing_fields,
+                    })
+                    .into_report();
+                }
+                Ok(())
+            }
+            None => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "shipping.address",
             })
-            .into_report();
-        }
+            .into_report(),
+        },
+        _ => Ok(()),
     }
-
-    Ok(())
 }
 
 impl TryFrom<&api_models::payments::PayLaterData> for StripePaymentMethodType {
@@ -1716,7 +1724,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
         let shipping_address = match item.get_optional_shipping() {
             Some(shipping_details) => {
                 let shipping_address = shipping_details.address.as_ref();
-                StripeShippingAddress {
+                Some(StripeShippingAddress {
                     city: shipping_address.and_then(|a| a.city.clone()),
                     country: shipping_address.and_then(|a| a.country),
                     line1: shipping_address.and_then(|a| a.line1.clone()),
@@ -1745,9 +1753,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                         )
                         .into()
                     }),
-                }
+                })
             }
-            None => StripeShippingAddress::default(),
+            None => None,
         };
 
         let billing_address = match item.get_optional_billing() {
