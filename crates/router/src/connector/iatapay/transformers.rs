@@ -63,10 +63,7 @@ impl<T>
 #[derive(Debug, Deserialize, Serialize)]
 pub struct IatapayAuthUpdateResponse {
     pub access_token: Secret<String>,
-    pub token_type: String,
     pub expires_in: i64,
-    pub scope: String,
-    pub jti: String,
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, IatapayAuthUpdateResponse, T, types::AccessToken>>
@@ -261,7 +258,7 @@ pub struct IatapayPaymentsResponse {
     pub status: IatapayPaymentStatus,
     pub iata_payment_id: Option<String>,
     pub iata_refund_id: Option<String>,
-    pub merchant_id: Option<String>,
+    pub merchant_id: Option<Secret<String>>,
     pub merchant_payment_id: Option<String>,
     pub amount: f64,
     pub currency: String,
@@ -428,7 +425,7 @@ pub struct RefundResponse {
     iata_payment_id: Option<String>,
     merchant_payment_id: Option<String>,
     payment_amount: Option<f64>,
-    merchant_id: Option<String>,
+    merchant_id: Option<Secret<String>>,
     account_country: Option<String>,
 }
 

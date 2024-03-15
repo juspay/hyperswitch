@@ -54,6 +54,8 @@ pub enum AnalyticsFlow {
     GetApiEventFilters,
     GetConnectorEvents,
     GetOutgoingWebhookEvents,
+    GetGlobalSearchResults,
+    GetSearchResults,
     GetDisputeFilters,
     GetDisputeMetrics,
 }

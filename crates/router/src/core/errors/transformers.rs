@@ -281,6 +281,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::CurrencyConversionFailed => {
                 AER::Unprocessable(ApiError::new("HE", 2, "Failed to convert currency to minor unit", None))
             }
+            Self::PaymentMethodDeleteFailed => {
+                AER::BadRequest(ApiError::new("IR", 25, "Cannot delete the default payment method", None))
+            }
         }
     }
 }

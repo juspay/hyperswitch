@@ -129,15 +129,53 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
                         api_models::payments::WalletData::PaypalSdk(wallet_data) => {
                             Ok(wallet_data.token.to_owned())
                         }
-                        _ => Err(errors::ConnectorError::InvalidWallet),
+                        api_models::payments::WalletData::ApplePay(_)
+                        | api_models::payments::WalletData::GooglePay(_)
+                        | api_models::payments::WalletData::SamsungPay(_)
+                        | api_models::payments::WalletData::AliPayQr(_)
+                        | api_models::payments::WalletData::AliPayRedirect(_)
+                        | api_models::payments::WalletData::AliPayHkRedirect(_)
+                        | api_models::payments::WalletData::MomoRedirect(_)
+                        | api_models::payments::WalletData::KakaoPayRedirect(_)
+                        | api_models::payments::WalletData::GoPayRedirect(_)
+                        | api_models::payments::WalletData::GcashRedirect(_)
+                        | api_models::payments::WalletData::ApplePayRedirect(_)
+                        | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
+                        | api_models::payments::WalletData::DanaRedirect {}
+                        | api_models::payments::WalletData::GooglePayRedirect(_)
+                        | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
+                        | api_models::payments::WalletData::MbWayRedirect(_)
+                        | api_models::payments::WalletData::MobilePayRedirect(_)
+                        | api_models::payments::WalletData::PaypalRedirect(_)
+                        | api_models::payments::WalletData::TwintRedirect {}
+                        | api_models::payments::WalletData::VippsRedirect {}
+                        | api_models::payments::WalletData::TouchNGoRedirect(_)
+                        | api_models::payments::WalletData::WeChatPayRedirect(_)
+                        | api_models::payments::WalletData::WeChatPayQr(_)
+                        | api_models::payments::WalletData::CashappQr(_)
+                        | api_models::payments::WalletData::SwishQr(_) => {
+                            Err(errors::ConnectorError::NotImplemented(
+                                utils::get_unimplemented_payment_method_error_message("braintree"),
+                            ))
+                        }
                     }?
                     .into(),
                 }))
             }
-            _ => Err(errors::ConnectorError::NotImplemented(format!(
-                "Current Payment Method - {:?}",
-                item.request.payment_method_data
-            ))),
+            api::PaymentMethodData::PayLater(_)
+            | api::PaymentMethodData::BankRedirect(_)
+            | api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::CardRedirect(_)
+            | api::PaymentMethodData::MandatePayment
+            | api::PaymentMethodData::Reward
+            | api::PaymentMethodData::Upi(_)
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("braintree"),
+            )),
         }?;
         let braintree_transaction_body = TransactionBody {
             amount,
@@ -211,7 +249,9 @@ impl From<BraintreePaymentStatus> for enums::AttemptStatus {
             | BraintreePaymentStatus::SettlementDeclined => Self::Failure,
             BraintreePaymentStatus::Authorized => Self::Authorized,
             BraintreePaymentStatus::Voided => Self::Voided,
-            _ => Self::Pending,
+            BraintreePaymentStatus::SubmittedForSettlement
+            | BraintreePaymentStatus::SettlementPending
+            | BraintreePaymentStatus::SettlementConfirmed => Self::Pending,
         }
     }
 }

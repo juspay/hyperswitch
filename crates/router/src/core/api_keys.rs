@@ -207,6 +207,8 @@ pub async fn add_api_key_expiry_task(
     let api_key_expiry_tracker = storage::ApiKeyExpiryTrackingData {
         key_id: api_key.key_id.clone(),
         merchant_id: api_key.merchant_id.clone(),
+        api_key_name: api_key.name.clone(),
+        prefix: api_key.prefix.clone(),
         // We need API key expiry too, because we need to decide on the schedule_time in
         // execute_workflow() where we won't be having access to the Api key object.
         api_key_expiry: api_key.expires_at,
@@ -369,6 +371,8 @@ pub async fn update_api_key_expiry_task(
     let updated_tracking_data = &storage::ApiKeyExpiryTrackingData {
         key_id: api_key.key_id.clone(),
         merchant_id: api_key.merchant_id.clone(),
+        api_key_name: api_key.name.clone(),
+        prefix: api_key.prefix.clone(),
         api_key_expiry: api_key.expires_at,
         expiry_reminder_days,
     };
