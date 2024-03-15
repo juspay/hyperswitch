@@ -3862,7 +3862,7 @@ mod test_validate_shipping_address_against_payment_method {
 
         //Act
         let result = validate_shipping_address_against_payment_method(
-            &stripe_shipping_address,
+            &Some(stripe_shipping_address),
             Some(payment_method),
         );
 
@@ -3884,7 +3884,7 @@ mod test_validate_shipping_address_against_payment_method {
 
         //Act
         let result = validate_shipping_address_against_payment_method(
-            &stripe_shipping_address,
+            &Some(stripe_shipping_address),
             Some(payment_method),
         );
 
@@ -3909,7 +3909,7 @@ mod test_validate_shipping_address_against_payment_method {
 
         //Act
         let result = validate_shipping_address_against_payment_method(
-            &stripe_shipping_address,
+            &Some(stripe_shipping_address),
             Some(payment_method),
         );
 
@@ -3933,7 +3933,7 @@ mod test_validate_shipping_address_against_payment_method {
 
         //Act
         let result = validate_shipping_address_against_payment_method(
-            &stripe_shipping_address,
+            &Some(stripe_shipping_address),
             Some(payment_method),
         );
 
@@ -3959,7 +3959,7 @@ mod test_validate_shipping_address_against_payment_method {
 
         //Act
         let result = validate_shipping_address_against_payment_method(
-            &stripe_shipping_address,
+            &Some(stripe_shipping_address),
             Some(payment_method),
         );
 
