@@ -28,6 +28,23 @@ impl Event {
         .await
     }
 
+    pub async fn list_by_merchant_id_initial_attempt_id(
+        conn: &PgPooledConn,
+        merchant_id: &str,
+        initial_attempt_id: &str,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::initial_attempt_id.eq(initial_attempt_id.to_owned())),
+            None,
+            None,
+            Some(dsl::created_at.desc()),
+        )
+        .await
+    }
+
     pub async fn update_by_merchant_id_event_id(
         conn: &PgPooledConn,
         merchant_id: &str,

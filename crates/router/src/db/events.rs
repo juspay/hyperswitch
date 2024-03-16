@@ -34,6 +34,13 @@ where
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Event, errors::StorageError>;
 
+    async fn list_events_by_merchant_id_initial_attempt_id(
+        &self,
+        merchant_id: &str,
+        initial_attempt_id: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
+
     async fn update_event_by_merchant_id_event_id(
         &self,
         merchant_id: &str,
@@ -80,6 +87,37 @@ impl EventInterface for Store {
             .convert(merchant_key_store.key.get_inner())
             .await
             .change_context(errors::StorageError::DecryptionError)
+    }
+
+    #[instrument(skip_all)]
+    async fn list_events_by_merchant_id_initial_attempt_id(
+        &self,
+        merchant_id: &str,
+        initial_attempt_id: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::Event::list_by_merchant_id_initial_attempt_id(
+            &conn,
+            merchant_id,
+            initial_attempt_id,
+        )
+        .await
+        .map_err(Into::into)
+        .into_report()
+        .async_and_then(|events| async {
+            let mut domain_events = Vec::with_capacity(events.len());
+            for event in events.into_iter() {
+                domain_events.push(
+                    event
+                        .convert(merchant_key_store.key.get_inner())
+                        .await
+                        .change_context(errors::StorageError::DecryptionError)?,
+                );
+            }
+            Ok(domain_events)
+        })
+        .await
     }
 
     #[instrument(skip_all)]
@@ -149,6 +187,34 @@ impl EventInterface for MockDb {
                 ))
                 .into(),
             )
+    }
+
+    async fn list_events_by_merchant_id_initial_attempt_id(
+        &self,
+        merchant_id: &str,
+        initial_attempt_id: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
+        let locked_events = self.events.lock().await;
+        let events = locked_events
+            .iter()
+            .filter(|event| {
+                event.merchant_id == Some(merchant_id.to_owned())
+                    && event.initial_attempt_id == Some(initial_attempt_id.to_owned())
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        let mut domain_events = Vec::with_capacity(events.len());
+
+        for event in events {
+            let domain_event = event
+                .convert(merchant_key_store.key.get_inner())
+                .await
+                .change_context(errors::StorageError::DecryptionError)?;
+            domain_events.push(domain_event);
+        }
+
+        Ok(domain_events)
     }
 
     async fn update_event_by_merchant_id_event_id(

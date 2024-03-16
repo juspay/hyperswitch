@@ -502,6 +502,21 @@ impl EventInterface for KafkaStore {
             .await
     }
 
+    async fn list_events_by_merchant_id_initial_attempt_id(
+        &self,
+        merchant_id: &str,
+        initial_attempt_id: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
+        self.diesel_store
+            .list_events_by_merchant_id_initial_attempt_id(
+                merchant_id,
+                initial_attempt_id,
+                merchant_key_store,
+            )
+            .await
+    }
+
     async fn update_event_by_merchant_id_event_id(
         &self,
         merchant_id: &str,
