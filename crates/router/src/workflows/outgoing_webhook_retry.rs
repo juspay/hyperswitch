@@ -59,8 +59,12 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
 
         let initial_event = match &tracking_data.initial_attempt_id {
             Some(initial_attempt_id) => {
-                db.find_event_by_event_id(initial_attempt_id, &key_store)
-                    .await?
+                db.find_event_by_merchant_id_event_id(
+                    &business_profile.merchant_id,
+                    initial_attempt_id,
+                    &key_store,
+                )
+                .await?
             }
             // Tracking data inserted by old version of application, fetch event using old event ID
             // format
@@ -69,7 +73,12 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
                     "{}_{}",
                     tracking_data.primary_object_id, tracking_data.event_type
                 );
-                db.find_event_by_event_id(&old_event_id, &key_store).await?
+                db.find_event_by_merchant_id_event_id(
+                    &business_profile.merchant_id,
+                    &old_event_id,
+                    &key_store,
+                )
+                .await?
             }
         };
 

@@ -1,0 +1,1 @@
+DROP INDEX events_merchant_id_event_id_index;

@@ -1,4 +1,4 @@
-use diesel::{associations::HasTable, ExpressionMethods};
+use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 
 use super::generics;
 use crate::{
@@ -14,16 +14,23 @@ impl EventNew {
 }
 
 impl Event {
-    pub async fn find_by_event_id(conn: &PgPooledConn, event_id: &str) -> StorageResult<Self> {
+    pub async fn find_by_merchant_id_event_id(
+        conn: &PgPooledConn,
+        merchant_id: &str,
+        event_id: &str,
+    ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
-            dsl::event_id.eq(event_id.to_owned()),
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::event_id.eq(event_id.to_owned())),
         )
         .await
     }
 
-    pub async fn update(
+    pub async fn update_by_merchant_id_event_id(
         conn: &PgPooledConn,
+        merchant_id: &str,
         event_id: &str,
         event: EventUpdateInternal,
     ) -> StorageResult<Self> {
@@ -32,7 +39,13 @@ impl Event {
             _,
             _,
             _,
-        >(conn, dsl::event_id.eq(event_id.to_owned()), event)
+        >(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::event_id.eq(event_id.to_owned())),
+            event,
+        )
         .await
     }
 }

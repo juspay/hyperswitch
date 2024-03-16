@@ -27,15 +27,17 @@ where
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Event, errors::StorageError>;
 
-    async fn find_event_by_event_id(
+    async fn find_event_by_merchant_id_event_id(
         &self,
+        merchant_id: &str,
         event_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Event, errors::StorageError>;
 
-    async fn update_event(
+    async fn update_event_by_merchant_id_event_id(
         &self,
-        event_id: String,
+        merchant_id: &str,
+        event_id: &str,
         event: domain::EventUpdate,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Event, errors::StorageError>;
@@ -64,13 +66,14 @@ impl EventInterface for Store {
     }
 
     #[instrument(skip_all)]
-    async fn find_event_by_event_id(
+    async fn find_event_by_merchant_id_event_id(
         &self,
+        merchant_id: &str,
         event_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Event, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::Event::find_by_event_id(&conn, event_id)
+        storage::Event::find_by_merchant_id_event_id(&conn, merchant_id, event_id)
             .await
             .map_err(Into::into)
             .into_report()?
@@ -80,14 +83,15 @@ impl EventInterface for Store {
     }
 
     #[instrument(skip_all)]
-    async fn update_event(
+    async fn update_event_by_merchant_id_event_id(
         &self,
-        event_id: String,
+        merchant_id: &str,
+        event_id: &str,
         event: domain::EventUpdate,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Event, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::Event::update(&conn, &event_id, event.into())
+        storage::Event::update_by_merchant_id_event_id(&conn, merchant_id, event_id, event.into())
             .await
             .map_err(Into::into)
             .into_report()?
@@ -118,15 +122,18 @@ impl EventInterface for MockDb {
             .change_context(errors::StorageError::DecryptionError)
     }
 
-    async fn find_event_by_event_id(
+    async fn find_event_by_merchant_id_event_id(
         &self,
+        merchant_id: &str,
         event_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Event, errors::StorageError> {
         let locked_events = self.events.lock().await;
         locked_events
             .iter()
-            .find(|event| event.event_id == event_id)
+            .find(|event| {
+                event.merchant_id == Some(merchant_id.to_owned()) && event.event_id == event_id
+            })
             .cloned()
             .async_map(|event| async {
                 event
@@ -138,22 +145,25 @@ impl EventInterface for MockDb {
             .transpose()?
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
-                    "No event available with event_id  = {event_id}"
+                    "No event available with merchant_id = {merchant_id} and event_id  = {event_id}"
                 ))
                 .into(),
             )
     }
 
-    async fn update_event(
+    async fn update_event_by_merchant_id_event_id(
         &self,
-        event_id: String,
+        merchant_id: &str,
+        event_id: &str,
         event: domain::EventUpdate,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Event, errors::StorageError> {
         let mut locked_events = self.events.lock().await;
         let event_to_update = locked_events
             .iter_mut()
-            .find(|e| e.event_id == event_id)
+            .find(|event| {
+                event.merchant_id == Some(merchant_id.to_owned()) && event.event_id == event_id
+            })
             .ok_or(errors::StorageError::MockDbError)?;
 
         match event {
@@ -247,8 +257,9 @@ mod tests {
         assert_eq!(event1.event_id, event_id);
 
         let updated_event = mockdb
-            .update_event(
-                event_id.into(),
+            .update_event_by_merchant_id_event_id(
+                merchant_id,
+                event_id,
                 domain::EventUpdate::UpdateResponse {
                     is_webhook_notified: true,
                     response: None,

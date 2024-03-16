@@ -491,24 +491,26 @@ impl EventInterface for KafkaStore {
             .await
     }
 
-    async fn find_event_by_event_id(
+    async fn find_event_by_merchant_id_event_id(
         &self,
+        merchant_id: &str,
         event_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Event, errors::StorageError> {
         self.diesel_store
-            .find_event_by_event_id(event_id, merchant_key_store)
+            .find_event_by_merchant_id_event_id(merchant_id, event_id, merchant_key_store)
             .await
     }
 
-    async fn update_event(
+    async fn update_event_by_merchant_id_event_id(
         &self,
-        event_id: String,
+        merchant_id: &str,
+        event_id: &str,
         event: domain::EventUpdate,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Event, errors::StorageError> {
         self.diesel_store
-            .update_event(event_id, event, merchant_key_store)
+            .update_event_by_merchant_id_event_id(merchant_id, event_id, event, merchant_key_store)
             .await
     }
 }

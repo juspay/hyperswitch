@@ -907,6 +907,7 @@ async fn trigger_webhook_to_merchant(
         };
     let update_event_in_storage = |state: AppState,
                                    merchant_key_store: domain::MerchantKeyStore,
+                                   merchant_id: String,
                                    event_id: String,
                                    response: reqwest::Response| async move {
         let status_code = response.status();
@@ -964,7 +965,12 @@ async fn trigger_webhook_to_merchant(
         };
         state
             .store
-            .update_event(event_id, event_update, &merchant_key_store)
+            .update_event_by_merchant_id_event_id(
+                &merchant_id,
+                &event_id,
+                event_update,
+                &merchant_key_store,
+            )
             .await
             .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)
     };
@@ -1013,6 +1019,7 @@ async fn trigger_webhook_to_merchant(
                 let _updated_event = update_event_in_storage(
                     state.clone(),
                     merchant_key_store.clone(),
+                    business_profile.merchant_id.clone(),
                     event_id.clone(),
                     response,
                 )
@@ -1060,6 +1067,7 @@ async fn trigger_webhook_to_merchant(
                     let _updated_event = update_event_in_storage(
                         state.clone(),
                         merchant_key_store.clone(),
+                        business_profile.merchant_id.clone(),
                         event_id.clone(),
                         response,
                     )
