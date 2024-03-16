@@ -62,27 +62,6 @@ pub enum RoutingAlgorithmKind {
 #[diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-pub enum EventClass {
-    Payments,
-    Refunds,
-    Disputes,
-    Mandates,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-)]
-#[diesel_enum(storage_type = "db_enum")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
 pub enum EventObjectType {
     PaymentDetails,
     RefundDetails,
