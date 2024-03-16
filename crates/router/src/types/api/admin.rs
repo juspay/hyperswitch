@@ -1,20 +1,18 @@
 pub use api_models::admin::{
-    payout_routing_algorithm, BusinessProfileCreate, BusinessProfileResponse,
-    BusinessProfileUpdate, MerchantAccountCreate, MerchantAccountDeleteResponse,
-    MerchantAccountResponse, MerchantAccountUpdate, MerchantConnectorCreate,
-    MerchantConnectorDeleteResponse, MerchantConnectorDetails, MerchantConnectorDetailsWrap,
-    MerchantConnectorId, MerchantConnectorResponse, MerchantDetails, MerchantId,
-    PaymentMethodsEnabled, PayoutRoutingAlgorithm, PayoutStraightThroughAlgorithm, ToggleKVRequest,
-    ToggleKVResponse, WebhookDetails,
+    BusinessProfileCreate, BusinessProfileResponse, BusinessProfileUpdate, MerchantAccountCreate,
+    MerchantAccountDeleteResponse, MerchantAccountResponse, MerchantAccountUpdate,
+    MerchantConnectorCreate, MerchantConnectorDeleteResponse, MerchantConnectorDetails,
+    MerchantConnectorDetailsWrap, MerchantConnectorId, MerchantConnectorResponse, MerchantDetails,
+    MerchantId, PaymentMethodsEnabled, PayoutRoutingAlgorithm, ToggleKVRequest, ToggleKVResponse,
+    WebhookDetails,
 };
-use common_utils::ext_traits::ValueExt;
+use common_utils::ext_traits::{Encode, ValueExt};
 use error_stack::ResultExt;
 use masking::Secret;
 
 use crate::{
     core::errors,
     types::{domain, storage, transformers::ForeignTryFrom},
-    utils::{self},
 };
 
 impl TryFrom<domain::MerchantAccount> for MerchantAccountResponse {
@@ -74,6 +72,12 @@ impl ForeignTryFrom<storage::business_profile::BusinessProfile> for BusinessProf
             applepay_verified_domains: item.applepay_verified_domains,
             payment_link_config: item.payment_link_config,
             session_expiry: item.session_expiry,
+            authentication_connector_details: item
+                .authentication_connector_details
+                .map(|authentication_connector_details| {
+                    authentication_connector_details.parse_value("AuthenticationDetails")
+                })
+                .transpose()?,
         })
     }
 }
@@ -95,10 +99,11 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
             .webhook_details
             .as_ref()
             .map(|webhook_details| {
-                common_utils::ext_traits::Encode::<WebhookDetails>::encode_to_value(webhook_details)
-                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                webhook_details.encode_to_value().change_context(
+                    errors::ApiErrorResponse::InvalidDataValue {
                         field_name: "webhook details",
-                    })
+                    },
+                )
             })
             .transpose()?;
 
@@ -110,12 +115,11 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
         let payment_link_config_value = request
             .payment_link_config
             .map(|pl_config| {
-                utils::Encode::<api_models::admin::BusinessPaymentLinkConfig>::encode_to_value(
-                    &pl_config,
+                pl_config.encode_to_value().change_context(
+                    errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "payment_link_config_value",
+                    },
                 )
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "payment_link_config_value",
-                })
             })
             .transpose()?;
 
@@ -159,6 +163,14 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
                 .session_expiry
                 .map(i64::from)
                 .or(Some(common_utils::consts::DEFAULT_SESSION_EXPIRY)),
+            authentication_connector_details: request
+                .authentication_connector_details
+                .as_ref()
+                .map(Encode::encode_to_value)
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "authentication_connector_details",
+                })?,
         })
     }
 }

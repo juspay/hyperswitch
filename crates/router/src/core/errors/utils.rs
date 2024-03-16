@@ -160,6 +160,12 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 }
                 .into()
             }
+            errors::ConnectorError::NotSupported { message, connector } => {
+                errors::ApiErrorResponse::NotSupported {
+                    message: format!("{message} is not supported by {connector}"),
+                }
+                .into()
+            }
             errors::ConnectorError::FailedToObtainIntegrationUrl
             | errors::ConnectorError::RequestEncodingFailed
             | errors::ConnectorError::RequestEncodingFailedWithReason(_)
@@ -178,7 +184,6 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
             | errors::ConnectorError::FailedToObtainCertificate
             | errors::ConnectorError::NoConnectorMetaData
             | errors::ConnectorError::FailedToObtainCertificateKey
-            | errors::ConnectorError::NotSupported { .. }
             | errors::ConnectorError::FlowNotSupported { .. }
             | errors::ConnectorError::CaptureMethodNotSupported
             | errors::ConnectorError::MissingConnectorMandateID
@@ -461,6 +466,13 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                         message: format!("{} by {}", message, connector),
                     }
                 }
+                errors::ConnectorError::NotImplemented(reason) => {
+                    errors::ApiErrorResponse::NotImplemented {
+                        message: errors::api_error_response::NotImplementedMessage::Reason(
+                            reason.to_string(),
+                        ),
+                    }
+                }
                 _ => errors::ApiErrorResponse::InternalServerError,
             };
             err.change_context(error)
@@ -500,5 +512,36 @@ impl RedisErrorExt for error_stack::Report<errors::RedisError> {
             }
             _ => self.change_context(errors::StorageError::KVError),
         }
+    }
+}
+
+#[cfg(feature = "olap")]
+impl<T> StorageErrorExt<T, errors::UserErrors> for error_stack::Result<T, errors::StorageError> {
+    #[track_caller]
+    fn to_not_found_response(
+        self,
+        not_found_response: errors::UserErrors,
+    ) -> error_stack::Result<T, errors::UserErrors> {
+        self.map_err(|e| {
+            if e.current_context().is_db_not_found() {
+                e.change_context(not_found_response)
+            } else {
+                e.change_context(errors::UserErrors::InternalServerError)
+            }
+        })
+    }
+
+    #[track_caller]
+    fn to_duplicate_response(
+        self,
+        duplicate_response: errors::UserErrors,
+    ) -> error_stack::Result<T, errors::UserErrors> {
+        self.map_err(|e| {
+            if e.current_context().is_db_unique_violation() {
+                e.change_context(duplicate_response)
+            } else {
+                e.change_context(errors::UserErrors::InternalServerError)
+            }
+        })
     }
 }

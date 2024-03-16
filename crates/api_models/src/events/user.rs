@@ -10,11 +10,12 @@ use crate::user::{
     dashboard_metadata::{
         GetMetaDataRequest, GetMetaDataResponse, GetMultipleMetaDataPayload, SetMetaDataRequest,
     },
-    AuthorizeResponse, ChangePasswordRequest, ConnectAccountRequest, CreateInternalUserRequest,
-    DashboardEntryResponse, ForgotPasswordRequest, GetUsersResponse, InviteUserRequest,
-    InviteUserResponse, ResetPasswordRequest, SendVerifyEmailRequest, SignUpRequest,
-    SignUpWithMerchantIdRequest, SwitchMerchantIdRequest, UpdateUserAccountDetailsRequest,
-    UserMerchantCreate, VerifyEmailRequest,
+    AcceptInviteFromEmailRequest, AuthorizeResponse, ChangePasswordRequest, ConnectAccountRequest,
+    CreateInternalUserRequest, DashboardEntryResponse, ForgotPasswordRequest,
+    GetUserDetailsRequest, GetUserDetailsResponse, InviteUserRequest, InviteUserResponse,
+    ListUsersResponse, ReInviteUserRequest, ResetPasswordRequest, SendVerifyEmailRequest,
+    SignInResponse, SignUpRequest, SignUpWithMerchantIdRequest, SwitchMerchantIdRequest,
+    UpdateUserAccountDetailsRequest, UserMerchantCreate, VerifyEmailRequest,
 };
 
 impl ApiEventMetric for DashboardEntryResponse {
@@ -47,16 +48,21 @@ common_utils::impl_misc_api_event_type!(
     SwitchMerchantIdRequest,
     CreateInternalUserRequest,
     UserMerchantCreate,
-    GetUsersResponse,
+    ListUsersResponse,
     AuthorizeResponse,
     ConnectAccountRequest,
     ForgotPasswordRequest,
     ResetPasswordRequest,
     InviteUserRequest,
     InviteUserResponse,
+    ReInviteUserRequest,
     VerifyEmailRequest,
     SendVerifyEmailRequest,
-    UpdateUserAccountDetailsRequest
+    AcceptInviteFromEmailRequest,
+    SignInResponse,
+    UpdateUserAccountDetailsRequest,
+    GetUserDetailsRequest,
+    GetUserDetailsResponse
 );
 
 #[cfg(feature = "dummy_connector")]

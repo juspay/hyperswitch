@@ -1,8 +1,8 @@
 use api_models::payments::Card;
-use common_utils::pii::Email;
+use common_utils::pii::{Email, IpAddress};
 use diesel_models::enums::RefundStatus;
 use error_stack::IntoReport;
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -51,7 +51,7 @@ pub struct BrowserInfo {
     screen_width: Option<String>,
     time_zone: Option<String>,
     user_agent: Option<String>,
-    i_p: Option<std::net::IpAddr>,
+    i_p: Option<Secret<String, IpAddress>>,
     color_depth: Option<String>,
 }
 
@@ -94,7 +94,7 @@ pub struct PowertranzAddressDetails {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct RedirectResponsePayload {
-    pub spi_token: String,
+    pub spi_token: Secret<String>,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest {
@@ -173,7 +173,9 @@ impl TryFrom<&types::BrowserInformation> for BrowserInfo {
             screen_width: item.screen_width.map(|width| width.to_string()),
             time_zone: item.time_zone.map(|zone| zone.to_string()),
             user_agent: item.user_agent.clone(),
-            i_p: item.ip_address,
+            i_p: item
+                .ip_address
+                .map(|ip_address| Secret::new(ip_address.to_string())),
             color_depth: item.color_depth.map(|depth| depth.to_string()),
         })
     }
@@ -247,7 +249,7 @@ impl TryFrom<&types::ConnectorAuthType> for PowertranzAuthType {
 }
 
 // Common struct used in Payment, Capture, Void, Refund
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct PowertranzBaseResponse {
     transaction_type: u8,
@@ -256,7 +258,7 @@ pub struct PowertranzBaseResponse {
     original_trxn_identifier: Option<String>,
     errors: Option<Vec<Error>>,
     iso_response_code: String,
-    redirect_data: Option<String>,
+    redirect_data: Option<Secret<String>>,
     response_message: String,
     order_identifier: String,
 }
@@ -322,7 +324,7 @@ impl<F, T>
             item.response
                 .redirect_data
                 .map(|redirect_data| services::RedirectForm::Html {
-                    html_data: redirect_data,
+                    html_data: redirect_data.expose(),
                 });
         let response = error_response.map_or(
             Ok(types::PaymentsResponseData::TransactionResponse {
@@ -475,7 +477,7 @@ pub struct PowertranzErrorResponse {
     pub errors: Vec<Error>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct Error {
     pub code: String,

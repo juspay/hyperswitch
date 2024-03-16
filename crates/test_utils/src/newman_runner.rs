@@ -1,7 +1,14 @@
-use std::{env, io::Write, path::Path, process::Command};
+use std::{
+    env,
+    fs::{self, OpenOptions},
+    io::{self, Write},
+    path::Path,
+    process::{exit, Command},
+};
 
 use clap::{arg, command, Parser};
 use masking::PeekInterface;
+use regex::Regex;
 
 use crate::connector_auth::{ConnectorAuthType, ConnectorAuthenticationMap};
 #[derive(Parser)]
@@ -33,14 +40,24 @@ struct Args {
 
 pub struct ReturnArgs {
     pub newman_command: Command,
-    pub file_modified_flag: bool,
+    pub modified_file_paths: Vec<Option<String>>,
     pub collection_path: String,
 }
 
-// Just by the name of the connector, this function generates the name of the collection dir
+// Generates the name of the collection JSON file for the specified connector.
+// Example: CONNECTOR_NAME="stripe" -> OUTPUT: postman/collection-json/stripe.postman_collection.json
+#[inline]
+fn get_collection_path(name: impl AsRef<str>) -> String {
+    format!(
+        "postman/collection-json/{}.postman_collection.json",
+        name.as_ref()
+    )
+}
+
+// Generates the name of the collection directory for the specified connector.
 // Example: CONNECTOR_NAME="stripe" -> OUTPUT: postman/collection-dir/stripe
 #[inline]
-fn get_path(name: impl AsRef<str>) -> String {
+fn get_dir_path(name: impl AsRef<str>) -> String {
     format!("postman/collection-dir/{}", name.as_ref())
 }
 
@@ -56,7 +73,6 @@ where
 
     // Open the file in write mode or create it if it doesn't exist
     let mut file = std::fs::OpenOptions::new()
-        .write(true)
         .append(true)
         .create(true)
         .open(file_path)?;
@@ -73,22 +89,34 @@ pub fn generate_newman_command() -> ReturnArgs {
     let base_url = args.base_url;
     let admin_api_key = args.admin_api_key;
 
-    let collection_path = get_path(&connector_name);
+    let collection_path = get_collection_path(&connector_name);
+    let collection_dir_path = get_dir_path(&connector_name);
     let auth_map = ConnectorAuthenticationMap::new();
 
     let inner_map = auth_map.inner();
 
-    // Newman runner
-    // Depending on the conditions satisfied, variables are added. Since certificates of stripe have already
-    // been added to the postman collection, those conditions are set to true and collections that have
-    // variables set up for certificate, will consider those variables and will fail.
+    /*
+    Newman runner
+    Certificate keys are added through secrets in CI, so there's no need to explicitly pass it as arguments.
+    It can be overridden by explicitly passing certificates as arguments.
+
+    If the collection requires certificates (Stripe collection for example) during the merchant connector account create step,
+    then Stripe's certificates will be passed implicitly (for now).
+    If any other connector requires certificates to be passed, that has to be passed explicitly for now.
+    */
 
     let mut newman_command = Command::new("newman");
-    newman_command.args(["dir-run", &collection_path]);
+    newman_command.args(["run", &collection_path]);
     newman_command.args(["--env-var", &format!("admin_api_key={admin_api_key}")]);
     newman_command.args(["--env-var", &format!("baseUrl={base_url}")]);
 
-    if let Some(auth_type) = inner_map.get(&connector_name) {
+    let custom_header_exist = check_for_custom_headers(args.custom_headers, &collection_dir_path);
+
+    // validation of connector is needed here as a work around to the limitation of the fork of newman that Hyperswitch uses
+    let (connector_name, modified_collection_file_paths) =
+        check_connector_for_dynamic_amount(&connector_name);
+
+    if let Some(auth_type) = inner_map.get(connector_name) {
         match auth_type {
             ConnectorAuthType::HeaderKey { api_key } => {
                 newman_command.args([
@@ -188,24 +216,126 @@ pub fn generate_newman_command() -> ReturnArgs {
         newman_command.arg("--verbose");
     }
 
-    let mut modified = false;
-    if let Some(headers) = &args.custom_headers {
+    ReturnArgs {
+        newman_command,
+        modified_file_paths: vec![modified_collection_file_paths, custom_header_exist],
+        collection_path,
+    }
+}
+
+pub fn check_for_custom_headers(headers: Option<Vec<String>>, path: &str) -> Option<String> {
+    if let Some(headers) = &headers {
         for header in headers {
             if let Some((key, value)) = header.split_once(':') {
                 let content_to_insert =
                     format!(r#"pm.request.headers.add({{key: "{key}", value: "{value}"}});"#);
-                if insert_content(&collection_path, &content_to_insert).is_ok() {
-                    modified = true;
+
+                if let Err(err) = insert_content(path, &content_to_insert) {
+                    eprintln!("An error occurred while inserting the custom header: {err}");
                 }
             } else {
                 eprintln!("Invalid header format: {}", header);
             }
         }
+
+        return Some(format!("{}/event.prerequest.js", path));
+    }
+    None
+}
+
+// If the connector name exists in dynamic_amount_connectors,
+// the corresponding collection is modified at runtime to remove double quotes
+pub fn check_connector_for_dynamic_amount(connector_name: &str) -> (&str, Option<String>) {
+    let collection_dir_path = get_dir_path(connector_name);
+
+    let dynamic_amount_connectors = ["nmi", "powertranz"];
+
+    if dynamic_amount_connectors.contains(&connector_name) {
+        return remove_quotes_for_integer_values(connector_name).unwrap_or((connector_name, None));
+    }
+    /*
+    If connector name does not exist in dynamic_amount_connectors but we want to run it with custom headers,
+    since we're running from collections directly, we'll have to export the collection again and it is much simpler.
+    We could directly inject the custom-headers using regex, but it is not encouraged as it is hard
+    to determine the place of edit.
+    */
+    export_collection(connector_name, collection_dir_path);
+
+    (connector_name, None)
+}
+
+/*
+Existing issue with the fork of newman is that, it requires you to pass variables like `{{value}}` within
+double quotes without which it fails to execute.
+For integer values like `amount`, this is a bummer as it flags the value stating it is of type
+string and not integer.
+Refactoring is done in 2 steps:
+- Export the collection to json (although the json will be up-to-date, we export it again for safety)
+- Use regex to replace the values which removes double quotes from integer values
+  Ex: \"{{amount}}\" -> {{amount}}
+*/
+
+pub fn remove_quotes_for_integer_values(
+    connector_name: &str,
+) -> Result<(&str, Option<String>), io::Error> {
+    let collection_path = get_collection_path(connector_name);
+    let collection_dir_path = get_dir_path(connector_name);
+
+    let values_to_replace = [
+        "amount",
+        "another_random_number",
+        "capture_amount",
+        "random_number",
+        "refund_amount",
+    ];
+
+    export_collection(connector_name, collection_dir_path);
+
+    let mut contents = fs::read_to_string(&collection_path)?;
+    for value_to_replace in values_to_replace {
+        if let Ok(re) = Regex::new(&format!(
+            r#"\\"(?P<field>\{{\{{{}\}}\}})\\""#,
+            value_to_replace
+        )) {
+            contents = re.replace_all(&contents, "$field").to_string();
+        } else {
+            eprintln!("Regex validation failed.");
+        }
+
+        let mut file = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .open(&collection_path)?;
+
+        file.write_all(contents.as_bytes())?;
     }
 
-    ReturnArgs {
-        newman_command,
-        file_modified_flag: modified,
-        collection_path,
+    Ok((connector_name, Some(collection_path)))
+}
+
+pub fn export_collection(connector_name: &str, collection_dir_path: String) {
+    let collection_path = get_collection_path(connector_name);
+
+    let mut newman_command = Command::new("newman");
+    newman_command.args([
+        "dir-import".to_owned(),
+        collection_dir_path,
+        "-o".to_owned(),
+        collection_path.clone(),
+    ]);
+
+    match newman_command.spawn().and_then(|mut child| child.wait()) {
+        Ok(exit_status) => {
+            if exit_status.success() {
+                println!("Conversion of collection from directory structure to json successful!");
+            } else {
+                eprintln!("Conversion of collection from directory structure to json failed!");
+                exit(exit_status.code().unwrap_or(1));
+            }
+        }
+        Err(err) => {
+            eprintln!("Failed to execute dir-import: {:?}", err);
+            exit(1);
+        }
     }
 }

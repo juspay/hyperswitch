@@ -2,13 +2,6 @@ use api_models::payments as payment_types;
 use async_trait::async_trait;
 use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
 use error_stack::{IntoReport, Report, ResultExt};
-#[cfg(feature = "hashicorp-vault")]
-use external_services::hashicorp_vault;
-#[cfg(feature = "hashicorp-vault")]
-use external_services::hashicorp_vault::decrypt::VaultFetch;
-#[cfg(feature = "kms")]
-use external_services::kms;
-#[cfg(feature = "hashicorp-vault")]
 use masking::ExposeInterface;
 
 use super::{ConstructFlowSpecificData, Feature};
@@ -183,127 +176,40 @@ async fn create_applepay_session_token(
                     payment_request_data,
                     session_token_data,
                 } => {
-                    let (
-                        apple_pay_merchant_cert,
-                        apple_pay_merchant_cert_key,
-                        common_merchant_identifier,
-                    ) = async {
-                        #[cfg(feature = "hashicorp-vault")]
-                        let client = external_services::hashicorp_vault::get_hashicorp_client(
-                            &state.conf.hc_vault,
-                        )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed while building hashicorp client")?;
-
-                        #[cfg(feature = "hashicorp-vault")]
-                        {
-                            Ok::<_, Report<errors::ApiErrorResponse>>((
-                                masking::Secret::new(
-                                    state
-                                        .conf
-                                        .applepay_decrypt_keys
-                                        .apple_pay_merchant_cert
-                                        .clone(),
-                                )
-                                .fetch_inner::<hashicorp_vault::Kv2>(client)
-                                .await
-                                .change_context(errors::ApiErrorResponse::InternalServerError)?
-                                .expose(),
-                                masking::Secret::new(
-                                    state
-                                        .conf
-                                        .applepay_decrypt_keys
-                                        .apple_pay_merchant_cert_key
-                                        .clone(),
-                                )
-                                .fetch_inner::<hashicorp_vault::Kv2>(client)
-                                .await
-                                .change_context(errors::ApiErrorResponse::InternalServerError)?
-                                .expose(),
-                                masking::Secret::new(
-                                    state
-                                        .conf
-                                        .applepay_merchant_configs
-                                        .common_merchant_identifier
-                                        .clone(),
-                                )
-                                .fetch_inner::<hashicorp_vault::Kv2>(client)
-                                .await
-                                .change_context(errors::ApiErrorResponse::InternalServerError)?
-                                .expose(),
-                            ))
-                        }
-
-                        #[cfg(not(feature = "hashicorp-vault"))]
-                        {
-                            Ok::<_, Report<errors::ApiErrorResponse>>((
-                                state
-                                    .conf
-                                    .applepay_decrypt_keys
-                                    .apple_pay_merchant_cert
-                                    .clone(),
-                                state
-                                    .conf
-                                    .applepay_decrypt_keys
-                                    .apple_pay_merchant_cert_key
-                                    .clone(),
-                                state
-                                    .conf
-                                    .applepay_merchant_configs
-                                    .common_merchant_identifier
-                                    .clone(),
-                            ))
-                        }
-                    }
-                    .await?;
-
-                    #[cfg(feature = "kms")]
-                    let decrypted_apple_pay_merchant_cert = kms::get_kms_client(&state.conf.kms)
-                        .await
-                        .decrypt(apple_pay_merchant_cert)
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Apple pay merchant certificate decryption failed")?;
-
-                    #[cfg(feature = "kms")]
-                    let decrypted_apple_pay_merchant_cert_key =
-                        kms::get_kms_client(&state.conf.kms)
-                            .await
-                            .decrypt(apple_pay_merchant_cert_key)
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable(
-                                "Apple pay merchant certificate key decryption failed",
-                            )?;
-
-                    #[cfg(feature = "kms")]
-                    let decrypted_merchant_identifier = kms::get_kms_client(&state.conf.kms)
-                        .await
-                        .decrypt(common_merchant_identifier)
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Apple pay merchant identifier decryption failed")?;
-
-                    #[cfg(not(feature = "kms"))]
-                    let decrypted_merchant_identifier = common_merchant_identifier;
+                    let merchant_identifier = state
+                        .conf
+                        .applepay_merchant_configs
+                        .get_inner()
+                        .common_merchant_identifier
+                        .clone()
+                        .expose();
 
                     let apple_pay_session_request = get_session_request_for_simplified_apple_pay(
-                        decrypted_merchant_identifier.to_string(),
+                        merchant_identifier,
                         session_token_data,
                     );
 
-                    #[cfg(not(feature = "kms"))]
-                    let decrypted_apple_pay_merchant_cert = apple_pay_merchant_cert;
+                    let apple_pay_merchant_cert = state
+                        .conf
+                        .applepay_decrypt_keys
+                        .get_inner()
+                        .apple_pay_merchant_cert
+                        .clone()
+                        .expose();
 
-                    #[cfg(not(feature = "kms"))]
-                    let decrypted_apple_pay_merchant_cert_key = apple_pay_merchant_cert_key;
+                    let apple_pay_merchant_cert_key = state
+                        .conf
+                        .applepay_decrypt_keys
+                        .get_inner()
+                        .apple_pay_merchant_cert_key
+                        .clone()
+                        .expose();
 
                     (
                         payment_request_data,
                         apple_pay_session_request,
-                        decrypted_apple_pay_merchant_cert.to_owned(),
-                        decrypted_apple_pay_merchant_cert_key.to_owned(),
+                        apple_pay_merchant_cert,
+                        apple_pay_merchant_cert_key,
                     )
                 }
                 payment_types::ApplePayCombinedMetadata::Manual {
@@ -353,7 +259,12 @@ async fn create_applepay_session_token(
             apple_pay_merchant_cert,
             apple_pay_merchant_cert_key,
         )?;
-        let response = services::call_connector_api(state, applepay_session_request).await;
+        let response = services::call_connector_api(
+            state,
+            applepay_session_request,
+            "create_apple_pay_session_token",
+        )
+        .await;
 
         // logging the error if present in session call response
         log_session_response_if_error(&response);

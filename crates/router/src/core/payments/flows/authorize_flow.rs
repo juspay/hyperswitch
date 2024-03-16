@@ -72,15 +72,11 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
-        connector
-            .connector
-            .validate_capture_method(self.request.capture_method)
-            .to_payment_failed_response()?;
 
         if self.should_proceed_with_authorize() {
             self.decide_authentication_type();
             logger::debug!(auth_type=?self.auth_type);
-            let resp = services::execute_connector_processing_step(
+            let mut resp = services::execute_connector_processing_step(
                 state,
                 connector_integration,
                 &self,
@@ -95,16 +91,23 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             let is_mandate = resp.request.setup_mandate_details.is_some();
 
             if is_mandate {
-                let payment_method_id = Box::pin(tokenization::save_payment_method(
-                    state,
-                    connector,
-                    resp.to_owned(),
-                    maybe_customer,
-                    merchant_account,
-                    self.request.payment_method_type,
-                    key_store,
-                ))
-                .await?;
+                let (payment_method_id, payment_method_status) =
+                    Box::pin(tokenization::save_payment_method(
+                        state,
+                        connector,
+                        resp.to_owned(),
+                        maybe_customer,
+                        merchant_account,
+                        self.request.payment_method_type,
+                        key_store,
+                        Some(resp.request.amount),
+                        Some(resp.request.currency),
+                    ))
+                    .await?;
+
+                resp.payment_method_id = payment_method_id.clone();
+                resp.payment_method_status = payment_method_status;
+
                 Ok(mandate::mandate_procedure(
                     state,
                     resp,
@@ -121,8 +124,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 let key_store = key_store.clone();
                 let state = state.clone();
 
-                logger::info!("Initiating async call to save_payment_method in locker");
-
+                logger::info!("Call to save_payment_method in locker");
                 tokio::spawn(async move {
                     logger::info!("Starting async call to save_payment_method in locker");
 
@@ -134,6 +136,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                         &merchant_account,
                         self.request.payment_method_type,
                         &key_store,
+                        Some(resp.request.amount),
+                        Some(resp.request.currency),
                     ))
                     .await;
 
@@ -205,13 +209,19 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
     ) -> RouterResult<(Option<services::Request>, bool)> {
         match call_connector_action {
             payments::CallConnectorAction::Trigger => {
+                connector
+                    .connector
+                    .validate_capture_method(
+                        self.request.capture_method,
+                        self.request.payment_method_type,
+                    )
+                    .to_payment_failed_response()?;
                 let connector_integration: services::BoxedConnectorIntegration<
                     '_,
                     api::Authorize,
                     types::PaymentsAuthorizeData,
                     types::PaymentsResponseData,
                 > = connector.connector.get_connector_integration();
-
                 connector_integration
                     .execute_pretasks(self, state)
                     .await
@@ -289,6 +299,9 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
 
     fn set_mandate_id(&mut self, new_mandate_id: Option<api_models::payments::MandateIds>) {
         self.mandate_id = new_mandate_id;
+    }
+    fn get_customer_acceptance(&self) -> Option<api_models::payments::CustomerAcceptance> {
+        self.customer_acceptance.clone().map(From::from)
     }
 }
 

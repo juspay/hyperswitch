@@ -35,7 +35,9 @@ use crate::{
     routes::AppState,
     services,
     types::{
-        self, api, domain,
+        self,
+        api::{self, ConnectorCallType},
+        domain,
         storage::{self, enums},
         PaymentsResponseData,
     },
@@ -110,6 +112,7 @@ pub trait GetTracker<F: Clone, D, R, Ctx: PaymentMethodRetrieve>: Send {
         merchant_account: &domain::MerchantAccount,
         mechant_key_store: &domain::MerchantKeyStore,
         auth_flow: services::AuthFlow,
+        payment_confirm_source: Option<enums::PaymentSource>,
     ) -> RouterResult<GetTrackerResponse<'a, F, R, Ctx>>;
 }
 
@@ -135,6 +138,7 @@ pub trait Domain<F: Clone, R, Ctx: PaymentMethodRetrieve>: Send + Sync {
     ) -> RouterResult<(
         BoxedOperation<'a, F, R, Ctx>,
         Option<api::PaymentMethodData>,
+        Option<String>,
     )>;
 
     async fn add_task_to_process_tracker<'a>(
@@ -163,6 +167,28 @@ pub trait Domain<F: Clone, R, Ctx: PaymentMethodRetrieve>: Send + Sync {
         _merchant_account: &domain::MerchantAccount,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
+    }
+
+    async fn call_external_three_ds_authentication_if_eligible<'a>(
+        &'a self,
+        _state: &AppState,
+        _payment_data: &mut PaymentData<F>,
+        _should_continue_confirm_transaction: &mut bool,
+        _connector_call_type: &ConnectorCallType,
+        _merchant_account: &storage::BusinessProfile,
+        _key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        Ok(())
+    }
+
+    #[instrument(skip_all)]
+    async fn guard_payment_against_blocklist<'a>(
+        &'a self,
+        _state: &AppState,
+        _merchant_account: &domain::MerchantAccount,
+        _payment_data: &mut PaymentData<F>,
+    ) -> CustomResult<bool, errors::ApiErrorResponse> {
+        Ok(false)
     }
 }
 
@@ -256,6 +282,7 @@ where
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRetrieveRequest, Ctx>,
         Option<api::PaymentMethodData>,
+        Option<String>,
     )> {
         helpers::make_pm_data(
             Box::new(self),
@@ -265,6 +292,16 @@ where
             customer,
         )
         .await
+    }
+
+    #[instrument(skip_all)]
+    async fn guard_payment_against_blocklist<'a>(
+        &'a self,
+        _state: &AppState,
+        _merchant_account: &domain::MerchantAccount,
+        _payment_data: &mut PaymentData<F>,
+    ) -> CustomResult<bool, errors::ApiErrorResponse> {
+        Ok(false)
     }
 }
 
@@ -314,8 +351,9 @@ where
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCaptureRequest, Ctx>,
         Option<api::PaymentMethodData>,
+        Option<String>,
     )> {
-        Ok((Box::new(self), None))
+        Ok((Box::new(self), None, None))
     }
 
     async fn get_connector<'a>(
@@ -327,6 +365,16 @@ where
         _merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, None).await
+    }
+
+    #[instrument(skip_all)]
+    async fn guard_payment_against_blocklist<'a>(
+        &'a self,
+        _state: &AppState,
+        _merchant_account: &domain::MerchantAccount,
+        _payment_data: &mut PaymentData<F>,
+    ) -> CustomResult<bool, errors::ApiErrorResponse> {
+        Ok(false)
     }
 }
 
@@ -377,8 +425,9 @@ where
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCancelRequest, Ctx>,
         Option<api::PaymentMethodData>,
+        Option<String>,
     )> {
-        Ok((Box::new(self), None))
+        Ok((Box::new(self), None, None))
     }
 
     async fn get_connector<'a>(
@@ -390,6 +439,16 @@ where
         _merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, None).await
+    }
+
+    #[instrument(skip_all)]
+    async fn guard_payment_against_blocklist<'a>(
+        &'a self,
+        _state: &AppState,
+        _merchant_account: &domain::MerchantAccount,
+        _payment_data: &mut PaymentData<F>,
+    ) -> CustomResult<bool, errors::ApiErrorResponse> {
+        Ok(false)
     }
 }
 
@@ -430,8 +489,9 @@ where
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRejectRequest, Ctx>,
         Option<api::PaymentMethodData>,
+        Option<String>,
     )> {
-        Ok((Box::new(self), None))
+        Ok((Box::new(self), None, None))
     }
 
     async fn get_connector<'a>(
@@ -443,5 +503,15 @@ where
         _merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, None).await
+    }
+
+    #[instrument(skip_all)]
+    async fn guard_payment_against_blocklist<'a>(
+        &'a self,
+        _state: &AppState,
+        _merchant_account: &domain::MerchantAccount,
+        _payment_data: &mut PaymentData<F>,
+    ) -> CustomResult<bool, errors::ApiErrorResponse> {
+        Ok(false)
     }
 }

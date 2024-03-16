@@ -224,7 +224,8 @@ pub async fn attach_dispute_evidence(
     ))
     .await
 }
-/// Diputes - Retrieve Dispute
+
+/// Disputes - Retrieve Dispute
 #[utoipa::path(
     get,
     path = "/disputes/evidence/{dispute_id}",
@@ -258,6 +259,44 @@ pub async fn retrieve_dispute_evidence(
         auth::auth_type(
             &auth::ApiKeyAuth,
             &auth::JWTAuth(Permission::DisputeRead),
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+/// Disputes - Delete Evidence attached to a Dispute
+///
+/// To delete an evidence file attached to a dispute
+#[utoipa::path(
+    put,
+    path = "/disputes/evidence",
+    request_body=DeleteEvidenceRequest,
+    responses(
+        (status = 200, description = "Evidence deleted from a dispute"),
+        (status = 400, description = "Bad Request")
+    ),
+    tag = "Disputes",
+    operation_id = "Delete Evidence attached to a Dispute",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::DeleteDisputeEvidence))]
+pub async fn delete_dispute_evidence(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<dispute_models::DeleteEvidenceRequest>,
+) -> HttpResponse {
+    let flow = Flow::DeleteDisputeEvidence;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, auth, req| disputes::delete_evidence(state, auth.merchant_account, req),
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::DisputeWrite),
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,

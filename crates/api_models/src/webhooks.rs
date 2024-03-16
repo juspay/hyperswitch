@@ -160,22 +160,22 @@ pub struct OutgoingWebhook {
 
     /// This is specific to the flow, for ex: it will be `PaymentsResponse` for payments flow
     pub content: OutgoingWebhookContent,
-    #[serde(default, with = "custom_serde::iso8601")]
 
     /// The time at which webhook was sent
+    #[serde(default, with = "custom_serde::iso8601")]
     pub timestamp: PrimitiveDateTime,
 }
 
 #[derive(Debug, Clone, Serialize, ToSchema)]
 #[serde(tag = "type", content = "object", rename_all = "snake_case")]
 pub enum OutgoingWebhookContent {
-    #[schema(value_type = PaymentsResponse)]
+    #[schema(value_type = PaymentsResponse, title = "PaymentsResponse")]
     PaymentDetails(payments::PaymentsResponse),
-    #[schema(value_type = RefundResponse)]
+    #[schema(value_type = RefundResponse, title = "RefundResponse")]
     RefundDetails(refunds::RefundResponse),
-    #[schema(value_type = DisputeResponse)]
+    #[schema(value_type = DisputeResponse, title = "DisputeResponse")]
     DisputeDetails(Box<disputes::DisputeResponse>),
-    #[schema(value_type = MandateResponse)]
+    #[schema(value_type = MandateResponse, title = "MandateResponse")]
     MandateDetails(Box<mandates::MandateResponse>),
 }
 

@@ -185,12 +185,12 @@ impl TryFrom<&types::RefreshTokenRouterData> for VoltAuthUpdateRequest {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct VoltAuthUpdateResponse {
     pub access_token: Secret<String>,
     pub token_type: String,
     pub expires_in: i64,
-    pub refresh_token: String,
+    pub refresh_token: Secret<String>,
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, VoltAuthUpdateResponse, T, types::AccessToken>>
@@ -240,10 +240,8 @@ impl TryFrom<&types::ConnectorAuthType> for VoltAuthType {
 impl From<VoltPaymentStatus> for enums::AttemptStatus {
     fn from(item: VoltPaymentStatus) -> Self {
         match item {
-            VoltPaymentStatus::Completed
-            | VoltPaymentStatus::Received
-            | VoltPaymentStatus::Settled => Self::Charged,
-            VoltPaymentStatus::DelayedAtBank => Self::Pending,
+            VoltPaymentStatus::Received | VoltPaymentStatus::Settled => Self::Charged,
+            VoltPaymentStatus::Completed | VoltPaymentStatus::DelayedAtBank => Self::Pending,
             VoltPaymentStatus::NewPayment
             | VoltPaymentStatus::BankRedirect
             | VoltPaymentStatus::AwaitingCheckoutAuthorisation => Self::AuthenticationPending,
@@ -421,13 +419,13 @@ impl<F, T>
 impl From<VoltWebhookPaymentStatus> for enums::AttemptStatus {
     fn from(status: VoltWebhookPaymentStatus) -> Self {
         match status {
-            VoltWebhookPaymentStatus::Completed | VoltWebhookPaymentStatus::Received => {
-                Self::Charged
-            }
+            VoltWebhookPaymentStatus::Received => Self::Charged,
             VoltWebhookPaymentStatus::Failed | VoltWebhookPaymentStatus::NotReceived => {
                 Self::Failure
             }
-            VoltWebhookPaymentStatus::Pending => Self::Pending,
+            VoltWebhookPaymentStatus::Completed | VoltWebhookPaymentStatus::Pending => {
+                Self::Pending
+            }
         }
     }
 }
@@ -451,7 +449,7 @@ impl<F> TryFrom<&VoltRouterData<&types::RefundsRouterData<F>>> for VoltRefundReq
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct RefundResponse {
     id: String,
 }
@@ -577,13 +575,13 @@ impl From<VoltWebhookBodyEventType> for api::IncomingWebhookEvent {
     fn from(status: VoltWebhookBodyEventType) -> Self {
         match status {
             VoltWebhookBodyEventType::Payment(payment_data) => match payment_data.status {
-                VoltWebhookPaymentStatus::Completed | VoltWebhookPaymentStatus::Received => {
-                    Self::PaymentIntentSuccess
-                }
+                VoltWebhookPaymentStatus::Received => Self::PaymentIntentSuccess,
                 VoltWebhookPaymentStatus::Failed | VoltWebhookPaymentStatus::NotReceived => {
                     Self::PaymentIntentFailure
                 }
-                VoltWebhookPaymentStatus::Pending => Self::PaymentIntentProcessing,
+                VoltWebhookPaymentStatus::Completed | VoltWebhookPaymentStatus::Pending => {
+                    Self::PaymentIntentProcessing
+                }
             },
             VoltWebhookBodyEventType::Refund(refund_data) => match refund_data.status {
                 VoltWebhookRefundsStatus::RefundConfirmed => Self::RefundSuccess,
@@ -598,7 +596,7 @@ pub struct VoltErrorResponse {
     pub exception: VoltErrorException,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct VoltAuthErrorResponse {
     pub code: u64,
     pub message: String,

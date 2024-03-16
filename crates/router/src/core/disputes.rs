@@ -1,5 +1,5 @@
 use api_models::{disputes as dispute_models, files as files_api_models};
-use common_utils::ext_traits::ValueExt;
+use common_utils::ext_traits::{Encode, ValueExt};
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 pub mod transformers;
@@ -20,7 +20,6 @@ use crate::{
         AcceptDisputeRequestData, AcceptDisputeResponse, DefendDisputeRequestData,
         DefendDisputeResponse, SubmitEvidenceRequestData, SubmitEvidenceResponse,
     },
-    utils,
 };
 
 #[instrument(skip(state))]
@@ -384,7 +383,8 @@ pub async fn attach_evidence(
         file_id,
     );
     let update_dispute = diesel_models::dispute::DisputeUpdate::EvidenceUpdate {
-        evidence: utils::Encode::<api::DisputeEvidence>::encode_to_value(&updated_dispute_evidence)
+        evidence: updated_dispute_evidence
+            .encode_to_value()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error while encoding dispute evidence")?
             .into(),
@@ -422,4 +422,45 @@ pub async fn retrieve_dispute_evidence(
     let dispute_evidence_vec =
         transformers::get_dispute_evidence_vec(&state, merchant_account, dispute_evidence).await?;
     Ok(services::ApplicationResponse::Json(dispute_evidence_vec))
+}
+
+pub async fn delete_evidence(
+    state: AppState,
+    merchant_account: domain::MerchantAccount,
+    delete_evidence_request: dispute_models::DeleteEvidenceRequest,
+) -> RouterResponse<serde_json::Value> {
+    let dispute_id = delete_evidence_request.dispute_id.clone();
+    let dispute = state
+        .store
+        .find_dispute_by_merchant_id_dispute_id(&merchant_account.merchant_id, &dispute_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
+            dispute_id: dispute_id.clone(),
+        })?;
+    let dispute_evidence: api::DisputeEvidence = dispute
+        .evidence
+        .clone()
+        .parse_value("DisputeEvidence")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error while parsing dispute evidence record")?;
+    let updated_dispute_evidence =
+        transformers::delete_evidence_file(dispute_evidence, delete_evidence_request.evidence_type);
+    let update_dispute = diesel_models::dispute::DisputeUpdate::EvidenceUpdate {
+        evidence: updated_dispute_evidence
+            .encode_to_value()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error while encoding dispute evidence")?
+            .into(),
+    };
+    state
+        .store
+        .update_dispute(dispute, update_dispute)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
+            dispute_id: dispute_id.to_owned(),
+        })
+        .attach_printable_lazy(|| {
+            format!("Unable to update dispute with dispute_id: {dispute_id}")
+        })?;
+    Ok(services::ApplicationResponse::StatusOk)
 }

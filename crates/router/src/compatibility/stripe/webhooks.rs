@@ -2,7 +2,7 @@ use api_models::{
     enums::{DisputeStatus, MandateStatus},
     webhooks::{self as api},
 };
-use common_utils::{crypto::SignMessage, date_time, ext_traits};
+use common_utils::{crypto::SignMessage, date_time, ext_traits::Encode};
 use error_stack::{IntoReport, ResultExt};
 use router_env::logger;
 use serde::Serialize;
@@ -11,7 +11,10 @@ use super::{
     payment_intents::types::StripePaymentIntentResponse, refunds::types::StripeRefundResponse,
 };
 use crate::{
-    core::{errors, webhooks::types::OutgoingWebhookType},
+    core::{
+        errors,
+        webhooks::types::{OutgoingWebhookPayloadWithSignature, OutgoingWebhookType},
+    },
     headers,
     services::request::Maskable,
 };
@@ -30,8 +33,8 @@ pub struct StripeOutgoingWebhook {
 impl OutgoingWebhookType for StripeOutgoingWebhook {
     fn get_outgoing_webhooks_signature(
         &self,
-        payment_response_hash_key: Option<String>,
-    ) -> errors::CustomResult<Option<String>, errors::WebhooksFlowError> {
+        payment_response_hash_key: Option<impl AsRef<[u8]>>,
+    ) -> errors::CustomResult<OutgoingWebhookPayloadWithSignature, errors::WebhooksFlowError> {
         let timestamp = self.created;
 
         let payment_response_hash_key = payment_response_hash_key
@@ -39,16 +42,16 @@ impl OutgoingWebhookType for StripeOutgoingWebhook {
             .into_report()
             .attach_printable("For stripe compatibility payment_response_hash_key is mandatory")?;
 
-        let webhook_signature_payload =
-            ext_traits::Encode::<serde_json::Value>::encode_to_string_of_json(self)
-                .change_context(errors::WebhooksFlowError::OutgoingWebhookEncodingFailed)
-                .attach_printable("failed encoding outgoing webhook payload")?;
+        let webhook_signature_payload = self
+            .encode_to_string_of_json()
+            .change_context(errors::WebhooksFlowError::OutgoingWebhookEncodingFailed)
+            .attach_printable("failed encoding outgoing webhook payload")?;
 
         let new_signature_payload = format!("{timestamp}.{webhook_signature_payload}");
         let v1 = hex::encode(
             common_utils::crypto::HmacSha256::sign_message(
                 &common_utils::crypto::HmacSha256,
-                payment_response_hash_key.as_bytes(),
+                payment_response_hash_key.as_ref(),
                 new_signature_payload.as_bytes(),
             )
             .change_context(errors::WebhooksFlowError::OutgoingWebhookSigningFailed)
@@ -56,7 +59,12 @@ impl OutgoingWebhookType for StripeOutgoingWebhook {
         );
 
         let t = timestamp;
-        Ok(Some(format!("t={t},v1={v1}")))
+        let signature = Some(format!("t={t},v1={v1}"));
+
+        Ok(OutgoingWebhookPayloadWithSignature {
+            payload: webhook_signature_payload.into(),
+            signature,
+        })
     }
 
     fn add_webhook_header(header: &mut Vec<(String, Maskable<String>)>, signature: String) {

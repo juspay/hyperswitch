@@ -6,7 +6,7 @@ use url::Url;
 use uuid::Uuid;
 
 use crate::{
-    connector::utils::{AddressDetailsData, RouterData},
+    connector::utils::{self, AddressDetailsData, RouterData},
     core::errors,
     services::{self, RedirectForm},
     types::{self, api, storage::enums},
@@ -81,10 +81,23 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BokuPaymentsRequest {
             api_models::payments::PaymentMethodData::Wallet(wallet_data) => {
                 Self::try_from((item, &wallet_data))
             }
-            _ => Err(errors::ConnectorError::NotSupported {
-                message: format!("{:?}", item.request.payment_method_type),
-                connector: "Boku",
-            })?,
+            api_models::payments::PaymentMethodData::Card(_)
+            | api_models::payments::PaymentMethodData::CardRedirect(_)
+            | api_models::payments::PaymentMethodData::PayLater(_)
+            | api_models::payments::PaymentMethodData::BankRedirect(_)
+            | api_models::payments::PaymentMethodData::BankDebit(_)
+            | api_models::payments::PaymentMethodData::BankTransfer(_)
+            | api_models::payments::PaymentMethodData::Crypto(_)
+            | api_models::payments::PaymentMethodData::MandatePayment
+            | api_models::payments::PaymentMethodData::Reward
+            | api_models::payments::PaymentMethodData::Upi(_)
+            | api_models::payments::PaymentMethodData::Voucher(_)
+            | api_models::payments::PaymentMethodData::GiftCard(_)
+            | api_models::payments::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("boku"),
+                ))?
+            }
         }
     }
 }
@@ -136,9 +149,31 @@ fn get_wallet_type(wallet_data: &api::WalletData) -> Result<String, errors::Conn
         api_models::payments::WalletData::KakaoPayRedirect { .. } => {
             Ok(BokuPaymentType::Kakaopay.to_string())
         }
-        _ => Err(errors::ConnectorError::NotImplemented(
-            "Payment method".to_string(),
-        )),
+        api_models::payments::WalletData::AliPayQr(_)
+        | api_models::payments::WalletData::AliPayRedirect(_)
+        | api_models::payments::WalletData::AliPayHkRedirect(_)
+        | api_models::payments::WalletData::ApplePay(_)
+        | api_models::payments::WalletData::ApplePayRedirect(_)
+        | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
+        | api_models::payments::WalletData::GooglePay(_)
+        | api_models::payments::WalletData::GooglePayRedirect(_)
+        | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
+        | api_models::payments::WalletData::MbWayRedirect(_)
+        | api_models::payments::WalletData::MobilePayRedirect(_)
+        | api_models::payments::WalletData::PaypalRedirect(_)
+        | api_models::payments::WalletData::PaypalSdk(_)
+        | api_models::payments::WalletData::SamsungPay(_)
+        | api_models::payments::WalletData::TwintRedirect {}
+        | api_models::payments::WalletData::VippsRedirect {}
+        | api_models::payments::WalletData::TouchNGoRedirect(_)
+        | api_models::payments::WalletData::WeChatPayRedirect(_)
+        | api_models::payments::WalletData::WeChatPayQr(_)
+        | api_models::payments::WalletData::CashappQr(_)
+        | api_models::payments::WalletData::SwishQr(_) => {
+            Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("boku"),
+            ))
+        }
     }
 }
 
@@ -190,14 +225,14 @@ pub struct BokuMetaData {
     pub(super) country: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum BokuResponse {
     BeginSingleChargeResponse(BokuPaymentsResponse),
     QueryChargeResponse(BokuPsyncResponse),
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct BokuPaymentsResponse {
     charge_status: String, // xml parse only string to fields
@@ -205,26 +240,26 @@ pub struct BokuPaymentsResponse {
     hosted: Option<HostedUrlResponse>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct HostedUrlResponse {
     redirect_url: Option<Url>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename = "query-charge-response")]
 #[serde(rename_all = "kebab-case")]
 pub struct BokuPsyncResponse {
     charges: ChargeResponseData,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct ChargeResponseData {
     charge: SingleChargeResponseData,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct SingleChargeResponseData {
     charge_status: String,
@@ -333,7 +368,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for BokuRefundRequest {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename = "refund-charge-response")]
 pub struct RefundResponse {
     charge_id: String,
@@ -389,20 +424,20 @@ impl TryFrom<&types::RefundSyncRouterData> for BokuRsyncRequest {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename = "query-refund-response")]
 #[serde(rename_all = "kebab-case")]
 pub struct BokuRsyncResponse {
     refunds: RefundResponseData,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct RefundResponseData {
     refund: SingleRefundResponseData,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct SingleRefundResponseData {
     refund_status: String, // quick-xml only parse string as a field

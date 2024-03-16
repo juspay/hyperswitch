@@ -12,7 +12,8 @@ use url::Url;
 
 use crate::{
     connector::utils::{
-        self, missing_field_err, AddressDetailsData, CardData, PaymentsAuthorizeRequestData,
+        self, is_payment_failure, is_refund_failure, missing_field_err, AddressDetailsData,
+        CardData, PaymentsAuthorizeRequestData, PaymentsCancelRequestData,
         PaymentsCompleteAuthorizeRequestData, PaymentsPreProcessingData, PaymentsSyncRequestData,
         RouterData,
     },
@@ -83,7 +84,7 @@ pub struct Pay3dsRequest {
     buyer_email: pii::Email,
     buyer_key: String,
     payme_sale_id: String,
-    meta_data_jwt: String,
+    meta_data_jwt: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -119,9 +120,9 @@ pub struct CaptureBuyerRequest {
     card: PaymeCard,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct CaptureBuyerResponse {
-    buyer_key: String,
+    buyer_key: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -156,7 +157,7 @@ pub struct ThreeDsSettings {
     active: bool,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct GenerateSaleResponse {
     payme_sale_id: String,
 }
@@ -198,14 +199,15 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, PaymePaySaleResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let response = if item.response.sale_status == SaleStatus::Failed {
+        let status = enums::AttemptStatus::from(item.response.sale_status.clone());
+        let response = if is_payment_failure(status) {
             // To populate error message in case of failure
             Err(types::ErrorResponse::from((&item.response, item.http_code)))
         } else {
             Ok(types::PaymentsResponseData::try_from(&item.response)?)
         };
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.sale_status),
+            status,
             response,
             ..item.data
         })
@@ -227,7 +229,7 @@ impl From<(&PaymePaySaleResponse, u16)> for types::ErrorResponse {
             reason: pay_sale_response.status_error_details.to_owned(),
             status_code: http_code,
             attempt_status: None,
-            connector_transaction_id: None,
+            connector_transaction_id: Some(pay_sale_response.payme_sale_id.clone()),
         }
     }
 }
@@ -253,13 +255,7 @@ impl TryFrom<&PaymePaySaleResponse> for types::PaymentsResponseData {
                 connector_mandate_id: Some(buyer_key.expose()),
                 payment_method_id: None,
             }),
-            connector_metadata: Some(
-                serde_json::to_value(PaymeMetadata {
-                    payme_transaction_id: value.payme_transaction_id.clone(),
-                })
-                .into_report()
-                .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
-            ),
+            connector_metadata: None,
             network_txn_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
@@ -281,7 +277,8 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, SaleQueryResponse, T, types::Pay
             .first()
             .cloned()
             .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
-        let response = if transaction_response.sale_status == SaleStatus::Failed {
+        let status = enums::AttemptStatus::from(transaction_response.sale_status.clone());
+        let response = if is_payment_failure(status) {
             // To populate error message in case of failure
             Err(types::ErrorResponse::from((
                 &transaction_response,
@@ -291,7 +288,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, SaleQueryResponse, T, types::Pay
             Ok(types::PaymentsResponseData::from(&transaction_response))
         };
         Ok(Self {
-            status: enums::AttemptStatus::from(transaction_response.sale_status),
+            status,
             response,
             ..item.data
         })
@@ -312,7 +309,7 @@ impl From<(&SaleQuery, u16)> for types::ErrorResponse {
             reason: sale_query_response.sale_error_text.clone(),
             status_code: http_code,
             attempt_status: None,
-            connector_transaction_id: None,
+            connector_transaction_id: Some(sale_query_response.sale_payme_id.clone()),
         }
     }
 }
@@ -547,9 +544,7 @@ impl<F>
                 let currency_code = item.data.request.get_currency()?;
                 let country_code = item
                     .data
-                    .address
-                    .billing
-                    .as_ref()
+                    .get_optional_billing()
                     .and_then(|billing| billing.address.as_ref())
                     .and_then(|address| address.country);
                 let amount = item.data.request.get_amount()?;
@@ -722,7 +717,7 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
                     buyer_key,
                     buyer_name,
                     payme_sale_id,
-                    meta_data_jwt: jwt_data.meta_data,
+                    meta_data_jwt: Secret::new(jwt_data.meta_data),
                 })
             }
             Some(api::PaymentMethodData::CardRedirect(_))
@@ -858,19 +853,19 @@ impl From<SaleStatus> for enums::AttemptStatus {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum PaymePaymentsResponse {
     PaymePaySaleResponse(PaymePaySaleResponse),
     SaleQueryResponse(SaleQueryResponse),
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SaleQueryResponse {
     items: Vec<SaleQuery>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SaleQuery {
     sale_status: SaleStatus,
     sale_payme_id: String,
@@ -882,7 +877,7 @@ pub struct SaleQuery {
 pub struct PaymePaySaleResponse {
     sale_status: SaleStatus,
     payme_sale_id: String,
-    payme_transaction_id: String,
+    payme_transaction_id: Option<String>,
     buyer_key: Option<Secret<String>>,
     status_error_details: Option<String>,
     status_error_code: Option<u32>,
@@ -892,7 +887,7 @@ pub struct PaymePaySaleResponse {
 
 #[derive(Serialize, Deserialize)]
 pub struct PaymeMetadata {
-    payme_transaction_id: String,
+    payme_transaction_id: Option<String>,
 }
 
 impl<F, T>
@@ -905,10 +900,10 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             payment_method_token: Some(types::PaymentMethodToken::Token(
-                item.response.buyer_key.clone(),
+                item.response.buyer_key.clone().expose(),
             )),
             response: Ok(types::PaymentsResponseData::TokenizationResponse {
-                token: item.response.buyer_key,
+                token: item.response.buyer_key.expose(),
             }),
             ..item.data
         })
@@ -978,10 +973,11 @@ impl TryFrom<SaleStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct PaymeRefundResponse {
     sale_status: SaleStatus,
-    payme_transaction_id: String,
+    payme_transaction_id: Option<String>,
+    status_error_code: Option<u32>,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, PaymeRefundResponse>>
@@ -991,11 +987,118 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, PaymeRefundResponse>
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, PaymeRefundResponse>,
     ) -> Result<Self, Self::Error> {
+        let refund_status = enums::RefundStatus::try_from(item.response.sale_status.clone())?;
+        let response = if is_refund_failure(refund_status) {
+            let payme_response = &item.response;
+            let status_error_code = payme_response
+                .status_error_code
+                .map(|error_code| error_code.to_string());
+            Err(types::ErrorResponse {
+                code: status_error_code
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                message: status_error_code
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: status_error_code,
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: payme_response.payme_transaction_id.clone(),
+            })
+        } else {
+            Ok(types::RefundsResponseData {
+                connector_refund_id: item
+                    .response
+                    .payme_transaction_id
+                    .ok_or(errors::ConnectorError::MissingConnectorRefundID)?,
+                refund_status,
+            })
+        };
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.payme_transaction_id,
-                refund_status: enums::RefundStatus::try_from(item.response.sale_status)?,
-            }),
+            response,
+            ..item.data
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct PaymeVoidRequest {
+    sale_currency: enums::Currency,
+    payme_sale_id: String,
+    seller_payme_id: Secret<String>,
+    language: String,
+}
+
+impl
+    TryFrom<
+        &PaymeRouterData<
+            &types::RouterData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>,
+        >,
+    > for PaymeVoidRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &PaymeRouterData<
+            &types::RouterData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let auth_type = PaymeAuthType::try_from(&item.router_data.connector_auth_type)?;
+        Ok(Self {
+            payme_sale_id: item.router_data.request.connector_transaction_id.clone(),
+            seller_payme_id: auth_type.seller_payme_id,
+            sale_currency: item.router_data.request.get_currency()?,
+            language: LANGUAGE.to_string(),
+        })
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PaymeVoidResponse {
+    sale_status: SaleStatus,
+    payme_transaction_id: Option<String>,
+    status_error_code: Option<u32>,
+}
+
+impl TryFrom<types::PaymentsCancelResponseRouterData<PaymeVoidResponse>>
+    for types::PaymentsCancelRouterData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::PaymentsCancelResponseRouterData<PaymeVoidResponse>,
+    ) -> Result<Self, Self::Error> {
+        let status = enums::AttemptStatus::from(item.response.sale_status.clone());
+        let response = if is_payment_failure(status) {
+            let payme_response = &item.response;
+            let status_error_code = payme_response
+                .status_error_code
+                .map(|error_code| error_code.to_string());
+            Err(types::ErrorResponse {
+                code: status_error_code
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                message: status_error_code
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: status_error_code,
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: payme_response.payme_transaction_id.clone(),
+            })
+        } else {
+            // Since we are not receiving payme_sale_id, we are not populating the transaction response
+            Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::NoResponseId,
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+            })
+        };
+        Ok(Self {
+            status,
+            response,
             ..item.data
         })
     }
@@ -1031,13 +1134,24 @@ impl<F, T>
             .items
             .first()
             .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                refund_status: enums::RefundStatus::try_from(
-                    pay_sale_response.sale_status.clone(),
-                )?,
+        let refund_status = enums::RefundStatus::try_from(pay_sale_response.sale_status.clone())?;
+        let response = if is_refund_failure(refund_status) {
+            Err(types::ErrorResponse {
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: consts::NO_ERROR_CODE.to_string(),
+                reason: None,
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: Some(pay_sale_response.payme_transaction_id.clone()),
+            })
+        } else {
+            Ok(types::RefundsResponseData {
+                refund_status,
                 connector_refund_id: pay_sale_response.payme_transaction_id.clone(),
-            }),
+            })
+        };
+        Ok(Self {
+            response,
             ..item.data
         })
     }
@@ -1105,7 +1219,7 @@ impl From<WebhookEventDataResource> for PaymePaySaleResponse {
         Self {
             sale_status: value.sale_status,
             payme_sale_id: value.payme_sale_id,
-            payme_transaction_id: value.payme_transaction_id,
+            payme_transaction_id: Some(value.payme_transaction_id),
             buyer_key: value.buyer_key,
             sale_3ds: None,
             redirect_url: None,

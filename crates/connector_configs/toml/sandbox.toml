@@ -163,6 +163,8 @@ merchant_secret="Source verification key"
   payment_method_type = "danamon_va"
 [[adyen.bank_transfer]]
   payment_method_type = "mandiri_va"
+[[adyen.bank_transfer]]
+  payment_method_type = "pix"
 [[adyen.wallet]]
   payment_method_type = "apple_pay"
 [[adyen.wallet]]
@@ -230,6 +232,8 @@ api_key="Adyen API Key"
 key1="Adyen Account Id"
 [adyen.connector_webhook_details]
 merchant_secret="Source verification key"
+[adyen.metadata]
+endpoint_prefix="Live endpoint prefix"
 [adyen.metadata.google_pay]
 merchant_name="Google Pay Merchant Name"
 gateway_merchant_id="Google Pay Merchant Key"
@@ -331,6 +335,8 @@ merchant_secret="Source verification key"
 [[authorizedotnet.debit]]
   payment_method_type = "UnionPay"
 [[authorizedotnet.wallet]]
+  payment_method_type = "apple_pay"
+[[authorizedotnet.wallet]]
   payment_method_type = "google_pay"
 [[authorizedotnet.wallet]]
   payment_method_type = "paypal"
@@ -341,6 +347,17 @@ key1="Transaction Key"
 merchant_name="Google Pay Merchant Name"
 gateway_merchant_id="Google Pay Merchant Key"
 merchant_id="Google Pay Merchant ID"
+[authorizedotnet.metadata.apple_pay.session_token_data]
+certificate="Merchant Certificate (Base64 Encoded)"
+certificate_keys="Merchant PrivateKey (Base64 Encoded)"
+merchant_identifier="Apple Merchant Identifier"
+display_name="Display Name"
+initiative="Domain"
+initiative_context="Domain Name"
+[authorizedotnet.metadata.apple_pay.payment_request_data]
+supported_networks=["visa","masterCard","amex","discover"]
+merchant_capabilities=["supports3DS"]
+label="apple"
 [authorizedotnet.connector_webhook_details]
 merchant_secret="Source verification key"
 
@@ -639,6 +656,62 @@ merchant_id_classic="MerchantId Classic"
 password_evoucher="Password Evoucher"
 username_evoucher="Username Evoucher"
 merchant_id_evoucher="MerchantId Evoucher"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.CAD.classic]
+password_classic="Password Classic"
+username_classic="Username Classic"
+merchant_id_classic="MerchantId Classic"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.CAD.evoucher]
+password_evoucher="Password Evoucher"
+username_evoucher="Username Evoucher"
+merchant_id_evoucher="MerchantId Evoucher"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.CHF.classic]
+password_classic="Password Classic"
+username_classic="Username Classic"
+merchant_id_classic="MerchantId Classic"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.CHF.evoucher]
+password_evoucher="Password Evoucher"
+username_evoucher="Username Evoucher"
+merchant_id_evoucher="MerchantId Evoucher"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.AUD.classic]
+password_classic="Password Classic"
+username_classic="Username Classic"
+merchant_id_classic="MerchantId Classic"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.AUD.evoucher]
+password_evoucher="Password Evoucher"
+username_evoucher="Username Evoucher"
+merchant_id_evoucher="MerchantId Evoucher"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.INR.classic]
+password_classic="Password Classic"
+username_classic="Username Classic"
+merchant_id_classic="MerchantId Classic"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.INR.evoucher]
+password_evoucher="Password Evoucher"
+username_evoucher="Username Evoucher"
+merchant_id_evoucher="MerchantId Evoucher"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.JPY.classic]
+password_classic="Password Classic"
+username_classic="Username Classic"
+merchant_id_classic="MerchantId Classic"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.JPY.evoucher]
+password_evoucher="Password Evoucher"
+username_evoucher="Username Evoucher"
+merchant_id_evoucher="MerchantId Evoucher"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.NZD.classic]
+password_classic="Password Classic"
+username_classic="Username Classic"
+merchant_id_classic="MerchantId Classic"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.NZD.evoucher]
+password_evoucher="Password Evoucher"
+username_evoucher="Username Evoucher"
+merchant_id_evoucher="MerchantId Evoucher"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.ZAR.classic]
+password_classic="Password Classic"
+username_classic="Username Classic"
+merchant_id_classic="MerchantId Classic"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.ZAR.evoucher]
+password_evoucher="Password Evoucher"
+username_evoucher="Username Evoucher"
+merchant_id_evoucher="MerchantId Evoucher"
 [cashtocode.connector_webhook_details]
 merchant_secret="Source verification key"
 
@@ -683,8 +756,6 @@ merchant_secret="Source verification key"
   payment_method_type = "apple_pay"
 [[checkout.wallet]]
   payment_method_type = "google_pay"
-[[checkout.wallet]]
-  payment_method_type = "paypal"
 [checkout.connector_auth.SignatureKey]
 api_key="Checkout API Public Key"
 key1="Processing Channel ID"
@@ -2488,6 +2559,10 @@ api_key="Api Key"
   payment_method_type = "bacs"
 [[adyen_payout.bank_transfer]]
   payment_method_type = "sepa"
+[[adyen_payout.wallet]]
+  payment_method_type = "paypal"
+[adyen_payout.metadata]
+  endpoint_prefix="Live endpoint prefix"
 [adyen_payout.connector_auth.SignatureKey]
 api_key = "Adyen API Key (Payout creation)"
 api_secret = "Adyen Key (Payout submission)"
@@ -2503,3 +2578,11 @@ key1 = "Adyen Account Id"
 [wise_payout.connector_auth.BodyKey]
 api_key = "Wise API Key"
 key1 = "Wise Account Id"
+
+[threedsecureio]
+[threedsecureio.connector_auth.HeaderKey]
+api_key="Api Key"
+[threedsecureio.metadata]
+mcc="MCC"
+merchant_country_code="3 digit numeric country code"
+merchant_name="Name of the merchant"

@@ -5,6 +5,7 @@ use common_enums::RequestIncrementalAuthorization;
 use common_utils::{consts::X_HS_LATENCY, fp_utils};
 use diesel_models::ephemeral_key;
 use error_stack::{report, IntoReport, ResultExt};
+use masking::Maskable;
 use router_env::{instrument, tracing};
 
 use super::{flows::Feature, PaymentData};
@@ -147,6 +148,7 @@ where
         access_token: None,
         session_token: None,
         reference_id: None,
+        payment_method_status: payment_data.payment_method_info.map(|info| info.status),
         payment_method_token: payment_data.pm_token.map(types::PaymentMethodToken::Token),
         connector_customer: payment_data.connector_customer_id,
         recurring_mandate_payment_data: payment_data.recurring_mandate_payment_data,
@@ -167,6 +169,8 @@ where
         external_latency: None,
         apple_pay_flow,
         frm_metadata: None,
+        refund_id: None,
+        dispute_id: None,
     };
 
     Ok(router_data)
@@ -323,7 +327,9 @@ where
                 phone: customer
                     .as_ref()
                     .and_then(|cus| cus.phone.as_ref().map(|s| s.to_owned())),
-                mandate_id: data.mandate_id.map(|mandate_ids| mandate_ids.mandate_id),
+                mandate_id: data
+                    .mandate_id
+                    .and_then(|mandate_ids| mandate_ids.mandate_id),
                 payment_method: data.payment_attempt.payment_method,
                 payment_method_data: payment_method_data_response,
                 payment_token: data.token,
@@ -406,6 +412,11 @@ where
         )
     };
 
+    let external_authentication_details = payment_data
+        .authentication
+        .as_ref()
+        .map(ForeignInto::foreign_into);
+
     let attempts_response = payment_data.attempts.map(|attempts| {
         attempts
             .into_iter()
@@ -450,27 +461,42 @@ where
     let merchant_decision = payment_intent.merchant_decision.to_owned();
     let frm_message = payment_data.frm_message.map(FrmMessage::foreign_from);
 
-    let payment_method_data_response =
+    let payment_method_data =
         additional_payment_method_data.map(api::PaymentMethodDataResponse::from);
+
+    let payment_method_data_response = payment_method_data.map(|payment_method_data| {
+        api_models::payments::PaymentMethodDataResponseWithBilling {
+            payment_method_data,
+            billing: payment_data
+                .address
+                .get_request_payment_method_billing()
+                .cloned(),
+        }
+    });
 
     let mut headers = connector_http_status_code
         .map(|status_code| {
             vec![(
                 "connector_http_status_code".to_string(),
-                status_code.to_string(),
+                Maskable::new_normal(status_code.to_string()),
             )]
         })
         .unwrap_or_default();
     if let Some(payment_confirm_source) = payment_intent.payment_confirm_source {
         headers.push((
             "payment_confirm_source".to_string(),
-            payment_confirm_source.to_string(),
+            Maskable::new_normal(payment_confirm_source.to_string()),
         ))
     }
 
     headers.extend(
         external_latency
-            .map(|latency| vec![(X_HS_LATENCY.to_string(), latency.to_string())])
+            .map(|latency| {
+                vec![(
+                    X_HS_LATENCY.to_string(),
+                    Maskable::new_normal(latency.to_string()),
+                )]
+            })
             .unwrap_or_default(),
     );
 
@@ -509,6 +535,7 @@ where
                     || next_action_voucher.is_some()
                     || next_action_containing_qr_code_url.is_some()
                     || next_action_containing_wait_screen.is_some()
+                    || payment_data.authentication.is_some()
                 {
                     next_action_response = bank_transfer_next_steps
                         .map(|bank_transfer| {
@@ -522,10 +549,7 @@ where
                             }
                         }))
                         .or(next_action_containing_qr_code_url.map(|qr_code_data| {
-                            api_models::payments::NextActionData::QrCodeInformation {
-                                image_data_url: qr_code_data.image_data_url,
-                                display_to_timestamp: qr_code_data.display_to_timestamp,
-                            }
+                            api_models::payments::NextActionData::foreign_from(qr_code_data)
                         }))
                         .or(next_action_containing_wait_screen.map(|wait_screen_data| {
                             api_models::payments::NextActionData::WaitScreenInformation {
@@ -541,7 +565,47 @@ where
                                     &payment_intent,
                                 ),
                             }
-                        }));
+                        }))
+                        .or(match payment_data.authentication.as_ref(){
+                            Some((_authentication, authentication_data)) => {
+                                if payment_intent.status == common_enums::IntentStatus::RequiresCustomerAction && authentication_data.cavv.is_none() && authentication_data.is_separate_authn_required(){
+                                    // if preAuthn and separate authentication needed.
+                                    let payment_connector_name = payment_attempt.connector
+                                        .as_ref()
+                                        .get_required_value("connector")?;
+                                    Some(api_models::payments::NextActionData::ThreeDsInvoke {
+                                        three_ds_data: api_models::payments::ThreeDsData {
+                                            three_ds_authentication_url: helpers::create_authentication_url(
+                                                &server.base_url,
+                                                &payment_attempt,
+                                            ),
+                                            three_ds_authorize_url: helpers::create_authorize_url(
+                                                &server.base_url,
+                                                &payment_attempt,
+                                                payment_connector_name,
+                                            ),
+                                            three_ds_method_details: authentication_data.three_ds_method_data.three_ds_method_url.as_ref().map(|three_ds_method_url|{
+                                                api_models::payments::ThreeDsMethodData::AcsThreeDsMethodData {
+                                                    three_ds_method_data_submission: true,
+                                                    three_ds_method_data: authentication_data
+                                                        .three_ds_method_data
+                                                        .three_ds_method_data
+                                                        .clone(),
+                                                    three_ds_method_url: Some(three_ds_method_url.to_owned()),
+                                                }
+                                            }).unwrap_or(api_models::payments::ThreeDsMethodData::AcsThreeDsMethodData {
+                                                    three_ds_method_data_submission: false,
+                                                    three_ds_method_data: "".into(),
+                                                    three_ds_method_url: None,
+                                            }),
+                                        },
+                                    })
+                                }else{
+                                    None
+                                }
+                            },
+                            None => None
+                        });
                 };
 
                 // next action check for third party sdk session (for ex: Apple pay through trustpay has third party sdk session response)
@@ -639,6 +703,7 @@ where
                                         api::MandateType::MultiUse(None)
                                     }
                                 }),
+                                update_mandate_id: d.update_mandate_id,
                             }),
                             auth_flow == services::AuthFlow::Merchant,
                         )
@@ -662,8 +727,8 @@ where
                                 .or(payment_attempt.error_message),
                         )
                         .set_error_code(payment_attempt.error_code)
-                        .set_shipping(payment_data.address.shipping)
-                        .set_billing(payment_data.address.billing)
+                        .set_shipping(payment_data.address.get_shipping().cloned())
+                        .set_billing(payment_data.address.get_payment_billing().cloned())
                         .set_next_action(next_action_response)
                         .set_return_url(payment_intent.return_url)
                         .set_cancellation_reason(payment_attempt.cancellation_reason)
@@ -707,10 +772,18 @@ where
                         .set_incremental_authorization_allowed(
                             payment_intent.incremental_authorization_allowed,
                         )
+                        .set_external_authentication_details(external_authentication_details)
                         .set_fingerprint(payment_intent.fingerprint_id)
                         .set_authorization_count(payment_intent.authorization_count)
                         .set_incremental_authorizations(incremental_authorizations_response)
                         .set_expires_on(payment_intent.session_expiry)
+                        .set_external_3ds_authentication_attempted(
+                            payment_attempt.external_three_ds_authentication_attempted,
+                        )
+                        .set_payment_method_id(payment_attempt.payment_method_id)
+                        .set_payment_method_status(
+                            payment_data.payment_method_info.map(|info| info.status),
+                        )
                         .to_owned(),
                     headers,
                 ))
@@ -751,8 +824,8 @@ where
                     .as_ref()
                     .and_then(|cus| cus.phone.as_ref().map(|s| s.to_owned())),
                 mandate_id,
-                shipping: payment_data.address.shipping,
-                billing: payment_data.address.billing,
+                shipping: payment_data.address.get_shipping().cloned(),
+                billing: payment_data.address.get_payment_billing().cloned(),
                 cancellation_reason: payment_attempt.cancellation_reason,
                 payment_token: payment_attempt.payment_token,
                 metadata: payment_intent.metadata,
@@ -777,7 +850,10 @@ where
                 incremental_authorization_allowed: payment_intent.incremental_authorization_allowed,
                 authorization_count: payment_intent.authorization_count,
                 incremental_authorizations: incremental_authorizations_response,
+                external_authentication_details,
                 expires_on: payment_intent.session_expiry,
+                external_3ds_authentication_attempted: payment_attempt
+                    .external_three_ds_authentication_attempted,
                 ..Default::default()
             },
             headers,
@@ -830,11 +906,10 @@ where
 
 pub fn qr_code_next_steps_check(
     payment_attempt: storage::PaymentAttempt,
-) -> RouterResult<Option<api_models::payments::QrCodeNextStepsInstruction>> {
-    let qr_code_steps: Option<Result<api_models::payments::QrCodeNextStepsInstruction, _>> =
-        payment_attempt
-            .connector_metadata
-            .map(|metadata| metadata.parse_value("QrCodeNextStepsInstruction"));
+) -> RouterResult<Option<api_models::payments::QrCodeInformation>> {
+    let qr_code_steps: Option<Result<api_models::payments::QrCodeInformation, _>> = payment_attempt
+        .connector_metadata
+        .map(|metadata| metadata.parse_value("QrCodeInformation"));
 
     let qr_code_instructions = qr_code_steps.transpose().ok().flatten();
     Ok(qr_code_instructions)
@@ -904,17 +979,24 @@ pub fn bank_transfer_next_steps_check(
     let bank_transfer_next_step = if let Some(diesel_models::enums::PaymentMethod::BankTransfer) =
         payment_attempt.payment_method
     {
-        let bank_transfer_next_steps: Option<api_models::payments::BankTransferNextStepsData> =
-            payment_attempt
-                .connector_metadata
-                .map(|metadata| {
-                    metadata
-                        .parse_value("NextStepsRequirements")
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to parse the Value to NextRequirements struct")
-                })
-                .transpose()?;
-        bank_transfer_next_steps
+        if payment_attempt.payment_method_type != Some(diesel_models::enums::PaymentMethodType::Pix)
+        {
+            let bank_transfer_next_steps: Option<api_models::payments::BankTransferNextStepsData> =
+                payment_attempt
+                    .connector_metadata
+                    .map(|metadata| {
+                        metadata
+                            .parse_value("NextStepsRequirements")
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable(
+                                "Failed to parse the Value to NextRequirements struct",
+                            )
+                    })
+                    .transpose()?;
+            bank_transfer_next_steps
+        } else {
+            None
+        }
     } else {
         None
     };
@@ -958,6 +1040,38 @@ pub fn change_order_details_to_new_type(
         brand: order_details.brand,
         product_type: order_details.product_type,
     }])
+}
+
+impl ForeignFrom<api_models::payments::QrCodeInformation> for api_models::payments::NextActionData {
+    fn foreign_from(qr_info: api_models::payments::QrCodeInformation) -> Self {
+        match qr_info {
+            api_models::payments::QrCodeInformation::QrCodeUrl {
+                image_data_url,
+                qr_code_url,
+                display_to_timestamp,
+            } => Self::QrCodeInformation {
+                image_data_url: Some(image_data_url),
+                qr_code_url: Some(qr_code_url),
+                display_to_timestamp,
+            },
+            api_models::payments::QrCodeInformation::QrDataUrl {
+                image_data_url,
+                display_to_timestamp,
+            } => Self::QrCodeInformation {
+                image_data_url: Some(image_data_url),
+                display_to_timestamp,
+                qr_code_url: None,
+            },
+            api_models::payments::QrCodeInformation::QrCodeImageUrl {
+                qr_code_url,
+                display_to_timestamp,
+            } => Self::QrCodeInformation {
+                qr_code_url: Some(qr_code_url),
+                display_to_timestamp,
+                image_data_url: None,
+            },
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -1096,6 +1210,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                     | Some(RequestIncrementalAuthorization::Default)
             ),
             metadata: additional_data.payment_data.payment_intent.metadata,
+            authentication_data: payment_data.authentication.map(|auth| auth.1),
+            customer_acceptance: payment_data.customer_acceptance,
         })
     }
 }
@@ -1122,6 +1238,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
                 ),
                 None => types::SyncRequestType::SinglePaymentSync,
             },
+            payment_method_type: payment_data.payment_attempt.payment_method_type,
         })
     }
 }
@@ -1303,7 +1420,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsRejectDa
         })
     }
 }
-
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
@@ -1337,9 +1453,14 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
         Ok(Self {
             amount,
             currency: payment_data.currency,
-            country: payment_data.address.billing.and_then(|billing_address| {
-                billing_address.address.and_then(|address| address.country)
-            }),
+            country: payment_data.address.get_payment_method_billing().and_then(
+                |billing_address| {
+                    billing_address
+                        .address
+                        .as_ref()
+                        .and_then(|address| address.country)
+                },
+            ),
             order_details,
             surcharge_details: payment_data.surcharge_details,
         })
@@ -1391,6 +1512,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             off_session: payment_data.mandate_id.as_ref().map(|_| true),
             mandate_id: payment_data.mandate_id.clone(),
             setup_mandate_details: payment_data.setup_mandate,
+            customer_acceptance: payment_data.customer_acceptance,
             router_return_url,
             email: payment_data.email,
             customer_name,
@@ -1404,6 +1526,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                 Some(RequestIncrementalAuthorization::True)
                     | Some(RequestIncrementalAuthorization::Default)
             ),
+            metadata: payment_data.payment_intent.metadata.clone(),
         })
     }
 }

@@ -1,4 +1,6 @@
 pub use common_utils::errors::{ParsingError, ValidationError};
+#[cfg(feature = "email")]
+use external_services::email::EmailError;
 pub use redis_interface::errors::RedisError;
 pub use storage_impl::errors::ApplicationError;
 use storage_impl::errors::StorageError;
@@ -32,7 +34,7 @@ pub enum ProcessTrackerError {
     #[error("Failed to fetch processes from database")]
     ProcessFetchingFailed,
     #[error("Failed while fetching: {resource_name}")]
-    ResourceFetchingFailed { resource_name: &'static str },
+    ResourceFetchingFailed { resource_name: String },
     #[error("Failed while executing: {flow}")]
     FlowExecutionError { flow: &'static str },
     #[error("Not Implemented")]
@@ -43,14 +45,17 @@ pub enum ProcessTrackerError {
     EApiErrorResponse,
     #[error("Received Error ClientError")]
     EClientError,
-    #[error("Received Error StorageError: {0}")]
+    #[error("Received Error StorageError: {0:?}")]
     EStorageError(error_stack::Report<StorageError>),
-    #[error("Received Error RedisError: {0}")]
+    #[error("Received Error RedisError: {0:?}")]
     ERedisError(error_stack::Report<RedisError>),
-    #[error("Received Error ParsingError: {0}")]
+    #[error("Received Error ParsingError: {0:?}")]
     EParsingError(error_stack::Report<ParsingError>),
-    #[error("Validation Error Received: {0}")]
+    #[error("Validation Error Received: {0:?}")]
     EValidationError(error_stack::Report<ValidationError>),
+    #[cfg(feature = "email")]
+    #[error("Received Error EmailError: {0:?}")]
+    EEmailError(error_stack::Report<EmailError>),
     #[error("Type Conversion error")]
     TypeConversionError,
 }
@@ -110,4 +115,10 @@ error_to_process_tracker_error!(
 error_to_process_tracker_error!(
     error_stack::Report<ValidationError>,
     ProcessTrackerError::EValidationError(error_stack::Report<ValidationError>)
+);
+
+#[cfg(feature = "email")]
+error_to_process_tracker_error!(
+    error_stack::Report<EmailError>,
+    ProcessTrackerError::EEmailError(error_stack::Report<EmailError>)
 );

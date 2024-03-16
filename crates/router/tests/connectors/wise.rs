@@ -27,12 +27,13 @@ impl utils::Connector for WiseTest {
     }
 
     #[cfg(feature = "payouts")]
-    fn get_payout_data(&self) -> Option<types::api::PayoutConnectorData> {
+    fn get_payout_data(&self) -> Option<types::api::ConnectorData> {
         use router::connector::Wise;
-        Some(types::api::PayoutConnectorData {
+        Some(types::api::ConnectorData {
             connector: Box::new(&Wise),
-            connector_name: types::PayoutConnectors::Wise,
+            connector_name: types::Connector::Wise,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         })
     }
 
@@ -56,8 +57,9 @@ impl WiseTest {
         Some(PaymentInfo {
             country: Some(api_models::enums::CountryAlpha2::NL),
             currency: Some(enums::Currency::GBP),
-            address: Some(PaymentAddress {
-                billing: Some(Address {
+            address: Some(PaymentAddress::new(
+                None,
+                Some(Address {
                     address: Some(AddressDetails {
                         country: Some(api_models::enums::CountryAlpha2::GB),
                         city: Some("London".to_string()),
@@ -66,9 +68,10 @@ impl WiseTest {
                         ..Default::default()
                     }),
                     phone: None,
+                    email: None,
                 }),
-                ..Default::default()
-            }),
+                None,
+            )),
             payout_method_data: Some(api::PayoutMethodData::Bank(api::payouts::BankPayout::Bacs(
                 api::BacsBankTransfer {
                     bank_sort_code: "231470".to_string().into(),

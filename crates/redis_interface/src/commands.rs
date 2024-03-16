@@ -15,11 +15,11 @@ use common_utils::{
 };
 use error_stack::{IntoReport, ResultExt};
 use fred::{
-    interfaces::{HashesInterface, KeysInterface, StreamsInterface},
+    interfaces::{HashesInterface, KeysInterface, SetsInterface, StreamsInterface},
     prelude::RedisErrorKind,
     types::{
         Expiration, FromRedis, MultipleIDs, MultipleKeys, MultipleOrderedPairs, MultipleStrings,
-        RedisKey, RedisMap, RedisValue, Scanner, SetOptions, XCap, XReadResponse,
+        MultipleValues, RedisKey, RedisMap, RedisValue, Scanner, SetOptions, XCap, XReadResponse,
     },
 };
 use futures::StreamExt;
@@ -27,7 +27,7 @@ use router_env::{instrument, logger, tracing};
 
 use crate::{
     errors,
-    types::{DelReply, HsetnxReply, MsetnxReply, RedisEntryId, SetnxReply},
+    types::{DelReply, HsetnxReply, MsetnxReply, RedisEntryId, SaddReply, SetnxReply},
 };
 
 impl super::RedisConnectionPool {
@@ -75,7 +75,8 @@ impl super::RedisConnectionPool {
     where
         V: serde::Serialize + Debug,
     {
-        let serialized = Encode::<V>::encode_to_vec(&value)
+        let serialized = value
+            .encode_to_vec()
             .change_context(errors::RedisError::JsonSerializationFailed)?;
         self.set_key_if_not_exists_with_expiry(key, serialized.as_slice(), ttl)
             .await
@@ -90,7 +91,8 @@ impl super::RedisConnectionPool {
     where
         V: serde::Serialize + Debug,
     {
-        let serialized = Encode::<V>::encode_to_vec(&value)
+        let serialized = value
+            .encode_to_vec()
             .change_context(errors::RedisError::JsonSerializationFailed)?;
 
         self.set_key(key, serialized.as_slice()).await
@@ -106,7 +108,8 @@ impl super::RedisConnectionPool {
     where
         V: serde::Serialize + Debug,
     {
-        let serialized = Encode::<V>::encode_to_vec(&value)
+        let serialized = value
+            .encode_to_vec()
             .change_context(errors::RedisError::JsonSerializationFailed)?;
 
         self.pool
@@ -307,7 +310,8 @@ impl super::RedisConnectionPool {
     where
         V: serde::Serialize + Debug,
     {
-        let serialized = Encode::<V>::encode_to_vec(&value)
+        let serialized = value
+            .encode_to_vec()
             .change_context(errors::RedisError::JsonSerializationFailed)?;
 
         self.set_hash_field_if_not_exist(key, field, serialized.as_slice(), ttl)
@@ -463,6 +467,23 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    pub async fn sadd<V>(
+        &self,
+        key: &str,
+        members: V,
+    ) -> CustomResult<SaddReply, errors::RedisError>
+    where
+        V: TryInto<MultipleValues> + Debug + Send,
+        V::Error: Into<fred::error::RedisError> + Send,
+    {
+        self.pool
+            .sadd(key, members)
+            .await
+            .into_report()
+            .change_context(errors::RedisError::SetAddMembersFailed)
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
     pub async fn stream_append_entry<F>(
         &self,
         stream: &str,
@@ -592,7 +613,12 @@ impl super::RedisConnectionPool {
             None => self.pool.xread_map(count, block, streams, ids).await,
         }
         .into_report()
-        .change_context(errors::RedisError::StreamReadFailed)
+        .map_err(|err| match err.current_context().kind() {
+            RedisErrorKind::NotFound | RedisErrorKind::Parse => {
+                err.change_context(errors::RedisError::StreamEmptyOrNotAvailable)
+            }
+            _ => err.change_context(errors::RedisError::StreamReadFailed),
+        })
     }
 
     //                                              Consumer Group API

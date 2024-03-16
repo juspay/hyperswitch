@@ -92,6 +92,15 @@ impl Visit for Storage<'_> {
     }
 }
 
+const PERSISTENT_KEYS: [&str; 6] = [
+    "payment_id",
+    "connector_name",
+    "merchant_id",
+    "flow",
+    "payment_method",
+    "status_code",
+];
+
 impl<S: Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>> Layer<S>
     for StorageSubscription
 {
@@ -99,6 +108,7 @@ impl<S: Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>> Layer
     fn on_new_span(&self, attrs: &Attributes<'_>, id: &Id, ctx: Context<'_, S>) {
         #[allow(clippy::expect_used)]
         let span = ctx.span(id).expect("No span");
+        let mut extensions = span.extensions_mut();
 
         let mut visitor = if let Some(parent_span) = span.parent() {
             let mut extensions = parent_span.extensions_mut();
@@ -110,7 +120,6 @@ impl<S: Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>> Layer
             Storage::default()
         };
 
-        let mut extensions = span.extensions_mut();
         attrs.record(&mut visitor);
         extensions.insert(visitor);
     }
@@ -148,6 +157,18 @@ impl<S: Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>> Layer
                 .get::<Instant>()
                 .map(|i| i.elapsed().as_millis())
                 .unwrap_or(0)
+        };
+
+        if let Some(s) = span.extensions().get::<Storage<'_>>() {
+            s.values.iter().for_each(|(k, v)| {
+                if PERSISTENT_KEYS.contains(k) {
+                    span.parent().and_then(|p| {
+                        p.extensions_mut()
+                            .get_mut::<Storage<'_>>()
+                            .map(|s| s.values.insert(k, v.to_owned()))
+                    });
+                }
+            })
         };
 
         let mut extensions_mut = span.extensions_mut();

@@ -64,6 +64,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
             description: None,
             return_url: None,
             payment_method_id: None,
+            payment_method_status: None,
             address: self.address.clone(),
             auth_type: storage_enums::AuthenticationType::NoThreeDs,
             connector_meta_data: None,
@@ -119,6 +120,8 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
             connector_api_version: None,
             apple_pay_flow: None,
             frm_metadata: self.frm_metadata.clone(),
+            refund_id: None,
+            dispute_id: None,
         };
 
         Ok(router_data)

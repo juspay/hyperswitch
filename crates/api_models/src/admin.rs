@@ -32,7 +32,7 @@ pub struct MerchantAccountCreate {
     #[schema(value_type= Option<String>,example = "NewAge Retailer")]
     pub merchant_name: Option<Secret<String>>,
 
-    /// Merchant related details
+    /// Details about the merchant
     pub merchant_details: Option<MerchantDetails>,
 
     /// The URL to redirect after the completion of the operation
@@ -43,16 +43,13 @@ pub struct MerchantAccountCreate {
     pub webhook_details: Option<WebhookDetails>,
 
     /// The routing algorithm to be used for routing payments to desired connectors
-    #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "stripe"}))]
+    #[serde(skip)]
+    #[schema(deprecated)]
     pub routing_algorithm: Option<serde_json::Value>,
 
     /// The routing algorithm to be  used for routing payouts to desired connectors
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
-    #[serde(
-        default,
-        deserialize_with = "payout_routing_algorithm::deserialize_option"
-    )]
     pub payout_routing_algorithm: Option<serde_json::Value>,
 
     /// A boolean value to indicate if the merchant is a sub-merchant under a master or a parent merchant. By default, its value is false.
@@ -67,11 +64,10 @@ pub struct MerchantAccountCreate {
     #[schema(default = false, example = true)]
     pub enable_payment_response_hash: Option<bool>,
 
-    /// Refers to the hash key used for calculating the signature for webhooks and redirect response
-    /// If the value is not provided, a default value is used
+    /// Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a default value is used.
     pub payment_response_hash_key: Option<String>,
 
-    /// A boolean value to indicate if redirect to merchant with http post needs to be enabled
+    /// A boolean value to indicate if redirect to merchant with http post needs to be enabled.
     #[schema(default = false, example = true)]
     pub redirect_to_merchant_with_http_post: Option<bool>,
 
@@ -79,7 +75,8 @@ pub struct MerchantAccountCreate {
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<MerchantAccountMetadata>,
 
-    /// API key that will be used for server side API access
+    /// API key that will be used for client side API access. A publishable key has to be always paired with a `client_secret`.
+    /// A `client_secret` can be obtained by creating a payment with `confirm` set to false
     #[schema(example = "AH3423bkjbkjdsfbkj")]
     pub publishable_key: Option<String>,
 
@@ -87,7 +84,7 @@ pub struct MerchantAccountCreate {
     #[schema(example = "locker_abc123")]
     pub locker_id: Option<String>,
 
-    ///Default business details for connector routing
+    /// Details about the primary business unit of the merchant account
     #[schema(value_type = Option<PrimaryBusinessDetails>)]
     pub primary_business_details: Option<Vec<PrimaryBusinessDetails>>,
 
@@ -97,6 +94,15 @@ pub struct MerchantAccountCreate {
 
     /// The id of the organization to which the merchant belongs to
     pub organization_id: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct AuthenticationConnectorDetails {
+    /// List of authentication connectors
+    #[schema(value_type = Vec<AuthenticationConnectors>)]
+    pub authentication_connectors: Vec<enums::AuthenticationConnectors>,
+    /// URL of the (customer service) website that will be shown to the shopper in case of technical errors during the 3D Secure 2 process.
+    pub three_ds_requestor_url: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -117,7 +123,7 @@ pub struct MerchantAccountUpdate {
     #[schema(example = "NewAge Retailer")]
     pub merchant_name: Option<String>,
 
-    /// Merchant related details
+    /// Details about the merchant
     pub merchant_details: Option<MerchantDetails>,
 
     /// The URL to redirect after the completion of the operation
@@ -128,16 +134,13 @@ pub struct MerchantAccountUpdate {
     pub webhook_details: Option<WebhookDetails>,
 
     /// The routing algorithm to be used for routing payments to desired connectors
-    #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "stripe"}))]
+    #[serde(skip)]
+    #[schema(deprecated)]
     pub routing_algorithm: Option<serde_json::Value>,
 
-    /// The routing algorithm to be used for routing payouts to desired connectors
+    /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
-    #[serde(
-        default,
-        deserialize_with = "payout_routing_algorithm::deserialize_option"
-    )]
     pub payout_routing_algorithm: Option<serde_json::Value>,
 
     /// A boolean value to indicate if the merchant is a sub-merchant under a master or a parent merchant. By default, its value is false.
@@ -152,7 +155,7 @@ pub struct MerchantAccountUpdate {
     #[schema(default = false, example = true)]
     pub enable_payment_response_hash: Option<bool>,
 
-    /// Refers to the hash key used for payment response
+    /// Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a default value is used.
     pub payment_response_hash_key: Option<String>,
 
     /// A boolean value to indicate if redirect to merchant with http post needs to be enabled
@@ -171,7 +174,7 @@ pub struct MerchantAccountUpdate {
     #[schema(example = "locker_abc123")]
     pub locker_id: Option<String>,
 
-    ///Default business details for connector routing
+    /// Details about the primary business unit of the merchant account
     pub primary_business_details: Option<Vec<PrimaryBusinessDetails>>,
 
     /// The frm routing algorithm to be used for routing payments to desired FRM's
@@ -194,7 +197,7 @@ pub struct MerchantAccountResponse {
     #[schema(value_type = Option<String>,example = "NewAge Retailer")]
     pub merchant_name: OptionalEncryptableName,
 
-    /// The URL to redirect after the completion of the operation
+    /// The URL to redirect after completion of the payment
     #[schema(max_length = 255, example = "https://www.example.com/success")]
     pub return_url: Option<String>,
 
@@ -202,7 +205,7 @@ pub struct MerchantAccountResponse {
     #[schema(default = false, example = true)]
     pub enable_payment_response_hash: bool,
 
-    /// Refers to the Parent Merchant ID if the merchant being created is a sub-merchant
+    /// Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a default value is used.
     #[schema(max_length = 255, example = "xkkdf909012sdjki2dkh5sdf")]
     pub payment_response_hash_key: Option<String>,
 
@@ -210,7 +213,7 @@ pub struct MerchantAccountResponse {
     #[schema(default = false, example = true)]
     pub redirect_to_merchant_with_http_post: bool,
 
-    /// Merchant related details
+    /// Details about the merchant
     #[schema(value_type = Option<MerchantDetails>)]
     pub merchant_details: Option<Encryptable<pii::SecretSerdeValue>>,
 
@@ -219,16 +222,13 @@ pub struct MerchantAccountResponse {
     pub webhook_details: Option<serde_json::Value>,
 
     /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
-    #[schema(value_type = Option<RoutingAlgorithm>, max_length = 255, example = "custom")]
+    #[serde(skip)]
+    #[schema(deprecated)]
     pub routing_algorithm: Option<serde_json::Value>,
 
-    /// The routing algorithm to be used for routing payouts to desired connectors
+    /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
-    #[serde(
-        default,
-        deserialize_with = "payout_routing_algorithm::deserialize_option"
-    )]
     pub payout_routing_algorithm: Option<serde_json::Value>,
 
     /// A boolean value to indicate if the merchant is a sub-merchant under a master or a parent merchant. By default, its value is false.
@@ -250,7 +250,8 @@ pub struct MerchantAccountResponse {
     /// An identifier for the vault used to store payment method information.
     #[schema(example = "locker_abc123")]
     pub locker_id: Option<String>,
-    ///Default business details for connector routing
+
+    /// Details about the primary business unit of the merchant account
     #[schema(value_type = Vec<PrimaryBusinessDetails>)]
     pub primary_business_details: Vec<PrimaryBusinessDetails>,
 
@@ -272,7 +273,7 @@ pub struct MerchantAccountResponse {
     #[schema(max_length = 64)]
     pub default_profile: Option<String>,
 
-    /// A enum value to indicate the status of recon service. By default it is not_requested.
+    /// Used to indicate the status of the recon module for a merchant account
     #[schema(value_type = ReconStatus, example = "not_requested")]
     pub recon_status: enums::ReconStatus,
 }
@@ -318,124 +319,6 @@ pub struct MerchantDetails {
     /// The merchant's address details
     pub address: Option<AddressDetails>,
 }
-#[cfg(feature = "payouts")]
-pub mod payout_routing_algorithm {
-    use std::{fmt, str::FromStr};
-
-    use serde::{
-        de::{self, Visitor},
-        Deserializer,
-    };
-    use serde_json::Map;
-
-    use super::PayoutRoutingAlgorithm;
-    use crate::enums::PayoutConnectors;
-    struct RoutingAlgorithmVisitor;
-    struct OptionalRoutingAlgorithmVisitor;
-
-    impl<'de> Visitor<'de> for RoutingAlgorithmVisitor {
-        type Value = serde_json::Value;
-
-        fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-            formatter.write_str("routing algorithm")
-        }
-
-        fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
-        where
-            A: de::MapAccess<'de>,
-        {
-            let mut output = Map::new();
-            let mut routing_data: String = "".to_string();
-            let mut routing_type: String = "".to_string();
-
-            while let Some(key) = map.next_key()? {
-                match key {
-                    "type" => {
-                        routing_type = map.next_value()?;
-                        output.insert(
-                            "type".to_string(),
-                            serde_json::Value::String(routing_type.to_owned()),
-                        );
-                    }
-                    "data" => {
-                        routing_data = map.next_value()?;
-                        output.insert(
-                            "data".to_string(),
-                            serde_json::Value::String(routing_data.to_owned()),
-                        );
-                    }
-                    f => {
-                        output.insert(f.to_string(), map.next_value()?);
-                    }
-                }
-            }
-
-            match routing_type.as_ref() {
-                "single" => {
-                    let routable_payout_connector = PayoutConnectors::from_str(&routing_data);
-                    let routable_conn = match routable_payout_connector {
-                        Ok(rpc) => Ok(rpc),
-                        Err(_) => Err(de::Error::custom(format!(
-                            "Unknown payout connector {routing_data}"
-                        ))),
-                    }?;
-                    Ok(PayoutRoutingAlgorithm::Single(routable_conn))
-                }
-                u => Err(de::Error::custom(format!("Unknown routing algorithm {u}"))),
-            }?;
-            Ok(serde_json::Value::Object(output))
-        }
-    }
-
-    impl<'de> Visitor<'de> for OptionalRoutingAlgorithmVisitor {
-        type Value = Option<serde_json::Value>;
-
-        fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-            formatter.write_str("routing algorithm")
-        }
-
-        fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-        where
-            D: Deserializer<'de>,
-        {
-            deserializer
-                .deserialize_any(RoutingAlgorithmVisitor)
-                .map(Some)
-        }
-
-        fn visit_none<E>(self) -> Result<Self::Value, E>
-        where
-            E: de::Error,
-        {
-            Ok(None)
-        }
-
-        fn visit_unit<E>(self) -> Result<Self::Value, E>
-        where
-            E: de::Error,
-        {
-            Ok(None)
-        }
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn deserialize<'a, D>(deserializer: D) -> Result<serde_json::Value, D::Error>
-    where
-        D: Deserializer<'a>,
-    {
-        deserializer.deserialize_any(RoutingAlgorithmVisitor)
-    }
-
-    pub(crate) fn deserialize_option<'a, D>(
-        deserializer: D,
-    ) -> Result<Option<serde_json::Value>, D::Error>
-    where
-        D: Deserializer<'a>,
-    {
-        deserializer.deserialize_option(OptionalRoutingAlgorithmVisitor)
-    }
-}
-
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct PrimaryBusinessDetails {
@@ -508,23 +391,18 @@ pub struct MerchantConnectorCreate {
     /// Name of the Connector
     #[schema(value_type = Connector, example = "stripe")]
     pub connector_name: api_enums::Connector,
-    /// Connector label for a connector, this can serve as a field to identify the connector as per business details
+    /// This is an unique label you can generate and pass in order to identify this connector account on your Hyperswitch dashboard and reports. Eg: if your profile label is `default`, connector label can be `stripe_default`
     #[schema(example = "stripe_US_travel")]
     pub connector_label: Option<String>,
 
-    /// Unique ID of the connector
-    #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
-    pub merchant_connector_id: Option<String>,
-    /// Account details of the Connector. You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Useful for storing additional, structured information on an object.
-    #[schema(value_type = Option<Object>,example = json!({ "auth_type": "HeaderKey","api_key": "Basic MyVerySecretApiKey" }))]
+    /// Identifier for the business profile, if not provided default will be chosen from merchant account
+    pub profile_id: Option<String>,
+
+    /// An object containing the required details/credentials for a Connector account.
+    #[schema(value_type = Option<MerchantConnectorDetails>,example = json!({ "auth_type": "HeaderKey","api_key": "Basic MyVerySecretApiKey" }))]
     pub connector_account_details: Option<pii::SecretSerdeValue>,
-    /// A boolean value to indicate if the connector is in Test mode. By default, its value is false.
-    #[schema(default = false, example = false)]
-    pub test_mode: Option<bool>,
-    /// A boolean value to indicate if the connector is disabled. By default, its value is false.
-    #[schema(default = false, example = false)]
-    pub disabled: Option<bool>,
-    /// Refers to the Parent Merchant ID if the merchant being created is a sub-merchant
+
+    /// An object containing the details about the payment methods that need to be enabled under this merchant connector account
     #[schema(example = json!([
         {
             "payment_method": "wallet",
@@ -555,21 +433,6 @@ pub struct MerchantConnectorCreate {
         }
     ]))]
     pub payment_methods_enabled: Option<Vec<PaymentMethodsEnabled>>,
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
-    #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
-    pub metadata: Option<pii::SecretSerdeValue>,
-    /// contains the frm configs for the merchant connector
-    #[schema(example = json!(common_utils::consts::FRM_CONFIGS_EG))]
-    pub frm_configs: Option<Vec<FrmConfigs>>,
-
-    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
-    pub business_country: Option<api_enums::CountryAlpha2>,
-
-    pub business_label: Option<String>,
-
-    /// Business Sub label of the merchant
-    #[schema(example = "chase")]
-    pub business_sub_label: Option<String>,
 
     /// Webhook details of this merchant connector
     #[schema(example = json!({
@@ -578,12 +441,41 @@ pub struct MerchantConnectorCreate {
         }
     }))]
     pub connector_webhook_details: Option<MerchantConnectorWebhookDetails>,
-    /// Identifier for the business profile, if not provided default will be chosen from merchant account
-    pub profile_id: Option<String>,
+
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
+    pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// A boolean value to indicate if the connector is in Test mode. By default, its value is false.
+    #[schema(default = false, example = false)]
+    pub test_mode: Option<bool>,
+
+    /// A boolean value to indicate if the connector is disabled. By default, its value is false.
+    #[schema(default = false, example = false)]
+    pub disabled: Option<bool>,
+
+    /// Contains the frm configs for the merchant connector
+    #[schema(example = json!(common_utils::consts::FRM_CONFIGS_EG))]
+    pub frm_configs: Option<Vec<FrmConfigs>>,
+
+    /// The business country to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    pub business_country: Option<api_enums::CountryAlpha2>,
+
+    /// The business label to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
+    pub business_label: Option<String>,
+
+    /// The business sublabel to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
+    #[schema(example = "chase")]
+    pub business_sub_label: Option<String>,
+
+    /// Unique ID of the connector
+    #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
+    pub merchant_connector_id: Option<String>,
 
     pub pm_auth_config: Option<serde_json::Value>,
 
-    #[schema(value_type = ConnectorStatus, example = "inactive")]
+    #[schema(value_type = Option<ConnectorStatus>, example = "inactive")]
     pub status: Option<api_enums::ConnectorStatus>,
 }
 
@@ -634,26 +526,26 @@ pub struct MerchantConnectorResponse {
     #[schema(value_type = ConnectorType, example = "payment_processor")]
     pub connector_type: api_enums::ConnectorType,
     /// Name of the Connector
-    #[schema(example = "stripe")]
+    #[schema(value_type = Connector, example = "stripe")]
     pub connector_name: String,
 
-    /// Connector label for a connector, this can serve as a field to identify the connector as per business details
+    /// A unique label to identify the connector account created under a business profile
     #[schema(example = "stripe_US_travel")]
     pub connector_label: Option<String>,
 
-    /// Unique ID of the connector
+    /// Unique ID of the merchant connector account
     #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
     pub merchant_connector_id: String,
-    /// Account details of the Connector. You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Useful for storing additional, structured information on an object.
-    #[schema(value_type = Option<Object>,example = json!({ "auth_type": "HeaderKey","api_key": "Basic MyVerySecretApiKey" }))]
+
+    /// Identifier for the business profile, if not provided default will be chosen from merchant account
+    #[schema(max_length = 64)]
+    pub profile_id: Option<String>,
+
+    /// An object containing the required details/credentials for a Connector account.
+    #[schema(value_type = Option<MerchantConnectorDetails>,example = json!({ "auth_type": "HeaderKey","api_key": "Basic MyVerySecretApiKey" }))]
     pub connector_account_details: pii::SecretSerdeValue,
-    /// A boolean value to indicate if the connector is in Test mode. By default, its value is false.
-    #[schema(default = false, example = false)]
-    pub test_mode: Option<bool>,
-    /// A boolean value to indicate if the connector is disabled. By default, its value is false.
-    #[schema(default = false, example = false)]
-    pub disabled: Option<bool>,
-    /// Refers to the Parent Merchant ID if the merchant being created is a sub-merchant
+
+    /// An object containing the details about the payment methods that need to be enabled under this merchant connector account
     #[schema(example = json!([
         {
             "payment_method": "wallet",
@@ -684,25 +576,6 @@ pub struct MerchantConnectorResponse {
         }
     ]))]
     pub payment_methods_enabled: Option<Vec<PaymentMethodsEnabled>>,
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
-    #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
-    pub metadata: Option<pii::SecretSerdeValue>,
-
-    /// Business Country of the connector
-    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
-    pub business_country: Option<api_enums::CountryAlpha2>,
-
-    ///Business Type of the merchant
-    #[schema(example = "travel")]
-    pub business_label: Option<String>,
-
-    /// Business Sub label of the merchant
-    #[schema(example = "chase")]
-    pub business_sub_label: Option<String>,
-
-    /// contains the frm configs for the merchant connector
-    #[schema(example = json!(common_utils::consts::FRM_CONFIGS_EG))]
-    pub frm_configs: Option<Vec<FrmConfigs>>,
 
     /// Webhook details of this merchant connector
     #[schema(example = json!({
@@ -712,10 +585,34 @@ pub struct MerchantConnectorResponse {
     }))]
     pub connector_webhook_details: Option<MerchantConnectorWebhookDetails>,
 
-    /// The business profile this connector must be created in
-    /// default value from merchant account is taken if not passed
-    #[schema(max_length = 64)]
-    pub profile_id: Option<String>,
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
+    pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// A boolean value to indicate if the connector is in Test mode. By default, its value is false.
+    #[schema(default = false, example = false)]
+    pub test_mode: Option<bool>,
+
+    /// A boolean value to indicate if the connector is disabled. By default, its value is false.
+    #[schema(default = false, example = false)]
+    pub disabled: Option<bool>,
+
+    /// Contains the frm configs for the merchant connector
+    #[schema(example = json!(common_utils::consts::FRM_CONFIGS_EG))]
+    pub frm_configs: Option<Vec<FrmConfigs>>,
+
+    /// The business country to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    pub business_country: Option<api_enums::CountryAlpha2>,
+
+    ///The business label to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
+    #[schema(example = "travel")]
+    pub business_label: Option<String>,
+
+    /// The business sublabel to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
+    #[schema(example = "chase")]
+    pub business_sub_label: Option<String>,
+
     /// identifier for the verified domains of a particular connector account
     pub applepay_verified_domains: Option<Vec<String>>,
 
@@ -733,22 +630,15 @@ pub struct MerchantConnectorUpdate {
     #[schema(value_type = ConnectorType, example = "payment_processor")]
     pub connector_type: api_enums::ConnectorType,
 
-    /// Connector label for a connector, this can serve as a field to identify the connector as per business details
+    /// This is an unique label you can generate and pass in order to identify this connector account on your Hyperswitch dashboard and reports. Eg: if your profile label is `default`, connector label can be `stripe_default`
+    #[schema(example = "stripe_US_travel")]
     pub connector_label: Option<String>,
 
-    /// Account details of the Connector. You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Useful for storing additional, structured information on an object.
-    #[schema(value_type = Option<Object>,example = json!({ "auth_type": "HeaderKey","api_key": "Basic MyVerySecretApiKey" }))]
+    /// An object containing the required details/credentials for a Connector account.
+    #[schema(value_type = Option<MerchantConnectorDetails>,example = json!({ "auth_type": "HeaderKey","api_key": "Basic MyVerySecretApiKey" }))]
     pub connector_account_details: Option<pii::SecretSerdeValue>,
 
-    /// A boolean value to indicate if the connector is in Test mode. By default, its value is false.
-    #[schema(default = false, example = false)]
-    pub test_mode: Option<bool>,
-
-    /// A boolean value to indicate if the connector is disabled. By default, its value is false.
-    #[schema(default = false, example = false)]
-    pub disabled: Option<bool>,
-
-    /// Refers to the Parent Merchant ID if the merchant being created is a sub-merchant
+    /// An object containing the details about the payment methods that need to be enabled under this merchant connector account
     #[schema(example = json!([
         {
             "payment_method": "wallet",
@@ -780,14 +670,6 @@ pub struct MerchantConnectorUpdate {
     ]))]
     pub payment_methods_enabled: Option<Vec<PaymentMethodsEnabled>>,
 
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
-    #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
-    pub metadata: Option<pii::SecretSerdeValue>,
-
-    /// contains the frm configs for the merchant connector
-    #[schema(example = json!(common_utils::consts::FRM_CONFIGS_EG))]
-    pub frm_configs: Option<Vec<FrmConfigs>>,
-
     /// Webhook details of this merchant connector
     #[schema(example = json!({
         "connector_webhook_details": {
@@ -795,6 +677,22 @@ pub struct MerchantConnectorUpdate {
         }
     }))]
     pub connector_webhook_details: Option<MerchantConnectorWebhookDetails>,
+
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
+    pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// A boolean value to indicate if the connector is in Test mode. By default, its value is false.
+    #[schema(default = false, example = false)]
+    pub test_mode: Option<bool>,
+
+    /// A boolean value to indicate if the connector is disabled. By default, its value is false.
+    #[schema(default = false, example = false)]
+    pub disabled: Option<bool>,
+
+    /// Contains the frm configs for the merchant connector
+    #[schema(example = json!(common_utils::consts::FRM_CONFIGS_EG))]
+    pub frm_configs: Option<Vec<FrmConfigs>>,
 
     pub pm_auth_config: Option<serde_json::Value>,
 
@@ -876,6 +774,7 @@ pub enum AcceptedCurrencies {
     content = "list",
     rename_all = "snake_case"
 )]
+/// Object to filter the customer countries for which the payment method is displayed
 pub enum AcceptedCountries {
     #[schema(value_type = Vec<CountryAlpha2>)]
     EnableOnly(Vec<api_enums::CountryAlpha2>),
@@ -951,22 +850,14 @@ pub enum PayoutRoutingAlgorithm {
     Single(api_enums::PayoutConnectors),
 }
 
-#[cfg(feature = "payouts")]
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(tag = "type", content = "data", rename_all = "snake_case")]
-pub enum PayoutStraightThroughAlgorithm {
-    Single(api_enums::PayoutConnectors),
-}
-
 #[derive(Clone, Debug, Deserialize, ToSchema, Default, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct BusinessProfileCreate {
-    /// A short name to identify the business profile
+    /// The name of business profile
     #[schema(max_length = 64)]
     pub profile_name: Option<String>,
 
-    /// The URL to redirect after the completion of the operation, This will be applied to all the
-    /// connector accounts under this profile
+    /// The URL to redirect after the completion of the operation
     #[schema(value_type = Option<String>, max_length = 255, example = "https://www.example.com/success")]
     pub return_url: Option<url::Url>,
 
@@ -974,8 +865,7 @@ pub struct BusinessProfileCreate {
     #[schema(default = true, example = true)]
     pub enable_payment_response_hash: Option<bool>,
 
-    /// Refers to the hash key used for calculating the signature for webhooks and redirect response
-    /// If the value is not provided, a default value is used
+    /// Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a default value is used.
     pub payment_response_hash_key: Option<String>,
 
     /// A boolean value to indicate if redirect to merchant with http post needs to be enabled
@@ -1002,13 +892,9 @@ pub struct BusinessProfileCreate {
     #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "signifyd"}))]
     pub frm_routing_algorithm: Option<serde_json::Value>,
 
-    /// The routing algorithm to be  used for routing payouts to desired connectors
+    /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
-    #[serde(
-        default,
-        deserialize_with = "payout_routing_algorithm::deserialize_option"
-    )]
     pub payout_routing_algorithm: Option<serde_json::Value>,
 
     /// Verified applepay domains for a particular profile
@@ -1020,6 +906,9 @@ pub struct BusinessProfileCreate {
 
     /// Default Payment Link config for all payment links created under this business profile
     pub payment_link_config: Option<BusinessPaymentLinkConfig>,
+
+    /// External 3DS authentication details
+    pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
 }
 
 #[derive(Clone, Debug, ToSchema, Serialize)]
@@ -1028,16 +917,15 @@ pub struct BusinessProfileResponse {
     #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
     pub merchant_id: String,
 
-    /// The unique identifier for Business Profile
+    /// The default business profile that must be used for creating merchant accounts and payments
     #[schema(max_length = 64, example = "pro_abcdefghijklmnopqrstuvwxyz")]
     pub profile_id: String,
 
-    /// A short name to identify the business profile
+    /// Name of the business profile
     #[schema(max_length = 64)]
     pub profile_name: String,
 
-    /// The URL to redirect after the completion of the operation, This will be applied to all the
-    /// connector accounts under this profile
+    /// The URL to redirect after the completion of the operation
     #[schema(value_type = Option<String>, max_length = 255, example = "https://www.example.com/success")]
     pub return_url: Option<String>,
 
@@ -1045,8 +933,7 @@ pub struct BusinessProfileResponse {
     #[schema(default = true, example = true)]
     pub enable_payment_response_hash: bool,
 
-    /// Refers to the hash key used for calculating the signature for webhooks and redirect response
-    /// If the value is not provided, a default value is used
+    /// Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a default value is used.
     pub payment_response_hash_key: Option<String>,
 
     /// A boolean value to indicate if redirect to merchant with http post needs to be enabled
@@ -1054,6 +941,7 @@ pub struct BusinessProfileResponse {
     pub redirect_to_merchant_with_http_post: bool,
 
     /// Webhook related details
+    #[schema(value_type = Option<WebhookDetails>)]
     pub webhook_details: Option<pii::SecretSerdeValue>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
@@ -1069,17 +957,13 @@ pub struct BusinessProfileResponse {
     #[schema(example = 900)]
     pub intent_fulfillment_time: Option<i64>,
 
-    /// The frm routing algorithm to be used for routing payments to desired FRM's
+    /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "signifyd"}))]
     pub frm_routing_algorithm: Option<serde_json::Value>,
 
-    /// The routing algorithm to be  used for routing payouts to desired connectors
+    /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
-    #[serde(
-        default,
-        deserialize_with = "payout_routing_algorithm::deserialize_option"
-    )]
     pub payout_routing_algorithm: Option<serde_json::Value>,
 
     /// Verified applepay domains for a particular profile
@@ -1091,17 +975,19 @@ pub struct BusinessProfileResponse {
 
     /// Default Payment Link config for all payment links created under this business profile
     pub payment_link_config: Option<serde_json::Value>,
+
+    /// External 3DS authentication details
+    pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct BusinessProfileUpdate {
-    /// A short name to identify the business profile
+    /// The name of business profile
     #[schema(max_length = 64)]
     pub profile_name: Option<String>,
 
-    /// The URL to redirect after the completion of the operation, This will be applied to all the
-    /// connector accounts under this profile
+    /// The URL to redirect after the completion of the operation
     #[schema(value_type = Option<String>, max_length = 255, example = "https://www.example.com/success")]
     pub return_url: Option<url::Url>,
 
@@ -1109,8 +995,7 @@ pub struct BusinessProfileUpdate {
     #[schema(default = true, example = true)]
     pub enable_payment_response_hash: Option<bool>,
 
-    /// Refers to the hash key used for calculating the signature for webhooks and redirect response
-    /// If the value is not provided, a default value is used
+    /// Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a default value is used.
     pub payment_response_hash_key: Option<String>,
 
     /// A boolean value to indicate if redirect to merchant with http post needs to be enabled
@@ -1137,13 +1022,9 @@ pub struct BusinessProfileUpdate {
     #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "signifyd"}))]
     pub frm_routing_algorithm: Option<serde_json::Value>,
 
-    /// The routing algorithm to be  used for routing payouts to desired connectors
+    /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
-    #[serde(
-        default,
-        deserialize_with = "payout_routing_algorithm::deserialize_option"
-    )]
     pub payout_routing_algorithm: Option<serde_json::Value>,
 
     /// Verified applepay domains for a particular profile
@@ -1155,6 +1036,9 @@ pub struct BusinessProfileUpdate {
 
     /// Default Payment Link config for all payment links created under this business profile
     pub payment_link_config: Option<BusinessPaymentLinkConfig>,
+
+    /// External 3DS authentication details
+    pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]

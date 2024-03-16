@@ -1,6 +1,7 @@
 use diesel_models::{user as storage, user_role::UserRole};
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
+use router_env::{instrument, tracing};
 
 use super::MockDb;
 use crate::{
@@ -33,6 +34,12 @@ pub trait UserInterface {
         user: storage::UserUpdate,
     ) -> CustomResult<storage::User, errors::StorageError>;
 
+    async fn update_user_by_email(
+        &self,
+        user_email: &str,
+        user: storage::UserUpdate,
+    ) -> CustomResult<storage::User, errors::StorageError>;
+
     async fn delete_user_by_user_id(
         &self,
         user_id: &str,
@@ -46,6 +53,7 @@ pub trait UserInterface {
 
 #[async_trait::async_trait]
 impl UserInterface for Store {
+    #[instrument(skip_all)]
     async fn insert_user(
         &self,
         user_data: storage::UserNew,
@@ -58,6 +66,7 @@ impl UserInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_user_by_email(
         &self,
         user_email: &str,
@@ -69,6 +78,7 @@ impl UserInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_user_by_id(
         &self,
         user_id: &str,
@@ -80,6 +90,7 @@ impl UserInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn update_user_by_user_id(
         &self,
         user_id: &str,
@@ -92,6 +103,20 @@ impl UserInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
+    async fn update_user_by_email(
+        &self,
+        user_email: &str,
+        user: storage::UserUpdate,
+    ) -> CustomResult<storage::User, errors::StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+        storage::User::update_by_user_email(&conn, user_email, user)
+            .await
+            .map_err(Into::into)
+            .into_report()
+    }
+
+    #[instrument(skip_all)]
     async fn delete_user_by_user_id(
         &self,
         user_id: &str,
@@ -103,6 +128,7 @@ impl UserInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_users_and_roles_by_merchant_id(
         &self,
         merchant_id: &str,
@@ -224,6 +250,50 @@ impl UserInterface for MockDb {
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
                     "No user available for user_id = {user_id}"
+                ))
+                .into(),
+            )
+    }
+
+    async fn update_user_by_email(
+        &self,
+        user_email: &str,
+        update_user: storage::UserUpdate,
+    ) -> CustomResult<storage::User, errors::StorageError> {
+        let mut users = self.users.lock().await;
+        let user_email_pii: common_utils::pii::Email = user_email
+            .to_string()
+            .try_into()
+            .map_err(|_| errors::StorageError::MockDbError)?;
+        users
+            .iter_mut()
+            .find(|user| user.email == user_email_pii)
+            .map(|user| {
+                *user = match &update_user {
+                    storage::UserUpdate::VerifyUser => storage::User {
+                        is_verified: true,
+                        ..user.to_owned()
+                    },
+                    storage::UserUpdate::AccountUpdate {
+                        name,
+                        password,
+                        is_verified,
+                        preferred_merchant_id,
+                    } => storage::User {
+                        name: name.clone().map(Secret::new).unwrap_or(user.name.clone()),
+                        password: password.clone().unwrap_or(user.password.clone()),
+                        is_verified: is_verified.unwrap_or(user.is_verified),
+                        preferred_merchant_id: preferred_merchant_id
+                            .clone()
+                            .or(user.preferred_merchant_id.clone()),
+                        ..user.to_owned()
+                    },
+                };
+                user.to_owned()
+            })
+            .ok_or(
+                errors::StorageError::ValueNotFound(format!(
+                    "No user available for user_email = {user_email}"
                 ))
                 .into(),
             )

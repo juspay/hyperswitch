@@ -144,7 +144,7 @@ impl QueueInterface for MockDb {
     ) -> CustomResult<Vec<storage::ProcessTracker>, ProcessTrackerError> {
         // [#172]: Implement function for `MockDb`
         Err(ProcessTrackerError::ResourceFetchingFailed {
-            resource_name: "consumer_tasks",
+            resource_name: "consumer_tasks".to_string(),
         })?
     }
 

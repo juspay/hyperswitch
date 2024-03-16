@@ -1,59 +1,18 @@
+use std::collections::HashSet;
+
 use api_models::user_role as user_role_api;
-use diesel_models::enums::UserStatus;
-use error_stack::ResultExt;
+use common_enums::PermissionGroup;
+use diesel_models::user_role::UserRole;
+use error_stack::{IntoReport, ResultExt};
+use router_env::logger;
 
 use crate::{
     consts,
     core::errors::{UserErrors, UserResult},
     routes::AppState,
-    services::authorization::{
-        permissions::Permission,
-        predefined_permissions::{self, RoleInfo},
-    },
+    services::authorization::{self as authz, permissions::Permission, roles},
+    types::domain,
 };
-
-pub fn is_internal_role(role_id: &str) -> bool {
-    role_id == consts::user_role::ROLE_ID_INTERNAL_ADMIN
-        || role_id == consts::user_role::ROLE_ID_INTERNAL_VIEW_ONLY_USER
-}
-
-pub async fn get_merchant_ids_for_user(state: &AppState, user_id: &str) -> UserResult<Vec<String>> {
-    Ok(state
-        .store
-        .list_user_roles_by_user_id(user_id)
-        .await
-        .change_context(UserErrors::InternalServerError)?
-        .into_iter()
-        .filter_map(|ele| {
-            if ele.status == UserStatus::Active {
-                return Some(ele.merchant_id);
-            }
-            None
-        })
-        .collect())
-}
-
-pub fn validate_role_id(role_id: &str) -> UserResult<()> {
-    if predefined_permissions::is_role_invitable(role_id) {
-        return Ok(());
-    }
-    Err(UserErrors::InvalidRoleId.into())
-}
-
-pub fn get_role_name_and_permission_response(
-    role_info: &RoleInfo,
-) -> Option<(Vec<user_role_api::Permission>, &'static str)> {
-    role_info.get_name().map(|name| {
-        (
-            role_info
-                .get_permissions()
-                .iter()
-                .map(|&per| per.into())
-                .collect::<Vec<user_role_api::Permission>>(),
-            name,
-        )
-    })
-}
 
 impl From<Permission> for user_role_api::Permission {
     fn from(value: Permission) -> Self {
@@ -68,7 +27,6 @@ impl From<Permission> for user_role_api::Permission {
             Permission::MerchantAccountWrite => Self::MerchantAccountWrite,
             Permission::MerchantConnectorAccountRead => Self::MerchantConnectorAccountRead,
             Permission::MerchantConnectorAccountWrite => Self::MerchantConnectorAccountWrite,
-            Permission::ForexRead => Self::ForexRead,
             Permission::RoutingRead => Self::RoutingRead,
             Permission::RoutingWrite => Self::RoutingWrite,
             Permission::DisputeRead => Self::DisputeRead,
@@ -77,8 +35,6 @@ impl From<Permission> for user_role_api::Permission {
             Permission::MandateWrite => Self::MandateWrite,
             Permission::CustomerRead => Self::CustomerRead,
             Permission::CustomerWrite => Self::CustomerWrite,
-            Permission::FileRead => Self::FileRead,
-            Permission::FileWrite => Self::FileWrite,
             Permission::Analytics => Self::Analytics,
             Permission::ThreeDsDecisionManagerWrite => Self::ThreeDsDecisionManagerWrite,
             Permission::ThreeDsDecisionManagerRead => Self::ThreeDsDecisionManagerRead,
@@ -89,4 +45,97 @@ impl From<Permission> for user_role_api::Permission {
             Permission::MerchantAccountCreate => Self::MerchantAccountCreate,
         }
     }
+}
+
+pub fn validate_role_groups(groups: &[PermissionGroup]) -> UserResult<()> {
+    if groups.is_empty() {
+        return Err(UserErrors::InvalidRoleOperation.into())
+            .attach_printable("Role groups cannot be empty");
+    }
+
+    let unique_groups: HashSet<_> = groups.iter().cloned().collect();
+
+    if unique_groups.contains(&PermissionGroup::OrganizationManage) {
+        return Err(UserErrors::InvalidRoleOperation.into())
+            .attach_printable("Organization manage group cannot be added to role");
+    }
+
+    if unique_groups.len() != groups.len() {
+        return Err(UserErrors::InvalidRoleOperation.into())
+            .attach_printable("Duplicate permission group found");
+    }
+
+    Ok(())
+}
+
+pub async fn validate_role_name(
+    state: &AppState,
+    role_name: &domain::RoleName,
+    merchant_id: &str,
+    org_id: &str,
+) -> UserResult<()> {
+    let role_name_str = role_name.clone().get_role_name();
+
+    let is_present_in_predefined_roles = roles::predefined_roles::PREDEFINED_ROLES
+        .iter()
+        .any(|(_, role_info)| role_info.get_role_name() == role_name_str);
+
+    // TODO: Create and use find_by_role_name to make this efficient
+    let is_present_in_custom_roles = state
+        .store
+        .list_all_roles(merchant_id, org_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .iter()
+        .any(|role| role.role_name == role_name_str);
+
+    if is_present_in_predefined_roles || is_present_in_custom_roles {
+        return Err(UserErrors::RoleNameAlreadyExists.into());
+    }
+
+    Ok(())
+}
+
+pub async fn set_role_permissions_in_cache_by_user_role(
+    state: &AppState,
+    user_role: &UserRole,
+) -> bool {
+    set_role_permissions_in_cache_if_required(
+        state,
+        user_role.role_id.as_str(),
+        user_role.merchant_id.as_str(),
+        user_role.org_id.as_str(),
+    )
+    .await
+    .map_err(|e| logger::error!("Error setting permissions in cache {:?}", e))
+    .is_ok()
+}
+
+pub async fn set_role_permissions_in_cache_if_required(
+    state: &AppState,
+    role_id: &str,
+    merchant_id: &str,
+    org_id: &str,
+) -> UserResult<()> {
+    if roles::predefined_roles::PREDEFINED_ROLES.contains_key(role_id) {
+        return Ok(());
+    }
+
+    let role_info = roles::RoleInfo::from_role_id(state, role_id, merchant_id, org_id)
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Error getting role_info from role_id")?;
+
+    authz::set_permissions_in_cache(
+        state,
+        role_id,
+        &role_info.get_permissions_set().into_iter().collect(),
+        consts::JWT_TOKEN_TIME_IN_SECS
+            .try_into()
+            .into_report()
+            .change_context(UserErrors::InternalServerError)?,
+    )
+    .await
+    .change_context(UserErrors::InternalServerError)
+    .attach_printable("Error setting permissions in redis")
 }

@@ -1,4 +1,5 @@
 use error_stack::{IntoReport, ResultExt};
+use router_env::{instrument, tracing};
 
 use super::{MockDb, Store};
 use crate::{
@@ -48,6 +49,7 @@ pub trait MandateInterface {
 
 #[async_trait::async_trait]
 impl MandateInterface for Store {
+    #[instrument(skip_all)]
     async fn find_mandate_by_merchant_id_mandate_id(
         &self,
         merchant_id: &str,
@@ -60,6 +62,7 @@ impl MandateInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_mandate_by_merchant_id_connector_mandate_id(
         &self,
         merchant_id: &str,
@@ -76,6 +79,7 @@ impl MandateInterface for Store {
         .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_mandate_by_merchant_id_customer_id(
         &self,
         merchant_id: &str,
@@ -88,6 +92,7 @@ impl MandateInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn update_mandate_by_merchant_id_mandate_id(
         &self,
         merchant_id: &str,
@@ -101,6 +106,7 @@ impl MandateInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_mandates_by_merchant_id(
         &self,
         merchant_id: &str,
@@ -113,6 +119,7 @@ impl MandateInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn insert_mandate(
         &self,
         mandate: storage::MandateNew,
@@ -201,6 +208,18 @@ impl MandateInterface for MockDb {
                         connector_mandate_ids,
                     } => {
                         mandate.connector_mandate_ids = connector_mandate_ids;
+                    }
+
+                    diesel_models::MandateUpdate::ConnectorMandateIdUpdate {
+                        connector_mandate_id,
+                        connector_mandate_ids,
+                        payment_method_id,
+                        original_payment_id,
+                    } => {
+                        mandate.connector_mandate_ids = connector_mandate_ids;
+                        mandate.connector_mandate_id = connector_mandate_id;
+                        mandate.payment_method_id = payment_method_id;
+                        mandate.original_payment_id = original_payment_id
                     }
                 }
                 Ok(mandate.clone())

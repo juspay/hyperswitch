@@ -52,7 +52,7 @@ jobs:
 
       - name: Generate the OpenAPI spec file
         shell: bash
-        run: cargo run --features openapi -- generate-openapi-spec
+        run: cargo run -p openapi
 
       - name: Install `swagger-cli`
         shell: bash
@@ -80,6 +80,6 @@ jobs:
         shell: bash
         run: |
           if ! git diff --quiet --exit-code -- openapi/openapi_spec.json ; then
-            echo '::error::The OpenAPI spec file is not up-to-date. Please re-generate the OpenAPI spec file using `cargo run --features openapi -- generate-openapi-spec` and commit it.'
+            echo '::error::The OpenAPI spec file is not up-to-date. Please re-generate the OpenAPI spec file using `cargo run -p openapi` and commit it.'
             exit 1
           fi

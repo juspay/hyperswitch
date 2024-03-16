@@ -102,7 +102,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 connector,
                 reason,
                 status_code,
-            } => AER::ConnectorError(ApiError::new("CE", 0, format!("{code}: {message}"), Some(Extra {connector: Some(connector.clone()), reason: reason.clone(), ..Default::default()})), StatusCode::from_u16(*status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)),
+            } => AER::ConnectorError(ApiError::new("CE", 0, format!("{code}: {message}"), Some(Extra {connector: Some(connector.clone()), reason: reason.to_owned().map(Into::into), ..Default::default()})), StatusCode::from_u16(*status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)),
             Self::PaymentAuthorizationFailed { data } => {
                 AER::BadRequest(ApiError::new("CE", 1, "Payment failed during authorization with connector. Retry payment", Some(Extra { data: data.clone(), ..Default::default()})))
             }
@@ -123,15 +123,18 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             },
             Self::MandateUpdateFailed | Self::MandateSerializationFailed | Self::MandateDeserializationFailed | Self::InternalServerError => {
                 AER::InternalServerError(ApiError::new("HE", 0, "Something went wrong", None))
-            }
+            },
+            Self::HealthCheckError { message,component } => {
+                AER::InternalServerError(ApiError::new("HE",0,format!("{} health check failed with error: {}",component,message),None))
+            },
             Self::PayoutFailed { data } => {
                 AER::BadRequest(ApiError::new("CE", 4, "Payout failed while processing with connector.", Some(Extra { data: data.clone(), ..Default::default()})))
             },
             Self::DuplicateRefundRequest => AER::BadRequest(ApiError::new("HE", 1, "Duplicate refund request. Refund already attempted with the refund ID", None)),
             Self::DuplicateMandate => AER::BadRequest(ApiError::new("HE", 1, "Duplicate mandate request. Mandate already attempted with the Mandate ID", None)),
             Self::DuplicateMerchantAccount => AER::BadRequest(ApiError::new("HE", 1, "The merchant account with the specified details already exists in our records", None)),
-            Self::DuplicateMerchantConnectorAccount { profile_id, connector_name } => {
-                AER::BadRequest(ApiError::new("HE", 1, format!("The merchant connector account with the specified profile_id '{profile_id}' and connector_name '{connector_name}' already exists in our records"), None))
+            Self::DuplicateMerchantConnectorAccount { profile_id, connector_label: connector_name } => {
+                AER::BadRequest(ApiError::new("HE", 1, format!("The merchant connector account with the specified profile_id '{profile_id}' and connector_label '{connector_name}' already exists in our records"), None))
             }
             Self::DuplicatePaymentMethod => AER::BadRequest(ApiError::new("HE", 1, "The payment method with the specified details already exists in our records", None)),
             Self::DuplicatePayment { payment_id } => {
@@ -184,10 +187,14 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 AER::BadRequest(ApiError::new("HE", 3, format!("This refund is not possible through Hyperswitch. Please raise the refund through {connector} dashboard"), None))
             }
             Self::MandateValidationFailed { reason } => {
-                AER::BadRequest(ApiError::new("HE", 3, "Mandate Validation Failed", Some(Extra { reason: Some(reason.clone()), ..Default::default() })))
+                AER::BadRequest(ApiError::new("HE", 3, "Mandate Validation Failed", Some(Extra { reason: Some(reason.to_owned()), ..Default::default() })))
             }
             Self::PaymentNotSucceeded => AER::BadRequest(ApiError::new("HE", 3, "The payment has not succeeded yet. Please pass a successful payment to initiate refund", None)),
-            Self::PaymentBlocked => AER::BadRequest(ApiError::new("HE", 3, "The payment is blocked", None)),
+            Self::PaymentBlockedError {
+                message,
+                reason,
+                ..
+            } => AER::DomainError(ApiError::new("HE", 3, message, Some(Extra { reason: Some(reason.clone()), ..Default::default() }))),
             Self::SuccessfulPaymentNotFound => {
                 AER::NotFound(ApiError::new("HE", 4, "Successful payment not found for the given payment id", None))
             }
@@ -273,6 +280,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             }
             Self::CurrencyConversionFailed => {
                 AER::Unprocessable(ApiError::new("HE", 2, "Failed to convert currency to minor unit", None))
+            }
+            Self::PaymentMethodDeleteFailed => {
+                AER::BadRequest(ApiError::new("IR", 25, "Cannot delete the default payment method", None))
             }
         }
     }

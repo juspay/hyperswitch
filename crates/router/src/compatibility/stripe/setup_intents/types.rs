@@ -37,6 +37,7 @@ impl From<StripeBillingDetails> for payments::Address {
                 number: details.phone,
                 country_code: None,
             }),
+            email: details.email,
         }
     }
 }
@@ -143,6 +144,7 @@ impl From<Shipping> for payments::Address {
                 number: details.phone,
                 country_code: None,
             }),
+            email: None,
         }
     }
 }
@@ -245,7 +247,10 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
             payment_method_data: item.payment_method_data.as_ref().and_then(|pmd| {
                 pmd.payment_method_details
                     .as_ref()
-                    .map(|spmd| payments::PaymentMethodData::from(spmd.to_owned()))
+                    .map(|spmd| payments::PaymentMethodDataRequest {
+                        payment_method_data: payments::PaymentMethodData::from(spmd.to_owned()),
+                        billing: pmd.billing_details.clone().map(payments::Address::from),
+                    })
             }),
             payment_method: item
                 .payment_method_data
@@ -384,8 +389,9 @@ pub enum StripeNextAction {
         session_token: Option<payments::SessionToken>,
     },
     QrCodeInformation {
-        image_data_url: url::Url,
+        image_data_url: Option<url::Url>,
         display_to_timestamp: Option<i64>,
+        qr_code_url: Option<url::Url>,
     },
     DisplayVoucherInformation {
         voucher_details: payments::VoucherNextStepData,
@@ -420,9 +426,11 @@ pub(crate) fn into_stripe_next_action(
         payments::NextActionData::QrCodeInformation {
             image_data_url,
             display_to_timestamp,
+            qr_code_url,
         } => StripeNextAction::QrCodeInformation {
             image_data_url,
             display_to_timestamp,
+            qr_code_url,
         },
         payments::NextActionData::DisplayVoucherInformation { voucher_details } => {
             StripeNextAction::DisplayVoucherInformation { voucher_details }
@@ -433,6 +441,12 @@ pub(crate) fn into_stripe_next_action(
         } => StripeNextAction::WaitScreenInformation {
             display_from_timestamp,
             display_to_timestamp,
+        },
+        payments::NextActionData::ThreeDsInvoke { .. } => StripeNextAction::RedirectToUrl {
+            redirect_to_url: RedirectUrl {
+                return_url: None,
+                url: None,
+            },
         },
     })
 }
