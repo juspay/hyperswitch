@@ -1,4 +1,4 @@
-use common_utils::pii::EncryptionStratergy;
+use common_utils::pii::EncryptionStrategy;
 use diesel::{
     backend::Backend,
     deserialize::{self, FromSql, Queryable},
@@ -11,7 +11,7 @@ use masking::Secret;
 #[diesel(sql_type = diesel::sql_types::Binary)]
 #[repr(transparent)]
 pub struct Encryption {
-    inner: Secret<Vec<u8>, EncryptionStratergy>,
+    inner: Secret<Vec<u8>, EncryptionStrategy>,
 }
 
 impl<T: Clone> From<common_utils::crypto::Encryptable<T>> for Encryption {
@@ -21,17 +21,17 @@ impl<T: Clone> From<common_utils::crypto::Encryptable<T>> for Encryption {
 }
 
 impl Encryption {
-    pub fn new(item: Secret<Vec<u8>, EncryptionStratergy>) -> Self {
+    pub fn new(item: Secret<Vec<u8>, EncryptionStrategy>) -> Self {
         Self { inner: item }
     }
 
     #[inline]
-    pub fn into_inner(self) -> Secret<Vec<u8>, EncryptionStratergy> {
+    pub fn into_inner(self) -> Secret<Vec<u8>, EncryptionStrategy> {
         self.inner
     }
 
     #[inline]
-    pub fn get_inner(&self) -> &Secret<Vec<u8>, EncryptionStratergy> {
+    pub fn get_inner(&self) -> &Secret<Vec<u8>, EncryptionStrategy> {
         &self.inner
     }
 }
@@ -39,17 +39,17 @@ impl Encryption {
 impl<DB> FromSql<sql_types::Binary, DB> for Encryption
 where
     DB: Backend,
-    Secret<Vec<u8>, EncryptionStratergy>: FromSql<sql_types::Binary, DB>,
+    Secret<Vec<u8>, EncryptionStrategy>: FromSql<sql_types::Binary, DB>,
 {
     fn from_sql(bytes: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
-        <Secret<Vec<u8>, EncryptionStratergy>>::from_sql(bytes).map(Self::new)
+        <Secret<Vec<u8>, EncryptionStrategy>>::from_sql(bytes).map(Self::new)
     }
 }
 
 impl<DB> ToSql<sql_types::Binary, DB> for Encryption
 where
     DB: Backend,
-    Secret<Vec<u8>, EncryptionStratergy>: ToSql<sql_types::Binary, DB>,
+    Secret<Vec<u8>, EncryptionStrategy>: ToSql<sql_types::Binary, DB>,
 {
     fn to_sql<'b>(
         &'b self,
@@ -62,9 +62,9 @@ where
 impl<DB> Queryable<sql_types::Binary, DB> for Encryption
 where
     DB: Backend,
-    Secret<Vec<u8>, EncryptionStratergy>: FromSql<sql_types::Binary, DB>,
+    Secret<Vec<u8>, EncryptionStrategy>: FromSql<sql_types::Binary, DB>,
 {
-    type Row = Secret<Vec<u8>, EncryptionStratergy>;
+    type Row = Secret<Vec<u8>, EncryptionStrategy>;
     fn build(row: Self::Row) -> deserialize::Result<Self> {
         Ok(Self { inner: row })
     }

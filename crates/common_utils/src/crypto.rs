@@ -11,7 +11,7 @@ use ring::{
 
 use crate::{
     errors::{self, CustomResult},
-    pii::{self, EncryptionStratergy},
+    pii::{self, EncryptionStrategy},
 };
 
 #[derive(Clone, Debug)]
@@ -104,7 +104,7 @@ pub trait DecodeMessage {
     fn decode_message(
         &self,
         _secret: &[u8],
-        _msg: Secret<Vec<u8>, EncryptionStratergy>,
+        _msg: Secret<Vec<u8>, EncryptionStrategy>,
     ) -> CustomResult<Vec<u8>, errors::CryptoError>;
 }
 
@@ -148,7 +148,7 @@ impl DecodeMessage for NoAlgorithm {
     fn decode_message(
         &self,
         _secret: &[u8],
-        msg: Secret<Vec<u8>, EncryptionStratergy>,
+        msg: Secret<Vec<u8>, EncryptionStrategy>,
     ) -> CustomResult<Vec<u8>, errors::CryptoError> {
         Ok(msg.expose())
     }
@@ -271,7 +271,7 @@ impl DecodeMessage for GcmAes256 {
     fn decode_message(
         &self,
         secret: &[u8],
-        msg: Secret<Vec<u8>, EncryptionStratergy>,
+        msg: Secret<Vec<u8>, EncryptionStrategy>,
     ) -> CustomResult<Vec<u8>, errors::CryptoError> {
         let msg = msg.expose();
         let key = UnboundKey::new(&aead::AES_256_GCM, secret)
@@ -413,7 +413,7 @@ pub fn generate_cryptographically_secure_random_bytes<const N: usize>() -> [u8; 
 #[derive(Debug, Clone)]
 pub struct Encryptable<T: Clone> {
     inner: T,
-    encrypted: Secret<Vec<u8>, EncryptionStratergy>,
+    encrypted: Secret<Vec<u8>, EncryptionStrategy>,
 }
 
 impl<T: Clone, S: masking::Strategy<T>> Encryptable<Secret<T, S>> {
@@ -422,7 +422,7 @@ impl<T: Clone, S: masking::Strategy<T>> Encryptable<Secret<T, S>> {
     ///
     pub fn new(
         masked_data: Secret<T, S>,
-        encrypted_data: Secret<Vec<u8>, EncryptionStratergy>,
+        encrypted_data: Secret<Vec<u8>, EncryptionStrategy>,
     ) -> Self {
         Self {
             inner: masked_data,
@@ -452,7 +452,7 @@ impl<T: Clone> Encryptable<T> {
     /// Get the inner encrypted data while consuming self
     ///
     #[inline]
-    pub fn into_encrypted(self) -> Secret<Vec<u8>, EncryptionStratergy> {
+    pub fn into_encrypted(self) -> Secret<Vec<u8>, EncryptionStrategy> {
         self.encrypted
     }
 }
