@@ -6,7 +6,7 @@ use utoipa::ToSchema;
 
 /// The response body for retrieving an event.
 #[derive(Debug, Serialize, ToSchema)]
-pub struct RetrieveEventResponse {
+pub struct EventRetrieveResponse {
     /// The identifier for the Event.
     #[schema(max_length = 64, example = "evt_018e31720d1b7a2b82677d3032cab959")]
     pub event_id: String,

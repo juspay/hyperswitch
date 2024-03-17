@@ -13,7 +13,7 @@ pub async fn list_delivery_attempts(
     state: AppState,
     merchant_id: &str,
     initial_attempt_id: &str,
-) -> RouterResponse<Vec<api::webhook_events::RetrieveEventResponse>> {
+) -> RouterResponse<Vec<api::webhook_events::EventRetrieveResponse>> {
     let store = state.store.as_ref();
 
     // This would handle verifying that the merchant ID actually exists
@@ -37,7 +37,7 @@ pub async fn list_delivery_attempts(
         Ok(ApplicationResponse::Json(
             events
                 .into_iter()
-                .map(api::webhook_events::RetrieveEventResponse::try_from)
+                .map(api::webhook_events::EventRetrieveResponse::try_from)
                 .collect::<Result<Vec<_>, _>>()?,
         ))
     }

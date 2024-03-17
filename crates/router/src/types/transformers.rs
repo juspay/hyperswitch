@@ -1140,7 +1140,7 @@ impl ForeignFrom<storage::GatewayStatusMap> for gsm_api_types::GsmResponse {
     }
 }
 
-impl TryFrom<domain::Event> for api_models::webhook_events::RetrieveEventResponse {
+impl TryFrom<domain::Event> for api_models::webhook_events::EventRetrieveResponse {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(item: domain::Event) -> Result<Self, Self::Error> {

@@ -33,7 +33,7 @@ use crate::{
     payment_methods::*,
     payments::*,
     verifications::*,
-    webhook_events::RetrieveEventResponse,
+    webhook_events::EventRetrieveResponse,
 };
 
 impl ApiEventMetric for TimeRange {}
@@ -104,7 +104,7 @@ impl_misc_api_event_type!(
     GetDisputeFilterRequest,
     DisputeFiltersResponse,
     GetDisputeMetricRequest,
-    RetrieveEventResponse
+    EventRetrieveResponse
 );
 
 #[cfg(feature = "stripe")]
