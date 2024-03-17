@@ -502,6 +502,42 @@ impl EventInterface for KafkaStore {
             .await
     }
 
+    async fn list_initial_events_by_merchant_id_primary_object_id(
+        &self,
+        merchant_id: &str,
+        primary_object_id: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
+        self.diesel_store
+            .list_initial_events_by_merchant_id_primary_object_id(
+                merchant_id,
+                primary_object_id,
+                merchant_key_store,
+            )
+            .await
+    }
+
+    async fn list_initial_events_by_merchant_id_constraints(
+        &self,
+        merchant_id: &str,
+        created_after: Option<PrimitiveDateTime>,
+        created_before: Option<PrimitiveDateTime>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
+        self.diesel_store
+            .list_initial_events_by_merchant_id_constraints(
+                merchant_id,
+                created_after,
+                created_before,
+                limit,
+                offset,
+                merchant_key_store,
+            )
+            .await
+    }
+
     async fn list_events_by_merchant_id_initial_attempt_id(
         &self,
         merchant_id: &str,
