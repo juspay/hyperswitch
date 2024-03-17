@@ -12,6 +12,37 @@ use crate::{
     },
 };
 
+#[derive(Debug, Serialize)]
+pub struct SquareRouterData<T> {
+    pub amount: String,
+    pub router_data: T,
+}
+
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for SquareRouterData<T>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (currency_unit, currency, amount, item): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
+        Ok(Self {
+            amount,
+            router_data: item,
+        })
+    }
+}
+
 impl TryFrom<(&types::TokenizationRouterData, BankDebitData)> for SquareTokenRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -153,14 +184,16 @@ pub enum SquareTokenRequest {
 impl TryFrom<&types::TokenizationRouterData> for SquareTokenRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::TokenizationRouterData) -> Result<Self, Self::Error> {
-        match item.request.payment_method_data.clone() {
+        match &item.request.payment_method_data.clone() {
             api::PaymentMethodData::BankDebit(bank_debit_data) => {
-                Self::try_from((item, bank_debit_data))
+                Self::try_from((item, bank_debit_data.clone()))
             }
-            api::PaymentMethodData::Card(card_data) => Self::try_from((item, card_data)),
-            api::PaymentMethodData::Wallet(wallet_data) => Self::try_from((item, wallet_data)),
+            api::PaymentMethodData::Card(card_data) => Self::try_from((item, card_data.clone())),
+            api::PaymentMethodData::Wallet(wallet_data) => {
+                Self::try_from((item, wallet_data.clone()))
+            }
             api::PaymentMethodData::PayLater(pay_later_data) => {
-                Self::try_from((item, pay_later_data))
+                Self::try_from((item, pay_later_data.clone()))
             }
             api::PaymentMethodData::GiftCard(_)
             | api::PaymentMethodData::BankRedirect(_)
@@ -246,15 +279,18 @@ pub struct SquarePaymentsRequest {
     external_details: SquarePaymentsRequestExternalDetails,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
+impl TryFrom<&SquareRouterData<&types::PaymentsAuthorizeRouterData>> for SquarePaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let autocomplete = item.request.is_auto_capture()?;
-        match item.request.payment_method_data.clone() {
+    fn try_from(
+        item: &SquareRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let autocomplete = router_data.request.is_auto_capture()?;
+        match router_data.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(_) => {
-                let pm_token = item.get_payment_method_token()?;
+                let pm_token = router_data.get_payment_method_token()?;
                 Ok(Self {
-                    idempotency_key: Secret::new(item.attempt_id.clone()),
+                    idempotency_key: Secret::new(router_data.attempt_id.clone()),
                     source_id: Secret::new(match pm_token {
                         types::PaymentMethodToken::Token(token) => token,
                         types::PaymentMethodToken::ApplePayDecrypt(_) => {
@@ -262,8 +298,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
                         }
                     }),
                     amount_money: SquarePaymentsAmountData {
-                        amount: item.request.amount,
-                        currency: item.request.currency,
+                        amount: router_data.request.amount,
+                        currency: router_data.request.currency,
                     },
                     autocomplete,
                     external_details: SquarePaymentsRequestExternalDetails {
@@ -392,16 +428,19 @@ pub struct SquareRefundRequest {
     payment_id: Secret<String>,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for SquareRefundRequest {
+impl<F> TryFrom<&SquareRouterData<&types::RefundsRouterData<F>>> for SquareRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &SquareRouterData<&types::RefundsRouterData<F>>,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
         Ok(Self {
             amount_money: SquarePaymentsAmountData {
-                amount: item.request.refund_amount,
-                currency: item.request.currency,
+                amount: router_data.request.refund_amount,
+                currency: router_data.request.currency,
             },
-            idempotency_key: Secret::new(item.request.refund_id.clone()),
-            payment_id: Secret::new(item.request.connector_transaction_id.clone()),
+            idempotency_key: Secret::new(router_data.request.refund_id.clone()),
+            payment_id: Secret::new(router_data.request.connector_transaction_id.clone()),
         })
     }
 }
