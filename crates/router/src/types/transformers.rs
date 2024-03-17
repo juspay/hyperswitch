@@ -20,6 +20,7 @@ use crate::{
         api::{self as api_types, routing as routing_types},
         storage,
     },
+    utils::OptionExt,
 };
 
 pub trait ForeignInto<T> {
@@ -1136,5 +1137,57 @@ impl ForeignFrom<storage::GatewayStatusMap> for gsm_api_types::GsmResponse {
             unified_code: value.unified_code,
             unified_message: value.unified_message,
         }
+    }
+}
+
+impl TryFrom<domain::Event> for api_models::webhook_events::RetrieveEventResponse {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(item: domain::Event) -> Result<Self, Self::Error> {
+        // We only allow retrieving events with merchant_id, business_profile_id,
+        // initial_attempt_id, request and response populated.
+        // We cannot retrieve events with only some of these fields populated.
+        let merchant_id = item
+            .merchant_id
+            .get_required_value("merchant_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        let profile_id = item
+            .business_profile_id
+            .get_required_value("business_profile_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        let initial_attempt_id = item
+            .initial_attempt_id
+            .get_required_value("initial_attempt_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        let request = item
+            .request
+            .get_required_value("request")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?
+            .peek()
+            .parse_struct("OutgoingWebhookRequestContent")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse webhook event request information")?;
+        let response = item
+            .response
+            .get_required_value("response")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?
+            .peek()
+            .parse_struct("OutgoingWebhookResponseContent")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse webhook event response information")?;
+
+        Ok(Self {
+            event_id: item.event_id,
+            merchant_id,
+            profile_id,
+            object_id: item.primary_object_id,
+            event_type: item.event_type,
+            event_class: item.event_class,
+            is_delivery_successful: item.is_webhook_notified,
+            initial_attempt_id,
+            created: item.created_at,
+            request,
+            response,
+        })
     }
 }

@@ -35,4 +35,5 @@ pub mod user;
 pub mod user_role;
 pub mod verifications;
 pub mod verify_connector;
+pub mod webhook_events;
 pub mod webhooks;

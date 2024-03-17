@@ -131,7 +131,9 @@ impl From<Flow> for ApiIdentifier {
             | Flow::RefundsUpdate
             | Flow::RefundsList => Self::Refunds,
 
-            Flow::FrmFulfillment | Flow::IncomingWebhookReceive => Self::Webhooks,
+            Flow::FrmFulfillment
+            | Flow::IncomingWebhookReceive
+            | Flow::WebhookEventDeliveryAttemptList => Self::Webhooks,
 
             Flow::ApiKeyCreate
             | Flow::ApiKeyRetrieve

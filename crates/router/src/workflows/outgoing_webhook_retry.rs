@@ -1,5 +1,6 @@
 use api_models::{
     enums::EventType,
+    webhook_events::OutgoingWebhookRequestContent,
     webhooks::{OutgoingWebhook, OutgoingWebhookContent},
 };
 use common_utils::ext_traits::{StringExt, ValueExt};
@@ -13,10 +14,7 @@ use scheduler::{
 };
 
 use crate::{
-    core::webhooks::{
-        self as webhooks_core,
-        types::{OutgoingWebhookRequestContent, OutgoingWebhookTrackingData},
-    },
+    core::webhooks::{self as webhooks_core, types::OutgoingWebhookTrackingData},
     db::StorageInterface,
     errors, logger,
     routes::AppState,

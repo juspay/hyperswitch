@@ -30,6 +30,7 @@ pub enum Permission {
     UsersRead,
     UsersWrite,
     MerchantAccountCreate,
+    WebhookEventRead,
 }
 
 impl Permission {
@@ -67,6 +68,7 @@ impl Permission {
             Self::UsersRead => "View all the users for a merchant",
             Self::UsersWrite => "Invite users, assign and update roles",
             Self::MerchantAccountCreate => "Create merchant account",
+            Self::WebhookEventRead => "View webhook events",
         }
     }
 }

@@ -384,6 +384,8 @@ pub enum Flow {
     CreateRole,
     /// Update Role
     UpdateRole,
+    /// List delivery attempts for a webhook event
+    WebhookEventDeliveryAttemptList,
 }
 
 ///

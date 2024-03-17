@@ -1,11 +1,14 @@
 pub mod types;
 pub mod utils;
+#[cfg(feature = "olap")]
+pub mod webhook_events;
 
 use std::{str::FromStr, time::Instant};
 
 use actix_web::FromRequest;
 use api_models::{
     payments::HeaderPayload,
+    webhook_events::{OutgoingWebhookRequestContent, OutgoingWebhookResponseContent},
     webhooks::{self, WebhookResponseTracker},
 };
 use common_utils::{
@@ -801,7 +804,7 @@ pub(crate) async fn trigger_webhook_and_raise_event(
     business_profile: diesel_models::business_profile::BusinessProfile,
     merchant_key_store: &domain::MerchantKeyStore,
     event: domain::Event,
-    request_content: types::OutgoingWebhookRequestContent,
+    request_content: OutgoingWebhookRequestContent,
     delivery_attempt: types::WebhookDeliveryAttempt,
     content: Option<api::OutgoingWebhookContent>,
     process_tracker: Option<storage::ProcessTracker>,
@@ -833,7 +836,7 @@ async fn trigger_webhook_to_merchant(
     business_profile: diesel_models::business_profile::BusinessProfile,
     merchant_key_store: &domain::MerchantKeyStore,
     event: domain::Event,
-    request_content: types::OutgoingWebhookRequestContent,
+    request_content: OutgoingWebhookRequestContent,
     delivery_attempt: types::WebhookDeliveryAttempt,
     process_tracker: Option<storage::ProcessTracker>,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
@@ -875,7 +878,7 @@ async fn trigger_webhook_to_merchant(
         .attach_default_headers()
         .headers(headers)
         .set_body(RequestContent::RawBytes(
-            request_content.payload.expose().into_bytes(),
+            request_content.body.expose().into_bytes(),
         ))
         .build();
 
@@ -932,7 +935,7 @@ async fn trigger_webhook_to_merchant(
                 )
             })
             .collect::<Vec<_>>();
-        let response_payload = response
+        let response_body = response
             .text()
             .await
             .map(Secret::from)
@@ -940,8 +943,8 @@ async fn trigger_webhook_to_merchant(
                 logger::warn!("Response contains non-UTF-8 characters: {error:?}");
                 Secret::from(String::from("Non-UTF-8 response body"))
             });
-        let response_to_store = types::OutgoingWebhookResponseContent {
-            payload: response_payload,
+        let response_to_store = OutgoingWebhookResponseContent {
+            body: response_body,
             headers: response_headers,
             status_code: status_code.as_u16(),
         };
@@ -1725,12 +1728,12 @@ pub(crate) fn get_outgoing_webhook_request(
     merchant_account: &domain::MerchantAccount,
     outgoing_webhook: api::OutgoingWebhook,
     payment_response_hash_key: Option<&str>,
-) -> CustomResult<types::OutgoingWebhookRequestContent, errors::WebhooksFlowError> {
+) -> CustomResult<OutgoingWebhookRequestContent, errors::WebhooksFlowError> {
     #[inline]
     fn get_outgoing_webhook_request_inner<WebhookType: types::OutgoingWebhookType>(
         outgoing_webhook: api::OutgoingWebhook,
         payment_response_hash_key: Option<&str>,
-    ) -> CustomResult<types::OutgoingWebhookRequestContent, errors::WebhooksFlowError> {
+    ) -> CustomResult<OutgoingWebhookRequestContent, errors::WebhooksFlowError> {
         let mut headers = vec![(
             reqwest::header::CONTENT_TYPE.to_string(),
             mime::APPLICATION_JSON.essence_str().into(),
@@ -1745,8 +1748,8 @@ pub(crate) fn get_outgoing_webhook_request(
             WebhookType::add_webhook_header(&mut headers, signature)
         }
 
-        Ok(types::OutgoingWebhookRequestContent {
-            payload: outgoing_webhooks_signature.payload,
+        Ok(OutgoingWebhookRequestContent {
+            body: outgoing_webhooks_signature.payload,
             headers: headers
                 .into_iter()
                 .map(|(name, value)| (name, Secret::new(value.into_inner())))
