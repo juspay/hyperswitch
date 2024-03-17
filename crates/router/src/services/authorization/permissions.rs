@@ -40,7 +40,7 @@ impl Permission {
             Self::PaymentWrite => "Create payment, download payments data",
             Self::RefundRead => "View all refunds",
             Self::RefundWrite => "Create refund, download refunds data",
-            Self::ApiKeyRead => "View API keys (masked generated for the system",
+            Self::ApiKeyRead => "View API keys",
             Self::ApiKeyWrite => "Create and update API keys",
             Self::MerchantAccountRead => "View merchant account details",
             Self::MerchantAccountWrite => {
