@@ -2009,7 +2009,7 @@ impl TryFrom<&types::SetupMandateRouterData> for SetupIntentRequest {
             payment_method_options: None,
             customer: item.connector_customer.to_owned().map(Secret::new),
             meta_data,
-            payment_method_types: Some(pm_type)
+            payment_method_types: Some(pm_type),
         })
     }
 }
