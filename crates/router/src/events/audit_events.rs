@@ -1,9 +1,9 @@
 use data_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
+use events::{Event, EventInfo};
 use serde::Serialize;
 use time::OffsetDateTime;
 
 use crate::services::kafka::KafkaMessage;
-use events::{Event, EventInfo};
 
 #[derive(Debug, Clone, Serialize)]
 pub enum AuditEventType {
@@ -37,7 +37,6 @@ impl AuditEvent {
     }
 }
 
-
 impl Event for AuditEvent {
     type EventType = super::EventType;
 
@@ -54,7 +53,7 @@ impl Event for AuditEvent {
             AuditEventType::RefundCreated => "refund_created",
             AuditEventType::RefundSuccess => "refund_success",
             AuditEventType::RefundFail => "refund_fail",
-            AuditEventType::PaymentUpdate { .. } => "payment_update"
+            AuditEventType::PaymentUpdate { .. } => "payment_update",
         };
         format!("{event_type}-{}", self.timestamp().unix_timestamp_nanos())
     }
@@ -66,7 +65,9 @@ impl Event for AuditEvent {
 
 impl EventInfo for AuditEvent {
     fn data(&self) -> error_stack::Result<serde_json::Value, events::EventsError> {
-        serde_json::to_value(self).map_err(|e| error_stack::report!(events::EventsError::SerializationError(e.to_string())))
+        serde_json::to_value(self).map_err(|e| {
+            error_stack::report!(events::EventsError::SerializationError(e.to_string()))
+        })
     }
 
     fn key(&self) -> String {
