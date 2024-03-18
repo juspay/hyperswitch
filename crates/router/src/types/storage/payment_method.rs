@@ -9,6 +9,7 @@ pub use diesel_models::payment_method::{
     PaymentMethod, PaymentMethodNew, PaymentMethodUpdate, PaymentMethodUpdateInternal,
     TokenizeCoreWorkflow,
 };
+use masking::PeekInterface;
 
 use crate::types::api::payments;
 
@@ -82,9 +83,11 @@ impl PaymentTokenData {
             Self::Temporary(data) | Self::TemporaryGeneric(data) => &data.token,
             Self::Permanent(data) | Self::PermanentCard(data) => &data.token,
             Self::WalletToken(data) => &data.payment_method_id,
-            Self::AuthBankDebit(auth_details) => match auth_details.access_token {
-                payment_methods::BankAccountAccessCreds::AccessToken(ref token) => token,
-            },
+            Self::AuthBankDebit(auth_details) => {
+                match auth_details.connector_details.access_token {
+                    payment_methods::BankAccountAccessCreds::AccessToken(ref token) => token.peek(),
+                }
+            }
         }
     }
 }
