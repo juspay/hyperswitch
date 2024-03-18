@@ -12,10 +12,9 @@
 //! Event: A trait that defines the event itself. This trait is used to define the data that is sent with the event and defines the event's type & identifier.
 //!
 
-use std::rc::Rc;
-use std::collections::HashMap;
-use error_stack::Result;
+use std::{collections::HashMap, rc::Rc};
 
+use error_stack::Result;
 use time::OffsetDateTime;
 
 /// Errors that can occur when working with events.
@@ -92,10 +91,18 @@ impl<T> EventBuilder<T> {
 
 impl<T> EventInfo for EventBuilder<T> {
     fn data(&self) -> Result<HashMap<String, serde_json::Value>, EventsError> {
-        self.event_metadata.iter()
+        self.event_metadata
+            .iter()
             .chain(self.src_metadata.iter())
             .rev()
-            .map(|info| info.data().map(|d| (info.key(), serde_json::Value::Object(d.into_iter().collect()))))
+            .map(|info| {
+                info.data().map(|d| {
+                    (
+                        info.key(),
+                        serde_json::Value::Object(d.into_iter().collect()),
+                    )
+                })
+            })
             .chain(self.event.data()?.into_iter().map(Ok))
             .collect()
     }

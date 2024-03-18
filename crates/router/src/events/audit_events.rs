@@ -5,7 +5,6 @@ use events::{Event, EventInfo};
 use serde::Serialize;
 use time::OffsetDateTime;
 
-
 #[derive(Debug, Clone, Serialize)]
 pub enum AuditEventType {
     Error {
@@ -66,12 +65,19 @@ impl Event for AuditEvent {
 
 impl EventInfo for AuditEvent {
     fn data(&self) -> error_stack::Result<HashMap<String, serde_json::Value>, events::EventsError> {
-        serde_json::to_value(self).map_err(|e| {
-            error_stack::report!(events::EventsError::SerializationError(e.to_string()))
-        }).and_then(|v| match v {
-            serde_json::Value::Object(map) => Ok(map),
-            _ => Err(error_stack::report!(events::EventsError::SerializationError("Expected a serialized map".to_string())))
-        }).map(|i| i.into_iter().collect())
+        serde_json::to_value(self)
+            .map_err(|e| {
+                error_stack::report!(events::EventsError::SerializationError(e.to_string()))
+            })
+            .and_then(|v| match v {
+                serde_json::Value::Object(map) => Ok(map),
+                _ => Err(error_stack::report!(
+                    events::EventsError::SerializationError(
+                        "Expected a serialized map".to_string()
+                    )
+                )),
+            })
+            .map(|i| i.into_iter().collect())
     }
 
     fn key(&self) -> String {
