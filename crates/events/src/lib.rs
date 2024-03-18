@@ -23,10 +23,14 @@ pub enum EventsError {
     /// An error occurred when publishing the event.
     #[error("Generic Error")]
     GenericError,
+    #[error("Event serialization error: {0}")]
+    SerializationError(String),
 }
 
 /// An event that can be published.
 pub trait Event: EventInfo {
+    /// The type of the event.
+    type EventType;
     /// The timestamp of the event.
     fn timestamp(&self) -> PrimitiveDateTime;
 
@@ -34,41 +38,41 @@ pub trait Event: EventInfo {
     fn identifier(&self) -> String;
 
     /// The class/type of the event. This is used to group/categorize events together.
-    fn class(&self) -> String;
+    fn class(&self) -> Self::EventType;
 }
 
 /// An Event sink that can publish events.
 /// This could be a simple logger, a message queue, or a database.
-pub trait EventSink {
+pub trait EventSink<T> {
     /// Publish an event.
     /// The parameters for this function are determined from the Event trait.
     fn publish_event(
         &self,
         data: serde_json::Value,
         identifier: String,
-        topic: String,
+        topic: T,
         timestamp: PrimitiveDateTime,
     ) -> Result<(), EventsError>;
 }
 
 /// Hold the context information for any events
 #[derive(Clone)]
-pub struct EventContext {
-    event_sink: Rc<Box<dyn EventSink>>,
+pub struct EventContext<T> {
+    event_sink: Rc<Box<dyn EventSink<T>>>,
     metadata: Vec<Rc<Box<dyn EventInfo>>>,
 }
 
 /// intermediary structure to build events with in-place info.
-pub struct EventBuilder {
-    event_sink: Rc<Box<dyn EventSink>>,
+pub struct EventBuilder<T> {
+    event_sink: Rc<Box<dyn EventSink<T>>>,
     src_metadata: Vec<Rc<Box<dyn EventInfo>>>,
     event_metadata: Vec<Rc<Box<dyn EventInfo>>>,
-    event: Box<dyn Event>,
+    event: Box<dyn Event<EventType = T>>,
 }
 
-impl EventBuilder {
+impl<T> EventBuilder<T> {
     /// Add metadata to the event.
-    pub fn with<T: EventInfo + 'static>(mut self, info: T) -> Self {
+    pub fn with<E: EventInfo + 'static>(mut self, info: E) -> Self {
         let boxed_event: Box<dyn EventInfo> = Box::new(info);
         self.event_metadata.push(boxed_event.into());
         self
@@ -84,7 +88,7 @@ impl EventBuilder {
     }
 }
 
-impl EventInfo for EventBuilder {
+impl<T> EventInfo for EventBuilder<T> {
     fn data(&self) -> Result<serde_json::Value, EventsError> {
         self.src_metadata
             .iter()
@@ -98,9 +102,9 @@ impl EventInfo for EventBuilder {
     }
 }
 
-impl EventContext {
+impl<T> EventContext<T> {
     /// Create a new event context.
-    pub fn new(event_sink: Rc<Box<dyn EventSink>>) -> Self {
+    pub fn new(event_sink: Rc<Box<dyn EventSink<T>>>) -> Self {
         Self {
             event_sink,
             metadata: Vec::new(),
@@ -108,13 +112,13 @@ impl EventContext {
     }
 
     /// Add metadata to the event context.
-    pub fn record_info<T: EventInfo + 'static>(&mut self, info: T) {
+    pub fn record_info<E: EventInfo + 'static>(&mut self, info: E) {
         let boxed_event: Box<dyn EventInfo> = Box::new(info);
         self.metadata.push(boxed_event.into());
     }
 
     /// Emit an event.
-    pub fn emit(&self, event: Box<dyn Event>) -> Result<(), EventsError> {
+    pub fn emit(&self, event: Box<dyn Event<EventType = T>>) -> Result<(), EventsError> {
         EventBuilder {
             event_sink: self.event_sink.clone(),
             src_metadata: self.metadata.clone(),
@@ -125,7 +129,7 @@ impl EventContext {
     }
 
     /// Create an event builder.
-    pub fn event(&self, event: Box<dyn Event>) -> EventBuilder {
+    pub fn event(&self, event: Box<dyn Event<EventType = T>>) -> EventBuilder<T> {
         EventBuilder {
             event_sink: self.event_sink.clone(),
             src_metadata: self.metadata.clone(),

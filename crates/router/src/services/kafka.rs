@@ -370,18 +370,18 @@ impl Drop for RdKafkaProducer {
     }
 }
 
-impl EventSink for KafkaProducer {
+impl EventSink<EventType> for KafkaProducer {
     fn publish_event(
         &self,
         data: serde_json::Value,
         identifier: String,
-        topic: String,
+        topic: EventType,
         timestamp: PrimitiveDateTime,
     ) -> error_stack::Result<(), EventsError> {
         self.producer
             .0
             .send(
-                BaseRecord::to(&topic)
+                BaseRecord::to(self.get_topic(topic))
                     .key(&identifier)
                     .payload(&data.to_string())
                     .timestamp(timestamp.assume_utc().unix_timestamp()),

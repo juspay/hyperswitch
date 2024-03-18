@@ -84,18 +84,18 @@ impl EventsHandler {
     }
 }
 
-impl EventSink for EventsHandler {
+impl EventSink<EventType> for EventsHandler {
     fn publish_event(
         &self,
         data: serde_json::Value,
         identifier: String,
-        topic: String,
+        topic: EventType,
         timestamp: PrimitiveDateTime,
     ) -> error_stack::Result<(), EventsError> {
         match self {
             Self::Kafka(kafka) => kafka.publish_event(data, identifier, topic, timestamp),
             Self::Logs(_) => {
-                logger::info!(event = ?data, event_type =?topic, event_id =?identifier , log_type = "event");
+                logger::info!(event = ?data, event_type=?topic, event_id =?identifier, log_type = "event");
                 Ok(())
             }
         }
