@@ -16,7 +16,7 @@ serde = { version = "1.0.193", features = ["derive", "rc"] }
 serde_json = "1.0.108"
 strum = { version = "0.25", features = ["derive"] }
 thiserror = "1.0.43"
-utoipa = { version = "3.3.0", features = ["preserve_order"] }
+utoipa = { version = "3.5.0", features = ["preserve_order", "preserve_path_order"] }
 
 # First party dependencies
 common_enums = { version = "0.1.0", path = "../common_enums" }
