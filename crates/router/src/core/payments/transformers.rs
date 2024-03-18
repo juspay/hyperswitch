@@ -1176,7 +1176,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             });
 
         Ok(Self {
-            payment_method_data: payment_method_data.get_required_value("payment_method_data")?,
+            payment_method_data: From::from(
+                payment_method_data.get_required_value("payment_method_data")?,
+            ),
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
             mandate_id: payment_data.mandate_id.clone(),
             off_session: payment_data.mandate_id.as_ref().map(|_| true),
@@ -1504,9 +1506,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             currency: payment_data.currency,
             confirm: true,
             amount: Some(payment_data.amount.into()),
-            payment_method_data: payment_data
-                .payment_method_data
-                .get_required_value("payment_method_data")?,
+            payment_method_data: From::from(
+                payment_data
+                    .payment_method_data
+                    .get_required_value("payment_method_data")?,
+            ),
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
             off_session: payment_data.mandate_id.as_ref().map(|_| true),
@@ -1617,7 +1621,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             currency: payment_data.currency,
             browser_info,
             email: payment_data.email,
-            payment_method_data: payment_data.payment_method_data,
+            payment_method_data: payment_data.payment_method_data.map(From::from),
             connector_transaction_id: payment_data.payment_attempt.connector_transaction_id,
             redirect_response,
             connector_meta: payment_data.payment_attempt.connector_metadata,
@@ -1687,7 +1691,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             .unwrap_or(payment_data.amount.into());
 
         Ok(Self {
-            payment_method_data,
+            payment_method_data: payment_method_data.map(From::from),
             email: payment_data.email,
             currency: Some(payment_data.currency),
             amount: Some(amount),

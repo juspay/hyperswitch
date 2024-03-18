@@ -53,7 +53,7 @@ pub fn construct_authentication_router_data(
             })
             .attach_printable("Error while parsing authentication_details from merchant_account")?;
     let router_request = types::authentication::ConnectorAuthenticationRequestData {
-        payment_method_data,
+        payment_method_data: From::from(payment_method_data),
         billing_address,
         shipping_address,
         browser_details,

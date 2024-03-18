@@ -8,6 +8,7 @@ use crate::{
     types::{
         api,
         api::verify_connector::{self as types, VerifyConnector},
+        domain,
     },
     utils::verify_connector as utils,
     AppState,
@@ -39,7 +40,7 @@ pub async fn verify_connector_credentials(
                 types::VerifyConnectorData {
                     connector: *boxed_connector.connector,
                     connector_auth: req.connector_account_details.into(),
-                    card_details,
+                    card_details: domain::Card::from(card_details),
                 },
             )
             .await
@@ -49,7 +50,7 @@ pub async fn verify_connector_credentials(
             types::VerifyConnectorData {
                 connector: *boxed_connector.connector,
                 connector_auth: req.connector_account_details.into(),
-                card_details,
+                card_details: domain::Card::from(card_details),
             },
         )
         .await

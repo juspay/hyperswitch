@@ -11,7 +11,7 @@ use crate::{
     consts as const_val,
     core::errors,
     services,
-    types::{self, api, storage::enums},
+    types::{self, api, domain, storage::enums},
 };
 
 pub struct ProphetpayRouterData<T> {
@@ -136,8 +136,8 @@ impl TryFrom<&ProphetpayRouterData<&types::PaymentsAuthorizeRouterData>>
     ) -> Result<Self, Self::Error> {
         if item.router_data.request.currency == api_models::enums::Currency::USD {
             match item.router_data.request.payment_method_data.clone() {
-                api::PaymentMethodData::CardRedirect(
-                    api_models::payments::CardRedirectData::CardRedirect {},
+                domain::PaymentMethodData::CardRedirect(
+                    domain::payments::CardRedirectData::CardRedirect {},
                 ) => {
                     let auth_data =
                         ProphetpayAuthType::try_from(&item.router_data.connector_auth_type)?;

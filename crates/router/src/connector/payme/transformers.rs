@@ -1,9 +1,6 @@
 use std::collections::HashMap;
 
-use api_models::{
-    enums::{AuthenticationType, PaymentMethod},
-    payments::PaymentMethodData,
-};
+use api_models::enums::{AuthenticationType, PaymentMethod};
 use common_utils::pii;
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, Secret};
@@ -20,7 +17,7 @@ use crate::{
     consts,
     core::errors,
     services,
-    types::{self, api, storage::enums, MandateReference},
+    types::{self, api, domain, domain::PaymentMethodData, storage::enums, MandateReference},
 };
 
 const LANGUAGE: &str = "en";
@@ -639,7 +636,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(req_card) => {
+            domain::PaymentMethodData::Card(req_card) => {
                 let card = PaymeCard {
                     credit_card_cvv: req_card.card_cvc.clone(),
                     credit_card_exp: req_card
@@ -661,21 +658,23 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayRequest {
                     language: LANGUAGE.to_string(),
                 })
             }
-            api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::Wallet(_)
-            | api::PaymentMethodData::PayLater(_)
-            | api::PaymentMethodData::BankRedirect(_)
-            | api::PaymentMethodData::BankDebit(_)
-            | api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::Crypto(_)
-            | api::PaymentMethodData::MandatePayment
-            | api::PaymentMethodData::Reward
-            | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("payme"),
-            ))?,
+            domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("payme"),
+                ))?
+            }
         }
     }
 }
@@ -688,7 +687,7 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCompleteAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
-            Some(api::PaymentMethodData::Card(_)) => {
+            Some(domain::PaymentMethodData::Card(_)) => {
                 let buyer_email = item.request.get_email()?;
                 let buyer_name = item.get_billing_address()?.get_full_name()?;
 
@@ -720,19 +719,19 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
                     meta_data_jwt: Secret::new(jwt_data.meta_data),
                 })
             }
-            Some(api::PaymentMethodData::CardRedirect(_))
-            | Some(api::PaymentMethodData::Wallet(_))
-            | Some(api::PaymentMethodData::PayLater(_))
-            | Some(api::PaymentMethodData::BankRedirect(_))
-            | Some(api::PaymentMethodData::BankDebit(_))
-            | Some(api::PaymentMethodData::BankTransfer(_))
-            | Some(api::PaymentMethodData::Crypto(_))
-            | Some(api::PaymentMethodData::MandatePayment)
-            | Some(api::PaymentMethodData::Reward)
-            | Some(api::PaymentMethodData::Upi(_))
-            | Some(api::PaymentMethodData::Voucher(_))
-            | Some(api::PaymentMethodData::GiftCard(_))
-            | Some(api::PaymentMethodData::CardToken(_))
+            Some(domain::PaymentMethodData::CardRedirect(_))
+            | Some(domain::PaymentMethodData::Wallet(_))
+            | Some(domain::PaymentMethodData::PayLater(_))
+            | Some(domain::PaymentMethodData::BankRedirect(_))
+            | Some(domain::PaymentMethodData::BankDebit(_))
+            | Some(domain::PaymentMethodData::BankTransfer(_))
+            | Some(domain::PaymentMethodData::Crypto(_))
+            | Some(domain::PaymentMethodData::MandatePayment)
+            | Some(domain::PaymentMethodData::Reward)
+            | Some(domain::PaymentMethodData::Upi(_))
+            | Some(domain::PaymentMethodData::Voucher(_))
+            | Some(domain::PaymentMethodData::GiftCard(_))
+            | Some(domain::PaymentMethodData::CardToken(_))
             | None => {
                 Err(errors::ConnectorError::NotImplemented("Tokenize Flow".to_string()).into())
             }
@@ -744,7 +743,7 @@ impl TryFrom<&types::TokenizationRouterData> for CaptureBuyerRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::TokenizationRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(req_card) => {
+            domain::PaymentMethodData::Card(req_card) => {
                 let seller_payme_id =
                     PaymeAuthType::try_from(&item.connector_auth_type)?.seller_payme_id;
                 let card = PaymeCard {
@@ -758,19 +757,19 @@ impl TryFrom<&types::TokenizationRouterData> for CaptureBuyerRequest {
                     seller_payme_id,
                 })
             }
-            api::PaymentMethodData::Wallet(_)
-            | api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::PayLater(_)
-            | api::PaymentMethodData::BankRedirect(_)
-            | api::PaymentMethodData::BankDebit(_)
-            | api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::Crypto(_)
-            | api::PaymentMethodData::MandatePayment
-            | api::PaymentMethodData::Reward
-            | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardToken(_) => {
+            domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented("Tokenize Flow".to_string()).into())
             }
         }

@@ -15,6 +15,7 @@ use crate::{
     types::{
         self,
         api::{self, enums as api_enums},
+        domain,
         storage::enums,
         transformers::ForeignFrom,
     },
@@ -163,7 +164,7 @@ fn get_pm_and_subsequent_auth_detail(
                 reason: Reason::Resubmission,
             });
             match item.router_data.request.payment_method_data {
-                api::PaymentMethodData::Card(ref ccard) => {
+                domain::PaymentMethodData::Card(ref ccard) => {
                     let payment_details = PaymentDetails::CreditCard(CreditCardDetails {
                         card_number: (*ccard.card_number).clone(),
                         expiration_date: ccard.get_expiry_date_as_yyyymm("-"),
@@ -171,19 +172,19 @@ fn get_pm_and_subsequent_auth_detail(
                     });
                     Ok((payment_details, processing_options, subseuent_auth_info))
                 }
-                api::PaymentMethodData::CardRedirect(_)
-                | api::PaymentMethodData::Wallet(_)
-                | api::PaymentMethodData::PayLater(_)
-                | api::PaymentMethodData::BankRedirect(_)
-                | api::PaymentMethodData::BankDebit(_)
-                | api::PaymentMethodData::BankTransfer(_)
-                | api::PaymentMethodData::Crypto(_)
-                | api::PaymentMethodData::MandatePayment
-                | api::PaymentMethodData::Reward
-                | api::PaymentMethodData::Upi(_)
-                | api::PaymentMethodData::Voucher(_)
-                | api::PaymentMethodData::GiftCard(_)
-                | api::PaymentMethodData::CardToken(_) => {
+                domain::PaymentMethodData::CardRedirect(_)
+                | domain::PaymentMethodData::Wallet(_)
+                | domain::PaymentMethodData::PayLater(_)
+                | domain::PaymentMethodData::BankRedirect(_)
+                | domain::PaymentMethodData::BankDebit(_)
+                | domain::PaymentMethodData::BankTransfer(_)
+                | domain::PaymentMethodData::Crypto(_)
+                | domain::PaymentMethodData::MandatePayment
+                | domain::PaymentMethodData::Reward
+                | domain::PaymentMethodData::Upi(_)
+                | domain::PaymentMethodData::Voucher(_)
+                | domain::PaymentMethodData::GiftCard(_)
+                | domain::PaymentMethodData::CardToken(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
                     ))?
@@ -192,7 +193,7 @@ fn get_pm_and_subsequent_auth_detail(
         }
         Some(api_models::payments::MandateReferenceId::ConnectorMandateId(_)) | None => {
             match item.router_data.request.payment_method_data {
-                api::PaymentMethodData::Card(ref ccard) => {
+                domain::PaymentMethodData::Card(ref ccard) => {
                     Ok((
                         PaymentDetails::CreditCard(CreditCardDetails {
                             card_number: (*ccard.card_number).clone(),
@@ -206,7 +207,7 @@ fn get_pm_and_subsequent_auth_detail(
                         None,
                     ))
                 }
-                api::PaymentMethodData::Wallet(ref wallet_data) => Ok((
+                domain::PaymentMethodData::Wallet(ref wallet_data) => Ok((
                     get_wallet_data(
                         wallet_data,
                         &item.router_data.request.complete_authorize_url,
@@ -214,18 +215,18 @@ fn get_pm_and_subsequent_auth_detail(
                     None,
                     None,
                 )),
-                api::PaymentMethodData::CardRedirect(_)
-                | api::PaymentMethodData::PayLater(_)
-                | api::PaymentMethodData::BankRedirect(_)
-                | api::PaymentMethodData::BankDebit(_)
-                | api::PaymentMethodData::BankTransfer(_)
-                | api::PaymentMethodData::Crypto(_)
-                | api::PaymentMethodData::MandatePayment
-                | api::PaymentMethodData::Reward
-                | api::PaymentMethodData::Upi(_)
-                | api::PaymentMethodData::Voucher(_)
-                | api::PaymentMethodData::GiftCard(_)
-                | api::PaymentMethodData::CardToken(_) => {
+                domain::PaymentMethodData::CardRedirect(_)
+                | domain::PaymentMethodData::PayLater(_)
+                | domain::PaymentMethodData::BankRedirect(_)
+                | domain::PaymentMethodData::BankDebit(_)
+                | domain::PaymentMethodData::BankTransfer(_)
+                | domain::PaymentMethodData::Crypto(_)
+                | domain::PaymentMethodData::MandatePayment
+                | domain::PaymentMethodData::Reward
+                | domain::PaymentMethodData::Upi(_)
+                | domain::PaymentMethodData::Voucher(_)
+                | domain::PaymentMethodData::GiftCard(_)
+                | domain::PaymentMethodData::CardToken(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
                     ))?

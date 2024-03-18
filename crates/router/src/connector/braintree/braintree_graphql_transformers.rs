@@ -9,7 +9,7 @@ use crate::{
     consts,
     core::errors,
     services,
-    types::{self, api, storage::enums},
+    types::{self, api, domain, storage::enums},
 };
 
 pub const CLIENT_TOKEN_MUTATION: &str = "mutation createClientToken($input: CreateClientTokenInput!) { createClientToken(input: $input) { clientToken}}";
@@ -118,7 +118,7 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
         )?;
 
         match item.router_data.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(_) => {
+            domain::PaymentMethodData::Card(_) => {
                 if item.router_data.is_three_ds() {
                     Ok(Self::CardThreeDs(BraintreeClientTokenRequest::try_from(
                         metadata,
@@ -127,19 +127,19 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
                     Ok(Self::Card(CardPaymentRequest::try_from((item, metadata))?))
                 }
             }
-            api_models::payments::PaymentMethodData::CardRedirect(_)
-            | api_models::payments::PaymentMethodData::Wallet(_)
-            | api_models::payments::PaymentMethodData::PayLater(_)
-            | api_models::payments::PaymentMethodData::BankRedirect(_)
-            | api_models::payments::PaymentMethodData::BankDebit(_)
-            | api_models::payments::PaymentMethodData::BankTransfer(_)
-            | api_models::payments::PaymentMethodData::Crypto(_)
-            | api_models::payments::PaymentMethodData::MandatePayment
-            | api_models::payments::PaymentMethodData::Reward
-            | api_models::payments::PaymentMethodData::Upi(_)
-            | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_)
-            | api_models::payments::PaymentMethodData::CardToken(_) => {
+            domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("braintree"),
                 )
@@ -859,7 +859,7 @@ impl TryFrom<&types::TokenizationRouterData> for BraintreeTokenRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::TokenizationRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(card_data) => {
+            domain::PaymentMethodData::Card(card_data) => {
                 let query = TOKENIZE_CREDIT_CARD.to_string();
                 let input = InputData {
                     credit_card: CreditCardData {
@@ -877,22 +877,24 @@ impl TryFrom<&types::TokenizationRouterData> for BraintreeTokenRequest {
                     variables: VariableInput { input },
                 })
             }
-            api_models::payments::PaymentMethodData::CardRedirect(_)
-            | api_models::payments::PaymentMethodData::Wallet(_)
-            | api_models::payments::PaymentMethodData::PayLater(_)
-            | api_models::payments::PaymentMethodData::BankRedirect(_)
-            | api_models::payments::PaymentMethodData::BankDebit(_)
-            | api_models::payments::PaymentMethodData::BankTransfer(_)
-            | api_models::payments::PaymentMethodData::Crypto(_)
-            | api_models::payments::PaymentMethodData::MandatePayment
-            | api_models::payments::PaymentMethodData::Reward
-            | api_models::payments::PaymentMethodData::Upi(_)
-            | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("braintree"),
-            )
-            .into()),
+            domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("braintree"),
+                )
+                .into())
+            }
         }
     }
 }
@@ -1406,7 +1408,7 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
 fn get_braintree_redirect_form(
     client_token_data: ClientTokenResponse,
     payment_method_token: types::PaymentMethodToken,
-    card_details: api_models::payments::PaymentMethodData,
+    card_details: domain::PaymentMethodData,
 ) -> Result<services::RedirectForm, error_stack::Report<errors::ConnectorError>> {
     Ok(services::RedirectForm::Braintree {
         client_token: client_token_data
@@ -1421,24 +1423,24 @@ fn get_braintree_redirect_form(
             }
         },
         bin: match card_details {
-            api_models::payments::PaymentMethodData::Card(card_details) => {
+            domain::PaymentMethodData::Card(card_details) => {
                 card_details.card_number.get_card_isin()
             }
-            api_models::payments::PaymentMethodData::CardRedirect(_)
-            | api_models::payments::PaymentMethodData::Wallet(_)
-            | api_models::payments::PaymentMethodData::PayLater(_)
-            | api_models::payments::PaymentMethodData::BankRedirect(_)
-            | api_models::payments::PaymentMethodData::BankDebit(_)
-            | api_models::payments::PaymentMethodData::BankTransfer(_)
-            | api_models::payments::PaymentMethodData::Crypto(_)
-            | api_models::payments::PaymentMethodData::MandatePayment
-            | api_models::payments::PaymentMethodData::Reward
-            | api_models::payments::PaymentMethodData::Upi(_)
-            | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
-                "given payment method".to_owned(),
-            ))?,
+            domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => Err(
+                errors::ConnectorError::NotImplemented("given payment method".to_owned()),
+            )?,
         },
     })
 }

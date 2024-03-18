@@ -8,7 +8,7 @@ use crate::{
         self, missing_field_err, CardData, PaymentsAuthorizeRequestData, RouterData,
     },
     core::errors,
-    types::{self, api, storage::enums},
+    types::{self, api, domain, storage::enums},
 };
 
 #[derive(Debug, Serialize)]
@@ -70,7 +70,7 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
         let total = item.amount;
 
         match item.router_data.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(_) => {
+            domain::PaymentMethodData::Card(_) => {
                 let pm_token = item.router_data.get_payment_method_token()?;
                 let pre_auth = !item.router_data.request.is_auto_capture()?;
                 Ok(Self {
@@ -87,7 +87,7 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
                     idempotency_id: Some(item.router_data.connector_request_reference_id.clone()),
                 })
             }
-            api::PaymentMethodData::BankDebit(
+            domain::PaymentMethodData::BankDebit(
                 api_models::payments::BankDebitData::AchBankDebit { .. },
             ) => {
                 let pm_token = item.router_data.get_payment_method_token()?;
@@ -106,21 +106,23 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
                     idempotency_id: Some(item.router_data.connector_request_reference_id.clone()),
                 })
             }
-            api::PaymentMethodData::BankDebit(_)
-            | api::PaymentMethodData::Wallet(_)
-            | api::PaymentMethodData::PayLater(_)
-            | api::PaymentMethodData::BankRedirect(_)
-            | api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::Crypto(_)
-            | api::PaymentMethodData::MandatePayment
-            | api::PaymentMethodData::Reward
-            | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Stax"),
-            ))?,
+            domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Stax"),
+                ))?
+            }
         }
     }
 }
@@ -222,7 +224,7 @@ impl TryFrom<&types::TokenizationRouterData> for StaxTokenRequest {
     fn try_from(item: &types::TokenizationRouterData) -> Result<Self, Self::Error> {
         let customer_id = item.get_connector_customer_id()?;
         match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(card_data) => {
+            domain::PaymentMethodData::Card(card_data) => {
                 let stax_card_data = StaxTokenizeData {
                     card_exp: card_data
                         .get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?,
@@ -235,7 +237,7 @@ impl TryFrom<&types::TokenizationRouterData> for StaxTokenRequest {
                 };
                 Ok(Self::Card(stax_card_data))
             }
-            api_models::payments::PaymentMethodData::BankDebit(
+            domain::PaymentMethodData::BankDebit(
                 api_models::payments::BankDebitData::AchBankDebit {
                     billing_details,
                     account_number,
@@ -258,21 +260,23 @@ impl TryFrom<&types::TokenizationRouterData> for StaxTokenRequest {
                 };
                 Ok(Self::Bank(stax_bank_data))
             }
-            api::PaymentMethodData::BankDebit(_)
-            | api::PaymentMethodData::Wallet(_)
-            | api::PaymentMethodData::PayLater(_)
-            | api::PaymentMethodData::BankRedirect(_)
-            | api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::Crypto(_)
-            | api::PaymentMethodData::MandatePayment
-            | api::PaymentMethodData::Reward
-            | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Stax"),
-            ))?,
+            domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Stax"),
+                ))?
+            }
         }
     }
 }

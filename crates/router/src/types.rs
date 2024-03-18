@@ -30,19 +30,18 @@ use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
 use serde::Serialize;
 
-use self::{api::payments, storage::enums as storage_enums};
+use self::storage::enums as storage_enums;
 pub use crate::core::payments::{payment_address::PaymentAddress, CustomerDetails};
 #[cfg(feature = "payouts")]
 use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW;
 use crate::{
     core::{
         authentication as authentication_core,
-        errors::{self, RouterResult},
+        errors::{self},
         payments::{types, PaymentData, RecurringMandatePaymentData},
     },
     services,
     types::transformers::ForeignFrom,
-    utils::OptionExt,
 };
 
 pub type PaymentsAuthorizeRouterData =
@@ -387,7 +386,7 @@ pub struct PayoutsFulfillResponseData {
 
 #[derive(Debug, Clone)]
 pub struct PaymentsAuthorizeData {
-    pub payment_method_data: payments::PaymentMethodData,
+    pub payment_method_data: domain::payments::PaymentMethodData,
     /// total amount (original_amount + surcharge_amount + tax_on_surcharge_amount)
     /// If connector supports separate field for surcharge amount, consider using below functions defined on `PaymentsAuthorizeData` to fetch original amount and surcharge amount separately
     /// ```
@@ -472,12 +471,12 @@ pub struct ConnectorCustomerData {
     pub phone: Option<Secret<String>>,
     pub name: Option<Secret<String>>,
     pub preprocessing_id: Option<String>,
-    pub payment_method_data: payments::PaymentMethodData,
+    pub payment_method_data: domain::PaymentMethodData,
 }
 
 #[derive(Debug, Clone)]
 pub struct PaymentMethodTokenizationData {
-    pub payment_method_data: payments::PaymentMethodData,
+    pub payment_method_data: domain::payments::PaymentMethodData,
     pub browser_info: Option<BrowserInformation>,
     pub currency: storage_enums::Currency,
     pub amount: Option<i64>,
@@ -485,7 +484,7 @@ pub struct PaymentMethodTokenizationData {
 
 #[derive(Debug, Clone)]
 pub struct PaymentsPreProcessingData {
-    pub payment_method_data: Option<payments::PaymentMethodData>,
+    pub payment_method_data: Option<domain::payments::PaymentMethodData>,
     pub amount: Option<i64>,
     pub email: Option<Email>,
     pub currency: Option<storage_enums::Currency>,
@@ -504,7 +503,7 @@ pub struct PaymentsPreProcessingData {
 
 #[derive(Debug, Clone)]
 pub struct CompleteAuthorizeData {
-    pub payment_method_data: Option<payments::PaymentMethodData>,
+    pub payment_method_data: Option<domain::PaymentMethodData>,
     pub amount: i64,
     pub email: Option<Email>,
     pub currency: storage_enums::Currency,
@@ -585,7 +584,7 @@ pub struct PaymentsSessionData {
 #[derive(Debug, Clone)]
 pub struct SetupMandateRequestData {
     pub currency: storage_enums::Currency,
-    pub payment_method_data: payments::PaymentMethodData,
+    pub payment_method_data: domain::PaymentMethodData,
     pub amount: Option<i64>,
     pub confirm: bool,
     pub statement_descriptor_suffix: Option<String>,
@@ -1369,32 +1368,20 @@ impl<F> From<&RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>>
 }
 
 pub trait Tokenizable {
-    fn get_pm_data(&self) -> RouterResult<payments::PaymentMethodData>;
     fn set_session_token(&mut self, token: Option<String>);
 }
 
 impl Tokenizable for SetupMandateRequestData {
-    fn get_pm_data(&self) -> RouterResult<payments::PaymentMethodData> {
-        Ok(self.payment_method_data.clone())
-    }
     fn set_session_token(&mut self, _token: Option<String>) {}
 }
 
 impl Tokenizable for PaymentsAuthorizeData {
-    fn get_pm_data(&self) -> RouterResult<payments::PaymentMethodData> {
-        Ok(self.payment_method_data.clone())
-    }
     fn set_session_token(&mut self, token: Option<String>) {
         self.session_token = token;
     }
 }
 
 impl Tokenizable for CompleteAuthorizeData {
-    fn get_pm_data(&self) -> RouterResult<payments::PaymentMethodData> {
-        self.payment_method_data
-            .clone()
-            .get_required_value("payment_method_data")
-    }
     fn set_session_token(&mut self, _token: Option<String>) {}
 }
 
@@ -1402,7 +1389,9 @@ impl From<&SetupMandateRouterData> for PaymentsAuthorizeData {
     fn from(data: &SetupMandateRouterData) -> Self {
         Self {
             currency: data.request.currency,
-            payment_method_data: data.request.payment_method_data.clone(),
+            payment_method_data: domain::PaymentMethodData::from(
+                data.request.payment_method_data.clone(),
+            ),
             confirm: data.request.confirm,
             statement_descriptor_suffix: data.request.statement_descriptor_suffix.clone(),
             mandate_id: data.request.mandate_id.clone(),

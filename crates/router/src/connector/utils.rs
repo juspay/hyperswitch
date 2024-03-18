@@ -29,8 +29,8 @@ use crate::{
     },
     pii::PeekInterface,
     types::{
-        self, api, transformers::ForeignTryFrom, ApplePayPredecryptData, BrowserInformation,
-        PaymentsCancelData, ResponseId,
+        self, api, domain, transformers::ForeignTryFrom, ApplePayPredecryptData,
+        BrowserInformation, PaymentsCancelData, ResponseId,
     },
     utils::{OptionExt, ValueExt},
 };
@@ -381,7 +381,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_email(&self) -> Result<Email, Error>;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
-    fn get_card(&self) -> Result<api::Card, Error>;
+    fn get_card(&self) -> Result<domain::Card, Error>;
     fn get_return_url(&self) -> Result<String, Error>;
     fn connector_mandate_id(&self) -> Option<String>;
     fn is_mandate_payment(&self) -> bool;
@@ -434,9 +434,9 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
             .ok_or_else(missing_field_err("order_details"))
     }
 
-    fn get_card(&self) -> Result<api::Card, Error> {
+    fn get_card(&self) -> Result<domain::Card, Error> {
         match self.payment_method_data.clone() {
-            api::PaymentMethodData::Card(card) => Ok(card),
+            domain::PaymentMethodData::Card(card) => Ok(From::from(card)),
             _ => Err(missing_field_err("card")()),
         }
     }
@@ -481,10 +481,13 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
             .ok_or_else(missing_field_err("return_url"))
     }
     fn is_wallet(&self) -> bool {
-        matches!(self.payment_method_data, api::PaymentMethodData::Wallet(_))
+        matches!(
+            self.payment_method_data,
+            domain::PaymentMethodData::Wallet(_)
+        )
     }
     fn is_card(&self) -> bool {
-        matches!(self.payment_method_data, api::PaymentMethodData::Card(_))
+        matches!(self.payment_method_data, domain::PaymentMethodData::Card(_))
     }
 
     fn get_payment_method_type(&self) -> Result<diesel_models::enums::PaymentMethodType, Error> {
@@ -806,7 +809,7 @@ pub trait CardData {
     fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, errors::ConnectorError>;
 }
 
-impl CardData for api::Card {
+impl CardData for domain::Card {
     fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
         let binding = self.card_exp_year.clone();
         let year = binding.peek();

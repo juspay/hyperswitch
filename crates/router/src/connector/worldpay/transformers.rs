@@ -10,7 +10,7 @@ use crate::{
     connector::utils,
     consts,
     core::errors,
-    types::{self, api, PaymentsAuthorizeData, PaymentsResponseData},
+    types::{self, api, domain, PaymentsAuthorizeData, PaymentsResponseData},
 };
 
 #[derive(Debug, Serialize)]
@@ -42,10 +42,10 @@ impl<T>
     }
 }
 fn fetch_payment_instrument(
-    payment_method: api::PaymentMethodData,
+    payment_method: domain::PaymentMethodData,
 ) -> CustomResult<PaymentInstrument, errors::ConnectorError> {
     match payment_method {
-        api::PaymentMethodData::Card(card) => Ok(PaymentInstrument::Card(CardPayment {
+        domain::PaymentMethodData::Card(card) => Ok(PaymentInstrument::Card(CardPayment {
             card_expiry_date: CardExpiryDate {
                 month: card
                     .card_exp_month
@@ -65,7 +65,7 @@ fn fetch_payment_instrument(
             card_number: card.card_number,
             ..CardPayment::default()
         })),
-        api::PaymentMethodData::Wallet(wallet) => match wallet {
+        domain::PaymentMethodData::Wallet(wallet) => match wallet {
             api_models::payments::WalletData::GooglePay(data) => {
                 Ok(PaymentInstrument::Googlepay(WalletPayment {
                     payment_type: PaymentType::Googlepay,
@@ -110,23 +110,21 @@ fn fetch_payment_instrument(
                 .into())
             }
         },
-        api_models::payments::PaymentMethodData::PayLater(_)
-        | api_models::payments::PaymentMethodData::BankRedirect(_)
-        | api_models::payments::PaymentMethodData::BankDebit(_)
-        | api_models::payments::PaymentMethodData::BankTransfer(_)
-        | api_models::payments::PaymentMethodData::Crypto(_)
-        | api_models::payments::PaymentMethodData::MandatePayment
-        | api_models::payments::PaymentMethodData::Reward
-        | api_models::payments::PaymentMethodData::Upi(_)
-        | api_models::payments::PaymentMethodData::Voucher(_)
-        | api_models::payments::PaymentMethodData::CardRedirect(_)
-        | api_models::payments::PaymentMethodData::GiftCard(_)
-        | api_models::payments::PaymentMethodData::CardToken(_) => {
-            Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("worldpay"),
-            )
-            .into())
-        }
+        domain::PaymentMethodData::PayLater(_)
+        | domain::PaymentMethodData::BankRedirect(_)
+        | domain::PaymentMethodData::BankDebit(_)
+        | domain::PaymentMethodData::BankTransfer(_)
+        | domain::PaymentMethodData::Crypto(_)
+        | domain::PaymentMethodData::MandatePayment
+        | domain::PaymentMethodData::Reward
+        | domain::PaymentMethodData::Upi(_)
+        | domain::PaymentMethodData::Voucher(_)
+        | domain::PaymentMethodData::CardRedirect(_)
+        | domain::PaymentMethodData::GiftCard(_)
+        | domain::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+            utils::get_unimplemented_payment_method_error_message("worldpay"),
+        )
+        .into()),
     }
 }
 

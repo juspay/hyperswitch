@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     connector::utils::{self, CardData},
     core::errors,
-    types::{self, api, storage::enums, transformers::ForeignFrom},
+    types::{self, api, domain, storage::enums, transformers::ForeignFrom},
 };
 #[derive(Debug, Serialize)]
 pub struct PayeezyRouterData<T> {
@@ -237,7 +237,7 @@ fn get_payment_method_data(
     item: &PayeezyRouterData<&types::PaymentsAuthorizeRouterData>,
 ) -> Result<PayeezyPaymentMethod, error_stack::Report<errors::ConnectorError>> {
     match item.router_data.request.payment_method_data {
-        api::PaymentMethodData::Card(ref card) => {
+        domain::PaymentMethodData::Card(ref card) => {
             let card_type = PayeezyCardType::try_from(card.get_card_issuer()?)?;
             let payeezy_card = PayeezyCard {
                 card_type,
@@ -252,19 +252,19 @@ fn get_payment_method_data(
             Ok(PayeezyPaymentMethod::PayeezyCard(payeezy_card))
         }
 
-        api::PaymentMethodData::CardRedirect(_)
-        | api::PaymentMethodData::Wallet(_)
-        | api::PaymentMethodData::PayLater(_)
-        | api::PaymentMethodData::BankRedirect(_)
-        | api::PaymentMethodData::BankDebit(_)
-        | api::PaymentMethodData::BankTransfer(_)
-        | api::PaymentMethodData::Crypto(_)
-        | api::PaymentMethodData::MandatePayment
-        | api::PaymentMethodData::Reward
-        | api::PaymentMethodData::Upi(_)
-        | api::PaymentMethodData::Voucher(_)
-        | api::PaymentMethodData::GiftCard(_)
-        | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+        domain::PaymentMethodData::CardRedirect(_)
+        | domain::PaymentMethodData::Wallet(_)
+        | domain::PaymentMethodData::PayLater(_)
+        | domain::PaymentMethodData::BankRedirect(_)
+        | domain::PaymentMethodData::BankDebit(_)
+        | domain::PaymentMethodData::BankTransfer(_)
+        | domain::PaymentMethodData::Crypto(_)
+        | domain::PaymentMethodData::MandatePayment
+        | domain::PaymentMethodData::Reward
+        | domain::PaymentMethodData::Upi(_)
+        | domain::PaymentMethodData::Voucher(_)
+        | domain::PaymentMethodData::GiftCard(_)
+        | domain::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("Payeezy"),
         ))?,
     }

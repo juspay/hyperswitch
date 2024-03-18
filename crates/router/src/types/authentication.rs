@@ -1,11 +1,10 @@
-use api_models::payments;
 use cards::CardNumber;
 use common_utils::pii::Email;
 use serde::{Deserialize, Serialize};
 
 use super::{
     api::{self, authentication},
-    storage, BrowserInformation, RouterData,
+    domain, storage, BrowserInformation, RouterData,
 };
 use crate::services;
 
@@ -57,7 +56,7 @@ pub struct PreAuthNRequestData {
 
 #[derive(Clone, Debug)]
 pub struct ConnectorAuthenticationRequestData {
-    pub payment_method_data: payments::PaymentMethodData,
+    pub payment_method_data: domain::PaymentMethodData,
     pub billing_address: api_models::payments::Address,
     pub shipping_address: Option<api_models::payments::Address>,
     pub browser_details: Option<BrowserInformation>,
