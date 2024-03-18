@@ -7,6 +7,7 @@ use crate::{
     connector::utils::{
         self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData, RouterData,
     },
+    consts,
     core::errors,
     pii::Secret,
     services,
@@ -613,8 +614,8 @@ pub struct Data {
     pub capture: Option<String>,
     pub payment_url: Option<Url>,
     pub status: Option<MultisafepayPaymentStatus>,
-    pub error_code: Option<i32>,
-    pub error_info: Option<String>,
+    pub reason: Option<String>,
+    pub reason_code: Option<String>,
     pub payment_details: Option<MultisafepayPaymentDetails>,
 }
 
@@ -673,42 +674,51 @@ impl<F, T>
                     MultisafepayPaymentStatus::Declined
                 };
 
-                let status = payment_response.data.status.unwrap_or(default_status);
+                let status = enums::AttemptStatus::from(
+                    payment_response.data.status.unwrap_or(default_status),
+                );
 
                 Ok(Self {
-                    status: enums::AttemptStatus::from(status),
-                    response: Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::ConnectorTransactionId(
-                            payment_response.data.order_id.clone(),
-                        ),
-                        redirection_data,
-                        mandate_reference: payment_response
-                            .data
-                            .payment_details
-                            .and_then(|payment_details| payment_details.recurring_id)
-                            .map(|id| types::MandateReference {
-                                connector_mandate_id: Some(id.expose()),
-                                payment_method_id: None,
-                            }),
-                        connector_metadata: None,
-                        network_txn_id: None,
-                        connector_response_reference_id: Some(
-                            payment_response.data.order_id.clone(),
-                        ),
-                        incremental_authorization_allowed: None,
-                    }),
+                    status,
+                    response: if utils::is_payment_failure(status) {
+                        Ok(types::PaymentsResponseData::TransactionResponse {
+                            resource_id: types::ResponseId::ConnectorTransactionId(
+                                payment_response.data.order_id.clone(),
+                            ),
+                            redirection_data,
+                            mandate_reference: payment_response
+                                .data
+                                .payment_details
+                                .and_then(|payment_details| payment_details.recurring_id)
+                                .map(|id| types::MandateReference {
+                                    connector_mandate_id: Some(id.expose()),
+                                    payment_method_id: None,
+                                }),
+                            connector_metadata: None,
+                            network_txn_id: None,
+                            connector_response_reference_id: Some(
+                                payment_response.data.order_id.clone(),
+                            ),
+                            incremental_authorization_allowed: None,
+                        })
+                    } else {
+                        Err(get_error_response_if_failure(
+                            payment_response.data.reason_code,
+                            payment_response.data.reason,
+                            item.http_code,
+                            Some(payment_response.data.order_id),
+                        ))
+                    },
                     ..item.data
                 })
             }
             MultisafepayAuthResponse::ErrorResponse(error_response) => Ok(Self {
-                response: Err(types::ErrorResponse {
-                    code: error_response.error_code.to_string(),
-                    message: error_response.error_info.clone(),
-                    reason: Some(error_response.error_info),
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                }),
+                response: Err(get_error_response_if_failure(
+                    Some(error_response.error_code.to_string()),
+                    Some(error_response.error_info),
+                    item.http_code,
+                    None,
+                )),
                 ..item.data
             }),
         }
@@ -865,4 +875,22 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, MultisafepayRefundResp
 pub struct MultisafepayErrorResponse {
     pub error_code: i32,
     pub error_info: String,
+}
+
+fn get_error_response_if_failure(
+    error_code: Option<String>,
+    error_message: Option<String>,
+    http_code: u16,
+    connector_transaction_id: Option<String>,
+) -> types::ErrorResponse {
+    types::ErrorResponse {
+        code: error_code.unwrap_or(consts::NO_ERROR_CODE.to_string()),
+        message: error_message
+            .clone()
+            .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+        reason: error_message,
+        status_code: http_code,
+        attempt_status: None,
+        connector_transaction_id: connector_transaction_id,
+    }
 }
