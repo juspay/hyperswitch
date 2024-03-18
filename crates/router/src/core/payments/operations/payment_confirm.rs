@@ -609,7 +609,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             card_cvc: request.card_cvc.clone(),
             creds_identifier,
             pm_token: None,
-            payment_method_status: None,
             connector_customer_id: None,
             recurring_mandate_payment_data,
             ephemeral_key: None,

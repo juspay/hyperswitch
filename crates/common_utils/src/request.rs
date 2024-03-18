@@ -51,6 +51,7 @@ impl std::fmt::Debug for RequestContent {
             Self::FormUrlEncoded(_) => "FormUrlEncodedRequestBody",
             Self::FormData(_) => "FormDataRequestBody",
             Self::Xml(_) => "XmlRequestBody",
+            Self::RawBytes(_) => "RawBytesRequestBody",
         })
     }
 }
@@ -60,6 +61,7 @@ pub enum RequestContent {
     FormUrlEncoded(Box<dyn masking::ErasedMaskSerialize + Send>),
     FormData(reqwest::multipart::Form),
     Xml(Box<dyn masking::ErasedMaskSerialize + Send>),
+    RawBytes(Vec<u8>),
 }
 
 impl Request {
@@ -200,6 +202,7 @@ impl RequestBody {
             }
             RequestContent::Xml(i) => quick_xml::se::to_string(&i).unwrap_or_default().into(),
             RequestContent::FormData(_) => String::new().into(),
+            RequestContent::RawBytes(_) => String::new().into(),
         }
     }
 }

@@ -23,7 +23,7 @@ strum = { version = "0.24.1", features = ["derive"] }
 thiserror = "1.0.40"
 time = { version = "0.3.21", features = ["serde", "serde-well-known", "std"] }
 tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread"] }
-uuid = { version = "1.3.3", features = ["serde", "v4"] }
+uuid = { version = "1.7.0", features = ["v4"] }
 
 # First party crates
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["signals", "async_ext"] }
