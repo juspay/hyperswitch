@@ -64,7 +64,6 @@ pub async fn update_trackers<F: Clone, Req>(
                 message_version,
                 connector_metadata,
             } => {
-                // todo!("maximum_supported_3ds_version");
                 storage::AuthenticationUpdate::PreAuthenticationUpdate {
                     threeds_server_transaction_id,
                     maximum_supported_3ds_version,
