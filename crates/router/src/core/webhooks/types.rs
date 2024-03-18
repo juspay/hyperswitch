@@ -56,12 +56,6 @@ impl OutgoingWebhookType for webhooks::OutgoingWebhook {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub(crate) enum WebhookDeliveryAttempt {
-    InitialAttempt,
-    AutomaticRetry,
-}
-
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub(crate) struct OutgoingWebhookTrackingData {
     pub(crate) merchant_id: String,

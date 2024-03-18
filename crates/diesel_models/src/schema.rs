@@ -357,6 +357,7 @@ diesel::table! {
         initial_attempt_id -> Nullable<Varchar>,
         request -> Nullable<Bytea>,
         response -> Nullable<Bytea>,
+        delivery_attempt -> Nullable<WebhookDeliveryAttempt>,
     }
 }
 

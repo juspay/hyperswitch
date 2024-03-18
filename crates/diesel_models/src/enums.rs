@@ -19,6 +19,7 @@ pub mod diesel_exports {
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
         DbRoleScope as RoleScope, DbRoutingAlgorithmKind as RoutingAlgorithmKind,
         DbTransactionType as TransactionType, DbUserStatus as UserStatus,
+        DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
     };
 }
 pub use common_enums::*;

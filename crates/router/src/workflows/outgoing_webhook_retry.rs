@@ -31,7 +31,7 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
         state: &'a AppState,
         process: storage::ProcessTracker,
     ) -> Result<(), errors::ProcessTrackerError> {
-        let delivery_attempt = webhooks_core::types::WebhookDeliveryAttempt::AutomaticRetry;
+        let delivery_attempt = storage::enums::WebhookDeliveryAttempt::AutomaticRetry;
         let tracking_data: OutgoingWebhookTrackingData = process
             .tracking_data
             .clone()
@@ -96,6 +96,7 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
             initial_attempt_id: Some(initial_event.event_id.clone()),
             request: initial_event.request,
             response: None,
+            delivery_attempt: Some(delivery_attempt),
         };
 
         let event = db
@@ -119,7 +120,7 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
                     &key_store,
                     event,
                     request_content,
-                    webhooks_core::types::WebhookDeliveryAttempt::AutomaticRetry,
+                    storage::enums::WebhookDeliveryAttempt::AutomaticRetry,
                     None,
                     Some(process),
                 )
@@ -171,7 +172,7 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
                             &key_store,
                             event,
                             request_content,
-                            webhooks_core::types::WebhookDeliveryAttempt::AutomaticRetry,
+                            storage::enums::WebhookDeliveryAttempt::AutomaticRetry,
                             Some(content),
                             Some(process),
                         )

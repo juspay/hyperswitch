@@ -736,6 +736,7 @@ mod tests {
                     initial_attempt_id: Some(event_id.into()),
                     request: None,
                     response: None,
+                    delivery_attempt: Some(enums::WebhookDeliveryAttempt::InitialAttempt),
                 },
                 &merchant_key_store,
             )

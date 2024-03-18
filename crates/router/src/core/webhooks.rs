@@ -672,7 +672,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     content: api::OutgoingWebhookContent,
     primary_object_created_at: Option<time::PrimitiveDateTime>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
-    let delivery_attempt = types::WebhookDeliveryAttempt::InitialAttempt;
+    let delivery_attempt = enums::WebhookDeliveryAttempt::InitialAttempt;
     let idempotent_event_id =
         utils::get_idempotent_event_id(&primary_object_id, event_type, delivery_attempt);
     let webhook_url_result = get_webhook_url_from_business_profile(&business_profile);
@@ -737,6 +737,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
             .attach_printable("Failed to encrypt outgoing webhook request content")?,
         ),
         response: None,
+        delivery_attempt: Some(delivery_attempt),
     };
 
     let event_insert_result = state
@@ -805,7 +806,7 @@ pub(crate) async fn trigger_webhook_and_raise_event(
     merchant_key_store: &domain::MerchantKeyStore,
     event: domain::Event,
     request_content: OutgoingWebhookRequestContent,
-    delivery_attempt: types::WebhookDeliveryAttempt,
+    delivery_attempt: enums::WebhookDeliveryAttempt,
     content: Option<api::OutgoingWebhookContent>,
     process_tracker: Option<storage::ProcessTracker>,
 ) {
@@ -837,7 +838,7 @@ async fn trigger_webhook_to_merchant(
     merchant_key_store: &domain::MerchantKeyStore,
     event: domain::Event,
     request_content: OutgoingWebhookRequestContent,
-    delivery_attempt: types::WebhookDeliveryAttempt,
+    delivery_attempt: enums::WebhookDeliveryAttempt,
     process_tracker: Option<storage::ProcessTracker>,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
     let webhook_url = match (
@@ -899,7 +900,7 @@ async fn trigger_webhook_to_merchant(
 
     let api_client_error_handler =
         |client_error: error_stack::Report<errors::ApiClientError>,
-         delivery_attempt: types::WebhookDeliveryAttempt| {
+         delivery_attempt: enums::WebhookDeliveryAttempt| {
             let error =
                 client_error.change_context(errors::WebhooksFlowError::CallToMerchantFailed);
             logger::error!(
@@ -1001,7 +1002,7 @@ async fn trigger_webhook_to_merchant(
             }
         };
     let error_response_handler = |merchant_id: String,
-                                  delivery_attempt: types::WebhookDeliveryAttempt,
+                                  delivery_attempt: enums::WebhookDeliveryAttempt,
                                   status_code: u16,
                                   log_message: &'static str| {
         metrics::WEBHOOK_OUTGOING_NOT_RECEIVED_COUNT.add(
@@ -1015,7 +1016,7 @@ async fn trigger_webhook_to_merchant(
     };
 
     match delivery_attempt {
-        types::WebhookDeliveryAttempt::InitialAttempt => match response {
+        enums::WebhookDeliveryAttempt::InitialAttempt => match response {
             Err(client_error) => api_client_error_handler(client_error, delivery_attempt),
             Ok(response) => {
                 let status_code = response.status();
@@ -1046,7 +1047,7 @@ async fn trigger_webhook_to_merchant(
                 }
             }
         },
-        types::WebhookDeliveryAttempt::AutomaticRetry => {
+        enums::WebhookDeliveryAttempt::AutomaticRetry => {
             let process_tracker = process_tracker
                 .get_required_value("process_tracker")
                 .change_context(errors::WebhooksFlowError::OutgoingWebhookRetrySchedulingFailed)
@@ -1104,6 +1105,10 @@ async fn trigger_webhook_to_merchant(
                     }
                 }
             }
+        }
+        enums::WebhookDeliveryAttempt::ManualRetry => {
+            // Will be updated when manual retry is implemented
+            Err(errors::WebhooksFlowError::NotReceivedByMerchant).into_report()?
         }
     }
 

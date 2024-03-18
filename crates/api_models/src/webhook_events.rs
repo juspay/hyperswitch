@@ -1,4 +1,4 @@
-use common_enums::{EventClass, EventType};
+use common_enums::{EventClass, EventType, WebhookDeliveryAttempt};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -89,6 +89,9 @@ pub struct EventRetrieveResponse {
 
     /// The response information (headers, body and status code) received for the webhook sent.
     pub response: OutgoingWebhookResponseContent,
+
+    /// Indicates the type of delivery attempt.
+    pub delivery_attempt: Option<WebhookDeliveryAttempt>,
 }
 
 /// The request information (headers and body) sent in the webhook.

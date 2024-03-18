@@ -1239,6 +1239,7 @@ impl TryFrom<domain::Event> for api_models::webhook_events::EventRetrieveRespons
             event_information,
             request,
             response,
+            delivery_attempt: item.delivery_attempt,
         })
     }
 }
