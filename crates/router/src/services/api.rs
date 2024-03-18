@@ -2043,8 +2043,11 @@ fn get_hyper_loader_sdk(sdk_url: &str) -> String {
 }
 
 fn get_preload_link_html_template(sdk_url: &str) -> String {
-    format!("<link rel=\"preload\" href=\"https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800\" as=\"style\">\n
-            <link rel=\"preload\" href=\"{sdk_url}\" as=\"script\">")
+    format!(
+        r#"<link rel="preload" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800" as="style">
+            <link rel="preload" href="{sdk_url}" as="script">"#,
+        sdk_url = sdk_url
+    )
 }
 
 pub fn get_payment_link_status(
