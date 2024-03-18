@@ -10,6 +10,10 @@ use crate::{
     db::KafkaProducer,
     services::kafka::{KafkaMessage, KafkaSettings},
 };
+use crate::{
+    db::KafkaProducer,
+    services::kafka::{KafkaMessage, KafkaSettings},
+};
 
 pub mod api_logs;
 pub mod audit_events;
@@ -75,7 +79,11 @@ impl EventsConfig {
 
 impl EventsHandler {
     pub fn log_event<T: KafkaMessage>(&self, event: &T) {
+    pub fn log_event<T: KafkaMessage>(&self, event: &T) {
         match self {
+            Self::Kafka(kafka) => kafka.log_event(event).map_or((), |e| {
+                logger::error!("Failed to log event: {:?}", e);
+            }),
             Self::Kafka(kafka) => kafka.log_event(event).map_or((), |e| {
                 logger::error!("Failed to log event: {:?}", e);
             }),
