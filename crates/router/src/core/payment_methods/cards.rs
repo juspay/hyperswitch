@@ -2800,7 +2800,7 @@ pub async fn list_customer_payment_method(
         let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
 
         #[allow(unused_variables)]
-        let (card, pmd, hyperswitch_token_data) = match pm.payment_method {
+        let (card, pmd, hyperswitch_token_data): (Option<api::CardDetailFromLocker>, Option<api::BankPayout>, PaymentTokenData) = match pm.payment_method {
             enums::PaymentMethod::Card => {
                 let card_details = get_card_details_with_locker_fallback(&pm, key, state).await?;
 
