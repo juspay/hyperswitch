@@ -8451,75 +8451,27 @@
         }
       },
       "EventRetrieveResponse": {
-        "type": "object",
-        "description": "The response body for retrieving an event.",
-        "required": [
-          "event_id",
-          "merchant_id",
-          "profile_id",
-          "object_id",
-          "event_type",
-          "event_class",
-          "is_delivery_successful",
-          "initial_attempt_id",
-          "created",
-          "request",
-          "response"
-        ],
-        "properties": {
-          "event_id": {
-            "type": "string",
-            "description": "The identifier for the Event.",
-            "example": "evt_018e31720d1b7a2b82677d3032cab959",
-            "maxLength": 64
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/EventListItemResponse"
           },
-          "merchant_id": {
-            "type": "string",
-            "description": "The identifier for the Merchant Account.",
-            "example": "y3oqhf46pyzuxjbcn2giaqnb44",
-            "maxLength": 64
-          },
-          "profile_id": {
-            "type": "string",
-            "description": "The identifier for the Business Profile.",
-            "example": "SqB0zwDGR5wHppWf0bx7GKr1f2",
-            "maxLength": 64
-          },
-          "object_id": {
-            "type": "string",
-            "description": "The identifier for the object (Payment Intent ID, Refund ID, etc.)",
-            "example": "QHrfd5LUDdZaKtAjdJmMu0dMa1",
-            "maxLength": 64
-          },
-          "event_type": {
-            "$ref": "#/components/schemas/EventType"
-          },
-          "event_class": {
-            "$ref": "#/components/schemas/EventClass"
-          },
-          "is_delivery_successful": {
-            "type": "boolean",
-            "description": "Indicates whether the webhook delivery attempt was successful."
-          },
-          "initial_attempt_id": {
-            "type": "string",
-            "description": "The identifier for the initial delivery attempt. This will be the same as `event_id` for\nthe initial delivery attempt.",
-            "example": "evt_018e31720d1b7a2b82677d3032cab959",
-            "maxLength": 64
-          },
-          "created": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Time at which the event was created.",
-            "example": "2022-09-10T10:11:12Z"
-          },
-          "request": {
-            "$ref": "#/components/schemas/OutgoingWebhookRequestContent"
-          },
-          "response": {
-            "$ref": "#/components/schemas/OutgoingWebhookResponseContent"
+          {
+            "type": "object",
+            "required": [
+              "request",
+              "response"
+            ],
+            "properties": {
+              "request": {
+                "$ref": "#/components/schemas/OutgoingWebhookRequestContent"
+              },
+              "response": {
+                "$ref": "#/components/schemas/OutgoingWebhookResponseContent"
+              }
+            }
           }
-        }
+        ],
+        "description": "The response body for retrieving an event."
       },
       "EventType": {
         "type": "string",
