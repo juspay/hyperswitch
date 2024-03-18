@@ -37,4 +37,14 @@ impl PayoutsInterface for MockDb {
         // TODO: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
     }
+
+    async fn find_optional_payout_by_merchant_id_payout_id(
+        &self,
+        _merchant_id: &str,
+        _payout_id: &str,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> CustomResult<Option<Payouts>, StorageError> {
+        // TODO: Implement function for `MockDb`
+        Err(StorageError::MockDbError)?
+    }
 }

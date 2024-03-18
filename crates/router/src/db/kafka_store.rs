@@ -1444,6 +1444,17 @@ impl PayoutsInterface for KafkaStore {
             .insert_payout(payout, storage_scheme)
             .await
     }
+
+    async fn find_optional_payout_by_merchant_id_payout_id(
+        &self,
+        merchant_id: &str,
+        payout_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Option<storage::Payouts>, errors::DataStorageError> {
+        self.diesel_store
+            .find_optional_payout_by_merchant_id_payout_id(merchant_id, payout_id, storage_scheme)
+            .await
+    }
 }
 
 #[async_trait::async_trait]

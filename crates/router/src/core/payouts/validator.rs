@@ -21,26 +21,20 @@ pub async fn validate_uniqueness_of_payout_id_against_merchant_id(
     merchant_id: &str,
     storage_scheme: storage::enums::MerchantStorageScheme,
 ) -> RouterResult<Option<storage::Payouts>> {
-    let payout = db
-        .find_payout_by_merchant_id_payout_id(merchant_id, payout_id, storage_scheme)
+    let maybe_payouts = db
+        .find_optional_payout_by_merchant_id_payout_id(merchant_id, payout_id, storage_scheme)
         .await;
-    match payout {
+    match maybe_payouts {
         Err(err) => {
-            let erc = err.current_context();
-            match erc {
+            let storage_err = err.current_context();
+            match storage_err {
                 StorageError::ValueNotFound(_) => Ok(None),
                 _ => Err(err
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed while finding payout_attempt, database error")),
             }
         }
-        Ok(payout) => {
-            if payout.payout_id == payout_id {
-                Ok(Some(payout))
-            } else {
-                Ok(None)
-            }
-        }
+        Ok(payout) => Ok(payout),
     }
 }
 
