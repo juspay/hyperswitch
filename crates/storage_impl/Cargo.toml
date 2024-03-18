@@ -26,7 +26,7 @@ router_env = { version = "0.1.0", path = "../router_env" }
 
 # Third party crates
 actix-web = "4.3.1"
-async-bb8-diesel = { git = "https://github.com/jarnura/async-bb8-diesel", rev = "53b4ab901aab7635c8215fd1c2d542c8db443094" }
+async-bb8-diesel = "0.1.0"
 async-trait = "0.1.72"
 bb8 = "0.8.1"
 bytes = "1.4.0"

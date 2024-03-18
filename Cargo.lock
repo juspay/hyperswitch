@@ -502,14 +502,14 @@ dependencies = [
 [[package]]
 name = "async-bb8-diesel"
 version = "0.1.0"
-source = "git+https://github.com/jarnura/async-bb8-diesel?rev=53b4ab901aab7635c8215fd1c2d542c8db443094#53b4ab901aab7635c8215fd1c2d542c8db443094"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "779f1fa3defe66bf147fe5c811b23a02cfcaa528a25293e0b20d1911eac1fb05"
 dependencies = [
  "async-trait",
  "bb8",
  "diesel",
  "thiserror",
  "tokio 1.32.0",
- "tracing",
 ]
 
 [[package]]

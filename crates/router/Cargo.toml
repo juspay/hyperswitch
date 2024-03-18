@@ -38,7 +38,7 @@ actix-cors = "0.6.4"
 actix-multipart = "0.6.0"
 actix-rt = "2.8.0"
 actix-web = "4.3.1"
-async-bb8-diesel = { git = "https://github.com/jarnura/async-bb8-diesel", rev = "53b4ab901aab7635c8215fd1c2d542c8db443094" }
+async-bb8-diesel = "0.1.0"
 argon2 = { version = "0.5.0", features = ["std"] }
 async-trait = "0.1.68"
 aws-config = { version = "0.55.3", optional = true }
