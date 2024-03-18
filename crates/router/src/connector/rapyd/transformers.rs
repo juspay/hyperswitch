@@ -53,7 +53,6 @@ pub struct RapydPaymentsRequest {
     pub description: Option<String>,
     pub complete_payment_url: Option<String>,
     pub error_payment_url: Option<String>,
-    pub merchant_reference_id: Option<String>,
 }
 
 #[derive(Default, Debug, Serialize)]
@@ -177,7 +176,6 @@ impl TryFrom<&RapydRouterData<&types::PaymentsAuthorizeRouterData>> for RapydPay
             description: None,
             error_payment_url: Some(return_url.clone()),
             complete_payment_url: Some(return_url),
-            merchant_reference_id: Some(item.router_data.connector_request_reference_id.clone()),
         })
     }
 }
@@ -290,6 +288,7 @@ pub struct ResponseData {
     pub paid: Option<bool>,
     pub failure_code: Option<String>,
     pub failure_message: Option<String>,
+    pub merchant_reference_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -493,6 +492,7 @@ impl<F, T>
                                 network_txn_id: None,
                                 connector_response_reference_id: None,
                                 incremental_authorization_allowed: None,
+                                merchant_reference_id: None,
                             }),
                         )
                     }
