@@ -12,9 +12,9 @@ use redis_interface::SetnxReply;
 use crate::{
     diesel_error_to_data_error,
     errors::RedisErrorExt,
-    redis::kv_store::{kv_wrapper, KvOperation, RedisConnInterface},
+    redis::kv_store::RedisConnInterface,
     utils::{self, try_redis_get_else_try_database_get},
-    DatabaseStore, KVRouterStore, RouterStore, UniqueConstraints,
+    DatabaseStore, KVRouterStore, RouterStore,
 };
 
 #[async_trait::async_trait]
@@ -27,7 +27,6 @@ pub trait ReverseLookupInterface {
     async fn get_lookup_by_lookup_id(
         &self,
         _id: &str,
-        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<DieselReverseLookup, errors::StorageError>;
 }
 
@@ -35,33 +34,17 @@ pub trait ReverseLookupInterface {
 impl<T: DatabaseStore> ReverseLookupInterface for RouterStore<T> {
     async fn insert_reverse_lookup(
         &self,
-        new: DieselReverseLookupNew,
+        _new: DieselReverseLookupNew,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<DieselReverseLookup, errors::StorageError> {
-        let conn = self
-            .get_master_pool()
-            .get()
-            .await
-            .into_report()
-            .change_context(errors::StorageError::DatabaseConnectionError)?;
-        new.insert(&conn).await.map_err(|er| {
-            let new_err = diesel_error_to_data_error(er.current_context());
-            er.change_context(new_err)
-        })
+        Err(errors::StorageError::KVError).into_report()
     }
 
     async fn get_lookup_by_lookup_id(
         &self,
-        id: &str,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
+        _id: &str,
     ) -> CustomResult<DieselReverseLookup, errors::StorageError> {
-        let conn = utils::pg_connection_read(self).await?;
-        DieselReverseLookup::find_by_lookup_id(id, &conn)
-            .await
-            .map_err(|er| {
-                let new_err = diesel_error_to_data_error(er.current_context());
-                er.change_context(new_err)
-            })
+        Err(errors::StorageError::KVError).into_report()
     }
 }
 
@@ -84,12 +67,7 @@ impl<T: DatabaseStore> ReverseLookupInterface for KVRouterStore<T> {
             updated_by: storage_scheme.to_string(),
         };
 
-        let ttl = self.ttl_for_kv.saturating_add(120);
-
-        created_rev_lookup
-            .check_for_constraints(&redis_conn)
-            .await
-            .map_err(|err| err.to_redis_failed_response(&created_rev_lookup.lookup_id))?;
+        let ttl = self.ttl_for_kv.saturating_add(self.reverse_lookup_offset);
 
         match redis_conn
             .serialize_and_set_key_if_not_exist(
@@ -113,22 +91,23 @@ impl<T: DatabaseStore> ReverseLookupInterface for KVRouterStore<T> {
     async fn get_lookup_by_lookup_id(
         &self,
         id: &str,
-        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<DieselReverseLookup, errors::StorageError> {
+        let key = &format!("reverse_lookup_{}", id);
+
+        let redis_conn = self
+            .get_redis_conn()
+            .map_err(|err| errors::StorageError::RedisError(err.to_string()))?;
+
         let database_call = || async {
-            self.router_store
-                .get_lookup_by_lookup_id(id, storage_scheme)
+            let conn = utils::pg_connection_read(self).await?;
+            DieselReverseLookup::find_by_lookup_id(id, &conn)
                 .await
+                .map_err(|er| {
+                    let new_err = diesel_error_to_data_error(er.current_context());
+                    er.change_context(new_err)
+                })
         };
-        let redis_fut = async {
-            kv_wrapper(
-                self,
-                KvOperation::<DieselReverseLookup>::Get,
-                format!("reverse_lookup_{id}"),
-            )
-            .await?
-            .try_into_get()
-        };
+        let redis_fut = redis_conn.get_and_deserialize_key(key, "ReverseLookup");
 
         Box::pin(try_redis_get_else_try_database_get(
             redis_fut,

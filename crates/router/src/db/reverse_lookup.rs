@@ -1,22 +1,18 @@
 use super::{MockDb, Store};
 use crate::{
-    connection,
     core::errors::utils::RedisErrorExt,
     errors::{self, CustomResult},
     types::storage::{
         enums,
         reverse_lookup::{ReverseLookup, ReverseLookupNew},
     },
-    utils::db_utils,
+    utils::db_utils::try_redis_get_else_try_database_get,
 };
 
 use error_stack::{IntoReport, ResultExt};
 use redis_interface::SetnxReply;
 use router_env::{instrument, tracing};
-use storage_impl::{
-    redis::kv_store::{kv_wrapper, KvOperation, RedisConnInterface},
-    UniqueConstraints,
-};
+use storage_impl::{connection, redis::kv_store::RedisConnInterface};
 
 #[async_trait::async_trait]
 pub trait ReverseLookupInterface {
@@ -28,7 +24,6 @@ pub trait ReverseLookupInterface {
     async fn get_lookup_by_lookup_id(
         &self,
         _id: &str,
-        _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<ReverseLookup, errors::StorageError>;
 }
 
@@ -42,7 +37,7 @@ impl ReverseLookupInterface for Store {
     ) -> CustomResult<ReverseLookup, errors::StorageError> {
         let redis_conn = self
             .get_redis_conn()
-            .map_err(|err| errors::StorageError::RedisError(err))?;
+            .map_err(errors::StorageError::RedisError)?;
 
         let created_rev_lookup = ReverseLookup {
             lookup_id: new.lookup_id.clone(),
@@ -52,12 +47,7 @@ impl ReverseLookupInterface for Store {
             updated_by: storage_scheme.to_string(),
         };
 
-        let ttl = self.ttl_for_kv.saturating_add(120);
-
-        created_rev_lookup
-            .check_for_constraints(&redis_conn)
-            .await
-            .map_err(|err| err.to_redis_failed_response(&created_rev_lookup.lookup_id))?;
+        let ttl = self.ttl_for_kv.saturating_add(self.reverse_lookup_offset);
 
         match redis_conn
             .serialize_and_set_key_if_not_exist(
@@ -82,8 +72,13 @@ impl ReverseLookupInterface for Store {
     async fn get_lookup_by_lookup_id(
         &self,
         id: &str,
-        _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<ReverseLookup, errors::StorageError> {
+        let key = &format!("reverse_lookup_{}", id);
+
+        let redis_conn = self
+            .get_redis_conn()
+            .map_err(errors::StorageError::RedisError)?;
+
         let database_call = || async {
             let conn = connection::pg_connection_read(self).await?;
             ReverseLookup::find_by_lookup_id(id, &conn)
@@ -92,17 +87,9 @@ impl ReverseLookupInterface for Store {
                 .into_report()
         };
 
-        let redis_fut = async {
-            kv_wrapper(
-                self,
-                KvOperation::<ReverseLookup>::Get,
-                format!("reverse_lookup_{id}"),
-            )
-            .await?
-            .try_into_get()
-        };
+        let redis_fut = redis_conn.get_and_deserialize_key(key, "ReverseLookup");
 
-        Box::pin(db_utils::try_redis_get_else_try_database_get(
+        Box::pin(try_redis_get_else_try_database_get(
             redis_fut,
             database_call,
         ))
@@ -128,7 +115,6 @@ impl ReverseLookupInterface for MockDb {
     async fn get_lookup_by_lookup_id(
         &self,
         lookup_id: &str,
-        _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<ReverseLookup, errors::StorageError> {
         self.reverse_lookups
             .lock()
