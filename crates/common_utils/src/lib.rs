@@ -198,3 +198,9 @@ pub fn generate_id_with_default_len(prefix: &str) -> String {
     let len = consts::ID_LENGTH;
     format!("{}_{}", prefix, nanoid::nanoid!(len, &consts::ALPHABETS))
 }
+
+/// Generate a time-ordered (time-sortable) unique identifier using the current time
+#[inline]
+pub fn generate_time_ordered_id(prefix: &str) -> String {
+    format!("{prefix}_{}", uuid::Uuid::now_v7().as_simple())
+}

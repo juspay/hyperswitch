@@ -69,7 +69,7 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
             >(
                 state,
                 merchant_account.clone(),
-                key_store,
+                key_store.clone(),
                 operations::PaymentStatus,
                 tracking_data.clone(),
                 payment_flows::CallConnectorAction::Trigger,
@@ -183,6 +183,7 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                     >(
                         merchant_account,
                         business_profile,
+                        &key_store,
                         payment_data,
                         None,
                         customer,

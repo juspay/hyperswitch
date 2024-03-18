@@ -148,7 +148,7 @@ where
         access_token: None,
         session_token: None,
         reference_id: None,
-        payment_method_status: payment_data.payment_method_status,
+        payment_method_status: payment_data.payment_method_info.map(|info| info.status),
         payment_method_token: payment_data.pm_token.map(types::PaymentMethodToken::Token),
         connector_customer: payment_data.connector_customer_id,
         recurring_mandate_payment_data: payment_data.recurring_mandate_payment_data,
@@ -468,7 +468,10 @@ where
     let payment_method_data_response = payment_method_data.map(|payment_method_data| {
         api_models::payments::PaymentMethodDataResponseWithBilling {
             payment_method_data,
-            billing: payment_data.address.get_payment_method_billing().cloned(),
+            billing: payment_data
+                .address
+                .get_request_payment_method_billing()
+                .cloned(),
         }
     });
 
@@ -779,7 +782,9 @@ where
                             payment_attempt.external_three_ds_authentication_attempted,
                         )
                         .set_payment_method_id(payment_attempt.payment_method_id)
-                        .set_payment_method_status(payment_data.payment_method_status)
+                        .set_payment_method_status(
+                            payment_data.payment_method_info.map(|info| info.status),
+                        )
                         .to_owned(),
                     headers,
                 ))

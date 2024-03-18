@@ -2451,6 +2451,14 @@
                   "      .true;",
                   "  },",
                   ");",
+                  "",
+                  "// Response body should not have \"payment_method_data.billing\"",
+                  "pm.test(",
+                  "  \"[POST]::/payments - Content check if 'payment_method_data.billing' should be null\",",
+                  "  function () {",
+                  "    pm.expect(jsonData?.payment_method_data?.billing).to.be.null;",
+                  "  },",
+                  ");",
                   ""
                 ],
                 "type": "text/javascript"
@@ -21197,6 +21205,14 @@
                           "      .true;",
                           "  },",
                           ");",
+                          "",
+                          "// Response body should not have \"payment.billing\"",
+                          "pm.test(",
+                          "  \"[POST]::/payments - Content check if 'payment.billing' is null\",",
+                          "  function () {",
+                          "    pm.expect(jsonData?.billing).to.be.null",
+                          "  },",
+                          ");",
                           ""
                         ],
                         "type": "text/javascript"
@@ -21222,7 +21238,7 @@
                           "language": "json"
                         }
                       },
-                      "raw": "{\"amount\":6540,\"currency\":\"USD\",\"confirm\":true,\"business_country\":\"US\",\"business_label\":\"default\",\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":6540,\"customer_id\":\"bernard123\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://duck.com\",\"setup_future_usage\":\"on_session\",\"payment_method\":\"card\",\"payment_method_type\":\"debit\",\"payment_method_data\":{\"card\":{\"card_number\":\"4242424242424242\",\"card_exp_month\":\"01\",\"card_exp_year\":\"26\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrisoff Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"Narayan\",\"last_name\":\"Doe\"},\"email\":\"example@juspay.in\"}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"sundari\",\"last_name\":\"sundari\"}},\"shipping\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"sundari\",\"last_name\":\"sundari\"}},\"statement_descriptor_name\":\"joseph\",\"statement_descriptor_suffix\":\"JS\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"},\"routing\":{\"type\":\"single\",\"data\":\"stripe\"}}"
+                      "raw": "{\"amount\":6540,\"currency\":\"USD\",\"confirm\":true,\"business_country\":\"US\",\"business_label\":\"default\",\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":6540,\"customer_id\":\"bernard123\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://duck.com\",\"setup_future_usage\":\"on_session\",\"payment_method\":\"card\",\"payment_method_type\":\"debit\",\"payment_method_data\":{\"card\":{\"card_number\":\"4242424242424242\",\"card_exp_month\":\"01\",\"card_exp_year\":\"26\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrisoff Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"Narayan\",\"last_name\":\"Doe\"},\"email\":\"example@juspay.in\"}},\"shipping\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"sundari\",\"last_name\":\"sundari\"}},\"statement_descriptor_name\":\"joseph\",\"statement_descriptor_suffix\":\"JS\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"},\"routing\":{\"type\":\"single\",\"data\":\"stripe\"}}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
