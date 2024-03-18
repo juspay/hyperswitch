@@ -64,6 +64,7 @@ Never share your secret api keys. Keep them guarded and secure.
         (name = "Payouts", description = "Create and manage payouts"),
         (name = "payment link", description = "Create payment link"),
         (name = "Routing", description = "Create and manage routing configurations"),
+        (name = "Event", description = "Manage events"),
     ),
     // The paths will be displayed in the same order as they are registered here
     paths(
@@ -168,7 +169,11 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::api_keys::api_key_create,
         routes::api_keys::api_key_retrieve,
         routes::api_keys::api_key_update,
-        routes::api_keys::api_key_revoke
+        routes::api_keys::api_key_revoke,
+
+        // Routes for events
+        routes::webhook_events::list_initial_webhook_delivery_attempts,
+        routes::webhook_events::list_webhook_delivery_attempts,
     ),
     components(schemas(
         api_models::refunds::RefundRequest,
@@ -428,6 +433,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::FrmMessage,
         api_models::webhooks::OutgoingWebhook,
         api_models::webhooks::OutgoingWebhookContent,
+        api_models::enums::EventClass,
         api_models::enums::EventType,
         api_models::enums::DecoupledAuthenticationType,
         api_models::enums::AuthenticationStatus,
@@ -477,7 +483,11 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::blocklist::BlocklistResponse,
         api_models::blocklist::ToggleBlocklistResponse,
         api_models::blocklist::ListBlocklistQuery,
-        api_models::enums::BlocklistDataKind
+        api_models::enums::BlocklistDataKind,
+        api_models::webhook_events::EventListItemResponse,
+        api_models::webhook_events::EventRetrieveResponse,
+        api_models::webhook_events::OutgoingWebhookRequestContent,
+        api_models::webhook_events::OutgoingWebhookResponseContent,
     )),
     modifiers(&SecurityAddon)
 )]

@@ -132,7 +132,10 @@ pub struct OutgoingWebhookRequestContent {
     pub body: Secret<String>,
 
     /// The request headers sent in the webhook.
-    #[schema(value_type = Vec<(String, String)>)]
+    #[schema(
+        value_type = Vec<(String, String)>,
+        example = json!([["content-type", "application/json"], ["content-length", "1024"]]))
+    ]
     pub headers: Vec<(String, Secret<String>)>,
 }
 
@@ -145,7 +148,10 @@ pub struct OutgoingWebhookResponseContent {
     pub body: Secret<String>,
 
     /// The response headers received for the webhook sent.
-    #[schema(value_type = Vec<(String, String)>)]
+    #[schema(
+        value_type = Vec<(String, String)>,
+        example = json!([["content-type", "application/json"], ["content-length", "1024"]]))
+    ]
     pub headers: Vec<(String, Secret<String>)>,
 
     /// The HTTP status code for the webhook sent.

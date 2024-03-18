@@ -2003,6 +2003,151 @@
         ]
       }
     },
+    "/events/{merchant_id}": {
+      "get": {
+        "tags": [
+          "Event"
+        ],
+        "summary": "Events - List",
+        "description": "Events - List\n\nList all Events associated with a Merchant Account.",
+        "operationId": "List all Events associated with a Merchant Account",
+        "parameters": [
+          {
+            "name": "merchant_id",
+            "in": "path",
+            "description": "The unique identifier for the Merchant Account",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "created_after",
+            "in": "query",
+            "description": "Only include Events created after the specified time. Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "nullable": true
+            }
+          },
+          {
+            "name": "created_before",
+            "in": "query",
+            "description": "Only include Events created before the specified time. Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "nullable": true
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "The maximum number of Events to include in the response. Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "nullable": true
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "The number of Events to skip when retrieving the list of Events.\n                           Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "nullable": true
+            }
+          },
+          {
+            "name": "object_id",
+            "in": "query",
+            "description": "Only include Events associated with the specified object (Payment Intent ID, Refund ID, etc.). Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of Events retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EventListItemResponse"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/events/{merchant_id}/{event_id}/attempts": {
+      "get": {
+        "tags": [
+          "Event"
+        ],
+        "summary": "Events - Delivery Attempt List",
+        "description": "Events - Delivery Attempt List\n\nList all delivery attempts for the specified Event.",
+        "operationId": "List all delivery attempts for an Event",
+        "parameters": [
+          {
+            "name": "merchant_id",
+            "in": "path",
+            "description": "The unique identifier for the Merchant Account",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "event_id",
+            "in": "path",
+            "description": "The unique identifier for the Event",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of delivery attempts retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EventRetrieveResponse"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
     "/gsm": {
       "post": {
         "tags": [
@@ -8233,6 +8378,149 @@
           }
         }
       },
+      "EventClass": {
+        "type": "string",
+        "enum": [
+          "payments",
+          "refunds",
+          "disputes",
+          "mandates"
+        ]
+      },
+      "EventListItemResponse": {
+        "type": "object",
+        "description": "The response body for each item when listing events.",
+        "required": [
+          "event_id",
+          "merchant_id",
+          "profile_id",
+          "object_id",
+          "event_type",
+          "event_class",
+          "is_delivery_successful",
+          "initial_attempt_id",
+          "created"
+        ],
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "description": "The identifier for the Event.",
+            "example": "evt_018e31720d1b7a2b82677d3032cab959",
+            "maxLength": 64
+          },
+          "merchant_id": {
+            "type": "string",
+            "description": "The identifier for the Merchant Account.",
+            "example": "y3oqhf46pyzuxjbcn2giaqnb44",
+            "maxLength": 64
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The identifier for the Business Profile.",
+            "example": "SqB0zwDGR5wHppWf0bx7GKr1f2",
+            "maxLength": 64
+          },
+          "object_id": {
+            "type": "string",
+            "description": "The identifier for the object (Payment Intent ID, Refund ID, etc.)",
+            "example": "QHrfd5LUDdZaKtAjdJmMu0dMa1",
+            "maxLength": 64
+          },
+          "event_type": {
+            "$ref": "#/components/schemas/EventType"
+          },
+          "event_class": {
+            "$ref": "#/components/schemas/EventClass"
+          },
+          "is_delivery_successful": {
+            "type": "boolean",
+            "description": "Indicates whether the webhook delivery attempt was successful."
+          },
+          "initial_attempt_id": {
+            "type": "string",
+            "description": "The identifier for the initial delivery attempt. This will be the same as `event_id` for\nthe initial delivery attempt.",
+            "example": "evt_018e31720d1b7a2b82677d3032cab959",
+            "maxLength": 64
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Time at which the event was created.",
+            "example": "2022-09-10T10:11:12Z"
+          }
+        }
+      },
+      "EventRetrieveResponse": {
+        "type": "object",
+        "description": "The response body for retrieving an event.",
+        "required": [
+          "event_id",
+          "merchant_id",
+          "profile_id",
+          "object_id",
+          "event_type",
+          "event_class",
+          "is_delivery_successful",
+          "initial_attempt_id",
+          "created",
+          "request",
+          "response"
+        ],
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "description": "The identifier for the Event.",
+            "example": "evt_018e31720d1b7a2b82677d3032cab959",
+            "maxLength": 64
+          },
+          "merchant_id": {
+            "type": "string",
+            "description": "The identifier for the Merchant Account.",
+            "example": "y3oqhf46pyzuxjbcn2giaqnb44",
+            "maxLength": 64
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The identifier for the Business Profile.",
+            "example": "SqB0zwDGR5wHppWf0bx7GKr1f2",
+            "maxLength": 64
+          },
+          "object_id": {
+            "type": "string",
+            "description": "The identifier for the object (Payment Intent ID, Refund ID, etc.)",
+            "example": "QHrfd5LUDdZaKtAjdJmMu0dMa1",
+            "maxLength": 64
+          },
+          "event_type": {
+            "$ref": "#/components/schemas/EventType"
+          },
+          "event_class": {
+            "$ref": "#/components/schemas/EventClass"
+          },
+          "is_delivery_successful": {
+            "type": "boolean",
+            "description": "Indicates whether the webhook delivery attempt was successful."
+          },
+          "initial_attempt_id": {
+            "type": "string",
+            "description": "The identifier for the initial delivery attempt. This will be the same as `event_id` for\nthe initial delivery attempt.",
+            "example": "evt_018e31720d1b7a2b82677d3032cab959",
+            "maxLength": 64
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Time at which the event was created.",
+            "example": "2022-09-10T10:11:12Z"
+          },
+          "request": {
+            "$ref": "#/components/schemas/OutgoingWebhookRequestContent"
+          },
+          "response": {
+            "$ref": "#/components/schemas/OutgoingWebhookResponseContent"
+          }
+        }
+      },
       "EventType": {
         "type": "string",
         "enum": [
@@ -11290,6 +11578,96 @@
         ],
         "discriminator": {
           "propertyName": "type"
+        }
+      },
+      "OutgoingWebhookRequestContent": {
+        "type": "object",
+        "description": "The request information (headers and body) sent in the webhook.",
+        "required": [
+          "body",
+          "headers"
+        ],
+        "properties": {
+          "body": {
+            "type": "string",
+            "description": "The request body sent in the webhook."
+          },
+          "headers": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "allOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ]
+              }
+            },
+            "description": "The request headers sent in the webhook.",
+            "example": [
+              [
+                "content-type",
+                "application/json"
+              ],
+              [
+                "content-length",
+                "1024"
+              ]
+            ]
+          }
+        }
+      },
+      "OutgoingWebhookResponseContent": {
+        "type": "object",
+        "description": "The response information (headers, body and status code) received for the webhook sent.",
+        "required": [
+          "body",
+          "headers",
+          "status_code"
+        ],
+        "properties": {
+          "body": {
+            "type": "string",
+            "description": "The response body received for the webhook sent."
+          },
+          "headers": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "allOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ]
+              }
+            },
+            "description": "The response headers received for the webhook sent.",
+            "example": [
+              [
+                "content-type",
+                "application/json"
+              ],
+              [
+                "content-length",
+                "1024"
+              ]
+            ]
+          },
+          "status_code": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The HTTP status code for the webhook sent.",
+            "example": 200,
+            "minimum": 0
+          }
         }
       },
       "PayLaterData": {
@@ -17752,6 +18130,10 @@
     {
       "name": "Routing",
       "description": "Create and manage routing configurations"
+    },
+    {
+      "name": "Event",
+      "description": "Manage events"
     }
   ]
 }
