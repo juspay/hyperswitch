@@ -24,7 +24,6 @@ pub mod gsm;
 #[cfg(feature = "kv_store")]
 pub mod kv;
 pub mod locker_mock_up;
-pub mod macros;
 pub mod mandate;
 pub mod merchant_account;
 pub mod merchant_connector_account;

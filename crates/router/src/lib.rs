@@ -31,6 +31,7 @@ use actix_web::{
 };
 use http::StatusCode;
 use hyperswitch_interfaces::secrets_interface::secret_state::SecuredSecret;
+use router_env::tracing::Instrument;
 use routes::AppState;
 use storage_impl::errors::ApplicationResult;
 use tokio::sync::{mpsc, oneshot};
@@ -195,7 +196,7 @@ pub async fn start_server(conf: settings::Settings<SecuredSecret>) -> Applicatio
         .workers(server.workers)
         .shutdown_timeout(server.shutdown_timeout)
         .run();
-    tokio::spawn(receiver_for_error(rx, server.handle()));
+    let _task_handle = tokio::spawn(receiver_for_error(rx, server.handle())).in_current_span();
     Ok(server)
 }
 

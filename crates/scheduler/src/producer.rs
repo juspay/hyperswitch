@@ -3,7 +3,10 @@ use std::sync::Arc;
 use common_utils::errors::CustomResult;
 use diesel_models::enums::ProcessTrackerStatus;
 use error_stack::{report, IntoReport, ResultExt};
-use router_env::{instrument, tracing};
+use router_env::{
+    instrument,
+    tracing::{self, Instrument},
+};
 use time::Duration;
 use tokio::sync::mpsc;
 
@@ -57,7 +60,8 @@ where
         .into_report()
         .attach_printable("Failed while creating a signals handler")?;
     let handle = signal.handle();
-    let task_handle = tokio::spawn(common_utils::signals::signal_handler(signal, tx));
+    let task_handle =
+        tokio::spawn(common_utils::signals::signal_handler(signal, tx)).in_current_span();
 
     loop {
         match rx.try_recv() {

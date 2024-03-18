@@ -1,5 +1,6 @@
 use std::sync::{atomic, Arc};
 
+use router_env::tracing::Instrument;
 use tokio::{
     sync::{mpsc, oneshot},
     time::{self, Duration},
@@ -68,13 +69,14 @@ impl Handler {
         while self.running.load(atomic::Ordering::SeqCst) {
             metrics::DRAINER_HEALTH.add(&metrics::CONTEXT, 1, &[]);
             if self.store.is_stream_available(stream_index).await {
-                tokio::spawn(drainer_handler(
+                let _task_handle = tokio::spawn(drainer_handler(
                     self.store.clone(),
                     stream_index,
                     self.conf.max_read_count,
                     self.active_tasks.clone(),
                     jobs_picked.clone(),
-                ));
+                ))
+                .in_current_span();
             }
             stream_index = utils::increment_stream_index(
                 (stream_index, jobs_picked.clone()),
@@ -116,10 +118,12 @@ impl Handler {
         let redis_conn_clone = self.store.redis_conn.clone();
 
         // Spawn a task to monitor if redis is down or not
-        tokio::spawn(async move { redis_conn_clone.on_error(redis_error_tx).await });
+        let _task_handle =
+            tokio::spawn(async move { redis_conn_clone.on_error(redis_error_tx).await })
+                .in_current_span();
 
         //Spawns a task to send shutdown signal if redis goes down
-        tokio::spawn(redis_error_receiver(redis_error_rx, tx));
+        let _task_handle = tokio::spawn(redis_error_receiver(redis_error_rx, tx)).in_current_span();
 
         Ok(())
     }

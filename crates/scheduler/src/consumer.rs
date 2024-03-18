@@ -10,7 +10,10 @@ pub use diesel_models::{self, process_tracker as storage};
 use error_stack::{IntoReport, ResultExt};
 use futures::future;
 use redis_interface::{RedisConnectionPool, RedisEntryId};
-use router_env::{instrument, tracing};
+use router_env::{
+    instrument,
+    tracing::{self, Instrument},
+};
 use time::PrimitiveDateTime;
 use tokio::sync::mpsc;
 use uuid::Uuid;
@@ -64,7 +67,8 @@ pub async fn start_consumer<T: SchedulerAppState + 'static>(
         .into_report()
         .attach_printable("Failed while creating a signals handler")?;
     let handle = signal.handle();
-    let task_handle = tokio::spawn(common_utils::signals::signal_handler(signal, tx));
+    let task_handle =
+        tokio::spawn(common_utils::signals::signal_handler(signal, tx)).in_current_span();
 
     'consumer: loop {
         match rx.try_recv() {
