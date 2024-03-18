@@ -106,7 +106,7 @@ pub async fn refund_create_core(
         .await
         .transpose()?;
 
-    validate_and_create_refund(
+    Box::pin(validate_and_create_refund(
         &state,
         &merchant_account,
         &key_store,
@@ -115,7 +115,7 @@ pub async fn refund_create_core(
         amount,
         req,
         creds_identifier,
-    )
+    ))
     .await
     .map(services::ApplicationResponse::Json)
 }

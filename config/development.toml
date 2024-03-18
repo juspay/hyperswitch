@@ -551,6 +551,7 @@ api_logs_topic = "hyperswitch-api-log-events"
 connector_logs_topic = "hyperswitch-connector-api-events"
 outgoing_webhook_logs_topic = "hyperswitch-outgoing-webhook-events"
 dispute_analytics_topic = "hyperswitch-dispute-events"
+audit_events_topic = "hyperswitch-audit-events"
 
 [analytics]
 source = "sqlx"

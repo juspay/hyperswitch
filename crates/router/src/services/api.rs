@@ -433,14 +433,7 @@ where
                                         });
                                     match handle_response_result {
                                         Ok(mut data) => {
-                                            match connector_event.try_into() {
-                                                Ok(event) => {
-                                                    state.event_handler().log_event(event);
-                                                }
-                                                Err(err) => {
-                                                    logger::error!(error=?err, "Error Logging Connector Event");
-                                                }
-                                            };
+                                            state.event_handler().log_event(&connector_event);
                                             data.connector_http_status_code =
                                                 connector_http_status_code;
                                             // Add up multiple external latencies in case of multiple external calls within the same request.
@@ -456,14 +449,7 @@ where
                                             connector_event
                                                 .set_error(json!({"error": err.to_string()}));
 
-                                            match connector_event.try_into() {
-                                                Ok(event) => {
-                                                    state.event_handler().log_event(event);
-                                                }
-                                                Err(err) => {
-                                                    logger::error!(error=?err, "Error Logging Connector Event");
-                                                }
-                                            }
+                                            state.event_handler().log_event(&connector_event);
                                             Err(err)
                                         }
                                     }?
@@ -491,14 +477,7 @@ where
                                                     body,
                                                     Some(&mut connector_event),
                                                 )?;
-                                            match connector_event.try_into() {
-                                                Ok(event) => {
-                                                    state.event_handler().log_event(event);
-                                                }
-                                                Err(err) => {
-                                                    logger::error!(error=?err, "Error Logging Connector Event");
-                                                }
-                                            };
+                                            state.event_handler().log_event(&connector_event);
                                             error_res
                                         }
                                         _ => {
@@ -523,14 +502,7 @@ where
                         }
                         Err(error) => {
                             connector_event.set_error(json!({"error": error.to_string()}));
-                            match connector_event.try_into() {
-                                Ok(event) => {
-                                    state.event_handler().log_event(event);
-                                }
-                                Err(err) => {
-                                    logger::error!(error=?err, "Error Logging Connector Event");
-                                }
-                            };
+                            state.event_handler().log_event(&connector_event);
                             if error.current_context().is_upstream_timeout() {
                                 let error_response = ErrorResponse {
                                     code: consts::REQUEST_TIMEOUT_ERROR_CODE.to_string(),
@@ -1110,14 +1082,7 @@ where
         request,
         request.method(),
     );
-    match api_event.clone().try_into() {
-        Ok(event) => {
-            state.event_handler().log_event(event);
-        }
-        Err(err) => {
-            logger::error!(error=?err, event=?api_event, "Error Logging API Event");
-        }
-    }
+    state.event_handler().log_event(&api_event);
 
     metrics::request::status_code_metrics(status_code, flow.to_string(), merchant_id.to_string());
 
