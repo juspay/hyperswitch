@@ -32,6 +32,11 @@ use crate::{
     utils::OptionExt,
 };
 
+pub mod auth_headers {
+    pub const STRIPE_API_VERSION: &str = "stripe-version";
+    pub const STRIPE_VERSION: &str = "2023-10-16";
+}
+
 pub struct StripeAuthType {
     pub(super) api_key: Secret<String>,
 }
@@ -1714,70 +1719,70 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let order_id = item.connector_request_reference_id.clone();
 
-        let shipping_address = match item.address.shipping.clone() {
-            Some(mut shipping) => StripeShippingAddress {
-                city: shipping.address.as_mut().and_then(|a| a.city.take()),
-                country: shipping.address.as_mut().and_then(|a| a.country.take()),
-                line1: shipping
-                    .address
-                    .as_mut()
-                    .and_then(|a: &mut payments::AddressDetails| a.line1.take()),
-                line2: shipping.address.as_mut().and_then(|a| a.line2.take()),
-                zip: shipping.address.as_mut().and_then(|a| a.zip.take()),
-                state: shipping.address.as_mut().and_then(|a| a.state.take()),
-                name: shipping.address.as_mut().and_then(|a| {
-                    a.first_name.as_ref().map(|first_name| {
+        let shipping_address = match item.get_optional_shipping() {
+            Some(shipping_details) => {
+                let shipping_address = shipping_details.address.as_ref();
+                StripeShippingAddress {
+                    city: shipping_address.and_then(|a| a.city.clone()),
+                    country: shipping_address.and_then(|a| a.country),
+                    line1: shipping_address.and_then(|a| a.line1.clone()),
+                    line2: shipping_address.and_then(|a| a.line2.clone()),
+                    zip: shipping_address.and_then(|a| a.zip.clone()),
+                    state: shipping_address.and_then(|a| a.state.clone()),
+                    name: shipping_address.and_then(|a| {
+                        a.first_name.as_ref().map(|first_name| {
+                            format!(
+                                "{} {}",
+                                first_name.clone().expose(),
+                                a.last_name.clone().expose_option().unwrap_or_default()
+                            )
+                            .into()
+                        })
+                    }),
+                    phone: shipping_details.phone.as_ref().map(|p| {
                         format!(
-                            "{} {}",
-                            first_name.clone().expose(),
-                            a.last_name.clone().expose_option().unwrap_or_default()
+                            "{}{}",
+                            p.country_code.clone().unwrap_or_default(),
+                            p.number.clone().expose_option().unwrap_or_default()
                         )
                         .into()
-                    })
-                }),
-                phone: shipping.phone.map(|p| {
-                    format!(
-                        "{}{}",
-                        p.country_code.unwrap_or_default(),
-                        p.number.expose_option().unwrap_or_default()
-                    )
-                    .into()
-                }),
-            },
+                    }),
+                }
+            }
             None => StripeShippingAddress::default(),
         };
 
-        let billing_address = match item.address.billing.clone() {
-            Some(mut billing) => StripeBillingAddress {
-                city: billing.address.as_mut().and_then(|a| a.city.take()),
-                country: billing.address.as_mut().and_then(|a| a.country.take()),
-                address_line1: billing
-                    .address
-                    .as_mut()
-                    .and_then(|a: &mut payments::AddressDetails| a.line1.take()),
-                address_line2: billing.address.as_mut().and_then(|a| a.line2.take()),
-                zip_code: billing.address.as_mut().and_then(|a| a.zip.take()),
-                state: billing.address.as_mut().and_then(|a| a.state.take()),
-                name: billing.address.as_mut().and_then(|a| {
-                    a.first_name.as_ref().map(|first_name| {
+        let billing_address = match item.get_optional_billing() {
+            Some(billing_details) => {
+                let billing_address = billing_details.address.as_ref();
+                StripeBillingAddress {
+                    city: billing_address.and_then(|a| a.city.clone()),
+                    country: billing_address.and_then(|a| a.country),
+                    address_line1: billing_address.and_then(|a| a.line1.clone()),
+                    address_line2: billing_address.and_then(|a| a.line2.clone()),
+                    zip_code: billing_address.and_then(|a| a.zip.clone()),
+                    state: billing_address.and_then(|a| a.state.clone()),
+                    name: billing_address.and_then(|a| {
+                        a.first_name.as_ref().map(|first_name| {
+                            format!(
+                                "{} {}",
+                                first_name.clone().expose(),
+                                a.last_name.clone().expose_option().unwrap_or_default()
+                            )
+                            .into()
+                        })
+                    }),
+                    email: billing_details.email.clone(),
+                    phone: billing_details.phone.as_ref().map(|p| {
                         format!(
-                            "{} {}",
-                            first_name.clone().expose(),
-                            a.last_name.clone().expose_option().unwrap_or_default()
+                            "{}{}",
+                            p.country_code.clone().unwrap_or_default(),
+                            p.number.clone().expose_option().unwrap_or_default()
                         )
                         .into()
-                    })
-                }),
-                email: item.request.email.clone(),
-                phone: billing.phone.map(|p| {
-                    format!(
-                        "{}{}",
-                        p.country_code.unwrap_or_default(),
-                        p.number.expose_option().unwrap_or_default()
-                    )
-                    .into()
-                }),
-            },
+                    }),
+                }
+            }
             None => StripeBillingAddress::default(),
         };
         let mut payment_method_options = None;
@@ -2175,18 +2180,10 @@ impl Deref for PaymentSyncResponse {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct LastPaymentError {
-    code: String,
-    message: String,
-    decline_code: Option<String>,
-}
-
 #[derive(Deserialize, Debug, Serialize)]
 pub struct PaymentIntentSyncResponse {
     #[serde(flatten)]
     payment_intent_fields: PaymentIntentResponse,
-    pub last_payment_error: Option<LastPaymentError>,
     pub latest_charge: Option<StripeChargeEnum>,
 }
 
@@ -2261,7 +2258,6 @@ pub enum StripePaymentMethodDetailsResponse {
 pub struct SetupIntentSyncResponse {
     #[serde(flatten)]
     setup_intent_fields: SetupIntentResponse,
-    pub last_payment_error: Option<LastPaymentError>,
 }
 
 impl Deref for SetupIntentSyncResponse {
@@ -2276,7 +2272,6 @@ impl From<SetupIntentSyncResponse> for PaymentIntentSyncResponse {
     fn from(value: SetupIntentSyncResponse) -> Self {
         Self {
             payment_intent_fields: value.setup_intent_fields.into(),
-            last_payment_error: value.last_payment_error,
             latest_charge: None,
         }
     }
@@ -2296,7 +2291,7 @@ impl From<SetupIntentResponse> for PaymentIntentResponse {
             metadata: value.metadata,
             next_action: value.next_action,
             payment_method_options: value.payment_method_options,
-            last_payment_error: None,
+            last_payment_error: value.last_setup_error,
             ..Default::default()
         }
     }

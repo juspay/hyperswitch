@@ -120,13 +120,28 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             if should_validate_pm_or_token_given {
                 helpers::validate_pm_or_token_given(
                     &request.payment_method,
-                    &request.payment_method_data,
+                    &request
+                        .payment_method_data
+                        .as_ref()
+                        .map(|pmd| pmd.payment_method_data.clone()),
                     &request.payment_method_type,
                     &mandate_type,
                     &token,
                 )?;
             }
         }
+
+        let token_data = if let Some((token, payment_method)) = token
+            .as_ref()
+            .zip(payment_method.or(payment_attempt.payment_method))
+        {
+            Some(
+                helpers::retrieve_payment_token_data(state, token.clone(), Some(payment_method))
+                    .await?,
+            )
+        } else {
+            None
+        };
 
         payment_attempt.payment_method = payment_method.or(payment_attempt.payment_method);
         payment_attempt.browser_info = browser_info;
@@ -146,25 +161,32 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 .or_else(|| request.customer_id.clone()),
         )?;
 
-        let shipping_address = helpers::create_or_find_address_for_payment_by_request(
+        let shipping_address = helpers::get_address_by_id(
             db,
-            request.shipping.as_ref(),
-            payment_intent.shipping_address_id.as_deref(),
-            merchant_id,
-            payment_intent.customer_id.as_ref(),
+            payment_intent.shipping_address_id.clone(),
             key_store,
             &payment_intent.payment_id,
+            merchant_id,
             merchant_account.storage_scheme,
         )
         .await?;
-        let billing_address = helpers::create_or_find_address_for_payment_by_request(
+
+        let billing_address = helpers::get_address_by_id(
             db,
-            request.billing.as_ref(),
-            payment_intent.billing_address_id.as_deref(),
-            merchant_id,
-            payment_intent.customer_id.as_ref(),
+            payment_intent.billing_address_id.clone(),
             key_store,
             &payment_intent.payment_id,
+            merchant_id,
+            merchant_account.storage_scheme,
+        )
+        .await?;
+
+        let payment_method_billing = helpers::get_address_by_id(
+            db,
+            payment_attempt.payment_method_billing_address_id.clone(),
+            key_store,
+            &payment_intent.payment_id,
+            merchant_id,
             merchant_account.storage_scheme,
         )
         .await?;
@@ -205,6 +227,12 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         // The operation merges mandate data from both request and payment_attempt
         let setup_mandate = setup_mandate.map(Into::into);
 
+        let mandate_details_present =
+            payment_attempt.mandate_details.is_some() || request.mandate_data.is_some();
+        helpers::validate_mandate_data_and_future_usage(
+            payment_intent.setup_future_usage,
+            mandate_details_present,
+        )?;
         let profile_id = payment_intent
             .profile_id
             .as_ref()
@@ -229,13 +257,20 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             mandate_id: None,
             mandate_connector,
             setup_mandate,
+            customer_acceptance: None,
             token,
-            address: PaymentAddress {
-                shipping: shipping_address.as_ref().map(|a| a.into()),
-                billing: billing_address.as_ref().map(|a| a.into()),
-            },
+            token_data,
+            address: PaymentAddress::new(
+                shipping_address.as_ref().map(From::from),
+                billing_address.as_ref().map(From::from),
+                payment_method_billing.as_ref().map(From::from),
+            ),
             confirm: request.confirm,
-            payment_method_data: request.payment_method_data.clone(),
+            payment_method_data: request
+                .payment_method_data
+                .as_ref()
+                .map(|pmd| pmd.payment_method_data.clone()),
+            payment_method_info: None,
             force_sync: None,
             refunds: vec![],
             disputes: vec![],
@@ -254,6 +289,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             payment_link_data: None,
             incremental_authorization_details: None,
             authorizations: vec![],
+            authentication: None,
             frm_metadata: None,
         };
 
@@ -316,8 +352,9 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
         Option<api::PaymentMethodData>,
+        Option<String>,
     )> {
-        let (op, payment_method_data) = helpers::make_pm_data(
+        let (op, payment_method_data, pm_id) = helpers::make_pm_data(
             Box::new(self),
             state,
             payment_data,
@@ -325,7 +362,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
             customer,
         )
         .await?;
-        Ok((op, payment_method_data))
+        Ok((op, payment_method_data, pm_id))
     }
 
     #[instrument(skip_all)]

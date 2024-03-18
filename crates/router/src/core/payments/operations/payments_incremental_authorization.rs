@@ -120,13 +120,13 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             mandate_id: None,
             mandate_connector: None,
             setup_mandate: None,
+            customer_acceptance: None,
             token: None,
-            address: PaymentAddress {
-                billing: None,
-                shipping: None,
-            },
+            token_data: None,
+            address: PaymentAddress::new(None, None, None),
             confirm: None,
             payment_method_data: None,
+            payment_method_info: None,
             force_sync: None,
             refunds: vec![],
             disputes: vec![],
@@ -150,6 +150,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 authorization_id: None,
             }),
             authorizations: vec![],
+            authentication: None,
             frm_metadata: None,
         };
 
@@ -314,8 +315,9 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve>
     ) -> RouterResult<(
         BoxedOperation<'a, F, PaymentsIncrementalAuthorizationRequest, Ctx>,
         Option<api::PaymentMethodData>,
+        Option<String>,
     )> {
-        Ok((Box::new(self), None))
+        Ok((Box::new(self), None, None))
     }
 
     async fn get_connector<'a>(

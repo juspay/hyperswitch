@@ -7,6 +7,7 @@ use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
+use stripe::auth_headers;
 
 use self::transformers as stripe;
 use super::utils::{self as connector_utils, RefundsRequestData};
@@ -55,10 +56,16 @@ impl ConnectorCommon for Stripe {
         let auth: stripe::StripeAuthType = auth_type
             .try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", auth.api_key.peek()).into_masked(),
-        )])
+        Ok(vec![
+            (
+                headers::AUTHORIZATION.to_string(),
+                format!("Bearer {}", auth.api_key.peek()).into_masked(),
+            ),
+            (
+                auth_headers::STRIPE_API_VERSION.to_string(),
+                auth_headers::STRIPE_VERSION.to_string().into_masked(),
+            ),
+        ])
     }
 }
 
@@ -150,7 +157,6 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = stripe::StripeCreditTransferSourceRequest::try_from(req)?;
-
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
@@ -850,6 +856,7 @@ impl
             }
             _ => {
                 let connector_req = stripe::PaymentIntentRequest::try_from(req)?;
+
                 Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
             }
         }

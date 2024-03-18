@@ -1,5 +1,6 @@
 use api_models::payments;
 use base64::Engine;
+use common_enums::FutureUsage;
 use common_utils::{ext_traits::ValueExt, pii};
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -500,47 +501,61 @@ impl
             Option<String>,
         ),
     ) -> Result<Self, Self::Error> {
-        let (action_list, action_token_types, authorization_options) =
-            if item.router_data.request.setup_mandate_details.is_some() {
-                (
-                    Some(vec![CybersourceActionsList::TokenCreate]),
-                    Some(vec![CybersourceActionsTokenType::PaymentInstrument]),
-                    Some(CybersourceAuthorizationOptions {
-                        initiator: Some(CybersourcePaymentInitiator {
-                            initiator_type: Some(CybersourcePaymentInitiatorTypes::Customer),
-                            credential_stored_on_file: Some(true),
-                            stored_credential_used: None,
-                        }),
-                        merchant_intitiated_transaction: None,
-                    }),
-                )
-            } else if item.router_data.request.connector_mandate_id().is_some() {
-                let original_amount = item
+        let (action_list, action_token_types, authorization_options) = if item
+            .router_data
+            .request
+            .setup_future_usage
+            .map_or(false, |future_usage| {
+                matches!(future_usage, FutureUsage::OffSession)
+            })
+            && (item.router_data.request.customer_acceptance.is_some()
+                || item
                     .router_data
-                    .get_recurring_mandate_payment_data()?
-                    .get_original_payment_amount()?;
-                let original_currency = item
-                    .router_data
-                    .get_recurring_mandate_payment_data()?
-                    .get_original_payment_currency()?;
-                (
-                    None,
-                    None,
-                    Some(CybersourceAuthorizationOptions {
-                        initiator: None,
-                        merchant_intitiated_transaction: Some(MerchantInitiatedTransaction {
-                            reason: None,
-                            original_authorized_amount: Some(utils::get_amount_as_string(
-                                &types::api::CurrencyUnit::Base,
-                                original_amount,
-                                original_currency,
-                            )?),
-                        }),
+                    .request
+                    .setup_mandate_details
+                    .clone()
+                    .map_or(false, |mandate_details| {
+                        mandate_details.customer_acceptance.is_some()
+                    })) {
+            (
+                Some(vec![CybersourceActionsList::TokenCreate]),
+                Some(vec![CybersourceActionsTokenType::PaymentInstrument]),
+                Some(CybersourceAuthorizationOptions {
+                    initiator: Some(CybersourcePaymentInitiator {
+                        initiator_type: Some(CybersourcePaymentInitiatorTypes::Customer),
+                        credential_stored_on_file: Some(true),
+                        stored_credential_used: None,
                     }),
-                )
-            } else {
-                (None, None, None)
-            };
+                    merchant_intitiated_transaction: None,
+                }),
+            )
+        } else if item.router_data.request.connector_mandate_id().is_some() {
+            let original_amount = item
+                .router_data
+                .get_recurring_mandate_payment_data()?
+                .get_original_payment_amount()?;
+            let original_currency = item
+                .router_data
+                .get_recurring_mandate_payment_data()?
+                .get_original_payment_currency()?;
+            (
+                None,
+                None,
+                Some(CybersourceAuthorizationOptions {
+                    initiator: None,
+                    merchant_intitiated_transaction: Some(MerchantInitiatedTransaction {
+                        reason: None,
+                        original_authorized_amount: Some(utils::get_amount_as_string(
+                            &types::api::CurrencyUnit::Base,
+                            original_amount,
+                            original_currency,
+                        )?),
+                    }),
+                }),
+            )
+        } else {
+            (None, None, None)
+        };
         let commerce_indicator = match network {
             Some(card_network) => match card_network.to_lowercase().as_str() {
                 "amex" => "aesk",
@@ -581,23 +596,30 @@ impl
             &CybersourceConsumerAuthValidateResponse,
         ),
     ) -> Self {
-        let (action_list, action_token_types, authorization_options) =
-            if item.router_data.request.setup_future_usage.is_some() {
-                (
-                    Some(vec![CybersourceActionsList::TokenCreate]),
-                    Some(vec![CybersourceActionsTokenType::PaymentInstrument]),
-                    Some(CybersourceAuthorizationOptions {
-                        initiator: Some(CybersourcePaymentInitiator {
-                            initiator_type: Some(CybersourcePaymentInitiatorTypes::Customer),
-                            credential_stored_on_file: Some(true),
-                            stored_credential_used: None,
-                        }),
-                        merchant_intitiated_transaction: None,
+        let (action_list, action_token_types, authorization_options) = if item
+            .router_data
+            .request
+            .setup_future_usage
+            .map_or(false, |future_usage| {
+                matches!(future_usage, FutureUsage::OffSession)
+            })
+        //TODO check for customer acceptance also
+        {
+            (
+                Some(vec![CybersourceActionsList::TokenCreate]),
+                Some(vec![CybersourceActionsTokenType::PaymentInstrument]),
+                Some(CybersourceAuthorizationOptions {
+                    initiator: Some(CybersourcePaymentInitiator {
+                        initiator_type: Some(CybersourcePaymentInitiatorTypes::Customer),
+                        credential_stored_on_file: Some(true),
+                        stored_credential_used: None,
                     }),
-                )
-            } else {
-                (None, None, None)
-            };
+                    merchant_intitiated_transaction: None,
+                }),
+            )
+        } else {
+            (None, None, None)
+        };
         Self {
             capture: Some(matches!(
                 item.router_data.request.capture_method,
@@ -850,7 +872,7 @@ impl
         let processing_information = ProcessingInformation::try_from((
             item,
             Some(PaymentSolution::ApplePay),
-            Some(apple_pay_wallet_data.payment_method.network),
+            Some(apple_pay_wallet_data.payment_method.network.clone()),
         ))?;
         let client_reference_information = ClientReferenceInformation::from(item);
         let expiration_month = apple_pay_data.get_expiry_month()?;
@@ -868,13 +890,28 @@ impl
             item.router_data.request.metadata.clone().map(|metadata| {
                 Vec::<MerchantDefinedInformation>::foreign_from(metadata.peek().to_owned())
             });
-
+        let ucaf_collection_indicator = match apple_pay_wallet_data
+            .payment_method
+            .network
+            .to_lowercase()
+            .as_str()
+        {
+            "mastercard" => Some("2".to_string()),
+            _ => None,
+        };
         Ok(Self {
             processing_information,
             payment_information,
             order_information,
             client_reference_information,
-            consumer_authentication_information: None,
+            consumer_authentication_information: Some(CybersourceConsumerAuthInformation {
+                ucaf_collection_indicator,
+                cavv: None,
+                ucaf_authentication_data: None,
+                xid: None,
+                directory_server_transaction_id: None,
+                specification_version: None,
+            }),
             merchant_defined_information,
         })
     }
@@ -956,7 +993,7 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                                         ProcessingInformation::try_from((
                                             item,
                                             Some(PaymentSolution::ApplePay),
-                                            Some(apple_pay_data.payment_method.network),
+                                            Some(apple_pay_data.payment_method.network.clone()),
                                         ))?;
                                     let client_reference_information =
                                         ClientReferenceInformation::from(item);
@@ -976,14 +1013,31 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                                                 metadata.peek().to_owned(),
                                             )
                                         });
-
+                                    let ucaf_collection_indicator = match apple_pay_data
+                                        .payment_method
+                                        .network
+                                        .to_lowercase()
+                                        .as_str()
+                                    {
+                                        "mastercard" => Some("2".to_string()),
+                                        _ => None,
+                                    };
                                     Ok(Self {
                                         processing_information,
                                         payment_information,
                                         order_information,
                                         client_reference_information,
                                         merchant_defined_information,
-                                        consumer_authentication_information: None,
+                                        consumer_authentication_information: Some(
+                                            CybersourceConsumerAuthInformation {
+                                                ucaf_collection_indicator,
+                                                cavv: None,
+                                                ucaf_authentication_data: None,
+                                                xid: None,
+                                                directory_server_transaction_id: None,
+                                                specification_version: None,
+                                            },
+                                        ),
                                     })
                                 }
                             }
@@ -1343,6 +1397,8 @@ pub enum CybersourcePaymentStatus {
     ServerError,
     PendingAuthentication,
     PendingReview,
+    Accepted,
+    Cancelled,
     //PartialAuthorized, not being consumed yet.
 }
 
@@ -1376,7 +1432,9 @@ impl ForeignFrom<(CybersourcePaymentStatus, bool)> for enums::AttemptStatus {
             CybersourcePaymentStatus::Succeeded | CybersourcePaymentStatus::Transmitted => {
                 Self::Charged
             }
-            CybersourcePaymentStatus::Voided | CybersourcePaymentStatus::Reversed => Self::Voided,
+            CybersourcePaymentStatus::Voided
+            | CybersourcePaymentStatus::Reversed
+            | CybersourcePaymentStatus::Cancelled => Self::Voided,
             CybersourcePaymentStatus::Failed
             | CybersourcePaymentStatus::Declined
             | CybersourcePaymentStatus::AuthorizedRiskDeclined
@@ -1384,9 +1442,9 @@ impl ForeignFrom<(CybersourcePaymentStatus, bool)> for enums::AttemptStatus {
             | CybersourcePaymentStatus::InvalidRequest
             | CybersourcePaymentStatus::ServerError => Self::Failure,
             CybersourcePaymentStatus::PendingAuthentication => Self::AuthenticationPending,
-            CybersourcePaymentStatus::PendingReview | CybersourcePaymentStatus::Challenge => {
-                Self::Pending
-            }
+            CybersourcePaymentStatus::PendingReview
+            | CybersourcePaymentStatus::Challenge
+            | CybersourcePaymentStatus::Accepted => Self::Pending,
         }
     }
 }

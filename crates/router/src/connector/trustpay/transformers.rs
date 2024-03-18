@@ -6,7 +6,7 @@ use common_utils::{
     pii::{self, Email},
 };
 use error_stack::{report, ResultExt};
-use masking::{PeekInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
@@ -461,6 +461,10 @@ fn is_payment_failed(payment_status: &str) -> (bool, &'static str) {
         "100.380.401" => (true, "User authentication failed"),
         "100.380.501" => (true, "Risk management transaction timeout"),
         "100.390.103" => (true, "PARes validation failed - problem with signature"),
+        "100.390.105" => (
+            true,
+            "Transaction rejected because of technical error in 3DSecure system",
+        ),
         "100.390.111" => (
             true,
             "Communication error to VISA/Mastercard Directory Server",
@@ -1069,8 +1073,8 @@ pub struct GooglePayTransactionInfo {
 #[derive(Clone, Default, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GooglePayMerchantInfo {
-    pub merchant_name: String,
-    pub merchant_id: String,
+    pub merchant_name: Secret<String>,
+    pub merchant_id: Secret<String>,
 }
 
 #[derive(Clone, Default, Debug, Deserialize, Serialize)]
@@ -1086,7 +1090,7 @@ pub struct GooglePayAllowedPaymentMethods {
 #[serde(rename_all = "camelCase")]
 pub struct GpayTokenParameters {
     pub gateway: String,
-    pub gateway_merchant_id: String,
+    pub gateway_merchant_id: Secret<String>,
 }
 
 #[derive(Clone, Default, Debug, Deserialize, Serialize)]
@@ -1291,8 +1295,8 @@ impl From<GooglePayTransactionInfo> for api_models::payments::GpayTransactionInf
 impl From<GooglePayMerchantInfo> for api_models::payments::GpayMerchantInfo {
     fn from(value: GooglePayMerchantInfo) -> Self {
         Self {
-            merchant_id: Some(value.merchant_id),
-            merchant_name: value.merchant_name,
+            merchant_id: Some(value.merchant_id.expose()),
+            merchant_name: value.merchant_name.expose(),
         }
     }
 }
@@ -1329,7 +1333,7 @@ impl From<GpayTokenParameters> for api_models::payments::GpayTokenParameters {
     fn from(value: GpayTokenParameters) -> Self {
         Self {
             gateway: value.gateway,
-            gateway_merchant_id: Some(value.gateway_merchant_id),
+            gateway_merchant_id: Some(value.gateway_merchant_id.expose()),
             stripe_version: None,
             stripe_publishable_key: None,
         }

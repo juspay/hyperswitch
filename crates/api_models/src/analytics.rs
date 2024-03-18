@@ -5,7 +5,7 @@ use masking::Secret;
 
 use self::{
     api_event::{ApiEventDimensions, ApiEventMetrics},
-    disputes::DisputeDimensions,
+    disputes::{DisputeDimensions, DisputeMetrics},
     payments::{PaymentDimensions, PaymentDistributions, PaymentMetrics},
     refunds::{RefundDimensions, RefundMetrics},
     sdk_events::{SdkEventDimensions, SdkEventMetrics},
@@ -19,6 +19,7 @@ pub mod outgoing_webhook_event;
 pub mod payments;
 pub mod refunds;
 pub mod sdk_events;
+pub mod search;
 
 #[derive(Debug, serde::Serialize)]
 pub struct NameDescription {
@@ -251,7 +252,6 @@ pub struct GetApiEventMetricRequest {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-
 pub struct GetDisputeFilterRequest {
     pub time_range: TimeRange,
     #[serde(default)]
@@ -270,4 +270,18 @@ pub struct DisputeFiltersResponse {
 pub struct DisputeFilterValue {
     pub dimension: DisputeDimensions,
     pub values: Vec<String>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetDisputeMetricRequest {
+    pub time_series: Option<TimeSeries>,
+    pub time_range: TimeRange,
+    #[serde(default)]
+    pub group_by_names: Vec<DisputeDimensions>,
+    #[serde(default)]
+    pub filters: disputes::DisputeFilters,
+    pub metrics: HashSet<DisputeMetrics>,
+    #[serde(default)]
+    pub delta: bool,
 }

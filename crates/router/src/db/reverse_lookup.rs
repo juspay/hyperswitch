@@ -24,6 +24,7 @@ pub trait ReverseLookupInterface {
 #[cfg(not(feature = "kv_store"))]
 mod storage {
     use error_stack::IntoReport;
+    use router_env::{instrument, tracing};
 
     use super::{ReverseLookupInterface, Store};
     use crate::{
@@ -37,6 +38,7 @@ mod storage {
 
     #[async_trait::async_trait]
     impl ReverseLookupInterface for Store {
+        #[instrument(skip_all)]
         async fn insert_reverse_lookup(
             &self,
             new: ReverseLookupNew,
@@ -46,6 +48,7 @@ mod storage {
             new.insert(&conn).await.map_err(Into::into).into_report()
         }
 
+        #[instrument(skip_all)]
         async fn get_lookup_by_lookup_id(
             &self,
             id: &str,
@@ -64,6 +67,7 @@ mod storage {
 mod storage {
     use error_stack::{IntoReport, ResultExt};
     use redis_interface::SetnxReply;
+    use router_env::{instrument, tracing};
     use storage_impl::redis::kv_store::{kv_wrapper, KvOperation};
 
     use super::{ReverseLookupInterface, Store};
@@ -80,6 +84,7 @@ mod storage {
 
     #[async_trait::async_trait]
     impl ReverseLookupInterface for Store {
+        #[instrument(skip_all)]
         async fn insert_reverse_lookup(
             &self,
             new: ReverseLookupNew,
@@ -125,6 +130,7 @@ mod storage {
             }
         }
 
+        #[instrument(skip_all)]
         async fn get_lookup_by_lookup_id(
             &self,
             id: &str,

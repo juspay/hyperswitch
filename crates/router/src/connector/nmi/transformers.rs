@@ -258,7 +258,7 @@ pub struct NmiCompleteRequest {
     transaction_type: TransactionType,
     security_key: Secret<String>,
     orderid: Option<String>,
-    customer_vault_id: String,
+    customer_vault_id: Secret<String>,
     email: Option<Email>,
     cardholder_auth: Option<String>,
     cavv: Option<String>,
@@ -266,7 +266,22 @@ pub struct NmiCompleteRequest {
     eci: Option<String>,
     cvv: Secret<String>,
     three_ds_version: Option<String>,
-    directory_server_id: Option<String>,
+    directory_server_id: Option<Secret<String>>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[serde(untagged)]
+pub enum NmiRedirectResponse {
+    NmiRedirectResponseData(NmiRedirectResponseData),
+    NmiErrorResponseData(NmiErrorResponseData),
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NmiErrorResponseData {
+    pub code: String,
+    pub message: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -278,8 +293,8 @@ pub struct NmiRedirectResponseData {
     card_holder_auth: Option<String>,
     three_ds_version: Option<String>,
     order_id: Option<String>,
-    directory_server_id: Option<String>,
-    customer_vault_id: Option<String>,
+    directory_server_id: Option<Secret<String>>,
+    customer_vault_id: Secret<String>,
 }
 
 impl TryFrom<&NmiRouterData<&types::PaymentsCompleteAuthorizeRouterData>> for NmiCompleteRequest {
@@ -311,11 +326,7 @@ impl TryFrom<&NmiRouterData<&types::PaymentsCompleteAuthorizeRouterData>> for Nm
             transaction_type,
             security_key: auth_type.api_key,
             orderid: three_ds_data.order_id,
-            customer_vault_id: three_ds_data.customer_vault_id.ok_or(
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "customer_vault_id",
-                },
-            )?,
+            customer_vault_id: three_ds_data.customer_vault_id,
             email: item.router_data.request.email.clone(),
             cvv,
             cardholder_auth: three_ds_data.card_holder_auth,

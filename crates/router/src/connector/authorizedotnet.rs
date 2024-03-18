@@ -9,7 +9,10 @@ use transformers as authorizedotnet;
 
 use crate::{
     configs::settings,
-    connector::utils as connector_utils,
+    connector::{
+        utils as connector_utils,
+        utils::{PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData},
+    },
     consts,
     core::{
         errors::{self, CustomResult},
@@ -216,11 +219,14 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        types::RouterData::try_from((
+            types::ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            true,
+        ))
     }
 
     fn get_error_response(
@@ -405,11 +411,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        types::RouterData::try_from((
+            types::ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            data.request.is_auto_capture()?,
+        ))
     }
 
     fn get_error_response(
@@ -676,8 +685,8 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         let intermediate_response =
             bytes::Bytes::copy_from_slice(intermediate_response.0.as_bytes());
 
-        let response: authorizedotnet::AuthorizedotnetSyncResponse = intermediate_response
-            .parse_struct("AuthorizedotnetSyncResponse")
+        let response: authorizedotnet::AuthorizedotnetRSyncResponse = intermediate_response
+            .parse_struct("AuthorizedotnetRSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -783,11 +792,14 @@ impl
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        types::RouterData::try_from((
+            types::ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            data.request.is_auto_capture()?,
+        ))
     }
 
     fn get_error_response(
@@ -860,11 +872,17 @@ impl api::IncomingWebhook for Authorizedotnet {
                     ),
                 ))
             }
-            _ => Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                api_models::payments::PaymentIdType::ConnectorTransactionId(
-                    authorizedotnet::get_trans_id(&details)?,
-                ),
-            )),
+            authorizedotnet::AuthorizedotnetWebhookEvent::AuthorizationCreated
+            | authorizedotnet::AuthorizedotnetWebhookEvent::PriorAuthCapture
+            | authorizedotnet::AuthorizedotnetWebhookEvent::AuthCapCreated
+            | authorizedotnet::AuthorizedotnetWebhookEvent::CaptureCreated
+            | authorizedotnet::AuthorizedotnetWebhookEvent::VoidCreated => {
+                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                    api_models::payments::PaymentIdType::ConnectorTransactionId(
+                        authorizedotnet::get_trans_id(&details)?,
+                    ),
+                ))
+            }
         }
     }
 

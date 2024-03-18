@@ -40,7 +40,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         _request: &api::PaymentsStartRequest,
         _mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
-        mechant_key_store: &domain::MerchantKeyStore,
+        key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
         _payment_confirm_source: Option<common_enums::PaymentSource>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsStartRequest, Ctx>> {
@@ -84,28 +84,44 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         currency = payment_attempt.currency.get_required_value("currency")?;
         amount = payment_attempt.get_total_amount().into();
 
-        let shipping_address = helpers::create_or_find_address_for_payment_by_request(
+        let shipping_address = helpers::get_address_by_id(
             db,
-            None,
-            payment_intent.shipping_address_id.as_deref(),
-            merchant_id,
-            payment_intent.customer_id.as_ref(),
-            mechant_key_store,
+            payment_intent.shipping_address_id.clone(),
+            key_store,
             &payment_intent.payment_id,
+            merchant_id,
             merchant_account.storage_scheme,
         )
         .await?;
-        let billing_address = helpers::create_or_find_address_for_payment_by_request(
+
+        let billing_address = helpers::get_address_by_id(
             db,
-            None,
-            payment_intent.billing_address_id.as_deref(),
-            merchant_id,
-            payment_intent.customer_id.as_ref(),
-            mechant_key_store,
+            payment_intent.billing_address_id.clone(),
+            key_store,
             &payment_intent.payment_id,
+            merchant_id,
             merchant_account.storage_scheme,
         )
         .await?;
+
+        let payment_method_billing = helpers::get_address_by_id(
+            db,
+            payment_attempt.payment_method_billing_address_id.clone(),
+            key_store,
+            &payment_intent.payment_id,
+            merchant_id,
+            merchant_account.storage_scheme,
+        )
+        .await?;
+
+        let token_data = if let Some(token) = payment_attempt.payment_token.clone() {
+            Some(
+                helpers::retrieve_payment_token_data(state, token, payment_attempt.payment_method)
+                    .await?,
+            )
+        } else {
+            None
+        };
 
         payment_intent.shipping_address_id = shipping_address.clone().map(|i| i.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|i| i.address_id);
@@ -138,14 +154,18 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             mandate_id: None,
             mandate_connector: None,
             setup_mandate: None,
+            customer_acceptance: None,
             token: payment_attempt.payment_token.clone(),
-            address: PaymentAddress {
-                shipping: shipping_address.as_ref().map(|a| a.into()),
-                billing: billing_address.as_ref().map(|a| a.into()),
-            },
+            address: PaymentAddress::new(
+                shipping_address.as_ref().map(From::from),
+                billing_address.as_ref().map(From::from),
+                payment_method_billing.as_ref().map(From::from),
+            ),
+            token_data,
             confirm: Some(payment_attempt.confirm),
             payment_attempt,
             payment_method_data: None,
+            payment_method_info: None,
             force_sync: None,
             refunds: vec![],
             disputes: vec![],
@@ -164,6 +184,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             payment_link_data: None,
             incremental_authorization_details: None,
             authorizations: vec![],
+            authentication: None,
             frm_metadata: None,
         };
 
@@ -283,6 +304,7 @@ where
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsStartRequest, Ctx>,
         Option<api::PaymentMethodData>,
+        Option<String>,
     )> {
         if payment_data
             .payment_attempt
@@ -300,7 +322,7 @@ where
             )
             .await
         } else {
-            Ok((Box::new(self), None))
+            Ok((Box::new(self), None, None))
         }
     }
 

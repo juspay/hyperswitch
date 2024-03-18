@@ -8,7 +8,7 @@ use data_models::{
     payments::payment_attempt::PaymentAttempt,
 };
 use diesel_models::ephemeral_key;
-use error_stack::{self, report, ResultExt};
+use error_stack::{self, ResultExt};
 use masking::PeekInterface;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -146,6 +146,22 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         )
         .await?;
 
+        let payment_method_billing_address =
+            helpers::create_or_find_address_for_payment_by_request(
+                db,
+                request
+                    .payment_method_data
+                    .as_ref()
+                    .and_then(|pmd| pmd.billing.as_ref()),
+                None,
+                merchant_id,
+                customer_details.customer_id.as_ref(),
+                merchant_key_store,
+                &payment_id,
+                merchant_account.storage_scheme,
+            )
+            .await?;
+
         let browser_info = request
             .browser_info
             .clone()
@@ -216,9 +232,13 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             merchant_account,
             money,
             request,
-            shipping_address.clone().map(|x| x.address_id),
+            shipping_address
+                .as_ref()
+                .map(|address| address.address_id.clone()),
             payment_link_data.clone(),
-            billing_address.clone().map(|x| x.address_id),
+            billing_address
+                .as_ref()
+                .map(|address| address.address_id.clone()),
             attempt_id,
             profile_id,
             session_expiry,
@@ -234,6 +254,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             request,
             browser_info,
             state,
+            payment_method_billing_address
+                .as_ref()
+                .map(|address| address.address_id.clone()),
         )
         .await?;
 
@@ -258,6 +281,12 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
                 payment_id: payment_id.clone(),
             })?;
+        let mandate_details_present = payment_attempt.mandate_details.is_some();
+
+        helpers::validate_mandate_data_and_future_usage(
+            request.setup_future_usage,
+            mandate_details_present,
+        )?;
         // connector mandate reference update history
         let mandate_id = request
             .mandate_id
@@ -272,20 +301,12 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                         mandate_obj.network_transaction_id,
                         mandate_obj.connector_mandate_ids,
                     ) {
-                        (Some(network_tx_id), _) => Ok(api_models::payments::MandateIds {
-                            mandate_id: mandate_obj.mandate_id,
-                            mandate_reference_id: Some(
-                                api_models::payments::MandateReferenceId::NetworkMandateId(
-                                    network_tx_id,
-                                ),
-                            ),
-                        }),
                         (_, Some(connector_mandate_id)) => connector_mandate_id
                         .parse_value("ConnectorMandateId")
                         .change_context(errors::ApiErrorResponse::MandateNotFound)
                         .map(|connector_id: api_models::payments::ConnectorMandateReferenceId| {
                             api_models::payments::MandateIds {
-                                mandate_id: mandate_obj.mandate_id,
+                                mandate_id: Some(mandate_obj.mandate_id),
                                 mandate_reference_id: Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
                                 api_models::payments::ConnectorMandateReferenceId{
                                     connector_mandate_id: connector_id.connector_mandate_id,
@@ -295,8 +316,16 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                                 ))
                             }
                          }),
+                        (Some(network_tx_id), _) => Ok(api_models::payments::MandateIds {
+                            mandate_id: Some(mandate_obj.mandate_id),
+                            mandate_reference_id: Some(
+                                api_models::payments::MandateReferenceId::NetworkMandateId(
+                                    network_tx_id,
+                                ),
+                            ),
+                        }),
                         (_, _) => Ok(api_models::payments::MandateIds {
-                            mandate_id: mandate_obj.mandate_id,
+                            mandate_id: Some(mandate_obj.mandate_id),
                             mandate_reference_id: None,
                         }),
                     }
@@ -332,6 +361,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         // The operation merges mandate data from both request and payment_attempt
         let setup_mandate = setup_mandate.map(MandateData::from);
 
+        let customer_acceptance = request.customer_acceptance.clone().map(From::from);
+
         let surcharge_details = request.surcharge_details.map(|request_surcharge_details| {
             payments::types::SurchargeDetails::from((&request_surcharge_details, &payment_attempt))
         });
@@ -341,8 +372,11 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .as_ref()
             .zip(additional_payment_data)
             .map(|(payment_method_data, additional_payment_data)| {
-                payment_method_data.apply_additional_payment_data(additional_payment_data)
+                payment_method_data
+                    .payment_method_data
+                    .apply_additional_payment_data(additional_payment_data)
             });
+
         let amount = payment_attempt.get_total_amount().into();
         let payment_data = PaymentData {
             flow: PhantomData,
@@ -354,13 +388,17 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             mandate_id,
             mandate_connector,
             setup_mandate,
+            customer_acceptance,
             token,
-            address: PaymentAddress {
-                shipping: shipping_address.as_ref().map(|a| a.into()),
-                billing: billing_address.as_ref().map(|a| a.into()),
-            },
+            address: PaymentAddress::new(
+                shipping_address.as_ref().map(From::from),
+                billing_address.as_ref().map(From::from),
+                payment_method_billing_address.as_ref().map(From::from),
+            ),
+            token_data: None,
             confirm: request.confirm,
             payment_method_data: payment_method_data_after_card_bin_call,
+            payment_method_info: None,
             refunds: vec![],
             disputes: vec![],
             attempts: None,
@@ -379,6 +417,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             payment_link_data,
             incremental_authorization_details: None,
             authorizations: vec![],
+            authentication: None,
             frm_metadata: request.frm_metadata.clone(),
         };
 
@@ -433,6 +472,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
         Option<api::PaymentMethodData>,
+        Option<String>,
     )> {
         helpers::make_pm_data(
             Box::new(self),
@@ -624,20 +664,14 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
         })?;
 
         helpers::validate_amount_to_capture_and_capture_method(None, request)?;
-        helpers::validate_card_data(request.payment_method_data.clone())?;
+        helpers::validate_card_data(
+            request
+                .payment_method_data
+                .as_ref()
+                .map(|pmd| pmd.payment_method_data.clone()),
+        )?;
 
         helpers::validate_payment_method_fields_present(request)?;
-
-        if request.mandate_data.is_none()
-            && request
-                .setup_future_usage
-                .map(|fut_usage| fut_usage == enums::FutureUsage::OffSession)
-                .unwrap_or(false)
-        {
-            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                message: "`setup_future_usage` cannot be `off_session` for normal payments".into()
-            }))?
-        }
 
         let mandate_type =
             helpers::validate_mandate(request, payments::is_operation_confirm(self))?;
@@ -645,7 +679,10 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
         if request.confirm.unwrap_or(false) {
             helpers::validate_pm_or_token_given(
                 &request.payment_method,
-                &request.payment_method_data,
+                &request
+                    .payment_method_data
+                    .as_ref()
+                    .map(|pmd| pmd.payment_method_data.clone()),
                 &request.payment_method_type,
                 &mandate_type,
                 &request.payment_token,
@@ -689,6 +726,7 @@ impl PaymentCreate {
         request: &api::PaymentsRequest,
         browser_info: Option<serde_json::Value>,
         state: &AppState,
+        payment_method_billing_address_id: Option<String>,
     ) -> RouterResult<(
         storage::PaymentAttemptNew,
         Option<api_models::payments::AdditionalPaymentData>,
@@ -702,7 +740,11 @@ impl PaymentCreate {
             .payment_method_data
             .as_ref()
             .async_map(|payment_method_data| async {
-                helpers::get_additional_payment_data(payment_method_data, &*state.store).await
+                helpers::get_additional_payment_data(
+                    &payment_method_data.payment_method_data,
+                    &*state.store,
+                )
+                .await
             })
             .await;
         let additional_pm_data_value = additional_pm_data
@@ -775,7 +817,9 @@ impl PaymentCreate {
                     .mandate_data
                     .as_ref()
                     .and_then(|inner| inner.mandate_type.clone().map(Into::into)),
+                external_three_ds_authentication_attempted: None,
                 mandate_data,
+                payment_method_billing_address_id,
                 ..storage::PaymentAttemptNew::default()
             },
             additional_pm_data,
@@ -872,6 +916,8 @@ impl PaymentCreate {
             authorization_count: None,
             fingerprint_id: None,
             session_expiry: Some(session_expiry),
+            request_external_three_ds_authentication: request
+                .request_external_three_ds_authentication,
         })
     }
 

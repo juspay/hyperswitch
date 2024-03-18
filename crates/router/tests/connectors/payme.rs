@@ -42,9 +42,9 @@ static CONNECTOR: PaymeTest = PaymeTest {};
 
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     Some(utils::PaymentInfo {
-        address: Some(PaymentAddress {
-            shipping: None,
-            billing: Some(Address {
+        address: Some(PaymentAddress::new(
+            None,
+            Some(Address {
                 address: Some(AddressDetails {
                     city: None,
                     country: None,
@@ -59,7 +59,8 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                 phone: None,
                 email: None,
             }),
-        }),
+            None,
+        )),
         auth_type: None,
         access_token: None,
         connector_meta_data: None,
