@@ -65,7 +65,7 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                     line2: Some(Secret::new("line2".to_string())),
                     city: Some("city".to_string()),
                     zip: Some(Secret::new("zip".to_string())),
-                    country: Some(api_models::enums::CountryAlpha2::IN),
+                    country: Some(api_models::enums::CountryAlpha2::NL),
                     ..Default::default()
                 }),
                 phone: Some(api::PhoneDetails {
