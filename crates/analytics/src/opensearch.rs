@@ -1,4 +1,4 @@
-use super::health_check::HealthCheck;
+use super::{health_check::HealthCheck, types::QueryExecutionError};
 use api_models::analytics::search::SearchIndex;
 use aws_config::{self, meta::region::RegionProviderChain, Region};
 use common_utils::errors::CustomResult;
@@ -9,7 +9,7 @@ use opensearch::{
     cluster::{Cluster, ClusterHealthParts},
     http::{
         request::JsonBody,
-        transport::{SingleNodeConnectionPool, TransportBuilder},
+        transport::{SingleNodeConnectionPool, Transport, TransportBuilder},
         Url,
     },
     MsearchParts, OpenSearch, SearchParts,
@@ -68,7 +68,7 @@ impl Default for OpenSearchConfig {
 #[derive(Clone, Debug)]
 pub struct OpenSearchClient {
     pub client: OpenSearch,
-    pub cluster: Cluster,
+    pub transport: Transport,
     pub indexes: OpenSearchIndexes,
 }
 
@@ -102,29 +102,36 @@ impl OpenSearchClient {
             }
         };
         Ok(Self {
+            transport: transport.clone(),
             client: OpenSearch::new(transport),
-            cluster: Cluster::new(&transport),
             indexes: conf.indexes.clone(),
         })
     }
 
     // pub async fn execute(&self) -> CustomResult<Self, OpenSearchError> {}
 }
+use error_stack::IntoReport;
+use error_stack::ResultExt;
 
 #[async_trait::async_trait]
 impl HealthCheck for OpenSearchClient {
-    async fn deep_health_check(&self) -> CustomResult<(), OpenSearchError> {
-        self.cluster
+    async fn deep_health_check(&self) -> CustomResult<(), QueryExecutionError> {
+        let health = Cluster::new(&self.transport)
             .health(ClusterHealthParts::None)
             .send()
             .await
-            .map_err(|_| OpenSearchError::ConnectionError)?
+            .into_report()
+            .change_context(QueryExecutionError::DatabaseError)?
             .json::<OpenSearchHealth>()
             .await
             .into_report()
-            .change_context(OpenSearchError::ConnectionError);
+            .change_context(QueryExecutionError::DatabaseError)?;
 
-        Ok(())
+        if health.status != OpenSearchHealthStatus::Red {
+            Ok(())
+        } else {
+            Err(QueryExecutionError::DatabaseError).into_report()
+        }
     }
 }
 
@@ -209,10 +216,17 @@ impl OpenSearchConfig {
         Ok(())
     }
 }
+#[derive(Debug, serde::Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum OpenSearchHealthStatus {
+    Red,
+    Green,
+    Yellow,
+}
 
 #[derive(Debug, serde::Deserialize)]
 pub struct OpenSearchHealth {
-    pub status: String,
+    pub status: OpenSearchHealthStatus,
 }
 
 pub enum OpenSearchQuery {
