@@ -5,8 +5,67 @@ use crate::{
     core::errors::{self, RouterResponse, StorageErrorExt},
     routes::AppState,
     services::ApplicationResponse,
-    types::api,
+    types::{api, transformers::ForeignTryFrom},
 };
+
+#[instrument(skip(state))]
+pub async fn list_initial_delivery_attempts(
+    state: AppState,
+    merchant_id: String,
+    constraints: api::webhook_events::EventListConstraints,
+) -> RouterResponse<Vec<api::webhook_events::EventListItemResponse>> {
+    let constraints =
+        api::webhook_events::EventListConstraintsInternal::foreign_try_from(constraints)?;
+
+    let store = state.store.as_ref();
+
+    // This would handle verifying that the merchant ID actually exists
+    let key_store = store
+        .get_merchant_key_store_by_merchant_id(
+            &merchant_id,
+            &store.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    let events = match constraints {
+        api_models::webhook_events::EventListConstraintsInternal::ObjectIdFilter { object_id } => {
+            store
+                .list_initial_events_by_merchant_id_primary_object_id(
+                    &merchant_id,
+                    &object_id,
+                    &key_store,
+                )
+                .await
+        }
+        api_models::webhook_events::EventListConstraintsInternal::GenericFilter {
+            created_after,
+            created_before,
+            limit,
+            offset,
+        } => {
+            store
+                .list_initial_events_by_merchant_id_constraints(
+                    &merchant_id,
+                    created_after,
+                    created_before,
+                    limit,
+                    offset,
+                    &key_store,
+                )
+                .await
+        }
+    }
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to list events with specified constraints")?;
+
+    Ok(ApplicationResponse::Json(
+        events
+            .into_iter()
+            .map(api::webhook_events::EventListItemResponse::try_from)
+            .collect::<Result<Vec<_>, _>>()?,
+    ))
+}
 
 #[instrument(skip(state))]
 pub async fn list_delivery_attempts(

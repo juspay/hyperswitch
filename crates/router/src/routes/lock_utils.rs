@@ -133,6 +133,7 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::FrmFulfillment
             | Flow::IncomingWebhookReceive
+            | Flow::WebhookEventInitialDeliveryAttemptList
             | Flow::WebhookEventDeliveryAttemptList => Self::Webhooks,
 
             Flow::ApiKeyCreate

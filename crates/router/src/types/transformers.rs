@@ -1140,6 +1140,74 @@ impl ForeignFrom<storage::GatewayStatusMap> for gsm_api_types::GsmResponse {
     }
 }
 
+impl ForeignTryFrom<api_types::webhook_events::EventListConstraints>
+    for api_types::webhook_events::EventListConstraintsInternal
+{
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn foreign_try_from(
+        item: api_types::webhook_events::EventListConstraints,
+    ) -> Result<Self, Self::Error> {
+        if item.object_id.is_some()
+            && (item.created_after.is_some()
+                || item.created_before.is_some()
+                || item.limit.is_some()
+                || item.offset.is_some())
+        {
+            return Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                message:
+                    "Either only `object_id` must be specified, or one or more of \
+                          `created_after`, `created_before`, `limit` and `offset` must be specified"
+                        .to_string()
+            }));
+        }
+
+        match item.object_id {
+            Some(object_id) => Ok(Self::ObjectIdFilter { object_id }),
+            None => Ok(Self::GenericFilter {
+                created_after: item.created_after,
+                created_before: item.created_before,
+                limit: item.limit,
+                offset: item.offset,
+            }),
+        }
+    }
+}
+
+impl TryFrom<domain::Event> for api_models::webhook_events::EventListItemResponse {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(item: domain::Event) -> Result<Self, Self::Error> {
+        // We only allow retrieving events with merchant_id, business_profile_id,
+        // initial_attempt_id, request and response populated.
+        // We cannot retrieve events with only some of these fields populated.
+        let merchant_id = item
+            .merchant_id
+            .get_required_value("merchant_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        let profile_id = item
+            .business_profile_id
+            .get_required_value("business_profile_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        let initial_attempt_id = item
+            .initial_attempt_id
+            .get_required_value("initial_attempt_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        Ok(Self {
+            event_id: item.event_id,
+            merchant_id,
+            profile_id,
+            object_id: item.primary_object_id,
+            event_type: item.event_type,
+            event_class: item.event_class,
+            is_delivery_successful: item.is_webhook_notified,
+            initial_attempt_id,
+            created: item.created_at,
+        })
+    }
+}
+
 impl TryFrom<domain::Event> for api_models::webhook_events::EventRetrieveResponse {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
