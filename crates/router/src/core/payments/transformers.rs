@@ -8,7 +8,7 @@ use error_stack::{report, IntoReport, ResultExt};
 use masking::Maskable;
 use router_env::{instrument, tracing};
 
-use super::{flows::Feature, PaymentData};
+use super::{flows::Feature, types::AuthenticationData, PaymentData};
 use crate::{
     configs::settings::{ConnectorRequestReferenceIdConfig, Server},
     connector::{Helcim, Nexinets},
@@ -567,16 +567,12 @@ where
                             Some(authentication) => {
                                 if payment_intent.status == common_enums::IntentStatus::RequiresCustomerAction && authentication.cavv.is_none() && authentication.is_separate_authn_required(){
                                     // if preAuthn and separate authentication needed.
-                                    let payment_id = payment_attempt.payment_id.clone();
-                                    let base_url = server.base_url.clone();
                                     let payment_connector_name = payment_attempt.connector
                                         .as_ref()
                                         .get_required_value("connector")?;
                                     Some(api_models::payments::NextActionData::ThreeDsInvoke {
                                         three_ds_data: api_models::payments::ThreeDsData {
-                                            three_ds_authentication_url: format!(
-                                                "{base_url}/payments/{payment_id}/3ds/authentication"
-                                            ),
+                                            three_ds_authentication_url: helpers::create_authentication_url(&server.base_url, &payment_attempt),
                                             three_ds_authorize_url: helpers::create_authorize_url(
                                                 &server.base_url,
                                                 &payment_attempt,
@@ -1206,7 +1202,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             authentication_data: payment_data
                 .authentication
                 .as_ref()
-                .and_then(ForeignInto::foreign_into),
+                .map(AuthenticationData::foreign_try_from)
+                .transpose()?,
             customer_acceptance: payment_data.customer_acceptance,
         })
     }

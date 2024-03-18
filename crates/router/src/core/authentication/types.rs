@@ -52,7 +52,7 @@ impl ForeignTryFrom<&storage::Authentication> for PreAuthenticationData {
         let message_version = authentication
             .message_version
             .as_ref()
-            .get_required_value("threeds_server_transaction_id")?;
+            .get_required_value("message_version")?;
         Ok(Self {
             threeds_server_transaction_id,
             message_version: message_version.to_string(),

@@ -3,7 +3,7 @@ use std::str::FromStr;
 use api_models::payments::{DeviceChannel, ThreeDsCompletionIndicator};
 use base64::Engine;
 use common_utils::date_time;
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{IntoReport, ResultExt};
 use iso_currency::Currency;
 use isocountry;
 use masking::{ExposeInterface, Secret};
@@ -18,7 +18,6 @@ use crate::{
         self,
         api::{self, MessageCategory},
         authentication::ChallengeParams,
-        transformers::ForeignTryFrom,
     },
     utils::OptionExt,
 };
@@ -715,43 +714,5 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::PreAuthNRouterDat
             acct_number: router_data.request.card_holder_account_number.clone(),
             ds: None,
         })
-    }
-}
-
-impl ForeignTryFrom<String> for (u8, u8, u8) {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
-        let mut split_version = value.split('.');
-        let version_string = {
-            let major_version = split_version.next().ok_or(report!(
-                errors::ConnectorError::ResponseDeserializationFailed
-            ))?;
-            let minor_version = split_version.next().ok_or(report!(
-                errors::ConnectorError::ResponseDeserializationFailed
-            ))?;
-            let patch_version = split_version.next().ok_or(report!(
-                errors::ConnectorError::ResponseDeserializationFailed
-            ))?;
-            (major_version, minor_version, patch_version)
-        };
-        let int_representation = {
-            let major_version = version_string
-                .0
-                .parse()
-                .into_report()
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-            let minor_version = version_string
-                .1
-                .parse()
-                .into_report()
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-            let patch_version = version_string
-                .2
-                .parse()
-                .into_report()
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-            (major_version, minor_version, patch_version)
-        };
-        Ok(int_representation)
     }
 }
