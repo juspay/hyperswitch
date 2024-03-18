@@ -1,5 +1,11 @@
+use error_stack::{IntoReport, ResultExt};
+use redis_interface::SetnxReply;
+use router_env::{instrument, tracing};
+use storage_impl::redis::kv_store::RedisConnInterface;
+
 use super::{MockDb, Store};
 use crate::{
+    connection,
     core::errors::utils::RedisErrorExt,
     errors::{self, CustomResult},
     types::storage::{
@@ -8,11 +14,6 @@ use crate::{
     },
     utils::db_utils::try_redis_get_else_try_database_get,
 };
-
-use error_stack::{IntoReport, ResultExt};
-use redis_interface::SetnxReply;
-use router_env::{instrument, tracing};
-use storage_impl::{connection, redis::kv_store::RedisConnInterface};
 
 #[async_trait::async_trait]
 pub trait ReverseLookupInterface {
