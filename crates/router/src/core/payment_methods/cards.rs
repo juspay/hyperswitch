@@ -2799,13 +2799,15 @@ pub async fn list_customer_payment_method(
     for pm in resp.into_iter() {
         let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
 
-        let (card, hyperswitch_token_data) = match pm.payment_method {
+        #[allow(unused_variables)]
+        let (card, pmd, hyperswitch_token_data) = match pm.payment_method {
             enums::PaymentMethod::Card => {
                 let card_details = get_card_details_with_locker_fallback(&pm, key, state).await?;
 
                 if card_details.is_some() {
                     (
                         card_details,
+                        None,
                         PaymentTokenData::permanent_card(
                             Some(pm.payment_method_id.clone()),
                             pm.locker_id.clone().or(Some(pm.payment_method_id.clone())),
@@ -2827,7 +2829,7 @@ pub async fn list_customer_payment_method(
                     });
                 if let Some(data) = bank_account_token_data {
                     let token_data = PaymentTokenData::AuthBankDebit(data);
-                    (None, token_data)
+                    (None, None, token_data)
                 } else {
                     continue;
                 }
@@ -2835,32 +2837,32 @@ pub async fn list_customer_payment_method(
 
             enums::PaymentMethod::Wallet => (
                 None,
+                None,
                 PaymentTokenData::wallet_token(pm.payment_method_id.clone()),
             ),
 
-            _ => (
+            #[cfg(feature = "payouts")]
+            enums::PaymentMethod::BankTransfer => (
                 None,
-                PaymentTokenData::temporary_generic(generate_id(consts::ID_LENGTH, "token")),
-            ),
-        };
-
-        #[cfg(feature = "payouts")]
-        let pmd = match pm.payment_method {
-            enums::PaymentMethod::BankTransfer => {
-                let token = hyperswitch_token_data.get_token();
                 Some(
                     get_bank_from_hs_locker(
                         state,
                         &key_store,
-                        token,
+                        &parent_payment_method_token,
                         &pm.customer_id,
                         &pm.merchant_id,
                         pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
                     )
                     .await?,
-                )
-            }
-            _ => None,
+                ),
+                PaymentTokenData::temporary_generic(parent_payment_method_token.clone()),
+            ),
+
+            _ => (
+                None,
+                None,
+                PaymentTokenData::temporary_generic(generate_id(consts::ID_LENGTH, "token")),
+            ),
         };
 
         // Retrieve the masked bank details to be sent as a response
