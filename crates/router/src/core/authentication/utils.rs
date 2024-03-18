@@ -63,24 +63,22 @@ pub async fn update_trackers<F: Clone, Req>(
                 three_ds_method_url,
                 message_version,
                 connector_metadata,
-            } => {
-                storage::AuthenticationUpdate::PreAuthenticationUpdate {
-                    threeds_server_transaction_id,
-                    maximum_supported_3ds_version,
-                    connector_authentication_id,
-                    three_ds_method_data,
-                    three_ds_method_url,
-                    message_version,
-                    connector_metadata,
-                    authentication_status: common_enums::AuthenticationStatus::Pending,
-                    payment_method_id: token.map(|token| format!("eph_{}", token)),
-                    acquirer_bin: acquirer_details
-                        .as_ref()
-                        .map(|acquirer_details| acquirer_details.acquirer_bin.clone()),
-                    acquirer_merchant_id: acquirer_details
-                        .map(|acquirer_details| acquirer_details.acquirer_merchant_id),
-                }
-            }
+            } => storage::AuthenticationUpdate::PreAuthenticationUpdate {
+                threeds_server_transaction_id,
+                maximum_supported_3ds_version,
+                connector_authentication_id,
+                three_ds_method_data,
+                three_ds_method_url,
+                message_version,
+                connector_metadata,
+                authentication_status: common_enums::AuthenticationStatus::Pending,
+                payment_method_id: token.map(|token| format!("eph_{}", token)),
+                acquirer_bin: acquirer_details
+                    .as_ref()
+                    .map(|acquirer_details| acquirer_details.acquirer_bin.clone()),
+                acquirer_merchant_id: acquirer_details
+                    .map(|acquirer_details| acquirer_details.acquirer_merchant_id),
+            },
             AuthenticationResponseData::AuthNResponse {
                 authn_flow_type,
                 authentication_value,
