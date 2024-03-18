@@ -1333,25 +1333,6 @@ pub fn construct_not_supported_error_report(
     .into()
 }
 
-pub fn construct_mandate_not_supported_error(
-    // payment_method_type: String,
-    pm_type: Option<types::storage::enums::PaymentMethodType>,
-    connector_name: &'static str,
-) -> error_stack::Report<errors::ConnectorError> {
-    match pm_type {
-        Some(pm_type) => errors::ConnectorError::NotSupported {
-            message: format!("{} mandate payment through {}", pm_type, connector_name),
-            connector: "hyperswitch",
-        }
-        .into(),
-        None => errors::ConnectorError::NotSupported {
-            message: format!("mandate payment through {}", connector_name),
-            connector: "hyperswitch",
-        }
-        .into(),
-    }
-}
-
 pub fn to_currency_base_unit_with_zero_decimal_check(
     amount: i64,
     currency: diesel_models::enums::Currency,

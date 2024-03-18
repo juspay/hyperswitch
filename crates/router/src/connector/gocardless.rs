@@ -13,7 +13,7 @@ use crate::{
     connector::utils as connector_utils,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
-    headers,
+    headers, mandate_not_supported_error,
     services::{
         self,
         request::{self, Mask},
@@ -353,9 +353,9 @@ impl ConnectorValidation for Gocardless {
                 api_models::payments::BankDebitData::SepaBankDebit { .. }
                 | api_models::payments::BankDebitData::AchBankDebit { .. }
                 | api_models::payments::BankDebitData::BecsBankDebit { .. } => Ok(()),
-                api_models::payments::BankDebitData::BacsBankDebit { .. } => Err(
-                    connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
-                ),
+                api_models::payments::BankDebitData::BacsBankDebit { .. } => {
+                    mandate_not_supported_error!(pm_type, self.id())
+                }
             },
             api_models::payments::PaymentMethodData::MandatePayment => Ok(()),
             api_models::payments::PaymentMethodData::Card(_)
@@ -369,9 +369,9 @@ impl ConnectorValidation for Gocardless {
             | api_models::payments::PaymentMethodData::Reward
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Crypto(_)
-            | api_models::payments::PaymentMethodData::CardToken(_) => Err(
-                connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
-            ),
+            | api_models::payments::PaymentMethodData::CardToken(_) => {
+                mandate_not_supported_error!(pm_type, self.id())
+            }
         }
     }
 }

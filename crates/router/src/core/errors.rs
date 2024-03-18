@@ -68,6 +68,24 @@ macro_rules! capture_method_not_supported {
     };
 }
 
+#[macro_export]
+macro_rules! mandate_not_supported_error {
+    ($opt:expr, $connector:expr) => {
+        match $opt {
+            Some(pm_type) => Err(errors::ConnectorError::NotSupported {
+                message: format!("{} mandate payment", pm_type),
+                connector: $connector,
+            }
+            .into()),
+            None => Err(errors::ConnectorError::NotSupported {
+                message: format!(" mandate payment"),
+                connector: $connector,
+            }
+            .into()),
+        }
+    };
+}
+
 macro_rules! impl_error_type {
     ($name: ident, $arg: tt) => {
         #[derive(Debug)]

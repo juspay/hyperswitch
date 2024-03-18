@@ -15,7 +15,7 @@ use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
-    headers,
+    headers, mandate_not_supported_error,
     services::{
         self,
         request::{self, Mask},
@@ -138,9 +138,9 @@ impl ConnectorValidation for Worldpay {
             | api_models::payments::PaymentMethodData::Crypto(_)
             | api_models::payments::PaymentMethodData::Reward
             | api_models::payments::PaymentMethodData::Upi(_)
-            | api_models::payments::PaymentMethodData::CardToken(_) => Err(
-                connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
-            ),
+            | api_models::payments::PaymentMethodData::CardToken(_) => {
+                mandate_not_supported_error!(pm_type, self.id())
+            }
         }
     }
 }

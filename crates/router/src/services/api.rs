@@ -33,7 +33,6 @@ use self::request::{HeaderExt, RequestBuilderExt};
 use super::authentication::AuthenticateAndFetch;
 use crate::{
     configs::{settings::Connectors, Settings},
-    connector::utils as connector_utils,
     consts,
     core::{
         api_locking,
@@ -44,7 +43,7 @@ use crate::{
         api_logs::{ApiEvent, ApiEventMetric, ApiEventsType},
         connector_api_logs::ConnectorEvent,
     },
-    logger,
+    logger, mandate_not_supported_error,
     routes::{
         app::AppStateInfo,
         metrics::{self, request as metrics_request},
@@ -97,10 +96,7 @@ pub trait ConnectorValidation: ConnectorCommon {
         pm_type: Option<PaymentMethodType>,
         _pm_data: api_models::payments::PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
-        Err(connector_utils::construct_mandate_not_supported_error(
-            pm_type,
-            self.id(),
-        ))
+        mandate_not_supported_error!(pm_type, self.id())
     }
 
     fn validate_psync_reference_id(

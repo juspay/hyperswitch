@@ -18,7 +18,7 @@ use crate::{
         payments,
     },
     events::connector_api_logs::ConnectorEvent,
-    headers,
+    headers, mandate_not_supported_error,
     services::{
         self,
         request::{self, Mask},
@@ -110,9 +110,9 @@ impl ConnectorValidation for Stripe {
                 | api_models::payments::WalletData::VippsRedirect { .. }
                 | api_models::payments::WalletData::TouchNGoRedirect(_)
                 | api_models::payments::WalletData::WeChatPayRedirect(_)
-                | api_models::payments::WalletData::SwishQr(_) => Err(
-                    connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
-                ),
+                | api_models::payments::WalletData::SwishQr(_) => {
+                    mandate_not_supported_error!(pm_type, self.id())
+                }
             },
 
             api_models::payments::PaymentMethodData::BankRedirect(bank_redirect) => {
@@ -136,9 +136,9 @@ impl ConnectorValidation for Stripe {
                     | api_models::payments::BankRedirectData::Blik { .. }
                     | api_models::payments::BankRedirectData::Eps { .. }
                     | api_models::payments::BankRedirectData::Giropay { .. }
-                    | api_models::payments::BankRedirectData::Interac { .. } => Err(
-                        connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
-                    ),
+                    | api_models::payments::BankRedirectData::Interac { .. } => {
+                        mandate_not_supported_error!(pm_type, self.id())
+                    }
                 }
             }
             api_models::payments::PaymentMethodData::BankDebit(bank_debit) => match bank_debit {
@@ -146,9 +146,9 @@ impl ConnectorValidation for Stripe {
                 | api_models::payments::BankDebitData::SepaBankDebit { .. } => Ok(()),
 
                 api_models::payments::BankDebitData::BecsBankDebit { .. }
-                | api_models::payments::BankDebitData::BacsBankDebit { .. } => Err(
-                    connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
-                ),
+                | api_models::payments::BankDebitData::BacsBankDebit { .. } => {
+                    mandate_not_supported_error!(pm_type, self.id())
+                }
             },
             api_models::payments::PaymentMethodData::BankTransfer(bank_transfer) => {
                 match *bank_transfer {
@@ -167,9 +167,9 @@ impl ConnectorValidation for Stripe {
                     | api_models::payments::BankTransferData::DanamonVaBankTransfer { .. }
                     | api_models::payments::BankTransferData::MandiriVaBankTransfer { .. }
                     | api_models::payments::BankTransferData::Pix {}
-                    | api_models::payments::BankTransferData::Pse {} => Err(
-                        connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
-                    ),
+                    | api_models::payments::BankTransferData::Pse {} => {
+                        mandate_not_supported_error!(pm_type, self.id())
+                    }
                 }
             }
             api_models::payments::PaymentMethodData::MandatePayment => Ok(()),
@@ -181,9 +181,9 @@ impl ConnectorValidation for Stripe {
             | api_models::payments::PaymentMethodData::Reward
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Crypto(_)
-            | api_models::payments::PaymentMethodData::CardToken(_) => Err(
-                connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
-            ),
+            | api_models::payments::PaymentMethodData::CardToken(_) => {
+                mandate_not_supported_error!(pm_type, self.id())
+            }
         }
     }
 }

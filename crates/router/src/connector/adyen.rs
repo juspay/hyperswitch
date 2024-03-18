@@ -15,11 +15,10 @@ use self::transformers as adyen;
 use crate::{
     capture_method_not_supported,
     configs::settings,
-    connector::utils as connector_utils,
     consts,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
-    headers, logger,
+    headers, logger, mandate_not_supported_error,
     services::{
         self,
         request::{self, Mask},
@@ -258,9 +257,9 @@ impl ConnectorValidation for Adyen {
                 | api_models::payments::WalletData::GooglePayRedirect(_)
                 | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
                 | api_models::payments::WalletData::WeChatPayRedirect(_)
-                | api_models::payments::WalletData::SamsungPay(_) => Err(
-                    connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
-                ),
+                | api_models::payments::WalletData::SamsungPay(_) => {
+                    mandate_not_supported_error!(pm_type, self.id())
+                }
             },
             api_models::payments::PaymentMethodData::PayLater(pay_later) => match pay_later {
                 api_models::payments::PayLaterData::KlarnaRedirect { .. } => Ok(()),
@@ -270,9 +269,9 @@ impl ConnectorValidation for Adyen {
                 | api_models::payments::PayLaterData::AffirmRedirect {}
                 | api_models::payments::PayLaterData::PayBrightRedirect {}
                 | api_models::payments::PayLaterData::WalleyRedirect {}
-                | api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. } => Err(
-                    connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
-                ),
+                | api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
+                    mandate_not_supported_error!(pm_type, self.id())
+                }
             },
 
             api_models::payments::PaymentMethodData::BankRedirect(bank_redirect) => {
@@ -295,10 +294,7 @@ impl ConnectorValidation for Adyen {
                     | api_models::payments::BankRedirectData::Przelewy24 { .. }
                     | api_models::payments::BankRedirectData::OnlineBankingCzechRepublic {
                         ..
-                    } => Err(connector_utils::construct_mandate_not_supported_error(
-                        pm_type,
-                        self.id(),
-                    )),
+                    } => mandate_not_supported_error!(pm_type, self.id()),
                 }
             }
 
@@ -306,9 +302,9 @@ impl ConnectorValidation for Adyen {
                 api_models::payments::BankDebitData::AchBankDebit { .. }
                 | api_models::payments::BankDebitData::SepaBankDebit { .. }
                 | api_models::payments::BankDebitData::BecsBankDebit { .. } => Ok(()),
-                api_models::payments::BankDebitData::BacsBankDebit { .. } => Err(
-                    connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
-                ),
+                api_models::payments::BankDebitData::BacsBankDebit { .. } => {
+                    mandate_not_supported_error!(pm_type, self.id())
+                }
             },
             api_models::payments::PaymentMethodData::MandatePayment => Ok(()),
             api_models::payments::PaymentMethodData::CardRedirect(_)
@@ -318,9 +314,9 @@ impl ConnectorValidation for Adyen {
             | api_models::payments::PaymentMethodData::Crypto(_)
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Reward
-            | api_models::payments::PaymentMethodData::CardToken(_) => Err(
-                connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
-            ),
+            | api_models::payments::PaymentMethodData::CardToken(_) => {
+                mandate_not_supported_error!(pm_type, self.id())
+            }
         }
     }
     fn validate_psync_reference_id(

@@ -26,7 +26,7 @@ use crate::{
         payments,
     },
     events::connector_api_logs::ConnectorEvent,
-    headers,
+    headers, mandate_not_supported_error,
     services::{
         self,
         request::{self, Mask},
@@ -164,9 +164,9 @@ impl ConnectorValidation for Globalpay {
                 | api_models::payments::WalletData::GooglePayRedirect(_)
                 | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
                 | api_models::payments::WalletData::AliPayQr(_)
-                | api_models::payments::WalletData::PaypalSdk(_) => Err(
-                    connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
-                ),
+                | api_models::payments::WalletData::PaypalSdk(_) => {
+                    mandate_not_supported_error!(pm_type, self.id())
+                }
             },
 
             api_models::payments::PaymentMethodData::BankRedirect(bank_redirect) => {
@@ -189,9 +189,9 @@ impl ConnectorValidation for Globalpay {
                     | api_models::payments::BankRedirectData::Interac { .. }
                     | api_models::payments::BankRedirectData::Trustly { .. }
                     | api_models::payments::BankRedirectData::OnlineBankingThailand { .. }
-                    | api_models::payments::BankRedirectData::BancontactCard { .. } => Err(
-                        connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
-                    ),
+                    | api_models::payments::BankRedirectData::BancontactCard { .. } => {
+                        mandate_not_supported_error!(pm_type, self.id())
+                    }
                 }
             }
             api_models::payments::PaymentMethodData::MandatePayment => Ok(()),
@@ -204,9 +204,9 @@ impl ConnectorValidation for Globalpay {
             | api_models::payments::PaymentMethodData::Reward
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Crypto(_)
-            | api_models::payments::PaymentMethodData::CardToken(_) => Err(
-                connector_utils::construct_mandate_not_supported_error(pm_type, self.id()),
-            ),
+            | api_models::payments::PaymentMethodData::CardToken(_) => {
+                mandate_not_supported_error!(pm_type, self.id())
+            }
         }
     }
 }
