@@ -3522,20 +3522,45 @@ pub async fn create_encrypted_payment_method_data(
 
 pub async fn retrieve_countries_currencies_based_on_pmt(
     state: routes::AppState,
-    // config:  crate::configs::settings::ConnectorFilters,
     req: PaymentMethodCountryCurrencyList,
 ) -> errors::RouterResponse<CurrenciesCountriesBasedOnPm> {
     let config = &state.conf.pm_filters;
 
-    let key = settings::PaymentMethodFilterKey::PaymentMethodType(req.payment_method_type);
-    let pm_filter = config
+    let payment_method_type =
+        settings::PaymentMethodFilterKey::PaymentMethodType(req.payment_method_type);
+
+    let connector_filter = config
         .0
         .get(&req.connector.to_string())
-        .or_else(|| config.0.get("default"))
-        .and_then(|filter| filter.0.get(&key));
+        .or_else(|| config.0.get("default"));
 
-    let currencies = pm_filter.and_then(|filter| filter.currency.clone());
-    let country_codes = pm_filter.and_then(|filter| filter.country.clone());
+    let pm_filter = connector_filter.and_then(|filter| filter.0.get(&payment_method_type));
+
+    let currencies = pm_filter
+        .and_then(|filter| filter.currency.clone())
+        .or_else(|| {
+            connector_filter.map(|filter| {
+                let values = filter.0.values().collect::<Vec<_>>();
+                values
+                    .iter()
+                    .filter_map(|x| x.currency.clone())
+                    .flatten()
+                    .collect::<HashSet<_>>()
+            })
+        });
+
+    let country_codes = pm_filter
+        .and_then(|filter| filter.country.clone())
+        .or_else(|| {
+            connector_filter.map(|filter| {
+                let values = filter.0.values().collect::<Vec<_>>();
+                values
+                    .iter()
+                    .filter_map(|x| x.country.clone())
+                    .flatten()
+                    .collect::<HashSet<_>>()
+            })
+        });
 
     Ok(services::ApplicationResponse::Json(
         CurrenciesCountriesBasedOnPm {
