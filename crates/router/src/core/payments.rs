@@ -3105,7 +3105,7 @@ pub async fn is_network_transaction_id_flow<F: Clone>(
         .into_report()
         .attach_printable("Missing payment method info")?;
 
-    if pg_agnostic.config == "ture"
+    if pg_agnostic.config == "true"
         && pm_info.payment_method == storage_enums::PaymentMethod::Card
         && ntid_supported_connectors.contains(&connector)
         && pm_info.network_transaction_id.is_some()
