@@ -13,7 +13,8 @@ CREATE TABLE
         `content` Nullable(String),
         `is_error` Bool,
         `error` Nullable(String),
-        `created_at_timestamp` DateTime64(3)
+        `created_at_timestamp` DateTime64(3),
+        `initial_attempt_id` Nullable(String)
     ) ENGINE = Kafka SETTINGS kafka_broker_list = 'kafka0:29092',
     kafka_topic_list = 'hyperswitch-outgoing-webhook-events',
     kafka_group_name = 'hyper-c1',
@@ -37,6 +38,7 @@ CREATE TABLE
         `error` Nullable(String),
         `created_at_timestamp` DateTime64(3),
         `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4),
+        `initial_attempt_id` Nullable(String),
         INDEX eventIndex event_type TYPE bloom_filter GRANULARITY 1,
         INDEX webhookeventIndex outgoing_webhook_event_type TYPE bloom_filter GRANULARITY 1
     ) ENGINE = MergeTree PARTITION BY toStartOfDay(created_at_timestamp)
@@ -64,6 +66,7 @@ CREATE MATERIALIZED VIEW outgoing_webhook_events_mv TO outgoing_webhook_events_c
     `error` Nullable(String),
     `created_at_timestamp` DateTime64(3),
     `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4),
+    `initial_attempt_id` Nullable(String)
 ) AS
 SELECT
     merchant_id,
@@ -80,7 +83,8 @@ SELECT
     is_error,
     error,
     created_at_timestamp,
-    now() AS inserted_at
+    now() AS inserted_at,
+    initial_attempt_id
 FROM
     outgoing_webhook_events_queue
 where length(_error) = 0;

@@ -201,6 +201,55 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         .map(Payouts::from_storage_model)
     }
 
+    #[instrument(skip_all)]
+    async fn find_optional_payout_by_merchant_id_payout_id(
+        &self,
+        merchant_id: &str,
+        payout_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Option<Payouts>, StorageError> {
+        let database_call = || async {
+            let conn = pg_connection_read(self).await?;
+            DieselPayouts::find_optional_by_merchant_id_payout_id(&conn, merchant_id, payout_id)
+                .await
+                .map_err(|er| {
+                    let new_err = diesel_error_to_data_error(er.current_context());
+                    er.change_context(new_err)
+                })
+        };
+        match storage_scheme {
+            MerchantStorageScheme::PostgresOnly => {
+                let maybe_payouts = database_call().await?;
+                Ok(maybe_payouts.and_then(|payout| {
+                    if payout.payout_id == payout_id {
+                        Some(payout)
+                    } else {
+                        None
+                    }
+                }))
+            }
+            MerchantStorageScheme::RedisKv => {
+                let key = format!("mid_{merchant_id}_po_{payout_id}");
+                let field = format!("po_{payout_id}");
+                Box::pin(utils::try_redis_get_else_try_database_get(
+                    async {
+                        kv_wrapper::<DieselPayouts, _, _>(
+                            self,
+                            KvOperation::<DieselPayouts>::HGet(&field),
+                            &key,
+                        )
+                        .await?
+                        .try_into_hget()
+                        .map(Some)
+                    },
+                    database_call,
+                ))
+                .await
+            }
+        }
+        .map(|payout| payout.map(Payouts::from_storage_model))
+    }
+
     #[cfg(feature = "olap")]
     #[instrument(skip_all)]
     async fn filter_payouts_by_constraints(
@@ -290,6 +339,23 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         DieselPayouts::find_by_merchant_id_payout_id(&conn, merchant_id, payout_id)
             .await
             .map(Payouts::from_storage_model)
+            .map_err(|er| {
+                let new_err = diesel_error_to_data_error(er.current_context());
+                er.change_context(new_err)
+            })
+    }
+
+    #[instrument(skip_all)]
+    async fn find_optional_payout_by_merchant_id_payout_id(
+        &self,
+        merchant_id: &str,
+        payout_id: &str,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Option<Payouts>, StorageError> {
+        let conn = pg_connection_read(self).await?;
+        DieselPayouts::find_optional_by_merchant_id_payout_id(&conn, merchant_id, payout_id)
+            .await
+            .map(|x| x.map(Payouts::from_storage_model))
             .map_err(|er| {
                 let new_err = diesel_error_to_data_error(er.current_context());
                 er.change_context(new_err)

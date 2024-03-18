@@ -30,6 +30,13 @@ pub trait PayoutsInterface {
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Payouts, errors::StorageError>;
 
+    async fn find_optional_payout_by_merchant_id_payout_id(
+        &self,
+        _merchant_id: &str,
+        _payout_id: &str,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Option<Payouts>, errors::StorageError>;
+
     #[cfg(feature = "olap")]
     async fn filter_payouts_by_constraints(
         &self,

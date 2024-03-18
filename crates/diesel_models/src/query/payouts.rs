@@ -73,4 +73,18 @@ impl Payouts {
             report!(errors::DatabaseError::NotFound).attach_printable("Error while updating payout")
         })
     }
+
+    pub async fn find_optional_by_merchant_id_payout_id(
+        conn: &PgPooledConn,
+        merchant_id: &str,
+        payout_id: &str,
+    ) -> StorageResult<Option<Self>> {
+        generics::generic_find_one_optional::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::payout_id.eq(payout_id.to_owned())),
+        )
+        .await
+    }
 }
