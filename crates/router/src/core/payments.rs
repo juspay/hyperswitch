@@ -393,7 +393,7 @@ where
                             &connectors,
                         )
                         .await?;
-                    call_multiple_connectors_service(
+                    Box::pin(call_multiple_connectors_service(
                         state,
                         &merchant_account,
                         &key_store,
@@ -402,7 +402,7 @@ where
                         payment_data,
                         &customer,
                         session_surcharge_details,
-                    )
+                    ))
                     .await?
                 }
             };
@@ -3427,7 +3427,7 @@ pub async fn payment_external_authentication(
             id: profile_id.to_string(),
         })?;
 
-    let authentication_response = authentication_core::perform_authentication(
+    let authentication_response = Box::pin(authentication_core::perform_authentication(
         &state,
         authentication_connector,
         payment_method_details.0,
@@ -3451,7 +3451,7 @@ pub async fn payment_external_authentication(
         req.sdk_information,
         req.threeds_method_comp_ind,
         optional_customer.and_then(|customer| customer.email.map(common_utils::pii::Email::from)),
-    )
+    ))
     .await?;
     Ok(services::ApplicationResponse::Json(
         api_models::payments::PaymentsExternalAuthenticationResponse {

@@ -49,12 +49,12 @@ pub async fn mk_service(
     }
     let tx: oneshot::Sender<()> = oneshot::channel().0;
 
-    let app_state = AppState::with_storage(
+    let app_state = Box::pin(AppState::with_storage(
         conf,
         router::db::StorageImpl::Mock,
         tx,
         Box::new(services::MockApiClient),
-    )
+    ))
     .await;
     actix_web::test::init_service(router::mk_app(app_state, request_body_limit)).await
 }

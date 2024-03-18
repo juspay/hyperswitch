@@ -88,7 +88,7 @@ pub struct Address {
     city: Option<String>,
     state: Option<Secret<String>>,
     country: Option<String>,
-    zip: Option<String>,
+    zip: Option<Secret<String>>,
     phone_number: Option<Secret<String>>,
 }
 
@@ -97,7 +97,7 @@ pub struct RapydWallet {
     #[serde(rename = "type")]
     payment_type: String,
     #[serde(rename = "details")]
-    token: Option<String>,
+    token: Option<Secret<String>>,
 }
 
 impl TryFrom<&RapydRouterData<&types::PaymentsAuthorizeRouterData>> for RapydPaymentsRequest {
@@ -146,11 +146,11 @@ impl TryFrom<&RapydRouterData<&types::PaymentsAuthorizeRouterData>> for RapydPay
                 let digital_wallet = match wallet_data {
                     api_models::payments::WalletData::GooglePay(data) => Some(RapydWallet {
                         payment_type: "google_pay".to_string(),
-                        token: Some(data.tokenization_data.token.to_owned()),
+                        token: Some(Secret::new(data.tokenization_data.token.to_owned())),
                     }),
                     api_models::payments::WalletData::ApplePay(data) => Some(RapydWallet {
                         payment_type: "apple_pay".to_string(),
-                        token: Some(data.payment_data.to_string()),
+                        token: Some(Secret::new(data.payment_data.to_string())),
                     }),
                     _ => None,
                 };
@@ -420,7 +420,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
 #[derive(Debug, Serialize, Clone)]
 pub struct CaptureRequest {
     amount: Option<i64>,
-    receipt_email: Option<String>,
+    receipt_email: Option<Secret<String>>,
     statement_descriptor: Option<String>,
 }
 
