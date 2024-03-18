@@ -58,6 +58,30 @@ where
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
 
+    async fn list_initial_events_by_profile_id_primary_object_id(
+        &self,
+        profile_id: &str,
+        primary_object_id: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
+
+    async fn list_initial_events_by_profile_id_constraints(
+        &self,
+        profile_id: &str,
+        created_after: Option<time::PrimitiveDateTime>,
+        created_before: Option<time::PrimitiveDateTime>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
+
+    async fn list_events_by_profile_id_initial_attempt_id(
+        &self,
+        profile_id: &str,
+        initial_attempt_id: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
+
     async fn update_event_by_merchant_id_event_id(
         &self,
         merchant_id: &str,
@@ -203,6 +227,101 @@ impl EventInterface for Store {
             Ok(domain_events)
         })
         .await
+    }
+
+    #[instrument(skip_all)]
+    async fn list_initial_events_by_profile_id_primary_object_id(
+        &self,
+        profile_id: &str,
+        primary_object_id: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::Event::list_initial_attempts_by_profile_id_primary_object_id(
+            &conn,
+            profile_id,
+            primary_object_id,
+        )
+        .await
+        .map_err(Into::into)
+        .into_report()
+        .async_and_then(|events| async {
+            let mut domain_events = Vec::with_capacity(events.len());
+            for event in events.into_iter() {
+                domain_events.push(
+                    event
+                        .convert(merchant_key_store.key.get_inner())
+                        .await
+                        .change_context(errors::StorageError::DecryptionError)?,
+                );
+            }
+            Ok(domain_events)
+        })
+        .await
+    }
+
+    #[instrument(skip_all)]
+    async fn list_initial_events_by_profile_id_constraints(
+        &self,
+        profile_id: &str,
+        created_after: Option<time::PrimitiveDateTime>,
+        created_before: Option<time::PrimitiveDateTime>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::Event::list_initial_attempts_by_profile_id_constraints(
+            &conn,
+            profile_id,
+            created_after,
+            created_before,
+            limit,
+            offset,
+        )
+        .await
+        .map_err(Into::into)
+        .into_report()
+        .async_and_then(|events| async {
+            let mut domain_events = Vec::with_capacity(events.len());
+            for event in events.into_iter() {
+                domain_events.push(
+                    event
+                        .convert(merchant_key_store.key.get_inner())
+                        .await
+                        .change_context(errors::StorageError::DecryptionError)?,
+                );
+            }
+            Ok(domain_events)
+        })
+        .await
+    }
+
+    #[instrument(skip_all)]
+    async fn list_events_by_profile_id_initial_attempt_id(
+        &self,
+        profile_id: &str,
+        initial_attempt_id: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::Event::list_by_profile_id_initial_attempt_id(&conn, profile_id, initial_attempt_id)
+            .await
+            .map_err(Into::into)
+            .into_report()
+            .async_and_then(|events| async {
+                let mut domain_events = Vec::with_capacity(events.len());
+                for event in events.into_iter() {
+                    domain_events.push(
+                        event
+                            .convert(merchant_key_store.key.get_inner())
+                            .await
+                            .change_context(errors::StorageError::DecryptionError)?,
+                    );
+                }
+                Ok(domain_events)
+            })
+            .await
     }
 
     #[instrument(skip_all)]
@@ -380,6 +499,129 @@ impl EventInterface for MockDb {
             .iter()
             .filter(|event| {
                 event.merchant_id == Some(merchant_id.to_owned())
+                    && event.initial_attempt_id == Some(initial_attempt_id.to_owned())
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        let mut domain_events = Vec::with_capacity(events.len());
+
+        for event in events {
+            let domain_event = event
+                .convert(merchant_key_store.key.get_inner())
+                .await
+                .change_context(errors::StorageError::DecryptionError)?;
+            domain_events.push(domain_event);
+        }
+
+        Ok(domain_events)
+    }
+
+    async fn list_initial_events_by_profile_id_primary_object_id(
+        &self,
+        profile_id: &str,
+        primary_object_id: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
+        let locked_events = self.events.lock().await;
+        let events = locked_events
+            .iter()
+            .filter(|event| {
+                event.business_profile_id == Some(profile_id.to_owned())
+                    && event.initial_attempt_id.as_ref() == Some(&event.event_id)
+                    && event.primary_object_id == primary_object_id
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+
+        let mut domain_events = Vec::with_capacity(events.len());
+
+        for event in events {
+            let domain_event = event
+                .convert(merchant_key_store.key.get_inner())
+                .await
+                .change_context(errors::StorageError::DecryptionError)?;
+            domain_events.push(domain_event);
+        }
+
+        Ok(domain_events)
+    }
+
+    async fn list_initial_events_by_profile_id_constraints(
+        &self,
+        profile_id: &str,
+        created_after: Option<time::PrimitiveDateTime>,
+        created_before: Option<time::PrimitiveDateTime>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
+        let locked_events = self.events.lock().await;
+        let events_iter = locked_events.iter().filter(|event| {
+            let mut check = event.business_profile_id == Some(profile_id.to_owned())
+                && event.initial_attempt_id.as_ref() == Some(&event.event_id);
+
+            if let Some(created_after) = created_after {
+                check = check && (event.created_at >= created_after);
+            }
+
+            if let Some(created_before) = created_before {
+                check = check && (event.created_at <= created_before);
+            }
+
+            check
+        });
+
+        let offset: usize = if let Some(offset) = offset {
+            if offset < 0 {
+                Err(errors::StorageError::MockDbError)?;
+            }
+            offset
+                .try_into()
+                .map_err(|_| errors::StorageError::MockDbError)?
+        } else {
+            0
+        };
+
+        let limit: usize = if let Some(limit) = limit {
+            if limit < 0 {
+                Err(errors::StorageError::MockDbError)?;
+            }
+            limit
+                .try_into()
+                .map_err(|_| errors::StorageError::MockDbError)?
+        } else {
+            usize::MAX
+        };
+
+        let events = events_iter
+            .skip(offset)
+            .take(limit)
+            .cloned()
+            .collect::<Vec<_>>();
+        let mut domain_events = Vec::with_capacity(events.len());
+
+        for event in events {
+            let domain_event = event
+                .convert(merchant_key_store.key.get_inner())
+                .await
+                .change_context(errors::StorageError::DecryptionError)?;
+            domain_events.push(domain_event);
+        }
+
+        Ok(domain_events)
+    }
+
+    async fn list_events_by_profile_id_initial_attempt_id(
+        &self,
+        profile_id: &str,
+        initial_attempt_id: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
+        let locked_events = self.events.lock().await;
+        let events = locked_events
+            .iter()
+            .filter(|event| {
+                event.business_profile_id == Some(profile_id.to_owned())
                     && event.initial_attempt_id == Some(initial_attempt_id.to_owned())
             })
             .cloned()
