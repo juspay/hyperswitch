@@ -402,8 +402,8 @@ function initializeSDK() {
       : paymentDetails.sdk_layout;
 
   var unifiedCheckoutOptions = {
-    displaySavedPaymentMethodsCheckbox: true,
-    displaySavedPaymentMethods: true,
+    displaySavedPaymentMethodsCheckbox: false,
+    displaySavedPaymentMethods: false,
     layout: {
       type: type, //accordion , tabs, spaced accordion
       spacedAccordionItems: paymentDetails.sdk_layout === "spaced_accordion",
@@ -623,6 +623,8 @@ function renderPaymentDetails(paymentDetails) {
   // Create merchant logo's node
   var merchantLogoNode = document.createElement("img");
   merchantLogoNode.src = paymentDetails.merchant_logo;
+  merchantLogoNode.setAttribute("width", "48"); // Set width to 100 pixels
+  merchantLogoNode.setAttribute("height", "48");
 
   // Create expiry node
   var paymentExpiryNode = document.createElement("div");
@@ -755,6 +757,9 @@ function renderCartItem(
   nameAndQuantityWrapperNode.className = "hyper-checkout-cart-product-details";
   // Image
   var productImageNode = document.createElement("img");
+  productImageNode.setAttribute("width", 56);
+  productImageNode.setAttribute("height", 56);
+
   productImageNode.className = "hyper-checkout-cart-product-image";
   productImageNode.src = item.product_img_link;
   // Product title
