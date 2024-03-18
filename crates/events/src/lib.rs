@@ -13,9 +13,10 @@
 //!
 
 use std::rc::Rc;
-
+use std::collections::HashMap;
 use error_stack::Result;
-use time::PrimitiveDateTime;
+
+use time::OffsetDateTime;
 
 /// Errors that can occur when working with events.
 #[derive(Debug, Clone, thiserror::Error)]
@@ -23,6 +24,7 @@ pub enum EventsError {
     /// An error occurred when publishing the event.
     #[error("Generic Error")]
     GenericError,
+    /// An error occurred when serializing the event.
     #[error("Event serialization error: {0}")]
     SerializationError(String),
 }
@@ -32,7 +34,7 @@ pub trait Event: EventInfo {
     /// The type of the event.
     type EventType;
     /// The timestamp of the event.
-    fn timestamp(&self) -> PrimitiveDateTime;
+    fn timestamp(&self) -> OffsetDateTime;
 
     /// The (unique) identifier of the event.
     fn identifier(&self) -> String;
@@ -51,7 +53,7 @@ pub trait EventSink<T> {
         data: serde_json::Value,
         identifier: String,
         topic: T,
-        timestamp: PrimitiveDateTime,
+        timestamp: OffsetDateTime,
     ) -> Result<(), EventsError>;
 }
 
@@ -80,7 +82,7 @@ impl<T> EventBuilder<T> {
     /// Emit the event.
     pub fn emit(self) -> Result<(), EventsError> {
         self.event_sink.publish_event(
-            self.data()?,
+            serde_json::Value::Object(self.data()?.into_iter().collect()),
             self.event.identifier(),
             self.event.class(),
             self.event.timestamp(),
@@ -89,11 +91,12 @@ impl<T> EventBuilder<T> {
 }
 
 impl<T> EventInfo for EventBuilder<T> {
-    fn data(&self) -> Result<serde_json::Value, EventsError> {
-        self.src_metadata
-            .iter()
-            .chain(self.event_metadata.iter())
-            .map(|info| info.data().map(|d| (info.key(), d)))
+    fn data(&self) -> Result<HashMap<String, serde_json::Value>, EventsError> {
+        self.event_metadata.iter()
+            .chain(self.src_metadata.iter())
+            .rev()
+            .map(|info| info.data().map(|d| (info.key(), serde_json::Value::Object(d.into_iter().collect()))))
+            .chain(self.event.data()?.into_iter().map(Ok))
             .collect()
     }
 
@@ -142,7 +145,7 @@ impl<T> EventContext<T> {
 /// Add information/metadata to the current context of an event.
 pub trait EventInfo {
     /// The data that is sent with the event.
-    fn data(&self) -> Result<serde_json::Value, EventsError>;
+    fn data(&self) -> Result<HashMap<String, serde_json::Value>, EventsError>;
 
     /// The key identifying the data for an event.
     fn key(&self) -> String;

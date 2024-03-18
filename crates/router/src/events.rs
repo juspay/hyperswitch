@@ -4,12 +4,8 @@ use events::{EventSink, EventsError};
 use router_env::logger;
 use serde::{Deserialize, Serialize};
 use storage_impl::errors::ApplicationError;
-use time::PrimitiveDateTime;
+use time::OffsetDateTime;
 
-use crate::{
-    db::KafkaProducer,
-    services::kafka::{KafkaMessage, KafkaSettings},
-};
 use crate::{
     db::KafkaProducer,
     services::kafka::{KafkaMessage, KafkaSettings},
@@ -20,7 +16,6 @@ pub mod audit_events;
 pub mod connector_api_logs;
 pub mod event_logger;
 pub mod outgoing_webhook_logs;
-
 #[derive(Debug, Serialize, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum EventType {
@@ -79,11 +74,7 @@ impl EventsConfig {
 
 impl EventsHandler {
     pub fn log_event<T: KafkaMessage>(&self, event: &T) {
-    pub fn log_event<T: KafkaMessage>(&self, event: &T) {
         match self {
-            Self::Kafka(kafka) => kafka.log_event(event).map_or((), |e| {
-                logger::error!("Failed to log event: {:?}", e);
-            }),
             Self::Kafka(kafka) => kafka.log_event(event).map_or((), |e| {
                 logger::error!("Failed to log event: {:?}", e);
             }),
@@ -98,7 +89,7 @@ impl EventSink<EventType> for EventsHandler {
         data: serde_json::Value,
         identifier: String,
         topic: EventType,
-        timestamp: PrimitiveDateTime,
+        timestamp: OffsetDateTime,
     ) -> error_stack::Result<(), EventsError> {
         match self {
             Self::Kafka(kafka) => kafka.publish_event(data, identifier, topic, timestamp),
