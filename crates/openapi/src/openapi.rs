@@ -53,6 +53,7 @@ Never share your secret api keys. Keep them guarded and secure.
     ),
     tags(
         (name = "Merchant Account", description = "Create and manage merchant accounts"),
+        (name = "Business Profile", description = "Create and manage business profiles"),
         (name = "Merchant Connector Account", description = "Create and manage merchant connector accounts"),
         (name = "Payments", description = "Create and manage one-time payments, recurring payments and mandates"),
         (name = "Refunds", description = "Create and manage refunds for successful payments"),
@@ -110,6 +111,7 @@ Never share your secret api keys. Keep them guarded and secure.
         // Routes for mandates
         routes::mandates::get_mandate,
         routes::mandates::revoke_mandate,
+        routes::mandates::customers_mandates_list,
 
         //Routes for customers
         routes::customers::customers_create,
@@ -117,14 +119,13 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::customers::customers_list,
         routes::customers::customers_update,
         routes::customers::customers_delete,
-        routes::customers::customers_mandates_list,
-        routes::customers::default_payment_method_set_api,
 
         //Routes for payment methods
         routes::payment_method::create_payment_method_api,
         routes::payment_method::list_payment_method_api,
         routes::payment_method::list_customer_payment_method_api,
         routes::payment_method::list_customer_payment_method_api_client,
+        routes::payment_method::default_payment_method_set_api,
         routes::payment_method::payment_method_retrieve_api,
         routes::payment_method::payment_method_update_api,
         routes::payment_method::payment_method_delete_api,

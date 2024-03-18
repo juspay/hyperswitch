@@ -1389,7 +1389,7 @@
     "/customers/list": {
       "post": {
         "tags": [
-          "Customers List"
+          "Customers"
         ],
         "summary": "Customers - List",
         "description": "Customers - List\n\nLists all the customers for a particular merchant id.",
@@ -1677,11 +1677,11 @@
     "/customers/{customer_id}/mandates": {
       "post": {
         "tags": [
-          "Customers Mandates List"
+          "Mandates"
         ],
-        "summary": "Customers - Mandates List",
-        "description": "Customers - Mandates List\n\nLists all the mandates for a particular customer id.",
-        "operationId": "List all Mandates for a Customer",
+        "summary": "Mandates - Customer Mandates List",
+        "description": "Mandates - Customer Mandates List\n\nLists all the mandates for a particular customer id.",
+        "operationId": "List Mandates for a Customer",
         "responses": {
           "200": {
             "description": "List of retrieved mandates for a customer",
@@ -4362,10 +4362,10 @@
     "/{customer_id}/payment_methods/{payment_method_id}/default": {
       "get": {
         "tags": [
-          "Customer Set Default Payment Method"
+          "Payment Methods"
         ],
-        "summary": "Customers - Set Default Payment Method",
-        "description": "Customers - Set Default Payment Method\n\nSet the Payment Method as Default for the Customer.",
+        "summary": "Payment Method - Set Default Payment Method for Customer",
+        "description": "Payment Method - Set Default Payment Method for Customer\n\nSet the Payment Method as Default for the Customer.",
         "operationId": "Set the Payment Method as Default",
         "parameters": [
           {
@@ -18038,6 +18038,10 @@
     {
       "name": "Merchant Account",
       "description": "Create and manage merchant accounts"
+    },
+    {
+      "name": "Business Profile",
+      "description": "Create and manage business profiles"
     },
     {
       "name": "Merchant Connector Account",
