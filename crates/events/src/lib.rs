@@ -12,7 +12,7 @@
 //! Event: A trait that defines the event itself. This trait is used to define the data that is sent with the event and defines the event's type & identifier.
 //!
 
-use std::{collections::HashMap, rc::Rc};
+use std::{collections::HashMap, sync::Arc};
 
 use error_stack::Result;
 use time::OffsetDateTime;
@@ -44,7 +44,7 @@ pub trait Event: EventInfo {
 
 /// An Event sink that can publish events.
 /// This could be a simple logger, a message queue, or a database.
-pub trait EventSink<T> {
+pub trait EventSink<T>: Send + Sync {
     /// Publish an event.
     /// The parameters for this function are determined from the Event trait.
     fn publish_event(
@@ -59,15 +59,15 @@ pub trait EventSink<T> {
 /// Hold the context information for any events
 #[derive(Clone)]
 pub struct EventContext<T> {
-    event_sink: Rc<Box<dyn EventSink<T>>>,
-    metadata: Vec<Rc<Box<dyn EventInfo>>>,
+    event_sink: Arc<Box<dyn EventSink<T>>>,
+    metadata: Vec<Arc<Box<dyn EventInfo>>>,
 }
 
 /// intermediary structure to build events with in-place info.
 pub struct EventBuilder<T> {
-    event_sink: Rc<Box<dyn EventSink<T>>>,
-    src_metadata: Vec<Rc<Box<dyn EventInfo>>>,
-    event_metadata: Vec<Rc<Box<dyn EventInfo>>>,
+    event_sink: Arc<Box<dyn EventSink<T>>>,
+    src_metadata: Vec<Arc<Box<dyn EventInfo>>>,
+    event_metadata: Vec<Arc<Box<dyn EventInfo>>>,
     event: Box<dyn Event<EventType = T>>,
 }
 
@@ -114,9 +114,9 @@ impl<T> EventInfo for EventBuilder<T> {
 
 impl<T> EventContext<T> {
     /// Create a new event context.
-    pub fn new(event_sink: Rc<Box<dyn EventSink<T>>>) -> Self {
+    pub fn new(event_sink: Box<dyn EventSink<T>>) -> Self {
         Self {
-            event_sink,
+            event_sink: Arc::new(event_sink),
             metadata: Vec::new(),
         }
     }
@@ -150,7 +150,7 @@ impl<T> EventContext<T> {
 }
 
 /// Add information/metadata to the current context of an event.
-pub trait EventInfo {
+pub trait EventInfo: Send + Sync {
     /// The data that is sent with the event.
     fn data(&self) -> Result<HashMap<String, serde_json::Value>, EventsError>;
 

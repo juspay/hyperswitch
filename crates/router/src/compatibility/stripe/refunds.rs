@@ -40,7 +40,6 @@ pub async fn refund_create(
         _,
         _,
         _,
-        _,
         types::StripeRefundResponse,
         errors::StripeErrorCode,
         _,
@@ -80,7 +79,6 @@ pub async fn refund_retrieve_with_gateway_creds(
     tracing::Span::current().record("flow", &flow.to_string());
 
     Box::pin(wrap::compatibility_api_wrap::<
-        _,
         _,
         _,
         _,
@@ -128,7 +126,6 @@ pub async fn refund_retrieve(
         _,
         _,
         _,
-        _,
         types::StripeRefundResponse,
         errors::StripeErrorCode,
         _,
@@ -164,7 +161,6 @@ pub async fn refund_update(
     let flow = Flow::RefundsUpdate;
 
     Box::pin(wrap::compatibility_api_wrap::<
-        _,
         _,
         _,
         _,

@@ -43,7 +43,6 @@ pub async fn payment_intents_create(
         _,
         _,
         _,
-        _,
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
         _,
@@ -99,7 +98,6 @@ pub async fn payment_intents_retrieve(
     let flow = Flow::PaymentsRetrieveForceSync;
     let locking_action = payload.get_locking_input(flow.clone());
     Box::pin(wrap::compatibility_api_wrap::<
-        _,
         _,
         _,
         _,
@@ -174,7 +172,6 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
         _,
         _,
         _,
-        _,
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
         _,
@@ -234,7 +231,6 @@ pub async fn payment_intents_update(
     let flow = Flow::PaymentsUpdate;
     let locking_action = payload.get_locking_input(flow.clone());
     Box::pin(wrap::compatibility_api_wrap::<
-        _,
         _,
         _,
         _,
@@ -311,7 +307,6 @@ pub async fn payment_intents_confirm(
         _,
         _,
         _,
-        _,
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
         _,
@@ -368,7 +363,6 @@ pub async fn payment_intents_capture(
     let flow = Flow::PaymentsCapture;
     let locking_action = payload.get_locking_input(flow.clone());
     Box::pin(wrap::compatibility_api_wrap::<
-        _,
         _,
         _,
         _,
@@ -438,7 +432,6 @@ pub async fn payment_intents_cancel(
         _,
         _,
         _,
-        _,
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
         _,
@@ -479,7 +472,6 @@ pub async fn payment_intent_list(
     use crate::core::api_locking;
     let flow = Flow::PaymentsList;
     Box::pin(wrap::compatibility_api_wrap::<
-        _,
         _,
         _,
         _,

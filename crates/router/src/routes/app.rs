@@ -239,6 +239,10 @@ impl AppState {
         ))
         .await
     }
+
+    pub fn get_event_context(&self) -> events::EventContext<crate::events::EventType> {
+        events::EventContext::new(Box::new(self.event_handler.clone()))
+    }
 }
 
 pub struct Health;

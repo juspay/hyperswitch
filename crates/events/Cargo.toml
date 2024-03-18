@@ -1,11 +1,10 @@
 [package]
 name = "events"
+description = "Events framework for generating events & some sample implementations"
 version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 error-stack = "0.3.1"

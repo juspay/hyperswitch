@@ -950,22 +950,21 @@ pub enum AuthFlow {
 }
 
 #[instrument(skip(request, payload, state, func, api_auth), fields(merchant_id))]
-pub async fn server_wrap_util<'a, 'b, A, U, T, Q, F, Fut, E, OErr>(
+pub async fn server_wrap_util<'a, 'b, U, T, Q, F, Fut, E, OErr>(
     flow: &'a impl router_env::types::FlowMetric,
-    state: web::Data<A>,
+    state: web::Data<AppState>,
     request: &'a HttpRequest,
     payload: T,
     func: F,
-    api_auth: &dyn AuthenticateAndFetch<U, A>,
+    api_auth: &dyn AuthenticateAndFetch<U, AppState>,
     lock_action: api_locking::LockAction,
 ) -> CustomResult<ApplicationResponse<Q>, OErr>
 where
-    F: Fn(A, U, T) -> Fut,
+    F: Fn(AppState, U, T) -> Fut,
     'b: 'a,
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a + ApiEventMetric,
     T: Debug + Serialize + ApiEventMetric,
-    A: AppStateInfo + Clone,
     E: ErrorSwitch<OErr> + error_stack::Context,
     OErr: ResponseError + error_stack::Context + Serialize,
     errors::ApiErrorResponse: ErrorSwitch<OErr>,
@@ -1093,21 +1092,20 @@ where
     skip(request, state, func, api_auth, payload),
     fields(request_method, request_url_path, status_code)
 )]
-pub async fn server_wrap<'a, A, T, U, Q, F, Fut, E>(
+pub async fn server_wrap<'a, T, U, Q, F, Fut, E>(
     flow: impl router_env::types::FlowMetric,
-    state: web::Data<A>,
+    state: web::Data<AppState>,
     request: &'a HttpRequest,
     payload: T,
     func: F,
-    api_auth: &dyn AuthenticateAndFetch<U, A>,
+    api_auth: &dyn AuthenticateAndFetch<U, AppState>,
     lock_action: api_locking::LockAction,
 ) -> HttpResponse
 where
-    F: Fn(A, U, T) -> Fut,
+    F: Fn(AppState, U, T) -> Fut,
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + ApiEventMetric + 'a,
     T: Debug + Serialize + ApiEventMetric,
-    A: AppStateInfo + Clone,
     ApplicationResponse<Q>: Debug,
     E: ErrorSwitch<api_models::errors::types::ApiErrorResponse> + error_stack::Context,
 {
