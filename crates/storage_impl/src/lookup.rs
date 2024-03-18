@@ -1,7 +1,7 @@
 use common_utils::errors::CustomResult;
 use data_models::errors;
 use diesel_models::{
-    enums as storage_enums, kv,
+    enums as storage_enums,
     reverse_lookup::{
         ReverseLookup as DieselReverseLookup, ReverseLookupNew as DieselReverseLookupNew,
     },
@@ -12,9 +12,9 @@ use redis_interface::SetnxReply;
 use crate::{
     diesel_error_to_data_error,
     errors::RedisErrorExt,
-    redis::kv_store::{kv_wrapper, KvOperation},
+    redis::kv_store::{kv_wrapper, KvOperation, RedisConnInterface},
     utils::{self, try_redis_get_else_try_database_get},
-    DatabaseStore, KVRouterStore, RouterStore,
+    DatabaseStore, KVRouterStore, RouterStore, UniqueConstraints,
 };
 
 #[async_trait::async_trait]
@@ -72,44 +72,41 @@ impl<T: DatabaseStore> ReverseLookupInterface for KVRouterStore<T> {
         new: DieselReverseLookupNew,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<DieselReverseLookup, errors::StorageError> {
-        match storage_scheme {
-            storage_enums::MerchantStorageScheme::PostgresOnly => {
-                self.router_store
-                    .insert_reverse_lookup(new, storage_scheme)
-                    .await
-            }
-            storage_enums::MerchantStorageScheme::RedisKv => {
-                let created_rev_lookup = DieselReverseLookup {
-                    lookup_id: new.lookup_id.clone(),
-                    sk_id: new.sk_id.clone(),
-                    pk_id: new.pk_id.clone(),
-                    source: new.source.clone(),
-                    updated_by: storage_scheme.to_string(),
-                };
-                let redis_entry = kv::TypedSql {
-                    op: kv::DBOperation::Insert {
-                        insertable: kv::Insertable::ReverseLookUp(new),
-                    },
-                };
+        let redis_conn = self
+            .get_redis_conn()
+            .map_err(|err| errors::StorageError::RedisError(err.to_string()))?;
 
-                match kv_wrapper::<DieselReverseLookup, _, _>(
-                    self,
-                    KvOperation::SetNx(&created_rev_lookup, redis_entry),
-                    format!("reverse_lookup_{}", &created_rev_lookup.lookup_id),
-                )
-                .await
-                .map_err(|err| err.to_redis_failed_response(&created_rev_lookup.lookup_id))?
-                .try_into_setnx()
-                {
-                    Ok(SetnxReply::KeySet) => Ok(created_rev_lookup),
-                    Ok(SetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
-                        entity: "reverse_lookup",
-                        key: Some(created_rev_lookup.lookup_id.clone()),
-                    })
-                    .into_report(),
-                    Err(er) => Err(er).change_context(errors::StorageError::KVError),
-                }
-            }
+        let created_rev_lookup = DieselReverseLookup {
+            lookup_id: new.lookup_id.clone(),
+            sk_id: new.sk_id.clone(),
+            pk_id: new.pk_id.clone(),
+            source: new.source.clone(),
+            updated_by: storage_scheme.to_string(),
+        };
+
+        let ttl = self.ttl_for_kv.saturating_add(120);
+
+        created_rev_lookup
+            .check_for_constraints(&redis_conn)
+            .await
+            .map_err(|err| err.to_redis_failed_response(&created_rev_lookup.lookup_id))?;
+
+        match redis_conn
+            .serialize_and_set_key_if_not_exist(
+                &format!("reverse_lookup_{}", &created_rev_lookup.lookup_id),
+                &created_rev_lookup,
+                Some(ttl.into()),
+            )
+            .await
+            .map_err(|err| err.to_redis_failed_response(&created_rev_lookup.lookup_id))
+        {
+            Ok(SetnxReply::KeySet) => Ok(created_rev_lookup),
+            Ok(SetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
+                entity: "reverse_lookup",
+                key: Some(created_rev_lookup.lookup_id.clone()),
+            })
+            .into_report(),
+            Err(er) => Err(er).change_context(errors::StorageError::KVError),
         }
     }
 
@@ -123,25 +120,20 @@ impl<T: DatabaseStore> ReverseLookupInterface for KVRouterStore<T> {
                 .get_lookup_by_lookup_id(id, storage_scheme)
                 .await
         };
-        match storage_scheme {
-            storage_enums::MerchantStorageScheme::PostgresOnly => database_call().await,
-            storage_enums::MerchantStorageScheme::RedisKv => {
-                let redis_fut = async {
-                    kv_wrapper(
-                        self,
-                        KvOperation::<DieselReverseLookup>::Get,
-                        format!("reverse_lookup_{id}"),
-                    )
-                    .await?
-                    .try_into_get()
-                };
+        let redis_fut = async {
+            kv_wrapper(
+                self,
+                KvOperation::<DieselReverseLookup>::Get,
+                format!("reverse_lookup_{id}"),
+            )
+            .await?
+            .try_into_get()
+        };
 
-                Box::pin(try_redis_get_else_try_database_get(
-                    redis_fut,
-                    database_call,
-                ))
-                .await
-            }
-        }
+        Box::pin(try_redis_get_else_try_database_get(
+            redis_fut,
+            database_call,
+        ))
+        .await
     }
 }

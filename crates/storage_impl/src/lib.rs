@@ -140,7 +140,7 @@ pub struct KVRouterStore<T: DatabaseStore> {
     router_store: RouterStore<T>,
     drainer_stream_name: String,
     drainer_num_partitions: u8,
-    ttl_for_kv: u32,
+    pub ttl_for_kv: u32,
     pub request_id: Option<String>,
 }
 
