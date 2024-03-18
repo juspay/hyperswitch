@@ -1,9 +1,9 @@
 use std::str::FromStr;
 
 use api_models::enums::PayoutConnectors;
-use common_utils::{errors::CustomResult, ext_traits::Encode};
+use common_utils::{errors::CustomResult, ext_traits::Encode, fallback_reverse_lookup_not_found};
 use data_models::{
-    errors::StorageError,
+    errors,
     payouts::{
         payout_attempt::{
             PayoutAttempt, PayoutAttemptInterface, PayoutAttemptNew, PayoutAttemptUpdate,
@@ -41,7 +41,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
         &self,
         new_payout_attempt: PayoutAttemptNew,
         storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<PayoutAttempt, StorageError> {
+    ) -> error_stack::Result<PayoutAttempt, errors::StorageError> {
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
@@ -53,7 +53,6 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                     "mid_{}_poa_{}",
                     new_payout_attempt.merchant_id, new_payout_attempt.payout_id
                 );
-                let field = format!("poa_{}", new_payout_attempt.payout_id);
                 let now = common_utils::date_time::now();
                 let created_attempt = PayoutAttempt {
                     payout_attempt_id: new_payout_attempt.payout_attempt_id.clone(),
@@ -86,6 +85,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                 };
 
                 // Reverse lookup for payout_attempt_id
+                let field = format!("poa_{}", created_attempt.payout_attempt_id);
                 let reverse_lookup = ReverseLookupNew {
                     lookup_id: format!(
                         "poa_{}_{}",
@@ -112,13 +112,13 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                 .map_err(|err| err.to_redis_failed_response(&key))?
                 .try_into_hsetnx()
                 {
-                    Ok(HsetnxReply::KeyNotSet) => Err(StorageError::DuplicateValue {
+                    Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
                         entity: "payout attempt",
                         key: Some(key),
                     })
                     .into_report(),
                     Ok(HsetnxReply::KeySet) => Ok(created_attempt),
-                    Err(error) => Err(error.change_context(StorageError::KVError)),
+                    Err(error) => Err(error.change_context(errors::StorageError::KVError)),
                 }
             }
         }
@@ -130,7 +130,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
         this: &PayoutAttempt,
         payout_update: PayoutAttemptUpdate,
         storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<PayoutAttempt, StorageError> {
+    ) -> error_stack::Result<PayoutAttempt, errors::StorageError> {
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
@@ -139,7 +139,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
             }
             MerchantStorageScheme::RedisKv => {
                 let key = format!("mid_{}_poa_{}", this.merchant_id, this.payout_id);
-                let field = format!("poa_{}", this.payout_id);
+                let field = format!("poa_{}", this.payout_attempt_id);
 
                 let diesel_payout_update = payout_update.to_storage_model();
                 let origin_diesel_payout = this.clone().to_storage_model();
@@ -151,7 +151,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
 
                 let redis_value = diesel_payout
                     .encode_to_string_of_json()
-                    .change_context(StorageError::SerializationFailed)?;
+                    .change_context(errors::StorageError::SerializationFailed)?;
 
                 let redis_entry = kv::TypedSql {
                     op: kv::DBOperation::Update {
@@ -172,50 +172,11 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                 .await
                 .map_err(|err| err.to_redis_failed_response(&key))?
                 .try_into_hset()
-                .change_context(StorageError::KVError)?;
+                .change_context(errors::StorageError::KVError)?;
 
                 Ok(PayoutAttempt::from_storage_model(diesel_payout))
             }
         }
-    }
-
-    #[instrument(skip_all)]
-    async fn find_payout_attempt_by_merchant_id_payout_id(
-        &self,
-        merchant_id: &str,
-        payout_id: &str,
-        storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<PayoutAttempt, StorageError> {
-        let database_call = || async {
-            let conn = pg_connection_read(self).await?;
-            DieselPayoutAttempt::find_by_merchant_id_payout_id(&conn, merchant_id, payout_id)
-                .await
-                .map_err(|er| {
-                    let new_err = diesel_error_to_data_error(er.current_context());
-                    er.change_context(new_err)
-                })
-        };
-        match storage_scheme {
-            MerchantStorageScheme::PostgresOnly => database_call().await,
-            MerchantStorageScheme::RedisKv => {
-                let key = format!("mid_{merchant_id}_poa_{payout_id}");
-                let field = format!("poa_{payout_id}");
-                Box::pin(utils::try_redis_get_else_try_database_get(
-                    async {
-                        kv_wrapper::<DieselPayoutAttempt, _, _>(
-                            self,
-                            KvOperation::<DieselPayoutAttempt>::HGet(&field),
-                            &key,
-                        )
-                        .await?
-                        .try_into_hget()
-                    },
-                    database_call,
-                ))
-                .await
-            }
-        }
-        .map(PayoutAttempt::from_storage_model)
     }
 
     #[instrument(skip_all)]
@@ -224,41 +185,54 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
         merchant_id: &str,
         payout_attempt_id: &str,
         storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<PayoutAttempt, StorageError> {
-        let database_call = || async {
-            let conn = pg_connection_read(self).await?;
-            DieselPayoutAttempt::find_by_merchant_id_payout_attempt_id(
-                &conn,
-                merchant_id,
-                payout_attempt_id,
-            )
-            .await
-            .map_err(|er| {
-                let new_err = diesel_error_to_data_error(er.current_context());
-                er.change_context(new_err)
-            })
-        };
+    ) -> error_stack::Result<PayoutAttempt, errors::StorageError> {
         match storage_scheme {
-            MerchantStorageScheme::PostgresOnly => database_call().await,
+            MerchantStorageScheme::PostgresOnly => {
+                self.router_store
+                    .find_payout_attempt_by_merchant_id_payout_attempt_id(
+                        merchant_id,
+                        payout_attempt_id,
+                        storage_scheme,
+                    )
+                    .await
+            }
             MerchantStorageScheme::RedisKv => {
-                let key = format!("mid_{merchant_id}_poa_{payout_attempt_id}");
-                let field = format!("poa_{payout_attempt_id}");
+                let lookup_id = format!("poa_{merchant_id}_{payout_attempt_id}");
+                let lookup = fallback_reverse_lookup_not_found!(
+                    self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
+                        .await,
+                    self.router_store
+                        .find_payout_attempt_by_merchant_id_payout_attempt_id(
+                            merchant_id,
+                            payout_attempt_id,
+                            storage_scheme
+                        )
+                        .await
+                );
+                let key = &lookup.pk_id;
                 Box::pin(utils::try_redis_get_else_try_database_get(
                     async {
-                        kv_wrapper::<DieselPayoutAttempt, _, _>(
+                        kv_wrapper(
                             self,
-                            KvOperation::<DieselPayoutAttempt>::HGet(&field),
-                            &key,
+                            KvOperation::<DieselPayoutAttempt>::HGet(&lookup.sk_id),
+                            key,
                         )
                         .await?
                         .try_into_hget()
                     },
-                    database_call,
+                    || async {
+                        self.router_store
+                            .find_payout_attempt_by_merchant_id_payout_attempt_id(
+                                merchant_id,
+                                payout_attempt_id,
+                                storage_scheme,
+                            )
+                            .await
+                    },
                 ))
                 .await
             }
         }
-        .map(PayoutAttempt::from_storage_model)
     }
 
     #[instrument(skip_all)]
@@ -267,7 +241,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
         payouts: &[Payouts],
         merchant_id: &str,
         storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<PayoutListFilters, StorageError> {
+    ) -> error_stack::Result<PayoutListFilters, errors::StorageError> {
         self.router_store
             .get_filters_for_payouts(payouts, merchant_id, storage_scheme)
             .await
@@ -281,7 +255,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for crate::RouterStore<T> {
         &self,
         new: PayoutAttemptNew,
         _storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<PayoutAttempt, StorageError> {
+    ) -> error_stack::Result<PayoutAttempt, errors::StorageError> {
         let conn = pg_connection_write(self).await?;
         new.to_storage_model()
             .insert(&conn)
@@ -299,7 +273,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for crate::RouterStore<T> {
         this: &PayoutAttempt,
         payout: PayoutAttemptUpdate,
         _storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<PayoutAttempt, StorageError> {
+    ) -> error_stack::Result<PayoutAttempt, errors::StorageError> {
         let conn = pg_connection_write(self).await?;
         this.clone()
             .to_storage_model()
@@ -313,29 +287,12 @@ impl<T: DatabaseStore> PayoutAttemptInterface for crate::RouterStore<T> {
     }
 
     #[instrument(skip_all)]
-    async fn find_payout_attempt_by_merchant_id_payout_id(
-        &self,
-        merchant_id: &str,
-        payout_id: &str,
-        _storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<PayoutAttempt, StorageError> {
-        let conn = pg_connection_read(self).await?;
-        DieselPayoutAttempt::find_by_merchant_id_payout_id(&conn, merchant_id, payout_id)
-            .await
-            .map(PayoutAttempt::from_storage_model)
-            .map_err(|er| {
-                let new_err = diesel_error_to_data_error(er.current_context());
-                er.change_context(new_err)
-            })
-    }
-
-    #[instrument(skip_all)]
     async fn find_payout_attempt_by_merchant_id_payout_attempt_id(
         &self,
         merchant_id: &str,
         payout_attempt_id: &str,
         _storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<PayoutAttempt, StorageError> {
+    ) -> error_stack::Result<PayoutAttempt, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
         DieselPayoutAttempt::find_by_merchant_id_payout_attempt_id(
             &conn,
@@ -356,7 +313,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for crate::RouterStore<T> {
         payouts: &[Payouts],
         merchant_id: &str,
         _storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<PayoutListFilters, StorageError> {
+    ) -> CustomResult<PayoutListFilters, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
         let payouts = payouts
             .iter()

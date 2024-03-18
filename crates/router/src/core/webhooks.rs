@@ -34,7 +34,6 @@ use crate::{
     events::{
         api_logs::ApiEvent,
         outgoing_webhook_logs::{OutgoingWebhookEvent, OutgoingWebhookEventMetric},
-        RawEvent,
     },
     logger,
     routes::{app::AppStateInfo, lock_utils, metrics::request::add_attributes, AppState},
@@ -1133,15 +1132,7 @@ fn raise_webhooks_analytics_event(
         error,
         event.initial_attempt_id,
     );
-
-    match RawEvent::try_from(webhook_event.clone()) {
-        Ok(event) => {
-            state.event_handler().log_event(event);
-        }
-        Err(error) => {
-            logger::error!(?error, event=?webhook_event, "Error logging outgoing webhook event");
-        }
-    }
+    state.event_handler().log_event(&webhook_event);
 }
 
 pub async fn webhooks_wrapper<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetrieve>(
@@ -1202,14 +1193,7 @@ pub async fn webhooks_wrapper<W: types::OutgoingWebhookType, Ctx: PaymentMethodR
         req,
         req.method(),
     );
-    match api_event.clone().try_into() {
-        Ok(event) => {
-            state.event_handler().log_event(event);
-        }
-        Err(err) => {
-            logger::error!(error=?err, event=?api_event, "Error Logging API Event");
-        }
-    }
+    state.event_handler().log_event(&api_event);
     Ok(application_response)
 }
 
@@ -1480,7 +1464,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
             .await
             .attach_printable("Incoming webhook flow for refunds failed")?,
 
-            api::WebhookFlow::Dispute => disputes_incoming_webhook_flow(
+            api::WebhookFlow::Dispute => Box::pin(disputes_incoming_webhook_flow(
                 state.clone(),
                 merchant_account,
                 business_profile,
@@ -1490,7 +1474,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
                 *connector,
                 &request_details,
                 event_type,
-            )
+            ))
             .await
             .attach_printable("Incoming webhook flow for disputes failed")?,
 
@@ -1507,7 +1491,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
 
             api::WebhookFlow::ReturnResponse => WebhookResponseTracker::NoEffect,
 
-            api::WebhookFlow::Mandate => mandates_incoming_webhook_flow(
+            api::WebhookFlow::Mandate => Box::pin(mandates_incoming_webhook_flow(
                 state.clone(),
                 merchant_account,
                 business_profile,
@@ -1515,7 +1499,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
                 webhook_details,
                 source_verified,
                 event_type,
-            )
+            ))
             .await
             .attach_printable("Incoming webhook flow for mandates failed")?,
 

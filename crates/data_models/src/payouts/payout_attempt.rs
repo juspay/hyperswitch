@@ -1,5 +1,6 @@
 use api_models::enums::PayoutConnectors;
 use common_enums as storage_enums;
+use serde::{Deserialize, Serialize};
 use storage_enums::MerchantStorageScheme;
 use time::PrimitiveDateTime;
 
@@ -11,13 +12,6 @@ pub trait PayoutAttemptInterface {
     async fn insert_payout_attempt(
         &self,
         _payout: PayoutAttemptNew,
-        _storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<PayoutAttempt, errors::StorageError>;
-
-    async fn find_payout_attempt_by_merchant_id_payout_id(
-        &self,
-        _merchant_id: &str,
-        _payout_id: &str,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PayoutAttempt, errors::StorageError>;
 
@@ -51,7 +45,7 @@ pub struct PayoutListFilters {
     pub payout_method: Vec<storage_enums::PayoutType>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PayoutAttempt {
     pub payout_attempt_id: String,
     pub payout_id: String,
@@ -67,7 +61,9 @@ pub struct PayoutAttempt {
     pub error_code: Option<String>,
     pub business_country: Option<storage_enums::CountryAlpha2>,
     pub business_label: Option<String>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub last_modified_at: PrimitiveDateTime,
     pub profile_id: String,
     pub merchant_connector_id: Option<String>,

@@ -177,14 +177,14 @@ pub async fn make_connector_decision(
                 .await;
 
                 if config_bool && payout_data.should_call_gsm() {
-                    payout_data = retry::do_gsm_single_connector_actions(
+                    payout_data = Box::pin(retry::do_gsm_single_connector_actions(
                         state,
                         connector_data,
                         payout_data,
                         merchant_account,
                         key_store,
                         req,
-                    )
+                    ))
                     .await?;
                 }
             }
@@ -217,7 +217,7 @@ pub async fn make_connector_decision(
                 .await;
 
                 if config_multiple_connector_bool && payout_data.should_call_gsm() {
-                    payout_data = retry::do_gsm_multiple_connector_actions(
+                    payout_data = Box::pin(retry::do_gsm_multiple_connector_actions(
                         state,
                         connectors,
                         connector_data.clone(),
@@ -225,7 +225,7 @@ pub async fn make_connector_decision(
                         merchant_account,
                         key_store,
                         req,
-                    )
+                    ))
                     .await?;
                 }
 
@@ -237,14 +237,14 @@ pub async fn make_connector_decision(
                 .await;
 
                 if config_single_connector_bool && payout_data.should_call_gsm() {
-                    payout_data = retry::do_gsm_single_connector_actions(
+                    payout_data = Box::pin(retry::do_gsm_single_connector_actions(
                         state,
                         connector_data,
                         payout_data,
                         merchant_account,
                         key_store,
                         req,
-                    )
+                    ))
                     .await?;
                 }
             }
@@ -289,14 +289,14 @@ pub async fn payouts_create_core(
     )
     .await?;
 
-    payout_data = make_connector_decision(
+    payout_data = Box::pin(make_connector_decision(
         &state,
         &merchant_account,
         &key_store,
         &req,
         connector_call_type,
         payout_data,
-    )
+    ))
     .await?;
 
     response_handler(
@@ -433,14 +433,14 @@ pub async fn payouts_update_core(
     )
     .await?;
 
-    payout_data = make_connector_decision(
+    payout_data = Box::pin(make_connector_decision(
         &state,
         &merchant_account,
         &key_store,
         &req,
         connector_call_type,
         payout_data,
-    )
+    ))
     .await?;
 
     response_handler(
@@ -681,10 +681,10 @@ pub async fn payouts_list_core(
 
     let collected_futures = payouts.into_iter().map(|payouts| async {
         match db
-            .find_payout_attempt_by_merchant_id_payout_id(
+            .find_payout_attempt_by_merchant_id_payout_attempt_id(
                 merchant_id,
-                &payouts.payout_id,
-                merchant_account.storage_scheme,
+                &utils::get_payment_attempt_id(payouts.payout_id.clone(), payouts.attempt_count),
+                storage_enums::MerchantStorageScheme::PostgresOnly,
             )
             .await
         {
@@ -1337,6 +1337,10 @@ pub async fn fulfill_payout(
     let payout_attempt = &payout_data.payout_attempt;
     match router_data_resp.response {
         Ok(payout_response_data) => {
+            let status = payout_response_data
+                .status
+                .unwrap_or(payout_attempt.status.to_owned());
+            payout_data.payouts.status = status;
             if payout_data.payouts.recurring && payout_data.payouts.payout_method_id.is_none() {
                 helpers::save_payout_data_to_locker(
                     state,
@@ -1350,10 +1354,7 @@ pub async fn fulfill_payout(
                 )
                 .await?;
             }
-            let status = payout_response_data
-                .status
-                .unwrap_or(payout_attempt.status.to_owned());
-            let update_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
+            let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
                 connector_payout_id: payout_attempt.connector_payout_id.to_owned(),
                 status,
                 error_code: None,
@@ -1363,7 +1364,7 @@ pub async fn fulfill_payout(
             payout_data.payout_attempt = db
                 .update_payout_attempt(
                     payout_attempt,
-                    update_payout_attempt,
+                    updated_payout_attempt,
                     merchant_account.storage_scheme,
                 )
                 .await
@@ -1378,7 +1379,7 @@ pub async fn fulfill_payout(
             }
         }
         Err(err) => {
-            let update_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
+            let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
                 connector_payout_id: String::default(),
                 status: storage_enums::PayoutStatus::Failed,
                 error_code: Some(err.code),
@@ -1388,7 +1389,7 @@ pub async fn fulfill_payout(
             payout_data.payout_attempt = db
                 .update_payout_attempt(
                     &payout_data.payout_attempt,
-                    update_payout_attempt,
+                    updated_payout_attempt,
                     merchant_account.storage_scheme,
                 )
                 .await

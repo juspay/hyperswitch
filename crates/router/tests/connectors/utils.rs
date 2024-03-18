@@ -73,12 +73,12 @@ pub trait ConnectorActions: Connector {
             payment_info,
         );
         let tx: oneshot::Sender<()> = oneshot::channel().0;
-        let state = routes::AppState::with_storage(
+        let state = Box::pin(routes::AppState::with_storage(
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
-        )
+        ))
         .await;
         integration.execute_pretasks(&mut request, &state).await?;
         Box::pin(call_connector(request, integration)).await
@@ -98,12 +98,12 @@ pub trait ConnectorActions: Connector {
         );
         let tx: oneshot::Sender<()> = oneshot::channel().0;
 
-        let state = routes::AppState::with_storage(
+        let state = Box::pin(routes::AppState::with_storage(
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
-        )
+        ))
         .await;
         integration.execute_pretasks(&mut request, &state).await?;
         Box::pin(call_connector(request, integration)).await
@@ -123,12 +123,12 @@ pub trait ConnectorActions: Connector {
         );
         let tx: oneshot::Sender<()> = oneshot::channel().0;
 
-        let state = routes::AppState::with_storage(
+        let state = Box::pin(routes::AppState::with_storage(
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
-        )
+        ))
         .await;
         integration.execute_pretasks(&mut request, &state).await?;
         Box::pin(call_connector(request, integration)).await
@@ -152,12 +152,12 @@ pub trait ConnectorActions: Connector {
         );
         let tx: oneshot::Sender<()> = oneshot::channel().0;
 
-        let state = routes::AppState::with_storage(
+        let state = Box::pin(routes::AppState::with_storage(
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
-        )
+        ))
         .await;
         integration.execute_pretasks(&mut request, &state).await?;
         Box::pin(call_connector(request, integration)).await
@@ -571,12 +571,12 @@ pub trait ConnectorActions: Connector {
         let mut request = self.get_payout_request(None, payout_type, payment_info);
         let tx: oneshot::Sender<()> = oneshot::channel().0;
 
-        let state = routes::AppState::with_storage(
+        let state = Box::pin(routes::AppState::with_storage(
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
-        )
+        ))
         .await;
         connector_integration
             .execute_pretasks(&mut request, &state)
@@ -612,12 +612,12 @@ pub trait ConnectorActions: Connector {
         let mut request = self.get_payout_request(connector_payout_id, payout_type, payment_info);
         let tx: oneshot::Sender<()> = oneshot::channel().0;
 
-        let state = routes::AppState::with_storage(
+        let state = Box::pin(routes::AppState::with_storage(
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
-        )
+        ))
         .await;
         connector_integration
             .execute_pretasks(&mut request, &state)
@@ -654,12 +654,12 @@ pub trait ConnectorActions: Connector {
         request.connector_customer = connector_customer;
         let tx: oneshot::Sender<()> = oneshot::channel().0;
 
-        let state = routes::AppState::with_storage(
+        let state = Box::pin(routes::AppState::with_storage(
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
-        )
+        ))
         .await;
         connector_integration
             .execute_pretasks(&mut request, &state)
@@ -696,12 +696,12 @@ pub trait ConnectorActions: Connector {
             self.get_payout_request(Some(connector_payout_id), payout_type, payment_info);
         let tx: oneshot::Sender<()> = oneshot::channel().0;
 
-        let state = routes::AppState::with_storage(
+        let state = Box::pin(routes::AppState::with_storage(
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
-        )
+        ))
         .await;
         connector_integration
             .execute_pretasks(&mut request, &state)
@@ -784,12 +784,12 @@ pub trait ConnectorActions: Connector {
         let mut request = self.get_payout_request(None, payout_type, payment_info);
         let tx = oneshot::channel().0;
 
-        let state = routes::AppState::with_storage(
+        let state = Box::pin(routes::AppState::with_storage(
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
-        )
+        ))
         .await;
         connector_integration
             .execute_pretasks(&mut request, &state)
@@ -817,12 +817,12 @@ async fn call_connector<
     let conf = Settings::new().unwrap();
     let tx: oneshot::Sender<()> = oneshot::channel().0;
 
-    let state = routes::AppState::with_storage(
+    let state = Box::pin(routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
-    )
+    ))
     .await;
     services::api::execute_connector_processing_step(
         &state,

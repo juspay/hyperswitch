@@ -10,7 +10,7 @@ pub trait PayoutAttemptInterface {}
 #[cfg(not(feature = "payouts"))]
 pub trait PayoutsInterface {}
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub enum RemoteStorageObject<T: ForeignIDRef> {
     ForeignID(String),
     Object(T),

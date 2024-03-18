@@ -73,4 +73,8 @@ impl<'a> super::KafkaMessage for KafkaDispute<'a> {
     fn creation_timestamp(&self) -> Option<i64> {
         Some(self.modified_at.unix_timestamp())
     }
+
+    fn event_type(&self) -> crate::events::EventType {
+        crate::events::EventType::Dispute
+    }
 }
