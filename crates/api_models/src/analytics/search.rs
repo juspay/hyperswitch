@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-how is the filter struct defined?
+// how is the filter struct defined?
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]

@@ -1,3 +1,7 @@
+mod config;
+mod client;
+mod error;
+
 use actix_web::web::Json;
 use api_models::analytics::search::{
     GetGlobalSearchRequest, GetSearchRequestWithIndex, GetSearchResponse, OpenMsearchOutput,
