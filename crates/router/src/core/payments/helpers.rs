@@ -2207,12 +2207,12 @@ pub(super) fn validate_payment_list_request_for_joins(
 pub fn get_handle_response_url(
     payment_id: String,
     business_profile: &diesel_models::business_profile::BusinessProfile,
-    response: api::PaymentsResponse,
+    response: &api::PaymentsResponse,
     connector: String,
 ) -> RouterResult<api::RedirectionResponse> {
     let payments_return_url = response.return_url.as_ref();
 
-    let redirection_response = make_pg_redirect_response(payment_id, &response, connector);
+    let redirection_response = make_pg_redirect_response(payment_id, response, connector);
 
     let return_url = make_merchant_url_with_response(
         business_profile,

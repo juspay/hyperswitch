@@ -24,6 +24,7 @@ use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
 use helpers::ApplePayData;
 use masking::Secret;
+use maud::{html, PreEscaped};
 pub use payment_address::PaymentAddress;
 use redis_interface::errors::RedisError;
 use router_env::{instrument, tracing};
@@ -766,11 +767,11 @@ pub trait PaymentRedirectFlow<Ctx: PaymentMethodRetrieve>: Sync {
 
     fn generate_response(
         &self,
-        payments_response: api_models::payments::PaymentsResponse,
+        payments_response: &api_models::payments::PaymentsResponse,
         business_profile: diesel_models::business_profile::BusinessProfile,
         payment_id: String,
         connector: String,
-    ) -> RouterResult<api::RedirectionResponse>;
+    ) -> RouterResult<services::ApplicationResponse<api::RedirectionResponse>>;
 
     #[allow(clippy::too_many_arguments)]
     async fn handle_payments_redirect_response(
@@ -853,10 +854,7 @@ pub trait PaymentRedirectFlow<Ctx: PaymentMethodRetrieve>: Sync {
                 id: profile_id.to_string(),
             })?;
 
-        let result =
-            self.generate_response(payments_response, business_profile, resource_id, connector)?;
-
-        Ok(services::ApplicationResponse::JsonForRedirection(result))
+        self.generate_response(&payments_response, business_profile, resource_id, connector)
     }
 }
 
@@ -911,18 +909,19 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectCom
 
     fn generate_response(
         &self,
-        payments_response: api_models::payments::PaymentsResponse,
+        payments_response: &api_models::payments::PaymentsResponse,
         business_profile: diesel_models::business_profile::BusinessProfile,
         payment_id: String,
         connector: String,
-    ) -> RouterResult<api::RedirectionResponse> {
+    ) -> RouterResult<services::ApplicationResponse<api::RedirectionResponse>> {
         // There might be multiple redirections needed for some flows
         // If the status is requires customer action, then send the startpay url again
         // The redirection data must have been provided and updated by the connector
-        match payments_response.status {
+        let redirection_response = match payments_response.status {
             api_models::enums::IntentStatus::RequiresCustomerAction => {
                 let startpay_url = payments_response
                     .next_action
+                    .clone()
                     .and_then(|next_action_data| match next_action_data {
                         api_models::payments::NextActionData::RedirectToUrl { redirect_to_url } => Some(redirect_to_url),
                         api_models::payments::NextActionData::DisplayBankTransferInformation { .. } => None,
@@ -955,7 +954,10 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectCom
                 connector,
             ),
             _ => Err(errors::ApiErrorResponse::InternalServerError).into_report().attach_printable_lazy(|| format!("Could not proceed with payment as payment status {} cannot be handled during redirection",payments_response.status))?
-        }
+        }?;
+        Ok(services::ApplicationResponse::JsonForRedirection(
+            redirection_response,
+        ))
     }
 }
 
@@ -1010,17 +1012,19 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectSyn
     }
     fn generate_response(
         &self,
-        payments_response: api_models::payments::PaymentsResponse,
+        payments_response: &api_models::payments::PaymentsResponse,
         business_profile: diesel_models::business_profile::BusinessProfile,
         payment_id: String,
         connector: String,
-    ) -> RouterResult<api::RedirectionResponse> {
-        helpers::get_handle_response_url(
-            payment_id,
-            &business_profile,
-            payments_response,
-            connector,
-        )
+    ) -> RouterResult<services::ApplicationResponse<api::RedirectionResponse>> {
+        Ok(services::ApplicationResponse::JsonForRedirection(
+            helpers::get_handle_response_url(
+                payment_id,
+                &business_profile,
+                payments_response,
+                connector,
+            )?,
+        ))
     }
 
     fn get_payment_action(&self) -> services::PaymentAction {
@@ -1074,17 +1078,55 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
     }
     fn generate_response(
         &self,
-        payments_response: api_models::payments::PaymentsResponse,
+        payments_response: &api_models::payments::PaymentsResponse,
         business_profile: diesel_models::business_profile::BusinessProfile,
         payment_id: String,
         connector: String,
-    ) -> RouterResult<api::RedirectionResponse> {
-        helpers::get_handle_response_url(
+    ) -> RouterResult<services::ApplicationResponse<api::RedirectionResponse>> {
+        let redirect_response = helpers::get_handle_response_url(
             payment_id,
             &business_profile,
             payments_response,
             connector,
-        )
+        )?;
+        let return_url_with_query_params = redirect_response.return_url_with_query_params;
+        // html script to check if inside iframe, then send post message to parent for redirection else redirect self to return_url
+        let html = html! {
+            head {
+                title { "Redirect Form" }
+                (PreEscaped(format!(r#"
+                        <script>
+                            let return_url = "{return_url_with_query_params}";
+                            try {{
+                                // if inside iframe, send post message to parent for redirection
+                                if (window.self !== window.parent) {{
+                                    window.parent.postMessage({{openurl: return_url}}, '*')
+                                // if parent, redirect self to return_url
+                                }} else {{
+                                    window.location.href = return_url
+                                }}
+                            }}
+                            catch(err) {{
+                                // if error occurs, send post message to parent and wait for 10 secs to redirect. if doesn't redirect, redirect self to return_url
+                                window.parent.postMessage({{openurl: return_url}}, '*')
+                                setTimeout(function() {{
+                                    window.location.href = return_url
+                                }}, 10000);
+                                console.log(err.message)
+                            }}
+                        </script>
+                        "#)))
+            }
+        }
+        .into_string();
+        Ok(services::ApplicationResponse::Form(Box::new(
+            services::RedirectionFormData {
+                redirect_form: services::RedirectForm::Html { html_data: html },
+                payment_method_data: None,
+                amount: payments_response.amount.to_string(),
+                currency: payments_response.currency.clone(),
+            },
+        )))
     }
 
     fn get_payment_action(&self) -> services::PaymentAction {
