@@ -768,7 +768,7 @@ pub trait PaymentRedirectFlow<Ctx: PaymentMethodRetrieve>: Sync {
 
     fn generate_response(
         &self,
-        payments_response: api_models::payments::PaymentsResponse,
+        payments_response: &api_models::payments::PaymentsResponse,
         business_profile: diesel_models::business_profile::BusinessProfile,
         payment_id: String,
         connector: String,
@@ -855,12 +855,7 @@ pub trait PaymentRedirectFlow<Ctx: PaymentMethodRetrieve>: Sync {
                 id: profile_id.to_string(),
             })?;
 
-        self.generate_response(
-            payments_response.clone(),
-            business_profile,
-            resource_id,
-            connector,
-        )
+        self.generate_response(&payments_response, business_profile, resource_id, connector)
     }
 }
 
@@ -915,7 +910,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectCom
 
     fn generate_response(
         &self,
-        payments_response: api_models::payments::PaymentsResponse,
+        payments_response: &api_models::payments::PaymentsResponse,
         business_profile: diesel_models::business_profile::BusinessProfile,
         payment_id: String,
         connector: String,
@@ -927,6 +922,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectCom
             api_models::enums::IntentStatus::RequiresCustomerAction => {
                 let startpay_url = payments_response
                     .next_action
+                    .clone()
                     .and_then(|next_action_data| match next_action_data {
                         api_models::payments::NextActionData::RedirectToUrl { redirect_to_url } => Some(redirect_to_url),
                         api_models::payments::NextActionData::DisplayBankTransferInformation { .. } => None,
@@ -1017,7 +1013,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectSyn
     }
     fn generate_response(
         &self,
-        payments_response: api_models::payments::PaymentsResponse,
+        payments_response: &api_models::payments::PaymentsResponse,
         business_profile: diesel_models::business_profile::BusinessProfile,
         payment_id: String,
         connector: String,
@@ -1083,7 +1079,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
     }
     fn generate_response(
         &self,
-        payments_response: api_models::payments::PaymentsResponse,
+        payments_response: &api_models::payments::PaymentsResponse,
         business_profile: diesel_models::business_profile::BusinessProfile,
         payment_id: String,
         connector: String,
@@ -1091,7 +1087,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
         let redirect_response = helpers::get_handle_response_url(
             payment_id,
             &business_profile,
-            payments_response.clone(),
+            &payments_response,
             connector,
         )?;
         let return_url_with_query_params = redirect_response.return_url_with_query_params;
@@ -1129,7 +1125,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
                 redirect_form: services::RedirectForm::Html { html_data: html },
                 payment_method_data: None,
                 amount: payments_response.amount.to_string(),
-                currency: payments_response.currency,
+                currency: payments_response.currency.clone(),
             },
         )))
     }
