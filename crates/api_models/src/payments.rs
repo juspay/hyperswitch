@@ -1126,18 +1126,18 @@ impl GetAddressFromPaymentMethodData for BankDebitData {
                 billing_details,
                 bank_account_holder_name,
                 ..
-            } => get_billing_address_inner(billing_details, bank_account_holder_name.as_ref()),
-            Self::SepaBankDebit {
+            }
+            | Self::SepaBankDebit {
                 billing_details,
                 bank_account_holder_name,
                 ..
-            } => get_billing_address_inner(billing_details, bank_account_holder_name.as_ref()),
-            Self::BecsBankDebit {
+            }
+            | Self::BecsBankDebit {
                 billing_details,
                 bank_account_holder_name,
                 ..
-            } => get_billing_address_inner(billing_details, bank_account_holder_name.as_ref()),
-            Self::BacsBankDebit {
+            }
+            | Self::BacsBankDebit {
                 billing_details,
                 bank_account_holder_name,
                 ..
@@ -1797,13 +1797,18 @@ impl GetAddressFromPaymentMethodData for BankRedirectData {
                 billing_details,
                 country,
                 ..
-            } => get_billing_address_inner(billing_details.as_ref(), country.as_ref(), None),
-            Self::Giropay {
+            }
+            | Self::Giropay {
                 billing_details,
                 country,
                 ..
-            } => get_billing_address_inner(billing_details.as_ref(), country.as_ref(), None),
-            Self::Ideal {
+            }
+            | Self::Ideal {
+                billing_details,
+                country,
+                ..
+            }
+            | Self::Sofort {
                 billing_details,
                 country,
                 ..
@@ -1820,11 +1825,6 @@ impl GetAddressFromPaymentMethodData for BankRedirectData {
             Self::Przelewy24 {
                 billing_details, ..
             } => get_billing_address_inner(Some(billing_details), None, None),
-            Self::Sofort {
-                billing_details,
-                country,
-                ..
-            } => get_billing_address_inner(billing_details.as_ref(), country.as_ref(), None),
             Self::Trustly { country } => get_billing_address_inner(None, Some(country), None),
             Self::OnlineBankingFpx { .. }
             | Self::OnlineBankingThailand { .. }
