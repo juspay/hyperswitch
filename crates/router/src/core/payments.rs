@@ -45,8 +45,7 @@ use self::{
     routing::{self as self_routing, SessionFlowRoutingInput},
 };
 use super::{
-    authentication::types::AuthenticationData, errors::StorageErrorExt,
-    payment_methods::surcharge_decision_configs, routing::TransactionData,
+    errors::StorageErrorExt, payment_methods::surcharge_decision_configs, routing::TransactionData,
 };
 #[cfg(feature = "frm")]
 use crate::core::fraud_check as frm_core;
@@ -2220,7 +2219,7 @@ where
     pub payment_link_data: Option<api_models::payments::PaymentLinkResponse>,
     pub incremental_authorization_details: Option<IncrementalAuthorizationDetails>,
     pub authorizations: Vec<diesel_models::authorization::Authorization>,
-    pub authentication: Option<(storage::Authentication, AuthenticationData)>,
+    pub authentication: Option<storage::Authentication>,
     pub frm_metadata: Option<serde_json::Value>,
 }
 
@@ -3383,12 +3382,6 @@ pub async fn payment_external_authentication(
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error while fetching authentication record")?;
-    let authentication_data: AuthenticationData = authentication
-        .authentication_data
-        .clone()
-        .parse_value("authentication data")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error while parsing authentication_data")?;
     let payment_method_details = helpers::get_payment_method_details_from_payment_token(
         &state,
         &payment_attempt,
@@ -3446,7 +3439,7 @@ pub async fn payment_external_authentication(
         Some(currency),
         authentication::MessageCategory::Payment,
         req.device_channel,
-        (authentication_data, authentication),
+        authentication,
         return_url,
         req.sdk_information,
         req.threeds_method_comp_ind,
