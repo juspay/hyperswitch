@@ -34,7 +34,7 @@ use crate::{
 
 pub mod auth_headers {
     pub const STRIPE_API_VERSION: &str = "stripe-version";
-    pub const STRIPE_VERSION: &str = "2023-10-16";
+    pub const STRIPE_VERSION: &str = "2022-11-15";
 }
 
 pub struct StripeAuthType {
@@ -162,8 +162,6 @@ pub struct SetupIntentRequest {
     pub payment_method_options: Option<StripePaymentMethodOptions>, // For mandate txns using network_txns_id, needs to be validated
     #[serde(flatten)]
     pub meta_data: Option<HashMap<String, String>>,
-    #[serde(rename = "payment_method_types[0]")]
-    pub payment_method_types: Option<StripePaymentMethodType>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -2009,7 +2007,6 @@ impl TryFrom<&types::SetupMandateRouterData> for SetupIntentRequest {
             payment_method_options: None,
             customer: item.connector_customer.to_owned().map(Secret::new),
             meta_data,
-            payment_method_types: Some(pm_type),
         })
     }
 }
