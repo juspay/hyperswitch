@@ -1333,12 +1333,17 @@ fn get_id_based_on_intent(
 }
 
 impl<F, T>
-    TryFrom<types::ResponseRouterData<F, PaypalOrdersResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    TryFrom<(
+        types::ResponseRouterData<F, PaypalOrdersResponse, T, types::PaymentsResponseData>,
+        Option<String>,
+    )> for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, PaypalOrdersResponse, T, types::PaymentsResponseData>,
+        (item, connector_mandate_id): (
+            types::ResponseRouterData<F, PaypalOrdersResponse, T, types::PaymentsResponseData>,
+            Option<String>,
+        ),
     ) -> Result<Self, Self::Error> {
         let purchase_units = item
             .response
@@ -1397,7 +1402,7 @@ impl<F, T>
                     connector_mandate_id: source
                         .card
                         .attributes
-                        .map(|attribute| attribute.vault.id),
+                        .map_or(connector_mandate_id, |attribute| Some(attribute.vault.id)),
                     payment_method_id: None,
                 });
         Ok(Self {
@@ -1451,13 +1456,14 @@ impl<F>
         >,
     ) -> Result<Self, Self::Error> {
         match item.response {
-            PaypalSyncResponse::PaypalOrdersSyncResponse(response) => {
-                Self::try_from(types::ResponseRouterData {
+            PaypalSyncResponse::PaypalOrdersSyncResponse(response) => Self::try_from((
+                types::ResponseRouterData {
                     response,
                     data: item.data,
                     http_code: item.http_code,
-                })
-            }
+                },
+                None,
+            )),
             PaypalSyncResponse::PaypalRedirectSyncResponse(response) => {
                 Self::try_from(types::ResponseRouterData {
                     response,

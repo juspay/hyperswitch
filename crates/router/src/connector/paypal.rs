@@ -12,9 +12,9 @@ use self::transformers::{auth_headers, PaypalAuthResponse, PaypalMeta, PaypalWeb
 use super::utils::{ConnectorErrorType, PaymentsCompleteAuthorizeRequestData};
 use crate::{
     configs::settings,
-    connector::{
-        utils as connector_utils,
-        utils::{to_connector_meta, ConnectorErrorTypeMapping, RefundsRequestData},
+    connector::utils::{
+        self as connector_utils, to_connector_meta, ConnectorErrorTypeMapping,
+        PaymentsAuthorizeRequestData, RefundsRequestData,
     },
     consts,
     core::{
@@ -524,11 +524,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
 
-                types::RouterData::try_from(types::ResponseRouterData {
-                    response,
-                    data: data.clone(),
-                    http_code: res.status_code,
-                })
+                types::RouterData::try_from((
+                    types::ResponseRouterData {
+                        response,
+                        data: data.clone(),
+                        http_code: res.status_code,
+                    },
+                    data.request.connector_mandate_id(),
+                ))
             }
             PaypalAuthResponse::PaypalRedirectResponse(response) => {
                 event_builder.map(|i| i.set_response_body(&response));
@@ -811,11 +814,14 @@ impl
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        types::RouterData::try_from((
+            types::ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            None,
+        ))
     }
 
     fn get_error_response(
