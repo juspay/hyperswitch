@@ -1,20 +1,24 @@
-use super::{health_check::HealthCheck, types::QueryExecutionError};
+use super::{health_check::HealthCheck, query::QueryResult, types::QueryExecutionError};
 use api_models::analytics::search::SearchIndex;
 use aws_config::{self, meta::region::RegionProviderChain, Region};
 use common_utils::errors::CustomResult;
 use data_models::errors::{StorageError, StorageResult};
+use error_stack::{IntoReport, ResultExt};
 use opensearch::{
     auth::Credentials,
     cert::CertificateValidation,
     cluster::{Cluster, ClusterHealthParts},
     http::{
         request::JsonBody,
+        response::Response,
         transport::{SingleNodeConnectionPool, Transport, TransportBuilder},
         Url,
     },
-    MsearchParts, OpenSearch, SearchParts,
+    Msearch, MsearchParts, OpenSearch, Search, SearchParts,
 };
+use serde_json::{json, Map, Value};
 use storage_impl::errors::ApplicationError;
+use strum::IntoEnumIterator;
 
 #[derive(Clone, Debug, serde::Deserialize)]
 #[serde(tag = "auth")]
@@ -72,7 +76,6 @@ pub struct OpenSearchClient {
     pub indexes: OpenSearchIndexes,
 }
 
-#[allow(unused)]
 impl OpenSearchClient {
     pub async fn create(conf: &OpenSearchConfig) -> CustomResult<Self, OpenSearchError> {
         let url = Url::parse(&conf.host).map_err(|_| OpenSearchError::ConnectionError)?;
@@ -108,10 +111,63 @@ impl OpenSearchClient {
         })
     }
 
-    // pub async fn execute(&self) -> CustomResult<Self, OpenSearchError> {}
+    pub fn search_index_to_opensearch_index(&self, index: SearchIndex) -> String {
+        match index {
+            SearchIndex::PaymentAttempts => self.indexes.payment_attempts.clone(),
+            SearchIndex::PaymentIntents => self.indexes.payment_intents.clone(),
+            SearchIndex::Refunds => self.indexes.refunds.clone(),
+        }
+    }
+
+    pub async fn execute(
+        &self,
+        query_builder: OpenSearchQueryBuilder,
+    ) -> CustomResult<Response, OpenSearchError> {
+        match query_builder.query_type {
+            OpenSearchQuery::Msearch => {
+                let payload = query_builder
+                    .construct_payload(SearchIndex::iter().collect())
+                    .change_context(OpenSearchError::ResponseError)?;
+
+                let mut payload_with_indexes: Vec<JsonBody<Value>> = vec![];
+                for (index_hit, index) in payload.iter().to_owned().zip(SearchIndex::iter()) {
+                    payload_with_indexes.push(
+                        json!({"index": self.search_index_to_opensearch_index(index)}).into(),
+                    );
+                    payload_with_indexes.push(*index_hit);
+                }
+
+                self.client
+                    .msearch(MsearchParts::None)
+                    .body(payload_with_indexes)
+                    .send()
+                    .await
+                    .into_report()
+                    .change_context(OpenSearchError::ResponseError)
+            }
+            OpenSearchQuery::Search(index) => {
+                let payload = query_builder
+                    .construct_payload(vec![index])
+                    .change_context(OpenSearchError::ResponseError)?;
+
+                let JsonBody(final_payload) =
+                    *payload.get(0).unwrap_or(&JsonBody::from(Value::Null));
+
+                self.client
+                    .search(SearchParts::Index(&[
+                        &self.search_index_to_opensearch_index(index)
+                    ]))
+                    .from(query_builder.offset.unwrap_or(0))
+                    .size(query_builder.count.unwrap_or(10))
+                    .body(final_payload)
+                    .send()
+                    .await
+                    .into_report()
+                    .change_context(OpenSearchError::ResponseError)
+            }
+        }
+    }
 }
-use error_stack::IntoReport;
-use error_stack::ResultExt;
 
 #[async_trait::async_trait]
 impl HealthCheck for OpenSearchClient {
@@ -229,18 +285,56 @@ pub struct OpenSearchHealth {
     pub status: OpenSearchHealthStatus,
 }
 
+#[derive(Debug)]
 pub enum OpenSearchQuery {
     Msearch,
     Search(SearchIndex),
-    HealthCheck,
 }
 
 #[derive(Debug)]
 pub struct OpenSearchQueryBuilder {
-    pub query: Option<String>,
-    pub offset: i64,
-    pub count: i64,
-    query_type: OpenSearchQuery,
-    distinct: bool,
-    merchant_id: TableEngine,
+    pub query_type: OpenSearchQuery,
+    pub query: String,
+    pub offset: Option<i64>,
+    pub count: Option<i64>,
+    pub filters: Vec<(String, String)>,
+}
+
+impl OpenSearchQueryBuilder {
+    pub fn new(query_type: OpenSearchQuery, query: String) -> Self {
+        Self {
+            query_type: query_type,
+            query: query,
+            offset: Default::default(),
+            count: Default::default(),
+            filters: Default::default(),
+        }
+    }
+
+    pub fn set_offset_n_count(&mut self, offset: i64, count: i64) -> QueryResult<()> {
+        self.offset = Some(offset);
+        self.count = Some(count);
+        Ok(())
+    }
+
+    pub fn add_filter_clause(&mut self, lhs: String, rhs: String) -> QueryResult<()> {
+        self.filters.push((lhs, rhs));
+        Ok(())
+    }
+
+    pub fn construct_payload(
+        &self,
+        indexes: Vec<SearchIndex>,
+    ) -> QueryResult<Vec<JsonBody<Value>>> {
+        let filters = self
+            .filters
+            .iter()
+            .map(|(k, v)| json!({"match_phrase" : {k : v}}))
+            .collect::<Vec<Value>>();
+
+        // TODO add index specific filters
+        Ok(indexes.iter().map(|_| {
+            json!({"query": {"bool": {"must": {"query_string": {"query": self.query}}, "filter": filters}}}).into()
+        }).collect::<Vec<JsonBody<Value>>>())
+    }
 }
