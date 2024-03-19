@@ -1118,7 +1118,9 @@ pub(crate) async fn get_payment_method_create_request(
                         payment_method_type,
                         payment_method_issuer: card.card_issuer.clone(),
                         payment_method_issuer_code: None,
+                        #[cfg(feature = "payouts")]
                         bank_transfer: None,
+                        #[cfg(feature = "payouts")]
                         wallet: None,
                         card: Some(card_detail),
                         metadata: None,
@@ -1136,7 +1138,9 @@ pub(crate) async fn get_payment_method_create_request(
                         payment_method_type,
                         payment_method_issuer: None,
                         payment_method_issuer_code: None,
+                        #[cfg(feature = "payouts")]
                         bank_transfer: None,
+                        #[cfg(feature = "payouts")]
                         wallet: None,
                         card: None,
                         metadata: None,
@@ -2207,12 +2211,12 @@ pub(super) fn validate_payment_list_request_for_joins(
 pub fn get_handle_response_url(
     payment_id: String,
     business_profile: &diesel_models::business_profile::BusinessProfile,
-    response: api::PaymentsResponse,
+    response: &api::PaymentsResponse,
     connector: String,
 ) -> RouterResult<api::RedirectionResponse> {
     let payments_return_url = response.return_url.as_ref();
 
-    let redirection_response = make_pg_redirect_response(payment_id, &response, connector);
+    let redirection_response = make_pg_redirect_response(payment_id, response, connector);
 
     let return_url = make_merchant_url_with_response(
         business_profile,
