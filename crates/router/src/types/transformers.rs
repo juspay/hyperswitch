@@ -20,7 +20,6 @@ use crate::{
         api::{self as api_types, routing as routing_types},
         storage,
     },
-    utils::OptionExt,
 };
 
 pub trait ForeignInto<T> {
@@ -1174,6 +1173,8 @@ impl TryFrom<domain::Event> for api_models::webhook_events::EventListItemRespons
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(item: domain::Event) -> Result<Self, Self::Error> {
+        use crate::utils::OptionExt;
+
         // We only allow retrieving events with merchant_id, business_profile_id
         // and initial_attempt_id populated.
         // We cannot retrieve events with only some of these fields populated.
@@ -1209,6 +1210,8 @@ impl TryFrom<domain::Event> for api_models::webhook_events::EventRetrieveRespons
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(item: domain::Event) -> Result<Self, Self::Error> {
+        use crate::utils::OptionExt;
+
         // We only allow retrieving events with merchant_id, business_profile_id,
         // and initial_attempt_id populated.
         // We cannot retrieve events with only some of these fields populated.
