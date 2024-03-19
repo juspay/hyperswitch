@@ -16,10 +16,10 @@ pub struct EventListConstraints {
     pub created_before: Option<PrimitiveDateTime>,
 
     /// Include at most the specified number of events.
-    pub limit: Option<i64>,
+    pub limit: Option<u16>,
 
     /// Include events after the specified offset.
-    pub offset: Option<i64>,
+    pub offset: Option<u16>,
 
     /// Filter all events associated with the specified object identifier (Payment Intent ID,
     /// Refund ID, etc.)

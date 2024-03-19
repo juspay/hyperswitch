@@ -1161,8 +1161,8 @@ impl ForeignTryFrom<api_types::webhook_events::EventListConstraints>
             None => Ok(Self::GenericFilter {
                 created_after: item.created_after,
                 created_before: item.created_before,
-                limit: item.limit,
-                offset: item.offset,
+                limit: item.limit.map(i64::from),
+                offset: item.offset.map(i64::from),
             }),
         }
     }

@@ -8,6 +8,8 @@ use crate::{
     types::{api, transformers::ForeignTryFrom},
 };
 
+const INITIAL_DELIVERY_ATTEMPTS_LIST_MAX_LIMIT: i64 = 100;
+
 #[instrument(skip(state))]
 pub async fn list_initial_delivery_attempts(
     state: AppState,
@@ -44,6 +46,20 @@ pub async fn list_initial_delivery_attempts(
             limit,
             offset,
         } => {
+            let limit = match limit {
+                Some(limit) if  limit <= INITIAL_DELIVERY_ATTEMPTS_LIST_MAX_LIMIT => Ok(Some(limit)),
+                Some(limit) if limit > INITIAL_DELIVERY_ATTEMPTS_LIST_MAX_LIMIT => Err(
+                    errors::ApiErrorResponse::InvalidRequestData{
+                        message: format!("`limit` must be a number less than {INITIAL_DELIVERY_ATTEMPTS_LIST_MAX_LIMIT}")
+                    }
+                ),
+                _  => Ok(Some(INITIAL_DELIVERY_ATTEMPTS_LIST_MAX_LIMIT)),
+            }?;
+            let offset = match offset {
+                Some(offset) if offset > 0 => Some(offset),
+                _ => None,
+            };
+
             store
                 .list_initial_events_by_merchant_id_constraints(
                     &merchant_id,
