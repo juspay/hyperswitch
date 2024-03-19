@@ -110,6 +110,7 @@ pub struct StripeMandateRequest {
 pub enum ExpandableObjects {
     LatestCharge,
     Customer,
+    LatestAttempt,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -173,6 +174,8 @@ pub struct SetupIntentRequest {
     pub meta_data: Option<HashMap<String, String>>,
     #[serde(rename = "payment_method_types[0]")]
     pub payment_method_types: Option<StripePaymentMethodType>,
+    #[serde(rename = "expand[0]")]
+    pub expand: Option<ExpandableObjects>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -2020,6 +2023,7 @@ impl TryFrom<&types::SetupMandateRouterData> for SetupIntentRequest {
             customer: item.connector_customer.to_owned().map(Secret::new),
             meta_data,
             payment_method_types: Some(pm_type),
+            expand: Some(ExpandableObjects::LatestAttempt),
         })
     }
 }
@@ -2368,11 +2372,26 @@ pub struct SetupIntentResponse {
     pub last_setup_error: Option<ErrorDetails>,
 }
 
-fn extract_payment_method_connector_response(
+fn extract_payment_method_connector_response_from_latest_charge(
     stripe_charge_enum: &StripeChargeEnum,
 ) -> Option<types::ConnectorResponseData> {
     if let StripeChargeEnum::ChargeObject(charge_object) = stripe_charge_enum {
         charge_object
+            .payment_method_details
+            .as_ref()
+            .and_then(StripePaymentMethodDetailsResponse::get_additional_payment_method_data)
+    } else {
+        None
+    }
+    .map(types::AdditionalPaymentMethodConnectorResponse::from)
+    .map(types::ConnectorResponseData::with_additional_payment_method_data)
+}
+
+fn extract_payment_method_connector_response_from_latest_attempt(
+    stripe_latest_attempt: &LatestAttempt,
+) -> Option<types::ConnectorResponseData> {
+    if let LatestAttempt::PaymentIntentAttempt(intent_attempt) = stripe_latest_attempt {
+        intent_attempt
             .payment_method_details
             .as_ref()
             .and_then(StripePaymentMethodDetailsResponse::get_additional_payment_method_data)
@@ -2470,7 +2489,7 @@ impl<F, T>
             .response
             .latest_charge
             .as_ref()
-            .and_then(extract_payment_method_connector_response);
+            .and_then(extract_payment_method_connector_response_from_latest_charge);
 
         Ok(Self {
             status,
@@ -2609,7 +2628,7 @@ impl<F, T>
             .response
             .latest_charge
             .as_ref()
-            .and_then(extract_payment_method_connector_response);
+            .and_then(extract_payment_method_connector_response_from_latest_charge);
 
         let response = if connector_util::is_payment_failure(status) {
             types::PaymentsResponseData::try_from((
@@ -2658,6 +2677,12 @@ impl<F, T>
             types::MandateReference::foreign_from((item.response.payment_method_options, pm))
         });
         let status = enums::AttemptStatus::from(item.response.status);
+        let connector_response_data = item
+            .response
+            .latest_attempt
+            .as_ref()
+            .and_then(extract_payment_method_connector_response_from_latest_attempt);
+
         let response = if connector_util::is_payment_failure(status) {
             types::PaymentsResponseData::try_from((
                 &item.response.last_setup_error,
@@ -2679,6 +2704,7 @@ impl<F, T>
         Ok(Self {
             status,
             response,
+            connector_response: connector_response_data,
             ..item.data
         })
     }
@@ -3117,6 +3143,7 @@ pub enum LatestAttempt {
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct LatestPaymentAttempt {
     pub payment_method_options: Option<StripePaymentMethodOptions>,
+    pub payment_method_details: Option<StripePaymentMethodDetailsResponse>,
 }
 // #[derive(Deserialize, Debug, Clone, Eq, PartialEq)]
 // pub struct Card

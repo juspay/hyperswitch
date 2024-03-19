@@ -57,8 +57,12 @@ pub async fn perform_authentication(
         threeds_method_comp_ind,
         email,
     )?;
-    let response =
-        utils::do_auth_connector_call(state, authentication_connector.clone(), router_data).await?;
+    let response = Box::pin(utils::do_auth_connector_call(
+        state,
+        authentication_connector.clone(),
+        router_data,
+    ))
+    .await?;
     let (_authentication, _authentication_data) =
         utils::update_trackers(state, response.clone(), authentication_data.1, None, None).await?;
     let authentication_response =
