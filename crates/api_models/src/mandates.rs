@@ -113,3 +113,10 @@ pub struct MandateListConstraints {
     #[serde(rename = "created_time.gte")]
     pub created_time_gte: Option<PrimitiveDateTime>,
 }
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "type", content = "data", rename_all = "snake_case")]
+pub enum RecurringDetails {
+    MandateId(String),
+    PaymentMethodId(String),
+}

@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::enums::FrmSuggestion;
+use api_models::{enums::FrmSuggestion, mandates::RecurringDetails};
 use async_trait::async_trait;
 use error_stack::{report, IntoReport, ResultExt};
 use router_derive::PaymentOperation;
@@ -10,6 +10,7 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
+        mandate::helpers::MandateGenericData,
         payment_methods::PaymentMethodRetrieve,
         payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
         utils as core_utils,
@@ -71,17 +72,18 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             "confirm",
         )?;
 
-        let (
+        let MandateGenericData {
             token,
             payment_method,
             payment_method_type,
-            setup_mandate,
+            mandate_data,
             recurring_mandate_payment_data,
             mandate_connector,
-        ) = helpers::get_token_pm_type_mandate_details(
+            payment_method_info,
+        } = helpers::get_token_pm_type_mandate_details(
             state,
             request,
-            mandate_type.clone(),
+            mandate_type.to_owned(),
             merchant_account,
             key_store,
         )
@@ -225,7 +227,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         payment_intent.metadata = request.metadata.clone().or(payment_intent.metadata);
 
         // The operation merges mandate data from both request and payment_attempt
-        let setup_mandate = setup_mandate.map(Into::into);
+        let setup_mandate = mandate_data.map(Into::into);
 
         let mandate_details_present =
             payment_attempt.mandate_details.is_some() || request.mandate_data.is_some();
@@ -246,6 +248,14 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
                 id: profile_id.to_string(),
             })?;
+
+        let recurring_details = request
+            .recurring_details
+            .as_ref()
+            .and_then(|recurring_details| match recurring_details {
+                RecurringDetails::PaymentMethodId(id) => Some(id.clone()),
+                _ => None,
+            });
 
         let payment_data = PaymentData {
             flow: PhantomData,
@@ -270,7 +280,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 .payment_method_data
                 .as_ref()
                 .map(|pmd| pmd.payment_method_data.clone()),
-            payment_method_info: None,
+            payment_method_info,
             force_sync: None,
             refunds: vec![],
             disputes: vec![],
@@ -291,6 +301,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             authorizations: vec![],
             authentication: None,
             frm_metadata: None,
+            recurring_details,
         };
 
         let customer_details = Some(CustomerDetails {
