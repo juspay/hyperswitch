@@ -584,6 +584,7 @@ pub enum MultisafepayPaymentStatus {
     #[default]
     Initialized,
     Void,
+    Uncleared
 }
 
 #[derive(Debug, Clone, Eq, Serialize, Deserialize, PartialEq)]
@@ -598,6 +599,7 @@ impl From<MultisafepayPaymentStatus> for enums::AttemptStatus {
             MultisafepayPaymentStatus::Completed => Self::Charged,
             MultisafepayPaymentStatus::Declined => Self::Failure,
             MultisafepayPaymentStatus::Initialized => Self::AuthenticationPending,
+            MultisafepayPaymentStatus::Uncleared => Self::Pending, 
             MultisafepayPaymentStatus::Void => Self::Voided,
         }
     }
@@ -891,6 +893,6 @@ fn get_error_response_if_failure(
         reason: error_message,
         status_code: http_code,
         attempt_status: None,
-        connector_transaction_id: connector_transaction_id,
+        connector_transaction_id,
     }
 }
