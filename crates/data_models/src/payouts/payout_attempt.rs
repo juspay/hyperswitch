@@ -1,12 +1,34 @@
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
-use serde::{self, Deserialize, Serialize};
+use common_enums as storage_enums;
+use serde::{Deserialize, Serialize};
+use storage_enums::MerchantStorageScheme;
 use time::PrimitiveDateTime;
 
-use crate::{enums as storage_enums, schema::payout_attempt};
+use crate::errors;
 
-#[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
-#[diesel(table_name = payout_attempt)]
-#[diesel(primary_key(payout_attempt_id))]
+#[async_trait::async_trait]
+pub trait PayoutAttemptInterface {
+    async fn insert_payout_attempt(
+        &self,
+        _payout: PayoutAttemptNew,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PayoutAttempt, errors::StorageError>;
+
+    async fn update_payout_attempt(
+        &self,
+        _this: &PayoutAttempt,
+        _payout_attempt_update: PayoutAttemptUpdate,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PayoutAttempt, errors::StorageError>;
+
+    async fn find_payout_attempt_by_merchant_id_payout_attempt_id(
+        &self,
+        _merchant_id: &str,
+        _payout_attempt_id: &str,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PayoutAttempt, errors::StorageError>;
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PayoutAttempt {
     pub payout_attempt_id: String,
     pub payout_id: String,
@@ -31,19 +53,7 @@ pub struct PayoutAttempt {
     pub routing_info: Option<serde_json::Value>,
 }
 
-#[derive(
-    Clone,
-    Debug,
-    Default,
-    Eq,
-    PartialEq,
-    Insertable,
-    serde::Serialize,
-    serde::Deserialize,
-    router_derive::DebugAsDisplay,
-    router_derive::Setter,
-)]
-#[diesel(table_name = payout_attempt)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct PayoutAttemptNew {
     pub payout_attempt_id: String,
     pub payout_id: String,
@@ -59,16 +69,42 @@ pub struct PayoutAttemptNew {
     pub error_code: Option<String>,
     pub business_country: Option<storage_enums::CountryAlpha2>,
     pub business_label: Option<String>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created_at: Option<PrimitiveDateTime>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_modified_at: Option<PrimitiveDateTime>,
     pub profile_id: String,
     pub merchant_connector_id: Option<String>,
     pub routing_info: Option<serde_json::Value>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+impl Default for PayoutAttemptNew {
+    fn default() -> Self {
+        let now = common_utils::date_time::now();
+
+        Self {
+            payout_attempt_id: String::default(),
+            payout_id: String::default(),
+            customer_id: String::default(),
+            merchant_id: String::default(),
+            address_id: String::default(),
+            connector: None,
+            connector_payout_id: String::default(),
+            payout_token: None,
+            status: storage_enums::PayoutStatus::default(),
+            is_eligible: None,
+            error_message: None,
+            error_code: None,
+            business_country: Some(storage_enums::CountryAlpha2::default()),
+            business_label: None,
+            created_at: Some(now),
+            last_modified_at: Some(now),
+            profile_id: String::default(),
+            merchant_connector_id: None,
+            routing_info: None,
+        }
+    }
+}
+
+#[derive(Debug)]
 pub enum PayoutAttemptUpdate {
     StatusUpdate {
         connector_payout_id: String,
@@ -90,8 +126,7 @@ pub enum PayoutAttemptUpdate {
     },
 }
 
-#[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
-#[diesel(table_name = payout_attempt)]
+#[derive(Clone, Debug, Default)]
 pub struct PayoutAttemptUpdateInternal {
     pub payout_token: Option<String>,
     pub connector_payout_id: Option<String>,
@@ -103,25 +138,6 @@ pub struct PayoutAttemptUpdateInternal {
     pub business_label: Option<String>,
     pub connector: Option<String>,
     pub routing_info: Option<serde_json::Value>,
-    pub last_modified_at: PrimitiveDateTime,
-}
-
-impl Default for PayoutAttemptUpdateInternal {
-    fn default() -> Self {
-        Self {
-            payout_token: None,
-            connector_payout_id: None,
-            status: None,
-            error_message: None,
-            error_code: None,
-            is_eligible: None,
-            business_country: None,
-            business_label: None,
-            connector: None,
-            routing_info: None,
-            last_modified_at: common_utils::date_time::now(),
-        }
-    }
 }
 
 impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
@@ -161,38 +177,6 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
                 routing_info,
                 ..Default::default()
             },
-        }
-    }
-}
-
-impl PayoutAttemptUpdate {
-    pub fn apply_changeset(self, source: PayoutAttempt) -> PayoutAttempt {
-        let PayoutAttemptUpdateInternal {
-            payout_token,
-            connector_payout_id,
-            status,
-            error_message,
-            error_code,
-            is_eligible,
-            business_country,
-            business_label,
-            connector,
-            routing_info,
-            last_modified_at,
-        } = self.into();
-        PayoutAttempt {
-            payout_token: payout_token.or(source.payout_token),
-            connector_payout_id: connector_payout_id.unwrap_or(source.connector_payout_id),
-            status: status.unwrap_or(source.status),
-            error_message: error_message.or(source.error_message),
-            error_code: error_code.or(source.error_code),
-            is_eligible: is_eligible.or(source.is_eligible),
-            business_country: business_country.or(source.business_country),
-            business_label: business_label.or(source.business_label),
-            connector: connector.or(source.connector),
-            routing_info: routing_info.or(source.routing_info),
-            last_modified_at,
-            ..source
         }
     }
 }

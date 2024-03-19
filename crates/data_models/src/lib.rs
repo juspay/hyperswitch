@@ -1,6 +1,14 @@
 pub mod errors;
 pub mod mandates;
 pub mod payments;
+#[cfg(feature = "payouts")]
+pub mod payouts;
+
+#[cfg(not(feature = "payouts"))]
+pub trait PayoutAttemptInterface {}
+
+#[cfg(not(feature = "payouts"))]
+pub trait PayoutsInterface {}
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub enum RemoteStorageObject<T: ForeignIDRef> {
