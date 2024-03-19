@@ -203,7 +203,7 @@ pub struct CardRequest {
     number: Option<cards::CardNumber>,
     security_code: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    attributes: Option<ThreeDsSetting>,
+    attributes: Option<Attributes>,
 }
 
 #[derive(Debug, Serialize)]
@@ -212,7 +212,7 @@ pub struct VaultRequest {
 }
 
 #[derive(Debug, Serialize)]
-pub struct ThreeDsSetting {
+pub struct Attributes {
     verification: ThreeDsMethod,
     #[serde(skip_serializing_if = "Option::is_none")]
     vault: Option<Vault>,
@@ -558,13 +558,13 @@ impl
         };
 
         let attributes = match item.router_data.auth_type {
-            api_models::enums::AuthenticationType::ThreeDs => Some(ThreeDsSetting {
+            api_models::enums::AuthenticationType::ThreeDs => Some(Attributes {
                 verification: ThreeDsMethod {
                     method: ThreeDsType::ScaAlways,
                 },
                 vault,
             }),
-            api_models::enums::AuthenticationType::NoThreeDs => vault.map(|vault| ThreeDsSetting {
+            api_models::enums::AuthenticationType::NoThreeDs => vault.map(|vault| Attributes {
                 verification: ThreeDsMethod {
                     method: ThreeDsType::ScaWhenRequired,
                 },
