@@ -402,6 +402,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::mandates::MandateRevokedResponse,
         api_models::mandates::MandateResponse,
         api_models::mandates::MandateCardDetails,
+        api_models::mandates::RecurringDetails,
         api_models::ephemeral_key::EphemeralKeyCreateResponse,
         api_models::payments::CustomerDetails,
         api_models::payments::GiftCardData,
