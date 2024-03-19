@@ -681,6 +681,13 @@ impl<F, T>
                 Ok(Self {
                     status,
                     response: if utils::is_payment_failure(status) {
+                        Err(get_error_response_if_failure(
+                            payment_response.data.reason_code,
+                            payment_response.data.reason,
+                            item.http_code,
+                            Some(payment_response.data.order_id),
+                        ))
+                    } else {
                         Ok(types::PaymentsResponseData::TransactionResponse {
                             resource_id: types::ResponseId::ConnectorTransactionId(
                                 payment_response.data.order_id.clone(),
@@ -701,13 +708,6 @@ impl<F, T>
                             ),
                             incremental_authorization_allowed: None,
                         })
-                    } else {
-                        Err(get_error_response_if_failure(
-                            payment_response.data.reason_code,
-                            payment_response.data.reason,
-                            item.http_code,
-                            Some(payment_response.data.order_id),
-                        ))
                     },
                     ..item.data
                 })
