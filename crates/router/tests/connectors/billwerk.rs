@@ -1,8 +1,5 @@
 use masking::Secret;
-use router::{
-    core::utils as core_utils,
-    types::{self, api, storage::enums},
-};
+use router::types::{self, api, storage::enums};
 use test_utils::connector_auth;
 
 use crate::utils::{self, ConnectorActions};
