@@ -921,7 +921,9 @@ impl WalletData for api::WalletData {
     {
         serde_json::from_str::<T>(self.get_wallet_token()?.peek())
             .into_report()
-            .change_context(errors::ConnectorError::InvalidWalletToken)
+            .change_context(errors::ConnectorError::InvalidWalletToken {
+                wallet_name: "".to_string(),
+            })
     }
 
     fn get_encoded_wallet_token(&self) -> Result<String, Error> {
@@ -930,11 +932,16 @@ impl WalletData for api::WalletData {
                 let json_token: serde_json::Value = self.get_wallet_token_as_json()?;
                 let token_as_vec = serde_json::to_vec(&json_token)
                     .into_report()
-                    .change_context(errors::ConnectorError::InvalidWalletToken)?;
+                    .change_context(errors::ConnectorError::InvalidWalletToken {
+                        wallet_name: "Applepay".to_string(),
+                    })?;
                 let encoded_token = consts::BASE64_ENGINE.encode(token_as_vec);
                 Ok(encoded_token)
             }
-            _ => Err(errors::ConnectorError::InvalidWalletToken.into()),
+            _ => Err(errors::ConnectorError::InvalidWalletToken {
+                wallet_name: "GooglePay".to_string(),
+            }
+            .into()),
         }
     }
 }
@@ -950,10 +957,14 @@ impl ApplePay for payments::ApplePayWalletData {
                 consts::BASE64_ENGINE
                     .decode(&self.payment_data)
                     .into_report()
-                    .change_context(errors::ConnectorError::InvalidWalletToken)?,
+                    .change_context(errors::ConnectorError::InvalidWalletToken {
+                        wallet_name: "Applepay".to_string(),
+                    })?,
             )
             .into_report()
-            .change_context(errors::ConnectorError::InvalidWalletToken)?,
+            .change_context(errors::ConnectorError::InvalidWalletToken {
+                wallet_name: "Applepay".to_string(),
+            })?,
         );
         Ok(token)
     }

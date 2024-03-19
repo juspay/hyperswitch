@@ -708,7 +708,9 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                                 Self::try_from((item, decrypt_data, apple_pay_data))
                             }
                             types::PaymentMethodToken::Token(_) => {
-                                Err(errors::ConnectorError::InvalidWalletToken)?
+                                Err(errors::ConnectorError::InvalidWalletToken {
+                                    wallet_name: "Applepay".to_string(),
+                                })?
                             }
                         },
                         None => {

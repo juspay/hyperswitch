@@ -80,6 +80,11 @@ pub enum ApiErrorResponse {
     )]
     InvalidJwtToken,
     #[error(
+        error_type = ErrorType::ProcessingError, code = "IR_17",
+        message = "Invalid {wallet_name} wallet token"
+    )]
+    InvalidWalletToken { wallet_name: String },
+    #[error(
         error_type = ErrorType::InvalidRequestError, code = "IR_18",
         message = "{message}",
     )]

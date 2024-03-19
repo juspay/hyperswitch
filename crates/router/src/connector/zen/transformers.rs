@@ -473,13 +473,17 @@ impl
                 ZenPaymentChannels::PclApplepay,
                 session
                     .apple_pay
-                    .ok_or(errors::ConnectorError::RequestEncodingFailed)?,
+                    .ok_or(errors::ConnectorError::InvalidWalletToken {
+                        wallet_name: "Applepay".to_string(),
+                    })?,
             ),
             api_models::payments::WalletData::GooglePayRedirect(_) => (
                 ZenPaymentChannels::PclGooglepay,
                 session
                     .google_pay
-                    .ok_or(errors::ConnectorError::RequestEncodingFailed)?,
+                    .ok_or(errors::ConnectorError::InvalidWalletToken {
+                        wallet_name: "Googlepay".to_string(),
+                    })?,
             ),
             api_models::payments::WalletData::WeChatPayRedirect(_)
             | api_models::payments::WalletData::PaypalRedirect(_)

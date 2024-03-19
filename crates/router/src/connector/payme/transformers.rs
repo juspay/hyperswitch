@@ -709,7 +709,9 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
                 let buyer_key = match pm_token {
                     types::PaymentMethodToken::Token(token) => token,
                     types::PaymentMethodToken::ApplePayDecrypt(_) => {
-                        Err(errors::ConnectorError::InvalidWalletToken)?
+                        Err(errors::ConnectorError::InvalidWalletToken {
+                            wallet_name: "Applepay".to_string(),
+                        })?
                     }
                 };
                 Ok(Self {

@@ -78,6 +78,11 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 AER::BadRequest(ApiError::new("IR", 16, message.to_string(), None))
             }
             Self::InvalidJwtToken => AER::Unauthorized(ApiError::new("IR", 17, "Access forbidden, invalid JWT token was used", None)),
+            Self::InvalidWalletToken { wallet_name} => AER::Unprocessable(ApiError::new(
+                "IR",
+                17,
+                format!("Invalid {wallet_name} wallet token"), None
+            )),
             Self::GenericUnauthorized { message } => {
                 AER::Unauthorized(ApiError::new("IR", 18, message.to_string(), None))
             },

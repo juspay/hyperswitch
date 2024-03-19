@@ -308,7 +308,9 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                         token: match item.router_data.get_payment_method_token()? {
                             types::PaymentMethodToken::Token(token) => token.into(),
                             types::PaymentMethodToken::ApplePayDecrypt(_) => {
-                                Err(errors::ConnectorError::InvalidWalletToken)?
+                                Err(errors::ConnectorError::InvalidWalletToken {
+                                    wallet_name: "Applepay".to_string(),
+                                })?
                             }
                         },
                     }))

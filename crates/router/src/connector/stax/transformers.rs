@@ -81,7 +81,9 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
                     payment_method_id: Secret::new(match pm_token {
                         types::PaymentMethodToken::Token(token) => token,
                         types::PaymentMethodToken::ApplePayDecrypt(_) => {
-                            Err(errors::ConnectorError::InvalidWalletToken)?
+                            Err(errors::ConnectorError::InvalidWalletToken {
+                                wallet_name: "Applepay".to_string(),
+                            })?
                         }
                     }),
                     idempotency_id: Some(item.router_data.connector_request_reference_id.clone()),
@@ -100,7 +102,9 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
                     payment_method_id: Secret::new(match pm_token {
                         types::PaymentMethodToken::Token(token) => token,
                         types::PaymentMethodToken::ApplePayDecrypt(_) => {
-                            Err(errors::ConnectorError::InvalidWalletToken)?
+                            Err(errors::ConnectorError::InvalidWalletToken {
+                                wallet_name: "Applepay".to_string(),
+                            })?
                         }
                     }),
                     idempotency_id: Some(item.router_data.connector_request_reference_id.clone()),
