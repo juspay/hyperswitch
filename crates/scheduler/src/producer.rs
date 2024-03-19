@@ -61,7 +61,7 @@ where
         .attach_printable("Failed while creating a signals handler")?;
     let handle = signal.handle();
     let task_handle =
-        tokio::spawn(common_utils::signals::signal_handler(signal, tx)).in_current_span();
+        tokio::spawn(common_utils::signals::signal_handler(signal, tx).in_current_span());
 
     loop {
         match rx.try_recv() {

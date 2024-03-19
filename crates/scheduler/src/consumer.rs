@@ -68,7 +68,7 @@ pub async fn start_consumer<T: SchedulerAppState + 'static>(
         .attach_printable("Failed while creating a signals handler")?;
     let handle = signal.handle();
     let task_handle =
-        tokio::spawn(common_utils::signals::signal_handler(signal, tx)).in_current_span();
+        tokio::spawn(common_utils::signals::signal_handler(signal, tx).in_current_span());
 
     'consumer: loop {
         match rx.try_recv() {

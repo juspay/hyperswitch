@@ -50,7 +50,7 @@ macro_rules! newtype {
 #[macro_export]
 macro_rules! async_spawn {
     ($t:block) => {
-        let _task_handle = tokio::spawn(async move { $t }).in_current_span();
+        let _task_handle = tokio::spawn(async move { $t }.in_current_span());
     };
 }
 

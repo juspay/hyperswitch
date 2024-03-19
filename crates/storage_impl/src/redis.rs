@@ -35,10 +35,12 @@ impl RedisStore {
 
     pub fn set_error_callback(&self, callback: tokio::sync::oneshot::Sender<()>) {
         let redis_clone = self.redis_conn.clone();
-        let _task_handle = tokio::spawn(async move {
-            redis_clone.on_error(callback).await;
-        })
-        .in_current_span();
+        let _task_handle = tokio::spawn(
+            async move {
+                redis_clone.on_error(callback).await;
+            }
+            .in_current_span(),
+        );
     }
 
     pub async fn subscribe_to_channel(
@@ -55,12 +57,14 @@ impl RedisStore {
             .change_context(redis_interface::errors::RedisError::SubscribeError)?;
 
         let redis_clone = self.redis_conn.clone();
-        let _task_handle = tokio::spawn(async move {
-            if let Err(e) = redis_clone.on_message().await {
-                logger::error!(pubsub_err=?e);
+        let _task_handle = tokio::spawn(
+            async move {
+                if let Err(e) = redis_clone.on_message().await {
+                    logger::error!(pubsub_err=?e);
+                }
             }
-        })
-        .in_current_span();
+            .in_current_span(),
+        );
         Ok(())
     }
 }

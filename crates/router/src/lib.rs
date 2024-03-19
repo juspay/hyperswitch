@@ -196,7 +196,7 @@ pub async fn start_server(conf: settings::Settings<SecuredSecret>) -> Applicatio
         .workers(server.workers)
         .shutdown_timeout(server.shutdown_timeout)
         .run();
-    let _task_handle = tokio::spawn(receiver_for_error(rx, server.handle())).in_current_span();
+    let _task_handle = tokio::spawn(receiver_for_error(rx, server.handle()).in_current_span());
     Ok(server)
 }
 

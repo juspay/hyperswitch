@@ -25,7 +25,7 @@ async fn spawn_server() -> bool {
         .await
         .expect("failed to create server");
 
-    let _server = tokio::spawn(server).in_current_span();
+    let _server = tokio::spawn(server.in_current_span());
     true
 }
 

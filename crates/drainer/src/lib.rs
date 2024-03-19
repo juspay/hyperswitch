@@ -43,7 +43,7 @@ pub async fn start_drainer(store: Arc<Store>, conf: DrainerSettings) -> errors::
             ))?;
     let handle = signal.handle();
     let task_handle =
-        tokio::spawn(common_utils::signals::signal_handler(signal, tx.clone())).in_current_span();
+        tokio::spawn(common_utils::signals::signal_handler(signal, tx.clone()).in_current_span());
 
     let handler_clone = drainer_handler.clone();
 
