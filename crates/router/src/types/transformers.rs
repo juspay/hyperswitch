@@ -1134,6 +1134,7 @@ impl ForeignFrom<storage::GatewayStatusMap> for gsm_api_types::GsmResponse {
     }
 }
 
+#[cfg(feature = "olap")]
 impl ForeignTryFrom<api_types::webhook_events::EventListConstraints>
     for api_types::webhook_events::EventListConstraintsInternal
 {
@@ -1168,6 +1169,7 @@ impl ForeignTryFrom<api_types::webhook_events::EventListConstraints>
     }
 }
 
+#[cfg(feature = "olap")]
 impl TryFrom<domain::Event> for api_models::webhook_events::EventListItemResponse {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
@@ -1202,6 +1204,7 @@ impl TryFrom<domain::Event> for api_models::webhook_events::EventListItemRespons
     }
 }
 
+#[cfg(feature = "olap")]
 impl TryFrom<domain::Event> for api_models::webhook_events::EventRetrieveResponse {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
