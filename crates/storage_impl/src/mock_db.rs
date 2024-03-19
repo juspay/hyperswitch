@@ -13,7 +13,13 @@ use crate::redis::RedisStore;
 
 pub mod payment_attempt;
 pub mod payment_intent;
+#[cfg(feature = "payouts")]
+pub mod payout_attempt;
+#[cfg(feature = "payouts")]
+pub mod payouts;
 pub mod redis_conn;
+#[cfg(not(feature = "payouts"))]
+use data_models::{PayoutAttemptInterface, PayoutsInterface};
 
 #[derive(Clone)]
 pub struct MockDb {
@@ -45,6 +51,10 @@ pub struct MockDb {
     pub user_roles: Arc<Mutex<Vec<store::user_role::UserRole>>>,
     pub authorizations: Arc<Mutex<Vec<store::authorization::Authorization>>>,
     pub dashboard_metadata: Arc<Mutex<Vec<store::user::dashboard_metadata::DashboardMetadata>>>,
+    #[cfg(feature = "payouts")]
+    pub payout_attempt: Arc<Mutex<Vec<store::payout_attempt::PayoutAttempt>>>,
+    #[cfg(feature = "payouts")]
+    pub payouts: Arc<Mutex<Vec<store::payouts::Payouts>>>,
     pub authentications: Arc<Mutex<Vec<store::authentication::Authentication>>>,
     pub roles: Arc<Mutex<Vec<store::role::Role>>>,
 }
@@ -84,8 +94,18 @@ impl MockDb {
             user_roles: Default::default(),
             authorizations: Default::default(),
             dashboard_metadata: Default::default(),
+            #[cfg(feature = "payouts")]
+            payout_attempt: Default::default(),
+            #[cfg(feature = "payouts")]
+            payouts: Default::default(),
             authentications: Default::default(),
             roles: Default::default(),
         })
     }
 }
+
+#[cfg(not(feature = "payouts"))]
+impl PayoutsInterface for MockDb {}
+
+#[cfg(not(feature = "payouts"))]
+impl PayoutAttemptInterface for MockDb {}
