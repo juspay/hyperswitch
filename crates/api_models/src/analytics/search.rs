@@ -1,6 +1,13 @@
 use serde_json::Value;
 
-how is the filter struct defined?
+#[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
+pub struct SearchFilters {
+    pub payment_method: Option<String>,
+    pub status: Option<String>,
+    pub currency : Option<String>,
+    pub amount : Option<u64>,
+    pub connector : Option<String>,
+}
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
