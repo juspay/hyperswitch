@@ -3295,7 +3295,11 @@ where
 
     match transaction_data {
         TransactionData::Payment(payment_data) => {
-            decide_multiplex_connector_for_normal_or_recurring_payment(payment_data, routing_data, connector_data)
+            decide_multiplex_connector_for_normal_or_recurring_payment(
+                payment_data,
+                routing_data,
+                connector_data,
+            )
         }
 
         #[cfg(feature = "payouts")]
