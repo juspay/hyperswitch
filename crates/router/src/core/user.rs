@@ -574,6 +574,9 @@ pub async fn invite_user(
         let is_email_sent;
         #[cfg(feature = "email")]
         {
+            // Doing this to avoid clippy lints
+            // will add actual usage for this later
+            let _ = req_state.clone();
             let email_contents = email_types::InviteUser {
                 recipient_email: invitee_email,
                 user_name: domain::UserName::new(new_user.get_name())?,
@@ -817,6 +820,9 @@ async fn handle_new_user_invitation(
     let is_email_sent;
     #[cfg(feature = "email")]
     {
+        // TODO: Adding this to avoid clippy lints
+        // Will be adding actual usage for this variable later
+        let _ = req_state.clone();
         let invitee_email = domain::UserEmail::from_pii_email(request.email.clone())?;
         let email_contents = email_types::InviteUser {
             recipient_email: invitee_email,
@@ -873,6 +879,7 @@ pub async fn resend_invite(
     state: AppState,
     user_from_token: auth::UserFromToken,
     request: user_api::ReInviteUserRequest,
+    _req_state: ReqState,
 ) -> UserResponse<()> {
     let invitee_email = domain::UserEmail::from_pii_email(request.email)?;
     let user: domain::UserFromStorage = state

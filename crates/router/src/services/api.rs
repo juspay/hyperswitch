@@ -949,6 +949,7 @@ pub enum AuthFlow {
     Merchant,
 }
 
+#[allow(clippy::too_many_arguments)]
 #[instrument(
     skip(request, payload, state, func, api_auth, request_state),
     fields(merchant_id)
