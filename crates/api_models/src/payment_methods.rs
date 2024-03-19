@@ -222,17 +222,24 @@ pub struct PaymentMethodDataBankCreds {
     pub connector_details: Vec<BankAccountConnectorDetails>,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct BankAccountTokenData {
+    pub payment_method_type: api_enums::PaymentMethodType,
+    pub payment_method: api_enums::PaymentMethod,
+    pub connector_details: BankAccountConnectorDetails,
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct BankAccountConnectorDetails {
     pub connector: String,
-    pub account_id: String,
+    pub account_id: masking::Secret<String>,
     pub mca_id: String,
     pub access_token: BankAccountAccessCreds,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum BankAccountAccessCreds {
-    AccessToken(String),
+    AccessToken(masking::Secret<String>),
 }
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct CardDetailFromLocker {

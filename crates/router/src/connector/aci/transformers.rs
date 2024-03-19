@@ -123,9 +123,32 @@ impl TryFrom<&api_models::payments::WalletData> for PaymentDetails {
                     account_id: None,
                 }))
             }
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment method".to_string(),
-            ))?,
+            api_models::payments::WalletData::AliPayHkRedirect(_)
+            | api_models::payments::WalletData::MomoRedirect(_)
+            | api_models::payments::WalletData::KakaoPayRedirect(_)
+            | api_models::payments::WalletData::GoPayRedirect(_)
+            | api_models::payments::WalletData::GcashRedirect(_)
+            | api_models::payments::WalletData::ApplePay(_)
+            | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
+            | api_models::payments::WalletData::DanaRedirect { .. }
+            | api_models::payments::WalletData::GooglePay(_)
+            | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
+            | api_models::payments::WalletData::MobilePayRedirect(_)
+            | api_models::payments::WalletData::PaypalRedirect(_)
+            | api_models::payments::WalletData::PaypalSdk(_)
+            | api_models::payments::WalletData::SamsungPay(_)
+            | api_models::payments::WalletData::TwintRedirect { .. }
+            | api_models::payments::WalletData::VippsRedirect { .. }
+            | api_models::payments::WalletData::TouchNGoRedirect(_)
+            | api_models::payments::WalletData::WeChatPayRedirect(_)
+            | api_models::payments::WalletData::WeChatPayQr(_)
+            | api_models::payments::WalletData::CashappQr(_)
+            | api_models::payments::WalletData::SwishQr(_)
+            | api_models::payments::WalletData::AliPayQr(_)
+            | api_models::payments::WalletData::ApplePayRedirect(_)
+            | api_models::payments::WalletData::GooglePayRedirect(_) => Err(
+                errors::ConnectorError::NotImplemented("Payment method".to_string()),
+            )?,
         };
         Ok(payment_data)
     }
@@ -262,9 +285,18 @@ impl
                     customer_email: None,
                 }))
             }
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment method".to_string(),
-            ))?,
+            api_models::payments::BankRedirectData::Bizum { .. }
+            | api_models::payments::BankRedirectData::Blik { .. }
+            | api_models::payments::BankRedirectData::BancontactCard { .. }
+            | api_models::payments::BankRedirectData::OnlineBankingCzechRepublic { .. }
+            | api_models::payments::BankRedirectData::OnlineBankingFinland { .. }
+            | api_models::payments::BankRedirectData::OnlineBankingFpx { .. }
+            | api_models::payments::BankRedirectData::OnlineBankingPoland { .. }
+            | api_models::payments::BankRedirectData::OnlineBankingSlovakia { .. }
+            | api_models::payments::BankRedirectData::OnlineBankingThailand { .. }
+            | api_models::payments::BankRedirectData::OpenBankingUk { .. } => Err(
+                errors::ConnectorError::NotImplemented("Payment method".to_string()),
+            )?,
         };
         Ok(payment_data)
     }

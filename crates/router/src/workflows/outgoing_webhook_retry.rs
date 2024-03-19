@@ -339,34 +339,35 @@ async fn get_outgoing_webhook_content_and_event_type(
                 ..Default::default()
             };
 
-            let payments_response = match payments_core::<PSync, PaymentsResponse, _, _, _, Oss>(
-                state,
-                merchant_account,
-                key_store,
-                PaymentStatus,
-                request,
-                AuthFlow::Client,
-                CallConnectorAction::Avoid,
-                None,
-                HeaderPayload::default(),
-            )
-            .await?
-            {
-                ApplicationResponse::Json(payments_response)
-                | ApplicationResponse::JsonWithHeaders((payments_response, _)) => {
-                    Ok(payments_response)
-                }
-                ApplicationResponse::StatusOk
-                | ApplicationResponse::TextPlain(_)
-                | ApplicationResponse::JsonForRedirection(_)
-                | ApplicationResponse::Form(_)
-                | ApplicationResponse::PaymentLinkForm(_)
-                | ApplicationResponse::FileData(_) => {
-                    Err(errors::ProcessTrackerError::ResourceFetchingFailed {
-                        resource_name: tracking_data.primary_object_id.clone(),
-                    })
-                }
-            }?;
+            let payments_response =
+                match Box::pin(payments_core::<PSync, PaymentsResponse, _, _, _, Oss>(
+                    state,
+                    merchant_account,
+                    key_store,
+                    PaymentStatus,
+                    request,
+                    AuthFlow::Client,
+                    CallConnectorAction::Avoid,
+                    None,
+                    HeaderPayload::default(),
+                ))
+                .await?
+                {
+                    ApplicationResponse::Json(payments_response)
+                    | ApplicationResponse::JsonWithHeaders((payments_response, _)) => {
+                        Ok(payments_response)
+                    }
+                    ApplicationResponse::StatusOk
+                    | ApplicationResponse::TextPlain(_)
+                    | ApplicationResponse::JsonForRedirection(_)
+                    | ApplicationResponse::Form(_)
+                    | ApplicationResponse::PaymentLinkForm(_)
+                    | ApplicationResponse::FileData(_) => {
+                        Err(errors::ProcessTrackerError::ResourceFetchingFailed {
+                            resource_name: tracking_data.primary_object_id.clone(),
+                        })
+                    }
+                }?;
             let event_type = Option::<EventType>::foreign_from(payments_response.status);
             logger::debug!(current_resource_status=%payments_response.status);
 
@@ -384,7 +385,13 @@ async fn get_outgoing_webhook_content_and_event_type(
                 merchant_connector_details: None,
             };
 
-            let refund = refund_retrieve_core(state, merchant_account, key_store, request).await?;
+            let refund = Box::pin(refund_retrieve_core(
+                state,
+                merchant_account,
+                key_store,
+                request,
+            ))
+            .await?;
             let event_type = Option::<EventType>::foreign_from(refund.refund_status);
             logger::debug!(current_resource_status=%refund.refund_status);
             let refund_response = RefundResponse::foreign_from(refund);

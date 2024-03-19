@@ -70,14 +70,14 @@ pub async fn do_gsm_multiple_connector_actions(
 
                 connector = super::get_next_connector(&mut connectors)?;
 
-                payout_data = do_retry(
+                payout_data = Box::pin(do_retry(
                     &state.clone(),
                     connector.to_owned(),
                     merchant_account,
                     key_store,
                     payout_data,
                     req,
-                )
+                ))
                 .await?;
 
                 retries = retries.map(|i| i - 1);
@@ -137,14 +137,14 @@ pub async fn do_gsm_single_connector_actions(
                     break;
                 }
 
-                payout_data = do_retry(
+                payout_data = Box::pin(do_retry(
                     &state.clone(),
                     original_connector_data.to_owned(),
                     merchant_account,
                     key_store,
                     payout_data,
                     req,
-                )
+                ))
                 .await?;
 
                 retries = retries.map(|i| i - 1);
