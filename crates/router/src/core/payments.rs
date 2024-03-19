@@ -1087,7 +1087,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
         let redirect_response = helpers::get_handle_response_url(
             payment_id,
             &business_profile,
-            &payments_response,
+            payments_response,
             connector,
         )?;
         let return_url_with_query_params = redirect_response.return_url_with_query_params;
