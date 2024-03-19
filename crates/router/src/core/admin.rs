@@ -1729,6 +1729,10 @@ pub(crate) fn validate_auth_and_metadata_type(
             bankofamerica::transformers::BankOfAmericaAuthType::try_from(val)?;
             Ok(())
         }
+        api_enums::Connector::Billwerk => {
+            billwerk::transformers::BillwerkAuthType::try_from(val)?;
+            Ok(())
+        }
         api_enums::Connector::Bitpay => {
             bitpay::transformers::BitpayAuthType::try_from(val)?;
             Ok(())
