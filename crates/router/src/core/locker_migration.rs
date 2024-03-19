@@ -116,7 +116,7 @@ pub async fn call_to_locker(
         };
 
         let pm_create = api::PaymentMethodCreate {
-            payment_method: pm.payment_method,
+            payment_method: Some(pm.payment_method),
             payment_method_type: pm.payment_method_type,
             payment_method_issuer: pm.payment_method_issuer,
             payment_method_issuer_code: pm.payment_method_issuer_code,
@@ -126,6 +126,8 @@ pub async fn call_to_locker(
             metadata: pm.metadata,
             customer_id: Some(pm.customer_id),
             card_network: card.card_brand,
+            client_secret: None,
+            payment_method_data: None,
         };
 
         let add_card_result = cards::add_card_hs(

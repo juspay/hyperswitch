@@ -38,6 +38,7 @@ pub struct PaymentMethod {
     pub connector_mandate_details: Option<serde_json::Value>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::PaymentMethodStatus,
+    pub client_secret: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Insertable, router_derive::DebugAsDisplay)]
@@ -69,6 +70,7 @@ pub struct PaymentMethodNew {
     pub connector_mandate_details: Option<serde_json::Value>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::PaymentMethodStatus,
+    pub client_secret: Option<String>,
 }
 
 impl Default for PaymentMethodNew {
@@ -102,6 +104,7 @@ impl Default for PaymentMethodNew {
             connector_mandate_details: Option::default(),
             customer_acceptance: Option::default(),
             status: storage_enums::PaymentMethodStatus::Active,
+            client_secret: Option::default(),
         }
     }
 }
@@ -126,6 +129,11 @@ pub enum PaymentMethodUpdate {
     StatusUpdate {
         status: Option<storage_enums::PaymentMethodStatus>,
     },
+    StatusAndLockerIdAndPaymentMethodDataUpdate {
+        payment_method_data: Option<Encryption>,
+        status: Option<storage_enums::PaymentMethodStatus>,
+        locker_id: Option<String>,
+    },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -135,6 +143,7 @@ pub struct PaymentMethodUpdateInternal {
     payment_method_data: Option<Encryption>,
     last_used_at: Option<PrimitiveDateTime>,
     status: Option<storage_enums::PaymentMethodStatus>,
+    locker_id: Option<String>,
 }
 
 impl PaymentMethodUpdateInternal {
@@ -153,6 +162,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 payment_method_data: None,
                 last_used_at: None,
                 status: None,
+                locker_id: None,
             },
             PaymentMethodUpdate::PaymentMethodDataUpdate {
                 payment_method_data,
@@ -161,18 +171,32 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 payment_method_data,
                 last_used_at: None,
                 status: None,
+                locker_id: None,
             },
             PaymentMethodUpdate::LastUsedUpdate { last_used_at } => Self {
                 metadata: None,
                 payment_method_data: None,
                 last_used_at: Some(last_used_at),
                 status: None,
+                locker_id: None,
             },
             PaymentMethodUpdate::StatusUpdate { status } => Self {
                 metadata: None,
                 payment_method_data: None,
                 last_used_at: None,
                 status,
+                locker_id: None,
+            },
+            PaymentMethodUpdate::StatusAndLockerIdAndPaymentMethodDataUpdate {
+                payment_method_data,
+                status,
+                locker_id,
+            } => Self {
+                metadata: None,
+                payment_method_data,
+                last_used_at: None,
+                status,
+                locker_id,
             },
         }
     }

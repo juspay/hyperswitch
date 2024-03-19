@@ -1203,6 +1203,8 @@ pub enum PaymentMethodStatus {
     /// Indicates that the payment method is awaiting some data or action before it can be marked
     /// as 'active'.
     Processing,
+    /// Indicates that the payment method is awaiting some data before changing state to active
+    AwaitingData,
 }
 
 impl From<AttemptStatus> for PaymentMethodStatus {

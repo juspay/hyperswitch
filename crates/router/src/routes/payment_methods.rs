@@ -23,13 +23,19 @@ pub async fn create_payment_method_api(
     json_payload: web::Json<payment_methods::PaymentMethodCreate>,
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodsCreate;
+    let payload = json_payload.into_inner();
+    let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
+        Ok((auth, _auth_flow)) => (auth, _auth_flow),
+        Err(e) => return api::log_and_return_error_response(e),
+    };
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        json_payload.into_inner(),
+        payload,
         |state, auth, req| async move {
-            Box::pin(cards::add_payment_method(
+            Box::pin(cards::generate_client_secret_or_add_payment_method(
                 state,
                 req,
                 &auth.merchant_account,
@@ -37,7 +43,7 @@ pub async fn create_payment_method_api(
             ))
             .await
         },
-        &auth::ApiKeyAuth,
+        &*auth,
         api_locking::LockAction::NotApplicable,
     ))
     .await

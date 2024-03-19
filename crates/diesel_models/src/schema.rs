@@ -888,6 +888,8 @@ diesel::table! {
         customer_acceptance -> Nullable<Jsonb>,
         #[max_length = 64]
         status -> Varchar,
+        #[max_length = 128]
+        client_secret -> Nullable<Varchar>,
     }
 }
 

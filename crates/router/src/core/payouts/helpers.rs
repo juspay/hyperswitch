@@ -361,7 +361,9 @@ pub async fn save_payout_data_to_locker(
 
     // Insert in payment_method table
     let payment_method = api::PaymentMethodCreate {
-        payment_method: api_enums::PaymentMethod::foreign_from(payout_method_data.to_owned()),
+        payment_method: Some(api_enums::PaymentMethod::foreign_from(
+            payout_method_data.to_owned(),
+        )),
         payment_method_type: Some(payment_method_type),
         payment_method_issuer: None,
         payment_method_issuer_code: None,
@@ -371,6 +373,8 @@ pub async fn save_payout_data_to_locker(
         metadata: None,
         customer_id: Some(payout_attempt.customer_id.to_owned()),
         card_network: None,
+        client_secret: None,
+        payment_method_data: None,
     };
 
     let payment_method_id = common_utils::generate_id(crate::consts::ID_LENGTH, "pm");
@@ -385,6 +389,7 @@ pub async fn save_payout_data_to_locker(
         None,
         card_details_encrypted,
         key_store,
+        None,
         None,
     )
     .await?;
