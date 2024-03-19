@@ -584,7 +584,7 @@ pub enum MultisafepayPaymentStatus {
     #[default]
     Initialized,
     Void,
-    Uncleared
+    Uncleared,
 }
 
 #[derive(Debug, Clone, Eq, Serialize, Deserialize, PartialEq)]
@@ -599,7 +599,7 @@ impl From<MultisafepayPaymentStatus> for enums::AttemptStatus {
             MultisafepayPaymentStatus::Completed => Self::Charged,
             MultisafepayPaymentStatus::Declined => Self::Failure,
             MultisafepayPaymentStatus::Initialized => Self::AuthenticationPending,
-            MultisafepayPaymentStatus::Uncleared => Self::Pending, 
+            MultisafepayPaymentStatus::Uncleared => Self::Pending,
             MultisafepayPaymentStatus::Void => Self::Voided,
         }
     }
