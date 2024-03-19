@@ -58,6 +58,11 @@ pub use crate::{
 };
 
 #[derive(Clone)]
+pub struct ReqState {
+    pub event_context: events::EventContext<crate::events::EventType>,
+}
+
+#[derive(Clone)]
 pub struct AppState {
     pub flow_name: String,
     pub store: Box<dyn StorageInterface>,
@@ -240,8 +245,10 @@ impl AppState {
         .await
     }
 
-    pub fn get_event_context(&self) -> events::EventContext<crate::events::EventType> {
-        events::EventContext::new(Box::new(self.event_handler.clone()))
+    pub fn get_req_state(&self) -> ReqState {
+        ReqState {
+            event_context: events::EventContext::new(Box::new(self.event_handler.clone())),
+        }
     }
 }
 

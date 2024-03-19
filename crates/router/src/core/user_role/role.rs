@@ -7,7 +7,7 @@ use error_stack::ResultExt;
 use crate::{
     consts,
     core::errors::{StorageErrorExt, UserErrors, UserResponse},
-    routes::AppState,
+    routes::{app::ReqState, AppState},
     services::{
         authentication::{blacklist, UserFromToken},
         authorization::roles::{self, predefined_roles::PREDEFINED_ROLES},
@@ -57,6 +57,7 @@ pub async fn create_role(
     state: AppState,
     user_from_token: UserFromToken,
     req: role_api::CreateRoleRequest,
+    _req_state: ReqState,
 ) -> UserResponse<role_api::RoleInfoWithGroupsResponse> {
     let now = common_utils::date_time::now();
     let role_name = RoleName::new(req.role_name)?;
