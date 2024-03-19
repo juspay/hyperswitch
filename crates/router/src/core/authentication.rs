@@ -5,16 +5,14 @@ pub mod types;
 
 use api_models::payments;
 use common_enums::Currency;
-use common_utils::{errors::CustomResult, ext_traits::ValueExt};
+use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
-use masking::PeekInterface;
 
-use super::errors;
+use super::errors::{self, StorageErrorExt};
 use crate::{
     core::{errors::ApiErrorResponse, payments as payments_core},
     routes::AppState,
-    types::{self as core_types, api, authentication::AuthenticationResponseData, storage},
-    utils::OptionExt,
+    types::{self as core_types, api, domain, storage},
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -59,160 +57,80 @@ pub async fn perform_authentication(
     )?;
     let response =
         utils::do_auth_connector_call(state, authentication_connector.clone(), router_data).await?;
-    utils::update_trackers(state, response.clone(), authentication_data, None, None).await?;
-    let authentication_response =
-        response
-            .response
-            .map_err(|err| ApiErrorResponse::ExternalConnectorError {
-                code: err.code,
-                message: err.message,
-                connector: authentication_connector,
-                status_code: err.status_code,
-                reason: err.reason,
-            })?;
-    match authentication_response {
-        AuthenticationResponseData::AuthNResponse {
-            authn_flow_type,
-            trans_status,
-            ..
-        } => Ok(match authn_flow_type {
-            core_types::authentication::AuthNFlowType::Challenge(challenge_params) => {
-                core_types::api::AuthenticationResponse {
-                    trans_status,
-                    acs_url: challenge_params.acs_url,
-                    challenge_request: challenge_params.challenge_request,
-                    acs_reference_number: challenge_params.acs_reference_number,
-                    acs_trans_id: challenge_params.acs_trans_id,
-                    three_dsserver_trans_id: challenge_params.three_dsserver_trans_id,
-                    acs_signed_content: challenge_params.acs_signed_content,
-                }
-            }
-            core_types::authentication::AuthNFlowType::Frictionless => {
-                core_types::api::AuthenticationResponse {
-                    trans_status,
-                    acs_url: None,
-                    challenge_request: None,
-                    acs_reference_number: None,
-                    acs_trans_id: None,
-                    three_dsserver_trans_id: None,
-                    acs_signed_content: None,
-                }
-            }
-        }),
-        _ => Err(errors::ApiErrorResponse::InternalServerError.into())
-            .attach_printable("unexpected response in authentication flow")?,
-    }
+    let authentication =
+        utils::update_trackers(state, response.clone(), authentication_data, None).await?;
+    response
+        .response
+        .map_err(|err| ApiErrorResponse::ExternalConnectorError {
+            code: err.code,
+            message: err.message,
+            connector: authentication_connector,
+            status_code: err.status_code,
+            reason: err.reason,
+        })?;
+    core_types::api::authentication::AuthenticationResponse::try_from(authentication)
 }
 
-pub async fn perform_post_authentication<F: Clone + Send>(
+pub async fn perform_post_authentication(
     state: &AppState,
-    authentication_connector: String,
+    key_store: &domain::MerchantKeyStore,
     business_profile: core_types::storage::BusinessProfile,
-    merchant_connector_account: payments_core::helpers::MerchantConnectorAccountType,
-    authentication_flow_input: types::PostAuthenthenticationFlowInput<'_, F>,
-) -> CustomResult<(), ApiErrorResponse> {
-    match authentication_flow_input {
-        types::PostAuthenthenticationFlowInput::PaymentAuthNFlow {
-            payment_data,
-            authentication,
-            should_continue_confirm_transaction,
-        } => {
-            // let (auth, authentication_data) = authentication;
-            let authentication_status =
-                if !authentication.authentication_status.is_terminal_status() {
-                    let router_data = transformers::construct_post_authentication_router_data(
-                        authentication_connector.clone(),
-                        business_profile,
-                        merchant_connector_account,
-                        &authentication,
-                    )?;
-                    let router_data =
-                        utils::do_auth_connector_call(state, authentication_connector, router_data)
-                            .await?;
-                    let updated_authentication = utils::update_trackers(
-                        state,
-                        router_data,
-                        authentication,
-                        payment_data.token.clone(),
-                        None,
-                    )
-                    .await?;
-                    let authentication_status = updated_authentication.authentication_status;
-                    payment_data.authentication = Some(updated_authentication);
-                    authentication_status
-                } else {
-                    authentication.authentication_status
-                };
-            //If authentication is not successful, skip the payment connector flows and mark the payment as failure
-            if !(authentication_status == api_models::enums::AuthenticationStatus::Success) {
-                *should_continue_confirm_transaction = false;
-            }
-        }
-        types::PostAuthenthenticationFlowInput::PaymentMethodAuthNFlow { other_fields: _ } => {
-            // todo!("Payment method post authN operation");
-        }
+    authentication_id: String,
+) -> CustomResult<storage::Authentication, ApiErrorResponse> {
+    let (authentication_connector, three_ds_connector_account) =
+        utils::get_authentication_connector_data(state, key_store, &business_profile).await?;
+    let authentication = state
+        .store
+        .find_authentication_by_merchant_id_authentication_id(
+            business_profile.merchant_id.clone(),
+            authentication_id.clone(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| format!("Error while fetching authentication record with authentication_id {authentication_id}"))?;
+    if !authentication.authentication_status.is_terminal_status() {
+        let router_data = transformers::construct_post_authentication_router_data(
+            authentication_connector.to_string(),
+            business_profile,
+            three_ds_connector_account,
+            &authentication,
+        )?;
+        let router_data =
+            utils::do_auth_connector_call(state, authentication_connector.to_string(), router_data)
+                .await?;
+        utils::update_trackers(state, router_data, authentication, None).await
+    } else {
+        Ok(authentication)
     }
-    Ok(())
 }
 
-pub async fn perform_pre_authentication<F: Clone + Send>(
+pub async fn perform_pre_authentication(
     state: &AppState,
-    authentication_connector_name: String,
-    authentication_flow_input: types::PreAuthenthenticationFlowInput<'_, F>,
+    key_store: &domain::MerchantKeyStore,
+    card_number: cards::CardNumber,
+    token: String,
     business_profile: &core_types::storage::BusinessProfile,
-    three_ds_connector_account: payments_core::helpers::MerchantConnectorAccountType,
-    payment_connector_account: payments_core::helpers::MerchantConnectorAccountType,
-) -> CustomResult<(), ApiErrorResponse> {
+    acquirer_details: Option<types::AcquirerDetails>,
+) -> CustomResult<storage::Authentication, ApiErrorResponse> {
+    let (authentication_connector, three_ds_connector_account) =
+        utils::get_authentication_connector_data(state, key_store, business_profile).await?;
+    let authentication_connector_name = authentication_connector.to_string();
     let authentication = utils::create_new_authentication(
         state,
         business_profile.merchant_id.clone(),
         authentication_connector_name.clone(),
+        token,
     )
     .await?;
-    match authentication_flow_input {
-        types::PreAuthenthenticationFlowInput::PaymentAuthNFlow {
-            payment_data,
-            should_continue_confirm_transaction,
-            card_number,
-        } => {
-            let router_data = transformers::construct_pre_authentication_router_data(
-                authentication_connector_name.clone(),
-                card_number,
-                &three_ds_connector_account,
-                business_profile.merchant_id.clone(),
-            )?;
-            let router_data =
-                utils::do_auth_connector_call(state, authentication_connector_name, router_data)
-                    .await?;
-            let acquirer_details: types::AcquirerDetails = payment_connector_account
-                .get_metadata()
-                .get_required_value("merchant_connector_account.metadata")?
-                .peek()
-                .clone()
-                .parse_value("AcquirerDetails")
-                .change_context(ApiErrorResponse::PreconditionFailed { message: "acquirer_bin and acquirer_merchant_id not found in Payment Connector's Metadata".to_string()})?;
 
-            let authentication = utils::update_trackers(
-                state,
-                router_data,
-                authentication,
-                payment_data.token.clone(),
-                Some(acquirer_details),
-            )
-            .await?;
-            if authentication.is_separate_authn_required()
-                || authentication.authentication_status.is_failed()
-            {
-                *should_continue_confirm_transaction = false;
-            }
-            payment_data.authentication = Some(authentication);
-        }
-        types::PreAuthenthenticationFlowInput::PaymentMethodAuthNFlow {
-            card_number: _,
-            other_fields: _,
-        } => {
-            // todo!("Payment method authN operation");
-        }
-    };
-    Ok(())
+    let router_data = transformers::construct_pre_authentication_router_data(
+        authentication_connector_name.clone(),
+        card_number,
+        &three_ds_connector_account,
+        business_profile.merchant_id.clone(),
+    )?;
+    let router_data =
+        utils::do_auth_connector_call(state, authentication_connector_name, router_data).await?;
+
+    utils::update_trackers(state, router_data, authentication, acquirer_details).await
 }

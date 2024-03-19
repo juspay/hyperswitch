@@ -95,7 +95,6 @@ pub enum AuthenticationUpdate {
         message_version: common_utils::types::SemanticVersion,
         connector_metadata: Option<serde_json::Value>,
         authentication_status: common_enums::AuthenticationStatus,
-        payment_method_id: Option<String>,
         acquirer_bin: Option<String>,
         acquirer_merchant_id: Option<String>,
     },
@@ -303,7 +302,6 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 message_version,
                 connector_metadata,
                 authentication_status,
-                payment_method_id,
                 acquirer_bin,
                 acquirer_merchant_id,
             } => Self {
@@ -315,7 +313,6 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 message_version: Some(message_version),
                 connector_metadata,
                 authentication_status: Some(authentication_status),
-                payment_method_id,
                 acquirer_bin,
                 acquirer_merchant_id,
                 ..Default::default()

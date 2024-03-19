@@ -33,6 +33,7 @@ use crate::{
     connector,
     consts::{self, BASE64_ENGINE},
     core::{
+        authentication,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::{cards, vault, PaymentMethodRetrieve},
         payments,
@@ -4060,4 +4061,97 @@ pub fn validate_mandate_data_and_future_usage(
     } else {
         Ok(())
     }
+}
+
+pub enum PaymentExternalAuthenticationFlow {
+    PreAuthenticationFlow {
+        acquirer_details: authentication::types::AcquirerDetails,
+        card_number: ::cards::CardNumber,
+        token: String,
+    },
+    PostAuthenticationFlow {
+        authentication_id: String,
+    },
+}
+
+pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
+    state: &AppState,
+    key_store: &domain::MerchantKeyStore,
+    business_profile: &storage::BusinessProfile,
+    payment_data: &mut PaymentData<F>,
+    connector_call_type: &api::ConnectorCallType,
+) -> RouterResult<Option<PaymentExternalAuthenticationFlow>> {
+    let authentication_id = payment_data.payment_attempt.authentication_id.clone();
+    let is_authentication_type_3ds = payment_data.payment_attempt.authentication_type
+        == Some(common_enums::AuthenticationType::ThreeDs);
+    let separate_authentication_requested = payment_data
+        .payment_intent
+        .request_external_three_ds_authentication
+        .unwrap_or(false);
+    let separate_three_ds_authentication_attempted = payment_data
+        .payment_attempt
+        .external_three_ds_authentication_attempted
+        .unwrap_or(false);
+    let connector_supports_separate_authn =
+        authentication::utils::get_connector_name_if_separate_authn_supported(connector_call_type);
+    logger::info!("is_pre_authn_call {:?}", authentication_id.is_none());
+    logger::info!(
+        "separate_authentication_requested {:?}",
+        separate_authentication_requested
+    );
+    let card_number = payment_data.payment_method_data.as_ref().and_then(|pmd| {
+        if let api_models::payments::PaymentMethodData::Card(card) = pmd {
+            Some(card.card_number.clone())
+        } else {
+            None
+        }
+    });
+    Ok(if separate_three_ds_authentication_attempted {
+        authentication_id.map(|authentication_id| {
+            PaymentExternalAuthenticationFlow::PostAuthenticationFlow { authentication_id }
+        })
+    } else if separate_authentication_requested && is_authentication_type_3ds {
+        if let Some((payment_connector_name, card_number)) =
+            connector_supports_separate_authn.zip(card_number)
+        {
+            let token = payment_data
+                .token
+                .clone()
+                .get_required_value("token")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "payment_data.token should not be None while making pre authentication call",
+                )?;
+            let payment_connector_mca = get_merchant_connector_account(
+                state,
+                &business_profile.merchant_id,
+                None,
+                key_store,
+                &business_profile.profile_id,
+                &payment_connector_name,
+                None,
+            )
+            .await?;
+            let acquirer_details: authentication::types::AcquirerDetails = payment_connector_mca
+                .get_metadata()
+                .get_required_value("merchant_connector_account.metadata")?
+                .peek()
+                .clone()
+                .parse_value("AcquirerDetails")
+                .change_context(errors::ApiErrorResponse::PreconditionFailed {
+                    message:
+                        "acquirer_bin and acquirer_merchant_id not found in Payment Connector's Metadata"
+                            .to_string(),
+                })?;
+            Some(PaymentExternalAuthenticationFlow::PreAuthenticationFlow {
+                card_number,
+                token,
+                acquirer_details,
+            })
+        } else {
+            None
+        }
+    } else {
+        None
+    })
 }

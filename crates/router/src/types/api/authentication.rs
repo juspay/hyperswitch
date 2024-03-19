@@ -15,7 +15,7 @@ pub struct Authentication;
 
 #[derive(Debug, Clone)]
 pub struct PostAuthentication;
-use crate::{connector, services, types};
+use crate::{connector, services, types, types::storage};
 
 #[derive(Clone, serde::Deserialize, Debug, serde::Serialize)]
 pub struct AcquirerDetails {
@@ -32,6 +32,29 @@ pub struct AuthenticationResponse {
     pub acs_trans_id: Option<String>,
     pub three_dsserver_trans_id: Option<String>,
     pub acs_signed_content: Option<String>,
+}
+
+impl TryFrom<storage::Authentication> for AuthenticationResponse {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+    fn try_from(authentication: storage::Authentication) -> Result<Self, Self::Error> {
+        let trans_status = authentication.trans_status.ok_or(errors::ApiErrorResponse::InternalServerError.into()).attach_printable("trans_status must be populated in authentication table authentication call is succesfull")?;
+        let acs_url = authentication
+            .acs_url
+            .map(|url| url::Url::from_str(&url))
+            .transpose()
+            .into_report()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("not a valid URL")?;
+        Ok(Self {
+            trans_status,
+            acs_url,
+            challenge_request: authentication.challenge_request,
+            acs_reference_number: authentication.acs_reference_number,
+            acs_trans_id: authentication.acs_trans_id,
+            three_dsserver_trans_id: authentication.three_ds_server_trans_id,
+            acs_signed_content: authentication.acs_signed_content,
+        })
+    }
 }
 
 #[derive(Clone, serde::Deserialize, Debug, serde::Serialize)]

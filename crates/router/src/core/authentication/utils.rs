@@ -1,4 +1,5 @@
-use error_stack::ResultExt;
+use common_utils::ext_traits::ValueExt;
+use error_stack::{IntoReport, ResultExt};
 
 use crate::{
     consts,
@@ -12,10 +13,11 @@ use crate::{
     types::{
         api::{self, ConnectorCallType},
         authentication::AuthenticationResponseData,
-        storage,
+        domain, storage,
         transformers::ForeignFrom,
         RouterData,
     },
+    utils::OptionExt,
 };
 
 pub fn get_connector_name_if_separate_authn_supported(
@@ -50,7 +52,6 @@ pub async fn update_trackers<F: Clone, Req>(
     state: &AppState,
     router_data: RouterData<F, Req, AuthenticationResponseData>,
     authentication: storage::Authentication,
-    token: Option<String>,
     acquirer_details: Option<super::types::AcquirerDetails>,
 ) -> RouterResult<storage::Authentication> {
     let authentication_update = match router_data.response {
@@ -72,7 +73,6 @@ pub async fn update_trackers<F: Clone, Req>(
                 message_version,
                 connector_metadata,
                 authentication_status: common_enums::AuthenticationStatus::Pending,
-                payment_method_id: token.map(|token| format!("eph_{}", token)),
                 acquirer_bin: acquirer_details
                     .as_ref()
                     .map(|acquirer_details| acquirer_details.acquirer_bin.clone()),
@@ -144,6 +144,7 @@ pub async fn create_new_authentication(
     state: &AppState,
     merchant_id: String,
     authentication_connector: String,
+    token: String,
 ) -> RouterResult<storage::Authentication> {
     let authentication_id =
         common_utils::generate_id_with_default_len(consts::AUTHENTICATION_ID_PREFIX);
@@ -152,7 +153,7 @@ pub async fn create_new_authentication(
         merchant_id,
         authentication_connector,
         connector_authentication_id: None,
-        payment_method_id: "".into(),
+        payment_method_id: format!("eph_{}", token),
         authentication_type: None,
         authentication_status: common_enums::AuthenticationStatus::Started,
         authentication_lifecycle_status: common_enums::AuthenticationLifecycleStatus::Unused,
@@ -214,4 +215,54 @@ where
     .await
     .to_payment_failed_response()?;
     Ok(router_data)
+}
+
+pub async fn get_authentication_connector_data(
+    state: &AppState,
+    key_store: &domain::MerchantKeyStore,
+    business_profile: &storage::BusinessProfile,
+) -> RouterResult<(
+    api_models::enums::AuthenticationConnectors,
+    payments::helpers::MerchantConnectorAccountType,
+)> {
+    let authentication_details: api_models::admin::AuthenticationConnectorDetails =
+        business_profile
+            .authentication_connector_details
+            .clone()
+            .get_required_value("authentication_details")
+            .change_context(errors::ApiErrorResponse::UnprocessableEntity {
+                message: "authentication_connector_details is not available in business profile".into(), 
+            })
+            .attach_printable("authentication_connector_details not configured by the merchant")?
+            .parse_value("AuthenticationDetails")
+            .change_context(errors::ApiErrorResponse::UnprocessableEntity {
+                message: "Invalid data format found for authentication_connector_details in business profile".into(),
+            })
+            .attach_printable("Error while parsing authentication_connector_details from business_profile")?;
+    let authentication_connector = authentication_details
+        .authentication_connectors
+        .first()
+        .ok_or(errors::ApiErrorResponse::UnprocessableEntity {
+            message: format!(
+                "No authentication_connector found for profile_id {}",
+                business_profile.profile_id
+            ),
+        })
+        .into_report()
+        .attach_printable(
+            "No authentication_connector found from merchant_account.authentication_details",
+        )?
+        .to_owned();
+    let profile_id = &business_profile.profile_id;
+    let authentication_connector_mca = payments::helpers::get_merchant_connector_account(
+        state,
+        &business_profile.merchant_id,
+        None,
+        key_store,
+        profile_id,
+        authentication_connector.to_string().as_str(),
+        None,
+    )
+    .await?;
+    Ok((authentication_connector, authentication_connector_mca))
 }
