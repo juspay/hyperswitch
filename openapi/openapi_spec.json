@@ -8467,6 +8467,14 @@
               },
               "response": {
                 "$ref": "#/components/schemas/OutgoingWebhookResponseContent"
+              },
+              "delivery_attempt": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/WebhookDeliveryAttempt"
+                  }
+                ],
+                "nullable": true
               }
             }
           }
@@ -17955,6 +17963,14 @@
       },
       "WeChatPayRedirection": {
         "type": "object"
+      },
+      "WebhookDeliveryAttempt": {
+        "type": "string",
+        "enum": [
+          "initial_attempt",
+          "automatic_retry",
+          "manual_retry"
+        ]
       },
       "WebhookDetails": {
         "type": "object",
