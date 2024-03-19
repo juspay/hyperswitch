@@ -81,6 +81,8 @@ pub struct ConfigMetadata {
     pub mcc: Option<String>,
     pub merchant_country_code: Option<String>,
     pub merchant_name: Option<String>,
+    pub acquirer_bin: Option<String>,
+    pub acquirer_merchant_id: Option<String>,
 }
 
 #[serde_with::skip_serializing_none]

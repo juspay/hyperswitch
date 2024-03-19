@@ -171,14 +171,14 @@ pub async fn make_connector_decision(
                 .await;
 
                 if config_bool && payout_data.should_call_gsm() {
-                    payout_data = retry::do_gsm_single_connector_actions(
+                    payout_data = Box::pin(retry::do_gsm_single_connector_actions(
                         state,
                         connector_data,
                         payout_data,
                         merchant_account,
                         key_store,
                         req,
-                    )
+                    ))
                     .await?;
                 }
             }
@@ -211,7 +211,7 @@ pub async fn make_connector_decision(
                 .await;
 
                 if config_multiple_connector_bool && payout_data.should_call_gsm() {
-                    payout_data = retry::do_gsm_multiple_connector_actions(
+                    payout_data = Box::pin(retry::do_gsm_multiple_connector_actions(
                         state,
                         connectors,
                         connector_data.clone(),
@@ -219,7 +219,7 @@ pub async fn make_connector_decision(
                         merchant_account,
                         key_store,
                         req,
-                    )
+                    ))
                     .await?;
                 }
 
@@ -231,14 +231,14 @@ pub async fn make_connector_decision(
                 .await;
 
                 if config_single_connector_bool && payout_data.should_call_gsm() {
-                    payout_data = retry::do_gsm_single_connector_actions(
+                    payout_data = Box::pin(retry::do_gsm_single_connector_actions(
                         state,
                         connector_data,
                         payout_data,
                         merchant_account,
                         key_store,
                         req,
-                    )
+                    ))
                     .await?;
                 }
             }
@@ -284,14 +284,14 @@ pub async fn payouts_create_core(
     )
     .await?;
 
-    payout_data = make_connector_decision(
+    payout_data = Box::pin(make_connector_decision(
         &state,
         &merchant_account,
         &key_store,
         &req,
         connector_call_type,
         payout_data,
-    )
+    ))
     .await?;
 
     response_handler(
@@ -431,14 +431,14 @@ pub async fn payouts_update_core(
     )
     .await?;
 
-    payout_data = make_connector_decision(
+    payout_data = Box::pin(make_connector_decision(
         &state,
         &merchant_account,
         &key_store,
         &req,
         connector_call_type,
         payout_data,
-    )
+    ))
     .await?;
 
     response_handler(

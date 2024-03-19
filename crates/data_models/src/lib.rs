@@ -2,7 +2,7 @@ pub mod errors;
 pub mod mandates;
 pub mod payments;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub enum RemoteStorageObject<T: ForeignIDRef> {
     ForeignID(String),
     Object(T),
