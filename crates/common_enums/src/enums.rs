@@ -1145,8 +1145,8 @@ pub enum IntentStatus {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum FutureUsage {
-    #[default]
     OffSession,
+    #[default]
     OnSession,
 }
 
@@ -1203,6 +1203,36 @@ pub enum PaymentMethodStatus {
     /// Indicates that the payment method is awaiting some data or action before it can be marked
     /// as 'active'.
     Processing,
+}
+
+impl From<AttemptStatus> for PaymentMethodStatus {
+    fn from(attempt_status: AttemptStatus) -> Self {
+        match attempt_status {
+            AttemptStatus::Charged | AttemptStatus::Authorized => Self::Active,
+            AttemptStatus::Failure => Self::Inactive,
+            AttemptStatus::Voided
+            | AttemptStatus::Started
+            | AttemptStatus::Pending
+            | AttemptStatus::Unresolved
+            | AttemptStatus::CodInitiated
+            | AttemptStatus::Authorizing
+            | AttemptStatus::VoidInitiated
+            | AttemptStatus::AuthorizationFailed
+            | AttemptStatus::RouterDeclined
+            | AttemptStatus::AuthenticationSuccessful
+            | AttemptStatus::PaymentMethodAwaited
+            | AttemptStatus::AuthenticationFailed
+            | AttemptStatus::AuthenticationPending
+            | AttemptStatus::CaptureInitiated
+            | AttemptStatus::CaptureFailed
+            | AttemptStatus::VoidFailed
+            | AttemptStatus::AutoRefunded
+            | AttemptStatus::PartialCharged
+            | AttemptStatus::PartialChargedAndChargeable
+            | AttemptStatus::ConfirmationAwaited
+            | AttemptStatus::DeviceDataCollectionPending => Self::Processing,
+        }
+    }
 }
 
 /// To indicate the type of payment experience that the customer would go through
@@ -2103,6 +2133,16 @@ pub enum PaymentSource {
     Dashboard,
     Sdk,
     Webhook,
+    ExternalAuthenticator,
+}
+
+impl PaymentSource {
+    pub fn is_for_internal_use_only(&self) -> bool {
+        match self {
+            Self::Dashboard | Self::Sdk | Self::MerchantServer | Self::Postman => false,
+            Self::Webhook | Self::ExternalAuthenticator => true,
+        }
+    }
 }
 
 #[derive(
@@ -2324,6 +2364,47 @@ pub enum TransactionType {
 pub enum RoleScope {
     Merchant,
     Organization,
+}
+
+#[derive(
+    Clone,
+    Default,
+    Debug,
+    serde::Serialize,
+    serde::Deserialize,
+    Eq,
+    PartialEq,
+    ToSchema,
+    strum::Display,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+pub enum TransactionStatus {
+    /// Authentication/ Account Verification Successful
+    #[serde(rename = "Y")]
+    Success,
+    /// Not Authenticated /Account Not Verified; Transaction denied
+    #[default]
+    #[serde(rename = "N")]
+    Failure,
+    /// Authentication/ Account Verification Could Not Be Performed; Technical or other problem, as indicated in Authentication Response(ARes) or Result Request (RReq)
+    #[serde(rename = "U")]
+    VerificationNotPerformed,
+    /// Attempts Processing Performed; Not Authenticated/Verified , but a proof of attempted authentication/verification is provided
+    #[serde(rename = "A")]
+    NotVerified,
+    /// Authentication/ Account Verification Rejected; Issuer is rejecting authentication/verification and request that authorisation not be attempted.
+    #[serde(rename = "R")]
+    Rejected,
+    /// Challenge Required; Additional authentication is required using the Challenge Request (CReq) / Challenge Response (CRes)
+    #[serde(rename = "C")]
+    ChallengeRequired,
+    /// Challenge Required; Decoupled Authentication confirmed.
+    #[serde(rename = "D")]
+    ChallengeRequiredDecoupledAuthentication,
+    /// Informational Only; 3DS Requestor challenge preference acknowledged.
+    #[serde(rename = "I")]
+    InformationOnly,
 }
 
 #[derive(

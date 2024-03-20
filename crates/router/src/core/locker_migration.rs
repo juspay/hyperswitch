@@ -121,7 +121,9 @@ pub async fn call_to_locker(
             payment_method_issuer: pm.payment_method_issuer,
             payment_method_issuer_code: pm.payment_method_issuer_code,
             card: Some(card_details.clone()),
+            #[cfg(feature = "payouts")]
             wallet: None,
+            #[cfg(feature = "payouts")]
             bank_transfer: None,
             metadata: pm.metadata,
             customer_id: Some(pm.customer_id),

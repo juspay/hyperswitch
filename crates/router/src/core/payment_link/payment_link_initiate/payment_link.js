@@ -188,7 +188,10 @@ var hyper = null;
  *  - Initialize event listeners for updating UI on screen size changes
  *  - Initialize SDK
  **/
+
+
 function boot() {
+
   // @ts-ignore
   var paymentDetails = window.__PAYMENT_DETAILS;
   var orderDetails = paymentDetails.order_details;
@@ -399,7 +402,8 @@ function initializeSDK() {
       : paymentDetails.sdk_layout;
 
   var unifiedCheckoutOptions = {
-    disableSaveCards: true,
+    displaySavedPaymentMethodsCheckbox: false,
+    displaySavedPaymentMethods: false,
     layout: {
       type: type, //accordion , tabs, spaced accordion
       spacedAccordionItems: paymentDetails.sdk_layout === "spaced_accordion",
@@ -417,7 +421,15 @@ function initializeSDK() {
   unifiedCheckout = widgets.create("payment", unifiedCheckoutOptions);
   mountUnifiedCheckout("#unified-checkout");
   showSDK();
+
+  let shimmer = document.getElementById("payment-details-shimmer");
+  shimmer.classList.add("reduce-opacity")
+
+  setTimeout(() => {
+    document.body.removeChild(shimmer);
+  }, 500)
 }
+
 
 /**
  * Use - mount payment widget on the passed element
@@ -611,6 +623,8 @@ function renderPaymentDetails(paymentDetails) {
   // Create merchant logo's node
   var merchantLogoNode = document.createElement("img");
   merchantLogoNode.src = paymentDetails.merchant_logo;
+  merchantLogoNode.setAttribute("width", "48"); // Set width to 100 pixels
+  merchantLogoNode.setAttribute("height", "48");
 
   // Create expiry node
   var paymentExpiryNode = document.createElement("div");
@@ -743,6 +757,9 @@ function renderCartItem(
   nameAndQuantityWrapperNode.className = "hyper-checkout-cart-product-details";
   // Image
   var productImageNode = document.createElement("img");
+  productImageNode.setAttribute("width", 56);
+  productImageNode.setAttribute("height", 56);
+
   productImageNode.className = "hyper-checkout-cart-product-image";
   productImageNode.src = item.product_img_link;
   // Product title

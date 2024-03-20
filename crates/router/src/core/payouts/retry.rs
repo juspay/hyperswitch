@@ -70,14 +70,14 @@ pub async fn do_gsm_multiple_connector_actions(
 
                 connector = super::get_next_connector(&mut connectors)?;
 
-                payout_data = do_retry(
+                payout_data = Box::pin(do_retry(
                     &state.clone(),
                     connector.to_owned(),
                     merchant_account,
                     key_store,
                     payout_data,
                     req,
-                )
+                ))
                 .await?;
 
                 retries = retries.map(|i| i - 1);
@@ -137,14 +137,14 @@ pub async fn do_gsm_single_connector_actions(
                     break;
                 }
 
-                payout_data = do_retry(
+                payout_data = Box::pin(do_retry(
                     &state.clone(),
                     original_connector_data.to_owned(),
                     merchant_account,
                     key_store,
                     payout_data,
                     req,
-                )
+                ))
                 .await?;
 
                 retries = retries.map(|i| i - 1);
@@ -285,9 +285,12 @@ pub async fn modify_trackers(
     };
 
     let payout_id = payouts.payout_id.clone();
-    let merchant_id = &merchant_account.merchant_id;
     payout_data.payouts = db
-        .update_payout_by_merchant_id_payout_id(merchant_id, &payout_id.to_owned(), updated_payouts)
+        .update_payout(
+            &payout_data.payouts,
+            updated_payouts,
+            merchant_account.storage_scheme,
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error updating payouts")?;
@@ -295,22 +298,21 @@ pub async fn modify_trackers(
     let payout_attempt_id =
         utils::get_payment_attempt_id(payout_id.to_owned(), payout_data.payouts.attempt_count);
 
-    let new_payout_attempt_req = storage::PayoutAttemptNew::default()
-        .set_payout_attempt_id(payout_attempt_id.to_string())
-        .set_payout_id(payout_id.to_owned())
-        .set_customer_id(payout_data.payout_attempt.customer_id.to_owned())
-        .set_connector(Some(connector.connector_name.to_string()))
-        .set_merchant_id(payout_data.payout_attempt.merchant_id.to_owned())
-        .set_address_id(payout_data.payout_attempt.address_id.to_owned())
-        .set_business_country(payout_data.payout_attempt.business_country.to_owned())
-        .set_business_label(payout_data.payout_attempt.business_label.to_owned())
-        .set_payout_token(payout_data.payout_attempt.payout_token.to_owned())
-        .set_created_at(Some(common_utils::date_time::now()))
-        .set_last_modified_at(Some(common_utils::date_time::now()))
-        .set_profile_id(Some(payout_data.payout_attempt.profile_id.to_string()))
-        .to_owned();
+    let payout_attempt_req = storage::PayoutAttemptNew {
+        payout_attempt_id: payout_attempt_id.to_string(),
+        payout_id: payout_id.to_owned(),
+        customer_id: payout_data.payout_attempt.customer_id.to_owned(),
+        connector: Some(connector.connector_name.to_string()),
+        merchant_id: payout_data.payout_attempt.merchant_id.to_owned(),
+        address_id: payout_data.payout_attempt.address_id.to_owned(),
+        business_country: payout_data.payout_attempt.business_country.to_owned(),
+        business_label: payout_data.payout_attempt.business_label.to_owned(),
+        payout_token: payout_data.payout_attempt.payout_token.to_owned(),
+        profile_id: payout_data.payout_attempt.profile_id.to_string(),
+        ..Default::default()
+    };
     payout_data.payout_attempt = db
-        .insert_payout_attempt(new_payout_attempt_req)
+        .insert_payout_attempt(payout_attempt_req, merchant_account.storage_scheme)
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayout { payout_id })
         .attach_printable("Error inserting payouts in db")?;

@@ -100,6 +100,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
         Option<api::PaymentMethodData>,
+        Option<String>,
     )> {
         helpers::make_pm_data(
             Box::new(self),
@@ -398,6 +399,17 @@ async fn get_tracker_for_sync<
         .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
             id: profile_id.to_string(),
         })?;
+    let merchant_id = payment_intent.merchant_id.clone();
+    let authentication = payment_attempt.authentication_id.clone().async_map(|authentication_id| async move {
+            db.find_authentication_by_merchant_id_authentication_id(
+                    merchant_id,
+                    authentication_id.clone(),
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable_lazy(|| format!("Error while fetching authentication record with authentication_id {authentication_id}"))
+        }).await
+        .transpose()?;
 
     let payment_data = PaymentData {
         flow: PhantomData,
@@ -409,21 +421,22 @@ async fn get_tracker_for_sync<
             .mandate_id
             .clone()
             .map(|id| api_models::payments::MandateIds {
-                mandate_id: id,
+                mandate_id: Some(id),
                 mandate_reference_id: None,
             }),
         mandate_connector: None,
         setup_mandate: None,
+        customer_acceptance: None,
         token: None,
-        address: PaymentAddress {
-            shipping: shipping_address.as_ref().map(|a| a.into()),
-            billing: billing_address.as_ref().map(|a| a.into()),
-            payment_method_billing: payment_method_billing
-                .as_ref()
-                .map(|address| address.into()),
-        },
+        address: PaymentAddress::new(
+            shipping_address.as_ref().map(From::from),
+            billing_address.as_ref().map(From::from),
+            payment_method_billing.as_ref().map(From::from),
+        ),
+        token_data: None,
         confirm: Some(request.force_sync),
         payment_method_data: None,
+        payment_method_info: None,
         force_sync: Some(
             request.force_sync
                 && (helpers::check_force_psync_precondition(&payment_attempt.status)
@@ -447,6 +460,7 @@ async fn get_tracker_for_sync<
         frm_message: frm_response.ok(),
         incremental_authorization_details: None,
         authorizations,
+        authentication,
         frm_metadata: None,
     };
 

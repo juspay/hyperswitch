@@ -9,7 +9,7 @@ use common_enums as storage_enums;
 use self::payment_attempt::PaymentAttempt;
 use crate::RemoteStorageObject;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct PaymentIntent {
     pub id: i32,
     pub payment_id: String,

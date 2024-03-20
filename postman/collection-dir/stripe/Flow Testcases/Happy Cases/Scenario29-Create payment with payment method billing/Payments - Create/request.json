@@ -60,19 +60,6 @@
           "email": "example@juspay.in"
         }
       },
-      "billing": {
-        "address": {
-          "line1": "1467",
-          "line2": "Harrison Street",
-          "line3": "Harrison Street",
-          "city": "San Fransico",
-          "state": "California",
-          "zip": "94122",
-          "country": "US",
-          "first_name": "sundari",
-          "last_name": "sundari"
-        }
-      },
       "shipping": {
         "address": {
           "line1": "1467",

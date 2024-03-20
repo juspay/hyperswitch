@@ -1,5 +1,6 @@
 pub mod admin;
 pub mod api_keys;
+pub mod authentication;
 pub mod configs;
 #[cfg(feature = "olap")]
 pub mod connector_onboarding;
@@ -14,6 +15,7 @@ pub mod mandates;
 pub mod payment_link;
 pub mod payment_methods;
 pub mod payments;
+#[cfg(feature = "payouts")]
 pub mod payouts;
 pub mod refunds;
 pub mod routing;
@@ -27,9 +29,11 @@ use error_stack::{report, IntoReport, ResultExt};
 
 #[cfg(feature = "frm")]
 pub use self::fraud_check::*;
+#[cfg(feature = "payouts")]
+pub use self::payouts::*;
 pub use self::{
-    admin::*, api_keys::*, configs::*, customers::*, disputes::*, files::*, payment_link::*,
-    payment_methods::*, payments::*, payouts::*, refunds::*, webhooks::*,
+    admin::*, api_keys::*, authentication::*, configs::*, customers::*, disputes::*, files::*,
+    payment_link::*, payment_methods::*, payments::*, refunds::*, webhooks::*,
 };
 use super::ErrorResponse;
 use crate::{
@@ -174,6 +178,7 @@ pub trait Connector:
     + ConnectorVerifyWebhookSource
     + FraudCheck
     + ConnectorMandateRevoke
+    + ExternalAuthentication
 {
 }
 
@@ -195,7 +200,8 @@ impl<
             + Payouts
             + ConnectorVerifyWebhookSource
             + FraudCheck
-            + ConnectorMandateRevoke,
+            + ConnectorMandateRevoke
+            + ExternalAuthentication,
     > Connector for T
 {
 }
@@ -284,6 +290,7 @@ impl ConnectorData {
         })
     }
 
+    #[cfg(feature = "payouts")]
     pub fn get_payout_connector_by_name(
         connectors: &Connectors,
         name: &str,
@@ -379,7 +386,8 @@ impl ConnectorData {
                 enums::Connector::Zen => Ok(Box::new(&connector::Zen)),
                 enums::Connector::Signifyd
                 | enums::Connector::Plaid
-                | enums::Connector::Riskified => {
+                | enums::Connector::Riskified
+                | enums::Connector::Threedsecureio => {
                     Err(report!(errors::ConnectorError::InvalidConnectorName)
                         .attach_printable(format!("invalid connector name: {connector_name}")))
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -405,6 +413,20 @@ pub trait FraudCheck:
 
 #[cfg(not(feature = "frm"))]
 pub trait FraudCheck {}
+
+#[cfg(feature = "payouts")]
+pub trait Payouts:
+    ConnectorCommon
+    + PayoutCancel
+    + PayoutCreate
+    + PayoutEligibility
+    + PayoutFulfill
+    + PayoutQuote
+    + PayoutRecipient
+{
+}
+#[cfg(not(feature = "payouts"))]
+pub trait Payouts {}
 
 #[cfg(test)]
 mod test {

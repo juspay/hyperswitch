@@ -281,6 +281,12 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
                 payment_id: payment_id.clone(),
             })?;
+        let mandate_details_present = payment_attempt.mandate_details.is_some();
+
+        helpers::validate_mandate_data_and_future_usage(
+            request.setup_future_usage,
+            mandate_details_present,
+        )?;
         // connector mandate reference update history
         let mandate_id = request
             .mandate_id
@@ -295,20 +301,12 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                         mandate_obj.network_transaction_id,
                         mandate_obj.connector_mandate_ids,
                     ) {
-                        (Some(network_tx_id), _) => Ok(api_models::payments::MandateIds {
-                            mandate_id: mandate_obj.mandate_id,
-                            mandate_reference_id: Some(
-                                api_models::payments::MandateReferenceId::NetworkMandateId(
-                                    network_tx_id,
-                                ),
-                            ),
-                        }),
                         (_, Some(connector_mandate_id)) => connector_mandate_id
                         .parse_value("ConnectorMandateId")
                         .change_context(errors::ApiErrorResponse::MandateNotFound)
                         .map(|connector_id: api_models::payments::ConnectorMandateReferenceId| {
                             api_models::payments::MandateIds {
-                                mandate_id: mandate_obj.mandate_id,
+                                mandate_id: Some(mandate_obj.mandate_id),
                                 mandate_reference_id: Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
                                 api_models::payments::ConnectorMandateReferenceId{
                                     connector_mandate_id: connector_id.connector_mandate_id,
@@ -318,8 +316,16 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                                 ))
                             }
                          }),
+                        (Some(network_tx_id), _) => Ok(api_models::payments::MandateIds {
+                            mandate_id: Some(mandate_obj.mandate_id),
+                            mandate_reference_id: Some(
+                                api_models::payments::MandateReferenceId::NetworkMandateId(
+                                    network_tx_id,
+                                ),
+                            ),
+                        }),
                         (_, _) => Ok(api_models::payments::MandateIds {
-                            mandate_id: mandate_obj.mandate_id,
+                            mandate_id: Some(mandate_obj.mandate_id),
                             mandate_reference_id: None,
                         }),
                     }
@@ -355,6 +361,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         // The operation merges mandate data from both request and payment_attempt
         let setup_mandate = setup_mandate.map(MandateData::from);
 
+        let customer_acceptance = request.customer_acceptance.clone().map(From::from);
+
         let surcharge_details = request.surcharge_details.map(|request_surcharge_details| {
             payments::types::SurchargeDetails::from((&request_surcharge_details, &payment_attempt))
         });
@@ -368,6 +376,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                     .payment_method_data
                     .apply_additional_payment_data(additional_payment_data)
             });
+
         let amount = payment_attempt.get_total_amount().into();
         let payment_data = PaymentData {
             flow: PhantomData,
@@ -379,16 +388,17 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             mandate_id,
             mandate_connector,
             setup_mandate,
+            customer_acceptance,
             token,
-            address: PaymentAddress {
-                shipping: shipping_address.as_ref().map(|a| a.into()),
-                billing: billing_address.as_ref().map(|a| a.into()),
-                payment_method_billing: payment_method_billing_address
-                    .as_ref()
-                    .map(|address| address.into()),
-            },
+            address: PaymentAddress::new(
+                shipping_address.as_ref().map(From::from),
+                billing_address.as_ref().map(From::from),
+                payment_method_billing_address.as_ref().map(From::from),
+            ),
+            token_data: None,
             confirm: request.confirm,
             payment_method_data: payment_method_data_after_card_bin_call,
+            payment_method_info: None,
             refunds: vec![],
             disputes: vec![],
             attempts: None,
@@ -407,6 +417,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             payment_link_data,
             incremental_authorization_details: None,
             authorizations: vec![],
+            authentication: None,
             frm_metadata: request.frm_metadata.clone(),
         };
 
@@ -461,6 +472,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
         Option<api::PaymentMethodData>,
+        Option<String>,
     )> {
         helpers::make_pm_data(
             Box::new(self),
@@ -904,7 +916,8 @@ impl PaymentCreate {
             authorization_count: None,
             fingerprint_id: None,
             session_expiry: Some(session_expiry),
-            request_external_three_ds_authentication: None,
+            request_external_three_ds_authentication: request
+                .request_external_three_ds_authentication,
         })
     }
 

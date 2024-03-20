@@ -1,3 +1,4 @@
+pub use data_models::errors::StorageError;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
@@ -13,35 +14,27 @@ use crate::{
     utils,
 };
 
-#[cfg(feature = "payouts")]
 #[instrument(skip(db))]
 pub async fn validate_uniqueness_of_payout_id_against_merchant_id(
     db: &dyn StorageInterface,
     payout_id: &str,
     merchant_id: &str,
+    storage_scheme: storage::enums::MerchantStorageScheme,
 ) -> RouterResult<Option<storage::Payouts>> {
-    let payout = db
-        .find_payout_by_merchant_id_payout_id(merchant_id, payout_id)
+    let maybe_payouts = db
+        .find_optional_payout_by_merchant_id_payout_id(merchant_id, payout_id, storage_scheme)
         .await;
-    match payout {
+    match maybe_payouts {
         Err(err) => {
-            if err.current_context().is_db_not_found() {
-                // Empty vec should be returned by query in case of no results, this check exists just
-                // to be on the safer side. Fixed this, now vector is not returned but should check the flow in detail later.
-                Ok(None)
-            } else {
-                Err(err
+            let storage_err = err.current_context();
+            match storage_err {
+                StorageError::ValueNotFound(_) => Ok(None),
+                _ => Err(err
                     .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed while finding payout_attempt, database error"))
+                    .attach_printable("Failed while finding payout_attempt, database error")),
             }
         }
-        Ok(payout) => {
-            if payout.payout_id == payout_id {
-                Ok(Some(payout))
-            } else {
-                Ok(None)
-            }
-        }
+        Ok(payout) => Ok(payout),
     }
 }
 
@@ -49,7 +42,6 @@ pub async fn validate_uniqueness_of_payout_id_against_merchant_id(
 /// - merchant_id passed is same as the one in merchant_account table
 /// - payout_id is unique against merchant_id
 /// - payout_token provided is legitimate
-#[cfg(feature = "payouts")]
 pub async fn validate_create_request(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
@@ -71,18 +63,20 @@ pub async fn validate_create_request(
     // Payout ID
     let db: &dyn StorageInterface = &*state.store;
     let payout_id = core_utils::get_or_generate_uuid("payout_id", req.payout_id.as_ref())?;
-    match validate_uniqueness_of_payout_id_against_merchant_id(db, &payout_id, merchant_id)
-        .await
-        .change_context(errors::ApiErrorResponse::DuplicatePayout {
-            payout_id: payout_id.to_owned(),
-        })
-        .attach_printable_lazy(|| {
-            format!(
-                "Unique violation while checking payout_id: {} against merchant_id: {}",
-                payout_id.to_owned(),
-                merchant_id
-            )
-        })? {
+    match validate_uniqueness_of_payout_id_against_merchant_id(
+        db,
+        &payout_id,
+        merchant_id,
+        merchant_account.storage_scheme,
+    )
+    .await
+    .attach_printable_lazy(|| {
+        format!(
+            "Unique violation while checking payout_id: {} against merchant_id: {}",
+            payout_id.to_owned(),
+            merchant_id
+        )
+    })? {
         Some(_) => Err(report!(errors::ApiErrorResponse::DuplicatePayout {
             payout_id: payout_id.to_owned()
         })),
@@ -99,9 +93,10 @@ pub async fn validate_create_request(
                 Some(&payout_token),
                 &customer_id,
                 &merchant_account.merchant_id,
-                payout_id.as_ref(),
                 req.payout_type.as_ref(),
                 merchant_key_store,
+                None,
+                merchant_account.storage_scheme,
             )
             .await?
         }

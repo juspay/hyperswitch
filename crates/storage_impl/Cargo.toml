@@ -12,6 +12,7 @@ license.workspace = true
 default = ["olap", "oltp"]
 oltp = []
 olap = ["data_models/olap"]
+payouts = ["data_models/payouts"]
 
 [dependencies]
 # First Party dependencies
