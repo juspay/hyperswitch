@@ -32,6 +32,11 @@ use crate::{
     utils::OptionExt,
 };
 
+pub mod auth_headers {
+    pub const STRIPE_API_VERSION: &str = "stripe-version";
+    pub const STRIPE_VERSION: &str = "2023-10-16";
+}
+
 pub struct StripeAuthType {
     pub(super) api_key: Secret<String>,
 }
@@ -684,10 +689,9 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::FamilyMart
             | enums::PaymentMethodType::Seicomart
             | enums::PaymentMethodType::PayEasy
-            | enums::PaymentMethodType::Walley => Err(errors::ConnectorError::NotSupported {
-                message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
-                connector: "stripe",
-            }
+            | enums::PaymentMethodType::Walley => Err(errors::ConnectorError::NotImplemented(
+                connector_util::get_unimplemented_payment_method_error_message("stripe"),
+            )
             .into()),
         }
     }
@@ -873,10 +877,9 @@ impl TryFrom<&api_models::enums::BankNames> for StripeBankNames {
             api_models::enums::BankNames::AliorBank => Self::AliorBank,
             api_models::enums::BankNames::Boz => Self::Boz,
 
-            _ => Err(errors::ConnectorError::NotSupported {
-                message: api_enums::PaymentMethod::BankRedirect.to_string(),
-                connector: "Stripe",
-            })?,
+            _ => Err(errors::ConnectorError::NotImplemented(
+                connector_util::get_unimplemented_payment_method_error_message("stripe"),
+            ))?,
         })
     }
 }
@@ -919,10 +922,9 @@ impl TryFrom<&api_models::payments::PayLaterData> for StripePaymentMethodType {
             | payments::PayLaterData::WalleyRedirect {}
             | payments::PayLaterData::AlmaRedirect {}
             | payments::PayLaterData::AtomeRedirect {} => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
-                    connector: "stripe",
-                })
+                Err(errors::ConnectorError::NotImplemented(
+                    connector_util::get_unimplemented_payment_method_error_message("stripe"),
+                ))
             }
         }
     }
@@ -953,10 +955,9 @@ impl TryFrom<&payments::BankRedirectData> for StripePaymentMethodType {
             | payments::BankRedirectData::OnlineBankingThailand { .. }
             | payments::BankRedirectData::OpenBankingUk { .. }
             | payments::BankRedirectData::Trustly { .. } => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
-                    connector: "stripe",
-                })
+                Err(errors::ConnectorError::NotImplemented(
+                    connector_util::get_unimplemented_payment_method_error_message("stripe"),
+                ))
             }
         }
     }
@@ -996,10 +997,9 @@ impl ForeignTryFrom<&payments::WalletData> for Option<StripePaymentMethodType> {
             | payments::WalletData::TouchNGoRedirect(_)
             | payments::WalletData::SwishQr(_)
             | payments::WalletData::WeChatPayRedirect(_) => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
-                    connector: "stripe",
-                })
+                Err(errors::ConnectorError::NotImplemented(
+                    connector_util::get_unimplemented_payment_method_error_message("stripe"),
+                ))
             }
         }
     }
@@ -1398,10 +1398,9 @@ fn create_stripe_payment_method(
                 | payments::BankTransferData::CimbVaBankTransfer { .. }
                 | payments::BankTransferData::DanamonVaBankTransfer { .. }
                 | payments::BankTransferData::MandiriVaBankTransfer { .. } => {
-                    Err(errors::ConnectorError::NotSupported {
-                        message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
-                        connector: "stripe",
-                    }
+                    Err(errors::ConnectorError::NotImplemented(
+                        connector_util::get_unimplemented_payment_method_error_message("stripe"),
+                    )
                     .into())
                 }
             }
@@ -1413,10 +1412,9 @@ fn create_stripe_payment_method(
 
         payments::PaymentMethodData::GiftCard(giftcard_data) => match giftcard_data.deref() {
             payments::GiftCardData::Givex(_) | payments::GiftCardData::PaySafeCard {} => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
-                    connector: "stripe",
-                }
+                Err(errors::ConnectorError::NotImplemented(
+                    connector_util::get_unimplemented_payment_method_error_message("stripe"),
+                )
                 .into())
             }
         },
@@ -1426,10 +1424,9 @@ fn create_stripe_payment_method(
             | payments::CardRedirectData::Benefit {}
             | payments::CardRedirectData::MomoAtm {}
             | payments::CardRedirectData::CardRedirect {} => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
-                    connector: "stripe",
-                }
+                Err(errors::ConnectorError::NotImplemented(
+                    connector_util::get_unimplemented_payment_method_error_message("stripe"),
+                )
                 .into())
             }
         },
@@ -1456,19 +1453,17 @@ fn create_stripe_payment_method(
             | payments::VoucherData::MiniStop(_)
             | payments::VoucherData::FamilyMart(_)
             | payments::VoucherData::Seicomart(_)
-            | payments::VoucherData::PayEasy(_) => Err(errors::ConnectorError::NotSupported {
-                message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
-                connector: "stripe",
-            }
+            | payments::VoucherData::PayEasy(_) => Err(errors::ConnectorError::NotImplemented(
+                connector_util::get_unimplemented_payment_method_error_message("stripe"),
+            )
             .into()),
         },
 
         payments::PaymentMethodData::Upi(_)
         | payments::PaymentMethodData::MandatePayment
-        | payments::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotSupported {
-            message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
-            connector: "stripe",
-        }
+        | payments::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+            connector_util::get_unimplemented_payment_method_error_message("stripe"),
+        )
         .into()),
     }
 }
@@ -1588,10 +1583,9 @@ impl TryFrom<(&payments::WalletData, Option<types::PaymentMethodToken>)>
             | payments::WalletData::TouchNGoRedirect(_)
             | payments::WalletData::SwishQr(_)
             | payments::WalletData::WeChatPayRedirect(_) => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
-                    connector: "stripe",
-                }
+                Err(errors::ConnectorError::NotImplemented(
+                    connector_util::get_unimplemented_payment_method_error_message("stripe"),
+                )
                 .into())
             }
         }
@@ -1681,10 +1675,9 @@ impl TryFrom<&payments::BankRedirectData> for StripePaymentMethodData {
             | payments::BankRedirectData::OnlineBankingThailand { .. }
             | payments::BankRedirectData::OpenBankingUk { .. }
             | payments::BankRedirectData::Trustly { .. } => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
-                    connector: "stripe",
-                }
+                Err(errors::ConnectorError::NotImplemented(
+                    connector_util::get_unimplemented_payment_method_error_message("stripe"),
+                )
                 .into())
             }
         }
@@ -1714,70 +1707,70 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let order_id = item.connector_request_reference_id.clone();
 
-        let shipping_address = match item.address.shipping.clone() {
-            Some(mut shipping) => StripeShippingAddress {
-                city: shipping.address.as_mut().and_then(|a| a.city.take()),
-                country: shipping.address.as_mut().and_then(|a| a.country.take()),
-                line1: shipping
-                    .address
-                    .as_mut()
-                    .and_then(|a: &mut payments::AddressDetails| a.line1.take()),
-                line2: shipping.address.as_mut().and_then(|a| a.line2.take()),
-                zip: shipping.address.as_mut().and_then(|a| a.zip.take()),
-                state: shipping.address.as_mut().and_then(|a| a.state.take()),
-                name: shipping.address.as_mut().and_then(|a| {
-                    a.first_name.as_ref().map(|first_name| {
+        let shipping_address = match item.get_optional_shipping() {
+            Some(shipping_details) => {
+                let shipping_address = shipping_details.address.as_ref();
+                StripeShippingAddress {
+                    city: shipping_address.and_then(|a| a.city.clone()),
+                    country: shipping_address.and_then(|a| a.country),
+                    line1: shipping_address.and_then(|a| a.line1.clone()),
+                    line2: shipping_address.and_then(|a| a.line2.clone()),
+                    zip: shipping_address.and_then(|a| a.zip.clone()),
+                    state: shipping_address.and_then(|a| a.state.clone()),
+                    name: shipping_address.and_then(|a| {
+                        a.first_name.as_ref().map(|first_name| {
+                            format!(
+                                "{} {}",
+                                first_name.clone().expose(),
+                                a.last_name.clone().expose_option().unwrap_or_default()
+                            )
+                            .into()
+                        })
+                    }),
+                    phone: shipping_details.phone.as_ref().map(|p| {
                         format!(
-                            "{} {}",
-                            first_name.clone().expose(),
-                            a.last_name.clone().expose_option().unwrap_or_default()
+                            "{}{}",
+                            p.country_code.clone().unwrap_or_default(),
+                            p.number.clone().expose_option().unwrap_or_default()
                         )
                         .into()
-                    })
-                }),
-                phone: shipping.phone.map(|p| {
-                    format!(
-                        "{}{}",
-                        p.country_code.unwrap_or_default(),
-                        p.number.expose_option().unwrap_or_default()
-                    )
-                    .into()
-                }),
-            },
+                    }),
+                }
+            }
             None => StripeShippingAddress::default(),
         };
 
-        let billing_address = match item.address.billing.clone() {
-            Some(mut billing) => StripeBillingAddress {
-                city: billing.address.as_mut().and_then(|a| a.city.take()),
-                country: billing.address.as_mut().and_then(|a| a.country.take()),
-                address_line1: billing
-                    .address
-                    .as_mut()
-                    .and_then(|a: &mut payments::AddressDetails| a.line1.take()),
-                address_line2: billing.address.as_mut().and_then(|a| a.line2.take()),
-                zip_code: billing.address.as_mut().and_then(|a| a.zip.take()),
-                state: billing.address.as_mut().and_then(|a| a.state.take()),
-                name: billing.address.as_mut().and_then(|a| {
-                    a.first_name.as_ref().map(|first_name| {
+        let billing_address = match item.get_optional_billing() {
+            Some(billing_details) => {
+                let billing_address = billing_details.address.as_ref();
+                StripeBillingAddress {
+                    city: billing_address.and_then(|a| a.city.clone()),
+                    country: billing_address.and_then(|a| a.country),
+                    address_line1: billing_address.and_then(|a| a.line1.clone()),
+                    address_line2: billing_address.and_then(|a| a.line2.clone()),
+                    zip_code: billing_address.and_then(|a| a.zip.clone()),
+                    state: billing_address.and_then(|a| a.state.clone()),
+                    name: billing_address.and_then(|a| {
+                        a.first_name.as_ref().map(|first_name| {
+                            format!(
+                                "{} {}",
+                                first_name.clone().expose(),
+                                a.last_name.clone().expose_option().unwrap_or_default()
+                            )
+                            .into()
+                        })
+                    }),
+                    email: billing_details.email.clone(),
+                    phone: billing_details.phone.as_ref().map(|p| {
                         format!(
-                            "{} {}",
-                            first_name.clone().expose(),
-                            a.last_name.clone().expose_option().unwrap_or_default()
+                            "{}{}",
+                            p.country_code.clone().unwrap_or_default(),
+                            p.number.clone().expose_option().unwrap_or_default()
                         )
                         .into()
-                    })
-                }),
-                email: item.request.email.clone(),
-                phone: billing.phone.map(|p| {
-                    format!(
-                        "{}{}",
-                        p.country_code.unwrap_or_default(),
-                        p.number.expose_option().unwrap_or_default()
-                    )
-                    .into()
-                }),
-            },
+                    }),
+                }
+            }
             None => StripeBillingAddress::default(),
         };
         let mut payment_method_options = None;
@@ -3562,10 +3555,9 @@ impl
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::CardRedirect(_)
             | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotSupported {
-                message: format!("{pm_type:?}"),
-                connector: "Stripe",
-            })?,
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+                connector_util::get_unimplemented_payment_method_error_message("stripe"),
+            ))?,
         }
     }
 }

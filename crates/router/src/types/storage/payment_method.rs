@@ -1,4 +1,7 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    ops::{Deref, DerefMut},
+};
 
 use api_models::payment_methods;
 use diesel_models::enums;
@@ -40,7 +43,7 @@ pub struct WalletTokenData {
     pub payment_method_id: String,
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum PaymentTokenData {
     // The variants 'Temporary' and 'Permanent' are added for backwards compatibility
@@ -49,7 +52,7 @@ pub enum PaymentTokenData {
     TemporaryGeneric(GenericTokenData),
     Permanent(CardTokenData),
     PermanentCard(CardTokenData),
-    AuthBankDebit(payment_methods::BankAccountConnectorDetails),
+    AuthBankDebit(payment_methods::BankAccountTokenData),
     WalletToken(WalletTokenData),
 }
 
@@ -76,4 +79,26 @@ impl PaymentTokenData {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PaymentsMandateReference(pub HashMap<String, Option<String>>);
+pub struct PaymentsMandateReferenceRecord {
+    pub connector_mandate_id: String,
+    pub payment_method_type: Option<common_enums::PaymentMethodType>,
+    pub original_payment_authorized_amount: Option<i64>,
+    pub original_payment_authorized_currency: Option<common_enums::Currency>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaymentsMandateReference(pub HashMap<String, PaymentsMandateReferenceRecord>);
+
+impl Deref for PaymentsMandateReference {
+    type Target = HashMap<String, PaymentsMandateReferenceRecord>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for PaymentsMandateReference {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}

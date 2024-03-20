@@ -1581,6 +1581,7 @@ pub enum DisputeStatus {
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
+    strum::EnumIter,
     strum::EnumString,
     utoipa::ToSchema,
     Copy
@@ -2131,6 +2132,15 @@ pub enum PaymentSource {
     Sdk,
     Webhook,
     ExternalAuthenticator,
+}
+
+impl PaymentSource {
+    pub fn is_for_internal_use_only(&self) -> bool {
+        match self {
+            Self::Dashboard | Self::Sdk | Self::MerchantServer | Self::Postman => false,
+            Self::Webhook | Self::ExternalAuthenticator => true,
+        }
+    }
 }
 
 #[derive(

@@ -100,6 +100,14 @@
                           "currency": "USD"
                         }
                       }
+                    },
+                    "customer_acceptance": {
+                      "acceptance_type": "offline",
+                      "accepted_at": "1963-05-03T04:07:52.723Z",
+                      "online": {
+                        "ip_address": "127.0.0.1",
+                        "user_agent": "amet irure esse"
+                      }
                     }
                   })
                 )
@@ -301,6 +309,14 @@ pub fn payments_update() {}
                   "card_exp_year": "25",
                   "card_holder_name": "joseph Doe",
                   "card_cvc": "123"
+                }
+              },
+              "customer_acceptance": {
+                "acceptance_type": "offline",
+                "accepted_at": "1963-05-03T04:07:52.723Z",
+                "online": {
+                  "ip_address": "127.0.0.1",
+                  "user_agent": "amet irure esse"
                 }
               }
             }

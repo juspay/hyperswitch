@@ -275,7 +275,13 @@ pub async fn payment_method_countries_currencies_retrieve_api(
         state,
         &req,
         payload,
-        |state, _auth, req| cards::retrieve_countries_currencies_based_on_pmt(state, req),
+        |state, _auth, req| {
+            cards::retrieve_countries_currencies_based_on_pmt(
+                state.conf.pm_filters.clone(),
+                req.connector,
+                req.payment_method_type,
+            )
+        },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::ApiKeyAuth,

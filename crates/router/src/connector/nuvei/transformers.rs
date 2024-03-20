@@ -3,12 +3,12 @@ use common_utils::{
     crypto::{self, GenerateDigest},
     date_time,
     ext_traits::Encode,
-    fp_utils, pii,
-    pii::Email,
+    fp_utils,
+    pii::{Email, IpAddress},
 };
 use data_models::mandates::MandateDataType;
 use error_stack::{IntoReport, ResultExt};
-use masking::{PeekInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
@@ -26,7 +26,7 @@ use crate::{
 
 #[derive(Debug, Serialize, Default, Deserialize)]
 pub struct NuveiMeta {
-    pub session_token: String,
+    pub session_token: Secret<String>,
 }
 
 #[derive(Debug, Serialize, Default, Deserialize)]
@@ -41,19 +41,19 @@ pub struct NuveiSessionRequest {
     pub merchant_site_id: Secret<String>,
     pub client_request_id: String,
     pub time_stamp: date_time::DateTime<date_time::YYYYMMDDHHmmss>,
-    pub checksum: String,
+    pub checksum: Secret<String>,
 }
 
 #[derive(Debug, Serialize, Default, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NuveiSessionResponse {
-    pub session_token: String,
+    pub session_token: Secret<String>,
     pub internal_request_id: i64,
     pub status: String,
     pub err_code: i64,
     pub reason: String,
-    pub merchant_id: String,
-    pub merchant_site_id: String,
+    pub merchant_id: Secret<String>,
+    pub merchant_site_id: Secret<String>,
     pub version: String,
     pub client_request_id: String,
 }
@@ -63,7 +63,7 @@ pub struct NuveiSessionResponse {
 #[serde(rename_all = "camelCase")]
 pub struct NuveiPaymentsRequest {
     pub time_stamp: String,
-    pub session_token: String,
+    pub session_token: Secret<String>,
     pub merchant_id: Secret<String>,
     pub merchant_site_id: Secret<String>,
     pub client_request_id: Secret<String>,
@@ -76,7 +76,7 @@ pub struct NuveiPaymentsRequest {
     pub is_rebilling: Option<String>,
     pub payment_option: PaymentOption,
     pub device_details: Option<DeviceDetails>,
-    pub checksum: String,
+    pub checksum: Secret<String>,
     pub billing_address: Option<BillingAddress>,
     pub related_transaction_id: Option<String>,
     pub url_details: Option<UrlDetails>,
@@ -92,14 +92,14 @@ pub struct UrlDetails {
 
 #[derive(Debug, Serialize, Default)]
 pub struct NuveiInitPaymentRequest {
-    pub session_token: String,
-    pub merchant_id: String,
-    pub merchant_site_id: String,
+    pub session_token: Secret<String>,
+    pub merchant_id: Secret<String>,
+    pub merchant_site_id: Secret<String>,
     pub client_request_id: String,
     pub amount: String,
     pub currency: String,
     pub payment_option: PaymentOption,
-    pub checksum: String,
+    pub checksum: Secret<String>,
 }
 
 /// Handles payment request for capture, void and refund flows
@@ -113,13 +113,13 @@ pub struct NuveiPaymentFlowRequest {
     pub amount: String,
     pub currency: diesel_models::enums::Currency,
     pub related_transaction_id: Option<String>,
-    pub checksum: String,
+    pub checksum: Secret<String>,
 }
 
 #[derive(Debug, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct NuveiPaymentSyncRequest {
-    pub session_token: String,
+    pub session_token: Secret<String>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -217,12 +217,12 @@ pub struct Card {
     #[serde(rename = "CVV")]
     pub cvv: Option<Secret<String>>,
     pub three_d: Option<ThreeD>,
-    pub cc_card_number: Option<String>,
-    pub bin: Option<String>,
-    pub last4_digits: Option<String>,
-    pub cc_exp_month: Option<String>,
-    pub cc_exp_year: Option<String>,
-    pub acquirer_id: Option<String>,
+    pub cc_card_number: Option<Secret<String>>,
+    pub bin: Option<Secret<String>>,
+    pub last4_digits: Option<Secret<String>>,
+    pub cc_exp_month: Option<Secret<String>>,
+    pub cc_exp_year: Option<Secret<String>>,
+    pub acquirer_id: Option<Secret<String>>,
     pub cvv2_reply: Option<String>,
     pub avs_code: Option<String>,
     pub card_type: Option<String>,
@@ -260,7 +260,7 @@ pub struct ThreeD {
     #[serde(rename = "merchantURL")]
     pub merchant_url: Option<String>,
     pub acs_url: Option<String>,
-    pub c_req: Option<String>,
+    pub c_req: Option<Secret<String>>,
     pub platform_type: Option<PlatformType>,
     pub v2supported: Option<String>,
     pub v2_additional_params: Option<V2AdditionalParams>,
@@ -291,7 +291,7 @@ pub enum PlatformType {
 #[serde(rename_all = "camelCase")]
 pub struct BrowserDetails {
     pub accept_header: String,
-    pub ip: Secret<String, pii::IpAddress>,
+    pub ip: Secret<String, IpAddress>,
     pub java_enabled: String,
     pub java_script_enabled: String,
     pub language: String,
@@ -315,7 +315,7 @@ pub struct V2AdditionalParams {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceDetails {
-    pub ip_address: Secret<String, pii::IpAddress>,
+    pub ip_address: Secret<String, IpAddress>,
 }
 
 impl From<enums::CaptureMethod> for TransactionType {
@@ -329,15 +329,15 @@ impl From<enums::CaptureMethod> for TransactionType {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NuveiRedirectionResponse {
-    pub cres: String,
+    pub cres: Secret<String>,
 }
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NuveiACSResponse {
     #[serde(rename = "threeDSServerTransID")]
-    pub three_ds_server_trans_id: String,
+    pub three_ds_server_trans_id: Secret<String>,
     #[serde(rename = "acsTransID")]
-    pub acs_trans_id: String,
+    pub acs_trans_id: Secret<String>,
     pub message_type: String,
     pub message_version: String,
     pub trans_status: Option<LiabilityShift>,
@@ -394,13 +394,13 @@ impl TryFrom<&types::PaymentsAuthorizeSessionTokenRouterData> for NuveiSessionRe
             merchant_site_id: merchant_site_id.clone(),
             client_request_id: client_request_id.clone(),
             time_stamp: time_stamp.clone(),
-            checksum: encode_payload(&[
+            checksum: Secret::new(encode_payload(&[
                 merchant_id.peek(),
                 merchant_site_id.peek(),
                 &client_request_id,
                 &time_stamp.to_string(),
                 merchant_secret.peek(),
-            ])?,
+            ])?),
         })
     }
 }
@@ -415,9 +415,9 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: enums::AttemptStatus::Pending,
-            session_token: Some(item.response.session_token.clone()),
+            session_token: Some(item.response.session_token.clone().expose()),
             response: Ok(types::PaymentsResponseData::SessionTokenResponse {
-                session_token: item.response.session_token,
+                session_token: item.response.session_token.expose(),
             }),
             ..item.data
         })
@@ -866,7 +866,7 @@ impl<F>
             currency: item.request.currency,
             connector_auth_type: item.connector_auth_type.clone(),
             client_request_id: item.connector_request_reference_id.clone(),
-            session_token: data.1,
+            session_token: Secret::new(data.1),
             capture_method: item.request.capture_method,
             ..Default::default()
         })?;
@@ -899,7 +899,9 @@ fn get_card_info<F>(
         None
     };
 
-    let address = item.get_billing_address_details_as_optional();
+    let address = item
+        .get_optional_billing()
+        .and_then(|billing_details| billing_details.address.as_ref());
 
     let billing_address = match address {
         Some(address) => Some(BillingAddress {
@@ -1015,10 +1017,12 @@ impl From<NuveiCardDetails> for PaymentOption {
     }
 }
 
-impl TryFrom<(&types::PaymentsCompleteAuthorizeRouterData, String)> for NuveiPaymentsRequest {
+impl TryFrom<(&types::PaymentsCompleteAuthorizeRouterData, Secret<String>)>
+    for NuveiPaymentsRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        data: (&types::PaymentsCompleteAuthorizeRouterData, String),
+        data: (&types::PaymentsCompleteAuthorizeRouterData, Secret<String>),
     ) -> Result<Self, Self::Error> {
         let item = data.0;
         let request_data = match item.request.payment_method_data.clone() {
@@ -1067,7 +1071,7 @@ impl TryFrom<NuveiPaymentRequestData> for NuveiPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(request: NuveiPaymentRequestData) -> Result<Self, Self::Error> {
         let session_token = request.session_token;
-        fp_utils::when(session_token.is_empty(), || {
+        fp_utils::when(session_token.clone().expose().is_empty(), || {
             Err(errors::ConnectorError::FailedToObtainAuthType)
         })?;
         let connector_meta: NuveiAuthType = NuveiAuthType::try_from(&request.connector_auth_type)?;
@@ -1089,7 +1093,7 @@ impl TryFrom<NuveiPaymentRequestData> for NuveiPaymentsRequest {
                 .capture_method
                 .map(TransactionType::from)
                 .unwrap_or_default(),
-            checksum: encode_payload(&[
+            checksum: Secret::new(encode_payload(&[
                 merchant_id.peek(),
                 merchant_site_id.peek(),
                 &client_request_id,
@@ -1097,7 +1101,7 @@ impl TryFrom<NuveiPaymentRequestData> for NuveiPaymentsRequest {
                 &request.currency.to_string(),
                 &time_stamp,
                 merchant_secret.peek(),
-            ])?,
+            ])?),
             amount: request.amount,
             currency: request.currency,
             ..Default::default()
@@ -1122,7 +1126,7 @@ impl TryFrom<NuveiPaymentRequestData> for NuveiPaymentFlowRequest {
             merchant_site_id: merchant_site_id.to_owned(),
             client_request_id: client_request_id.clone(),
             time_stamp: time_stamp.clone(),
-            checksum: encode_payload(&[
+            checksum: Secret::new(encode_payload(&[
                 merchant_id.peek(),
                 merchant_site_id.peek(),
                 &client_request_id,
@@ -1131,7 +1135,7 @@ impl TryFrom<NuveiPaymentRequestData> for NuveiPaymentFlowRequest {
                 &request.related_transaction_id.clone().unwrap_or_default(),
                 &time_stamp,
                 merchant_secret.peek(),
-            ])?,
+            ])?),
             amount: request.amount,
             currency: request.currency,
             related_transaction_id: request.related_transaction_id,
@@ -1146,7 +1150,7 @@ pub struct NuveiPaymentRequestData {
     pub related_transaction_id: Option<String>,
     pub client_request_id: String,
     pub connector_auth_type: types::ConnectorAuthType,
-    pub session_token: String,
+    pub session_token: Secret<String>,
     pub capture_method: Option<diesel_models::enums::CaptureMethod>,
 }
 
@@ -1273,7 +1277,7 @@ impl From<NuveiTransactionStatus> for enums::AttemptStatus {
 #[serde(rename_all = "camelCase")]
 pub struct NuveiPaymentsResponse {
     pub order_id: Option<String>,
-    pub user_token_id: Option<String>,
+    pub user_token_id: Option<Secret<String>>,
     pub payment_option: Option<PaymentOption>,
     pub transaction_status: Option<NuveiTransactionStatus>,
     pub gw_error_code: Option<i64>,
@@ -1287,15 +1291,16 @@ pub struct NuveiPaymentsResponse {
     pub auth_code: Option<String>,
     pub custom_data: Option<String>,
     pub fraud_details: Option<FraudDetails>,
-    pub external_scheme_transaction_id: Option<String>,
-    pub session_token: Option<String>,
+    pub external_scheme_transaction_id: Option<Secret<String>>,
+    pub session_token: Option<Secret<String>>,
+    //The ID of the transaction in the merchant’s system.
     pub client_unique_id: Option<String>,
     pub internal_request_id: Option<i64>,
     pub status: NuveiPaymentStatus,
     pub err_code: Option<i64>,
     pub reason: Option<String>,
-    pub merchant_id: Option<String>,
-    pub merchant_site_id: Option<String>,
+    pub merchant_id: Option<Secret<String>>,
+    pub merchant_site_id: Option<Secret<String>>,
     pub version: Option<String>,
     pub client_request_id: Option<String>,
 }
@@ -1417,7 +1422,10 @@ where
                 .map(|(base_url, creq)| services::RedirectForm::Form {
                     endpoint: base_url,
                     method: services::Method::Post,
-                    form_fields: std::collections::HashMap::from([("creq".to_string(), creq)]),
+                    form_fields: std::collections::HashMap::from([(
+                        "creq".to_string(),
+                        creq.expose(),
+                    )]),
                 }),
         };
 

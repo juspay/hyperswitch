@@ -100,6 +100,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                         merchant_account,
                         self.request.payment_method_type,
                         key_store,
+                        Some(resp.request.amount),
+                        Some(resp.request.currency),
                     ))
                     .await?;
 
@@ -134,6 +136,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                         &merchant_account,
                         self.request.payment_method_type,
                         &key_store,
+                        Some(resp.request.amount),
+                        Some(resp.request.currency),
                     ))
                     .await;
 
