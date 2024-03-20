@@ -939,7 +939,7 @@ impl WalletData for api::WalletData {
                 Ok(encoded_token)
             }
             _ => Err(errors::ConnectorError::InvalidWalletToken {
-                wallet_name: "GooglePay".to_string(),
+                wallet_name: "".to_string(),
             }
             .into()),
         }
@@ -963,7 +963,7 @@ impl ApplePay for payments::ApplePayWalletData {
             )
             .into_report()
             .change_context(errors::ConnectorError::InvalidWalletToken {
-                wallet_name: "Applepay".to_string(),
+                wallet_name: "".to_string(),
             })?,
         );
         Ok(token)

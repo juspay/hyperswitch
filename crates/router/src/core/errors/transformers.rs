@@ -78,11 +78,6 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 AER::BadRequest(ApiError::new("IR", 16, message.to_string(), None))
             }
             Self::InvalidJwtToken => AER::Unauthorized(ApiError::new("IR", 17, "Access forbidden, invalid JWT token was used", None)),
-            Self::InvalidWalletToken { wallet_name} => AER::Unprocessable(ApiError::new(
-                "IR",
-                17,
-                format!("Invalid {wallet_name} wallet token"), None
-            )),
             Self::GenericUnauthorized { message } => {
                 AER::Unauthorized(ApiError::new("IR", 18, message.to_string(), None))
             },
@@ -90,6 +85,11 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 "IR",
                 19,
                 "The provided client_secret has expired", None
+            )),
+            Self::InvalidWalletToken { wallet_name} => AER::Unprocessable(ApiError::new(
+                "IR",
+                20,
+                format!("Invalid {wallet_name} wallet token"), None
             )),
             Self::MissingRequiredFields { field_names } => AER::BadRequest(
                 ApiError::new("IR", 21, "Missing required params".to_string(), Some(Extra {data: Some(serde_json::json!(field_names)), ..Default::default() })),
@@ -100,7 +100,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::FileProviderNotSupported { message } => {
                 AER::BadRequest(ApiError::new("IR", 23, message.to_string(), None))
             },
-            Self::UnprocessableEntity {message} => AER::Unprocessable(ApiError::new("IR", 23, message.to_string(), None)),
+            Self::UnprocessableEntity {message} => AER::Unprocessable(ApiError::new("IR", 24, message.to_string(), None)),
             Self::ExternalConnectorError {
                 code,
                 message,

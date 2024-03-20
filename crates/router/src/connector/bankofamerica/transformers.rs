@@ -709,7 +709,7 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                             }
                             types::PaymentMethodToken::Token(_) => {
                                 Err(errors::ConnectorError::InvalidWalletToken {
-                                    wallet_name: "Applepay".to_string(),
+                                    wallet_name: "".to_string(),
                                 })?
                             }
                         },
