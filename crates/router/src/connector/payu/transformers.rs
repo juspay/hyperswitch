@@ -79,7 +79,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
                 }),
             }),
             domain::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                api_models::payments::WalletData::GooglePay(data) => Ok(PayuPaymentMethod {
+                domain::WalletData::GooglePay(data) => Ok(PayuPaymentMethod {
                     pay_method: PayuPaymentMethodData::Wallet({
                         PayuWallet {
                             value: PayuWalletCode::Ap,
@@ -90,7 +90,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
                         }
                     }),
                 }),
-                api_models::payments::WalletData::ApplePay(data) => Ok(PayuPaymentMethod {
+                domain::WalletData::ApplePay(data) => Ok(PayuPaymentMethod {
                     pay_method: PayuPaymentMethodData::Wallet({
                         PayuWallet {
                             value: PayuWalletCode::Jp,

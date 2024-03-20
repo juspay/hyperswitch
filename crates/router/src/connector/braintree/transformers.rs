@@ -126,34 +126,34 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
             domain::PaymentMethodData::Wallet(ref wallet_data) => {
                 Ok(PaymentMethodType::PaymentMethodNonce(Nonce {
                     payment_method_nonce: match wallet_data {
-                        api_models::payments::WalletData::PaypalSdk(wallet_data) => {
+                        domain::WalletData::PaypalSdk(wallet_data) => {
                             Ok(wallet_data.token.to_owned())
                         }
-                        api_models::payments::WalletData::ApplePay(_)
-                        | api_models::payments::WalletData::GooglePay(_)
-                        | api_models::payments::WalletData::SamsungPay(_)
-                        | api_models::payments::WalletData::AliPayQr(_)
-                        | api_models::payments::WalletData::AliPayRedirect(_)
-                        | api_models::payments::WalletData::AliPayHkRedirect(_)
-                        | api_models::payments::WalletData::MomoRedirect(_)
-                        | api_models::payments::WalletData::KakaoPayRedirect(_)
-                        | api_models::payments::WalletData::GoPayRedirect(_)
-                        | api_models::payments::WalletData::GcashRedirect(_)
-                        | api_models::payments::WalletData::ApplePayRedirect(_)
-                        | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
-                        | api_models::payments::WalletData::DanaRedirect {}
-                        | api_models::payments::WalletData::GooglePayRedirect(_)
-                        | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
-                        | api_models::payments::WalletData::MbWayRedirect(_)
-                        | api_models::payments::WalletData::MobilePayRedirect(_)
-                        | api_models::payments::WalletData::PaypalRedirect(_)
-                        | api_models::payments::WalletData::TwintRedirect {}
-                        | api_models::payments::WalletData::VippsRedirect {}
-                        | api_models::payments::WalletData::TouchNGoRedirect(_)
-                        | api_models::payments::WalletData::WeChatPayRedirect(_)
-                        | api_models::payments::WalletData::WeChatPayQr(_)
-                        | api_models::payments::WalletData::CashappQr(_)
-                        | api_models::payments::WalletData::SwishQr(_) => {
+                        domain::WalletData::ApplePay(_)
+                        | domain::WalletData::GooglePay(_)
+                        | domain::WalletData::SamsungPay(_)
+                        | domain::WalletData::AliPayQr(_)
+                        | domain::WalletData::AliPayRedirect(_)
+                        | domain::WalletData::AliPayHkRedirect(_)
+                        | domain::WalletData::MomoRedirect(_)
+                        | domain::WalletData::KakaoPayRedirect(_)
+                        | domain::WalletData::GoPayRedirect(_)
+                        | domain::WalletData::GcashRedirect(_)
+                        | domain::WalletData::ApplePayRedirect(_)
+                        | domain::WalletData::ApplePayThirdPartySdk(_)
+                        | domain::WalletData::DanaRedirect {}
+                        | domain::WalletData::GooglePayRedirect(_)
+                        | domain::WalletData::GooglePayThirdPartySdk(_)
+                        | domain::WalletData::MbWayRedirect(_)
+                        | domain::WalletData::MobilePayRedirect(_)
+                        | domain::WalletData::PaypalRedirect(_)
+                        | domain::WalletData::TwintRedirect {}
+                        | domain::WalletData::VippsRedirect {}
+                        | domain::WalletData::TouchNGoRedirect(_)
+                        | domain::WalletData::WeChatPayRedirect(_)
+                        | domain::WalletData::WeChatPayQr(_)
+                        | domain::WalletData::CashappQr(_)
+                        | domain::WalletData::SwishQr(_) => {
                             Err(errors::ConnectorError::NotImplemented(
                                 utils::get_unimplemented_payment_method_error_message("braintree"),
                             ))
