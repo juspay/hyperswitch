@@ -9,7 +9,7 @@ use crate::{
     connector::utils,
     consts,
     core::errors,
-    types::{self, api, domain, PaymentsAuthorizeData, PaymentsResponseData},
+    types::{self, domain, PaymentsAuthorizeData, PaymentsResponseData},
 };
 
 #[derive(Debug, Serialize)]
