@@ -51,8 +51,9 @@ impl utils::Connector for AdyenTest {
 impl AdyenTest {
     fn get_payment_info() -> Option<PaymentInfo> {
         Some(PaymentInfo {
-            address: Some(PaymentAddress {
-                billing: Some(Address {
+            address: Some(PaymentAddress::new(
+                None,
+                Some(Address {
                     address: Some(AddressDetails {
                         country: Some(api_models::enums::CountryAlpha2::US),
                         state: Some(Secret::new("California".to_string())),
@@ -65,8 +66,8 @@ impl AdyenTest {
                     phone: None,
                     email: None,
                 }),
-                ..Default::default()
-            }),
+                None,
+            )),
             ..Default::default()
         })
     }
@@ -78,8 +79,9 @@ impl AdyenTest {
         Some(PaymentInfo {
             country: Some(api_models::enums::CountryAlpha2::NL),
             currency: Some(enums::Currency::EUR),
-            address: Some(PaymentAddress {
-                billing: Some(Address {
+            address: Some(PaymentAddress::new(
+                None,
+                Some(Address {
                     address: Some(AddressDetails {
                         country: Some(api_models::enums::CountryAlpha2::US),
                         state: Some(Secret::new("California".to_string())),
@@ -92,8 +94,8 @@ impl AdyenTest {
                     phone: None,
                     email: None,
                 }),
-                ..Default::default()
-            }),
+                None,
+            )),
             payout_method_data: match payout_type {
                 enums::PayoutType::Card => {
                     Some(api::PayoutMethodData::Card(api::payouts::CardPayout {
@@ -170,6 +172,7 @@ impl AdyenTest {
             surcharge_details: None,
             request_incremental_authorization: false,
             metadata: None,
+            authentication_data: None,
             customer_acceptance: None,
         })
     }

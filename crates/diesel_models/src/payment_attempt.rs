@@ -226,6 +226,7 @@ pub enum PaymentAttemptUpdate {
         fingerprint_id: Option<String>,
         updated_by: String,
         merchant_connector_id: Option<String>,
+        payment_method_id: Option<String>,
         external_three_ds_authentication_attempted: Option<bool>,
         authentication_connector: Option<String>,
         authentication_id: Option<String>,
@@ -267,6 +268,7 @@ pub enum PaymentAttemptUpdate {
         encoded_data: Option<String>,
         unified_code: Option<Option<String>>,
         unified_message: Option<Option<String>>,
+        payment_method_data: Option<serde_json::Value>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -294,6 +296,7 @@ pub enum PaymentAttemptUpdate {
         unified_code: Option<Option<String>>,
         unified_message: Option<Option<String>>,
         connector_transaction_id: Option<String>,
+        payment_method_data: Option<serde_json::Value>,
     },
     CaptureUpdate {
         amount_to_capture: Option<i64>,
@@ -574,6 +577,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 authentication_id,
                 payment_method_billing_address_id,
                 fingerprint_id,
+                payment_method_id,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -601,6 +605,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 authentication_id,
                 payment_method_billing_address_id,
                 fingerprint_id,
+                payment_method_id: payment_method_id.map(Some),
                 ..Default::default()
             },
             PaymentAttemptUpdate::VoidUpdate {
@@ -658,6 +663,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 encoded_data,
                 unified_code,
                 unified_message,
+                payment_method_data,
             } => Self {
                 status: Some(status),
                 connector: connector.map(Some),
@@ -678,6 +684,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 encoded_data,
                 unified_code,
                 unified_message,
+                payment_method_data,
                 ..Default::default()
             },
             PaymentAttemptUpdate::ErrorUpdate {
@@ -691,6 +698,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_code,
                 unified_message,
                 connector_transaction_id,
+                payment_method_data,
             } => Self {
                 connector: connector.map(Some),
                 status: Some(status),
@@ -703,6 +711,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_code,
                 unified_message,
                 connector_transaction_id,
+                payment_method_data,
                 ..Default::default()
             },
             PaymentAttemptUpdate::StatusUpdate { status, updated_by } => Self {

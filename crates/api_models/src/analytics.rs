@@ -19,6 +19,7 @@ pub mod outgoing_webhook_event;
 pub mod payments;
 pub mod refunds;
 pub mod sdk_events;
+pub mod search;
 
 #[derive(Debug, serde::Serialize)]
 pub struct NameDescription {
@@ -251,7 +252,6 @@ pub struct GetApiEventMetricRequest {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-
 pub struct GetDisputeFilterRequest {
     pub time_range: TimeRange,
     #[serde(default)]

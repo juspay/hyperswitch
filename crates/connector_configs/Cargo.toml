@@ -12,7 +12,7 @@ production = []
 development = []
 sandbox = []
 dummy_connector = ["api_models/dummy_connector", "development"]
-payouts = []
+payouts = ["api_models/payouts"]
 
 [dependencies]
 api_models = { version = "0.1.0", path = "../api_models", package = "api_models" }

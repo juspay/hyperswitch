@@ -38,10 +38,13 @@ pub async fn save_payment_method<F: Clone, FData>(
     merchant_account: &domain::MerchantAccount,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     key_store: &domain::MerchantKeyStore,
-) -> RouterResult<Option<String>>
+    amount: Option<i64>,
+    currency: Option<storage_enums::Currency>,
+) -> RouterResult<(Option<String>, Option<common_enums::PaymentMethodStatus>)>
 where
     FData: mandate::MandateBehaviour,
 {
+    let mut pm_status = None;
     match resp.response {
         Ok(responses) => {
             let db = &*state.store;
@@ -92,7 +95,13 @@ where
                     .map(|future_usage| future_usage == storage_enums::FutureUsage::OffSession)
                     .unwrap_or(false)
             {
-                add_connector_mandate_details_in_payment_method(responses, connector)
+                add_connector_mandate_details_in_payment_method(
+                    responses,
+                    payment_method_type,
+                    amount,
+                    currency,
+                    connector,
+                )
             } else {
                 None
             }
@@ -101,9 +110,7 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to serialize customer acceptance to value")?;
 
-            let pm_id = if resp.request.get_setup_future_usage().is_some()
-                && customer_acceptance.is_some()
-            {
+            let pm_id = if customer_acceptance.is_some() {
                 let customer = maybe_customer.to_owned().get_required_value("customer")?;
                 let payment_method_create_request = helpers::get_payment_method_create_request(
                     Some(&resp.request.get_payment_method_data()),
@@ -121,6 +128,7 @@ where
                     )
                     .await?
                 } else {
+                    pm_status = Some(common_enums::PaymentMethodStatus::from(resp.status));
                     Box::pin(save_in_locker(
                         state,
                         merchant_account,
@@ -347,9 +355,9 @@ where
             } else {
                 None
             };
-            Ok(pm_id)
+            Ok((pm_id, pm_status))
         }
-        Err(_) => Ok(None),
+        Err(_) => Ok((None, None)),
     }
 }
 
@@ -409,6 +417,7 @@ async fn skip_saving_card_in_locker(
                 payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
                 metadata: None,
                 created: Some(common_utils::date_time::now()),
+                #[cfg(feature = "payouts")]
                 bank_transfer: None,
                 last_used_at: Some(common_utils::date_time::now()),
             };
@@ -429,6 +438,7 @@ async fn skip_saving_card_in_locker(
                 recurring_enabled: false,
                 installment_payment_enabled: false,
                 payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
+                #[cfg(feature = "payouts")]
                 bank_transfer: None,
                 last_used_at: Some(common_utils::date_time::now()),
             };
@@ -470,6 +480,7 @@ pub async fn save_in_locker(
                 payment_method_id: pm_id,
                 payment_method: payment_method_request.payment_method,
                 payment_method_type: payment_method_request.payment_method_type,
+                #[cfg(feature = "payouts")]
                 bank_transfer: None,
                 card: None,
                 metadata: None,
@@ -592,6 +603,9 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
 
 fn add_connector_mandate_details_in_payment_method(
     resp: types::PaymentsResponseData,
+    payment_method_type: Option<storage_enums::PaymentMethodType>,
+    authorized_amount: Option<i64>,
+    authorized_currency: Option<storage_enums::Currency>,
     connector: &api::ConnectorData,
 ) -> Option<storage::PaymentsMandateReference> {
     let mut mandate_details = HashMap::new();
@@ -609,8 +623,20 @@ fn add_connector_mandate_details_in_payment_method(
         _ => None,
     };
 
-    if let Some(mca_id) = connector.merchant_connector_id.clone() {
-        mandate_details.insert(mca_id, connector_mandate_id);
+    if let Some((mca_id, connector_mandate_id)) = connector
+        .merchant_connector_id
+        .clone()
+        .zip(connector_mandate_id)
+    {
+        mandate_details.insert(
+            mca_id,
+            storage::PaymentsMandateReferenceRecord {
+                connector_mandate_id,
+                payment_method_type,
+                original_payment_authorized_amount: authorized_amount,
+                original_payment_authorized_currency: authorized_currency,
+            },
+        );
         Some(storage::PaymentsMandateReference(mandate_details))
     } else {
         None

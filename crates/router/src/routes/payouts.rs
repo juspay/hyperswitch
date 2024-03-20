@@ -6,14 +6,12 @@ use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
-    core::api_locking,
+    core::{api_locking, payouts::*},
     services::{api, authentication as auth},
+    types::api::payouts as payout_types,
 };
-#[cfg(feature = "payouts")]
-use crate::{core::payouts::*, types::api::payouts as payout_types};
 
 /// Payouts - Create
-#[cfg(feature = "payouts")]
 #[utoipa::path(
     post,
     path = "/payouts/create",
@@ -45,7 +43,6 @@ pub async fn payouts_create(
     .await
 }
 /// Payouts - Retrieve
-#[cfg(feature = "payouts")]
 #[utoipa::path(
     get,
     path = "/payouts/{payout_id}",
@@ -84,7 +81,6 @@ pub async fn payouts_retrieve(
     .await
 }
 /// Payouts - Update
-#[cfg(feature = "payouts")]
 #[utoipa::path(
     post,
     path = "/payouts/{payout_id}",
@@ -123,7 +119,6 @@ pub async fn payouts_update(
     .await
 }
 /// Payouts - Cancel
-#[cfg(feature = "payouts")]
 #[utoipa::path(
     post,
     path = "/payouts/{payout_id}/cancel",
@@ -162,7 +157,6 @@ pub async fn payouts_cancel(
     .await
 }
 /// Payouts - Fulfill
-#[cfg(feature = "payouts")]
 #[utoipa::path(
     post,
     path = "/payouts/{payout_id}/fulfill",
@@ -200,6 +194,7 @@ pub async fn payouts_fulfill(
     ))
     .await
 }
+
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsAccounts))]
 // #[get("/accounts")]
 pub async fn payouts_accounts() -> impl Responder {

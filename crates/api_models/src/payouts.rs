@@ -51,8 +51,8 @@ pub struct PayoutCreateRequest {
     pub routing: Option<serde_json::Value>,
 
     /// This allows the merchant to manually select a connector with which the payout can go through
-    #[schema(value_type = Option<Vec<Connector>>, max_length = 255, example = json!(["wise", "adyen"]))]
-    pub connector: Option<Vec<api_enums::Connector>>,
+    #[schema(value_type = Option<Vec<PayoutConnectors>>, max_length = 255, example = json!(["wise", "adyen"]))]
+    pub connector: Option<Vec<api_enums::PayoutConnectors>>,
 
     /// The boolean value to create payout with connector
     #[schema(value_type = bool, example = true, default = false)]
@@ -272,7 +272,7 @@ pub struct Paypal {
     pub email: Option<Email>,
 }
 
-#[derive(Debug, ToSchema, Clone, Serialize)]
+#[derive(Debug, Default, ToSchema, Clone, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct PayoutCreateResponse {
     /// Unique identifier for the payout. This ensures idempotency for multiple payouts

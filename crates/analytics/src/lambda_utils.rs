@@ -1,5 +1,5 @@
-use aws_config::{self, meta::region::RegionProviderChain};
-use aws_sdk_lambda::{config::Region, types::InvocationType::Event, Client};
+use aws_config::{self, meta::region::RegionProviderChain, Region};
+use aws_sdk_lambda::{types::InvocationType::Event, Client};
 use aws_smithy_types::Blob;
 use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
