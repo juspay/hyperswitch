@@ -1386,9 +1386,7 @@ impl From<&SetupMandateRouterData> for PaymentsAuthorizeData {
     fn from(data: &SetupMandateRouterData) -> Self {
         Self {
             currency: data.request.currency,
-            payment_method_data: domain::PaymentMethodData::from(
-                data.request.payment_method_data.clone(),
-            ),
+            payment_method_data: data.request.payment_method_data.clone(),
             confirm: data.request.confirm,
             statement_descriptor_suffix: data.request.statement_descriptor_suffix.clone(),
             mandate_id: data.request.mandate_id.clone(),

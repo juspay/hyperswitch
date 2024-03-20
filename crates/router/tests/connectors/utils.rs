@@ -863,14 +863,14 @@ pub struct PaymentCaptureType(pub types::PaymentsCaptureData);
 pub struct PaymentCancelType(pub types::PaymentsCancelData);
 pub struct PaymentSyncType(pub types::PaymentsSyncData);
 pub struct PaymentRefundType(pub types::RefundsData);
-pub struct CCardType(pub api::Card);
+pub struct CCardType(pub types::domain::Card);
 pub struct BrowserInfoType(pub types::BrowserInformation);
 pub struct CustomerType(pub types::ConnectorCustomerData);
 pub struct TokenType(pub types::PaymentMethodTokenizationData);
 
 impl Default for CCardType {
     fn default() -> Self {
-        Self(api::Card {
+        Self(types::domain::Card {
             card_number: cards::CardNumber::from_str("4200000000000000").unwrap(),
             card_exp_month: Secret::new("10".to_string()),
             card_exp_year: Secret::new("2025".to_string()),
@@ -889,7 +889,7 @@ impl Default for CCardType {
 impl Default for PaymentAuthorizeType {
     fn default() -> Self {
         let data = types::PaymentsAuthorizeData {
-            payment_method_data: types::api::PaymentMethodData::Card(CCardType::default().0),
+            payment_method_data: types::domain::PaymentMethodData::Card(CCardType::default().0),
             amount: 100,
             currency: enums::Currency::USD,
             confirm: true,
@@ -1002,7 +1002,7 @@ impl Default for PaymentRefundType {
 impl Default for CustomerType {
     fn default() -> Self {
         let data = types::ConnectorCustomerData {
-            payment_method_data: types::api::PaymentMethodData::Card(CCardType::default().0),
+            payment_method_data: types::domain::PaymentMethodData::Card(CCardType::default().0),
             description: None,
             email: Email::from_str("test@juspay.in").ok(),
             phone: None,
@@ -1016,7 +1016,7 @@ impl Default for CustomerType {
 impl Default for TokenType {
     fn default() -> Self {
         let data = types::PaymentMethodTokenizationData {
-            payment_method_data: types::api::PaymentMethodData::Card(CCardType::default().0),
+            payment_method_data: types::domain::PaymentMethodData::Card(CCardType::default().0),
             browser_info: None,
             amount: Some(100),
             currency: enums::Currency::USD,

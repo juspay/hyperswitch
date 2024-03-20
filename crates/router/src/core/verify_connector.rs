@@ -40,7 +40,7 @@ pub async fn verify_connector_credentials(
                 types::VerifyConnectorData {
                     connector: *boxed_connector.connector,
                     connector_auth: req.connector_account_details.into(),
-                    card_details: domain::Card::from(card_details),
+                    card_details,
                 },
             )
             .await
@@ -50,7 +50,7 @@ pub async fn verify_connector_credentials(
             types::VerifyConnectorData {
                 connector: *boxed_connector.connector,
                 connector_auth: req.connector_account_details.into(),
-                card_details: domain::Card::from(card_details),
+                card_details,
             },
         )
         .await

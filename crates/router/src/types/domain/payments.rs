@@ -42,7 +42,7 @@ impl PaymentMethodData {
     }
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
 pub struct Card {
     pub card_number: cards::CardNumber,
     pub card_exp_month: Secret<String>,
@@ -400,39 +400,6 @@ impl From<api_models::payments::CardRedirectData> for CardRedirectData {
             api_models::payments::CardRedirectData::Benefit {} => Self::Benefit {},
             api_models::payments::CardRedirectData::MomoAtm {} => Self::MomoAtm {},
             api_models::payments::CardRedirectData::CardRedirect {} => Self::CardRedirect {},
-        }
-    }
-}
-
-impl From<api_models::payments::WalletData> for WalletData {
-    fn from(value: api_models::payments::WalletData) -> Self {
-        match value {
-            api_models::payments::WalletData::AliPayQr(_) => todo!(),
-            api_models::payments::WalletData::AliPayRedirect(_) => todo!(),
-            api_models::payments::WalletData::AliPayHkRedirect(_) => todo!(),
-            api_models::payments::WalletData::MomoRedirect(_) => todo!(),
-            api_models::payments::WalletData::KakaoPayRedirect(_) => todo!(),
-            api_models::payments::WalletData::GoPayRedirect(_) => todo!(),
-            api_models::payments::WalletData::GcashRedirect(_) => todo!(),
-            api_models::payments::WalletData::ApplePay(_) => todo!(),
-            api_models::payments::WalletData::ApplePayRedirect(_) => todo!(),
-            api_models::payments::WalletData::ApplePayThirdPartySdk(_) => todo!(),
-            api_models::payments::WalletData::DanaRedirect {} => todo!(),
-            api_models::payments::WalletData::GooglePay(_) => todo!(),
-            api_models::payments::WalletData::GooglePayRedirect(_) => todo!(),
-            api_models::payments::WalletData::GooglePayThirdPartySdk(_) => todo!(),
-            api_models::payments::WalletData::MbWayRedirect(_) => todo!(),
-            api_models::payments::WalletData::MobilePayRedirect(_) => todo!(),
-            api_models::payments::WalletData::PaypalRedirect(_) => todo!(),
-            api_models::payments::WalletData::PaypalSdk(_) => todo!(),
-            api_models::payments::WalletData::SamsungPay(_) => todo!(),
-            api_models::payments::WalletData::TwintRedirect {} => todo!(),
-            api_models::payments::WalletData::VippsRedirect {} => todo!(),
-            api_models::payments::WalletData::TouchNGoRedirect(_) => todo!(),
-            api_models::payments::WalletData::WeChatPayRedirect(_) => todo!(),
-            api_models::payments::WalletData::WeChatPayQr(_) => todo!(),
-            api_models::payments::WalletData::CashappQr(_) => todo!(),
-            api_models::payments::WalletData::SwishQr(_) => todo!(),
         }
     }
 }

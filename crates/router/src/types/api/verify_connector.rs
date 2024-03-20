@@ -22,9 +22,7 @@ pub struct VerifyConnectorData {
 impl VerifyConnectorData {
     fn get_payment_authorize_data(&self) -> types::PaymentsAuthorizeData {
         types::PaymentsAuthorizeData {
-            payment_method_data: domain::PaymentMethodData::Card(From::from(
-                self.card_details.clone(),
-            )),
+            payment_method_data: domain::PaymentMethodData::Card(self.card_details.clone()),
             email: None,
             customer_name: None,
             amount: 1000,

@@ -436,7 +436,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
 
     fn get_card(&self) -> Result<domain::Card, Error> {
         match self.payment_method_data.clone() {
-            domain::PaymentMethodData::Card(card) => Ok(From::from(card)),
+            domain::PaymentMethodData::Card(card) => Ok(card),
             _ => Err(missing_field_err("card")()),
         }
     }
