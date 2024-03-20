@@ -7,7 +7,6 @@ use crate::{
     connector::utils::{
         self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData, RouterData,
     },
-    consts,
     core::errors,
     pii::Secret,
     services,
@@ -683,8 +682,9 @@ impl<F, T>
                 Ok(Self {
                     status,
                     response: if utils::is_payment_failure(status) {
-                        Err(get_error_response(
+                        Err(utils::get_connector_error_response(
                             payment_response.data.reason_code,
+                            payment_response.data.reason.clone(),
                             payment_response.data.reason,
                             item.http_code,
                             Some(payment_response.data.order_id),
@@ -715,8 +715,9 @@ impl<F, T>
                 })
             }
             MultisafepayAuthResponse::ErrorResponse(error_response) => Ok(Self {
-                response: Err(get_error_response(
+                response: Err(utils::get_connector_error_response(
                     Some(error_response.error_code.to_string()),
+                    Some(error_response.error_info.clone()),
                     Some(error_response.error_info),
                     item.http_code,
                     None,
@@ -879,20 +880,3 @@ pub struct MultisafepayErrorResponse {
     pub error_info: String,
 }
 
-fn get_error_response(
-    error_code: Option<String>,
-    error_message: Option<String>,
-    http_code: u16,
-    connector_transaction_id: Option<String>,
-) -> types::ErrorResponse {
-    types::ErrorResponse {
-        code: error_code.unwrap_or(consts::NO_ERROR_CODE.to_string()),
-        message: error_message
-            .clone()
-            .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-        reason: error_message,
-        status_code: http_code,
-        attempt_status: None,
-        connector_transaction_id,
-    }
-}
