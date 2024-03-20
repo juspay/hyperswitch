@@ -683,7 +683,7 @@ impl<F, T>
                 Ok(Self {
                     status,
                     response: if utils::is_payment_failure(status) {
-                        Err(get_error_response_if_failure(
+                        Err(get_error_response(
                             payment_response.data.reason_code,
                             payment_response.data.reason,
                             item.http_code,
@@ -715,7 +715,7 @@ impl<F, T>
                 })
             }
             MultisafepayAuthResponse::ErrorResponse(error_response) => Ok(Self {
-                response: Err(get_error_response_if_failure(
+                response: Err(get_error_response(
                     Some(error_response.error_code.to_string()),
                     Some(error_response.error_info),
                     item.http_code,
@@ -879,7 +879,7 @@ pub struct MultisafepayErrorResponse {
     pub error_info: String,
 }
 
-fn get_error_response_if_failure(
+fn get_error_response(
     error_code: Option<String>,
     error_message: Option<String>,
     http_code: u16,
