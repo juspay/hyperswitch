@@ -1212,8 +1212,8 @@ impl TryFrom<domain::Event> for api_models::webhook_events::EventRetrieveRespons
     fn try_from(item: domain::Event) -> Result<Self, Self::Error> {
         use crate::utils::OptionExt;
 
-        // We only allow retrieving events with merchant_id, business_profile_id,
-        // and initial_attempt_id populated.
+        // We only allow retrieving events with all required fields in `EventListItemResponse`, and
+        // `request` and `response` populated.
         // We cannot retrieve events with only some of these fields populated.
         let event_information =
             api_models::webhook_events::EventListItemResponse::try_from(item.clone())?;

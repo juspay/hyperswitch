@@ -15,7 +15,7 @@ pub async fn list_initial_webhook_delivery_attempts(
     path: web::Path<String>,
     query: web::Query<EventListConstraints>,
 ) -> impl Responder {
-    let flow = Flow::WebhookEventDeliveryAttemptList;
+    let flow = Flow::WebhookEventInitialDeliveryAttemptList;
     let merchant_id = path.into_inner();
     let constraints = query.into_inner();
 
