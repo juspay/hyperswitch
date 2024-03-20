@@ -73,7 +73,7 @@ pub struct PlacetopayAuthType {
 pub struct PlacetopayAuth {
     login: Secret<String>,
     tran_key: Secret<String>,
-    nonce: String,
+    nonce: Secret<String>,
     seed: String,
 }
 
@@ -179,7 +179,7 @@ impl TryFrom<&types::ConnectorAuthType> for PlacetopayAuth {
         context.update(seed.as_bytes());
         context.update(placetopay_auth.tran_key.peek().as_bytes());
         let encoded_digest = base64::Engine::encode(&consts::BASE64_ENGINE, context.finish());
-        let nonce = base64::Engine::encode(&consts::BASE64_ENGINE, &nonce_bytes);
+        let nonce = Secret::new(base64::Engine::encode(&consts::BASE64_ENGINE, &nonce_bytes));
         Ok(Self {
             login: placetopay_auth.login,
             tran_key: encoded_digest.into(),

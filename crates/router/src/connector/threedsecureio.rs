@@ -457,11 +457,7 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let req_obj = threedsecureio::ThreedsecureioPostAuthenticationRequest {
-            three_ds_server_trans_id: req
-                .request
-                .authentication_data
-                .threeds_server_transaction_id
-                .clone(),
+            three_ds_server_trans_id: req.request.threeds_server_transaction_id.clone(),
         };
         Ok(RequestContent::Json(Box::new(req_obj)))
     }

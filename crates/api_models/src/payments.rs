@@ -1240,6 +1240,7 @@ impl PaymentMethodData {
             self.to_owned()
         }
     }
+
     pub fn get_payment_method(&self) -> Option<api_enums::PaymentMethod> {
         match self {
             Self::Card(_) => Some(api_enums::PaymentMethod::Card),
@@ -1443,17 +1444,40 @@ pub struct GiftCardDetails {
 #[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct AdditionalCardInfo {
+    /// The name of issuer of the card
     pub card_issuer: Option<String>,
+
+    /// Card network of the card
     pub card_network: Option<api_enums::CardNetwork>,
+
+    /// Card type, can be either `credit` or `debit`
     pub card_type: Option<String>,
+
     pub card_issuing_country: Option<String>,
     pub bank_code: Option<String>,
+
+    /// Last 4 digits of the card number
     pub last4: Option<String>,
+
+    /// The ISIN of the card
     pub card_isin: Option<String>,
+
+    /// Extended bin of card, contains the first 8 digits of card number
     pub card_extended_bin: Option<String>,
+
     pub card_exp_month: Option<Secret<String>>,
+
     pub card_exp_year: Option<Secret<String>>,
+
     pub card_holder_name: Option<Secret<String>>,
+
+    /// Additional payment checks done on the cvv and billing address by the processors.
+    /// This is a free form field and the structure varies from processor to processor
+    pub payment_checks: Option<serde_json::Value>,
+
+    /// Details about the threeds environment.
+    /// This is a free form field and the structure varies from processor to processor
+    pub authentication_data: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -2001,6 +2025,8 @@ pub struct CardResponse {
     pub card_exp_month: Option<Secret<String>>,
     pub card_exp_year: Option<Secret<String>>,
     pub card_holder_name: Option<Secret<String>>,
+    pub payment_checks: Option<serde_json::Value>,
+    pub authentication_data: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -2307,7 +2333,7 @@ pub enum ThreeDsMethodData {
         /// Whether ThreeDS method data submission is required
         three_ds_method_data_submission: bool,
         /// ThreeDS method data
-        three_ds_method_data: String,
+        three_ds_method_data: Option<String>,
         /// ThreeDS method url
         three_ds_method_url: Option<String>,
     },
@@ -3003,6 +3029,8 @@ impl From<AdditionalCardInfo> for CardResponse {
             card_exp_month: card.card_exp_month,
             card_exp_year: card.card_exp_year,
             card_holder_name: card.card_holder_name,
+            payment_checks: card.payment_checks,
+            authentication_data: card.authentication_data,
         }
     }
 }
@@ -3637,40 +3665,12 @@ pub struct SdkInformation {
     pub sdk_max_timeout: u8,
 }
 
-#[derive(Clone, Default, Debug, serde::Serialize, serde::Deserialize, Eq, PartialEq, ToSchema)]
-pub enum TransactionStatus {
-    /// Authentication/ Account Verification Successful
-    #[serde(rename = "Y")]
-    Success,
-    /// Not Authenticated /Account Not Verified; Transaction denied
-    #[default]
-    #[serde(rename = "N")]
-    Failure,
-    /// Authentication/ Account Verification Could Not Be Performed; Technical or other problem, as indicated in Authentication Response(ARes) or Result Request (RReq)
-    #[serde(rename = "U")]
-    VerificationNotPerformed,
-    /// Attempts Processing Performed; Not Authenticated/Verified , but a proof of attempted authentication/verification is provided
-    #[serde(rename = "A")]
-    NotVerified,
-    /// Authentication/ Account Verification Rejected; Issuer is rejecting authentication/verification and request that authorisation not be attempted.
-    #[serde(rename = "R")]
-    Rejected,
-    /// Challenge Required; Additional authentication is required using the Challenge Request (CReq) / Challenge Response (CRes)
-    #[serde(rename = "C")]
-    ChallengeRequired,
-    /// Challenge Required; Decoupled Authentication confirmed.
-    #[serde(rename = "D")]
-    ChallengeRequiredDecoupledAuthentication,
-    /// Informational Only; 3DS Requestor challenge preference acknowledged.
-    #[serde(rename = "I")]
-    InformationOnly,
-}
-
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 pub struct PaymentsExternalAuthenticationResponse {
     /// Indicates the trans status
     #[serde(rename = "trans_status")]
-    pub transaction_status: TransactionStatus,
+    #[schema(value_type = TransactionStatus)]
+    pub transaction_status: common_enums::TransactionStatus,
     /// Access Server URL to be used for challenge submission
     pub acs_url: Option<String>,
     /// Challenge request which should be sent to acs_url
