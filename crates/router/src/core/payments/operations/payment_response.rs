@@ -904,7 +904,9 @@ async fn update_payment_method_status<F: Clone>(
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
-        if pm.status != attempt_status.into() {
+        if pm.status != common_enums::PaymentMethodStatus::Active
+            && pm.status != attempt_status.into()
+        {
             let updated_pm_status = common_enums::PaymentMethodStatus::from(attempt_status);
 
             payment_data.payment_method_status = Some(updated_pm_status);
