@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use api_models::payments::{Address, AddressDetails};
 use masking::Secret;
-use router::types::{self, storage::enums, PaymentAddress};
+use router::types::{self, api, storage::enums, PaymentAddress};
 
 use crate::{
     connector_auth,
