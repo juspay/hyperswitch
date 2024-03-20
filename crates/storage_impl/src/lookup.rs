@@ -10,11 +10,8 @@ use error_stack::{IntoReport, ResultExt};
 use redis_interface::SetnxReply;
 
 use crate::{
-    diesel_error_to_data_error,
-    errors::RedisErrorExt,
-    redis::kv_store::RedisConnInterface,
-    utils::{self, try_redis_get_else_try_database_get},
-    DatabaseStore, KVRouterStore, RouterStore,
+    errors::RedisErrorExt, redis::kv_store::RedisConnInterface, DatabaseStore, KVRouterStore,
+    RouterStore,
 };
 
 #[async_trait::async_trait]
@@ -98,21 +95,10 @@ impl<T: DatabaseStore> ReverseLookupInterface for KVRouterStore<T> {
             .get_redis_conn()
             .map_err(|err| errors::StorageError::RedisError(err.to_string()))?;
 
-        let database_call = || async {
-            let conn = utils::pg_connection_read(self).await?;
-            DieselReverseLookup::find_by_lookup_id(id, &conn)
-                .await
-                .map_err(|er| {
-                    let new_err = diesel_error_to_data_error(er.current_context());
-                    er.change_context(new_err)
-                })
-        };
-        let redis_fut = redis_conn.get_and_deserialize_key(key, "ReverseLookup");
-
-        Box::pin(try_redis_get_else_try_database_get(
-            redis_fut,
-            database_call,
-        ))
-        .await
+        redis_conn
+            .get_and_deserialize_key(key, "ReverseLookup")
+            .await
+            .map_err(|err| errors::StorageError::RedisError(err.to_string()))
+            .into_report()
     }
 }

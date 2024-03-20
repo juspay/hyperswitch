@@ -5,14 +5,12 @@ use storage_impl::redis::kv_store::RedisConnInterface;
 
 use super::{MockDb, Store};
 use crate::{
-    connection,
     core::errors::utils::RedisErrorExt,
     errors::{self, CustomResult},
     types::storage::{
         enums,
         reverse_lookup::{ReverseLookup, ReverseLookupNew},
     },
-    utils::db_utils::try_redis_get_else_try_database_get,
 };
 
 #[async_trait::async_trait]
@@ -80,21 +78,11 @@ impl ReverseLookupInterface for Store {
             .get_redis_conn()
             .map_err(errors::StorageError::RedisError)?;
 
-        let database_call = || async {
-            let conn = connection::pg_connection_read(self).await?;
-            ReverseLookup::find_by_lookup_id(id, &conn)
-                .await
-                .map_err(Into::into)
-                .into_report()
-        };
-
-        let redis_fut = redis_conn.get_and_deserialize_key(key, "ReverseLookup");
-
-        Box::pin(try_redis_get_else_try_database_get(
-            redis_fut,
-            database_call,
-        ))
-        .await
+        redis_conn
+            .get_and_deserialize_key(key, "ReverseLookup")
+            .await
+            .map_err(errors::StorageError::RedisError)
+            .into_report()
     }
 }
 
