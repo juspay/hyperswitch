@@ -248,14 +248,14 @@ pub enum DirKeyKind {
     #[strum(
         serialize = "amount",
         detailed_message = "Value of the transaction",
-        props(Category = "Order details")
+        props(Category = "Payments")
     )]
     #[serde(rename = "amount")]
     PaymentAmount,
     #[strum(
         serialize = "currency",
         detailed_message = "Currency used for the payment",
-        props(Category = "Order details")
+        props(Category = "Payments")
     )]
     #[serde(rename = "currency")]
     PaymentCurrency,
