@@ -353,7 +353,6 @@ dependencies = [
  "masking",
  "once_cell",
  "opensearch",
- "regex",
  "reqwest",
  "router_env",
  "serde",
