@@ -96,11 +96,11 @@ pub struct Name {
 pub struct Shipping {
     pub city: Option<String>,
     pub country_code: Option<api_enums::CountryAlpha2>,
-    pub house_number: Option<String>,
+    pub house_number: Option<Secret<String>>,
     pub name: Option<Name>,
     pub state: Option<Secret<String>>,
     pub state_code: Option<String>,
-    pub street: Option<String>,
+    pub street: Option<Secret<String>>,
     pub zip: Option<Secret<String>>,
 }
 

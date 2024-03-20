@@ -1,7 +1,7 @@
 use cards::CardNumber;
 use common_utils::{ext_traits::ValueExt, pii};
 use error_stack::ResultExt;
-use masking::{PeekInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use ring::digest;
 use serde::{Deserialize, Serialize};
 use strum::Display;
@@ -199,8 +199,8 @@ pub struct SessionObject {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct WalletSessionData {
-    pub terminal_uuid: Option<String>,
-    pub pay_wall_secret: Option<String>,
+    pub terminal_uuid: Option<Secret<String>>,
+    pub pay_wall_secret: Option<Secret<String>>,
 }
 
 impl
@@ -520,7 +520,8 @@ impl
         let terminal_uuid = session_data
             .terminal_uuid
             .clone()
-            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+            .expose();
         let mut checkout_request = CheckoutRequest {
             merchant_transaction_id: item.router_data.connector_request_reference_id.clone(),
             specified_payment_channel,
@@ -547,7 +548,7 @@ fn get_checkout_signature(
         .clone()
         .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
     let mut signature_data = get_signature_data(checkout_request)?;
-    signature_data.push_str(&pay_wall_secret);
+    signature_data.push_str(&pay_wall_secret.expose());
     let payload_digest = digest::digest(&digest::SHA256, signature_data.as_bytes());
     let mut signature = hex::encode(payload_digest);
     signature.push_str(";sha256");

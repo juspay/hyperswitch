@@ -10,7 +10,7 @@ pub use diesel_models::payment_method::{
     TokenizeCoreWorkflow,
 };
 
-use crate::types::api::payments;
+use crate::types::api::{self, payments};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -76,6 +76,14 @@ impl PaymentTokenData {
     pub fn wallet_token(payment_method_id: String) -> Self {
         Self::WalletToken(WalletTokenData { payment_method_id })
     }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaymentMethodListContext {
+    pub card_details: Option<api::CardDetailFromLocker>,
+    pub hyperswitch_token_data: PaymentTokenData,
+    #[cfg(feature = "payouts")]
+    pub bank_transfer_details: Option<api::BankPayout>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

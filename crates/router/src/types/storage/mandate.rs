@@ -54,6 +54,9 @@ impl MandateDbExt for Mandate {
         if let Some(limit) = mandate_list_constraints.limit {
             filter = filter.limit(limit);
         }
+        if let Some(offset) = mandate_list_constraints.offset {
+            filter = filter.offset(offset);
+        }
 
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
 

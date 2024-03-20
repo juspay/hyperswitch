@@ -183,7 +183,7 @@ impl TryFrom<&types::TokenizationRouterData> for SquareTokenRequest {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SquareSessionResponse {
-    session_id: String,
+    session_id: Secret<String>,
 }
 
 impl<F, T>
@@ -196,9 +196,9 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: storage::enums::AttemptStatus::Pending,
-            session_token: Some(item.response.session_id.clone()),
+            session_token: Some(item.response.session_id.clone().expose()),
             response: Ok(types::PaymentsResponseData::SessionTokenResponse {
-                session_token: item.response.session_id,
+                session_token: item.response.session_id.expose(),
             }),
             ..item.data
         })

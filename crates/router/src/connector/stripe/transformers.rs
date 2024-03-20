@@ -122,7 +122,7 @@ pub struct PaymentIntentRequest {
     pub setup_mandate_details: Option<StripeMandateRequest>,
     pub description: Option<String>,
     #[serde(flatten)]
-    pub shipping: StripeShippingAddress,
+    pub shipping: Option<StripeShippingAddress>,
     #[serde(flatten)]
     pub billing: StripeBillingAddress,
     #[serde(flatten)]
@@ -689,10 +689,9 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::FamilyMart
             | enums::PaymentMethodType::Seicomart
             | enums::PaymentMethodType::PayEasy
-            | enums::PaymentMethodType::Walley => Err(errors::ConnectorError::NotSupported {
-                message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
-                connector: "stripe",
-            }
+            | enums::PaymentMethodType::Walley => Err(errors::ConnectorError::NotImplemented(
+                connector_util::get_unimplemented_payment_method_error_message("stripe"),
+            )
             .into()),
         }
     }
@@ -878,35 +877,41 @@ impl TryFrom<&api_models::enums::BankNames> for StripeBankNames {
             api_models::enums::BankNames::AliorBank => Self::AliorBank,
             api_models::enums::BankNames::Boz => Self::Boz,
 
-            _ => Err(errors::ConnectorError::NotSupported {
-                message: api_enums::PaymentMethod::BankRedirect.to_string(),
-                connector: "Stripe",
-            })?,
+            _ => Err(errors::ConnectorError::NotImplemented(
+                connector_util::get_unimplemented_payment_method_error_message("stripe"),
+            ))?,
         })
     }
 }
 
 fn validate_shipping_address_against_payment_method(
-    shipping_address: &StripeShippingAddress,
+    shipping_address: &Option<StripeShippingAddress>,
     payment_method: Option<&StripePaymentMethodType>,
 ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
-    if let Some(StripePaymentMethodType::AfterpayClearpay) = payment_method {
-        let missing_fields = collect_missing_value_keys!(
-            ("shipping.address.first_name", shipping_address.name),
-            ("shipping.address.line1", shipping_address.line1),
-            ("shipping.address.country", shipping_address.country),
-            ("shipping.address.zip", shipping_address.zip)
-        );
+    match payment_method {
+        Some(StripePaymentMethodType::AfterpayClearpay) => match shipping_address {
+            Some(address) => {
+                let missing_fields = collect_missing_value_keys!(
+                    ("shipping.address.line1", address.line1),
+                    ("shipping.address.country", address.country),
+                    ("shipping.address.zip", address.zip)
+                );
 
-        if !missing_fields.is_empty() {
-            return Err(errors::ConnectorError::MissingRequiredFields {
-                field_names: missing_fields,
+                if !missing_fields.is_empty() {
+                    return Err(errors::ConnectorError::MissingRequiredFields {
+                        field_names: missing_fields,
+                    })
+                    .into_report();
+                }
+                Ok(())
+            }
+            None => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "shipping.address",
             })
-            .into_report();
-        }
+            .into_report(),
+        },
+        _ => Ok(()),
     }
-
-    Ok(())
 }
 
 impl TryFrom<&api_models::payments::PayLaterData> for StripePaymentMethodType {
@@ -924,10 +929,9 @@ impl TryFrom<&api_models::payments::PayLaterData> for StripePaymentMethodType {
             | payments::PayLaterData::WalleyRedirect {}
             | payments::PayLaterData::AlmaRedirect {}
             | payments::PayLaterData::AtomeRedirect {} => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
-                    connector: "stripe",
-                })
+                Err(errors::ConnectorError::NotImplemented(
+                    connector_util::get_unimplemented_payment_method_error_message("stripe"),
+                ))
             }
         }
     }
@@ -958,10 +962,9 @@ impl TryFrom<&payments::BankRedirectData> for StripePaymentMethodType {
             | payments::BankRedirectData::OnlineBankingThailand { .. }
             | payments::BankRedirectData::OpenBankingUk { .. }
             | payments::BankRedirectData::Trustly { .. } => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
-                    connector: "stripe",
-                })
+                Err(errors::ConnectorError::NotImplemented(
+                    connector_util::get_unimplemented_payment_method_error_message("stripe"),
+                ))
             }
         }
     }
@@ -1001,10 +1004,9 @@ impl ForeignTryFrom<&payments::WalletData> for Option<StripePaymentMethodType> {
             | payments::WalletData::TouchNGoRedirect(_)
             | payments::WalletData::SwishQr(_)
             | payments::WalletData::WeChatPayRedirect(_) => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
-                    connector: "stripe",
-                })
+                Err(errors::ConnectorError::NotImplemented(
+                    connector_util::get_unimplemented_payment_method_error_message("stripe"),
+                ))
             }
         }
     }
@@ -1403,10 +1405,9 @@ fn create_stripe_payment_method(
                 | payments::BankTransferData::CimbVaBankTransfer { .. }
                 | payments::BankTransferData::DanamonVaBankTransfer { .. }
                 | payments::BankTransferData::MandiriVaBankTransfer { .. } => {
-                    Err(errors::ConnectorError::NotSupported {
-                        message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
-                        connector: "stripe",
-                    }
+                    Err(errors::ConnectorError::NotImplemented(
+                        connector_util::get_unimplemented_payment_method_error_message("stripe"),
+                    )
                     .into())
                 }
             }
@@ -1418,23 +1419,20 @@ fn create_stripe_payment_method(
 
         domain::PaymentMethodData::GiftCard(giftcard_data) => match giftcard_data.deref() {
             payments::GiftCardData::Givex(_) | payments::GiftCardData::PaySafeCard {} => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
-                    connector: "stripe",
-                }
+                Err(errors::ConnectorError::NotImplemented(
+                    connector_util::get_unimplemented_payment_method_error_message("stripe"),
+                )
                 .into())
             }
         },
-
         domain::PaymentMethodData::CardRedirect(cardredirect_data) => match cardredirect_data {
             domain::CardRedirectData::Knet {}
             | domain::CardRedirectData::Benefit {}
             | domain::CardRedirectData::MomoAtm {}
             | domain::CardRedirectData::CardRedirect {} => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
-                    connector: "stripe",
-                }
+                Err(errors::ConnectorError::NotImplemented(
+                    connector_util::get_unimplemented_payment_method_error_message("stripe"),
+                )
                 .into())
             }
         },
@@ -1461,19 +1459,17 @@ fn create_stripe_payment_method(
             | payments::VoucherData::MiniStop(_)
             | payments::VoucherData::FamilyMart(_)
             | payments::VoucherData::Seicomart(_)
-            | payments::VoucherData::PayEasy(_) => Err(errors::ConnectorError::NotSupported {
-                message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
-                connector: "stripe",
-            }
+            | payments::VoucherData::PayEasy(_) => Err(errors::ConnectorError::NotImplemented(
+                connector_util::get_unimplemented_payment_method_error_message("stripe"),
+            )
             .into()),
         },
 
         domain::PaymentMethodData::Upi(_)
         | domain::PaymentMethodData::MandatePayment
-        | domain::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotSupported {
-            message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
-            connector: "stripe",
-        }
+        | domain::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+            connector_util::get_unimplemented_payment_method_error_message("stripe"),
+        )
         .into()),
     }
 }
@@ -1593,10 +1589,9 @@ impl TryFrom<(&payments::WalletData, Option<types::PaymentMethodToken>)>
             | payments::WalletData::TouchNGoRedirect(_)
             | payments::WalletData::SwishQr(_)
             | payments::WalletData::WeChatPayRedirect(_) => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
-                    connector: "stripe",
-                }
+                Err(errors::ConnectorError::NotImplemented(
+                    connector_util::get_unimplemented_payment_method_error_message("stripe"),
+                )
                 .into())
             }
         }
@@ -1686,10 +1681,9 @@ impl TryFrom<&payments::BankRedirectData> for StripePaymentMethodData {
             | payments::BankRedirectData::OnlineBankingThailand { .. }
             | payments::BankRedirectData::OpenBankingUk { .. }
             | payments::BankRedirectData::Trustly { .. } => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
-                    connector: "stripe",
-                }
+                Err(errors::ConnectorError::NotImplemented(
+                    connector_util::get_unimplemented_payment_method_error_message("stripe"),
+                )
                 .into())
             }
         }
@@ -1722,23 +1716,27 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
         let shipping_address = match item.get_optional_shipping() {
             Some(shipping_details) => {
                 let shipping_address = shipping_details.address.as_ref();
-                StripeShippingAddress {
+                Some(StripeShippingAddress {
                     city: shipping_address.and_then(|a| a.city.clone()),
                     country: shipping_address.and_then(|a| a.country),
                     line1: shipping_address.and_then(|a| a.line1.clone()),
                     line2: shipping_address.and_then(|a| a.line2.clone()),
                     zip: shipping_address.and_then(|a| a.zip.clone()),
                     state: shipping_address.and_then(|a| a.state.clone()),
-                    name: shipping_address.and_then(|a| {
-                        a.first_name.as_ref().map(|first_name| {
-                            format!(
-                                "{} {}",
-                                first_name.clone().expose(),
-                                a.last_name.clone().expose_option().unwrap_or_default()
-                            )
-                            .into()
+                    name: shipping_address
+                        .and_then(|a| {
+                            a.first_name.as_ref().map(|first_name| {
+                                format!(
+                                    "{} {}",
+                                    first_name.clone().expose(),
+                                    a.last_name.clone().expose_option().unwrap_or_default()
+                                )
+                                .into()
+                            })
                         })
-                    }),
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "shipping_address.first_name",
+                        })?,
                     phone: shipping_details.phone.as_ref().map(|p| {
                         format!(
                             "{}{}",
@@ -1747,9 +1745,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                         )
                         .into()
                     }),
-                }
+                })
             }
-            None => StripeShippingAddress::default(),
+            None => None,
         };
 
         let billing_address = match item.get_optional_billing() {
@@ -2935,7 +2933,7 @@ pub struct StripeShippingAddress {
     #[serde(rename = "shipping[address][state]")]
     pub state: Option<Secret<String>>,
     #[serde(rename = "shipping[name]")]
-    pub name: Option<Secret<String>>,
+    pub name: Secret<String>,
     #[serde(rename = "shipping[phone]")]
     pub phone: Option<Secret<String>>,
 }
@@ -3566,10 +3564,9 @@ impl
             | domain::PaymentMethodData::CardRedirect(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::CardToken(_) => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: format!("{pm_type:?}"),
-                    connector: "Stripe",
-                })?
+                Err(errors::ConnectorError::NotImplemented(
+                    connector_util::get_unimplemented_payment_method_error_message("stripe"),
+                ))?
             }
         }
     }
@@ -3846,7 +3843,7 @@ mod test_validate_shipping_address_against_payment_method {
     fn should_return_ok() {
         // Arrange
         let stripe_shipping_address = create_stripe_shipping_address(
-            Some("name".to_string()),
+            "name".to_string(),
             Some("line1".to_string()),
             Some(CountryAlpha2::AD),
             Some("zip".to_string()),
@@ -3856,7 +3853,7 @@ mod test_validate_shipping_address_against_payment_method {
 
         //Act
         let result = validate_shipping_address_against_payment_method(
-            &stripe_shipping_address,
+            &Some(stripe_shipping_address),
             Some(payment_method),
         );
 
@@ -3865,38 +3862,10 @@ mod test_validate_shipping_address_against_payment_method {
     }
 
     #[test]
-    fn should_return_err_for_empty_name() {
-        // Arrange
-        let stripe_shipping_address = create_stripe_shipping_address(
-            None,
-            Some("line1".to_string()),
-            Some(CountryAlpha2::AD),
-            Some("zip".to_string()),
-        );
-
-        let payment_method = &StripePaymentMethodType::AfterpayClearpay;
-
-        //Act
-        let result = validate_shipping_address_against_payment_method(
-            &stripe_shipping_address,
-            Some(payment_method),
-        );
-
-        // Assert
-        assert!(result.is_err());
-        let missing_fields = get_missing_fields(result.unwrap_err().current_context()).to_owned();
-        assert_eq!(missing_fields.len(), 1);
-        assert_eq!(
-            *missing_fields.first().unwrap(),
-            "shipping.address.first_name"
-        );
-    }
-
-    #[test]
     fn should_return_err_for_empty_line1() {
         // Arrange
         let stripe_shipping_address = create_stripe_shipping_address(
-            Some("name".to_string()),
+            "name".to_string(),
             None,
             Some(CountryAlpha2::AD),
             Some("zip".to_string()),
@@ -3906,7 +3875,7 @@ mod test_validate_shipping_address_against_payment_method {
 
         //Act
         let result = validate_shipping_address_against_payment_method(
-            &stripe_shipping_address,
+            &Some(stripe_shipping_address),
             Some(payment_method),
         );
 
@@ -3921,7 +3890,7 @@ mod test_validate_shipping_address_against_payment_method {
     fn should_return_err_for_empty_country() {
         // Arrange
         let stripe_shipping_address = create_stripe_shipping_address(
-            Some("name".to_string()),
+            "name".to_string(),
             Some("line1".to_string()),
             None,
             Some("zip".to_string()),
@@ -3931,7 +3900,7 @@ mod test_validate_shipping_address_against_payment_method {
 
         //Act
         let result = validate_shipping_address_against_payment_method(
-            &stripe_shipping_address,
+            &Some(stripe_shipping_address),
             Some(payment_method),
         );
 
@@ -3946,7 +3915,7 @@ mod test_validate_shipping_address_against_payment_method {
     fn should_return_err_for_empty_zip() {
         // Arrange
         let stripe_shipping_address = create_stripe_shipping_address(
-            Some("name".to_string()),
+            "name".to_string(),
             Some("line1".to_string()),
             Some(CountryAlpha2::AD),
             None,
@@ -3955,7 +3924,7 @@ mod test_validate_shipping_address_against_payment_method {
 
         //Act
         let result = validate_shipping_address_against_payment_method(
-            &stripe_shipping_address,
+            &Some(stripe_shipping_address),
             Some(payment_method),
         );
 
@@ -3972,7 +3941,7 @@ mod test_validate_shipping_address_against_payment_method {
         let expected_missing_field_names: Vec<&'static str> =
             vec!["shipping.address.zip", "shipping.address.country"];
         let stripe_shipping_address = create_stripe_shipping_address(
-            Some("name".to_string()),
+            "name".to_string(),
             Some("line1".to_string()),
             None,
             None,
@@ -3981,7 +3950,7 @@ mod test_validate_shipping_address_against_payment_method {
 
         //Act
         let result = validate_shipping_address_against_payment_method(
-            &stripe_shipping_address,
+            &Some(stripe_shipping_address),
             Some(payment_method),
         );
 
@@ -4002,13 +3971,13 @@ mod test_validate_shipping_address_against_payment_method {
     }
 
     fn create_stripe_shipping_address(
-        name: Option<String>,
+        name: String,
         line1: Option<String>,
         country: Option<CountryAlpha2>,
         zip: Option<String>,
     ) -> StripeShippingAddress {
         StripeShippingAddress {
-            name: name.map(Secret::new),
+            name: Secret::new(name),
             line1: line1.map(Secret::new),
             country,
             zip: zip.map(Secret::new),

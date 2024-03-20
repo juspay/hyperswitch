@@ -807,6 +807,8 @@ pub trait CardData {
     fn get_expiry_date_as_mmyyyy(&self, delimiter: &str) -> Secret<String>;
     fn get_expiry_year_4_digit(&self) -> Secret<String>;
     fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, errors::ConnectorError>;
+    fn get_expiry_month_as_i8(&self) -> Result<Secret<i8>, Error>;
+    fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error>;
 }
 
 impl CardData for domain::Card {
@@ -863,6 +865,24 @@ impl CardData for domain::Card {
         let year = self.get_card_expiry_year_2_digit()?.expose();
         let month = self.card_exp_month.clone().expose();
         Ok(Secret::new(format!("{year}{month}")))
+    }
+    fn get_expiry_month_as_i8(&self) -> Result<Secret<i8>, Error> {
+        self.card_exp_month
+            .peek()
+            .clone()
+            .parse::<i8>()
+            .into_report()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .map(Secret::new)
+    }
+    fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error> {
+        self.card_exp_year
+            .peek()
+            .clone()
+            .parse::<i32>()
+            .into_report()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .map(Secret::new)
     }
 }
 

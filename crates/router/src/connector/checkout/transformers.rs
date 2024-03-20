@@ -393,8 +393,8 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
             enums::AuthenticationType::ThreeDs => CheckoutThreeDS {
                 enabled: true,
                 force_3ds: true,
-                eci: authentication_data.and_then(|auth| auth.eci.clone()),
-                cryptogram: authentication_data.and_then(|auth| auth.cavv.clone()),
+                eci: authentication_data.map(|auth| auth.eci.clone()),
+                cryptogram: authentication_data.map(|auth| auth.cavv.clone()),
                 xid: authentication_data.map(|auth| auth.threeds_server_transaction_id.clone()),
                 version: authentication_data.map(|auth| auth.message_version.clone()),
             },

@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
-use common_utils::ext_traits::{AsyncExt, ValueExt};
+use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -10,7 +10,6 @@ use router_env::{instrument, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
-        authentication,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::PaymentMethodRetrieve,
         payments::{
@@ -400,33 +399,17 @@ async fn get_tracker_for_sync<
         .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
             id: profile_id.to_string(),
         })?;
-
-    let authentication = match payment_attempt.authentication_id.clone() {
-        Some(authentication_id) => {
-            let authentication = db
-                .find_authentication_by_merchant_id_authentication_id(
-                    merchant_account.merchant_id.to_string(),
+    let merchant_id = payment_intent.merchant_id.clone();
+    let authentication = payment_attempt.authentication_id.clone().async_map(|authentication_id| async move {
+            db.find_authentication_by_merchant_id_authentication_id(
+                    merchant_id,
                     authentication_id.clone(),
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable_lazy(|| format!("Error while fetching authentication record with authentication_id {authentication_id}"))?;
-            let authentication_data: authentication::types::AuthenticationData = authentication
-                .authentication_data
-                .clone()
-                .map(|authentication_data_value| {
-                    authentication_data_value
-                        .parse_value("AuthenticationData")
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Error while parsing authentication_data")
-                })
-                .transpose()?
-                .unwrap_or_default();
-
-            Some((authentication, authentication_data))
-        }
-        None => None,
-    };
+                .attach_printable_lazy(|| format!("Error while fetching authentication record with authentication_id {authentication_id}"))
+        }).await
+        .transpose()?;
 
     let payment_data = PaymentData {
         flow: PhantomData,
