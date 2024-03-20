@@ -14,17 +14,23 @@ mod lookup;
 pub mod metrics;
 pub mod mock_db;
 pub mod payments;
+#[cfg(feature = "payouts")]
+pub mod payouts;
 pub mod redis;
 pub mod refund;
 mod reverse_lookup;
 mod utils;
 
 use common_utils::errors::CustomResult;
+#[cfg(not(feature = "payouts"))]
+use data_models::{PayoutAttemptInterface, PayoutsInterface};
 use database::store::PgPool;
 pub use mock_db::MockDb;
 use redis_interface::{errors::RedisError, SaddReply};
 
 pub use crate::database::store::DatabaseStore;
+#[cfg(not(feature = "payouts"))]
+pub use crate::database::store::Store;
 
 #[derive(Debug, Clone)]
 pub struct RouterStore<T: DatabaseStore> {
@@ -332,3 +338,35 @@ impl UniqueConstraints for diesel_models::Refund {
         "Refund"
     }
 }
+
+#[cfg(feature = "payouts")]
+impl UniqueConstraints for diesel_models::Payouts {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!("po_{}_{}", self.merchant_id, self.payout_id)]
+    }
+    fn table_name(&self) -> &str {
+        "Payouts"
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl UniqueConstraints for diesel_models::PayoutAttempt {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!(
+            "poa_{}_{}",
+            self.merchant_id, self.payout_attempt_id
+        )]
+    }
+    fn table_name(&self) -> &str {
+        "PayoutAttempt"
+    }
+}
+
+#[cfg(not(feature = "payouts"))]
+impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {}
+#[cfg(not(feature = "payouts"))]
+impl<T: DatabaseStore> PayoutAttemptInterface for RouterStore<T> {}
+#[cfg(not(feature = "payouts"))]
+impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {}
+#[cfg(not(feature = "payouts"))]
+impl<T: DatabaseStore> PayoutsInterface for RouterStore<T> {}

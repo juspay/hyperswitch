@@ -441,7 +441,12 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     router_data: types::RouterData<F, T, types::PaymentsResponseData>,
     storage_scheme: enums::MerchantStorageScheme,
 ) -> RouterResult<PaymentData<F>> {
-    payment_data.payment_method_status = router_data.payment_method_status;
+    router_data.payment_method_status.and_then(|status| {
+        payment_data
+            .payment_method_info
+            .as_mut()
+            .map(|info| info.status = status)
+    });
     let (capture_update, mut payment_attempt_update) = match router_data.response.clone() {
         Err(err) => {
             let (capture_update, attempt_update) = match payment_data.multiple_capture_data {
@@ -788,7 +793,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     payment_data.payment_attempt = payment_attempt;
 
     payment_data.authentication = match payment_data.authentication {
-        Some((authentication, authentication_data)) => {
+        Some(authentication) => {
             let authentication_update = storage::AuthenticationUpdate::PostAuthorizationUpdate {
                 authentication_lifecycle_status:
                     storage::enums::AuthenticationLifecycleStatus::Used,
@@ -801,7 +806,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-            Some((updated_authentication, authentication_data))
+            Some(updated_authentication)
         }
         None => None,
     };
@@ -888,7 +893,12 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     )?;
 
     payment_data.payment_intent = payment_intent;
-    payment_data.payment_method_status = router_data.payment_method_status;
+    router_data.payment_method_status.and_then(|status| {
+        payment_data
+            .payment_method_info
+            .as_mut()
+            .map(|info| info.status = status)
+    });
     Ok(payment_data)
 }
 
@@ -907,7 +917,10 @@ async fn update_payment_method_status<F: Clone>(
         if pm.status != attempt_status.into() {
             let updated_pm_status = common_enums::PaymentMethodStatus::from(attempt_status);
 
-            payment_data.payment_method_status = Some(updated_pm_status);
+            payment_data
+                .payment_method_info
+                .as_mut()
+                .map(|info| info.status = updated_pm_status);
             let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
                 status: Some(updated_pm_status),
             };

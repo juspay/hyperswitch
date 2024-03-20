@@ -258,7 +258,7 @@ pub struct NmiCompleteRequest {
     transaction_type: TransactionType,
     security_key: Secret<String>,
     orderid: Option<String>,
-    customer_vault_id: String,
+    customer_vault_id: Secret<String>,
     email: Option<Email>,
     cardholder_auth: Option<String>,
     cavv: Option<String>,
@@ -266,8 +266,9 @@ pub struct NmiCompleteRequest {
     eci: Option<String>,
     cvv: Secret<String>,
     three_ds_version: Option<String>,
-    directory_server_id: Option<String>,
+    directory_server_id: Option<Secret<String>>,
 }
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
@@ -292,8 +293,8 @@ pub struct NmiRedirectResponseData {
     card_holder_auth: Option<String>,
     three_ds_version: Option<String>,
     order_id: Option<String>,
-    directory_server_id: Option<String>,
-    customer_vault_id: String,
+    directory_server_id: Option<Secret<String>>,
+    customer_vault_id: Secret<String>,
 }
 
 impl TryFrom<&NmiRouterData<&types::PaymentsCompleteAuthorizeRouterData>> for NmiCompleteRequest {
