@@ -15,6 +15,7 @@ use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant, vec::IntoI
 
 use api_models::{
     self, enums,
+    mandates::RecurringDetails,
     payments::{self as payments_api, HeaderPayload},
 };
 use common_utils::{ext_traits::AsyncExt, pii, types::Surcharge};
@@ -2263,7 +2264,7 @@ where
     pub authorizations: Vec<diesel_models::authorization::Authorization>,
     pub authentication: Option<storage::Authentication>,
     pub frm_metadata: Option<serde_json::Value>,
-    pub recurring_details: Option<String>,
+    pub recurring_details: Option<RecurringDetails>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -2991,7 +2992,8 @@ pub fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone>(
         payment_data.token_data.as_ref(),
         payment_data.recurring_details.as_ref(),
     ) {
-        (Some(storage_enums::FutureUsage::OffSession), Some(_), None) | (None, None, Some(_)) => {
+        (Some(storage_enums::FutureUsage::OffSession), Some(_), None)
+        | (None, None, Some(RecurringDetails::PaymentMethodId(_))) => {
             logger::debug!("performing routing for token-based MIT flow");
 
             let payment_method_info = payment_data

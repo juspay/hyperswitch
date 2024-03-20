@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::{enums::FrmSuggestion, mandates::RecurringDetails};
+use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use error_stack::{report, IntoReport, ResultExt};
 use router_derive::PaymentOperation;
@@ -249,14 +249,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 id: profile_id.to_string(),
             })?;
 
-        let recurring_details = request
-            .recurring_details
-            .as_ref()
-            .and_then(|recurring_details| match recurring_details {
-                RecurringDetails::PaymentMethodId(id) => Some(id.clone()),
-                _ => None,
-            });
-
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -301,7 +293,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             authorizations: vec![],
             authentication: None,
             frm_metadata: None,
-            recurring_details,
+            recurring_details: request.recurring_details.clone(),
         };
 
         let customer_details = Some(CustomerDetails {
@@ -465,6 +457,11 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
 
         let mandate_type =
             helpers::validate_mandate(request, payments::is_operation_confirm(self))?;
+
+        helpers::validate_recurring_details_and_token(
+            &request.recurring_details,
+            &request.payment_token,
+        )?;
 
         Ok((
             Box::new(self),

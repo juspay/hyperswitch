@@ -387,14 +387,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                     .apply_additional_payment_data(additional_payment_data)
             });
 
-        let recurring_details = request
-            .recurring_details
-            .as_ref()
-            .and_then(|recurring_details| match recurring_details {
-                RecurringDetails::PaymentMethodId(id) => Some(id.clone()),
-                _ => None,
-            });
-
         let amount = payment_attempt.get_total_amount().into();
         let payment_data = PaymentData {
             flow: PhantomData,
@@ -437,7 +429,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             authorizations: vec![],
             authentication: None,
             frm_metadata: request.frm_metadata.clone(),
-            recurring_details,
+            recurring_details: request.recurring_details.clone(),
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -694,6 +686,11 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
 
         let mandate_type =
             helpers::validate_mandate(request, payments::is_operation_confirm(self))?;
+
+        helpers::validate_recurring_details_and_token(
+            &request.recurring_details,
+            &request.payment_token,
+        )?;
 
         if request.confirm.unwrap_or(false) {
             helpers::validate_pm_or_token_given(

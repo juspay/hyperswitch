@@ -472,10 +472,10 @@ pub async fn get_token_pm_type_mandate_details(
                             )?;
 
                         (
-                            request.payment_token.to_owned(),
-                            request.payment_method,
-                            request.payment_method_type,
-                            mandate_data,
+                            None,
+                            Some(payment_method_info.payment_method),
+                            payment_method_info.payment_method_type,
+                            None,
                             None,
                             None,
                             Some(payment_method_info),
@@ -851,7 +851,7 @@ pub fn validate_mandate(
     let req: api::MandateValidationFields = req.into();
     match req.validate_and_get_mandate_type().change_context(
         errors::ApiErrorResponse::MandateValidationFailed {
-            reason: "Expected one out of mandate_id and mandate_data but got both".into(),
+            reason: "Expected one out of recurring_details and mandate_data but got both".into(),
         },
     )? {
         Some(api::MandateTransactionType::NewMandateTransaction) => {
@@ -866,6 +866,23 @@ pub fn validate_mandate(
         }
         None => Ok(None),
     }
+}
+
+pub fn validate_recurring_details_and_token(
+    recurring_details: &Option<RecurringDetails>,
+    payment_token: &Option<String>,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    utils::when(
+        recurring_details.is_some() && payment_token.is_some(),
+        || {
+            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Expected one out of recurring_details and payment_token but got both"
+                    .into()
+            }))
+        },
+    )?;
+
+    Ok(())
 }
 
 fn validate_new_mandate_request(

@@ -268,6 +268,14 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         let mandate_id = request
             .mandate_id
             .as_ref()
+            .or_else(|| {
+            request.recurring_details
+                .as_ref()
+                .and_then(|recurring_details| match recurring_details {
+                    RecurringDetails::MandateId(id) => Some(id),
+                    _ => None,
+                })
+        })
             .async_and_then(|mandate_id| async {
                 let mandate = db
                     .find_mandate_by_merchant_id_mandate_id(merchant_id, mandate_id)
@@ -387,14 +395,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             payments::types::SurchargeDetails::from((&request_surcharge_details, &payment_attempt))
         });
 
-        let recurring_details = request
-            .recurring_details
-            .as_ref()
-            .and_then(|recurring_details| match recurring_details {
-                RecurringDetails::PaymentMethodId(id) => Some(id.clone()),
-                _ => None,
-            });
-
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -439,7 +439,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             authorizations: vec![],
             authentication: None,
             frm_metadata: request.frm_metadata.clone(),
-            recurring_details,
+            recurring_details: request.recurring_details.clone(),
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -750,6 +750,11 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
         helpers::validate_payment_method_fields_present(request)?;
 
         let mandate_type = helpers::validate_mandate(request, false)?;
+
+        helpers::validate_recurring_details_and_token(
+            &request.recurring_details,
+            &request.payment_token,
+        )?;
 
         Ok((
             Box::new(self),

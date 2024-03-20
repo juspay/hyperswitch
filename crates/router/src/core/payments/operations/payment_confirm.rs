@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::{enums::FrmSuggestion, mandates::RecurringDetails};
+use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
 use error_stack::{report, IntoReport, ResultExt};
@@ -573,14 +573,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .as_ref()
             .map(|payment_method_billing| payment_method_billing.address_id.clone());
 
-        let recurring_details = request
-            .recurring_details
-            .as_ref()
-            .and_then(|recurring_details| match recurring_details {
-                RecurringDetails::PaymentMethodId(id) => Some(id.clone()),
-                _ => None,
-            });
-
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -622,7 +614,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             authorizations: vec![],
             frm_metadata: request.frm_metadata.clone(),
             authentication,
-            recurring_details,
+            recurring_details: request.recurring_details.clone(),
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -1202,6 +1194,11 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
 
         let mandate_type =
             helpers::validate_mandate(request, payments::is_operation_confirm(self))?;
+
+        helpers::validate_recurring_details_and_token(
+            &request.recurring_details,
+            &request.payment_token,
+        )?;
 
         let payment_id = request
             .payment_id
