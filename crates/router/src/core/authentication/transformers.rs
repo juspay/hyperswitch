@@ -10,7 +10,10 @@ use crate::{
         errors::{self, RouterResult},
         payments::helpers as payments_helpers,
     },
-    types::{self, storage, transformers::ForeignFrom},
+    types::{
+        self, storage,
+        transformers::{ForeignFrom, ForeignTryFrom},
+    },
     utils::ext_traits::OptionExt,
 };
 
@@ -35,7 +38,7 @@ pub fn construct_authentication_router_data(
     device_channel: payments::DeviceChannel,
     business_profile: storage::BusinessProfile,
     merchant_connector_account: payments_helpers::MerchantConnectorAccountType,
-    authentication_data: (super::types::AuthenticationData, storage::Authentication),
+    authentication_data: storage::Authentication,
     return_url: Option<String>,
     sdk_information: Option<api_models::payments::SdkInformation>,
     threeds_method_comp_ind: api_models::payments::ThreeDsCompletionIndicator,
@@ -61,7 +64,9 @@ pub fn construct_authentication_router_data(
         currency,
         message_category,
         device_channel,
-        authentication_data,
+        pre_authentication_data: super::types::PreAuthenticationData::foreign_try_from(
+            &authentication_data,
+        )?,
         return_url,
         sdk_information,
         email,
@@ -82,10 +87,15 @@ pub fn construct_post_authentication_router_data(
     authentication_connector: String,
     business_profile: storage::BusinessProfile,
     merchant_connector_account: payments_helpers::MerchantConnectorAccountType,
-    authentication_data: super::types::AuthenticationData,
+    authentication_data: &storage::Authentication,
 ) -> RouterResult<types::authentication::ConnectorPostAuthenticationRouterData> {
+    let threeds_server_transaction_id = authentication_data
+        .threeds_server_transaction_id
+        .clone()
+        .get_required_value("threeds_server_transaction_id")
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let router_request = types::authentication::ConnectorPostAuthenticationRequestData {
-        authentication_data,
+        threeds_server_transaction_id,
     };
     construct_router_data(
         authentication_connector,
@@ -174,17 +184,17 @@ pub fn construct_router_data<F: Clone, Req, Res>(
     })
 }
 
-impl ForeignFrom<payments::TransactionStatus> for common_enums::AuthenticationStatus {
-    fn foreign_from(trans_status: payments::TransactionStatus) -> Self {
+impl ForeignFrom<common_enums::TransactionStatus> for common_enums::AuthenticationStatus {
+    fn foreign_from(trans_status: common_enums::TransactionStatus) -> Self {
         match trans_status {
-            api_models::payments::TransactionStatus::Success => Self::Success,
-            api_models::payments::TransactionStatus::Failure
-            | api_models::payments::TransactionStatus::Rejected
-            | api_models::payments::TransactionStatus::VerificationNotPerformed
-            | api_models::payments::TransactionStatus::NotVerified => Self::Failed,
-            api_models::payments::TransactionStatus::ChallengeRequired
-            | api_models::payments::TransactionStatus::ChallengeRequiredDecoupledAuthentication
-            | api_models::payments::TransactionStatus::InformationOnly => Self::Pending,
+            common_enums::TransactionStatus::Success => Self::Success,
+            common_enums::TransactionStatus::Failure
+            | common_enums::TransactionStatus::Rejected
+            | common_enums::TransactionStatus::VerificationNotPerformed
+            | common_enums::TransactionStatus::NotVerified => Self::Failed,
+            common_enums::TransactionStatus::ChallengeRequired
+            | common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication
+            | common_enums::TransactionStatus::InformationOnly => Self::Pending,
         }
     }
 }

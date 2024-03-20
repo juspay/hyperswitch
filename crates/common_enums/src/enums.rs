@@ -2366,6 +2366,47 @@ pub enum RoleScope {
 
 #[derive(
     Clone,
+    Default,
+    Debug,
+    serde::Serialize,
+    serde::Deserialize,
+    Eq,
+    PartialEq,
+    ToSchema,
+    strum::Display,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+pub enum TransactionStatus {
+    /// Authentication/ Account Verification Successful
+    #[serde(rename = "Y")]
+    Success,
+    /// Not Authenticated /Account Not Verified; Transaction denied
+    #[default]
+    #[serde(rename = "N")]
+    Failure,
+    /// Authentication/ Account Verification Could Not Be Performed; Technical or other problem, as indicated in Authentication Response(ARes) or Result Request (RReq)
+    #[serde(rename = "U")]
+    VerificationNotPerformed,
+    /// Attempts Processing Performed; Not Authenticated/Verified , but a proof of attempted authentication/verification is provided
+    #[serde(rename = "A")]
+    NotVerified,
+    /// Authentication/ Account Verification Rejected; Issuer is rejecting authentication/verification and request that authorisation not be attempted.
+    #[serde(rename = "R")]
+    Rejected,
+    /// Challenge Required; Additional authentication is required using the Challenge Request (CReq) / Challenge Response (CRes)
+    #[serde(rename = "C")]
+    ChallengeRequired,
+    /// Challenge Required; Decoupled Authentication confirmed.
+    #[serde(rename = "D")]
+    ChallengeRequiredDecoupledAuthentication,
+    /// Informational Only; 3DS Requestor challenge preference acknowledged.
+    #[serde(rename = "I")]
+    InformationOnly,
+}
+
+#[derive(
+    Clone,
     Copy,
     Debug,
     Eq,

@@ -34,6 +34,7 @@ pub fn search_index_to_opensearch_index(index: SearchIndex, config: &OpensearchI
         SearchIndex::PaymentAttempts => config.payment_attempts.clone(),
         SearchIndex::PaymentIntents => config.payment_intents.clone(),
         SearchIndex::Refunds => config.refunds.clone(),
+        SearchIndex::Disputes => config.disputes.clone(),
     }
 }
 

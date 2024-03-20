@@ -386,7 +386,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::SdkInformation,
         api_models::payments::DeviceChannel,
         api_models::payments::ThreeDsCompletionIndicator,
-        api_models::payments::TransactionStatus,
+        api_models::enums::TransactionStatus,
         api_models::payments::BrowserInformation,
         api_models::payments::PaymentCreatePaymentLinkConfig,
         api_models::payments::ThreeDsData,

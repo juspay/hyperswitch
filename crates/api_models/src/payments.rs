@@ -2308,7 +2308,7 @@ pub enum ThreeDsMethodData {
         /// Whether ThreeDS method data submission is required
         three_ds_method_data_submission: bool,
         /// ThreeDS method data
-        three_ds_method_data: String,
+        three_ds_method_data: Option<String>,
         /// ThreeDS method url
         three_ds_method_url: Option<String>,
     },
@@ -3634,40 +3634,12 @@ pub struct SdkInformation {
     pub sdk_max_timeout: u8,
 }
 
-#[derive(Clone, Default, Debug, serde::Serialize, serde::Deserialize, Eq, PartialEq, ToSchema)]
-pub enum TransactionStatus {
-    /// Authentication/ Account Verification Successful
-    #[serde(rename = "Y")]
-    Success,
-    /// Not Authenticated /Account Not Verified; Transaction denied
-    #[default]
-    #[serde(rename = "N")]
-    Failure,
-    /// Authentication/ Account Verification Could Not Be Performed; Technical or other problem, as indicated in Authentication Response(ARes) or Result Request (RReq)
-    #[serde(rename = "U")]
-    VerificationNotPerformed,
-    /// Attempts Processing Performed; Not Authenticated/Verified , but a proof of attempted authentication/verification is provided
-    #[serde(rename = "A")]
-    NotVerified,
-    /// Authentication/ Account Verification Rejected; Issuer is rejecting authentication/verification and request that authorisation not be attempted.
-    #[serde(rename = "R")]
-    Rejected,
-    /// Challenge Required; Additional authentication is required using the Challenge Request (CReq) / Challenge Response (CRes)
-    #[serde(rename = "C")]
-    ChallengeRequired,
-    /// Challenge Required; Decoupled Authentication confirmed.
-    #[serde(rename = "D")]
-    ChallengeRequiredDecoupledAuthentication,
-    /// Informational Only; 3DS Requestor challenge preference acknowledged.
-    #[serde(rename = "I")]
-    InformationOnly,
-}
-
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 pub struct PaymentsExternalAuthenticationResponse {
     /// Indicates the trans status
     #[serde(rename = "trans_status")]
-    pub transaction_status: TransactionStatus,
+    #[schema(value_type = TransactionStatus)]
+    pub transaction_status: common_enums::TransactionStatus,
     /// Access Server URL to be used for challenge submission
     pub acs_url: Option<String>,
     /// Challenge request which should be sent to acs_url
