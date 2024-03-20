@@ -1458,18 +1458,14 @@ pub struct AdditionalCardInfo {
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum Wallets {
-    ApplePay(ApplepayPaymentMethod),
-}
-
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-#[serde(rename_all = "snake_case")]
 pub enum AdditionalPaymentData {
     Card(Box<AdditionalCardInfo>),
     BankRedirect {
         bank_name: Option<api_enums::BankNames>,
     },
-    Wallet(Option<Wallets>),
+    Wallet {
+        apple_pay: Option<ApplepayPaymentMethod>,
+    },
     PayLater {},
     BankTransfer {},
     Crypto {},
@@ -2058,7 +2054,7 @@ where
             | PaymentMethodDataResponse::PayLater {}
             | PaymentMethodDataResponse::Paypal {}
             | PaymentMethodDataResponse::Upi {}
-            | PaymentMethodDataResponse::Wallet(_)
+            | PaymentMethodDataResponse::Wallet {}
             | PaymentMethodDataResponse::BankTransfer {}
             | PaymentMethodDataResponse::Voucher {} => {
                 payment_method_data_response.serialize(serializer)
@@ -2075,7 +2071,7 @@ pub enum PaymentMethodDataResponse {
     #[serde(rename = "card")]
     Card(Box<CardResponse>),
     BankTransfer {},
-    Wallet(Option<Wallets>),
+    Wallet {},
     PayLater {},
     Paypal {},
     BankRedirect {},
@@ -3012,7 +3008,7 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
         match payment_method_data {
             AdditionalPaymentData::Card(card) => Self::Card(Box::new(CardResponse::from(*card))),
             AdditionalPaymentData::PayLater {} => Self::PayLater {},
-            AdditionalPaymentData::Wallet(wallet) => Self::Wallet(wallet),
+            AdditionalPaymentData::Wallet { .. } => Self::Wallet {},
             AdditionalPaymentData::BankRedirect { .. } => Self::BankRedirect {},
             AdditionalPaymentData::Crypto {} => Self::Crypto {},
             AdditionalPaymentData::BankDebit {} => Self::BankDebit {},
