@@ -11,7 +11,7 @@ use router::{
     core::{errors, errors::ConnectorError, payments},
     db::StorageImpl,
     routes, services,
-    types::{self, api, storage::enums, AccessToken, PaymentAddress, RouterData},
+    types::{self, storage::enums, AccessToken, PaymentAddress, RouterData},
 };
 use test_utils::connector_auth::ConnectorAuthType;
 use tokio::sync::oneshot;
@@ -49,7 +49,7 @@ pub struct PaymentInfo {
     pub connector_customer: Option<String>,
     pub payment_method_token: Option<String>,
     #[cfg(feature = "payouts")]
-    pub payout_method_data: Option<api::PayoutMethodData>,
+    pub payout_method_data: Option<types::api::PayoutMethodData>,
     pub currency: Option<enums::Currency>,
     pub country: Option<enums::CountryAlpha2>,
 }

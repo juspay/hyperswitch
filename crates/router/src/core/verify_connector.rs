@@ -8,7 +8,6 @@ use crate::{
     types::{
         api,
         api::verify_connector::{self as types, VerifyConnector},
-        domain,
     },
     utils::verify_connector as utils,
     AppState,
