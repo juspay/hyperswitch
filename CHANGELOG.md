@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.03.15.0-hotfix1
+
+### Bug Fixes
+
+- **payment_methods:**
+  - Update payment method status only if existing status is not active ([#4152](https://github.com/juspay/hyperswitch/pull/4152)) ([`a35eb17`](https://github.com/juspay/hyperswitch/commit/a35eb175ba0983827db10efeb7a53a0dcc47b793))
+  - Make ApplepayPaymentMethod in payment_method_data column of payment_attempt table as json ([#4156](https://github.com/juspay/hyperswitch/pull/4156)) ([`03c4896`](https://github.com/juspay/hyperswitch/commit/03c4896617c82ee54cee0f24b83bdaee99337e80))
+
+- - -
+
 ## 2024.03.15.0
 
 ### Features
