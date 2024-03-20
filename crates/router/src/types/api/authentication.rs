@@ -37,7 +37,7 @@ pub struct AuthenticationResponse {
 impl TryFrom<storage::Authentication> for AuthenticationResponse {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn try_from(authentication: storage::Authentication) -> Result<Self, Self::Error> {
-        let trans_status = authentication.trans_status.ok_or(errors::ApiErrorResponse::InternalServerError.into()).attach_printable("trans_status must be populated in authentication table authentication call is succesfull")?;
+        let trans_status = authentication.trans_status.ok_or(errors::ApiErrorResponse::InternalServerError.into()).attach_printable("trans_status must be populated in authentication table authentication call is successfull")?;
         let acs_url = authentication
             .acs_url
             .map(|url| url::Url::from_str(&url))
