@@ -4099,6 +4099,10 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
         "separate_authentication_requested {:?}",
         separate_authentication_requested
     );
+    logger::info!(
+        "payment connector supports external authentication: {:?}",
+        connector_supports_separate_authn.is_some()
+    );
     let card_number = payment_data.payment_method_data.as_ref().and_then(|pmd| {
         if let api_models::payments::PaymentMethodData::Card(card) = pmd {
             Some(card.card_number.clone())
