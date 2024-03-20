@@ -879,4 +879,3 @@ pub struct MultisafepayErrorResponse {
     pub error_code: i32,
     pub error_info: String,
 }
-
