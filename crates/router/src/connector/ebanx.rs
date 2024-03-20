@@ -14,11 +14,7 @@ use crate::{
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
     headers,
-    services::{
-        self,
-        request,
-        ConnectorIntegration, ConnectorValidation,
-    },
+    services::{self, request, ConnectorIntegration, ConnectorValidation},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -41,7 +37,6 @@ impl api::Refund for Ebanx {}
 impl api::RefundExecute for Ebanx {}
 impl api::RefundSync for Ebanx {}
 impl api::PaymentToken for Ebanx {}
-
 
 impl api::Payouts for Ebanx {}
 #[cfg(feature = "payouts")]
@@ -115,12 +110,9 @@ impl ConnectorCommon for Ebanx {
     }
 }
 
-
 #[async_trait::async_trait]
 #[cfg(feature = "payouts")]
-impl ConnectorIntegration<api::PoCreate, types::PayoutsData, types::PayoutsResponseData>
-    for Ebanx
-{
+impl ConnectorIntegration<api::PoCreate, types::PayoutsData, types::PayoutsResponseData> for Ebanx {
     fn get_url(
         &self,
         _req: &types::PayoutsRouterData<api::PoCreate>,
@@ -210,10 +202,7 @@ impl ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResp
         _req: &types::PayoutsRouterData<api::PoFulfill>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}ws/payout/commit",
-            connectors.ebanx.base_url,
-        ))
+        Ok(format!("{}ws/payout/commit", connectors.ebanx.base_url,))
     }
 
     fn get_headers(
@@ -291,34 +280,22 @@ impl ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResp
 }
 
 #[cfg(feature = "payouts")]
-impl ConnectorIntegration<api::PoCancel, types::PayoutsData, types::PayoutsResponseData>
+impl ConnectorIntegration<api::PoCancel, types::PayoutsData, types::PayoutsResponseData> for Ebanx {}
+
+#[cfg(feature = "payouts")]
+impl ConnectorIntegration<api::PoQuote, types::PayoutsData, types::PayoutsResponseData> for Ebanx {}
+
+#[cfg(feature = "payouts")]
+impl ConnectorIntegration<api::PoRecipient, types::PayoutsData, types::PayoutsResponseData>
     for Ebanx
 {
 }
 
 #[cfg(feature = "payouts")]
-impl ConnectorIntegration<api::PoQuote, types::PayoutsData, types::PayoutsResponseData>
+impl ConnectorIntegration<api::PoEligibility, types::PayoutsData, types::PayoutsResponseData>
     for Ebanx
 {
 }
-
-#[cfg(feature = "payouts")]
-impl
-    ConnectorIntegration<api::PoRecipient, types::PayoutsData, types::PayoutsResponseData>
-    for Ebanx
-{
-}
-
-#[cfg(feature = "payouts")]
-impl
-    ConnectorIntegration<
-        api::PoEligibility,
-        types::PayoutsData,
-        types::PayoutsResponseData,
-    > for Ebanx
-{
-}
-
 
 impl
     ConnectorIntegration<
@@ -329,7 +306,6 @@ impl
 {
     // Not Implemented (R)
 }
-
 
 impl ConnectorValidation for Ebanx {
     //TODO: implement functions when support enabled
@@ -375,11 +351,9 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
 {
 }
 
-impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData> for Ebanx {
-}
+impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData> for Ebanx {}
 
-impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Ebanx {
-}
+impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Ebanx {}
 
 #[async_trait::async_trait]
 impl api::IncomingWebhook for Ebanx {
