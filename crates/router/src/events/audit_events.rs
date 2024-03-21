@@ -18,6 +18,7 @@ pub enum AuditEventType {
 #[derive(Debug, Clone, Serialize)]
 pub struct AuditEvent {
     event_type: AuditEventType,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
     created_at: PrimitiveDateTime,
 }
 

@@ -2302,7 +2302,7 @@ impl<F: Clone> PaymentData<F> {
 
 impl EventInfo for PaymentEvent {
     fn data(&self) -> error_stack::Result<serde_json::Value, events::EventsError> {
-        serde_json::to_value(self)
+        masking::masked_serialize(self)
             .into_report()
             .change_context(events::EventsError::SerializationError)
     }
