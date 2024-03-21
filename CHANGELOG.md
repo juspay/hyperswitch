@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.03.01.0-hotfix8
+
+### Bug Fixes
+
+- **connector:** [Iatapay] remove unused fields from auth response ([#4162](https://github.com/juspay/hyperswitch/pull/4162)) ([`1cd8306`](https://github.com/juspay/hyperswitch/commit/1cd83062890035fef8d5171e5e734064cbdb631f))
+
+- - -
+
 ## 2024.03.01.0-hotfix7
 
 ### Bug Fixes
