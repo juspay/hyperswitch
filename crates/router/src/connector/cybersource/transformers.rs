@@ -981,9 +981,9 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                                         Self::try_from((item, decrypt_data, apple_pay_data))
                                     }
                                     types::PaymentMethodToken::Token(_) => {
-                                        Err(errors::ConnectorError::NotImplemented(format!(
-                                            "Applepay manual through bankofamerica"
-                                        )))?
+                                        Err(
+                                            unimplemented_payment_method!("Apple Pay", "Manual", "Cybersource")
+                                        )?
                                     }
                                 },
                                 None => {
