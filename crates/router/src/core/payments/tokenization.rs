@@ -6,7 +6,6 @@ use common_utils::{
     ext_traits::{Encode, ValueExt},
     pii,
 };
-
 use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
 use router_env::{instrument, tracing};
