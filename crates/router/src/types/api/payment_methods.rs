@@ -1,7 +1,7 @@
 pub use api_models::payment_methods::{
     CardDetail, CardDetailFromLocker, CardDetailsPaymentMethod, CustomerPaymentMethod,
     CustomerPaymentMethodsListResponse, DefaultPaymentMethod, DeleteTokenizeByTokenRequest,
-    GetTokenizePayloadRequest, GetTokenizePayloadResponse, PaymentMethodCountryCurrencyList,
+    GetTokenizePayloadRequest, GetTokenizePayloadResponse, ListCountriesCurrenciesRequest,
     PaymentMethodCreate, PaymentMethodDeleteResponse, PaymentMethodId, PaymentMethodList,
     PaymentMethodListRequest, PaymentMethodListResponse, PaymentMethodResponse,
     PaymentMethodUpdate, PaymentMethodsData, TokenizePayloadEncrypted, TokenizePayloadRequest,

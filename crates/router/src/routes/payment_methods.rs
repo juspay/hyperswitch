@@ -262,13 +262,13 @@ pub async fn payment_method_delete_api(
     .await
 }
 
-#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodCountriesCurrenciesRetrieve))]
-pub async fn payment_method_countries_currencies_retrieve_api(
+#[instrument(skip_all, fields(flow = ?Flow::ListCountriesCurrencies))]
+pub async fn list_countries_currencies_for_connector_payment_method(
     state: web::Data<AppState>,
     req: HttpRequest,
-    query_payload: web::Query<payment_methods::PaymentMethodCountryCurrencyList>,
+    query_payload: web::Query<payment_methods::ListCountriesCurrenciesRequest>,
 ) -> HttpResponse {
-    let flow = Flow::PaymentMethodCountriesCurrenciesRetrieve;
+    let flow = Flow::ListCountriesCurrencies;
     let payload = query_payload.into_inner();
     Box::pin(api::server_wrap(
         flow,
@@ -276,7 +276,7 @@ pub async fn payment_method_countries_currencies_retrieve_api(
         &req,
         payload,
         |state, _auth: auth::AuthenticationData, req| {
-            cards::retrieve_countries_currencies_based_on_pmt(state, req)
+            cards::list_countries_currencies_for_connector_payment_method(state, req)
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(

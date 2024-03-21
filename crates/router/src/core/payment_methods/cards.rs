@@ -8,8 +8,8 @@ use api_models::{
     enums::{self as api_enums},
     payment_methods::{
         BankAccountTokenData, CardDetailsPaymentMethod, CardNetworkTypes, CountryCodeWithName,
-        CurrenciesCountriesBasedOnPm, CustomerDefaultPaymentMethodResponse, MaskedBankDetails,
-        PaymentExperienceTypes, PaymentMethodCountryCurrencyList, PaymentMethodsData,
+        ListCountriesCurrenciesResponse, CustomerDefaultPaymentMethodResponse, MaskedBankDetails,
+        PaymentExperienceTypes, ListCountriesCurrenciesRequest, PaymentMethodsData,
         RequestPaymentMethodTypes, RequiredFieldInfo, ResponsePaymentMethodIntermediate,
         ResponsePaymentMethodTypes, ResponsePaymentMethodsEnabled,
     },
@@ -3585,12 +3585,12 @@ pub async fn create_encrypted_payment_method_data(
     pm_data_encrypted
 }
 
-pub async fn retrieve_countries_currencies_based_on_pmt(
+pub async fn list_countries_currencies_for_connector_payment_method(
     state: routes::AppState,
-    req: PaymentMethodCountryCurrencyList,
-) -> errors::RouterResponse<CurrenciesCountriesBasedOnPm> {
+    req: ListCountriesCurrenciesRequest,
+) -> errors::RouterResponse<ListCountriesCurrenciesResponse> {
     Ok(services::ApplicationResponse::Json(
-        retrieve_countries_currencies_based_on_pmt_util(
+        list_countries_currencies_for_connector_payment_method_util(
             state.conf.pm_filters.clone(),
             req.connector,
             req.payment_method_type,
@@ -3601,11 +3601,11 @@ pub async fn retrieve_countries_currencies_based_on_pmt(
 
 // This feature will be more efficient as a WASM function rather than as an API.
 // So extracting this logic to a separate function so that it can be used in WASM as well.
-pub async fn retrieve_countries_currencies_based_on_pmt_util(
+pub async fn list_countries_currencies_for_connector_payment_method_util(
     connector_filters: settings::ConnectorFilters,
     connector: api_enums::Connector,
     payment_method_type: api_enums::PaymentMethodType,
-) -> CurrenciesCountriesBasedOnPm {
+) -> ListCountriesCurrenciesResponse {
     let payment_method_type =
         settings::PaymentMethodFilterKey::PaymentMethodType(payment_method_type);
 
@@ -3636,7 +3636,7 @@ pub async fn retrieve_countries_currencies_based_on_pmt_util(
         })
         .unwrap_or((all_currencies, all_countries));
 
-    CurrenciesCountriesBasedOnPm {
+    ListCountriesCurrenciesResponse {
         currencies,
         countries: country_codes
             .into_iter()

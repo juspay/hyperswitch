@@ -903,7 +903,7 @@ impl Configs {
             .service(
                 web::resource("/")
                     .route(web::post().to(config_key_create))
-                    .route(web::get().to(payment_method_countries_currencies_retrieve_api)),
+                    .route(web::get().to(list_countries_currencies_for_connector_payment_method)),
             )
             .service(
                 web::resource("/{key}")

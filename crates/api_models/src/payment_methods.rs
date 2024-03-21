@@ -914,14 +914,14 @@ pub struct TokenizedCardValue1 {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct PaymentMethodCountryCurrencyList {
+pub struct ListCountriesCurrenciesRequest {
     pub connector: api_enums::Connector,
     pub payment_method_type: api_enums::PaymentMethodType,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CurrenciesCountriesBasedOnPm {
+pub struct ListCountriesCurrenciesResponse {
     pub currencies: HashSet<api_enums::Currency>,
     pub countries: HashSet<CountryCodeWithName>,
 }
