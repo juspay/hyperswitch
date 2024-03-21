@@ -1,4 +1,8 @@
-use std::{collections::HashMap, fmt, num::NonZeroI64};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt,
+    num::NonZeroI64,
+};
 
 use cards::CardNumber;
 use common_utils::{
@@ -19,8 +23,8 @@ use url::Url;
 use utoipa::ToSchema;
 
 use crate::{
-    admin, disputes,
-    enums::{self as api_enums},
+    admin::{self, MerchantConnectorInfo},
+    disputes, enums as api_enums,
     ephemeral_key::EphemeralKeyCreateResponse,
     refunds,
 };
@@ -3316,6 +3320,20 @@ pub struct PaymentListFilters {
     pub payment_method: Vec<enums::PaymentMethod>,
     /// The list of available payment method types
     pub payment_method_type: Vec<enums::PaymentMethodType>,
+    /// The list of available authentication types
+    pub authentication_type: Vec<enums::AuthenticationType>,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PaymentListFiltersV2 {
+    /// The list of available connector filters
+    pub connector: HashMap<String, Vec<MerchantConnectorInfo>>,
+    /// The list of available currency filters
+    pub currency: Vec<enums::Currency>,
+    /// The list of available payment status filters
+    pub status: Vec<enums::IntentStatus>,
+    /// The list payment method and their corresponding types
+    pub payment_method: HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
     /// The list of available authentication types
     pub authentication_type: Vec<enums::AuthenticationType>,
 }

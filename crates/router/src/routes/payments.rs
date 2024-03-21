@@ -944,6 +944,29 @@ pub async fn get_filters_for_payments(
     .await
 }
 
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
+#[cfg(feature = "olap")]
+pub async fn get_payment_filters(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+) -> impl Responder {
+    let flow = Flow::PaymentsList;
+    api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth, _| payments::get_payment_filters(state, auth.merchant_account),
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::PaymentRead),
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}
+
 #[cfg(feature = "oltp")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsApprove, payment_id))]
 // #[post("/{payment_id}/approve")]

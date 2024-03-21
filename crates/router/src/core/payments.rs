@@ -31,6 +31,8 @@ use router_env::{instrument, tracing};
 #[cfg(feature = "olap")]
 use router_types::transformers::ForeignFrom;
 use scheduler::utils as pt_utils;
+#[cfg(feature = "olap")]
+use strum::IntoEnumIterator;
 use time;
 
 pub use self::operations::{
@@ -2542,6 +2544,74 @@ pub async fn get_filters_for_payments(
             payment_method: filters.payment_method,
             payment_method_type: filters.payment_method_type,
             authentication_type: filters.authentication_type,
+        },
+    ))
+}
+
+#[cfg(feature = "olap")]
+pub async fn get_payment_filters(
+    state: AppState,
+    merchant: domain::MerchantAccount,
+) -> RouterResponse<api::PaymentListFiltersV2> {
+    use std::collections::{HashMap, HashSet};
+
+    use api_models::admin::MerchantConnectorInfo;
+
+    use super::admin::list_payment_connectors;
+    use crate::services::ApplicationResponse;
+
+    let merchant_connector_accounts = if let ApplicationResponse::Json(data) =
+        list_payment_connectors(state, merchant.merchant_id).await?
+    {
+        data
+    } else {
+        return Err(errors::ApiErrorResponse::InternalServerError.into());
+    };
+
+    let mut connector_map: HashMap<String, Vec<MerchantConnectorInfo>> = HashMap::new();
+    let mut payment_method_types_map: HashMap<
+        enums::PaymentMethod,
+        HashSet<enums::PaymentMethodType>,
+    > = HashMap::new();
+
+    for response in merchant_connector_accounts {
+        if let Some(label) = response.connector_label {
+            let info = MerchantConnectorInfo {
+                connector_label: label,
+                merchant_connector_id: response.merchant_connector_id,
+            };
+
+            connector_map
+                .entry(response.connector_name.clone())
+                .or_insert_with(Vec::new)
+                .push(info);
+        }
+
+        // Populate all the enabled payment method types
+        if let Some(ref payment_methods_enabled) = response.payment_methods_enabled {
+            for payment_method_enabled in payment_methods_enabled {
+                if let Some(payment_method_types_vec) = &payment_method_enabled.payment_method_types
+                {
+                    let payment_method = payment_method_enabled.payment_method;
+                    let types_set = payment_method_types_map
+                        .entry(payment_method.clone())
+                        .or_insert_with(HashSet::new);
+
+                    for request_payment_method_type in payment_method_types_vec {
+                        types_set.insert(request_payment_method_type.payment_method_type.clone());
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(services::ApplicationResponse::Json(
+        api::PaymentListFiltersV2 {
+            connector: connector_map,
+            currency: enums::Currency::iter().collect(),
+            status: enums::IntentStatus::iter().collect(),
+            payment_method: payment_method_types_map,
+            authentication_type: enums::AuthenticationType::iter().collect(),
         },
     ))
 }
