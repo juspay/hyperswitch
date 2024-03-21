@@ -9,9 +9,9 @@ use api_models::{
     payment_methods::{
         BankAccountTokenData, CardDetailsPaymentMethod, CardNetworkTypes, CountryCodeWithName,
         CurrenciesCountriesBasedOnPm, CustomerDefaultPaymentMethodResponse, MaskedBankDetails,
-        PaymentExperienceTypes, PaymentMethodsData, RequestPaymentMethodTypes, RequiredFieldInfo,
-        ResponsePaymentMethodIntermediate, ResponsePaymentMethodTypes,
-        ResponsePaymentMethodsEnabled,
+        PaymentExperienceTypes, PaymentMethodCountryCurrencyList, PaymentMethodsData,
+        RequestPaymentMethodTypes, RequiredFieldInfo, ResponsePaymentMethodIntermediate,
+        ResponsePaymentMethodTypes, ResponsePaymentMethodsEnabled,
     },
     payments::BankCodeResponse,
     pm_auth::PaymentMethodAuthConfig,
@@ -3586,10 +3586,24 @@ pub async fn create_encrypted_payment_method_data(
 }
 
 pub async fn retrieve_countries_currencies_based_on_pmt(
+    state: routes::AppState,
+    req: PaymentMethodCountryCurrencyList,
+) -> errors::RouterResponse<CurrenciesCountriesBasedOnPm> {
+    Ok(services::ApplicationResponse::Json(
+        retrieve_countries_currencies_based_on_pmt_util(
+            state.conf.pm_filters.clone(),
+            req.connector,
+            req.payment_method_type,
+        )
+        .await,
+    ))
+}
+
+pub async fn retrieve_countries_currencies_based_on_pmt_util(
     connector_filters: settings::ConnectorFilters,
     connector: api_enums::Connector,
     payment_method_type: api_enums::PaymentMethodType,
-) -> errors::RouterResponse<CurrenciesCountriesBasedOnPm> {
+) -> CurrenciesCountriesBasedOnPm {
     let payment_method_type =
         settings::PaymentMethodFilterKey::PaymentMethodType(payment_method_type);
 
@@ -3620,16 +3634,14 @@ pub async fn retrieve_countries_currencies_based_on_pmt(
         })
         .unwrap_or((all_currencies, all_countries));
 
-    Ok(services::ApplicationResponse::Json(
-        CurrenciesCountriesBasedOnPm {
-            currencies,
-            countries: country_codes
-                .into_iter()
-                .map(|country_code| CountryCodeWithName {
-                    code: country_code,
-                    name: common_enums::Country::from_alpha2(country_code),
-                })
-                .collect(),
-        },
-    ))
+    CurrenciesCountriesBasedOnPm {
+        currencies,
+        countries: country_codes
+            .into_iter()
+            .map(|country_code| CountryCodeWithName {
+                code: country_code,
+                name: common_enums::Country::from_alpha2(country_code),
+            })
+            .collect(),
+    }
 }
