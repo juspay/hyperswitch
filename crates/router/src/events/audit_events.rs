@@ -1,31 +1,25 @@
-use std::collections::HashMap;
-
-use data_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
+use error_stack::{IntoReport, ResultExt};
 use events::{Event, EventInfo};
 use serde::Serialize;
-use time::OffsetDateTime;
+use time::PrimitiveDateTime;
 
 #[derive(Debug, Clone, Serialize)]
 pub enum AuditEventType {
-    Error {
-        error_message: String,
-    },
+    Error { error_message: String },
     PaymentCreated,
     ConnectorDecided,
     ConnectorCalled,
     RefundCreated,
     RefundSuccess,
     RefundFail,
-    PaymentUpdate {
-        payment_intent: PaymentIntent,
-        payment_attempt: PaymentAttempt,
-    },
+    PaymentCancelled { cancellation_reason: Option<String> },
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct AuditEvent {
     event_type: AuditEventType,
-    created_at: time::PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    created_at: PrimitiveDateTime,
 }
 
 impl AuditEvent {
@@ -40,8 +34,8 @@ impl AuditEvent {
 impl Event for AuditEvent {
     type EventType = super::EventType;
 
-    fn timestamp(&self) -> OffsetDateTime {
-        OffsetDateTime::now_utc()
+    fn timestamp(&self) -> PrimitiveDateTime {
+        self.created_at
     }
 
     fn identifier(&self) -> String {
@@ -53,9 +47,12 @@ impl Event for AuditEvent {
             AuditEventType::RefundCreated => "refund_created",
             AuditEventType::RefundSuccess => "refund_success",
             AuditEventType::RefundFail => "refund_fail",
-            AuditEventType::PaymentUpdate { .. } => "payment_update",
+            AuditEventType::PaymentCancelled { .. } => "payment_cancelled",
         };
-        format!("{event_type}-{}", self.timestamp().unix_timestamp_nanos())
+        format!(
+            "{event_type}-{}",
+            self.timestamp().assume_utc().unix_timestamp_nanos()
+        )
     }
 
     fn class(&self) -> Self::EventType {
@@ -64,20 +61,10 @@ impl Event for AuditEvent {
 }
 
 impl EventInfo for AuditEvent {
-    fn data(&self) -> error_stack::Result<HashMap<String, serde_json::Value>, events::EventsError> {
+    fn data(&self) -> error_stack::Result<serde_json::Value, events::EventsError> {
         serde_json::to_value(self)
-            .map_err(|e| {
-                error_stack::report!(events::EventsError::SerializationError(e.to_string()))
-            })
-            .and_then(|v| match v {
-                serde_json::Value::Object(map) => Ok(map),
-                _ => Err(error_stack::report!(
-                    events::EventsError::SerializationError(
-                        "Expected a serialized map".to_string()
-                    )
-                )),
-            })
-            .map(|i| i.into_iter().collect())
+            .into_report()
+            .change_context(events::EventsError::SerializationError)
     }
 
     fn key(&self) -> String {
