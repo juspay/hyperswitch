@@ -234,7 +234,7 @@ pub async fn payouts_list(
         state,
         &req,
         payload,
-        |state, auth, req| payouts_list_core(state, auth.merchant_account, req),
+        |state, auth, req, _| payouts_list_core(state, auth.merchant_account, req),
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -268,7 +268,7 @@ pub async fn payouts_list_by_filter(
         state,
         &req,
         payload,
-        |state, auth, req| payouts_filtered_list_core(state, auth.merchant_account, req),
+        |state, auth, req, _| payouts_filtered_list_core(state, auth.merchant_account, req),
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -302,7 +302,9 @@ pub async fn payouts_list_available_filters(
         state,
         &req,
         payload,
-        |state, auth, req| payouts_list_available_filters_core(state, auth.merchant_account, req),
+        |state, auth, req, _| {
+            payouts_list_available_filters_core(state, auth.merchant_account, req)
+        },
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))
