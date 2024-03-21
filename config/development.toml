@@ -540,7 +540,7 @@ ttl = 900 # 15 * 60 seconds
 enabled = true
 
 [events]
-source = "kafka"
+source = "logs"
 
 [events.kafka]
 brokers = ["localhost:9092"]
