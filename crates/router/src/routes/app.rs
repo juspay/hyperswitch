@@ -36,11 +36,11 @@ use super::{
     admin::*, api_keys::*, connector_onboarding::*, disputes::*, files::*, gsm::*, payment_link::*,
     user::*, user_role::*,
 };
-use super::{cache::*, health::*};
+use super::{cache::*, health::*, payment_methods::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 #[cfg(feature = "oltp")]
-use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
+use super::{ephemeral_key::*, webhooks::*};
 use crate::configs::secrets_transformers;
 #[cfg(all(feature = "frm", feature = "oltp"))]
 use crate::routes::fraud_check as frm_routes;
