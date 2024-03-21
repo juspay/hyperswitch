@@ -23,7 +23,7 @@ use crate::{
         transformers::ForeignFrom,
         ApplePayPredecryptData,
     },
-    unimplemented_payment_method_error_message,
+    unimplemented_payment_method,
 };
 
 #[derive(Debug, Serialize)]
@@ -141,12 +141,13 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
                                 )
                             }
                             types::PaymentMethodToken::Token(_) => {
-                                Err(errors::ConnectorError::NotImplemented(
-                                    unimplemented_payment_method_error_message!(
-                                        "Apple Pay Manual",
+                                Err(
+                                    unimplemented_payment_method!(
+                                        "Apple Pay",
+                                        "Manual",
                                         "Cybersource"
                                     ),
-                                ))?
+                                )?
                             }
                         },
                         None => (

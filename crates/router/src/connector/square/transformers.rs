@@ -10,7 +10,7 @@ use crate::{
         self, api,
         storage::{self, enums},
     },
-    unimplemented_payment_method_error_message,
+    unimplemented_payment_method,
 };
 
 impl TryFrom<(&types::TokenizationRouterData, BankDebitData)> for SquareTokenRequest {
@@ -259,12 +259,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
                     source_id: Secret::new(match pm_token {
                         types::PaymentMethodToken::Token(token) => token,
                         types::PaymentMethodToken::ApplePayDecrypt(_) => {
-                            Err(errors::ConnectorError::NotImplemented(
-                                unimplemented_payment_method_error_message!(
-                                    "Apple Pay Decrypt",
+                            Err(
+                                unimplemented_payment_method!(
+                                    "Apple Pay",
+                                    "Decrypt",
                                     "Square"
                                 ),
-                            ))?
+                            )?
                         }
                     }),
                     amount_money: SquarePaymentsAmountData {

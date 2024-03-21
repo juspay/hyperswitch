@@ -9,7 +9,7 @@ use crate::{
     },
     core::errors,
     types::{self, api, storage::enums},
-    unimplemented_payment_method_error_message,
+    unimplemented_payment_method,
 };
 
 #[derive(Debug, Serialize)]
@@ -82,12 +82,13 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
                     payment_method_id: Secret::new(match pm_token {
                         types::PaymentMethodToken::Token(token) => token,
                         types::PaymentMethodToken::ApplePayDecrypt(_) => {
-                            Err(errors::ConnectorError::NotImplemented(
-                                unimplemented_payment_method_error_message!(
-                                    "Apple Pay Decrypt",
+                            Err(
+                                unimplemented_payment_method!(
+                                    "Apple Pay",
+                                    "Decrypt",
                                     "Stax"
                                 ),
-                            ))?
+                            )?
                         }
                     }),
                     idempotency_id: Some(item.router_data.connector_request_reference_id.clone()),
@@ -106,12 +107,13 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
                     payment_method_id: Secret::new(match pm_token {
                         types::PaymentMethodToken::Token(token) => token,
                         types::PaymentMethodToken::ApplePayDecrypt(_) => {
-                            Err(errors::ConnectorError::NotImplemented(
-                                unimplemented_payment_method_error_message!(
-                                    "Apple Pay Decrypt",
+                            Err(
+                                unimplemented_payment_method!(
+                                    "Apple Pay",
+                                    "Decrypt",
                                     "Stax"
                                 ),
-                            ))?
+                            )?
                         }
                     }),
                     idempotency_id: Some(item.router_data.connector_request_reference_id.clone()),

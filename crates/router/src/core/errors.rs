@@ -69,9 +69,12 @@ macro_rules! capture_method_not_supported {
 }
 
 #[macro_export]
-macro_rules! unimplemented_payment_method_error_message {
+macro_rules! unimplemented_payment_method {
     ($payment_method:expr, $connector:expr) => {
-        format!("{} through {}", $payment_method, $connector)
+        errors::ConnectorError::NotImplemented(format!("{} through {}", $payment_method, $connector))
+    };
+    ($payment_method:expr, $connector:expr, $flow:expr) => {
+        errors::ConnectorError::NotImplemented(format!("{} {} through {}", $payment_method, $flow, $connector))
     };
 }
 

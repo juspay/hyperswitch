@@ -29,7 +29,7 @@ use crate::{
         storage::enums,
         transformers::{ForeignFrom, ForeignTryFrom},
     },
-    unimplemented_payment_method_error_message,
+    unimplemented_payment_method,
     utils::OptionExt,
 };
 
@@ -1845,12 +1845,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                 let payment_method_token = match payment_method_token {
                     types::PaymentMethodToken::Token(payment_method_token) => payment_method_token,
                     types::PaymentMethodToken::ApplePayDecrypt(_) => {
-                        Err(errors::ConnectorError::NotImplemented(
-                            unimplemented_payment_method_error_message!(
-                                "Apple Pay Decrypt",
+                        Err(
+                            unimplemented_payment_method!(
+                                "Apple Pay",
+                                "Decrypt",
                                 "Stripe"
                             ),
-                        ))?
+                        )?
                     }
                 };
                 Some(StripePaymentMethodData::Wallet(

@@ -14,7 +14,7 @@ use crate::{
     core::errors,
     services,
     types::{self, api, storage::enums, transformers::ForeignFrom},
-    unimplemented_payment_method_error_message,
+    unimplemented_payment_method,
 };
 
 #[derive(Debug, Serialize)]
@@ -309,12 +309,13 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                         token: match item.router_data.get_payment_method_token()? {
                             types::PaymentMethodToken::Token(token) => token.into(),
                             types::PaymentMethodToken::ApplePayDecrypt(_) => {
-                                Err(errors::ConnectorError::NotImplemented(
-                                    unimplemented_payment_method_error_message!(
-                                        "Apple Pay Decrypt",
+                                Err(
+                                    unimplemented_payment_method!(
+                                        "Apple Pay",
+                                        "Decrypt",
                                         "Checkout"
                                     ),
-                                ))?
+                                )?
                             }
                         },
                     }))

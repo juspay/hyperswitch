@@ -10,7 +10,7 @@ use crate::{
     core::errors,
     services,
     types::{self, api, storage::enums},
-    unimplemented_payment_method_error_message,
+    unimplemented_payment_method,
 };
 
 pub const CLIENT_TOKEN_MUTATION: &str = "mutation createClientToken($input: CreateClientTokenInput!) { createClientToken(input: $input) { clientToken}}";
@@ -1336,12 +1336,13 @@ impl
                     payment_method_id: match item.router_data.get_payment_method_token()? {
                         types::PaymentMethodToken::Token(token) => token.into(),
                         types::PaymentMethodToken::ApplePayDecrypt(_) => {
-                            Err(errors::ConnectorError::NotImplemented(
-                                unimplemented_payment_method_error_message!(
-                                    "Apple Pay Decrypt",
+                            Err(
+                                unimplemented_payment_method!(
+                                    "Apple Pay",
+                                    "Decrypt",
                                     "Braintree"
                                 ),
-                            ))?
+                            )?
                         }
                     },
                     transaction: TransactionBody {
@@ -1423,9 +1424,9 @@ fn get_braintree_redirect_form(
         card_token: match payment_method_token {
             types::PaymentMethodToken::Token(token) => token,
             types::PaymentMethodToken::ApplePayDecrypt(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    unimplemented_payment_method_error_message!("Apple Pay Decrypt", "Braintree"),
-                ))?
+                Err(
+                    unimplemented_payment_method!("Apple Pay", "Decrypt", "Braintree"),
+                )?
             }
         },
         bin: match card_details {
