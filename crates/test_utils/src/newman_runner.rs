@@ -321,7 +321,7 @@ pub fn export_collection(connector_name: &str, collection_dir_path: String) {
         "dir-import".to_owned(),
         collection_dir_path,
         "-o".to_owned(),
-        collection_path.clone(),
+        collection_path,
     ]);
 
     match newman_command.spawn().and_then(|mut child| child.wait()) {

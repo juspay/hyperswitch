@@ -970,7 +970,7 @@ impl<F, T>
                             .payment_method
                             .id
                             .expose()
-                            .clone(),
+                            ,
                     })
                 }
             },

@@ -1124,10 +1124,10 @@ where
             .fold(HashMap::new(), |mut acc, (key, value)| {
                 let key = key.to_string();
                 if unmasked_incoming_header_keys.contains(&key.as_str().to_lowercase()) {
-                    acc.insert(key.clone(), value.clone());
+                    acc.insert(key, value.clone());
                 } else {
                     acc.insert(
-                        key.clone(),
+                        key,
                         http::header::HeaderValue::from_static("**MASKED**"),
                     );
                 }

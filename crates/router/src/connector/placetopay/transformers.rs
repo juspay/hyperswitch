@@ -130,18 +130,15 @@ impl TryFrom<&PlacetopayRouterData<&types::PaymentsAuthorizeRouterData>>
                 let card = PlacetopayCard {
                     number: req_card.card_number.clone(),
                     expiration: req_card
-                        .clone()
                         .get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned())?,
-                    cvv: req_card.card_cvc.clone(),
+                    cvv: req_card.card_cvc,
                 };
                 Ok(Self {
                     ip_address,
                     user_agent,
                     auth,
                     payment,
-                    instrument: PlacetopayInstrument {
-                        card: card.to_owned(),
-                    },
+                    instrument: PlacetopayInstrument { card },
                 })
             }
             payments::PaymentMethodData::Wallet(_)

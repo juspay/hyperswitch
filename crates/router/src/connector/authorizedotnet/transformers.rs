@@ -1098,7 +1098,7 @@ impl<F, Req>
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
-                        connector_response_reference_id: Some(transaction.transaction_id.clone()),
+                        connector_response_reference_id: Some(transaction.transaction_id),
                         incremental_authorization_allowed: None,
                     }),
                     status: payment_status,

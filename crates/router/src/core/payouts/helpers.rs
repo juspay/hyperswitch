@@ -80,7 +80,7 @@ pub async fn make_payout_method_data<'a>(
                     },
                 ))?;
             let payment_token_data = hyperswitch_token
-                .clone()
+                
                 .parse_struct("PaymentTokenData")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("failed to deserialize hyperswitch token data")?;
@@ -473,7 +473,7 @@ pub async fn decide_payout_connector(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Invalid connector name received in 'routed_through'")?;
 
-        routing_data.routed_through = Some(connector_name.clone());
+        routing_data.routed_through = Some(connector_name);
         return Ok(api::ConnectorCallType::PreDetermined(connector_data));
     }
 

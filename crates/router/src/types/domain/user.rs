@@ -277,7 +277,7 @@ impl MerchantId {
         if is_empty_or_whitespace || !is_all_valid_characters {
             Err(UserErrors::MerchantIdParsingError.into())
         } else {
-            Ok(Self(merchant_id.to_string()))
+            Ok(Self(merchant_id))
         }
     }
 

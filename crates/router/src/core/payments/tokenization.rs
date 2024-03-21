@@ -426,9 +426,7 @@ async fn skip_saving_card_in_locker(
 )> {
     let merchant_id = &merchant_account.merchant_id;
     let customer_id = payment_method_request
-        .clone()
         .customer_id
-        .clone()
         .get_required_value("customer_id")?;
     let payment_method_id = common_utils::generate_id(crate::consts::ID_LENGTH, "pm");
 
@@ -447,7 +445,7 @@ async fn skip_saving_card_in_locker(
             let card_detail = CardDetailFromLocker {
                 scheme: None,
                 issuer_country: card.card_issuing_country.clone(),
-                last4_digits: last4_digits.clone(),
+                last4_digits,
                 card_number: None,
                 expiry_month: Some(card.card_exp_month.clone()),
                 expiry_year: Some(card.card_exp_year),
@@ -455,10 +453,10 @@ async fn skip_saving_card_in_locker(
                 card_holder_name: card.card_holder_name.clone(),
                 card_fingerprint: None,
                 nick_name: None,
-                card_isin: card_isin.clone(),
+                card_isin,
                 card_issuer: card.card_issuer.clone(),
                 card_network: card.card_network.clone(),
-                card_type: card.card_type.clone(),
+                card_type: card.card_type,
                 saved_to_locker: false,
             };
             let pm_resp = api::PaymentMethodResponse {
@@ -671,7 +669,7 @@ fn add_connector_mandate_details_in_payment_method(
             mandate_reference, ..
         } => {
             if let Some(mandate_ref) = mandate_reference {
-                mandate_ref.connector_mandate_id.clone()
+                mandate_ref.connector_mandate_id
             } else {
                 None
             }

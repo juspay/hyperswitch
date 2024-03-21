@@ -294,7 +294,7 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
                 field_name: "billing_address.address",
             },
         )?;
-        let billing_state = billing_address.clone().to_state_code()?;
+        let billing_state = billing_address.to_state_code()?;
         let billing_country = isocountry::CountryCode::for_alpha2(
             &billing_address
                 .country
@@ -336,7 +336,7 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
             ds_start_protocol_version: meta.ds_start_protocol_version.clone(),
             ds_end_protocol_version: meta.ds_end_protocol_version.clone(),
             acs_start_protocol_version: meta.acs_start_protocol_version.clone(),
-            acs_end_protocol_version: meta.acs_end_protocol_version.clone(),
+            acs_end_protocol_version: meta.acs_end_protocol_version,
             three_dsserver_trans_id: pre_authentication_data
                 .threeds_server_transaction_id
                 .clone(),
@@ -354,20 +354,18 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
             acquirer_bin,
             acquirer_merchant_id,
             card_expiry_date: card_details.get_expiry_date_as_yymm()?.expose(),
-            bill_addr_city: billing_address
-                .city
-                .clone()
-                .ok_or(errors::ConnectorError::MissingRequiredField {
+            bill_addr_city: billing_address.city.clone().ok_or(
+                errors::ConnectorError::MissingRequiredField {
                     field_name: "billing_address.address.city",
-                })?
-                .to_string(),
+                },
+            )?,
             bill_addr_country: billing_country.numeric_id().to_string().into(),
             bill_addr_line1: billing_address.line1.clone().ok_or(
                 errors::ConnectorError::MissingRequiredField {
                     field_name: "billing_address.address.line1",
                 },
             )?,
-            bill_addr_post_code: billing_address.zip.clone().ok_or(
+            bill_addr_post_code: billing_address.zip.ok_or(
                 errors::ConnectorError::MissingRequiredField {
                     field_name: "billing_address.address.zip",
                 },
@@ -414,7 +412,7 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
                 .and_then(|details| details.time_zone.map(|a| a.to_string())),
             browser_user_agent: browser_details
                 .as_ref()
-                .and_then(|details| details.user_agent.clone().map(|a| a.to_string())),
+                .and_then(|details| details.user_agent.clone()),
             mcc: connector_meta_data.mcc,
             merchant_country_code: connector_meta_data.merchant_country_code,
             merchant_name: connector_meta_data.merchant_name,

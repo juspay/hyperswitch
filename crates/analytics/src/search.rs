@@ -56,7 +56,7 @@ async fn get_opensearch_client(config: OpensearchConfig) -> Result<OpenSearch, O
             TransportBuilder::new(conn_pool)
                 .auth(
                     sdk_config
-                        .clone()
+                        
                         .try_into()
                         .map_err(|_| OpensearchError::ConnectionError)?,
                 )

@@ -173,7 +173,7 @@ impl PaymentIntentInterface for MockDb {
                 payment.active_attempt = attempt.clone().into();
                 Ok(attempt.clone())
             }
-            data_models::RemoteStorageObject::Object(pa) => Ok(pa.clone()),
+            data_models::RemoteStorageObject::Object(pa) => Ok(pa),
         }
     }
 }

@@ -1444,7 +1444,7 @@ pub async fn verify_token(
         .merchant_id;
 
     Ok(ApplicationResponse::Json(user_api::VerifyTokenResponse {
-        merchant_id: merchant_id.to_string(),
+        merchant_id,
         user_email: user.email,
     }))
 }

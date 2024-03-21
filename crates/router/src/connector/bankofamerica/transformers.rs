@@ -1137,7 +1137,7 @@ impl<F>
                         info_response
                             .client_reference_information
                             .code
-                            .unwrap_or(info_response.id.clone()),
+                            .unwrap_or(info_response.id),
                     ),
                     incremental_authorization_allowed: None,
                 }),
@@ -1158,7 +1158,7 @@ impl<F>
                         reason: Some(error_reason),
                         status_code: item.http_code,
                         attempt_status: None,
-                        connector_transaction_id: Some(error_response.id.clone()),
+                        connector_transaction_id: Some(error_response.id),
                     }),
                     status: enums::AttemptStatus::AuthenticationFailed,
                     ..item.data
@@ -1280,7 +1280,7 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsPreProcessingRouterData>>
         match redirect_response.params {
             Some(param) if !param.clone().peek().is_empty() => {
                 let reference_id = param
-                    .clone()
+                    
                     .peek()
                     .split_once('=')
                     .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
@@ -2102,12 +2102,12 @@ impl
                 .clone()
                 .unwrap_or(consts::NO_ERROR_CODE.to_string()),
             message: error_message
-                .clone()
+                
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-            reason: Some(error_reason.clone()),
+            reason: Some(error_reason),
             status_code,
             attempt_status: Some(enums::AttemptStatus::Failure),
-            connector_transaction_id: Some(transaction_id.clone()),
+            connector_transaction_id: Some(transaction_id),
         }
     }
 }

@@ -2898,7 +2898,7 @@ where
                     &conn.connector.to_string(),
                     api::GetToken::Connector,
                     #[cfg(feature = "connector_choice_mca_id")]
-                    conn.merchant_connector_id.clone(),
+                    conn.merchant_connector_id,
                     #[cfg(not(feature = "connector_choice_mca_id"))]
                     None,
                 )

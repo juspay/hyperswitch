@@ -3797,11 +3797,11 @@ fn get_stripe_sepa_dd_mandate_billing_details(
 ) -> Result<StripeBillingAddress, errors::ConnectorError> {
     let billing_name = billing_details
         .clone()
-        .and_then(|billing_data| billing_data.billing_name.clone());
+        .and_then(|billing_data| billing_data.billing_name);
 
     let billing_email = billing_details
         .clone()
-        .and_then(|billing_data| billing_data.email.clone());
+        .and_then(|billing_data| billing_data.email);
     match is_customer_initiated_mandate_payment {
         Some(true) => Ok(StripeBillingAddress {
             name: Some(
@@ -3932,7 +3932,7 @@ impl TryFrom<(&Option<ErrorDetails>, u16, String)> for types::PaymentsResponseDa
             message: error_message.clone(),
             reason: response.clone().and_then(|res| {
                 res.decline_code
-                    .clone()
+                    
                     .map(|decline_code| {
                         format!(
                             "message - {}, decline_code - {}",

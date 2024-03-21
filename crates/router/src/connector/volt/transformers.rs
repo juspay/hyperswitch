@@ -102,7 +102,7 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
                         email: item.router_data.request.email.clone(),
                         first_name: address.get_first_name()?.to_owned(),
                         last_name: address.get_last_name()?.to_owned(),
-                        reference: item.router_data.get_customer_id()?.to_owned(),
+                        reference: item.router_data.get_customer_id()?,
                     };
                     let transaction_type = TransactionType::Services; //transaction_type is a form of enum, it is pre defined and value for this can not be taken from user so we are keeping it as Services as this transaction is type of service.
 
@@ -389,11 +389,11 @@ impl<F, T>
                                 .map(|volt_status| volt_status.to_string())
                                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_owned()),
                             reason: detailed_status
-                                .clone()
+                                
                                 .map(|volt_status| volt_status.to_string()),
                             status_code: item.http_code,
                             attempt_status: None,
-                            connector_transaction_id: Some(webhook_response.payment.clone()),
+                            connector_transaction_id: Some(webhook_response.payment),
                         })
                     } else {
                         Ok(types::PaymentsResponseData::TransactionResponse {

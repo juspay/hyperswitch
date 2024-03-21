@@ -266,7 +266,7 @@ where
         Ok((
             auth.clone(),
             AuthenticationType::ApiKey {
-                merchant_id: auth.merchant_account.merchant_id.clone(),
+                merchant_id: auth.merchant_account.merchant_id,
                 key_id: stored_api_key.key_id,
             },
         ))
@@ -379,7 +379,7 @@ where
         Ok((
             auth.clone(),
             AuthenticationType::MerchantId {
-                merchant_id: auth.merchant_account.merchant_id.clone(),
+                merchant_id: auth.merchant_account.merchant_id,
             },
         ))
     }
@@ -416,7 +416,7 @@ where
                 (
                     auth.clone(),
                     AuthenticationType::PublishableKey {
-                        merchant_id: auth.merchant_account.merchant_id.clone(),
+                        merchant_id: auth.merchant_account.merchant_id,
                     },
                 )
             })
@@ -583,7 +583,7 @@ where
         Ok((
             auth.clone(),
             AuthenticationType::MerchantJwt {
-                merchant_id: auth.merchant_account.merchant_id.clone(),
+                merchant_id: auth.merchant_account.merchant_id,
                 user_id: None,
             },
         ))
@@ -633,7 +633,7 @@ where
         Ok((
             (auth.clone(), payload.user_id.clone()),
             AuthenticationType::MerchantJwt {
-                merchant_id: auth.merchant_account.merchant_id.clone(),
+                merchant_id: auth.merchant_account.merchant_id,
                 user_id: None,
             },
         ))
@@ -728,7 +728,7 @@ where
         Ok((
             auth.clone(),
             AuthenticationType::MerchantJwt {
-                merchant_id: auth.merchant_account.merchant_id.clone(),
+                merchant_id: auth.merchant_account.merchant_id,
                 user_id: Some(payload.user_id),
             },
         ))

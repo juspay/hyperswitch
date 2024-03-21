@@ -355,7 +355,7 @@ fn validate_order_details(
 pub fn extract_payment_link_config(
     pl_config: serde_json::Value,
 ) -> Result<api_models::admin::PaymentLinkConfig, error_stack::Report<errors::ApiErrorResponse>> {
-    serde_json::from_value::<api_models::admin::PaymentLinkConfig>(pl_config.clone())
+    serde_json::from_value::<api_models::admin::PaymentLinkConfig>(pl_config)
         .into_report()
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "payment_link_config",
@@ -417,7 +417,7 @@ pub fn get_payment_link_config_based_on_priority(
                 .as_ref()
                 .and_then(|business_config| business_config.seller_name.clone())
         })
-        .unwrap_or(merchant_name.clone());
+        .unwrap_or(merchant_name);
 
     let sdk_layout = payment_create_link_config
         .as_ref()

@@ -158,7 +158,7 @@ where
             headers.extend(vec![
                 (
                     auth_headers::PAYPAL_AUTH_ASSERTION.to_string(),
-                    auth_assertion_header.to_string().into_masked(),
+                    auth_assertion_header.into_masked(),
                 ),
                 (
                     auth_headers::PAYPAL_PARTNER_ATTRIBUTION_ID.to_string(),
@@ -181,7 +181,7 @@ fn construct_auth_assertion_header(
 ) -> String {
     let algorithm = consts::BASE64_ENGINE
         .encode("{\"alg\":\"none\"}")
-        .to_string();
+        ;
     let merchant_credentials = format!(
         "{{\"iss\":\"{}\",\"payer_id\":\"{}\"}}",
         client_id.clone().expose(),
@@ -189,7 +189,7 @@ fn construct_auth_assertion_header(
     );
     let encoded_credentials = consts::BASE64_ENGINE
         .encode(merchant_credentials)
-        .to_string();
+        ;
     format!("{algorithm}.{encoded_credentials}.")
 }
 

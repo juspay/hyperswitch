@@ -499,7 +499,7 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let req_obj = signifyd::FrmFullfillmentSignifydRequest::try_from(req)?;
-        Ok(RequestContent::Json(Box::new(req_obj.clone())))
+        Ok(RequestContent::Json(Box::new(req_obj)))
     }
 
     fn build_request(

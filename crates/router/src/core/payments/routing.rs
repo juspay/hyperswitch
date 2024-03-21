@@ -880,7 +880,7 @@ pub async fn perform_session_flow_routing(
 
         business_profile
             .routing_algorithm
-            .clone()
+            
             .map(|val| val.parse_value("MerchantAccountRoutingAlgorithm"))
             .transpose()
             .change_context(errors::RoutingError::InvalidRoutingAlgorithmStructure)?
