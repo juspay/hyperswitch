@@ -1,6 +1,6 @@
 /// Payments - Create
 ///
-/// **Creates a payment object when amount and currency are passed.** This API is also used to create a mandate by passing the `mandate_object`.
+/// **Creates a payment object when amount and currency are passed.
 ///
 /// To completely process a payment you will have to create a payment, attach a payment method, confirm and capture funds.
 ///

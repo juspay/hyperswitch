@@ -2490,7 +2490,7 @@
           "Payments"
         ],
         "summary": "Payments - Create",
-        "description": "Payments - Create\n\n**Creates a payment object when amount and currency are passed.** This API is also used to create a mandate by passing the `mandate_object`.\n\nTo completely process a payment you will have to create a payment, attach a payment method, confirm and capture funds.\n\nDepending on the user journey you wish to achieve, you may opt to complete all the steps in a single request by attaching a payment method, setting `confirm=true` and `capture_method = automatic` in the *Payments/Create API* request or you could use the following sequence of API requests to achieve the same:\n\n1. Payments - Create\n\n2. Payments - Update\n\n3. Payments - Confirm\n\n4. Payments - Capture.\n\nUse the client secret returned in this API along with your publishable key to make subsequent API calls from your client",
+        "description": "Payments - Create\n\n**Creates a payment object when amount and currency are passed.\n\nTo completely process a payment you will have to create a payment, attach a payment method, confirm and capture funds.\n\nDepending on the user journey you wish to achieve, you may opt to complete all the steps in a single request by attaching a payment method, setting `confirm=true` and `capture_method = automatic` in the *Payments/Create API* request or you could use the following sequence of API requests to achieve the same:\n\n1. Payments - Create\n\n2. Payments - Update\n\n3. Payments - Confirm\n\n4. Payments - Capture.\n\nUse the client secret returned in this API along with your publishable key to make subsequent API calls from your client",
         "operationId": "Create a Payment",
         "requestBody": {
           "content": {
@@ -9421,43 +9421,6 @@
           }
         }
       },
-      "MandateAmountData": {
-        "type": "object",
-        "required": [
-          "amount",
-          "currency"
-        ],
-        "properties": {
-          "amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The maximum amount to be debited for the mandate transaction",
-            "example": 6540
-          },
-          "currency": {
-            "$ref": "#/components/schemas/Currency"
-          },
-          "start_date": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Specifying start date of the mandate",
-            "example": "2022-09-10T00:00:00Z",
-            "nullable": true
-          },
-          "end_date": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Specifying end date of the mandate",
-            "example": "2023-09-10T23:59:59Z",
-            "nullable": true
-          },
-          "metadata": {
-            "type": "object",
-            "description": "Additional details required by mandate",
-            "nullable": true
-          }
-        }
-      },
       "MandateCardDetails": {
         "type": "object",
         "properties": {
@@ -9527,32 +9490,6 @@
           "nick_name": {
             "type": "string",
             "description": "The nick_name of the card holder",
-            "nullable": true
-          }
-        }
-      },
-      "MandateData": {
-        "type": "object",
-        "properties": {
-          "update_mandate_id": {
-            "type": "string",
-            "description": "A way to update the mandate's payment method details",
-            "nullable": true
-          },
-          "customer_acceptance": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CustomerAcceptance"
-              }
-            ],
-            "nullable": true
-          },
-          "mandate_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MandateType"
-              }
-            ],
             "nullable": true
           }
         }
@@ -9640,37 +9577,6 @@
           "inactive",
           "pending",
           "revoked"
-        ]
-      },
-      "MandateType": {
-        "oneOf": [
-          {
-            "type": "object",
-            "required": [
-              "single_use"
-            ],
-            "properties": {
-              "single_use": {
-                "$ref": "#/components/schemas/MandateAmountData"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "multi_use"
-            ],
-            "properties": {
-              "multi_use": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/MandateAmountData"
-                  }
-                ],
-                "nullable": true
-              }
-            }
-          }
         ]
       },
       "MaskedBankDetails": {
