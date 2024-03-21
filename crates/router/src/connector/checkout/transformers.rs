@@ -6,6 +6,7 @@ use time::PrimitiveDateTime;
 use url::Url;
 
 use crate::{
+    unimplemented_payment_method_error_message,
     connector::utils::{
         self, to_connector_meta, ApplePayDecrypt, PaymentsCaptureRequestData, RouterData,
         WalletData,
@@ -92,12 +93,12 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
             api::PaymentMethodData::Wallet(wallet_data) => match wallet_data.clone() {
                 api_models::payments::WalletData::GooglePay(_data) => {
                     let json_wallet_data: CheckoutGooglePayData =
-                        wallet_data.get_wallet_token_as_json()?;
+                        wallet_data.get_wallet_token_as_json("Google Pay".to_string())?;
                     Ok(Self::Googlepay(json_wallet_data))
                 }
                 api_models::payments::WalletData::ApplePay(_data) => {
                     let json_wallet_data: CheckoutApplePayData =
-                        wallet_data.get_wallet_token_as_json()?;
+                        wallet_data.get_wallet_token_as_json("Apple Pay".to_string())?;
                     Ok(Self::Applepay(json_wallet_data))
                 }
                 api_models::payments::WalletData::AliPayQr(_)
@@ -308,9 +309,9 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                         token: match item.router_data.get_payment_method_token()? {
                             types::PaymentMethodToken::Token(token) => token.into(),
                             types::PaymentMethodToken::ApplePayDecrypt(_) => {
-                                Err(errors::ConnectorError::InvalidWalletToken {
-                                    wallet_name: "Applepay".to_string(),
-                                })?
+                                Err(errors::ConnectorError::NotImplemented(
+                                    unimplemented_payment_method_error_message!("Apple Pay Decrypt", "Checkout")
+                                ))?
                             }
                         },
                     }))

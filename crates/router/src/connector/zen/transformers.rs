@@ -474,7 +474,7 @@ impl
                 session
                     .apple_pay
                     .ok_or(errors::ConnectorError::InvalidWalletToken {
-                        wallet_name: "Applepay".to_string(),
+                        wallet_name: "Apple Pay".to_string(),
                     })?,
             ),
             api_models::payments::WalletData::GooglePayRedirect(_) => (
@@ -482,7 +482,7 @@ impl
                 session
                     .google_pay
                     .ok_or(errors::ConnectorError::InvalidWalletToken {
-                        wallet_name: "Googlepay".to_string(),
+                        wallet_name: "Google Pay".to_string(),
                     })?,
             ),
             api_models::payments::WalletData::WeChatPayRedirect(_)

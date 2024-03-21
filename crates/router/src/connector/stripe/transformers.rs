@@ -16,6 +16,7 @@ use time::PrimitiveDateTime;
 use url::Url;
 
 use crate::{
+    unimplemented_payment_method_error_message,
     collect_missing_value_keys,
     connector::utils::{
         self as connector_util, ApplePay, ApplePayDecrypt, BankRedirectBillingData,
@@ -1693,7 +1694,7 @@ impl TryFrom<&payments::GooglePayWalletData> for StripePaymentMethodData {
                     .as_bytes()
                     .parse_struct::<StripeGpayToken>("StripeGpayToken")
                     .change_context(errors::ConnectorError::InvalidWalletToken {
-                        wallet_name: "Googlepay".to_string(),
+                        wallet_name: "Google Pay".to_string(),
                     })?
                     .id,
             ),
@@ -1838,15 +1839,15 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                     .to_owned()
                     .get_required_value("payment_token")
                     .change_context(errors::ConnectorError::InvalidWalletToken {
-                        wallet_name: "Applepay".to_string(),
+                        wallet_name: "Apple Pay".to_string(),
                     })?;
 
                 let payment_method_token = match payment_method_token {
                     types::PaymentMethodToken::Token(payment_method_token) => payment_method_token,
                     types::PaymentMethodToken::ApplePayDecrypt(_) => {
-                        Err(errors::ConnectorError::InvalidWalletToken {
-                            wallet_name: "Applepay".to_string(),
-                        })?
+                        Err(errors::ConnectorError::NotImplemented(
+                            unimplemented_payment_method_error_message!("Apple Pay Decrypt", "Stripe")
+                        ))?
                     }
                 };
                 Some(StripePaymentMethodData::Wallet(

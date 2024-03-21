@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{
+    unimplemented_payment_method_error_message,
     connector::utils::{self, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData},
     consts,
     core::errors,
@@ -1335,9 +1336,9 @@ impl
                     payment_method_id: match item.router_data.get_payment_method_token()? {
                         types::PaymentMethodToken::Token(token) => token.into(),
                         types::PaymentMethodToken::ApplePayDecrypt(_) => {
-                            Err(errors::ConnectorError::InvalidWalletToken {
-                                wallet_name: "Applepay".to_string(),
-                            })?
+                            Err(errors::ConnectorError::NotImplemented(
+                                unimplemented_payment_method_error_message!("Apple Pay Decrypt", "Braintree")
+                            ))?
                         }
                     },
                     transaction: TransactionBody {
@@ -1419,9 +1420,9 @@ fn get_braintree_redirect_form(
         card_token: match payment_method_token {
             types::PaymentMethodToken::Token(token) => token,
             types::PaymentMethodToken::ApplePayDecrypt(_) => {
-                Err(errors::ConnectorError::InvalidWalletToken {
-                    wallet_name: "Applepay".to_string(),
-                })?
+                Err(errors::ConnectorError::NotImplemented(
+                    "Applepay decrpty through bankofamerica".to_owned(),
+                ))?
             }
         },
         bin: match card_details {

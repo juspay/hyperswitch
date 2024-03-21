@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
+    unimplemented_payment_method_error_message,
     connector::utils::{
         self, is_payment_failure, is_refund_failure, missing_field_err, AddressDetailsData,
         CardData, PaymentsAuthorizeRequestData, PaymentsCancelRequestData,
@@ -709,9 +710,9 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
                 let buyer_key = match pm_token {
                     types::PaymentMethodToken::Token(token) => token,
                     types::PaymentMethodToken::ApplePayDecrypt(_) => {
-                        Err(errors::ConnectorError::InvalidWalletToken {
-                            wallet_name: "Applepay".to_string(),
-                        })?
+                        Err(errors::ConnectorError::NotImplemented(
+                            unimplemented_payment_method_error_message!("Apple Pay Decrypt", "Payme")
+                        ))?
                     }
                 };
                 Ok(Self {

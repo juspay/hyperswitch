@@ -68,6 +68,14 @@ macro_rules! capture_method_not_supported {
     };
 }
 
+
+#[macro_export]
+macro_rules! unimplemented_payment_method_error_message {
+    ($payment_method:expr, $connector:expr) => {
+        format!("{} through {}", $payment_method, $connector)
+    };
+}
+
 macro_rules! impl_error_type {
     ($name: ident, $arg: tt) => {
         #[derive(Debug)]

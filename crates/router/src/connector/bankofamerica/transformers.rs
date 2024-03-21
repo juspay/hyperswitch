@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{
+    unimplemented_payment_method_error_message,
     connector::utils::{
         self, AddressDetailsData, ApplePayDecrypt, CardData, CardIssuer,
         PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
@@ -708,9 +709,9 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                                 Self::try_from((item, decrypt_data, apple_pay_data))
                             }
                             types::PaymentMethodToken::Token(_) => {
-                                Err(errors::ConnectorError::InvalidWalletToken {
-                                    wallet_name: "".to_string(),
-                                })?
+                                Err(errors::ConnectorError::NotImplemented(
+                                    unimplemented_payment_method_error_message!("Apple Pay Manual", "Bank Of America"),
+                                ))?
                             }
                         },
                         None => {
