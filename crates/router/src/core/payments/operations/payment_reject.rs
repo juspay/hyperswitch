@@ -145,15 +145,15 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             setup_mandate: None,
             customer_acceptance: None,
             token: None,
-            address: PaymentAddress {
-                shipping: shipping_address.as_ref().map(|a| a.into()),
-                billing: billing_address.as_ref().map(|a| a.into()),
-                payment_method_billing: payment_method_billing
-                    .as_ref()
-                    .map(|address| address.into()),
-            },
+            address: PaymentAddress::new(
+                shipping_address.as_ref().map(From::from),
+                billing_address.as_ref().map(From::from),
+                payment_method_billing.as_ref().map(From::from),
+            ),
+            token_data: None,
             confirm: None,
             payment_method_data: None,
+            payment_method_info: None,
             force_sync: None,
             refunds: vec![],
             disputes: vec![],
@@ -172,6 +172,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             payment_link_data: None,
             incremental_authorization_details: None,
             authorizations: vec![],
+            authentication: None,
             frm_metadata: None,
         };
 

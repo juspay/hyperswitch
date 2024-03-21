@@ -2,7 +2,10 @@ use std::collections::HashMap;
 
 #[cfg(feature = "payouts")]
 use api_models::enums::PayoutConnectors;
-use api_models::{enums::Connector, payments};
+use api_models::{
+    enums::{AuthenticationConnectors, Connector},
+    payments,
+};
 use serde::Deserialize;
 #[cfg(any(feature = "sandbox", feature = "development", feature = "production"))]
 use toml;
@@ -75,6 +78,11 @@ pub struct ConfigMetadata {
     pub apple_pay: Option<ApplePayTomlConfig>,
     pub merchant_id: Option<String>,
     pub endpoint_prefix: Option<String>,
+    pub mcc: Option<String>,
+    pub merchant_country_code: Option<String>,
+    pub merchant_name: Option<String>,
+    pub acquirer_bin: Option<String>,
+    pub acquirer_merchant_id: Option<String>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -147,6 +155,7 @@ pub struct ConnectorConfig {
     pub stripe: Option<ConnectorTomlConfig>,
     pub signifyd: Option<ConnectorTomlConfig>,
     pub trustpay: Option<ConnectorTomlConfig>,
+    pub threedsecureio: Option<ConnectorTomlConfig>,
     pub tsys: Option<ConnectorTomlConfig>,
     pub volt: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
@@ -196,6 +205,15 @@ impl ConnectorConfig {
         match connector {
             PayoutConnectors::Adyen => Ok(connector_data.adyen_payout),
             PayoutConnectors::Wise => Ok(connector_data.wise_payout),
+        }
+    }
+
+    pub fn get_authentication_connector_config(
+        connector: AuthenticationConnectors,
+    ) -> Result<Option<ConnectorTomlConfig>, String> {
+        let connector_data = Self::new()?;
+        match connector {
+            AuthenticationConnectors::Threedsecureio => Ok(connector_data.threedsecureio),
         }
     }
 
@@ -250,6 +268,7 @@ impl ConnectorConfig {
             Connector::Stax => Ok(connector_data.stax),
             Connector::Stripe => Ok(connector_data.stripe),
             Connector::Trustpay => Ok(connector_data.trustpay),
+            Connector::Threedsecureio => Ok(connector_data.threedsecureio),
             Connector::Tsys => Ok(connector_data.tsys),
             Connector::Volt => Ok(connector_data.volt),
             Connector::Wise => Err("Use get_payout_connector_config".to_string()),

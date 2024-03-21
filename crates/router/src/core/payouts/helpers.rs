@@ -48,9 +48,10 @@ pub async fn make_payout_method_data<'a>(
     payout_token: Option<&str>,
     customer_id: &str,
     merchant_id: &str,
-    payout_id: &str,
     payout_type: Option<&api_enums::PayoutType>,
     merchant_key_store: &domain::MerchantKeyStore,
+    payout_data: Option<&PayoutData>,
+    storage_scheme: storage::enums::MerchantStorageScheme,
 ) -> RouterResult<Option<api::PayoutMethodData>> {
     let db = &*state.store;
     let certain_payout_type = payout_type.get_required_value("payout_type")?.to_owned();
@@ -103,9 +104,13 @@ pub async fn make_payout_method_data<'a>(
         None
     };
 
-    match (payout_method_data.to_owned(), hyperswitch_token) {
+    match (
+        payout_method_data.to_owned(),
+        hyperswitch_token,
+        payout_data,
+    ) {
         // Get operation
-        (None, Some(payout_token)) => {
+        (None, Some(payout_token), _) => {
             if payout_token.starts_with("temporary_token_")
                 || certain_payout_type == api_enums::PayoutType::Bank
             {
@@ -148,7 +153,7 @@ pub async fn make_payout_method_data<'a>(
         }
 
         // Create / Update operation
-        (Some(payout_method), payout_token) => {
+        (Some(payout_method), payout_token, Some(payout_data)) => {
             let lookup_key = vault::Vault::store_payout_method_data_in_locker(
                 state,
                 payout_token.to_owned(),
@@ -160,14 +165,13 @@ pub async fn make_payout_method_data<'a>(
 
             // Update payout_token in payout_attempt table
             if payout_token.is_none() {
-                let payout_update = storage::PayoutAttemptUpdate::PayoutTokenUpdate {
+                let updated_payout_attempt = storage::PayoutAttemptUpdate::PayoutTokenUpdate {
                     payout_token: lookup_key,
-                    last_modified_at: Some(common_utils::date_time::now()),
                 };
-                db.update_payout_attempt_by_merchant_id_payout_id(
-                    merchant_id,
-                    payout_id,
-                    payout_update,
+                db.update_payout_attempt(
+                    &payout_data.payout_attempt,
+                    updated_payout_attempt,
+                    storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -183,11 +187,12 @@ pub async fn make_payout_method_data<'a>(
 
 pub async fn save_payout_data_to_locker(
     state: &AppState,
-    payout_attempt: &storage::payout_attempt::PayoutAttempt,
+    payout_data: &PayoutData,
     payout_method_data: &api::PayoutMethodData,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<()> {
+    let payout_attempt = &payout_data.payout_attempt;
     let (mut locker_req, card_details, bank_details, wallet_details, payment_method_type) =
         match payout_method_data {
             payouts::PayoutMethodData::Card(card) => {
@@ -517,12 +522,11 @@ pub async fn save_payout_data_to_locker(
     // Store card_reference in payouts table
     let updated_payout = storage::PayoutsUpdate::PayoutMethodIdUpdate {
         payout_method_id: Some(stored_resp.card_reference.to_owned()),
-        last_modified_at: Some(common_utils::date_time::now()),
     };
-    db.update_payout_by_merchant_id_payout_id(
-        &merchant_account.merchant_id,
-        &payout_attempt.payout_id,
+    db.update_payout(
+        &payout_data.payouts,
         updated_payout,
+        merchant_account.storage_scheme,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -739,7 +743,7 @@ pub async fn decide_payout_connector(
         merchant_account,
         &payout_data.business_profile,
         key_store,
-        &TransactionData::<()>::Payout(payout_data),
+        TransactionData::<()>::Payout(payout_data),
         routing_data,
         eligible_connectors,
     )

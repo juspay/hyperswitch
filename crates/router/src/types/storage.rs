@@ -1,5 +1,6 @@
 pub mod address;
 pub mod api_keys;
+pub mod authentication;
 pub mod authorization;
 pub mod blocklist;
 pub mod blocklist_fingerprint;
@@ -43,17 +44,22 @@ pub use data_models::payments::{
     payment_intent::{PaymentIntentNew, PaymentIntentUpdate},
     PaymentIntent,
 };
+#[cfg(feature = "payouts")]
+pub use data_models::payouts::{
+    payout_attempt::{PayoutAttempt, PayoutAttemptNew, PayoutAttemptUpdate},
+    payouts::{Payouts, PayoutsNew, PayoutsUpdate},
+};
 pub use diesel_models::{
     ProcessTracker, ProcessTrackerNew, ProcessTrackerRunner, ProcessTrackerUpdate,
 };
 pub use scheduler::db::process_tracker;
 
 pub use self::{
-    address::*, api_keys::*, authorization::*, blocklist::*, blocklist_fingerprint::*,
-    blocklist_lookup::*, business_profile::*, capture::*, cards_info::*, configs::*, customers::*,
-    dashboard_metadata::*, dispute::*, ephemeral_key::*, events::*, file::*, fraud_check::*,
-    gsm::*, locker_mock_up::*, mandate::*, merchant_account::*, merchant_connector_account::*,
-    merchant_key_store::*, payment_link::*, payment_method::*, payout_attempt::*, payouts::*,
+    address::*, api_keys::*, authentication::*, authorization::*, blocklist::*,
+    blocklist_fingerprint::*, blocklist_lookup::*, business_profile::*, capture::*, cards_info::*,
+    configs::*, customers::*, dashboard_metadata::*, dispute::*, ephemeral_key::*, events::*,
+    file::*, fraud_check::*, gsm::*, locker_mock_up::*, mandate::*, merchant_account::*,
+    merchant_connector_account::*, merchant_key_store::*, payment_link::*, payment_method::*,
     process_tracker::*, refund::*, reverse_lookup::*, role::*, routing_algorithm::*, user::*,
     user_role::*,
 };
