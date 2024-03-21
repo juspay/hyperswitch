@@ -20,7 +20,7 @@ pub async fn customers_create(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth, req| create_customer(state, auth.merchant_account, auth.key_store, req),
+        |state, auth, req, _| create_customer(state, auth.merchant_account, auth.key_store, req),
         auth::auth_type(
             &auth::ApiKeyAuth,
             &auth::JWTAuth(Permission::CustomerWrite),
@@ -57,7 +57,7 @@ pub async fn customers_retrieve(
         state,
         &req,
         payload,
-        |state, auth, req| retrieve_customer(state, auth.merchant_account, auth.key_store, req),
+        |state, auth, req, _| retrieve_customer(state, auth.merchant_account, auth.key_store, req),
         &*auth,
         api_locking::LockAction::NotApplicable,
     )
@@ -73,7 +73,9 @@ pub async fn customers_list(state: web::Data<AppState>, req: HttpRequest) -> Htt
         state,
         &req,
         (),
-        |state, auth, _| list_customers(state, auth.merchant_account.merchant_id, auth.key_store),
+        |state, auth, _, _| {
+            list_customers(state, auth.merchant_account.merchant_id, auth.key_store)
+        },
         auth::auth_type(
             &auth::ApiKeyAuth,
             &auth::JWTAuth(Permission::CustomerRead),
@@ -99,7 +101,7 @@ pub async fn customers_update(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth, req| update_customer(state, auth.merchant_account, req, auth.key_store),
+        |state, auth, req, _| update_customer(state, auth.merchant_account, req, auth.key_store),
         auth::auth_type(
             &auth::ApiKeyAuth,
             &auth::JWTAuth(Permission::CustomerWrite),
@@ -126,7 +128,7 @@ pub async fn customers_delete(
         state,
         &req,
         payload,
-        |state, auth, req| delete_customer(state, auth.merchant_account, req, auth.key_store),
+        |state, auth, req, _| delete_customer(state, auth.merchant_account, req, auth.key_store),
         auth::auth_type(
             &auth::ApiKeyAuth,
             &auth::JWTAuth(Permission::CustomerWrite),
@@ -152,7 +154,7 @@ pub async fn get_customer_mandates(
         state,
         &req,
         customer_id,
-        |state, auth, req| {
+        |state, auth, req, _| {
             crate::core::mandate::get_customer_mandates(
                 state,
                 auth.merchant_account,

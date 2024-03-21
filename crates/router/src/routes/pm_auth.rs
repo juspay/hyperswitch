@@ -24,7 +24,7 @@ pub async fn link_token_create(
         state,
         &req,
         payload,
-        |state, auth, payload| {
+        |state, auth, payload, _| {
             crate::core::pm_auth::create_link_token(
                 state,
                 auth.merchant_account,
@@ -58,7 +58,7 @@ pub async fn exchange_token(
         state,
         &req,
         payload,
-        |state, auth, payload| {
+        |state, auth, payload, _| {
             crate::core::pm_auth::exchange_token_core(
                 state,
                 auth.merchant_account,

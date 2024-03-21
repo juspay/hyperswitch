@@ -41,7 +41,7 @@ pub async fn api_key_create(
         state,
         &req,
         payload,
-        |state, _, payload| async {
+        |state, _, payload, _| async {
             api_keys::create_api_key(state, payload, merchant_id.clone()).await
         },
         auth::auth_type(
@@ -88,7 +88,7 @@ pub async fn api_key_retrieve(
         state,
         &req,
         (&merchant_id, &key_id),
-        |state, _, (merchant_id, key_id)| api_keys::retrieve_api_key(state, merchant_id, key_id),
+        |state, _, (merchant_id, key_id), _| api_keys::retrieve_api_key(state, merchant_id, key_id),
         auth::auth_type(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
@@ -138,7 +138,7 @@ pub async fn api_key_update(
         state,
         &req,
         payload,
-        |state, _, payload| api_keys::update_api_key(state, payload),
+        |state, _, payload, _| api_keys::update_api_key(state, payload),
         auth::auth_type(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
@@ -184,7 +184,7 @@ pub async fn api_key_revoke(
         state,
         &req,
         (&merchant_id, &key_id),
-        |state, _, (merchant_id, key_id)| api_keys::revoke_api_key(state, merchant_id, key_id),
+        |state, _, (merchant_id, key_id), _| api_keys::revoke_api_key(state, merchant_id, key_id),
         auth::auth_type(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
@@ -233,7 +233,7 @@ pub async fn api_key_list(
         state,
         &req,
         (limit, offset, merchant_id.clone()),
-        |state, _, (limit, offset, merchant_id)| async move {
+        |state, _, (limit, offset, merchant_id), _| async move {
             api_keys::list_api_keys(state, merchant_id, limit, offset).await
         },
         auth::auth_type(

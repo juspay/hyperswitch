@@ -7,7 +7,7 @@ pub type SampleDataApiResponse<T> = SampleDataResult<ApplicationResponse<T>>;
 
 use crate::{
     core::errors::sample_data::SampleDataResult,
-    routes::AppState,
+    routes::{app::ReqState, AppState},
     services::{authentication::UserFromToken, ApplicationResponse},
     utils::user::sample_data::generate_sample_data,
 };
@@ -16,6 +16,7 @@ pub async fn generate_sample_data_for_user(
     state: AppState,
     user_from_token: UserFromToken,
     req: SampleDataRequest,
+    _req_state: ReqState,
 ) -> SampleDataApiResponse<()> {
     let sample_data =
         generate_sample_data(&state, req, user_from_token.merchant_id.as_str()).await?;
@@ -59,6 +60,7 @@ pub async fn delete_sample_data_for_user(
     state: AppState,
     user_from_token: UserFromToken,
     _req: SampleDataRequest,
+    _req_state: ReqState,
 ) -> SampleDataApiResponse<()> {
     let merchant_id_del = user_from_token.merchant_id.as_str();
 

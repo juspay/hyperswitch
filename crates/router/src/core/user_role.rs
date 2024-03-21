@@ -7,9 +7,9 @@ use router_env::logger;
 use crate::{
     consts,
     core::errors::{StorageErrorExt, UserErrors, UserResponse},
-    routes::AppState,
+    routes::{app::ReqState, AppState},
     services::{
-        authentication::{self as auth},
+        authentication as auth,
         authorization::{info, roles},
         ApplicationResponse,
     },
@@ -50,6 +50,7 @@ pub async fn update_user_role(
     state: AppState,
     user_from_token: auth::UserFromToken,
     req: user_role_api::UpdateUserRoleRequest,
+    _req_state: ReqState,
 ) -> UserResponse<()> {
     let role_info = roles::RoleInfo::from_role_id(
         &state,
@@ -120,6 +121,7 @@ pub async fn transfer_org_ownership(
     state: AppState,
     user_from_token: auth::UserFromToken,
     req: user_role_api::TransferOrgOwnershipRequest,
+    _req_state: ReqState,
 ) -> UserResponse<user_api::DashboardEntryResponse> {
     if user_from_token.role_id != consts::user_role::ROLE_ID_ORGANIZATION_ADMIN {
         return Err(UserErrors::InvalidRoleOperation.into()).attach_printable(format!(
@@ -171,6 +173,7 @@ pub async fn accept_invitation(
     state: AppState,
     user_token: auth::UserWithoutMerchantFromToken,
     req: user_role_api::AcceptInvitationRequest,
+    _req_state: ReqState,
 ) -> UserResponse<user_api::DashboardEntryResponse> {
     let user_role = futures::future::join_all(req.merchant_ids.iter().map(|merchant_id| async {
         state
@@ -223,6 +226,7 @@ pub async fn delete_user_role(
     state: AppState,
     user_from_token: auth::UserFromToken,
     request: user_role_api::DeleteUserRoleRequest,
+    _req_state: ReqState,
 ) -> UserResponse<()> {
     let user_from_db: domain::UserFromStorage = state
         .store

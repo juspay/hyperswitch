@@ -10,7 +10,7 @@ use router_env::logger;
 
 use crate::{
     core::errors::{UserErrors, UserResponse, UserResult},
-    routes::AppState,
+    routes::{app::ReqState, AppState},
     services::{authentication::UserFromToken, ApplicationResponse},
     types::domain::{user::dashboard_metadata as types, MerchantKeyStore},
     utils::user::dashboard_metadata as utils,
@@ -22,6 +22,7 @@ pub async fn set_metadata(
     state: AppState,
     user: UserFromToken,
     request: api::SetMetaDataRequest,
+    _req_state: ReqState,
 ) -> UserResponse<()> {
     let metadata_value = parse_set_request(request)?;
     let metadata_key = DBEnum::from(&metadata_value);
@@ -35,6 +36,7 @@ pub async fn get_multiple_metadata(
     state: AppState,
     user: UserFromToken,
     request: GetMultipleMetaDataPayload,
+    _req_state: ReqState,
 ) -> UserResponse<Vec<api::GetMetaDataResponse>> {
     let metadata_keys: Vec<DBEnum> = request.results.into_iter().map(parse_get_request).collect();
 

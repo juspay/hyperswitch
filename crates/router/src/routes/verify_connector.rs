@@ -20,7 +20,7 @@ pub async fn payment_connector_verify(
         state,
         &req,
         json_payload.into_inner(),
-        |state, _: (), req| verify_connector::verify_connector_credentials(state, req),
+        |state, _: (), req, _| verify_connector::verify_connector_credentials(state, req),
         &auth::JWTAuth(Permission::MerchantConnectorAccountWrite),
         api_locking::LockAction::NotApplicable,
     ))
