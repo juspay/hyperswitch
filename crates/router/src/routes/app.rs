@@ -412,10 +412,18 @@ impl Routing {
         #[allow(unused_mut)]
         let mut route = web::scope("/routing")
             .app_data(web::Data::new(state.clone()))
-            .service(
-                web::resource("/active")
-                    .route(web::get().to(cloud_routing::routing_retrieve_linked_config)),
-            )
+            .service(web::resource("/active").route(web::get().to(
+                |state, req, #[cfg(feature = "business_profile_routing")] query_params| {
+                    cloud_routing::routing_retrieve_linked_config(
+                        state,
+                        req,
+                        #[cfg(feature = "business_profile_routing")]
+                        query_params,
+                        #[cfg(feature = "business_profile_routing")]
+                        &TransactionType::Payment,
+                    )
+                },
+            )))
             .service(
                 web::resource("")
                     .route(
@@ -535,6 +543,18 @@ impl Routing {
                             )
                         })),
                 )
+                .service(web::resource("/payouts/active").route(web::get().to(
+                    |state, req, #[cfg(feature = "business_profile_routing")] query_params| {
+                        cloud_routing::routing_retrieve_linked_config(
+                            state,
+                            req,
+                            #[cfg(feature = "business_profile_routing")]
+                            query_params,
+                            #[cfg(feature = "business_profile_routing")]
+                            &TransactionType::Payout,
+                        )
+                    },
+                )))
                 .service(
                     web::resource("/payouts/default")
                         .route(web::get().to(|state, req| {
@@ -700,16 +720,30 @@ pub struct Payouts;
 #[cfg(feature = "payouts")]
 impl Payouts {
     pub fn server(state: AppState) -> Scope {
-        let route = web::scope("/payouts").app_data(web::Data::new(state));
-        route
-            .service(web::resource("/create").route(web::post().to(payouts_create)))
-            .service(web::resource("/{payout_id}/cancel").route(web::post().to(payouts_cancel)))
-            .service(web::resource("/{payout_id}/fulfill").route(web::post().to(payouts_fulfill)))
+        let mut route = web::scope("/payouts").app_data(web::Data::new(state));
+        route = route.service(web::resource("/create").route(web::post().to(payouts_create)));
+
+        #[cfg(feature = "olap")]
+        {
+            route = route
+                .service(
+                    web::resource("/list")
+                        .route(web::get().to(payouts_list))
+                        .route(web::post().to(payouts_list_by_filter)),
+                )
+                .service(
+                    web::resource("/filter").route(web::post().to(payouts_list_available_filters)),
+                );
+        }
+        route = route
             .service(
                 web::resource("/{payout_id}")
                     .route(web::get().to(payouts_retrieve))
                     .route(web::put().to(payouts_update)),
             )
+            .service(web::resource("/{payout_id}/cancel").route(web::post().to(payouts_cancel)))
+            .service(web::resource("/{payout_id}/fulfill").route(web::post().to(payouts_fulfill)));
+        route
     }
 }
 

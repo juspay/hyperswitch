@@ -5,6 +5,8 @@ use actix_web::{
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
+#[cfg(feature = "olap")]
+use crate::types::api::payments as payment_types;
 use crate::{
     core::{api_locking, payouts::*},
     services::{api, authentication as auth},
@@ -199,6 +201,108 @@ pub async fn payouts_fulfill(
         |state, auth, req, _| {
             payouts_fulfill_core(state, auth.merchant_account, auth.key_store, req)
         },
+        &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+/// Payouts - List
+#[cfg(feature = "olap")]
+#[utoipa::path(
+    get,
+    path = "/payouts/list",
+    responses(
+        (status = 200, description = "Payouts listed", body = PayoutListResponse),
+        (status = 404, description = "Payout not found")
+    ),
+    tag = "Payouts",
+    operation_id = "List payouts",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::PayoutsList))]
+pub async fn payouts_list(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Query<payout_types::PayoutListConstraints>,
+) -> HttpResponse {
+    let flow = Flow::PayoutsList;
+    let payload = json_payload.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, req| payouts_list_core(state, auth.merchant_account, req),
+        &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+/// Payouts - Filtered list
+#[cfg(feature = "olap")]
+#[utoipa::path(
+    post,
+    path = "/payouts/list",
+    responses(
+        (status = 200, description = "Payouts filtered", body = PayoutListResponse),
+        (status = 404, description = "Payout not found")
+    ),
+    tag = "Payouts",
+    operation_id = "Filter payouts",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::PayoutsList))]
+pub async fn payouts_list_by_filter(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<payout_types::PayoutListFilterConstraints>,
+) -> HttpResponse {
+    let flow = Flow::PayoutsList;
+    let payload = json_payload.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, req| payouts_filtered_list_core(state, auth.merchant_account, req),
+        &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+/// Payouts - Available filters
+#[cfg(feature = "olap")]
+#[utoipa::path(
+    post,
+    path = "/payouts/filter",
+    responses(
+        (status = 200, description = "Payouts filtered", body = PayoutListFilters),
+        (status = 404, description = "Payout not found")
+    ),
+    tag = "Payouts",
+    operation_id = "Filter payouts",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::PayoutsFilter))]
+pub async fn payouts_list_available_filters(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<payment_types::TimeRange>,
+) -> HttpResponse {
+    let flow = Flow::PayoutsFilter;
+    let payload = json_payload.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, req| payouts_list_available_filters_core(state, auth.merchant_account, req),
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))

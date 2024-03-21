@@ -1403,6 +1403,20 @@ impl PayoutAttemptInterface for KafkaStore {
             .insert_payout_attempt(payout_attempt, storage_scheme)
             .await
     }
+
+    async fn get_filters_for_payouts(
+        &self,
+        payouts: &[data_models::payouts::payouts::Payouts],
+        merchant_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<
+        data_models::payouts::payout_attempt::PayoutListFilters,
+        errors::DataStorageError,
+    > {
+        self.diesel_store
+            .get_filters_for_payouts(payouts, merchant_id, storage_scheme)
+            .await
+    }
 }
 
 #[cfg(not(feature = "payouts"))]
@@ -1451,6 +1465,43 @@ impl PayoutsInterface for KafkaStore {
     ) -> CustomResult<Option<storage::Payouts>, errors::DataStorageError> {
         self.diesel_store
             .find_optional_payout_by_merchant_id_payout_id(merchant_id, payout_id, storage_scheme)
+            .await
+    }
+
+    #[cfg(feature = "olap")]
+    async fn filter_payouts_by_constraints(
+        &self,
+        merchant_id: &str,
+        filters: &data_models::payouts::PayoutFetchConstraints,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<storage::Payouts>, errors::DataStorageError> {
+        self.diesel_store
+            .filter_payouts_by_constraints(merchant_id, filters, storage_scheme)
+            .await
+    }
+
+    #[cfg(feature = "olap")]
+    async fn filter_payouts_and_attempts(
+        &self,
+        merchant_id: &str,
+        filters: &data_models::payouts::PayoutFetchConstraints,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<(storage::Payouts, storage::PayoutAttempt)>, errors::DataStorageError>
+    {
+        self.diesel_store
+            .filter_payouts_and_attempts(merchant_id, filters, storage_scheme)
+            .await
+    }
+
+    #[cfg(feature = "olap")]
+    async fn filter_payouts_by_time_range_constraints(
+        &self,
+        merchant_id: &str,
+        time_range: &api_models::payments::TimeRange,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<storage::Payouts>, errors::DataStorageError> {
+        self.diesel_store
+            .filter_payouts_by_time_range_constraints(merchant_id, time_range, storage_scheme)
             .await
     }
 }
