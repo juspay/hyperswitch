@@ -31,6 +31,8 @@ pub enum Permission {
     UsersRead,
     UsersWrite,
     MerchantAccountCreate,
+    PayoutWrite,
+    PayoutRead,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -47,6 +49,7 @@ pub enum PermissionModule {
     ThreeDsDecisionManager,
     SurchargeDecisionManager,
     AccountCreate,
+    Payouts,
 }
 
 #[derive(Debug, serde::Serialize)]

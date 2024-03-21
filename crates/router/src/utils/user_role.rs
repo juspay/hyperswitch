@@ -43,6 +43,8 @@ impl From<Permission> for user_role_api::Permission {
             Permission::UsersRead => Self::UsersRead,
             Permission::UsersWrite => Self::UsersWrite,
             Permission::MerchantAccountCreate => Self::MerchantAccountCreate,
+            Permission::PayoutRead => Self::PayoutRead,
+            Permission::PayoutWrite => Self::PayoutWrite,
         }
     }
 }

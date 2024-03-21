@@ -30,6 +30,8 @@ pub enum Permission {
     UsersRead,
     UsersWrite,
     MerchantAccountCreate,
+    PayoutRead,
+    PayoutWrite
 }
 
 impl Permission {
@@ -67,6 +69,8 @@ impl Permission {
             Self::UsersRead => "View all the users for a merchant",
             Self::UsersWrite => "Invite users, assign and update roles",
             Self::MerchantAccountCreate => "Create merchant account",
+            Self::PayoutRead => "View all payouts",
+            Self::PayoutWrite => "Create payout, download payout data",
         }
     }
 }
