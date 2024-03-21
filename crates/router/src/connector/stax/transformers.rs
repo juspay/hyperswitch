@@ -107,7 +107,10 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
                         types::PaymentMethodToken::Token(token) => token,
                         types::PaymentMethodToken::ApplePayDecrypt(_) => {
                             Err(errors::ConnectorError::NotImplemented(
-                                "Applepay decrpty through bankofamerica".to_owned(),
+                                unimplemented_payment_method_error_message!(
+                                    "Apple Pay Decrypt",
+                                    "Stax"
+                                ),
                             ))?
                         }
                     }),

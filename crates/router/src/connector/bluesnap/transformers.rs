@@ -317,7 +317,7 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
                         .as_bytes()
                         .parse_struct("ApplePayEncodedPaymentData")
                         .change_context(errors::ConnectorError::InvalidWalletToken {
-                            wallet_name: "Applepay".to_string(),
+                            wallet_name: "Apple Pay".to_string(),
                         })?;
 
                     let billing = item.router_data.get_billing()?.to_owned();
