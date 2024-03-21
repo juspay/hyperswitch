@@ -1100,7 +1100,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
                             try {{
                                 // if inside iframe, send post message to parent for redirection
                                 if (window.self !== window.parent) {{
-                                    window.parent.postMessage({{openurl: return_url}}, '*')
+                                    window.top.postMessage({{openurl: return_url}}, '*')
                                 // if parent, redirect self to return_url
                                 }} else {{
                                     window.location.href = return_url
