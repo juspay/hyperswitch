@@ -19,8 +19,6 @@ use tokio::sync::oneshot;
 
 #[cfg(feature = "olap")]
 use super::blocklist;
-#[cfg(any(feature = "olap", feature = "oltp"))]
-use super::currency;
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
 #[cfg(feature = "payouts")]
@@ -36,9 +34,11 @@ use super::{
     admin::*, api_keys::*, connector_onboarding::*, disputes::*, files::*, gsm::*, payment_link::*,
     user::*, user_role::*,
 };
-use super::{cache::*, health::*, payment_methods::*};
+use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
+#[cfg(any(feature = "olap", feature = "oltp"))]
+use super::{currency, payment_methods::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, webhooks::*};
 use crate::configs::secrets_transformers;
