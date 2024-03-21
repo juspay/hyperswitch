@@ -9,8 +9,7 @@ use super::app::AppState;
 use crate::types::api::payments as payment_types;
 use crate::{
     core::{api_locking, payouts::*},
-    services::authorization::permissions::Permission,
-    services::{api, authentication as auth},
+    services::{api, authentication as auth, authorization::permissions::Permission},
     types::api::payouts as payout_types,
 };
 
@@ -78,7 +77,7 @@ pub async fn payouts_retrieve(
         &req,
         payout_retrieve_request,
         |state, auth, req| payouts_retrieve_core(state, auth.merchant_account, auth.key_store, req),
-         auth::auth_type(
+        auth::auth_type(
             &auth::ApiKeyAuth,
             &auth::JWTAuth(Permission::PayoutRead),
             req.headers(),
@@ -268,7 +267,7 @@ pub async fn payouts_list_by_filter(
         &req,
         payload,
         |state, auth, req| payouts_filtered_list_core(state, auth.merchant_account, req),
-         auth::auth_type(
+        auth::auth_type(
             &auth::ApiKeyAuth,
             &auth::JWTAuth(Permission::PayoutRead),
             req.headers(),

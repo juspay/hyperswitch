@@ -31,7 +31,7 @@ pub enum Permission {
     UsersWrite,
     MerchantAccountCreate,
     PayoutRead,
-    PayoutWrite
+    PayoutWrite,
 }
 
 impl Permission {
