@@ -738,24 +738,39 @@ impl Payouts {
 
 pub struct PaymentMethods;
 
-#[cfg(feature = "oltp")]
+#[cfg(any(feature = "olap", feature = "oltp"))]
 impl PaymentMethods {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/payment_methods")
-            .app_data(web::Data::new(state))
-            .service(
-                web::resource("")
-                    .route(web::post().to(create_payment_method_api))
-                    .route(web::get().to(list_payment_method_api)), // TODO : added for sdk compatibility for now, need to deprecate this later
-            )
-            .service(
-                web::resource("/{payment_method_id}")
-                    .route(web::get().to(payment_method_retrieve_api))
-                    .route(web::post().to(payment_method_update_api))
-                    .route(web::delete().to(payment_method_delete_api)),
-            )
-            .service(web::resource("/auth/link").route(web::post().to(pm_auth::link_token_create)))
-            .service(web::resource("/auth/exchange").route(web::post().to(pm_auth::exchange_token)))
+        let mut route = web::scope("/payment_methods").app_data(web::Data::new(state));
+        #[cfg(feature = "olap")]
+        {
+            route = route.service(
+                web::resource("/filter")
+                    .route(web::get().to(list_countries_currencies_for_connector_payment_method)),
+            );
+        }
+        #[cfg(feature = "oltp")]
+        {
+            route = route
+                .service(
+                    web::resource("")
+                        .route(web::post().to(create_payment_method_api))
+                        .route(web::get().to(list_payment_method_api)), // TODO : added for sdk compatibility for now, need to deprecate this later
+                )
+                .service(
+                    web::resource("/{payment_method_id}")
+                        .route(web::get().to(payment_method_retrieve_api))
+                        .route(web::post().to(payment_method_update_api))
+                        .route(web::delete().to(payment_method_delete_api)),
+                )
+                .service(
+                    web::resource("/auth/link").route(web::post().to(pm_auth::link_token_create)),
+                )
+                .service(
+                    web::resource("/auth/exchange").route(web::post().to(pm_auth::exchange_token)),
+                )
+        }
+        route
     }
 }
 
@@ -934,11 +949,7 @@ impl Configs {
     pub fn server(config: AppState) -> Scope {
         web::scope("/configs")
             .app_data(web::Data::new(config))
-            .service(
-                web::resource("/")
-                    .route(web::post().to(config_key_create))
-                    .route(web::get().to(list_countries_currencies_for_connector_payment_method)),
-            )
+            .service(web::resource("/").route(web::post().to(config_key_create)))
             .service(
                 web::resource("/{key}")
                     .route(web::get().to(config_key_retrieve))
