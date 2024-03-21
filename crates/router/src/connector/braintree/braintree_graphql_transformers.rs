@@ -1424,10 +1424,7 @@ fn get_braintree_redirect_form(
             types::PaymentMethodToken::Token(token) => token,
             types::PaymentMethodToken::ApplePayDecrypt(_) => {
                 Err(errors::ConnectorError::NotImplemented(
-                    unimplemented_payment_method_error_message!(
-                        "Apple Pay Decrypt",
-                        "Braintree"
-                    ),
+                    unimplemented_payment_method_error_message!("Apple Pay Decrypt", "Braintree"),
                 ))?
             }
         },

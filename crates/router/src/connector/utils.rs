@@ -956,7 +956,7 @@ impl ApplePay for payments::ApplePayWalletData {
                     .decode(&self.payment_data)
                     .into_report()
                     .change_context(errors::ConnectorError::InvalidWalletToken {
-                        wallet_name:  "Apple Pay".to_string(),
+                        wallet_name: "Apple Pay".to_string(),
                     })?,
             )
             .into_report()
