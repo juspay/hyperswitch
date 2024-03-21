@@ -53,6 +53,9 @@ pub enum ApiEventsType {
     Dispute {
         dispute_id: String,
     },
+    Events {
+        merchant_id: String,
+    },
 }
 
 impl ApiEventMetric for serde_json::Value {}
