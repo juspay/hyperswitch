@@ -8,7 +8,7 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["payouts", "frm"]
+default = []
 business_profile_routing = []
 connector_choice_bcompat = []
 errors = ["dep:actix-web", "dep:reqwest"]
