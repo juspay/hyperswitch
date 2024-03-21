@@ -4,12 +4,12 @@ use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    unimplemented_payment_method_error_message,
     connector::utils::{
         self, missing_field_err, CardData, PaymentsAuthorizeRequestData, RouterData,
     },
     core::errors,
     types::{self, api, storage::enums},
+    unimplemented_payment_method_error_message,
 };
 
 #[derive(Debug, Serialize)]
@@ -83,7 +83,10 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
                         types::PaymentMethodToken::Token(token) => token,
                         types::PaymentMethodToken::ApplePayDecrypt(_) => {
                             Err(errors::ConnectorError::NotImplemented(
-                                unimplemented_payment_method_error_message!("Apple Pay Decrypt", "Stax")
+                                unimplemented_payment_method_error_message!(
+                                    "Apple Pay Decrypt",
+                                    "Stax"
+                                ),
                             ))?
                         }
                     }),

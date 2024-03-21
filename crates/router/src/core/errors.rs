@@ -68,7 +68,6 @@ macro_rules! capture_method_not_supported {
     };
 }
 
-
 #[macro_export]
 macro_rules! unimplemented_payment_method_error_message {
     ($payment_method:expr, $connector:expr) => {

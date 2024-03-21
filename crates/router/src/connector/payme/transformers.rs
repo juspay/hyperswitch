@@ -11,7 +11,6 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-    unimplemented_payment_method_error_message,
     connector::utils::{
         self, is_payment_failure, is_refund_failure, missing_field_err, AddressDetailsData,
         CardData, PaymentsAuthorizeRequestData, PaymentsCancelRequestData,
@@ -22,6 +21,7 @@ use crate::{
     core::errors,
     services,
     types::{self, api, storage::enums, MandateReference},
+    unimplemented_payment_method_error_message,
 };
 
 const LANGUAGE: &str = "en";
@@ -711,7 +711,10 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
                     types::PaymentMethodToken::Token(token) => token,
                     types::PaymentMethodToken::ApplePayDecrypt(_) => {
                         Err(errors::ConnectorError::NotImplemented(
-                            unimplemented_payment_method_error_message!("Apple Pay Decrypt", "Payme")
+                            unimplemented_payment_method_error_message!(
+                                "Apple Pay Decrypt",
+                                "Payme"
+                            ),
                         ))?
                     }
                 };

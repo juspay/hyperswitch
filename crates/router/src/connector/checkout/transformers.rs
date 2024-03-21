@@ -6,7 +6,6 @@ use time::PrimitiveDateTime;
 use url::Url;
 
 use crate::{
-    unimplemented_payment_method_error_message,
     connector::utils::{
         self, to_connector_meta, ApplePayDecrypt, PaymentsCaptureRequestData, RouterData,
         WalletData,
@@ -15,6 +14,7 @@ use crate::{
     core::errors,
     services,
     types::{self, api, storage::enums, transformers::ForeignFrom},
+    unimplemented_payment_method_error_message,
 };
 
 #[derive(Debug, Serialize)]
@@ -310,7 +310,10 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                             types::PaymentMethodToken::Token(token) => token.into(),
                             types::PaymentMethodToken::ApplePayDecrypt(_) => {
                                 Err(errors::ConnectorError::NotImplemented(
-                                    unimplemented_payment_method_error_message!("Apple Pay Decrypt", "Checkout")
+                                    unimplemented_payment_method_error_message!(
+                                        "Apple Pay Decrypt",
+                                        "Checkout"
+                                    ),
                                 ))?
                             }
                         },

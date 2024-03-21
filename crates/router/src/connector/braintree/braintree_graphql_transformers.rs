@@ -5,12 +5,12 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{
-    unimplemented_payment_method_error_message,
     connector::utils::{self, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData},
     consts,
     core::errors,
     services,
     types::{self, api, storage::enums},
+    unimplemented_payment_method_error_message,
 };
 
 pub const CLIENT_TOKEN_MUTATION: &str = "mutation createClientToken($input: CreateClientTokenInput!) { createClientToken(input: $input) { clientToken}}";
@@ -1337,7 +1337,10 @@ impl
                         types::PaymentMethodToken::Token(token) => token.into(),
                         types::PaymentMethodToken::ApplePayDecrypt(_) => {
                             Err(errors::ConnectorError::NotImplemented(
-                                unimplemented_payment_method_error_message!("Apple Pay Decrypt", "Braintree")
+                                unimplemented_payment_method_error_message!(
+                                    "Apple Pay Decrypt",
+                                    "Braintree"
+                                ),
                             ))?
                         }
                     },

@@ -3592,8 +3592,10 @@ impl ApplePayData {
     pub fn token_json(
         wallet_data: api_models::payments::WalletData,
     ) -> CustomResult<Self, errors::ConnectorError> {
-        let json_wallet_data: Self =
-            connector::utils::WalletData::get_wallet_token_as_json(&wallet_data, "Apple Pay".to_string())?;
+        let json_wallet_data: Self = connector::utils::WalletData::get_wallet_token_as_json(
+            &wallet_data,
+            "Apple Pay".to_string(),
+        )?;
         Ok(json_wallet_data)
     }
 

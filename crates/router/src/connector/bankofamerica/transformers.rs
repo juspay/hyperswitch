@@ -7,7 +7,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{
-    unimplemented_payment_method_error_message,
     connector::utils::{
         self, AddressDetailsData, ApplePayDecrypt, CardData, CardIssuer,
         PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
@@ -23,6 +22,7 @@ use crate::{
         transformers::ForeignFrom,
         ApplePayPredecryptData,
     },
+    unimplemented_payment_method_error_message,
 };
 
 pub struct BankOfAmericaAuthType {
@@ -710,7 +710,10 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                             }
                             types::PaymentMethodToken::Token(_) => {
                                 Err(errors::ConnectorError::NotImplemented(
-                                    unimplemented_payment_method_error_message!("Apple Pay Manual", "Bank Of America"),
+                                    unimplemented_payment_method_error_message!(
+                                        "Apple Pay Manual",
+                                        "Bank Of America"
+                                    ),
                                 ))?
                             }
                         },

@@ -4,13 +4,13 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    unimplemented_payment_method_error_message,
     connector::utils::{self, CardData, PaymentsAuthorizeRequestData, RouterData},
     core::errors,
     types::{
         self, api,
         storage::{self, enums},
     },
+    unimplemented_payment_method_error_message,
 };
 
 impl TryFrom<(&types::TokenizationRouterData, BankDebitData)> for SquareTokenRequest {
@@ -260,7 +260,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
                         types::PaymentMethodToken::Token(token) => token,
                         types::PaymentMethodToken::ApplePayDecrypt(_) => {
                             Err(errors::ConnectorError::NotImplemented(
-                                unimplemented_payment_method_error_message!("Apple Pay Decrypt", "Square")
+                                unimplemented_payment_method_error_message!(
+                                    "Apple Pay Decrypt",
+                                    "Square"
+                                ),
                             ))?
                         }
                     }),

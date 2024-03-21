@@ -16,7 +16,6 @@ use time::PrimitiveDateTime;
 use url::Url;
 
 use crate::{
-    unimplemented_payment_method_error_message,
     collect_missing_value_keys,
     connector::utils::{
         self as connector_util, ApplePay, ApplePayDecrypt, BankRedirectBillingData,
@@ -30,6 +29,7 @@ use crate::{
         storage::enums,
         transformers::{ForeignFrom, ForeignTryFrom},
     },
+    unimplemented_payment_method_error_message,
     utils::OptionExt,
 };
 
@@ -1846,7 +1846,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                     types::PaymentMethodToken::Token(payment_method_token) => payment_method_token,
                     types::PaymentMethodToken::ApplePayDecrypt(_) => {
                         Err(errors::ConnectorError::NotImplemented(
-                            unimplemented_payment_method_error_message!("Apple Pay Decrypt", "Stripe")
+                            unimplemented_payment_method_error_message!(
+                                "Apple Pay Decrypt",
+                                "Stripe"
+                            ),
                         ))?
                     }
                 };
