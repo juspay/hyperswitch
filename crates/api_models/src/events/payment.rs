@@ -2,8 +2,8 @@ use common_utils::events::{ApiEventMetric, ApiEventsType};
 
 use crate::{
     payment_methods::{
-        ListCountriesCurrenciesResponse, CustomerDefaultPaymentMethodResponse,
-        CustomerPaymentMethodsListResponse, DefaultPaymentMethod, ListCountriesCurrenciesRequest,
+        CustomerDefaultPaymentMethodResponse, CustomerPaymentMethodsListResponse,
+        DefaultPaymentMethod, ListCountriesCurrenciesRequest, ListCountriesCurrenciesResponse,
         PaymentMethodDeleteResponse, PaymentMethodListRequest, PaymentMethodListResponse,
         PaymentMethodResponse, PaymentMethodUpdate,
     },
