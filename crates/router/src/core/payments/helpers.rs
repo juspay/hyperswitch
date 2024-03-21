@@ -542,7 +542,7 @@ pub async fn get_token_for_recurring_mandate(
         merchant_connector_id: mandate.merchant_connector_id,
     };
 
-    if let diesel_models::enums::PaymentMethod::Card = payment_method.payment_method {
+    if let Some(diesel_models::enums::PaymentMethod::Card) = payment_method.payment_method {
         if state.conf.locker.locker_enabled {
             let _ = cards::get_lookup_key_from_locker(
                 state,
@@ -555,19 +555,21 @@ pub async fn get_token_for_recurring_mandate(
 
         if let Some(payment_method_from_request) = req.payment_method {
             let pm: storage_enums::PaymentMethod = payment_method_from_request;
-            if pm != payment_method.payment_method {
-                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                    message:
-                        "payment method in request does not match previously provided payment \
-                        method information"
-                            .into()
-                }))?
+            if let Some(p_method) = payment_method.payment_method {
+                if pm != p_method {
+                    Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                        message:
+                            "payment method in request does not match previously provided payment \
+                            method information"
+                                .into()
+                    }))?
+                }
             }
         };
 
         Ok((
             Some(token),
-            Some(payment_method.payment_method),
+            payment_method.payment_method,
             Some(payments::RecurringMandatePaymentData {
                 payment_method_type,
                 original_payment_authorized_amount,
@@ -579,7 +581,7 @@ pub async fn get_token_for_recurring_mandate(
     } else {
         Ok((
             None,
-            Some(payment_method.payment_method),
+            payment_method.payment_method,
             Some(payments::RecurringMandatePaymentData {
                 payment_method_type,
                 original_payment_authorized_amount,
