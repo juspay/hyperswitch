@@ -1,6 +1,7 @@
 use common_utils::pii::Email;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 // We need to derive Serialize and Deserialize because some parts of payment method data are being
 // stored in the database as serde_json::Value
@@ -9,7 +10,7 @@ pub enum PaymentMethodData {
     Card(Card),
     CardRedirect(CardRedirectData),
     Wallet(api_models::payments::WalletData),
-    PayLater(api_models::payments::PayLaterData),
+    PayLater(PayLaterData),
     BankRedirect(api_models::payments::BankRedirectData),
     BankDebit(api_models::payments::BankDebitData),
     BankTransfer(Box<api_models::payments::BankTransferData>),
@@ -65,7 +66,7 @@ pub enum CardRedirectData {
     CardRedirect {},
 }
 
-#[derive(Eq, PartialEq, Clone, Debug)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub enum PayLaterData {
     KlarnaRedirect {
         billing_email: Email,
@@ -331,7 +332,7 @@ impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
                 Self::Wallet(wallet_data)
             }
             api_models::payments::PaymentMethodData::PayLater(pay_later_data) => {
-                Self::PayLater(pay_later_data)
+                Self::PayLater(From::from(pay_later_data))
             }
             api_models::payments::PaymentMethodData::BankRedirect(bank_redirect_data) => {
                 Self::BankRedirect(bank_redirect_data)
@@ -400,6 +401,33 @@ impl From<api_models::payments::CardRedirectData> for CardRedirectData {
             api_models::payments::CardRedirectData::Benefit {} => Self::Benefit {},
             api_models::payments::CardRedirectData::MomoAtm {} => Self::MomoAtm {},
             api_models::payments::CardRedirectData::CardRedirect {} => Self::CardRedirect {},
+        }
+    }
+}
+
+impl From<api_models::payments::PayLaterData> for PayLaterData {
+    fn from(value: api_models::payments::PayLaterData) -> Self {
+        match value {
+            api_models::payments::PayLaterData::KlarnaRedirect {
+                billing_email,
+                billing_country,
+            } => Self::KlarnaRedirect {
+                billing_email,
+                billing_country,
+            },
+            api_models::payments::PayLaterData::KlarnaSdk { token } => Self::KlarnaSdk { token },
+            api_models::payments::PayLaterData::AffirmRedirect {} => Self::AtomeRedirect {},
+            api_models::payments::PayLaterData::AfterpayClearpayRedirect {
+                billing_email,
+                billing_name,
+            } => Self::AfterpayClearpayRedirect {
+                billing_email,
+                billing_name,
+            },
+            api_models::payments::PayLaterData::PayBrightRedirect {} => Self::PayBrightRedirect {},
+            api_models::payments::PayLaterData::WalleyRedirect {} => Self::WalleyRedirect {},
+            api_models::payments::PayLaterData::AlmaRedirect {} => Self::AlmaRedirect {},
+            api_models::payments::PayLaterData::AtomeRedirect {} => Self::AtomeRedirect {},
         }
     }
 }

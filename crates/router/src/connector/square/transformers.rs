@@ -1,4 +1,4 @@
-use api_models::payments::{BankDebitData, PayLaterData, WalletData};
+use api_models::payments::{BankDebitData, WalletData};
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -72,23 +72,25 @@ impl TryFrom<(&types::TokenizationRouterData, domain::Card)> for SquareTokenRequ
     }
 }
 
-impl TryFrom<(&types::TokenizationRouterData, PayLaterData)> for SquareTokenRequest {
+impl TryFrom<(&types::TokenizationRouterData, domain::PayLaterData)> for SquareTokenRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        value: (&types::TokenizationRouterData, PayLaterData),
+        value: (&types::TokenizationRouterData, domain::PayLaterData),
     ) -> Result<Self, Self::Error> {
         let (_item, pay_later_data) = value;
         match pay_later_data {
-            PayLaterData::AfterpayClearpayRedirect { .. }
-            | PayLaterData::KlarnaRedirect { .. }
-            | PayLaterData::KlarnaSdk { .. }
-            | PayLaterData::AffirmRedirect { .. }
-            | PayLaterData::PayBrightRedirect { .. }
-            | PayLaterData::WalleyRedirect { .. }
-            | PayLaterData::AlmaRedirect { .. }
-            | PayLaterData::AtomeRedirect { .. } => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Square"),
-            ))?,
+            domain::PayLaterData::AfterpayClearpayRedirect { .. }
+            | domain::PayLaterData::KlarnaRedirect { .. }
+            | domain::PayLaterData::KlarnaSdk { .. }
+            | domain::PayLaterData::AffirmRedirect { .. }
+            | domain::PayLaterData::PayBrightRedirect { .. }
+            | domain::PayLaterData::WalleyRedirect { .. }
+            | domain::PayLaterData::AlmaRedirect { .. }
+            | domain::PayLaterData::AtomeRedirect { .. } => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Square"),
+                ))?
+            }
         }
     }
 }

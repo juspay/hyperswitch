@@ -130,13 +130,13 @@ pub enum DummyConnectorPayLater {
     AfterPayClearPay,
 }
 
-impl TryFrom<api_models::payments::PayLaterData> for DummyConnectorPayLater {
+impl TryFrom<domain::payments::PayLaterData> for DummyConnectorPayLater {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: api_models::payments::PayLaterData) -> Result<Self, Self::Error> {
+    fn try_from(value: domain::payments::PayLaterData) -> Result<Self, Self::Error> {
         match value {
-            api_models::payments::PayLaterData::KlarnaRedirect { .. } => Ok(Self::Klarna),
-            api_models::payments::PayLaterData::AffirmRedirect {} => Ok(Self::Affirm),
-            api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
+            domain::payments::PayLaterData::KlarnaRedirect { .. } => Ok(Self::Klarna),
+            domain::payments::PayLaterData::AffirmRedirect {} => Ok(Self::Affirm),
+            domain::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
                 Ok(Self::AfterPayClearPay)
             }
             _ => Err(errors::ConnectorError::NotImplemented("Dummy pay later".to_string()).into()),
