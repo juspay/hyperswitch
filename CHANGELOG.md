@@ -4,6 +4,50 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.03.21.0
+
+### Features
+
+- Store payment check codes and authentication data from processors ([#3958](https://github.com/juspay/hyperswitch/pull/3958)) ([`7afc44e`](https://github.com/juspay/hyperswitch/commit/7afc44e8357b09c900a1e9aa384619f93f3bc81d))
+
+### Bug Fixes
+
+- **payment_methods:**
+  - Update payment method status only if existing status is not active ([#4149](https://github.com/juspay/hyperswitch/pull/4149)) ([`0e9b252`](https://github.com/juspay/hyperswitch/commit/0e9b2524cf22a220abeb604dd172aa00855a7ee6))
+  - Make `ApplepayPaymentMethod` in payment_method_data column of `payment_attempt` table as json ([#4154](https://github.com/juspay/hyperswitch/pull/4154)) ([`7c0e4c7`](https://github.com/juspay/hyperswitch/commit/7c0e4c7229acacbeb93102bcdc25b74fd7a3314c))
+
+### Refactors
+
+- **connector:** [Stripe] update stripe-api-version in API-headers ([#4120](https://github.com/juspay/hyperswitch/pull/4120)) ([`3653c2c`](https://github.com/juspay/hyperswitch/commit/3653c2c108b80a20df6e8a2bf980d48c204376cd))
+- **payment_method_data:** Add a trait to retrieve billing from payment method data ([#4095](https://github.com/juspay/hyperswitch/pull/4095)) ([`9b9bce8`](https://github.com/juspay/hyperswitch/commit/9b9bce80a6419abdd5318d993f1abd6598853dd3))
+
+### Build System / Dependencies
+
+- **router_env:** Obtain workspace member package names from `cargo_metadata` more deterministically ([#4139](https://github.com/juspay/hyperswitch/pull/4139)) ([`8f7d9fb`](https://github.com/juspay/hyperswitch/commit/8f7d9fbc3a002127e220d8a968a6a4e15796e2fd))
+
+**Full Changelog:** [`2024.03.20.0...2024.03.21.0`](https://github.com/juspay/hyperswitch/compare/2024.03.20.0...2024.03.21.0)
+
+- - -
+
+## 2024.03.20.0
+
+### Features
+
+- **global-search:** Add dispute events index to global-search ([#4068](https://github.com/juspay/hyperswitch/pull/4068)) ([`9345379`](https://github.com/juspay/hyperswitch/commit/9345379f85a5da786c8f733542d796da567b6ffc))
+- **payouts:** Implement KVRouterStore ([#3889](https://github.com/juspay/hyperswitch/pull/3889)) ([`944089d`](https://github.com/juspay/hyperswitch/commit/944089d6914cb6bece9056f78b9aabf90e485151))
+- **router:**
+  - Add offset in mandate list route ([#3923](https://github.com/juspay/hyperswitch/pull/3923)) ([`17a866a`](https://github.com/juspay/hyperswitch/commit/17a866a73541c2340547c67e47b60f813c53f744))
+  - Handle redirection to return_url from iframe for separate 3ds flow ([#4119](https://github.com/juspay/hyperswitch/pull/4119)) ([`3eb4642`](https://github.com/juspay/hyperswitch/commit/3eb464250e5d604d90a99d61d1c9d6115252f0ef))
+
+### Refactors
+
+- **connector:** [Stripe] make name field of StripeShippingAddress mandatory ([#4111](https://github.com/juspay/hyperswitch/pull/4111)) ([`ab1ec2a`](https://github.com/juspay/hyperswitch/commit/ab1ec2ad4e3f1197d08c5ff947c31e7f0fcf5c65))
+- **core:** Move authentication data fields to authentication table ([#4093](https://github.com/juspay/hyperswitch/pull/4093)) ([`a3dec0b`](https://github.com/juspay/hyperswitch/commit/a3dec0b6bc52f20246a65ed5255768fcf585147a))
+
+**Full Changelog:** [`2024.03.19.0...2024.03.20.0`](https://github.com/juspay/hyperswitch/compare/2024.03.19.0...2024.03.20.0)
+
+- - -
+
 ## 2024.03.19.0
 
 ### Features

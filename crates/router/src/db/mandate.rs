@@ -262,14 +262,22 @@ impl MandateInterface for MockDb {
             checker
         });
 
+        #[allow(clippy::as_conversions)]
+        let offset = (if mandate_constraints.offset.unwrap_or(0) < 0 {
+            0
+        } else {
+            mandate_constraints.offset.unwrap_or(0)
+        }) as usize;
+
         let mandates: Vec<storage::Mandate> = if let Some(limit) = mandate_constraints.limit {
             #[allow(clippy::as_conversions)]
             mandates_iter
+                .skip(offset)
                 .take((if limit < 0 { 0 } else { limit }) as usize)
                 .cloned()
                 .collect()
         } else {
-            mandates_iter.cloned().collect()
+            mandates_iter.skip(offset).cloned().collect()
         };
         Ok(mandates)
     }

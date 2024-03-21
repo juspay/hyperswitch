@@ -215,6 +215,7 @@ region = "eu-central-1"
 payment_attempts = "hyperswitch-payment-attempt-events"
 payment_intents = "hyperswitch-payment-intent-events"
 refunds = "hyperswitch-refund-events"
+disputes = "hyperswitch-dispute-events"
 
 # This section provides some secret values.
 [secrets]

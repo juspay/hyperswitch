@@ -14900,7 +14900,7 @@
           "connector": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/Connector"
+              "$ref": "#/components/schemas/PayoutConnectors"
             },
             "description": "This allows the merchant to manually select a connector with which the payout can go through",
             "example": [
@@ -16874,7 +16874,6 @@
             "type": "object",
             "required": [
               "three_ds_method_data_submission",
-              "three_ds_method_data",
               "three_ds_method_key"
             ],
             "properties": {
@@ -16884,7 +16883,8 @@
               },
               "three_ds_method_data": {
                 "type": "string",
-                "description": "ThreeDS method data"
+                "description": "ThreeDS method data",
+                "nullable": true
               },
               "three_ds_method_url": {
                 "type": "string",

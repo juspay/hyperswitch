@@ -184,6 +184,7 @@ pub struct PaymentMethodResponse {
     /// Payment method details from locker
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<Bank>)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub bank_transfer: Option<payouts::Bank>,
 
     #[schema(value_type = Option<PrimitiveDateTime>, example = "2024-02-24T11:04:09.922Z")]
@@ -822,6 +823,7 @@ pub struct CustomerPaymentMethod {
     /// Payment method details from locker
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<Bank>)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub bank_transfer: Option<payouts::Bank>,
 
     /// Masked bank details from PM auth services

@@ -186,6 +186,7 @@ pub async fn construct_payout_router_data<'a, F>(
         frm_metadata: None,
         refund_id: None,
         dispute_id: None,
+        connector_response: None,
     };
 
     Ok(router_data)
@@ -341,6 +342,7 @@ pub async fn construct_refund_router_data<'a, F>(
         frm_metadata: None,
         refund_id: Some(refund.refund_id.clone()),
         dispute_id: None,
+        connector_response: None,
     };
 
     Ok(router_data)
@@ -574,6 +576,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         frm_metadata: None,
         dispute_id: Some(dispute.dispute_id.clone()),
         refund_id: None,
+        connector_response: None,
     };
     Ok(router_data)
 }
@@ -665,6 +668,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         frm_metadata: None,
         refund_id: None,
         dispute_id: Some(dispute.dispute_id.clone()),
+        connector_response: None,
     };
     Ok(router_data)
 }
@@ -762,6 +766,7 @@ pub async fn construct_upload_file_router_data<'a>(
         frm_metadata: None,
         refund_id: None,
         dispute_id: None,
+        connector_response: None,
     };
     Ok(router_data)
 }
@@ -856,6 +861,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         frm_metadata: None,
         refund_id: None,
         dispute_id: Some(dispute.dispute_id.clone()),
+        connector_response: None,
     };
     Ok(router_data)
 }
@@ -943,6 +949,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         frm_metadata: None,
         refund_id: None,
         dispute_id: None,
+        connector_response: None,
     };
     Ok(router_data)
 }

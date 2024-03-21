@@ -14,7 +14,7 @@ use masking::{ExposeInterface, PeekInterface};
 
 use super::domain;
 use crate::{
-    core::{authentication::types::AuthenticationData, errors},
+    core::errors,
     services::authentication::get_header_value_by_key,
     types::{
         api::{self as api_types, routing as routing_types},
@@ -746,31 +746,20 @@ impl ForeignFrom<storage::Authorization> for payments::IncrementalAuthorizationR
     }
 }
 
-impl ForeignFrom<&(storage::Authentication, AuthenticationData)>
-    for payments::ExternalAuthenticationDetailsResponse
-{
-    fn foreign_from(authn_data: &(storage::Authentication, AuthenticationData)) -> Self {
-        let (ds_transaction_id, version) = if authn_data.0.authentication_data.is_some() {
-            (
-                Some(authn_data.1.threeds_server_transaction_id.clone()),
-                Some(format!(
-                    "{}.{}.{}",
-                    authn_data.1.maximum_supported_version.0,
-                    authn_data.1.maximum_supported_version.1,
-                    authn_data.1.maximum_supported_version.2
-                )),
-            )
-        } else {
-            (None, None)
-        };
+impl ForeignFrom<&storage::Authentication> for payments::ExternalAuthenticationDetailsResponse {
+    fn foreign_from(authn_data: &storage::Authentication) -> Self {
+        let version = authn_data
+            .maximum_supported_version
+            .as_ref()
+            .map(|version| version.to_string());
         Self {
-            authentication_flow: authn_data.0.authentication_type,
-            electronic_commerce_indicator: authn_data.1.eci.clone(),
-            status: authn_data.0.authentication_status,
-            ds_transaction_id,
+            authentication_flow: authn_data.authentication_type,
+            electronic_commerce_indicator: authn_data.eci.clone(),
+            status: authn_data.authentication_status,
+            ds_transaction_id: authn_data.threeds_server_transaction_id.clone(),
             version,
-            error_code: authn_data.0.error_code.clone(),
-            error_message: authn_data.0.error_message.clone(),
+            error_code: authn_data.error_code.clone(),
+            error_message: authn_data.error_message.clone(),
         }
     }
 }
@@ -924,6 +913,7 @@ impl ForeignFrom<storage::Capture> for api_models::payments::CaptureResponse {
     }
 }
 
+#[cfg(feature = "payouts")]
 impl ForeignFrom<api_models::payouts::PayoutMethodData> for api_enums::PaymentMethodType {
     fn foreign_from(value: api_models::payouts::PayoutMethodData) -> Self {
         match value {
@@ -934,6 +924,7 @@ impl ForeignFrom<api_models::payouts::PayoutMethodData> for api_enums::PaymentMe
     }
 }
 
+#[cfg(feature = "payouts")]
 impl ForeignFrom<api_models::payouts::Bank> for api_enums::PaymentMethodType {
     fn foreign_from(value: api_models::payouts::Bank) -> Self {
         match value {
@@ -944,6 +935,7 @@ impl ForeignFrom<api_models::payouts::Bank> for api_enums::PaymentMethodType {
     }
 }
 
+#[cfg(feature = "payouts")]
 impl ForeignFrom<api_models::payouts::Wallet> for api_enums::PaymentMethodType {
     fn foreign_from(value: api_models::payouts::Wallet) -> Self {
         match value {
@@ -952,6 +944,7 @@ impl ForeignFrom<api_models::payouts::Wallet> for api_enums::PaymentMethodType {
     }
 }
 
+#[cfg(feature = "payouts")]
 impl ForeignFrom<api_models::payouts::PayoutMethodData> for api_enums::PaymentMethod {
     fn foreign_from(value: api_models::payouts::PayoutMethodData) -> Self {
         match value {
@@ -962,6 +955,7 @@ impl ForeignFrom<api_models::payouts::PayoutMethodData> for api_enums::PaymentMe
     }
 }
 
+#[cfg(feature = "payouts")]
 impl ForeignFrom<api_models::enums::PayoutType> for api_enums::PaymentMethod {
     fn foreign_from(value: api_models::enums::PayoutType) -> Self {
         match value {
