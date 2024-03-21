@@ -18,10 +18,9 @@ pub mod transformers;
 
 use std::{collections::HashMap, marker::PhantomData};
 
-pub use api_models::{
-    enums::{Connector, PayoutConnectors},
-    mandates, payouts as payout_types,
-};
+pub use api_models::{enums::Connector, mandates};
+#[cfg(feature = "payouts")]
+pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 use common_enums::MandateStatus;
 pub use common_utils::request::{RequestBody, RequestContent};
 use common_utils::{pii, pii::Email};
@@ -322,7 +321,35 @@ pub struct RouterData<Flow, Request, Response> {
 
     pub dispute_id: Option<String>,
     pub refund_id: Option<String>,
+
+    /// This field is used to store various data regarding the response from connector
+    pub connector_response: Option<ConnectorResponseData>,
     pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum AdditionalPaymentMethodConnectorResponse {
+    Card {
+        /// Details regarding the authentication details of the connector, if this is a 3ds payment.
+        authentication_data: Option<serde_json::Value>,
+        /// Various payment checks that are done for a payment
+        payment_checks: Option<serde_json::Value>,
+    },
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ConnectorResponseData {
+    pub additional_payment_method_data: Option<AdditionalPaymentMethodConnectorResponse>,
+}
+
+impl ConnectorResponseData {
+    pub fn with_additional_payment_method_data(
+        additional_payment_method_data: AdditionalPaymentMethodConnectorResponse,
+    ) -> Self {
+        Self {
+            additional_payment_method_data: Some(additional_payment_method_data),
+        }
+    }
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -1480,6 +1507,7 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             frm_metadata: data.frm_metadata.clone(),
             dispute_id: data.dispute_id.clone(),
             refund_id: data.refund_id.clone(),
+            connector_response: data.connector_response.clone(),
         }
     }
 }
@@ -1539,6 +1567,7 @@ impl<F1, F2>
             frm_metadata: None,
             refund_id: None,
             dispute_id: None,
+            connector_response: data.connector_response.clone(),
         }
     }
 }
