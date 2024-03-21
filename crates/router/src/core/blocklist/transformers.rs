@@ -137,7 +137,7 @@ async fn call_to_locker_for_fingerprint(
     let jwekey = state.conf.jwekey.get_inner();
 
     let request = generate_fingerprint_request(jwekey, locker, payload, locker_choice).await?;
-    let response = services::call_connector_api(state, request)
+    let response = services::call_connector_api(state, request, "call_locker_to_get_fingerprint")
         .await
         .change_context(errors::VaultError::GenerateFingerprintFailed);
     let jwe_body: encryption::JweBody = response

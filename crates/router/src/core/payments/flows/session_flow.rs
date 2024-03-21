@@ -259,7 +259,12 @@ async fn create_applepay_session_token(
             apple_pay_merchant_cert,
             apple_pay_merchant_cert_key,
         )?;
-        let response = services::call_connector_api(state, applepay_session_request).await;
+        let response = services::call_connector_api(
+            state,
+            applepay_session_request,
+            "create_apple_pay_session_token",
+        )
+        .await;
 
         // logging the error if present in session call response
         log_session_response_if_error(&response);
