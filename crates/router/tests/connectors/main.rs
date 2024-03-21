@@ -11,8 +11,8 @@ mod adyen;
 mod airwallex;
 mod authorizedotnet;
 mod bambora;
-mod bankofamerica;
 #[cfg(feature = "dummy_connector")]
+mod bankofamerica;
 mod billwerk;
 mod bitpay;
 mod bluesnap;
