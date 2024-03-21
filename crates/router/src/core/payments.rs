@@ -2574,21 +2574,23 @@ pub async fn get_payment_filters(
         HashSet<enums::PaymentMethodType>,
     > = HashMap::new();
 
-    for response in merchant_connector_accounts {
-        if let Some(label) = response.connector_label {
+    for merchant_connector_account in merchant_connector_accounts {
+        if let Some(label) = merchant_connector_account.connector_label {
             let info = MerchantConnectorInfo {
                 connector_label: label,
-                merchant_connector_id: response.merchant_connector_id,
+                merchant_connector_id: merchant_connector_account.merchant_connector_id,
             };
 
             connector_map
-                .entry(response.connector_name.clone())
+                .entry(merchant_connector_account.connector_name.clone())
                 .or_insert_with(Vec::new)
                 .push(info);
         }
 
-        // Populate all the enabled payment method types
-        if let Some(ref payment_methods_enabled) = response.payment_methods_enabled {
+        // Populate all the enabled payment methods and corresponding payment method types
+        if let Some(ref payment_methods_enabled) =
+            merchant_connector_account.payment_methods_enabled
+        {
             for payment_method_enabled in payment_methods_enabled {
                 if let Some(payment_method_types_vec) = &payment_method_enabled.payment_method_types
                 {
