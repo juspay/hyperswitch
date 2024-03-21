@@ -679,6 +679,7 @@ pub struct OpensearchIndexes {
     pub payment_attempts: String,
     pub payment_intents: String,
     pub refunds: String,
+    pub disputes: String,
 }
 
 #[derive(Clone, Debug, serde::Deserialize)]
@@ -700,6 +701,7 @@ impl Default for OpensearchConfig {
                 payment_attempts: "hyperswitch-payment-attempt-events".to_string(),
                 payment_intents: "hyperswitch-payment-intent-events".to_string(),
                 refunds: "hyperswitch-refund-events".to_string(),
+                disputes: "hyperswitch-dispute-events".to_string(),
             },
         }
     }
