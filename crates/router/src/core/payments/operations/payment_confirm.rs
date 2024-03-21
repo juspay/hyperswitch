@@ -1126,9 +1126,9 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         let customer_fut =
             if let Some((updated_customer, customer)) = updated_customer.zip(customer) {
                 let m_customer_customer_id = customer.customer_id.to_owned();
-                let m_customer_merchant_id = customer.merchant_id.to_owned();
+                let m_customer_merchant_id = customer.merchant_id;
                 let m_key_store = key_store.clone();
-                let m_updated_customer = updated_customer.clone();
+                let m_updated_customer = updated_customer;
                 let m_db = state.clone().store;
                 tokio::spawn(
                     async move {

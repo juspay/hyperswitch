@@ -595,7 +595,7 @@ where
             frm_routing_algorithm.zip(frm_connector_label)
         {
             if let Some(frm_configs) = frm_configs.clone() {
-                let mut updated_frm_info = make_frm_data_and_fraud_check_operation(
+                let mut updated_frm_info = Box::pin(make_frm_data_and_fraud_check_operation(
                     db,
                     state,
                     merchant_account,
@@ -604,7 +604,7 @@ where
                     profile_id,
                     frm_configs.clone(),
                     customer,
-                )
+                ))
                 .await?;
 
                 if is_frm_enabled {

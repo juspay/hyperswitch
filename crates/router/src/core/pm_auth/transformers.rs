@@ -8,8 +8,8 @@ impl ForeignTryFrom<types::ConnectorAuthType> for pm_auth_types::ConnectorAuthTy
         match auth_type {
             types::ConnectorAuthType::BodyKey { api_key, key1 } => {
                 Ok::<Self, errors::ConnectorError>(Self::BodyKey {
-                    client_id: api_key.to_owned(),
-                    secret: key1.to_owned(),
+                    client_id: api_key,
+                    secret: key1,
                 })
             }
             _ => Err(errors::ConnectorError::FailedToObtainAuthType),

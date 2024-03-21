@@ -624,7 +624,7 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
             .request
             .redirect_response
             .clone()
-            .and_then(|res| res.params.to_owned())
+            .and_then(|res| res.params)
             .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
                 field_name: "request.redirect_response.params",
             })?

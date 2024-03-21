@@ -1360,7 +1360,7 @@ impl api::IncomingWebhook for Braintree {
         let notify = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
-        let message = notify.bt_payload.to_string();
+        let message = notify.bt_payload;
 
         Ok(message.into_bytes())
     }

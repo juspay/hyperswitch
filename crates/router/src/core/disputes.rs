@@ -358,12 +358,12 @@ pub async fn attach_evidence(
             })
         },
     )?;
-    let create_file_response = files::files_create_core(
+    let create_file_response = Box::pin(files::files_create_core(
         state.clone(),
         merchant_account,
         key_store,
         attach_evidence_request.create_file_request,
-    )
+    ))
     .await?;
     let file_id = match &create_file_response {
         services::ApplicationResponse::Json(res) => res.file_id.clone(),

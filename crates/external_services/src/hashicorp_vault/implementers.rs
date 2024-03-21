@@ -17,7 +17,7 @@ impl SecretManagementInterface for HashiCorpVault {
     ) -> CustomResult<Secret<String>, SecretsManagementError> {
         self.fetch::<Kv2, Secret<String>>(input.expose())
             .await
-            .map(|val| val.expose().to_owned())
+            .map(|val| val.expose())
             .change_context(SecretsManagementError::FetchSecretFailed)
             .map(Into::into)
     }

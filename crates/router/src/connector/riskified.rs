@@ -77,7 +77,7 @@ where
             ),
             (
                 "X-RISKIFIED-SHOP-DOMAIN".to_string(),
-                auth.domain_name.clone().into(),
+                auth.domain_name.into(),
             ),
             (
                 "X-RISKIFIED-HMAC-SHA256".to_string(),
@@ -123,7 +123,7 @@ impl ConnectorCommon for Riskified {
             status_code: res.status_code,
             attempt_status: None,
             code: crate::consts::NO_ERROR_CODE.to_string(),
-            message: response.error.message.clone(),
+            message: response.error.message,
             reason: None,
             connector_transaction_id: None,
         })

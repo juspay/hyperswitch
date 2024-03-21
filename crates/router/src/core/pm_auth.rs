@@ -723,7 +723,7 @@ pub async fn retrieve_payment_method_from_auth_service(
         .into_report()
         .attach_printable("billing_first_name not found")?;
 
-    let address_details = address.clone().map(|addr| {
+    let address_details = address.map(|addr| {
         let line1 = addr.line1.map(|line1| line1.into_inner());
         let line2 = addr.line2.map(|line2| line2.into_inner());
         let line3 = addr.line3.map(|line3| line3.into_inner());

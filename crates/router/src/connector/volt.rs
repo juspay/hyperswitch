@@ -135,7 +135,7 @@ impl ConnectorCommon for Volt {
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.exception.message.to_string(),
-            message: response.exception.message.clone(),
+            message: response.exception.message,
             reason: Some(reason),
             attempt_status: None,
             connector_transaction_id: None,

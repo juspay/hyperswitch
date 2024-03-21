@@ -1327,7 +1327,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>>
             currency: payment_data.currency,
             connector_transaction_id: connector
                 .connector
-                .connector_transaction_id(payment_data.payment_attempt.clone())?
+                .connector_transaction_id(payment_data.payment_attempt)?
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
         })
     }

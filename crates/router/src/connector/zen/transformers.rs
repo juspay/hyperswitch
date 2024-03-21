@@ -958,7 +958,7 @@ fn get_zen_response(
         None
     };
     let payment_response_data = types::PaymentsResponseData::TransactionResponse {
-        resource_id: types::ResponseId::ConnectorTransactionId(response.id.clone()),
+        resource_id: types::ResponseId::ConnectorTransactionId(response.id),
         redirection_data,
         mandate_reference: None,
         connector_metadata: None,

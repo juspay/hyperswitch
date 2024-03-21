@@ -3586,7 +3586,7 @@ pub fn get_redirection_error_response(
         reason: Some(response.refusal_reason),
         status_code,
         attempt_status: None,
-        connector_transaction_id: response.psp_reference.clone(),
+        connector_transaction_id: response.psp_reference,
     });
     // We don't get connector transaction id for redirections in Adyen.
     let payments_response_data = types::PaymentsResponseData::TransactionResponse {
@@ -3608,7 +3608,7 @@ pub fn get_qr_metadata(
     let image_data = crate_utils::QrImage::new_from_data(response.action.qr_code_data.clone())
         .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
-    let image_data_url = Url::parse(image_data.data.clone().as_str()).ok();
+    let image_data_url = Url::parse(image_data.data.as_str()).ok();
     let qr_code_url = response.action.qr_code_url.clone();
     let display_to_timestamp = response
         .additional_data
@@ -4665,7 +4665,7 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
                 let additional_data = match wallet_data {
                     api_models::payouts::Wallet::Paypal(paypal_data) => PayoutAdditionalData {
                         token_data_type: PayoutTokenDataType::PayPal,
-                        email_id: paypal_data.email.clone().ok_or(
+                        email_id: paypal_data.email.ok_or(
                             errors::ConnectorError::MissingRequiredField {
                                 field_name: "email_address",
                             },

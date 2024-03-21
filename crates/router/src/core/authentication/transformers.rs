@@ -76,7 +76,7 @@ pub fn construct_authentication_router_data(
     construct_router_data(
         authentication_connector,
         payment_method,
-        business_profile.merchant_id.clone(),
+        business_profile.merchant_id,
         types::PaymentAddress::default(),
         router_request,
         &merchant_connector_account,
@@ -100,7 +100,7 @@ pub fn construct_post_authentication_router_data(
     construct_router_data(
         authentication_connector,
         PaymentMethod::default(),
-        business_profile.merchant_id.clone(),
+        business_profile.merchant_id,
         types::PaymentAddress::default(),
         router_request,
         &merchant_connector_account,
