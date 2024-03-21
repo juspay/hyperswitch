@@ -16,7 +16,7 @@ mod refund;
 use data_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 use diesel_models::refund::Refund;
 use serde::Serialize;
-use time::OffsetDateTime;
+use time::{OffsetDateTime, PrimitiveDateTime};
 
 use self::{
     dispute::KafkaDispute, payment_attempt::KafkaPaymentAttempt,
@@ -376,7 +376,7 @@ impl EventSink<EventType> for KafkaProducer {
         data: serde_json::Value,
         identifier: String,
         topic: EventType,
-        timestamp: OffsetDateTime,
+        timestamp: PrimitiveDateTime,
     ) -> error_stack::Result<(), EventsError> {
         self.producer
             .0
@@ -384,7 +384,7 @@ impl EventSink<EventType> for KafkaProducer {
                 BaseRecord::to(self.get_topic(topic))
                     .key(&identifier)
                     .payload(&data.to_string())
-                    .timestamp(timestamp.unix_timestamp()),
+                    .timestamp(timestamp.assume_utc().unix_timestamp()),
             )
             .map_err(|(error, record)| report!(error).attach_printable(format!("{record:?}")))
             .change_context(EventsError::GenericError)

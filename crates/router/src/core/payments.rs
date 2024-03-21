@@ -21,6 +21,7 @@ use common_utils::{ext_traits::AsyncExt, pii, types::Surcharge};
 use data_models::mandates::{CustomerAcceptance, MandateData};
 use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
 use error_stack::{IntoReport, ResultExt};
+use events::EventInfo;
 use futures::future::join_all;
 use helpers::ApplePayData;
 use masking::Secret;
@@ -60,7 +61,7 @@ use crate::{
     },
     db::StorageInterface,
     logger,
-    routes::{metrics, payment_methods::ParentPaymentMethodToken, AppState},
+    routes::{app::ReqState, metrics, payment_methods::ParentPaymentMethodToken, AppState},
     services::{self, api::Authenticate},
     types::{
         self as router_types,
@@ -81,6 +82,7 @@ use crate::{
 #[instrument(skip_all, fields(payment_id, merchant_id))]
 pub async fn payments_operation_core<F, Req, Op, FData, Ctx>(
     state: &AppState,
+    req_state: ReqState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     operation: Op,
@@ -261,6 +263,7 @@ where
                     };
                     let router_data = call_connector_service(
                         state,
+                        req_state,
                         &merchant_account,
                         &key_store,
                         connector,
@@ -317,6 +320,7 @@ where
                     };
                     let router_data = call_connector_service(
                         state,
+                        req_state.clone(),
                         &merchant_account,
                         &key_store,
                         connector_data.clone(),
@@ -348,6 +352,7 @@ where
                         if config_bool && router_data.should_call_gsm() {
                             router_data = retry::do_gsm_actions(
                                 state,
+                                req_state,
                                 &mut payment_data,
                                 connectors,
                                 connector_data,
@@ -431,6 +436,7 @@ where
                 .to_update_tracker()?
                 .update_trackers(
                     state,
+                    req_state,
                     payment_data.clone(),
                     customer.clone(),
                     validate_result.storage_scheme,
@@ -464,6 +470,7 @@ where
             .to_update_tracker()?
             .update_trackers(
                 state,
+                req_state,
                 payment_data.clone(),
                 customer.clone(),
                 validate_result.storage_scheme,
@@ -676,6 +683,7 @@ where
 #[allow(clippy::too_many_arguments)]
 pub async fn payments_core<F, Res, Req, Op, FData, Ctx>(
     state: AppState,
+    req_state: ReqState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     operation: Op,
@@ -712,6 +720,7 @@ where
     let (payment_data, req, customer, connector_http_status_code, external_latency) =
         payments_operation_core::<_, _, _, _, Ctx>(
             &state,
+            req_state,
             merchant_account,
             key_store,
             operation.clone(),
@@ -757,6 +766,7 @@ pub trait PaymentRedirectFlow<Ctx: PaymentMethodRetrieve>: Sync {
     async fn call_payment_flow(
         &self,
         state: &AppState,
+        req_state: ReqState,
         merchant_account: domain::MerchantAccount,
         merchant_key_store: domain::MerchantKeyStore,
         req: PaymentsRedirectResponseData,
@@ -777,6 +787,7 @@ pub trait PaymentRedirectFlow<Ctx: PaymentMethodRetrieve>: Sync {
     async fn handle_payments_redirect_response(
         &self,
         state: AppState,
+        req_state: ReqState,
         merchant_account: domain::MerchantAccount,
         key_store: domain::MerchantKeyStore,
         req: PaymentsRedirectResponseData,
@@ -826,6 +837,7 @@ pub trait PaymentRedirectFlow<Ctx: PaymentMethodRetrieve>: Sync {
         let response = self
             .call_payment_flow(
                 &state,
+                req_state,
                 merchant_account.clone(),
                 key_store,
                 req.clone(),
@@ -866,6 +878,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectCom
     async fn call_payment_flow(
         &self,
         state: &AppState,
+        req_state: ReqState,
         merchant_account: domain::MerchantAccount,
         merchant_key_store: domain::MerchantKeyStore,
         req: PaymentsRedirectResponseData,
@@ -891,6 +904,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectCom
             Ctx,
         >(
             state.clone(),
+            req_state,
             merchant_account,
             merchant_key_store,
             payment_complete_authorize::CompleteAuthorize,
@@ -969,6 +983,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectSyn
     async fn call_payment_flow(
         &self,
         state: &AppState,
+        req_state: ReqState,
         merchant_account: domain::MerchantAccount,
         merchant_key_store: domain::MerchantKeyStore,
         req: PaymentsRedirectResponseData,
@@ -999,6 +1014,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectSyn
             Ctx,
         >(
             state.clone(),
+            req_state,
             merchant_account,
             merchant_key_store,
             PaymentStatus,
@@ -1040,6 +1056,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
     async fn call_payment_flow(
         &self,
         state: &AppState,
+        req_state: ReqState,
         merchant_account: domain::MerchantAccount,
         merchant_key_store: domain::MerchantKeyStore,
         req: PaymentsRedirectResponseData,
@@ -1065,6 +1082,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
             Ctx,
         >(
             state.clone(),
+            req_state,
             merchant_account,
             merchant_key_store,
             PaymentConfirm,
@@ -1138,6 +1156,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
 #[instrument(skip_all)]
 pub async fn call_connector_service<F, RouterDReq, ApiRequest, Ctx>(
     state: &AppState,
+    req_state: ReqState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     connector: api::ConnectorData,
@@ -1323,6 +1342,7 @@ where
         .to_update_tracker()?
         .update_trackers(
             state,
+            req_state,
             payment_data.clone(),
             customer.clone(),
             merchant_account.storage_scheme,
@@ -2263,6 +2283,33 @@ where
     pub authorizations: Vec<diesel_models::authorization::Authorization>,
     pub authentication: Option<storage::Authentication>,
     pub frm_metadata: Option<serde_json::Value>,
+}
+
+#[derive(Clone, serde::Serialize, Debug)]
+pub struct PaymentEvent {
+    payment_intent: storage::PaymentIntent,
+    payment_attempt: storage::PaymentAttempt,
+}
+
+impl<F: Clone> PaymentData<F> {
+    fn to_event(&self) -> PaymentEvent {
+        PaymentEvent {
+            payment_intent: self.payment_intent.clone(),
+            payment_attempt: self.payment_attempt.clone(),
+        }
+    }
+}
+
+impl EventInfo for PaymentEvent {
+    fn data(&self) -> error_stack::Result<serde_json::Value, events::EventsError> {
+        serde_json::to_value(self)
+            .into_report()
+            .change_context(events::EventsError::SerializationError)
+    }
+
+    fn key(&self) -> String {
+        "payment".to_string()
+    }
 }
 
 #[derive(Debug, Default, Clone)]

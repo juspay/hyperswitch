@@ -4,7 +4,7 @@ use events::{EventSink, EventsError};
 use router_env::logger;
 use serde::{Deserialize, Serialize};
 use storage_impl::errors::ApplicationError;
-use time::OffsetDateTime;
+use time::PrimitiveDateTime;
 
 use crate::{
     db::KafkaProducer,
@@ -89,7 +89,7 @@ impl EventSink<EventType> for EventsHandler {
         data: serde_json::Value,
         identifier: String,
         topic: EventType,
-        timestamp: OffsetDateTime,
+        timestamp: PrimitiveDateTime,
     ) -> error_stack::Result<(), EventsError> {
         match self {
             Self::Kafka(kafka) => kafka.publish_event(data, identifier, topic, timestamp),
