@@ -709,13 +709,11 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                                 Self::try_from((item, decrypt_data, apple_pay_data))
                             }
                             types::PaymentMethodToken::Token(_) => {
-                                Err(
-                                    unimplemented_payment_method!(
-                                        "Apple Pay",
-                                        "Manual",
-                                        "Bank Of America"
-                                    ),
-                                )?
+                                Err(unimplemented_payment_method!(
+                                    "Apple Pay",
+                                    "Manual",
+                                    "Bank Of America"
+                                ))?
                             }
                         },
                         None => {

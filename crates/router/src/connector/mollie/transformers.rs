@@ -179,13 +179,11 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
                                 card_token: Some(Secret::new(match pm_token {
                                     types::PaymentMethodToken::Token(token) => token,
                                     types::PaymentMethodToken::ApplePayDecrypt(_) => {
-                                        Err(
-                                            unimplemented_payment_method!(
-                                                "Apple Pay",
-                                                "Decrypt",
-                                                "Mollie"
-                                            ),
-                                        )?
+                                        Err(unimplemented_payment_method!(
+                                            "Apple Pay",
+                                            "Decrypt",
+                                            "Mollie"
+                                        ))?
                                     }
                                 })),
                             },

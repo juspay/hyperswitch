@@ -81,15 +81,9 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
                     pre_auth,
                     payment_method_id: Secret::new(match pm_token {
                         types::PaymentMethodToken::Token(token) => token,
-                        types::PaymentMethodToken::ApplePayDecrypt(_) => {
-                            Err(
-                                unimplemented_payment_method!(
-                                    "Apple Pay",
-                                    "Decrypt",
-                                    "Stax"
-                                ),
-                            )?
-                        }
+                        types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
+                            unimplemented_payment_method!("Apple Pay", "Decrypt", "Stax"),
+                        )?,
                     }),
                     idempotency_id: Some(item.router_data.connector_request_reference_id.clone()),
                 })
@@ -106,15 +100,9 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
                     pre_auth,
                     payment_method_id: Secret::new(match pm_token {
                         types::PaymentMethodToken::Token(token) => token,
-                        types::PaymentMethodToken::ApplePayDecrypt(_) => {
-                            Err(
-                                unimplemented_payment_method!(
-                                    "Apple Pay",
-                                    "Decrypt",
-                                    "Stax"
-                                ),
-                            )?
-                        }
+                        types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
+                            unimplemented_payment_method!("Apple Pay", "Decrypt", "Stax"),
+                        )?,
                     }),
                     idempotency_id: Some(item.router_data.connector_request_reference_id.clone()),
                 })
