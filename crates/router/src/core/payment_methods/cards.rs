@@ -3599,6 +3599,8 @@ pub async fn retrieve_countries_currencies_based_on_pmt(
     ))
 }
 
+// This feature will be more efficient as a WASM function rather than as an API.
+// So extracting this logic to a separate function so that it can be used in WASM as well.
 pub async fn retrieve_countries_currencies_based_on_pmt_util(
     connector_filters: settings::ConnectorFilters,
     connector: api_enums::Connector,
