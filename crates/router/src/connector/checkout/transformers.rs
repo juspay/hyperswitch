@@ -15,7 +15,6 @@ use crate::{
     services,
     types::{self, api, storage::enums, transformers::ForeignFrom},
     unimplemented_payment_method,
-    unimplemented_payment_method,
 };
 
 #[derive(Debug, Serialize)]
