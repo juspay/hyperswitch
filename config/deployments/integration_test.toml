@@ -96,7 +96,7 @@ refund_retrieve_duration = 500
 refund_retrieve_tolerance = 100
 refund_tolerance = 100
 refund_ttl = 172800
-slack_invite_url = "https://join.slack.com/t/hyperswitch-io/shared_invite/zt-1k6cz4lee-SAJzhz6bjmpp4jZCDOtOIg"
+slack_invite_url = "https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2awm23agh-p_G5xNpziv6yAiedTkkqLg"
 
 [frm]
 enabled = true
