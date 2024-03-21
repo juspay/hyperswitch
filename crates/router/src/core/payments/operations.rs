@@ -32,7 +32,7 @@ use crate::{
         payment_methods::PaymentMethodRetrieve,
     },
     db::StorageInterface,
-    routes::AppState,
+    routes::{app::ReqState, AppState},
     services,
     types::{
         self,
@@ -198,6 +198,7 @@ pub trait UpdateTracker<F, D, Req, Ctx: PaymentMethodRetrieve>: Send {
     async fn update_trackers<'b>(
         &'b self,
         db: &'b AppState,
+        req_state: ReqState,
         payment_data: D,
         customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,

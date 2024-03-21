@@ -12,9 +12,12 @@
 //! Event: A trait that defines the event itself. This trait is used to define the data that is sent with the event and defines the event's type & identifier.
 //!
 
+mod actix;
+
 use std::sync::Arc;
 
 use error_stack::Result;
+use router_env::logger;
 use serde_json::Value;
 use time::PrimitiveDateTime;
 
@@ -80,18 +83,16 @@ impl<T> EventBuilder<T> {
         self
     }
     /// Emit the event and log any errors.
-    #[track_caller]
     pub fn emit(self) {
         self.try_emit()
             .map_err(|e| {
-                router_env::logger::error!("Error emitting event: {:?}", e);
+                logger::error!("Error emitting event: {:?}", e);
             })
             .ok();
     }
 
     /// Emit the event.
-    #[must_use = "make sure to actually emit the event"]
-    #[track_caller]
+    #[must_use = "make sure to call `emit` to actually emit the event"]
     pub fn try_emit(self) -> Result<(), EventsError> {
         self.event_sink.publish_event(
             self.data()?,
@@ -113,9 +114,10 @@ impl<T> EventInfo for EventBuilder<T> {
             }
         };
         let mut data: serde_json::Map<String, Value> = self
-            .src_metadata
+            .event_metadata
             .iter()
-            .chain(self.event_metadata.iter())
+            .chain(self.src_metadata.iter())
+            .rev()
             .map(|info| info.data().map(|d| (info.key(), d)))
             .collect::<Result<serde_json::Map<_, _>, _>>()?;
         data.append(&mut event_data);
@@ -143,8 +145,6 @@ impl<T> EventContext<T> {
     }
 
     /// Emit an event.
-    #[must_use = "make sure to actually emit the event"]
-    #[track_caller]
     pub fn try_emit(&self, event: Box<dyn Event<EventType = T>>) -> Result<(), EventsError> {
         EventBuilder {
             event_sink: self.event_sink.clone(),
@@ -156,8 +156,6 @@ impl<T> EventContext<T> {
     }
 
     /// Emit an event.
-    /// This silences the error thrown when emitting an event.
-    #[track_caller]
     pub fn emit(&self, event: Box<dyn Event<EventType = T>>) {
         EventBuilder {
             event_sink: self.event_sink.clone(),

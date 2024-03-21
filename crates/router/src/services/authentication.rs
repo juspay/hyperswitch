@@ -73,6 +73,18 @@ pub enum AuthenticationType {
     NoAuth,
 }
 
+impl events::EventInfo for AuthenticationType {
+    fn data(&self) -> error_stack::Result<serde_json::Value, events::EventsError> {
+        serde_json::to_value(self)
+            .into_report()
+            .change_context(events::EventsError::SerializationError)
+    }
+
+    fn key(&self) -> String {
+        "auth_info".to_string()
+    }
+}
+
 impl AuthenticationType {
     pub fn get_merchant_id(&self) -> Option<&str> {
         match self {
