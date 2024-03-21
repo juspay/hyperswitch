@@ -137,9 +137,7 @@ impl ConnectorCommon for Cybersource {
                     None => (
                         response
                             .reason
-                            .map_or(consts::NO_ERROR_CODE.to_string(), |reason| {
-                                reason
-                            }),
+                            .map_or(consts::NO_ERROR_CODE.to_string(), |reason| reason),
                         response
                             .message
                             .map_or(error_message.to_string(), |message| message),

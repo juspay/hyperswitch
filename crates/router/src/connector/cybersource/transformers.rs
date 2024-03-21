@@ -1901,7 +1901,6 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsPreProcessingRouterData>>
         match redirect_response.params {
             Some(param) if !param.clone().peek().is_empty() => {
                 let reference_id = param
-                    
                     .peek()
                     .split_once('=')
                     .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
@@ -2734,9 +2733,7 @@ impl
             code: error_message
                 .clone()
                 .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-            message: error_message
-                
-                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            message: error_message.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason: Some(error_reason),
             status_code,
             attempt_status: Some(enums::AttemptStatus::Failure),

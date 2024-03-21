@@ -692,9 +692,7 @@ impl<F, T>
                             }),
                         connector_metadata: None,
                         network_txn_id: None,
-                        connector_response_reference_id: Some(
-                            payment_response.data.order_id,
-                        ),
+                        connector_response_reference_id: Some(payment_response.data.order_id),
                         incremental_authorization_allowed: None,
                     }),
                     ..item.data

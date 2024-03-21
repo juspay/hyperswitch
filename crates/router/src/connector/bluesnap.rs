@@ -711,8 +711,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                     .ok_or(errors::ConnectorError::ResponseHandlingFailed)?
                     .to_string();
 
-                let response =
-                    serde_json::json!({"payment_fields_token": payment_fields_token});
+                let response = serde_json::json!({"payment_fields_token": payment_fields_token});
 
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);

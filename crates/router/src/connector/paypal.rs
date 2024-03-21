@@ -179,17 +179,13 @@ fn construct_auth_assertion_header(
     payer_id: &Secret<String>,
     client_id: &Secret<String>,
 ) -> String {
-    let algorithm = consts::BASE64_ENGINE
-        .encode("{\"alg\":\"none\"}")
-        ;
+    let algorithm = consts::BASE64_ENGINE.encode("{\"alg\":\"none\"}");
     let merchant_credentials = format!(
         "{{\"iss\":\"{}\",\"payer_id\":\"{}\"}}",
         client_id.clone().expose(),
         payer_id.clone().expose()
     );
-    let encoded_credentials = consts::BASE64_ENGINE
-        .encode(merchant_credentials)
-        ;
+    let encoded_credentials = consts::BASE64_ENGINE.encode(merchant_credentials);
     format!("{algorithm}.{encoded_credentials}.")
 }
 

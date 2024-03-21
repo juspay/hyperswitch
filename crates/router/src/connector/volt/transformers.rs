@@ -388,9 +388,7 @@ impl<F, T>
                                 .clone()
                                 .map(|volt_status| volt_status.to_string())
                                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_owned()),
-                            reason: detailed_status
-                                
-                                .map(|volt_status| volt_status.to_string()),
+                            reason: detailed_status.map(|volt_status| volt_status.to_string()),
                             status_code: item.http_code,
                             attempt_status: None,
                             connector_transaction_id: Some(webhook_response.payment),

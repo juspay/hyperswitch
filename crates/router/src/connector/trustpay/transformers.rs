@@ -842,11 +842,7 @@ fn handle_bank_redirects_sync_response(
     };
     let payment_response_data = types::PaymentsResponseData::TransactionResponse {
         resource_id: types::ResponseId::ConnectorTransactionId(
-            response
-                .payment_information
-                .references
-                .payment_request_id
-                ,
+            response.payment_information.references.payment_request_id,
         ),
         redirection_data: None,
         mandate_reference: None,

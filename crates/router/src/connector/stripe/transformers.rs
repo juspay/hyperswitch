@@ -3932,7 +3932,6 @@ impl TryFrom<(&Option<ErrorDetails>, u16, String)> for types::PaymentsResponseDa
             message: error_message.clone(),
             reason: response.clone().and_then(|res| {
                 res.decline_code
-                    
                     .map(|decline_code| {
                         format!(
                             "message - {}, decline_code - {}",

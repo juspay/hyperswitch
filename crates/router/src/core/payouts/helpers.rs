@@ -80,7 +80,6 @@ pub async fn make_payout_method_data<'a>(
                     },
                 ))?;
             let payment_token_data = hyperswitch_token
-                
                 .parse_struct("PaymentTokenData")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("failed to deserialize hyperswitch token data")?;
