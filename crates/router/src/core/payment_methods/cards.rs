@@ -3633,32 +3633,25 @@ pub async fn list_countries_currencies_for_connector_payment_method_util(
     let payment_method_type =
         settings::PaymentMethodFilterKey::PaymentMethodType(payment_method_type);
 
-    let all_currencies = api_enums::Currency::iter().collect::<HashSet<_>>();
-    let all_countries = api_enums::CountryAlpha2::iter().collect::<HashSet<_>>();
-
     let (currencies, country_codes) = connector_filters
         .0
         .get(&connector.to_string())
         .and_then(|filter| filter.0.get(&payment_method_type))
-        .map(|filter| {
-            (
-                filter.currency.clone().unwrap_or(all_currencies.clone()),
-                filter.country.clone().unwrap_or(all_countries.clone()),
-            )
-        })
-        .or_else(|| {
+        .map(|filter| (filter.currency.clone(), filter.country.clone()))
+        .unwrap_or_else(|| {
             connector_filters
                 .0
                 .get("default")
                 .and_then(|filter| filter.0.get(&payment_method_type))
-                .map(|filter| {
-                    (
-                        filter.currency.clone().unwrap_or(all_currencies.clone()),
-                        filter.country.clone().unwrap_or(all_countries.clone()),
-                    )
+                .map_or((None, None), |filter| {
+                    (filter.currency.clone(), filter.country.clone())
                 })
-        })
-        .unwrap_or((all_currencies, all_countries));
+        });
+
+    let currencies =
+        currencies.unwrap_or_else(|| api_enums::Currency::iter().collect::<HashSet<_>>());
+    let country_codes =
+        country_codes.unwrap_or_else(|| api_enums::CountryAlpha2::iter().collect::<HashSet<_>>());
 
     ListCountriesCurrenciesResponse {
         currencies,
