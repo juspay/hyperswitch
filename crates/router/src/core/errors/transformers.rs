@@ -182,6 +182,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::PayoutNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "Payout does not exist in our records", None))
             }
+            Self::EventNotFound => {
+                AER::NotFound(ApiError::new("HE", 2, "Event does not exist in our records", None))
+            }
             Self::ReturnUrlUnavailable => AER::NotFound(ApiError::new("HE", 3, "Return URL is not configured and not passed in payments request", None)),
             Self::RefundNotPossible { connector } => {
                 AER::BadRequest(ApiError::new("HE", 3, format!("This refund is not possible through Hyperswitch. Please raise the refund through {connector} dashboard"), None))

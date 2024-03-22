@@ -1,0 +1,56 @@
+{
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json"
+    },
+    {
+      "key": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "body": {
+    "mode": "raw",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "amount": 6540,
+      "currency": "USD",
+      "confirm": true,
+      "payment_method": "card",
+      "payment_method_data": {
+        "card": {
+          "card_number": "4000000000000101",
+          "card_exp_month": "10",
+          "card_exp_year": "25",
+          "card_holder_name": "joseph Doe",
+          "card_cvc": "123"
+        }
+      },
+      "billing": {
+        "address": {
+          "line1": "1467",
+          "line2": "Harrison Street",
+          "line3": "Harrisoff Street",
+          "city": "San Fransico",
+          "state": "California",
+          "zip": "94122",
+          "country": "US",
+          "first_name": "Narayan",
+          "last_name": "Doe"
+        },
+        "email": "example@juspay.in"
+      }
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/payments",
+    "host": ["{{baseUrl}}"],
+    "path": ["payments"]
+  },
+  "description": "Create a Payment to ensure api contract is intact"
+}

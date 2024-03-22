@@ -21,6 +21,8 @@ pub mod refunds;
 pub mod routing;
 #[cfg(feature = "olap")]
 pub mod verify_connector;
+#[cfg(feature = "olap")]
+pub mod webhook_events;
 pub mod webhooks;
 
 use std::{fmt::Debug, str::FromStr};

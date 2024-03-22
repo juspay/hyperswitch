@@ -73,11 +73,12 @@ pub static USERS_MANAGE: [Permission; 2] =
 
 pub static MERCHANT_DETAILS_VIEW: [Permission; 1] = [Permission::MerchantAccountRead];
 
-pub static MERCHANT_DETAILS_MANAGE: [Permission; 4] = [
+pub static MERCHANT_DETAILS_MANAGE: [Permission; 5] = [
     Permission::MerchantAccountWrite,
     Permission::ApiKeyRead,
     Permission::ApiKeyWrite,
     Permission::MerchantAccountRead,
+    Permission::WebhookEventRead,
 ];
 
 pub static ORGANIZATION_MANAGE: [Permission; 2] = [
