@@ -31,6 +31,7 @@ pub enum Permission {
     UsersRead,
     UsersWrite,
     MerchantAccountCreate,
+    WebhookEventRead,
     PayoutWrite,
     PayoutRead,
 }

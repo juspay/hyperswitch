@@ -4,6 +4,37 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.03.22.0
+
+### Features
+
+- **events:** Add APIs to list webhook events and webhook delivery attempts ([#4131](https://github.com/juspay/hyperswitch/pull/4131)) ([`14e1bba`](https://github.com/juspay/hyperswitch/commit/14e1bbaf071d1178f91124fe85580f178cb1cf96))
+- **global-search-regex-escape:** Escape reserved characters which break global search query ([#4135](https://github.com/juspay/hyperswitch/pull/4135)) ([`4f8461b`](https://github.com/juspay/hyperswitch/commit/4f8461b2a949fd2a6d24b8b42f1bf8bab55cfeeb))
+
+### Miscellaneous Tasks
+
+- Update Slack workspace URL ([#4168](https://github.com/juspay/hyperswitch/pull/4168)) ([`75b4bac`](https://github.com/juspay/hyperswitch/commit/75b4bacc984d11cb755a8c36821ec41d3f1e2187))
+
+**Full Changelog:** [`2024.03.21.1...2024.03.22.0`](https://github.com/juspay/hyperswitch/compare/2024.03.21.1...2024.03.22.0)
+
+- - -
+
+## 2024.03.21.1
+
+### Features
+
+- **payouts:**
+  - Implement list and filter APIs ([#3651](https://github.com/juspay/hyperswitch/pull/3651)) ([`fb5f0e6`](https://github.com/juspay/hyperswitch/commit/fb5f0e6c7eb7255ac423ed4385613e9a78227c77))
+  - Add payout types in euclid crate ([#3862](https://github.com/juspay/hyperswitch/pull/3862)) ([`a151485`](https://github.com/juspay/hyperswitch/commit/a1514853176e6cdac73e69d90165416613c97d70))
+
+### Bug Fixes
+
+- **router:** Handle redirection to return_url from nested iframe in separate 3ds flow ([#4164](https://github.com/juspay/hyperswitch/pull/4164)) ([`b8c9275`](https://github.com/juspay/hyperswitch/commit/b8c927593a85792588e582bf25f2daadfa5f7fb0))
+
+**Full Changelog:** [`2024.03.21.0...2024.03.21.1`](https://github.com/juspay/hyperswitch/compare/2024.03.21.0...2024.03.21.1)
+
+- - -
+
 ## 2024.03.21.0
 
 ### Features
