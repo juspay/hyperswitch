@@ -468,22 +468,20 @@ fn get_wallet_data(
     }
 }
 
-impl TryFrom<&api_models::payments::BankRedirectData> for PaymentMethodData {
+impl TryFrom<&domain::BankRedirectData> for PaymentMethodData {
     type Error = Error;
-    fn try_from(value: &api_models::payments::BankRedirectData) -> Result<Self, Self::Error> {
+    fn try_from(value: &domain::BankRedirectData) -> Result<Self, Self::Error> {
         match value {
-            api_models::payments::BankRedirectData::Eps { .. } => Ok(Self::Apm(requests::Apm {
+            domain::BankRedirectData::Eps { .. } => Ok(Self::Apm(requests::Apm {
                 provider: Some(ApmProvider::Eps),
             })),
-            api_models::payments::BankRedirectData::Giropay { .. } => {
-                Ok(Self::Apm(requests::Apm {
-                    provider: Some(ApmProvider::Giropay),
-                }))
-            }
-            api_models::payments::BankRedirectData::Ideal { .. } => Ok(Self::Apm(requests::Apm {
+            domain::BankRedirectData::Giropay { .. } => Ok(Self::Apm(requests::Apm {
+                provider: Some(ApmProvider::Giropay),
+            })),
+            domain::BankRedirectData::Ideal { .. } => Ok(Self::Apm(requests::Apm {
                 provider: Some(ApmProvider::Ideal),
             })),
-            api_models::payments::BankRedirectData::Sofort { .. } => Ok(Self::Apm(requests::Apm {
+            domain::BankRedirectData::Sofort { .. } => Ok(Self::Apm(requests::Apm {
                 provider: Some(ApmProvider::Sofort),
             })),
             _ => Err(errors::ConnectorError::NotImplemented(

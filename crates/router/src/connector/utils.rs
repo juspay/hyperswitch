@@ -1119,7 +1119,7 @@ pub trait BankRedirectBillingData {
     fn get_billing_name(&self) -> Result<Secret<String>, Error>;
 }
 
-impl BankRedirectBillingData for payments::BankRedirectBilling {
+impl BankRedirectBillingData for domain::BankRedirectBilling {
     fn get_billing_name(&self) -> Result<Secret<String>, Error> {
         self.billing_name
             .clone()

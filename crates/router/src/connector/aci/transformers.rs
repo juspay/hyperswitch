@@ -1,6 +1,5 @@
 use std::str::FromStr;
 
-use api_models::enums::BankNames;
 use common_utils::pii::Email;
 use error_stack::report;
 use masking::{ExposeInterface, Secret};
@@ -157,19 +156,19 @@ impl TryFrom<&api_models::payments::WalletData> for PaymentDetails {
 impl
     TryFrom<(
         &AciRouterData<&types::PaymentsAuthorizeRouterData>,
-        &api_models::payments::BankRedirectData,
+        &domain::BankRedirectData,
     )> for PaymentDetails
 {
     type Error = Error;
     fn try_from(
         value: (
             &AciRouterData<&types::PaymentsAuthorizeRouterData>,
-            &api_models::payments::BankRedirectData,
+            &domain::BankRedirectData,
         ),
     ) -> Result<Self, Self::Error> {
         let (item, bank_redirect_data) = value;
         let payment_data = match bank_redirect_data {
-            api_models::payments::BankRedirectData::Eps { country, .. } => {
+            domain::BankRedirectData::Eps { country, .. } => {
                 Self::BankRedirect(Box::new(BankRedirectionPMData {
                     payment_brand: PaymentBrand::Eps,
                     bank_account_country: Some(country.ok_or(
@@ -186,7 +185,7 @@ impl
                     customer_email: None,
                 }))
             }
-            api_models::payments::BankRedirectData::Giropay {
+            domain::BankRedirectData::Giropay {
                 bank_account_bic,
                 bank_account_iban,
                 country,
@@ -206,7 +205,7 @@ impl
                 merchant_transaction_id: None,
                 customer_email: None,
             })),
-            api_models::payments::BankRedirectData::Ideal {
+            domain::BankRedirectData::Ideal {
                 bank_name, country, ..
             } => Self::BankRedirect(Box::new(BankRedirectionPMData {
                 payment_brand: PaymentBrand::Ideal,
@@ -227,7 +226,7 @@ impl
                 merchant_transaction_id: None,
                 customer_email: None,
             })),
-            api_models::payments::BankRedirectData::Sofort { country, .. } => {
+            domain::BankRedirectData::Sofort { country, .. } => {
                 Self::BankRedirect(Box::new(BankRedirectionPMData {
                     payment_brand: PaymentBrand::Sofortueberweisung,
                     bank_account_country: Some(country.to_owned().ok_or(
@@ -244,7 +243,7 @@ impl
                     customer_email: None,
                 }))
             }
-            api_models::payments::BankRedirectData::Przelewy24 {
+            domain::BankRedirectData::Przelewy24 {
                 billing_details, ..
             } => Self::BankRedirect(Box::new(BankRedirectionPMData {
                 payment_brand: PaymentBrand::Przelewy,
@@ -257,7 +256,7 @@ impl
                 merchant_transaction_id: None,
                 customer_email: billing_details.email.to_owned(),
             })),
-            api_models::payments::BankRedirectData::Interac { email, country } => {
+            domain::BankRedirectData::Interac { email, country } => {
                 Self::BankRedirect(Box::new(BankRedirectionPMData {
                     payment_brand: PaymentBrand::InteracOnline,
                     bank_account_country: Some(country.to_owned()),
@@ -270,7 +269,7 @@ impl
                     customer_email: Some(email.to_owned()),
                 }))
             }
-            api_models::payments::BankRedirectData::Trustly { country } => {
+            domain::BankRedirectData::Trustly { country } => {
                 Self::BankRedirect(Box::new(BankRedirectionPMData {
                     payment_brand: PaymentBrand::Trustly,
                     bank_account_country: None,
@@ -285,16 +284,16 @@ impl
                     customer_email: None,
                 }))
             }
-            api_models::payments::BankRedirectData::Bizum { .. }
-            | api_models::payments::BankRedirectData::Blik { .. }
-            | api_models::payments::BankRedirectData::BancontactCard { .. }
-            | api_models::payments::BankRedirectData::OnlineBankingCzechRepublic { .. }
-            | api_models::payments::BankRedirectData::OnlineBankingFinland { .. }
-            | api_models::payments::BankRedirectData::OnlineBankingFpx { .. }
-            | api_models::payments::BankRedirectData::OnlineBankingPoland { .. }
-            | api_models::payments::BankRedirectData::OnlineBankingSlovakia { .. }
-            | api_models::payments::BankRedirectData::OnlineBankingThailand { .. }
-            | api_models::payments::BankRedirectData::OpenBankingUk { .. } => Err(
+            domain::BankRedirectData::Bizum { .. }
+            | domain::BankRedirectData::Blik { .. }
+            | domain::BankRedirectData::BancontactCard { .. }
+            | domain::BankRedirectData::OnlineBankingCzechRepublic { .. }
+            | domain::BankRedirectData::OnlineBankingFinland { .. }
+            | domain::BankRedirectData::OnlineBankingFpx { .. }
+            | domain::BankRedirectData::OnlineBankingPoland { .. }
+            | domain::BankRedirectData::OnlineBankingSlovakia { .. }
+            | domain::BankRedirectData::OnlineBankingThailand { .. }
+            | domain::BankRedirectData::OpenBankingUk { .. } => Err(
                 errors::ConnectorError::NotImplemented("Payment method".to_string()),
             )?,
         };
@@ -324,7 +323,7 @@ pub struct BankRedirectionPMData {
     #[serde(rename = "bankAccount.country")]
     bank_account_country: Option<api_models::enums::CountryAlpha2>,
     #[serde(rename = "bankAccount.bankName")]
-    bank_account_bank_name: Option<BankNames>,
+    bank_account_bank_name: Option<common_enums::BankNames>,
     #[serde(rename = "bankAccount.bic")]
     bank_account_bic: Option<Secret<String>>,
     #[serde(rename = "bankAccount.iban")]
@@ -505,14 +504,14 @@ impl
 impl
     TryFrom<(
         &AciRouterData<&types::PaymentsAuthorizeRouterData>,
-        &api_models::payments::BankRedirectData,
+        &domain::BankRedirectData,
     )> for AciPaymentsRequest
 {
     type Error = Error;
     fn try_from(
         value: (
             &AciRouterData<&types::PaymentsAuthorizeRouterData>,
-            &api_models::payments::BankRedirectData,
+            &domain::BankRedirectData,
         ),
     ) -> Result<Self, Self::Error> {
         let (item, bank_redirect_data) = value;

@@ -316,7 +316,7 @@ pub struct ConnectorBankNames(pub HashMap<String, BanksVector>);
 #[derive(Debug, Deserialize, Clone)]
 pub struct BanksVector {
     #[serde(deserialize_with = "deserialize_hashset")]
-    pub banks: HashSet<api_models::enums::BankNames>,
+    pub banks: HashSet<common_enums::enums::BankNames>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
