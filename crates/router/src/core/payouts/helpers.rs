@@ -355,96 +355,121 @@ pub async fn save_payout_data_to_locker(
         None => (true, None),
     };
 
-    // Form card's metadata whenever insertion or metadata update is required
-    let card_details_encrypted = if let (api::PayoutMethodData::Card(_), true, _)
-    | (api::PayoutMethodData::Card(_), _, Some(_)) = (
-        payout_method_data,
-        should_insert_in_pm_table,
-        metadata_update.as_ref(),
-    ) {
-        // Fetch card info from db
-        let card_isin = card_details
-            .as_ref()
-            .map(|c| c.card_number.clone().get_card_isin());
+    // Form payment method entry and card's metadata whenever insertion or metadata update is required
+    let (card_details_encrypted, new_payment_method) =
+        if let (api::PayoutMethodData::Card(_), true, _)
+        | (api::PayoutMethodData::Card(_), _, Some(_)) = (
+            payout_method_data,
+            should_insert_in_pm_table,
+            metadata_update.as_ref(),
+        ) {
+            // Fetch card info from db
+            let card_isin = card_details
+                .as_ref()
+                .map(|c| c.card_number.clone().get_card_isin());
 
-        let pm_data = card_isin
-            .clone()
-            .async_and_then(|card_isin| async move {
-                db.get_card_info(&card_isin)
-                    .await
-                    .map_err(|error| services::logger::warn!(card_info_error=?error))
-                    .ok()
-            })
-            .await
-            .flatten()
-            .map(|card_info| {
-                api::payment_methods::PaymentMethodsData::Card(
-                    api::payment_methods::CardDetailsPaymentMethod {
-                        last4_digits: card_details
-                            .as_ref()
-                            .map(|c| c.card_number.clone().get_last4()),
-                        issuer_country: card_info.card_issuing_country,
-                        expiry_month: card_details.as_ref().map(|c| c.card_exp_month.clone()),
-                        expiry_year: card_details.as_ref().map(|c| c.card_exp_year.clone()),
-                        nick_name: card_details.as_ref().and_then(|c| c.nick_name.clone()),
-                        card_holder_name: card_details
-                            .as_ref()
-                            .and_then(|c| c.card_holder_name.clone()),
+            let mut payment_method = api::PaymentMethodCreate {
+                payment_method: api_enums::PaymentMethod::foreign_from(
+                    payout_method_data.to_owned(),
+                ),
+                payment_method_type: Some(payment_method_type),
+                payment_method_issuer: None,
+                payment_method_issuer_code: None,
+                bank_transfer: None,
+                card: card_details.clone(),
+                wallet: None,
+                metadata: None,
+                customer_id: Some(payout_attempt.customer_id.to_owned()),
+                card_network: None,
+            };
 
-                        card_isin: card_isin.clone(),
-                        card_issuer: card_info.card_issuer,
-                        card_network: card_info.card_network,
-                        card_type: card_info.card_type,
-                        saved_to_locker: true,
-                    },
-                )
-            })
-            .unwrap_or_else(|| {
-                api::payment_methods::PaymentMethodsData::Card(
-                    api::payment_methods::CardDetailsPaymentMethod {
-                        last4_digits: card_details
-                            .as_ref()
-                            .map(|c| c.card_number.clone().get_last4()),
-                        issuer_country: None,
-                        expiry_month: card_details.as_ref().map(|c| c.card_exp_month.clone()),
-                        expiry_year: card_details.as_ref().map(|c| c.card_exp_year.clone()),
-                        nick_name: card_details.as_ref().and_then(|c| c.nick_name.clone()),
-                        card_holder_name: card_details
-                            .as_ref()
-                            .and_then(|c| c.card_holder_name.clone()),
+            let pm_data = card_isin
+                .clone()
+                .async_and_then(|card_isin| async move {
+                    db.get_card_info(&card_isin)
+                        .await
+                        .map_err(|error| services::logger::warn!(card_info_error=?error))
+                        .ok()
+                })
+                .await
+                .flatten()
+                .map(|card_info| {
+                    payment_method.payment_method_issuer = card_info.card_issuer.clone();
+                    payment_method.card_network =
+                        card_info.card_network.clone().map(|cn| cn.to_string());
+                    api::payment_methods::PaymentMethodsData::Card(
+                        api::payment_methods::CardDetailsPaymentMethod {
+                            last4_digits: card_details
+                                .as_ref()
+                                .map(|c| c.card_number.clone().get_last4()),
+                            issuer_country: card_info.card_issuing_country,
+                            expiry_month: card_details.as_ref().map(|c| c.card_exp_month.clone()),
+                            expiry_year: card_details.as_ref().map(|c| c.card_exp_year.clone()),
+                            nick_name: card_details.as_ref().and_then(|c| c.nick_name.clone()),
+                            card_holder_name: card_details
+                                .as_ref()
+                                .and_then(|c| c.card_holder_name.clone()),
 
-                        card_isin: card_isin.clone(),
-                        card_issuer: None,
-                        card_network: None,
-                        card_type: None,
-                        saved_to_locker: true,
-                    },
-                )
-            });
-        cards::create_encrypted_payment_method_data(key_store, Some(pm_data)).await
-    } else {
-        None
-    };
+                            card_isin: card_isin.clone(),
+                            card_issuer: card_info.card_issuer,
+                            card_network: card_info.card_network,
+                            card_type: card_info.card_type,
+                            saved_to_locker: true,
+                        },
+                    )
+                })
+                .unwrap_or_else(|| {
+                    api::payment_methods::PaymentMethodsData::Card(
+                        api::payment_methods::CardDetailsPaymentMethod {
+                            last4_digits: card_details
+                                .as_ref()
+                                .map(|c| c.card_number.clone().get_last4()),
+                            issuer_country: None,
+                            expiry_month: card_details.as_ref().map(|c| c.card_exp_month.clone()),
+                            expiry_year: card_details.as_ref().map(|c| c.card_exp_year.clone()),
+                            nick_name: card_details.as_ref().and_then(|c| c.nick_name.clone()),
+                            card_holder_name: card_details
+                                .as_ref()
+                                .and_then(|c| c.card_holder_name.clone()),
+
+                            card_isin: card_isin.clone(),
+                            card_issuer: None,
+                            card_network: None,
+                            card_type: None,
+                            saved_to_locker: true,
+                        },
+                    )
+                });
+            (
+                cards::create_encrypted_payment_method_data(key_store, Some(pm_data)).await,
+                payment_method,
+            )
+        } else {
+            (
+                None,
+                api::PaymentMethodCreate {
+                    payment_method: api_enums::PaymentMethod::foreign_from(
+                        payout_method_data.to_owned(),
+                    ),
+                    payment_method_type: Some(payment_method_type),
+                    payment_method_issuer: None,
+                    payment_method_issuer_code: None,
+                    bank_transfer: bank_details,
+                    card: None,
+                    wallet: wallet_details,
+                    metadata: None,
+                    customer_id: Some(payout_attempt.customer_id.to_owned()),
+                    card_network: None,
+                },
+            )
+        };
 
     // Insert new entry in payment_methods table
     if should_insert_in_pm_table {
-        let payment_method = api::PaymentMethodCreate {
-            payment_method: api_enums::PaymentMethod::foreign_from(payout_method_data.to_owned()),
-            payment_method_type: Some(payment_method_type),
-            payment_method_issuer: None,
-            payment_method_issuer_code: None,
-            bank_transfer: bank_details,
-            card: card_details.clone(),
-            wallet: wallet_details,
-            metadata: None,
-            customer_id: Some(payout_attempt.customer_id.to_owned()),
-            card_network: None,
-        };
-
         let payment_method_id = common_utils::generate_id(crate::consts::ID_LENGTH, "pm");
         cards::create_payment_method(
             db,
-            &payment_method,
+            &new_payment_method,
             &payout_attempt.customer_id,
             &payment_method_id,
             Some(stored_resp.card_reference.clone()),
