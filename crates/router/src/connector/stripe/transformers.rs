@@ -25,7 +25,7 @@ use crate::{
     core::errors,
     services,
     types::{
-        self, api,
+        self, api, domain,
         storage::enums,
         transformers::{ForeignFrom, ForeignTryFrom},
     },
@@ -928,21 +928,21 @@ fn validate_shipping_address_against_payment_method(
     }
 }
 
-impl TryFrom<&api_models::payments::PayLaterData> for StripePaymentMethodType {
+impl TryFrom<&domain::payments::PayLaterData> for StripePaymentMethodType {
     type Error = errors::ConnectorError;
-    fn try_from(pay_later_data: &api_models::payments::PayLaterData) -> Result<Self, Self::Error> {
+    fn try_from(pay_later_data: &domain::payments::PayLaterData) -> Result<Self, Self::Error> {
         match pay_later_data {
-            api_models::payments::PayLaterData::KlarnaRedirect { .. } => Ok(Self::Klarna),
-            api_models::payments::PayLaterData::AffirmRedirect {} => Ok(Self::Affirm),
-            api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
+            domain::payments::PayLaterData::KlarnaRedirect { .. } => Ok(Self::Klarna),
+            domain::payments::PayLaterData::AffirmRedirect {} => Ok(Self::Affirm),
+            domain::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
                 Ok(Self::AfterpayClearpay)
             }
 
-            payments::PayLaterData::KlarnaSdk { .. }
-            | payments::PayLaterData::PayBrightRedirect {}
-            | payments::PayLaterData::WalleyRedirect {}
-            | payments::PayLaterData::AlmaRedirect {}
-            | payments::PayLaterData::AtomeRedirect {} => {
+            domain::PayLaterData::KlarnaSdk { .. }
+            | domain::PayLaterData::PayBrightRedirect {}
+            | domain::PayLaterData::WalleyRedirect {}
+            | domain::PayLaterData::AlmaRedirect {}
+            | domain::PayLaterData::AtomeRedirect {} => {
                 Err(errors::ConnectorError::NotImplemented(
                     connector_util::get_unimplemented_payment_method_error_message("stripe"),
                 ))
@@ -1037,17 +1037,15 @@ impl From<&payments::BankDebitData> for StripePaymentMethodType {
     }
 }
 
-impl TryFrom<(&api_models::payments::PayLaterData, StripePaymentMethodType)>
-    for StripeBillingAddress
-{
+impl TryFrom<(&domain::payments::PayLaterData, StripePaymentMethodType)> for StripeBillingAddress {
     type Error = errors::ConnectorError;
 
     fn try_from(
-        (pay_later_data, pm_type): (&api_models::payments::PayLaterData, StripePaymentMethodType),
+        (pay_later_data, pm_type): (&domain::payments::PayLaterData, StripePaymentMethodType),
     ) -> Result<Self, Self::Error> {
         match (pay_later_data, pm_type) {
             (
-                payments::PayLaterData::KlarnaRedirect {
+                domain::payments::PayLaterData::KlarnaRedirect {
                     billing_email,
                     billing_country,
                 },
@@ -1057,11 +1055,12 @@ impl TryFrom<(&api_models::payments::PayLaterData, StripePaymentMethodType)>
                 country: Some(billing_country.to_owned()),
                 ..Self::default()
             }),
-            (payments::PayLaterData::AffirmRedirect {}, StripePaymentMethodType::Affirm) => {
-                Ok(Self::default())
-            }
             (
-                payments::PayLaterData::AfterpayClearpayRedirect {
+                domain::payments::PayLaterData::AffirmRedirect {},
+                StripePaymentMethodType::Affirm,
+            ) => Ok(Self::default()),
+            (
+                domain::payments::PayLaterData::AfterpayClearpayRedirect {
                     billing_email,
                     billing_name,
                 },
@@ -1272,7 +1271,7 @@ fn get_bank_debit_data(
 }
 
 fn create_stripe_payment_method(
-    payment_method_data: &api_models::payments::PaymentMethodData,
+    payment_method_data: &domain::PaymentMethodData,
     auth_type: enums::AuthenticationType,
     payment_method_token: Option<types::PaymentMethodToken>,
     is_customer_initiated_mandate_payment: Option<bool>,
@@ -1286,7 +1285,7 @@ fn create_stripe_payment_method(
     error_stack::Report<errors::ConnectorError>,
 > {
     match payment_method_data {
-        payments::PaymentMethodData::Card(card_details) => {
+        domain::PaymentMethodData::Card(card_details) => {
             let payment_method_auth_type = match auth_type {
                 enums::AuthenticationType::ThreeDs => Auth3ds::Any,
                 enums::AuthenticationType::NoThreeDs => Auth3ds::Automatic,
@@ -1297,7 +1296,7 @@ fn create_stripe_payment_method(
                 billing_address,
             ))
         }
-        payments::PaymentMethodData::PayLater(pay_later_data) => {
+        domain::PaymentMethodData::PayLater(pay_later_data) => {
             let stripe_pm_type = StripePaymentMethodType::try_from(pay_later_data)?;
             let billing_address = StripeBillingAddress::try_from((pay_later_data, stripe_pm_type))?;
             Ok((
@@ -1308,7 +1307,7 @@ fn create_stripe_payment_method(
                 billing_address,
             ))
         }
-        payments::PaymentMethodData::BankRedirect(bank_redirect_data) => {
+        domain::PaymentMethodData::BankRedirect(bank_redirect_data) => {
             let billing_address = StripeBillingAddress::try_from((
                 bank_redirect_data,
                 is_customer_initiated_mandate_payment,
@@ -1318,7 +1317,7 @@ fn create_stripe_payment_method(
 
             Ok((bank_redirect_data, Some(pm_type), billing_address))
         }
-        payments::PaymentMethodData::Wallet(wallet_data) => {
+        domain::PaymentMethodData::Wallet(wallet_data) => {
             let pm_type = ForeignTryFrom::foreign_try_from(wallet_data)?;
             let wallet_specific_data =
                 StripePaymentMethodData::try_from((wallet_data, payment_method_token))?;
@@ -1328,7 +1327,7 @@ fn create_stripe_payment_method(
                 StripeBillingAddress::default(),
             ))
         }
-        payments::PaymentMethodData::BankDebit(bank_debit_data) => {
+        domain::PaymentMethodData::BankDebit(bank_debit_data) => {
             let (pm_type, bank_debit_data, billing_address) = get_bank_debit_data(bank_debit_data);
 
             let pm_data = StripePaymentMethodData::BankDebit(StripeBankDebitData {
@@ -1337,7 +1336,7 @@ fn create_stripe_payment_method(
 
             Ok((pm_data, Some(pm_type), billing_address))
         }
-        payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
+        domain::PaymentMethodData::BankTransfer(bank_transfer_data) => {
             match bank_transfer_data.deref() {
                 payments::BankTransferData::AchBankTransfer { billing_details } => Ok((
                     StripePaymentMethodData::BankTransfer(StripeBankTransferData::AchBankTransfer(
@@ -1426,12 +1425,12 @@ fn create_stripe_payment_method(
                 }
             }
         }
-        payments::PaymentMethodData::Crypto(_) => Err(errors::ConnectorError::NotImplemented(
+        domain::PaymentMethodData::Crypto(_) => Err(errors::ConnectorError::NotImplemented(
             connector_util::get_unimplemented_payment_method_error_message("stripe"),
         )
         .into()),
 
-        payments::PaymentMethodData::GiftCard(giftcard_data) => match giftcard_data.deref() {
+        domain::PaymentMethodData::GiftCard(giftcard_data) => match giftcard_data.deref() {
             payments::GiftCardData::Givex(_) | payments::GiftCardData::PaySafeCard {} => {
                 Err(errors::ConnectorError::NotImplemented(
                     connector_util::get_unimplemented_payment_method_error_message("stripe"),
@@ -1439,24 +1438,23 @@ fn create_stripe_payment_method(
                 .into())
             }
         },
-
-        payments::PaymentMethodData::CardRedirect(cardredirect_data) => match cardredirect_data {
-            payments::CardRedirectData::Knet {}
-            | payments::CardRedirectData::Benefit {}
-            | payments::CardRedirectData::MomoAtm {}
-            | payments::CardRedirectData::CardRedirect {} => {
+        domain::PaymentMethodData::CardRedirect(cardredirect_data) => match cardredirect_data {
+            domain::CardRedirectData::Knet {}
+            | domain::CardRedirectData::Benefit {}
+            | domain::CardRedirectData::MomoAtm {}
+            | domain::CardRedirectData::CardRedirect {} => {
                 Err(errors::ConnectorError::NotImplemented(
                     connector_util::get_unimplemented_payment_method_error_message("stripe"),
                 )
                 .into())
             }
         },
-        payments::PaymentMethodData::Reward => Err(errors::ConnectorError::NotImplemented(
+        domain::PaymentMethodData::Reward => Err(errors::ConnectorError::NotImplemented(
             connector_util::get_unimplemented_payment_method_error_message("stripe"),
         )
         .into()),
 
-        payments::PaymentMethodData::Voucher(voucher_data) => match voucher_data {
+        domain::PaymentMethodData::Voucher(voucher_data) => match voucher_data {
             payments::VoucherData::Boleto(_) | payments::VoucherData::Oxxo => {
                 Err(errors::ConnectorError::NotImplemented(
                     connector_util::get_unimplemented_payment_method_error_message("stripe"),
@@ -1480,19 +1478,19 @@ fn create_stripe_payment_method(
             .into()),
         },
 
-        payments::PaymentMethodData::Upi(_)
-        | payments::PaymentMethodData::MandatePayment
-        | payments::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+        domain::PaymentMethodData::Upi(_)
+        | domain::PaymentMethodData::MandatePayment
+        | domain::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
             connector_util::get_unimplemented_payment_method_error_message("stripe"),
         )
         .into()),
     }
 }
 
-impl TryFrom<(&payments::Card, Auth3ds)> for StripePaymentMethodData {
+impl TryFrom<(&domain::Card, Auth3ds)> for StripePaymentMethodData {
     type Error = errors::ConnectorError;
     fn try_from(
-        (card, payment_method_auth_type): (&payments::Card, Auth3ds),
+        (card, payment_method_auth_type): (&domain::Card, Auth3ds),
     ) -> Result<Self, Self::Error> {
         Ok(Self::Card(StripeCardData {
             payment_method_data_type: StripePaymentMethodType::Card,
@@ -1857,7 +1855,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
         };
 
         payment_data = match item.request.payment_method_data {
-            payments::PaymentMethodData::Wallet(payments::WalletData::ApplePay(_)) => {
+            domain::PaymentMethodData::Wallet(payments::WalletData::ApplePay(_)) => {
                 let payment_method_token = item
                     .payment_method_token
                     .to_owned()
@@ -3184,7 +3182,7 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeCreditTransferSo
         let currency = item.request.get_currency()?;
 
         match &item.request.payment_method_data {
-            Some(payments::PaymentMethodData::BankTransfer(bank_transfer_data)) => {
+            Some(domain::PaymentMethodData::BankTransfer(bank_transfer_data)) => {
                 match **bank_transfer_data {
                     payments::BankTransferData::MultibancoBankTransfer { .. } => Ok(
                         Self::MultibancoBankTansfer(MultibancoCreditTransferSourceRequest {
@@ -3226,19 +3224,19 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeCreditTransferSo
                     }
                 }
             }
-            Some(payments::PaymentMethodData::Card(..))
-            | Some(payments::PaymentMethodData::Wallet(..))
-            | Some(payments::PaymentMethodData::BankDebit(..))
-            | Some(payments::PaymentMethodData::BankRedirect(..))
-            | Some(payments::PaymentMethodData::PayLater(..))
-            | Some(payments::PaymentMethodData::Crypto(..))
-            | Some(payments::PaymentMethodData::Reward)
-            | Some(payments::PaymentMethodData::MandatePayment)
-            | Some(payments::PaymentMethodData::Upi(..))
-            | Some(payments::PaymentMethodData::GiftCard(..))
-            | Some(payments::PaymentMethodData::CardRedirect(..))
-            | Some(payments::PaymentMethodData::Voucher(..))
-            | Some(payments::PaymentMethodData::CardToken(..))
+            Some(domain::PaymentMethodData::Card(..))
+            | Some(domain::PaymentMethodData::Wallet(..))
+            | Some(domain::PaymentMethodData::BankDebit(..))
+            | Some(domain::PaymentMethodData::BankRedirect(..))
+            | Some(domain::PaymentMethodData::PayLater(..))
+            | Some(domain::PaymentMethodData::Crypto(..))
+            | Some(domain::PaymentMethodData::Reward)
+            | Some(domain::PaymentMethodData::MandatePayment)
+            | Some(domain::PaymentMethodData::Upi(..))
+            | Some(domain::PaymentMethodData::GiftCard(..))
+            | Some(domain::PaymentMethodData::CardRedirect(..))
+            | Some(domain::PaymentMethodData::Voucher(..))
+            | Some(domain::PaymentMethodData::CardToken(..))
             | None => Err(errors::ConnectorError::NotImplemented(
                 connector_util::get_unimplemented_payment_method_error_message("stripe"),
             )
@@ -3591,7 +3589,7 @@ pub struct EvidenceDetails {
 
 impl
     TryFrom<(
-        api::PaymentMethodData,
+        domain::PaymentMethodData,
         enums::AuthenticationType,
         StripePaymentMethodType,
     )> for StripePaymentMethodData
@@ -3599,98 +3597,98 @@ impl
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (pm_data, auth_type, pm_type): (
-            api::PaymentMethodData,
+            domain::PaymentMethodData,
             enums::AuthenticationType,
             StripePaymentMethodType,
         ),
     ) -> Result<Self, Self::Error> {
         match pm_data {
-            api::PaymentMethodData::Card(ref ccard) => {
+            domain::PaymentMethodData::Card(ref ccard) => {
                 let payment_method_auth_type = match auth_type {
                     enums::AuthenticationType::ThreeDs => Auth3ds::Any,
                     enums::AuthenticationType::NoThreeDs => Auth3ds::Automatic,
                 };
                 Ok(Self::try_from((ccard, payment_method_auth_type))?)
             }
-            api::PaymentMethodData::PayLater(_) => Ok(Self::PayLater(StripePayLaterData {
+            domain::PaymentMethodData::PayLater(_) => Ok(Self::PayLater(StripePayLaterData {
                 payment_method_data_type: pm_type,
             })),
-            api::PaymentMethodData::BankRedirect(ref bank_redirect_data) => {
+            domain::PaymentMethodData::BankRedirect(ref bank_redirect_data) => {
                 Ok(Self::try_from(bank_redirect_data)?)
             }
-            payments::PaymentMethodData::Wallet(ref wallet_data) => {
+            domain::PaymentMethodData::Wallet(ref wallet_data) => {
                 Ok(Self::try_from((wallet_data, None))?)
             }
-            api::PaymentMethodData::BankDebit(bank_debit_data) => {
+            domain::PaymentMethodData::BankDebit(bank_debit_data) => {
                 let (_pm_type, bank_data, _) = get_bank_debit_data(&bank_debit_data);
 
                 Ok(Self::BankDebit(StripeBankDebitData {
                     bank_specific_data: bank_data,
                 }))
             }
-            api::PaymentMethodData::BankTransfer(bank_transfer_data) => {
-                match bank_transfer_data.deref() {
-                    payments::BankTransferData::AchBankTransfer { billing_details } => {
-                        Ok(Self::BankTransfer(StripeBankTransferData::AchBankTransfer(
-                            Box::new(AchTransferData {
-                                email: billing_details.email.to_owned(),
-                            }),
-                        )))
-                    }
-                    payments::BankTransferData::MultibancoBankTransfer { billing_details } => Ok(
-                        Self::BankTransfer(StripeBankTransferData::MultibancoBankTransfers(
-                            Box::new(MultibancoTransferData {
-                                email: billing_details.email.to_owned(),
-                            }),
-                        )),
-                    ),
-                    payments::BankTransferData::SepaBankTransfer { country, .. } => Ok(
-                        Self::BankTransfer(StripeBankTransferData::SepaBankTransfer(Box::new(
-                            SepaBankTransferData {
-                                payment_method_data_type: StripePaymentMethodType::CustomerBalance,
-                                bank_transfer_type: BankTransferType::EuBankTransfer,
-                                balance_funding_type: BankTransferType::BankTransfers,
-                                payment_method_type: StripePaymentMethodType::CustomerBalance,
-                                country: country.to_owned(),
-                            },
-                        ))),
-                    ),
-                    payments::BankTransferData::BacsBankTransfer { .. } => Ok(Self::BankTransfer(
-                        StripeBankTransferData::BacsBankTransfers(Box::new(BacsBankTransferData {
+            domain::PaymentMethodData::BankTransfer(bank_transfer_data) => match bank_transfer_data
+                .deref()
+            {
+                payments::BankTransferData::AchBankTransfer { billing_details } => {
+                    Ok(Self::BankTransfer(StripeBankTransferData::AchBankTransfer(
+                        Box::new(AchTransferData {
+                            email: billing_details.email.to_owned(),
+                        }),
+                    )))
+                }
+                payments::BankTransferData::MultibancoBankTransfer { billing_details } => Ok(
+                    Self::BankTransfer(StripeBankTransferData::MultibancoBankTransfers(Box::new(
+                        MultibancoTransferData {
+                            email: billing_details.email.to_owned(),
+                        },
+                    ))),
+                ),
+                payments::BankTransferData::SepaBankTransfer { country, .. } => {
+                    Ok(Self::BankTransfer(
+                        StripeBankTransferData::SepaBankTransfer(Box::new(SepaBankTransferData {
                             payment_method_data_type: StripePaymentMethodType::CustomerBalance,
-                            bank_transfer_type: BankTransferType::GbBankTransfer,
+                            bank_transfer_type: BankTransferType::EuBankTransfer,
                             balance_funding_type: BankTransferType::BankTransfers,
                             payment_method_type: StripePaymentMethodType::CustomerBalance,
+                            country: country.to_owned(),
                         })),
-                    )),
-                    payments::BankTransferData::Pix {}
-                    | payments::BankTransferData::Pse {}
-                    | payments::BankTransferData::PermataBankTransfer { .. }
-                    | payments::BankTransferData::BcaBankTransfer { .. }
-                    | payments::BankTransferData::BniVaBankTransfer { .. }
-                    | payments::BankTransferData::BriVaBankTransfer { .. }
-                    | payments::BankTransferData::CimbVaBankTransfer { .. }
-                    | payments::BankTransferData::DanamonVaBankTransfer { .. }
-                    | payments::BankTransferData::MandiriVaBankTransfer { .. } => {
-                        Err(errors::ConnectorError::NotImplemented(
-                            connector_util::get_unimplemented_payment_method_error_message(
-                                "stripe",
-                            ),
-                        )
-                        .into())
-                    }
+                    ))
                 }
+                payments::BankTransferData::BacsBankTransfer { .. } => Ok(Self::BankTransfer(
+                    StripeBankTransferData::BacsBankTransfers(Box::new(BacsBankTransferData {
+                        payment_method_data_type: StripePaymentMethodType::CustomerBalance,
+                        bank_transfer_type: BankTransferType::GbBankTransfer,
+                        balance_funding_type: BankTransferType::BankTransfers,
+                        payment_method_type: StripePaymentMethodType::CustomerBalance,
+                    })),
+                )),
+                payments::BankTransferData::Pix {}
+                | payments::BankTransferData::Pse {}
+                | payments::BankTransferData::PermataBankTransfer { .. }
+                | payments::BankTransferData::BcaBankTransfer { .. }
+                | payments::BankTransferData::BniVaBankTransfer { .. }
+                | payments::BankTransferData::BriVaBankTransfer { .. }
+                | payments::BankTransferData::CimbVaBankTransfer { .. }
+                | payments::BankTransferData::DanamonVaBankTransfer { .. }
+                | payments::BankTransferData::MandiriVaBankTransfer { .. } => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        connector_util::get_unimplemented_payment_method_error_message("stripe"),
+                    )
+                    .into())
+                }
+            },
+            domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    connector_util::get_unimplemented_payment_method_error_message("stripe"),
+                ))?
             }
-            api::PaymentMethodData::MandatePayment
-            | api::PaymentMethodData::Crypto(_)
-            | api::PaymentMethodData::Reward
-            | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
-                connector_util::get_unimplemented_payment_method_error_message("stripe"),
-            ))?,
         }
     }
 }

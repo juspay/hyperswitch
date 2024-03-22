@@ -1,5 +1,5 @@
 use api_models::payments::{Address, AddressDetails};
-use router::types::{self, storage::enums};
+use router::types::{self, domain, storage::enums};
 
 use crate::{
     connector_auth,
@@ -39,7 +39,7 @@ static CONNECTOR: CashtocodeTest = CashtocodeTest {};
 impl CashtocodeTest {
     fn get_payment_authorize_data(
         payment_method_type: Option<enums::PaymentMethodType>,
-        payment_method_data: types::api::PaymentMethodData,
+        payment_method_data: types::domain::PaymentMethodData,
     ) -> Option<types::PaymentsAuthorizeData> {
         Some(types::PaymentsAuthorizeData {
             amount: 1000,
@@ -102,7 +102,7 @@ async fn should_fetch_pay_url_classic() {
         .make_payment(
             CashtocodeTest::get_payment_authorize_data(
                 Some(enums::PaymentMethodType::ClassicReward),
-                api_models::payments::PaymentMethodData::Reward,
+                domain::payments::PaymentMethodData::Reward,
             ),
             CashtocodeTest::get_payment_info(),
         )
@@ -120,7 +120,7 @@ async fn should_fetch_pay_url_evoucher() {
         .make_payment(
             CashtocodeTest::get_payment_authorize_data(
                 Some(enums::PaymentMethodType::Evoucher),
-                api_models::payments::PaymentMethodData::Reward,
+                domain::payments::PaymentMethodData::Reward,
             ),
             CashtocodeTest::get_payment_info(),
         )

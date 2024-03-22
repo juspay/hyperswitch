@@ -9,7 +9,7 @@ use crate::{
     consts,
     core::errors,
     services,
-    types::{self, api, storage::enums},
+    types::{self, api, domain, storage::enums},
 };
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -106,7 +106,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(req_card) => {
+            domain::PaymentMethodData::Card(req_card) => {
                 let three_ds = match item.auth_type {
                     enums::AuthenticationType::ThreeDs => Some(ThreeDSecure {
                         enabled: true,

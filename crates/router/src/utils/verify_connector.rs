@@ -1,15 +1,15 @@
 use api_models::enums::Connector;
 use error_stack::{IntoReport, ResultExt};
 
-use crate::{core::errors, types::api};
+use crate::{core::errors, types::domain};
 
 pub fn generate_card_from_details(
     card_number: String,
     card_exp_year: String,
     card_exp_month: String,
     card_cvv: String,
-) -> errors::RouterResult<api::Card> {
-    Ok(api::Card {
+) -> errors::RouterResult<domain::Card> {
+    Ok(domain::Card {
         card_number: card_number
             .parse()
             .into_report()
@@ -28,7 +28,9 @@ pub fn generate_card_from_details(
     })
 }
 
-pub fn get_test_card_details(connector_name: Connector) -> errors::RouterResult<Option<api::Card>> {
+pub fn get_test_card_details(
+    connector_name: Connector,
+) -> errors::RouterResult<Option<domain::Card>> {
     match connector_name {
         Connector::Stripe => Some(generate_card_from_details(
             "4242424242424242".to_string(),

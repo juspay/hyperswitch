@@ -69,7 +69,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
         amount: 1,
         currency: enums::Currency::USD,
-        payment_method_data: types::api::PaymentMethodData::Crypto(CryptoData {
+        payment_method_data: types::domain::PaymentMethodData::Crypto(CryptoData {
             pay_currency: Some("XRP".to_string()),
         }),
         confirm: true,
