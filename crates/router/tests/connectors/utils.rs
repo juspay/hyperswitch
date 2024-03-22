@@ -528,6 +528,7 @@ pub trait ConnectorActions: Connector {
             frm_metadata: None,
             refund_id: None,
             dispute_id: None,
+            connector_response: None,
         }
     }
 

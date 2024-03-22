@@ -1,6 +1,8 @@
 use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 use api_models::payments::{FrmMessage, RequestSurchargeDetails};
+#[cfg(feature = "payouts")]
+use api_models::payouts::PayoutAttemptResponse;
 use common_enums::RequestIncrementalAuthorization;
 use common_utils::{consts::X_HS_LATENCY, fp_utils};
 use diesel_models::ephemeral_key;
@@ -171,6 +173,7 @@ where
         frm_metadata: None,
         refund_id: None,
         dispute_id: None,
+        connector_response: None,
     };
 
     Ok(router_data)
@@ -953,6 +956,49 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             attempt_count: pi.attempt_count,
             profile_id: pi.profile_id,
             merchant_connector_id: pa.merchant_connector_id,
+            ..Default::default()
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl ForeignFrom<(storage::Payouts, storage::PayoutAttempt)> for api::PayoutCreateResponse {
+    fn foreign_from(item: (storage::Payouts, storage::PayoutAttempt)) -> Self {
+        let payout = item.0;
+        let payout_attempt = item.1;
+        let attempt = PayoutAttemptResponse {
+            attempt_id: payout_attempt.payout_attempt_id,
+            status: payout_attempt.status,
+            amount: payout.amount,
+            currency: Some(payout.destination_currency),
+            connector: payout_attempt.connector.clone(),
+            error_code: payout_attempt.error_code,
+            error_message: payout_attempt.error_message,
+            payment_method: Some(payout.payout_type),
+            payout_method_type: None,
+            connector_transaction_id: Some(payout_attempt.connector_payout_id),
+            cancellation_reason: None,
+            payout_token: payout_attempt.payout_token,
+            unified_code: None,
+            unified_message: None,
+        };
+        let attempts = vec![attempt];
+        Self {
+            payout_id: payout.payout_id,
+            merchant_id: payout.merchant_id,
+            status: payout.status,
+            amount: payout.amount,
+            created: Some(payout.created_at),
+            currency: payout.destination_currency,
+            description: payout.description,
+            metadata: payout.metadata,
+            customer_id: payout.customer_id,
+            connector: payout_attempt.connector,
+            payout_type: payout.payout_type,
+            business_label: payout_attempt.business_label,
+            business_country: payout_attempt.business_country,
+            recurring: payout.recurring,
+            attempts: Some(attempts),
             ..Default::default()
         }
     }

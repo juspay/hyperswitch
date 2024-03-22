@@ -674,10 +674,10 @@ impl
 
         match id.get_connector_transaction_id() {
             Ok(x) if x.starts_with("set") => Ok(format!(
-                "{}{}/{}",
+                "{}{}/{}?expand[0]=latest_attempt", // expand latest attempt to extract payment checks and three_d_secure data
                 self.base_url(connectors),
                 "v1/setup_intents",
-                x
+                x,
             )),
             Ok(x) => Ok(format!(
                 "{}{}/{}{}",
@@ -712,7 +712,6 @@ impl
         res: types::Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError>
     where
-        types::PaymentsAuthorizeData: Clone,
         types::PaymentsResponseData: Clone,
     {
         let id = data.request.connector_transaction_id.clone();

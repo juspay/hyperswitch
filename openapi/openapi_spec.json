@@ -3303,6 +3303,64 @@
         ]
       }
     },
+    "/payouts/list": {
+      "get": {
+        "tags": [
+          "Payouts"
+        ],
+        "summary": "Payouts - List",
+        "description": "Payouts - List",
+        "operationId": "List payouts",
+        "responses": {
+          "200": {
+            "description": "Payouts listed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PayoutListResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payout not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Payouts"
+        ],
+        "summary": "Payouts - Filter",
+        "description": "Payouts - Filter",
+        "operationId": "Filter payouts",
+        "responses": {
+          "200": {
+            "description": "Payouts filtered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PayoutListResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payout not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/payouts/{payout_id}": {
       "get": {
         "tags": [
@@ -14842,6 +14900,92 @@
           }
         }
       },
+      "PayoutAttemptResponse": {
+        "type": "object",
+        "required": [
+          "attempt_id",
+          "status",
+          "amount"
+        ],
+        "properties": {
+          "attempt_id": {
+            "type": "string",
+            "description": "Unique identifier for the attempt"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PayoutStatus"
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The payout attempt amount. Amount for the payout in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,"
+          },
+          "currency": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ],
+            "nullable": true
+          },
+          "connector": {
+            "type": "string",
+            "description": "The connector used for the payout",
+            "nullable": true
+          },
+          "error_code": {
+            "type": "string",
+            "description": "Connector's error code in case of failures",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "description": "Connector's error message in case of failures",
+            "nullable": true
+          },
+          "payment_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutType"
+              }
+            ],
+            "nullable": true
+          },
+          "payout_method_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
+          },
+          "connector_transaction_id": {
+            "type": "string",
+            "description": "A unique identifier for a payout provided by the connector",
+            "nullable": true
+          },
+          "cancellation_reason": {
+            "type": "string",
+            "description": "If the payout was cancelled the reason provided here",
+            "nullable": true
+          },
+          "payout_token": {
+            "type": "string",
+            "description": "Provide a reference to a stored payout method",
+            "nullable": true
+          },
+          "unified_code": {
+            "type": "string",
+            "description": "error code unified across the connectors is received here if there was an error while calling connector",
+            "nullable": true
+          },
+          "unified_message": {
+            "type": "string",
+            "description": "error message unified across the connectors is received here if there was an error while calling connector",
+            "nullable": true
+          }
+        }
+      },
       "PayoutConnectors": {
         "type": "string",
         "enum": [
@@ -15172,6 +15316,21 @@
           "profile_id": {
             "type": "string",
             "description": "The business profile that is associated with this payment"
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Time when the payout was created",
+            "example": "2022-09-10T10:11:12Z",
+            "nullable": true
+          },
+          "attempts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PayoutAttemptResponse"
+            },
+            "description": "List of attempts",
+            "nullable": true
           }
         }
       },
@@ -15186,6 +15345,171 @@
           "lowercase",
           "Personal"
         ]
+      },
+      "PayoutListConstraints": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TimeRange"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object",
+            "properties": {
+              "customer_id": {
+                "type": "string",
+                "description": "The identifier for customer",
+                "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+                "nullable": true
+              },
+              "starting_after": {
+                "type": "string",
+                "description": "A cursor for use in pagination, fetch the next list after some object",
+                "example": "pay_fafa124123",
+                "nullable": true
+              },
+              "ending_before": {
+                "type": "string",
+                "description": "A cursor for use in pagination, fetch the previous list before some object",
+                "example": "pay_fafa124123",
+                "nullable": true
+              },
+              "limit": {
+                "type": "integer",
+                "format": "int32",
+                "description": "limit on the number of objects to return",
+                "default": 10,
+                "maximum": 100,
+                "minimum": 0
+              },
+              "created": {
+                "type": "string",
+                "format": "date-time",
+                "description": "The time at which payout is created",
+                "example": "2022-09-10T10:11:12Z",
+                "nullable": true
+              }
+            }
+          }
+        ]
+      },
+      "PayoutListFilterConstraints": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TimeRange"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object",
+            "required": [
+              "currency",
+              "entity_type"
+            ],
+            "properties": {
+              "payout_id": {
+                "type": "string",
+                "description": "The identifier for payout",
+                "example": "payout_mbabizu24mvu3mela5njyhpit4",
+                "nullable": true,
+                "maxLength": 30,
+                "minLength": 30
+              },
+              "profile_id": {
+                "type": "string",
+                "description": "The identifier for business profile",
+                "nullable": true
+              },
+              "customer_id": {
+                "type": "string",
+                "description": "The identifier for customer",
+                "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+                "nullable": true
+              },
+              "limit": {
+                "type": "integer",
+                "format": "int32",
+                "description": "The limit on the number of objects. The default limit is 10 and max limit is 20",
+                "minimum": 0
+              },
+              "offset": {
+                "type": "integer",
+                "format": "int32",
+                "description": "The starting point within a list of objects",
+                "nullable": true,
+                "minimum": 0
+              },
+              "connector": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PayoutConnectors"
+                },
+                "description": "The list of connectors to filter payouts list",
+                "example": [
+                  "wise",
+                  "adyen"
+                ],
+                "nullable": true
+              },
+              "currency": {
+                "$ref": "#/components/schemas/Currency"
+              },
+              "status": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PayoutStatus"
+                },
+                "description": "The list of payout status to filter payouts list",
+                "example": [
+                  "pending",
+                  "failed"
+                ],
+                "nullable": true
+              },
+              "payout_method": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PayoutType"
+                },
+                "description": "The list of payout methods to filter payouts list",
+                "example": [
+                  "bank",
+                  "card"
+                ],
+                "nullable": true
+              },
+              "entity_type": {
+                "$ref": "#/components/schemas/PayoutEntityType"
+              }
+            }
+          }
+        ]
+      },
+      "PayoutListResponse": {
+        "type": "object",
+        "required": [
+          "size",
+          "data"
+        ],
+        "properties": {
+          "size": {
+            "type": "integer",
+            "description": "The number of payouts included in the list",
+            "minimum": 0
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PayoutCreateResponse"
+            }
+          }
+        }
       },
       "PayoutMethodData": {
         "oneOf": [
