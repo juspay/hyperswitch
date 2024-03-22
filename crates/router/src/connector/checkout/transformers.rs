@@ -183,6 +183,33 @@ pub struct CardSource {
     pub expiry_year: Secret<String>,
     pub cvv: Secret<String>,
 }
+#[derive(Debug, Serialize)]
+pub struct CheckoutAccountHolder {
+    pub first_name: String,
+    pub last_name: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct GiroPaySource {
+    #[serde(rename = "type")]
+    pub source_type: CheckoutSourceTypes,
+    pub account_holder: CheckoutAccountHolder,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Address {
+    pub address_line1: String,
+    pub address_line2: String,
+    pub city: String,
+    pub state: String,
+    pub zip: String,
+    pub country: String,
+}
+
+#[derive(Debug, Serialize)]
+struct Shipping {
+    address: Address,
+}
 
 #[derive(Debug, Serialize)]
 pub struct WalletSource {
@@ -197,6 +224,7 @@ pub enum PaymentSource {
     Card(CardSource),
     Wallets(WalletSource),
     ApplePayPredecrypt(Box<ApplePayPredecrypt>),
+    Giropay(GiroPaySource),
 }
 
 #[derive(Debug, Serialize)]
@@ -216,6 +244,7 @@ pub struct ApplePayPredecrypt {
 pub enum CheckoutSourceTypes {
     Card,
     Token,
+    Giropay,
 }
 
 pub struct CheckoutAuthType {
@@ -243,6 +272,7 @@ pub struct PaymentsRequest {
     pub capture: bool,
     pub reference: String,
     pub metadata: Option<Secret<serde_json::Value>>,
+    shipping: Shipping,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -368,9 +398,48 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                     ))
                 }
             },
+            api_models::payments::PaymentMethodData::BankRedirect( bank_redirect_data ) => {
+                match bank_redirect_data {
+                    api_models::payments::BankRedirectData::Giropay { billing_details, .. } => {
+                        let parts = billing_details.unwrap().billing_name.unwrap().clone().expose();
+                        let mut billing_name = parts.split(' ');
+                        let first_name = billing_name.next().unwrap_or("Unknown").to_string();
+                        let last_name = billing_name.next().unwrap_or("Unknown").to_string();
+                        let a = PaymentSource::Giropay(GiroPaySource {
+                            source_type: CheckoutSourceTypes::Giropay,
+                            account_holder: CheckoutAccountHolder {
+                                first_name,
+                                last_name,
+                            },
+                        });
+                        
+                        Ok(a)
+                        
+                    }
+                    api_models::payments::BankRedirectData::BancontactCard { .. }
+                    | api_models::payments::BankRedirectData::Bizum { .. }
+                    | api_models::payments::BankRedirectData::Blik { .. }
+                    | api_models::payments::BankRedirectData::Eps { .. }
+                    | api_models::payments::BankRedirectData::Ideal { .. }
+                    | api_models::payments::BankRedirectData::Interac { .. }
+                    | api_models::payments::BankRedirectData::OnlineBankingCzechRepublic { .. }
+                    | api_models::payments::BankRedirectData::OnlineBankingFinland { .. }
+                    | api_models::payments::BankRedirectData::OnlineBankingPoland { .. }
+                    | api_models::payments::BankRedirectData::OnlineBankingSlovakia { .. }
+                    | api_models::payments::BankRedirectData::OpenBankingUk { .. }
+                    | api_models::payments::BankRedirectData::Przelewy24 { .. }
+                    | api_models::payments::BankRedirectData::Sofort { .. }
+                    | api_models::payments::BankRedirectData::Trustly { .. }
+                    | api_models::payments::BankRedirectData::OnlineBankingFpx { .. }
+                    | api_models::payments::BankRedirectData::OnlineBankingThailand { .. } => {
+                        Err(errors::ConnectorError::NotImplemented(
+                            utils::get_unimplemented_payment_method_error_message("checkout"),
+                        ))
+                    }
+                }
+            }
 
             api_models::payments::PaymentMethodData::PayLater(_)
-            | api_models::payments::PaymentMethodData::BankRedirect(_)
             | api_models::payments::PaymentMethodData::BankDebit(_)
             | api_models::payments::PaymentMethodData::BankTransfer(_)
             | api_models::payments::PaymentMethodData::Crypto(_)
@@ -384,6 +453,20 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                 utils::get_unimplemented_payment_method_error_message("checkout"),
             )),
         }?;
+
+        let shipping_address = item.router_data.get_shipping_address()?;
+        let address = Address {
+            address_line1: shipping_address.clone().line1.unwrap().expose().clone(),
+            address_line2: shipping_address.clone().line2.unwrap().expose().clone(),
+            city: shipping_address.clone().city.unwrap().clone(),
+            state: shipping_address.clone().state.unwrap().expose().clone(),
+            zip: shipping_address.clone().zip.unwrap().expose().clone(),
+            country: shipping_address.clone().country.unwrap().clone().to_string(),
+        };
+
+        let shipping = Shipping {
+            address,
+        };
 
         let authentication_data = item.router_data.request.authentication_data.as_ref();
 
@@ -440,6 +523,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
             capture,
             reference: item.router_data.connector_request_reference_id.clone(),
             metadata,
+            shipping,
         })
     }
 }
