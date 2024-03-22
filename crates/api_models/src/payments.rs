@@ -1291,26 +1291,14 @@ pub trait GetAddressFromPaymentMethodData {
 impl GetAddressFromPaymentMethodData for PaymentMethodData {
     fn get_billing_address(&self) -> Option<Address> {
         match self {
-            Self::Card(card_data) => {
-                card_data
-                    .card_holder_name
-                    .as_ref()
-                    .map(|card_holder_name| Address {
-                        address: Some(AddressDetails {
-                            first_name: Some(card_holder_name.clone()),
-                            ..AddressDetails::default()
-                        }),
-                        email: None,
-                        phone: None,
-                    })
-            }
+            Self::Card(_) => None,
             Self::CardRedirect(_) => None,
-            Self::Wallet(wallet_data) => wallet_data.get_billing_address(),
-            Self::PayLater(pay_later_data) => pay_later_data.get_billing_address(),
-            Self::BankRedirect(bank_redirect_data) => bank_redirect_data.get_billing_address(),
-            Self::BankDebit(bank_debit_data) => bank_debit_data.get_billing_address(),
-            Self::BankTransfer(bank_transfer_data) => bank_transfer_data.get_billing_address(),
-            Self::Voucher(voucher_data) => voucher_data.get_billing_address(),
+            Self::Wallet(_) => None,
+            Self::PayLater(_) => None,
+            Self::BankRedirect(_) => None,
+            Self::BankDebit(_) => None,
+            Self::BankTransfer(_) => None,
+            Self::Voucher(_) => None,
             Self::Crypto(_)
             | Self::Reward
             | Self::Upi(_)

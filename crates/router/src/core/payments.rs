@@ -2173,6 +2173,7 @@ pub mod payment_address {
             shipping: Option<api::Address>,
             billing: Option<api::Address>,
             payment_method_billing: Option<api::Address>,
+            payment_method_data_billing: Option<api::Address>,
         ) -> Self {
             // Merge the billing details field from both `payment.billing` and `payment.payment_method_data.billing`
             // The unified payment_method_billing will be used as billing address and passed to the connector module
@@ -2190,6 +2191,12 @@ pub mod payment_address {
                     (None, None) => None,
                 };
 
+            // Unify the billing details with `payment_method_data.billing_details`
+            let unified_payment_method_billing = Self::merge_with_payment_method_data_billing(
+                payment_method_data_billing,
+                unified_payment_method_billing,
+            );
+
             Self {
                 shipping,
                 billing,
@@ -2204,6 +2211,71 @@ pub mod payment_address {
 
         pub fn get_payment_method_billing(&self) -> Option<&api::Address> {
             self.unified_payment_method_billing.as_ref()
+        }
+
+        /// Merge / Unify details from `payment.payment_method_data.[payment_method_data]` with the billig address.
+        /// The unification here takes place on the basis of leaf node values
+        fn merge_with_payment_method_data_billing(
+            payment_method_data_billing: Option<api::Address>,
+            payment_method_billing: Option<api::Address>,
+        ) -> Option<api::Address> {
+            let merge_address_details =
+                |payment_method_data_billing_address: Option<api::AddressDetails>,
+                 payment_method_billing_address: Option<api::AddressDetails>| {
+                    match (
+                        payment_method_data_billing_address,
+                        payment_method_billing_address,
+                    ) {
+                        (
+                            Some(payment_method_data_billing_address),
+                            Some(payment_method_billing_address),
+                        ) => Some(api::AddressDetails {
+                            country: payment_method_data_billing_address
+                                .country
+                                .or(payment_method_billing_address.country),
+                            zip: payment_method_data_billing_address
+                                .zip
+                                .or(payment_method_billing_address.zip),
+                            first_name: payment_method_data_billing_address
+                                .first_name
+                                .or(payment_method_billing_address.first_name),
+                            last_name: payment_method_data_billing_address
+                                .last_name
+                                .or(payment_method_billing_address.last_name),
+                            ..Default::default()
+                        }),
+                        (Some(payment_method_data_billing_address), None) => {
+                            Some(payment_method_data_billing_address)
+                        }
+                        (None, Some(payment_method_billing_address)) => {
+                            Some(payment_method_billing_address)
+                        }
+                        (None, None) => None,
+                    }
+                };
+
+            match (
+                payment_method_data_billing.clone(),
+                payment_method_billing.clone(),
+            ) {
+                (Some(payment_method_data_billing), Some(payment_method_billing)) => {
+                    Some(api::Address {
+                        address: merge_address_details(
+                            payment_method_data_billing.address,
+                            payment_method_billing.address,
+                        ),
+                        phone: payment_method_data_billing
+                            .phone
+                            .or(payment_method_billing.phone),
+                        email: payment_method_data_billing
+                            .email
+                            .or(payment_method_billing.email),
+                    })
+                }
+                (Some(payment_method_billing), None) => Some(payment_method_billing),
+                (None, Some(order_billing)) => Some(order_billing),
+                (None, None) => None,
+            }
         }
 
         pub fn get_request_payment_method_billing(&self) -> Option<&api::Address> {

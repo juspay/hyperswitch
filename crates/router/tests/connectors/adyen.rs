@@ -67,6 +67,7 @@ impl AdyenTest {
                     email: None,
                 }),
                 None,
+                None,
             )),
             ..Default::default()
         })
@@ -94,6 +95,7 @@ impl AdyenTest {
                     phone: None,
                     email: None,
                 }),
+                None,
                 None,
             )),
             payout_method_data: match payout_type {

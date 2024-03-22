@@ -438,6 +438,7 @@ pub fn get_payment_info() -> PaymentInfo {
                 email: None,
             }),
             None,
+            None,
         )),
         auth_type: None,
         access_token: None,

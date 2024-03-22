@@ -60,6 +60,7 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                 email: None,
             }),
             None,
+            None,
         )),
         connector_meta_data: Some(json!({"pricing_type": "fixed_price"})),
         ..Default::default()

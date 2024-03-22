@@ -54,6 +54,7 @@ impl WorldlineTest {
                     email: None,
                 }),
                 None,
+                None,
             )),
             ..Default::default()
         })
@@ -178,7 +179,7 @@ async fn should_throw_missing_required_field_for_country() {
         .make_payment(
             authorize_data,
             Some(PaymentInfo {
-                address: Some(PaymentAddress::new(None, None, None)),
+                address: Some(PaymentAddress::new(None, None, None, None)),
                 ..Default::default()
             }),
         )
