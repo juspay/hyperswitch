@@ -398,10 +398,17 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                     ))
                 }
             },
-            api_models::payments::PaymentMethodData::BankRedirect( bank_redirect_data ) => {
+            api_models::payments::PaymentMethodData::BankRedirect(bank_redirect_data) => {
                 match bank_redirect_data {
-                    api_models::payments::BankRedirectData::Giropay { billing_details, .. } => {
-                        let parts = billing_details.unwrap().billing_name.unwrap().clone().expose();
+                    api_models::payments::BankRedirectData::Giropay {
+                        billing_details, ..
+                    } => {
+                        let parts = billing_details
+                            .unwrap()
+                            .billing_name
+                            .unwrap()
+                            .clone()
+                            .expose();
                         let mut billing_name = parts.split(' ');
                         let first_name = billing_name.next().unwrap_or("Unknown").to_string();
                         let last_name = billing_name.next().unwrap_or("Unknown").to_string();
@@ -412,9 +419,8 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                                 last_name,
                             },
                         });
-                        
+
                         Ok(a)
-                        
                     }
                     api_models::payments::BankRedirectData::BancontactCard { .. }
                     | api_models::payments::BankRedirectData::Bizum { .. }
@@ -422,7 +428,9 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                     | api_models::payments::BankRedirectData::Eps { .. }
                     | api_models::payments::BankRedirectData::Ideal { .. }
                     | api_models::payments::BankRedirectData::Interac { .. }
-                    | api_models::payments::BankRedirectData::OnlineBankingCzechRepublic { .. }
+                    | api_models::payments::BankRedirectData::OnlineBankingCzechRepublic {
+                        ..
+                    }
                     | api_models::payments::BankRedirectData::OnlineBankingFinland { .. }
                     | api_models::payments::BankRedirectData::OnlineBankingPoland { .. }
                     | api_models::payments::BankRedirectData::OnlineBankingSlovakia { .. }
@@ -461,12 +469,15 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
             city: shipping_address.clone().city.unwrap().clone(),
             state: shipping_address.clone().state.unwrap().expose().clone(),
             zip: shipping_address.clone().zip.unwrap().expose().clone(),
-            country: shipping_address.clone().country.unwrap().clone().to_string(),
+            country: shipping_address
+                .clone()
+                .country
+                .unwrap()
+                .clone()
+                .to_string(),
         };
 
-        let shipping = Shipping {
-            address,
-        };
+        let shipping = Shipping { address };
 
         let authentication_data = item.router_data.request.authentication_data.as_ref();
 
