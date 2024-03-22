@@ -4325,19 +4325,19 @@
         ]
       }
     },
-    "/events/{merchant_id}": {
+    "/events/{merchant_id_or_profile_id}": {
       "get": {
         "tags": [
           "Event"
         ],
         "summary": "Events - List",
-        "description": "Events - List\n\nList all Events associated with a Merchant Account.",
-        "operationId": "List all Events associated with a Merchant Account",
+        "description": "Events - List\n\nList all Events associated with a Merchant Account or Business Profile.",
+        "operationId": "List all Events associated with a Merchant Account or Business Profile",
         "parameters": [
           {
-            "name": "merchant_id",
+            "name": "merchant_id_or_profile_id",
             "in": "path",
-            "description": "The unique identifier for the Merchant Account",
+            "description": "The unique identifier for the Merchant Account or Business Profile",
             "required": true,
             "schema": {
               "type": "string"
@@ -4420,7 +4420,7 @@
         ]
       }
     },
-    "/events/{merchant_id}/{event_id}/attempts": {
+    "/events/{merchant_id_or_profile_id}/{event_id}/attempts": {
       "get": {
         "tags": [
           "Event"
@@ -4430,9 +4430,9 @@
         "operationId": "List all delivery attempts for an Event",
         "parameters": [
           {
-            "name": "merchant_id",
+            "name": "merchant_id_or_profile_id",
             "in": "path",
-            "description": "The unique identifier for the Merchant Account",
+            "description": "The unique identifier for the Merchant Account or Business Profile",
             "required": true,
             "schema": {
               "type": "string"
