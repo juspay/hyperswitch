@@ -1,6 +1,8 @@
 use strum::Display;
 
-#[derive(PartialEq, Display, Clone, Debug, Copy, Eq, Hash)]
+#[derive(
+    PartialEq, Display, Clone, Debug, Copy, Eq, Hash, serde::Deserialize, serde::Serialize,
+)]
 pub enum Permission {
     PaymentRead,
     PaymentWrite,
@@ -28,6 +30,7 @@ pub enum Permission {
     UsersRead,
     UsersWrite,
     MerchantAccountCreate,
+    WebhookEventRead,
 }
 
 impl Permission {
@@ -37,7 +40,7 @@ impl Permission {
             Self::PaymentWrite => "Create payment, download payments data",
             Self::RefundRead => "View all refunds",
             Self::RefundWrite => "Create refund, download refunds data",
-            Self::ApiKeyRead => "View API keys (masked generated for the system",
+            Self::ApiKeyRead => "View API keys",
             Self::ApiKeyWrite => "Create and update API keys",
             Self::MerchantAccountRead => "View merchant account details",
             Self::MerchantAccountWrite => {
@@ -65,6 +68,7 @@ impl Permission {
             Self::UsersRead => "View all the users for a merchant",
             Self::UsersWrite => "Invite users, assign and update roles",
             Self::MerchantAccountCreate => "Create merchant account",
+            Self::WebhookEventRead => "View webhook events",
         }
     }
 }

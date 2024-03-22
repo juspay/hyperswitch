@@ -3,7 +3,8 @@ use serde::Serialize;
 use serde_json::Value;
 use time::OffsetDateTime;
 
-use super::{EventType, RawEvent};
+use super::EventType;
+use crate::services::kafka::KafkaMessage;
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -16,6 +17,7 @@ pub struct OutgoingWebhookEvent {
     is_error: bool,
     error: Option<Value>,
     created_at_timestamp: i128,
+    initial_attempt_id: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -83,6 +85,7 @@ impl OutgoingWebhookEvent {
         event_type: OutgoingWebhookEventType,
         content: Option<OutgoingWebhookEventContent>,
         error: Option<Value>,
+        initial_attempt_id: Option<String>,
     ) -> Self {
         Self {
             merchant_id,
@@ -92,18 +95,17 @@ impl OutgoingWebhookEvent {
             is_error: error.is_some(),
             error,
             created_at_timestamp: OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000,
+            initial_attempt_id,
         }
     }
 }
 
-impl TryFrom<OutgoingWebhookEvent> for RawEvent {
-    type Error = serde_json::Error;
+impl KafkaMessage for OutgoingWebhookEvent {
+    fn event_type(&self) -> EventType {
+        EventType::OutgoingWebhookLogs
+    }
 
-    fn try_from(value: OutgoingWebhookEvent) -> Result<Self, Self::Error> {
-        Ok(Self {
-            event_type: EventType::OutgoingWebhookLogs,
-            key: value.merchant_id.clone(),
-            payload: serde_json::to_value(value)?,
-        })
+    fn key(&self) -> String {
+        self.event_id.clone()
     }
 }

@@ -36,12 +36,11 @@ use crate::{core::errors, services::api as service_api, types::storage};
 #[cfg(feature = "business_profile_routing")]
 use crate::{errors, services::api as service_api};
 
-#[derive(Clone)]
 pub enum TransactionData<'a, F>
 where
     F: Clone,
 {
-    Payment(&'a payments::PaymentData<F>),
+    Payment(&'a mut payments::PaymentData<F>),
     #[cfg(feature = "payouts")]
     Payout(&'a payouts::PayoutData),
 }
@@ -715,6 +714,7 @@ pub async fn retrieve_linked_routing_config(
     state: AppState,
     merchant_account: domain::MerchantAccount,
     #[cfg(feature = "business_profile_routing")] query_params: RoutingRetrieveLinkQuery,
+    #[cfg(feature = "business_profile_routing")] transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::LinkedRoutingConfigRetrieveResponse> {
     metrics::ROUTING_RETRIEVE_LINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
@@ -740,16 +740,17 @@ pub async fn retrieve_linked_routing_config(
         let mut active_algorithms = Vec::new();
 
         for business_profile in business_profiles {
-            let routing_ref: routing_types::RoutingAlgorithmRef = business_profile
-                .routing_algorithm
-                .clone()
-                .map(|val| val.parse_value("RoutingAlgorithmRef"))
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "unable to deserialize routing algorithm ref from merchant account",
-                )?
-                .unwrap_or_default();
+            let routing_ref: routing_types::RoutingAlgorithmRef = match transaction_type {
+                enums::TransactionType::Payment => business_profile.routing_algorithm,
+                #[cfg(feature = "payouts")]
+                enums::TransactionType::Payout => business_profile.payout_routing_algorithm,
+            }
+            .clone()
+            .map(|val| val.parse_value("RoutingAlgorithmRef"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to deserialize routing algorithm ref from merchant account")?
+            .unwrap_or_default();
 
             if let Some(algorithm_id) = routing_ref.algorithm_id {
                 let record = db

@@ -87,6 +87,8 @@ pub struct MandateCardDetails {
 pub struct MandateListConstraints {
     /// limit on the number of objects to return
     pub limit: Option<i64>,
+    /// offset on the number of objects to return
+    pub offset: Option<i64>,
     /// status of the mandate
     pub mandate_status: Option<api_enums::MandateStatus>,
     /// connector linked to mandate

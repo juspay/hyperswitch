@@ -1,8 +1,6 @@
 use common_enums::PermissionGroup;
 use common_utils::pii;
 
-use crate::user::DashboardEntryResponse;
-
 pub mod role;
 
 #[derive(Debug, serde::Serialize)]
@@ -33,6 +31,7 @@ pub enum Permission {
     UsersRead,
     UsersWrite,
     MerchantAccountCreate,
+    WebhookEventRead,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -98,8 +97,6 @@ pub struct AcceptInvitationRequest {
     pub merchant_ids: Vec<String>,
     pub need_dashboard_entry_response: Option<bool>,
 }
-
-pub type AcceptInvitationResponse = DashboardEntryResponse;
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct DeleteUserRoleRequest {

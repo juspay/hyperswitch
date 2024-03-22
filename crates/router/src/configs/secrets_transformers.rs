@@ -235,6 +235,13 @@ pub(crate) async fn fetch_raw_secrets(
 
     #[cfg(feature = "olap")]
     #[allow(clippy::expect_used)]
+    let analytics =
+        analytics::AnalyticsConfig::convert_to_raw_secret(conf.analytics, secret_management_client)
+            .await
+            .expect("Failed to decrypt analytics configuration");
+
+    #[cfg(feature = "olap")]
+    #[allow(clippy::expect_used)]
     let replica_database =
         settings::Database::convert_to_raw_secret(conf.replica_database, secret_management_client)
             .await
@@ -342,7 +349,9 @@ pub(crate) async fn fetch_raw_secrets(
         temp_locker_enable_config: conf.temp_locker_enable_config,
         payment_link: conf.payment_link,
         #[cfg(feature = "olap")]
-        analytics: conf.analytics,
+        analytics,
+        #[cfg(feature = "olap")]
+        opensearch: conf.opensearch,
         #[cfg(feature = "kv_store")]
         kv_config: conf.kv_config,
         #[cfg(feature = "frm")]
@@ -353,5 +362,6 @@ pub(crate) async fn fetch_raw_secrets(
         #[cfg(feature = "olap")]
         connector_onboarding,
         cors: conf.cors,
+        unmasked_headers: conf.unmasked_headers,
     }
 }

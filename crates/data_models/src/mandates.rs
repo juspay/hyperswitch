@@ -113,6 +113,16 @@ impl From<ApiCustomerAcceptance> for CustomerAcceptance {
     }
 }
 
+impl From<CustomerAcceptance> for ApiCustomerAcceptance {
+    fn from(value: CustomerAcceptance) -> Self {
+        Self {
+            acceptance_type: value.acceptance_type.into(),
+            accepted_at: value.accepted_at,
+            online: value.online.map(|d| d.into()),
+        }
+    }
+}
+
 impl From<ApiAcceptanceType> for AcceptanceType {
     fn from(value: ApiAcceptanceType) -> Self {
         match value {
@@ -121,9 +131,25 @@ impl From<ApiAcceptanceType> for AcceptanceType {
         }
     }
 }
+impl From<AcceptanceType> for ApiAcceptanceType {
+    fn from(value: AcceptanceType) -> Self {
+        match value {
+            AcceptanceType::Online => Self::Online,
+            AcceptanceType::Offline => Self::Offline,
+        }
+    }
+}
 
 impl From<ApiOnlineMandate> for OnlineMandate {
     fn from(value: ApiOnlineMandate) -> Self {
+        Self {
+            ip_address: value.ip_address,
+            user_agent: value.user_agent,
+        }
+    }
+}
+impl From<OnlineMandate> for ApiOnlineMandate {
+    fn from(value: OnlineMandate) -> Self {
         Self {
             ip_address: value.ip_address,
             user_agent: value.user_agent,

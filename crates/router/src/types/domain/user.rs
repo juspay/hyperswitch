@@ -343,6 +343,7 @@ impl NewUserMerchant {
                 parent_merchant_id: None,
                 sub_merchants_enabled: None,
                 frm_routing_algorithm: None,
+                #[cfg(feature = "payouts")]
                 payout_routing_algorithm: None,
                 primary_business_details: None,
                 payment_response_hash_key: None,
@@ -861,8 +862,11 @@ impl SignInWithSingleRoleStrategy {
     async fn get_signin_response(self, state: &AppState) -> UserResult<user_api::SignInResponse> {
         let token =
             utils::user::generate_jwt_auth_token(state, &self.user, &self.user_role).await?;
+        utils::user_role::set_role_permissions_in_cache_by_user_role(state, &self.user_role).await;
+
         let dashboard_entry_response =
             utils::user::get_dashboard_entry_response(state, self.user, self.user_role, token)?;
+
         Ok(user_api::SignInResponse::DashboardEntry(
             dashboard_entry_response,
         ))

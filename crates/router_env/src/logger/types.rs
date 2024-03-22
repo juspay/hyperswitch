@@ -164,6 +164,12 @@ pub enum Flow {
     #[cfg(feature = "payouts")]
     /// Payouts fulfill flow.
     PayoutsFulfill,
+    #[cfg(feature = "payouts")]
+    /// Payouts list flow.
+    PayoutsList,
+    #[cfg(feature = "payouts")]
+    /// Payouts filter flow.
+    PayoutsFilter,
     /// Payouts accounts flow.
     PayoutsAccounts,
     /// Payments Redirect flow.
@@ -336,8 +342,10 @@ pub enum Flow {
     DeleteSampleData,
     /// List merchant accounts for user
     UserMerchantAccountList,
-    /// Get users for merchant account
+    /// Get details of a user in a merchant account
     GetUserDetails,
+    /// List users for merchant account
+    ListUsersForMerchantAccount,
     /// PaymentMethodAuth Link token create
     PmAuthLinkTokenCreate,
     /// PaymentMethodAuth Exchange token create
@@ -374,10 +382,18 @@ pub enum Flow {
     UpdateUserAccountDetails,
     /// Accept user invitation
     AcceptInvitation,
+    /// Initiate external authentication for a payment
+    PaymentsExternalAuthentication,
+    /// Authorize the payment after external 3ds authentication
+    PaymentsAuthorize,
     /// Create Role
     CreateRole,
     /// Update Role
     UpdateRole,
+    /// List initial webhook delivery attempts
+    WebhookEventInitialDeliveryAttemptList,
+    /// List delivery attempts for a webhook event
+    WebhookEventDeliveryAttemptList,
 }
 
 ///

@@ -84,7 +84,7 @@ pub struct Pay3dsRequest {
     buyer_email: pii::Email,
     buyer_key: String,
     payme_sale_id: String,
-    meta_data_jwt: String,
+    meta_data_jwt: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -122,7 +122,7 @@ pub struct CaptureBuyerRequest {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct CaptureBuyerResponse {
-    buyer_key: String,
+    buyer_key: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -544,9 +544,7 @@ impl<F>
                 let currency_code = item.data.request.get_currency()?;
                 let country_code = item
                     .data
-                    .address
-                    .billing
-                    .as_ref()
+                    .get_optional_billing()
                     .and_then(|billing| billing.address.as_ref())
                     .and_then(|address| address.country);
                 let amount = item.data.request.get_amount()?;
@@ -719,7 +717,7 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
                     buyer_key,
                     buyer_name,
                     payme_sale_id,
-                    meta_data_jwt: jwt_data.meta_data,
+                    meta_data_jwt: Secret::new(jwt_data.meta_data),
                 })
             }
             Some(api::PaymentMethodData::CardRedirect(_))
@@ -902,10 +900,10 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             payment_method_token: Some(types::PaymentMethodToken::Token(
-                item.response.buyer_key.clone(),
+                item.response.buyer_key.clone().expose(),
             )),
             response: Ok(types::PaymentsResponseData::TokenizationResponse {
-                token: item.response.buyer_key,
+                token: item.response.buyer_key.expose(),
             }),
             ..item.data
         })

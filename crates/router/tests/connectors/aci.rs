@@ -31,6 +31,8 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         connector_auth_type: utils::to_connector_auth_type(auth.into()),
         description: Some("This is a test".to_string()),
         return_url: None,
+        payment_method_status: None,
+        payment_method_id: None,
         request: types::PaymentsAuthorizeData {
             amount: 1000,
             currency: enums::Currency::USD,
@@ -72,9 +74,10 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
             surcharge_details: None,
             request_incremental_authorization: false,
             metadata: None,
+            authentication_data: None,
+            customer_acceptance: None,
         },
         response: Err(types::ErrorResponse::default()),
-        payment_method_id: None,
         address: PaymentAddress::default(),
         connector_meta_data: None,
         amount_captured: None,
@@ -84,7 +87,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         payment_method_token: None,
         connector_customer: None,
         recurring_mandate_payment_data: None,
-
+        connector_response: None,
         preprocessing_id: None,
         connector_request_reference_id: uuid::Uuid::new_v4().to_string(),
         #[cfg(feature = "payouts")]
@@ -115,6 +118,8 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         connector: "aci".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
         attempt_id: uuid::Uuid::new_v4().to_string(),
+        payment_method_id: None,
+        payment_method_status: None,
         status: enums::AttemptStatus::default(),
         payment_method: enums::PaymentMethod::Card,
         auth_type: enums::AuthenticationType::NoThreeDs,
@@ -134,7 +139,6 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
             connector_refund_id: None,
             browser_info: None,
         },
-        payment_method_id: None,
         response: Err(types::ErrorResponse::default()),
         address: PaymentAddress::default(),
         connector_meta_data: None,
@@ -145,7 +149,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         payment_method_token: None,
         connector_customer: None,
         recurring_mandate_payment_data: None,
-
+        connector_response: None,
         preprocessing_id: None,
         connector_request_reference_id: uuid::Uuid::new_v4().to_string(),
         #[cfg(feature = "payouts")]
@@ -170,12 +174,12 @@ async fn payments_create_success() {
     let conf = Settings::new().unwrap();
     let tx: oneshot::Sender<()> = oneshot::channel().0;
 
-    let state = routes::AppState::with_storage(
+    let state = Box::pin(routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
-    )
+    ))
     .await;
 
     static CV: aci::Aci = aci::Aci;
@@ -215,12 +219,12 @@ async fn payments_create_failure() {
         static CV: aci::Aci = aci::Aci;
         let tx: oneshot::Sender<()> = oneshot::channel().0;
 
-        let state = routes::AppState::with_storage(
+        let state = Box::pin(routes::AppState::with_storage(
             conf,
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
-        )
+        ))
         .await;
         let connector = types::api::ConnectorData {
             connector: Box::new(&CV),
@@ -277,12 +281,12 @@ async fn refund_for_successful_payments() {
     };
     let tx: oneshot::Sender<()> = oneshot::channel().0;
 
-    let state = routes::AppState::with_storage(
+    let state = Box::pin(routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
-    )
+    ))
     .await;
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
@@ -346,12 +350,12 @@ async fn refunds_create_failure() {
     };
     let tx: oneshot::Sender<()> = oneshot::channel().0;
 
-    let state = routes::AppState::with_storage(
+    let state = Box::pin(routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
-    )
+    ))
     .await;
     let connector_integration: services::BoxedConnectorIntegration<
         '_,

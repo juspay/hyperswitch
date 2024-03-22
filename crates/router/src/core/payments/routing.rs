@@ -233,8 +233,7 @@ where
             .map(api_enums::Country::from_alpha2),
         billing_country: payment_data
             .address
-            .billing
-            .as_ref()
+            .get_payment_method_billing()
             .and_then(|bic| bic.address.as_ref())
             .and_then(|add| add.country)
             .map(api_enums::Country::from_alpha2),
@@ -635,6 +634,7 @@ pub async fn refresh_kgraph_cache(
                 mca.connector_type != storage_enums::ConnectorType::PaymentVas
                     && mca.connector_type != storage_enums::ConnectorType::PaymentMethodAuth
                     && mca.connector_type != storage_enums::ConnectorType::PayoutProcessor
+                    && mca.connector_type != storage_enums::ConnectorType::AuthenticationProcessor
             });
         }
         #[cfg(feature = "payouts")]

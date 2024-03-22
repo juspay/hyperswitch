@@ -87,6 +87,30 @@ diesel::table! {
         #[max_length = 64]
         error_code -> Nullable<Varchar>,
         connector_metadata -> Nullable<Jsonb>,
+        maximum_supported_version -> Nullable<Jsonb>,
+        #[max_length = 64]
+        threeds_server_transaction_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        cavv -> Nullable<Varchar>,
+        #[max_length = 64]
+        authentication_flow_type -> Nullable<Varchar>,
+        message_version -> Nullable<Jsonb>,
+        #[max_length = 64]
+        eci -> Nullable<Varchar>,
+        #[max_length = 64]
+        trans_status -> Nullable<Varchar>,
+        #[max_length = 64]
+        acquirer_bin -> Nullable<Varchar>,
+        #[max_length = 64]
+        acquirer_merchant_id -> Nullable<Varchar>,
+        three_ds_method_data -> Nullable<Varchar>,
+        three_ds_method_url -> Nullable<Varchar>,
+        acs_url -> Nullable<Varchar>,
+        challenge_request -> Nullable<Varchar>,
+        acs_reference_number -> Nullable<Varchar>,
+        acs_trans_id -> Nullable<Varchar>,
+        three_dsserver_trans_id -> Nullable<Varchar>,
+        acs_signed_content -> Nullable<Varchar>,
     }
 }
 
@@ -162,6 +186,7 @@ diesel::table! {
         applepay_verified_domains -> Nullable<Array<Nullable<Text>>>,
         payment_link_config -> Nullable<Jsonb>,
         session_expiry -> Nullable<Int8>,
+        authentication_connector_details -> Nullable<Jsonb>,
     }
 }
 
@@ -335,19 +360,28 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    events (id) {
-        id -> Int4,
+    events (event_id) {
         #[max_length = 64]
         event_id -> Varchar,
         event_type -> EventType,
         event_class -> EventClass,
         is_webhook_notified -> Bool,
         #[max_length = 64]
-        intent_reference_id -> Nullable<Varchar>,
-        #[max_length = 64]
         primary_object_id -> Varchar,
         primary_object_type -> EventObjectType,
         created_at -> Timestamp,
+        #[max_length = 64]
+        merchant_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        business_profile_id -> Nullable<Varchar>,
+        primary_object_created_at -> Nullable<Timestamp>,
+        #[max_length = 64]
+        idempotent_event_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        initial_attempt_id -> Nullable<Varchar>,
+        request -> Nullable<Bytea>,
+        response -> Nullable<Bytea>,
+        delivery_attempt -> Nullable<WebhookDeliveryAttempt>,
     }
 }
 
@@ -724,6 +758,11 @@ diesel::table! {
         #[max_length = 1024]
         unified_message -> Nullable<Varchar>,
         net_amount -> Nullable<Int8>,
+        external_three_ds_authentication_attempted -> Nullable<Bool>,
+        #[max_length = 64]
+        authentication_connector -> Nullable<Varchar>,
+        #[max_length = 64]
+        authentication_id -> Nullable<Varchar>,
         mandate_data -> Nullable<Jsonb>,
         #[max_length = 64]
         fingerprint_id -> Nullable<Varchar>,
@@ -796,6 +835,7 @@ diesel::table! {
         session_expiry -> Nullable<Timestamp>,
         #[max_length = 64]
         fingerprint_id -> Nullable<Varchar>,
+        request_external_three_ds_authentication -> Nullable<Bool>,
     }
 }
 
@@ -946,6 +986,9 @@ diesel::table! {
         created_at -> Timestamp,
         last_modified_at -> Timestamp,
         attempt_count -> Int2,
+        #[max_length = 64]
+        profile_id -> Varchar,
+        status -> PayoutStatus,
     }
 }
 

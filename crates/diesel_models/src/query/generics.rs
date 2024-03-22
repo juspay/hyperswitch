@@ -22,10 +22,7 @@ use diesel::{
 use error_stack::{report, IntoReport, ResultExt};
 use router_env::logger;
 
-use crate::{
-    errors::{self},
-    PgPooledConn, StorageResult,
-};
+use crate::{errors, PgPooledConn, StorageResult};
 
 pub mod db_metrics {
     use router_env::opentelemetry::KeyValue;
@@ -40,6 +37,7 @@ pub mod db_metrics {
         DeleteWithResult,
         UpdateWithResults,
         UpdateOne,
+        Count,
     }
 
     #[inline]
@@ -278,7 +276,7 @@ where
         .await
         .into_report()
         .change_context(errors::DatabaseError::Others)
-        .attach_printable_lazy(|| "Error while deleting")
+        .attach_printable("Error while deleting")
         .and_then(|result| match result {
             n if n > 0 => {
                 logger::debug!("{n} records deleted");
@@ -314,7 +312,7 @@ where
     .await
     .into_report()
     .change_context(errors::DatabaseError::Others)
-    .attach_printable_lazy(|| "Error while deleting")
+    .attach_printable("Error while deleting")
     .and_then(|result| {
         result.first().cloned().ok_or_else(|| {
             report!(errors::DatabaseError::NotFound)
@@ -389,7 +387,7 @@ where
             DieselError::NotFound => err.change_context(errors::DatabaseError::NotFound),
             _ => err.change_context(errors::DatabaseError::Others),
         })
-        .attach_printable_lazy(|| "Error finding record by predicate")
+        .attach_printable("Error finding record by predicate")
 }
 
 pub async fn generic_find_one<T, P, R>(conn: &PgPooledConn, predicate: P) -> StorageResult<R>
@@ -453,7 +451,7 @@ where
         .await
         .into_report()
         .change_context(errors::DatabaseError::NotFound)
-        .attach_printable_lazy(|| "Error filtering records by predicate")
+        .attach_printable("Error filtering records by predicate")
 }
 
 fn to_optional<T>(arg: StorageResult<T>) -> StorageResult<Option<T>> {

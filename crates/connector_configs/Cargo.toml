@@ -2,7 +2,7 @@
 name = "connector_configs"
 description = "Connector Integration Dashboard"
 version = "0.1.0"
-edition.workspace = true 
+edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
@@ -12,11 +12,11 @@ production = []
 development = []
 sandbox = []
 dummy_connector = ["api_models/dummy_connector", "development"]
-payouts = []
+payouts = ["api_models/payouts"]
 
 [dependencies]
 api_models = { version = "0.1.0", path = "../api_models", package = "api_models" }
 serde = { version = "1.0.193", features = ["derive"] }
 serde_with = "3.4.0"
 toml = "0.7.3"
-utoipa = { version = "3.3.0", features = ["preserve_order"] }
+utoipa = { version = "3.5.0", features = ["preserve_order", "preserve_path_order"] }

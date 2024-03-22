@@ -242,6 +242,7 @@ pub struct PaymentsRequest {
     pub return_url: ReturnUrl,
     pub capture: bool,
     pub reference: String,
+    pub metadata: Option<Secret<serde_json::Value>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -259,6 +260,10 @@ pub enum CheckoutPaymentIntent {
 pub struct CheckoutThreeDS {
     enabled: bool,
     force_3ds: bool,
+    eci: Option<String>,
+    cryptogram: Option<String>,
+    xid: Option<String>,
+    version: Option<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for CheckoutAuthType {
@@ -380,14 +385,24 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
             )),
         }?;
 
+        let authentication_data = item.router_data.request.authentication_data.as_ref();
+
         let three_ds = match item.router_data.auth_type {
             enums::AuthenticationType::ThreeDs => CheckoutThreeDS {
                 enabled: true,
                 force_3ds: true,
+                eci: authentication_data.map(|auth| auth.eci.clone()),
+                cryptogram: authentication_data.map(|auth| auth.cavv.clone()),
+                xid: authentication_data.map(|auth| auth.threeds_server_transaction_id.clone()),
+                version: authentication_data.map(|auth| auth.message_version.clone()),
             },
             enums::AuthenticationType::NoThreeDs => CheckoutThreeDS {
                 enabled: false,
                 force_3ds: false,
+                eci: None,
+                cryptogram: None,
+                xid: None,
+                version: None,
             },
         };
 
@@ -414,6 +429,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
         let connector_auth = &item.router_data.connector_auth_type;
         let auth_type: CheckoutAuthType = connector_auth.try_into()?;
         let processing_channel_id = auth_type.processing_channel_id;
+        let metadata = item.router_data.request.metadata.clone();
         Ok(Self {
             source: source_var,
             amount: item.amount.to_owned(),
@@ -423,6 +439,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
             return_url,
             capture,
             reference: item.router_data.connector_request_reference_id.clone(),
+            metadata,
         })
     }
 }
@@ -436,6 +453,16 @@ pub enum CheckoutPaymentStatus {
     CardVerified,
     Declined,
     Captured,
+    #[serde(rename = "Retry Scheduled")]
+    RetryScheduled,
+    Voided,
+    #[serde(rename = "Partially Captured")]
+    PartiallyCaptured,
+    #[serde(rename = "Partially Refunded")]
+    PartiallyRefunded,
+    Refunded,
+    Canceled,
+    Expired,
 }
 
 impl TryFrom<CheckoutWebhookEventType> for CheckoutPaymentStatus {
@@ -446,7 +473,14 @@ impl TryFrom<CheckoutWebhookEventType> for CheckoutPaymentStatus {
             CheckoutWebhookEventType::PaymentCaptured => Ok(Self::Captured),
             CheckoutWebhookEventType::PaymentDeclined => Ok(Self::Declined),
             CheckoutWebhookEventType::AuthenticationStarted
-            | CheckoutWebhookEventType::AuthenticationApproved => Ok(Self::Pending),
+            | CheckoutWebhookEventType::AuthenticationApproved
+            | CheckoutWebhookEventType::AuthenticationAttempted => Ok(Self::Pending),
+            CheckoutWebhookEventType::AuthenticationExpired
+            | CheckoutWebhookEventType::AuthenticationFailed
+            | CheckoutWebhookEventType::PaymentAuthenticationFailed
+            | CheckoutWebhookEventType::PaymentCaptureDeclined => Ok(Self::Declined),
+            CheckoutWebhookEventType::PaymentCanceled => Ok(Self::Canceled),
+            CheckoutWebhookEventType::PaymentVoided => Ok(Self::Voided),
             CheckoutWebhookEventType::PaymentRefunded
             | CheckoutWebhookEventType::PaymentRefundDeclined
             | CheckoutWebhookEventType::DisputeReceived
@@ -480,10 +514,18 @@ impl ForeignFrom<(CheckoutPaymentStatus, Option<enums::CaptureMethod>)> for enum
                     Self::Authorized
                 }
             }
-            CheckoutPaymentStatus::Captured => Self::Charged,
-            CheckoutPaymentStatus::Declined => Self::Failure,
+            CheckoutPaymentStatus::Captured
+            | CheckoutPaymentStatus::PartiallyRefunded
+            | CheckoutPaymentStatus::Refunded => Self::Charged,
+            CheckoutPaymentStatus::PartiallyCaptured => Self::PartialCharged,
+            CheckoutPaymentStatus::Declined
+            | CheckoutPaymentStatus::Expired
+            | CheckoutPaymentStatus::Canceled => Self::Failure,
             CheckoutPaymentStatus::Pending => Self::AuthenticationPending,
-            CheckoutPaymentStatus::CardVerified => Self::Pending,
+            CheckoutPaymentStatus::CardVerified | CheckoutPaymentStatus::RetryScheduled => {
+                Self::Pending
+            }
+            CheckoutPaymentStatus::Voided => Self::Voided,
         }
     }
 }
@@ -500,10 +542,18 @@ impl ForeignFrom<(CheckoutPaymentStatus, CheckoutPaymentIntent)> for enums::Atte
                     Self::Authorized
                 }
             }
-            CheckoutPaymentStatus::Captured => Self::Charged,
-            CheckoutPaymentStatus::Declined => Self::Failure,
+            CheckoutPaymentStatus::Captured
+            | CheckoutPaymentStatus::PartiallyRefunded
+            | CheckoutPaymentStatus::Refunded => Self::Charged,
+            CheckoutPaymentStatus::PartiallyCaptured => Self::PartialCharged,
+            CheckoutPaymentStatus::Declined
+            | CheckoutPaymentStatus::Expired
+            | CheckoutPaymentStatus::Canceled => Self::Failure,
             CheckoutPaymentStatus::Pending => Self::AuthenticationPending,
-            CheckoutPaymentStatus::CardVerified => Self::Pending,
+            CheckoutPaymentStatus::CardVerified | CheckoutPaymentStatus::RetryScheduled => {
+                Self::Pending
+            }
+            CheckoutPaymentStatus::Voided => Self::Voided,
         }
     }
 }
@@ -523,10 +573,18 @@ impl ForeignFrom<(CheckoutPaymentStatus, Option<Balances>)> for enums::AttemptSt
                     Self::Authorized
                 }
             }
-            CheckoutPaymentStatus::Captured => Self::Charged,
-            CheckoutPaymentStatus::Declined => Self::Failure,
+            CheckoutPaymentStatus::Captured
+            | CheckoutPaymentStatus::PartiallyRefunded
+            | CheckoutPaymentStatus::Refunded => Self::Charged,
+            CheckoutPaymentStatus::PartiallyCaptured => Self::PartialCharged,
+            CheckoutPaymentStatus::Declined
+            | CheckoutPaymentStatus::Expired
+            | CheckoutPaymentStatus::Canceled => Self::Failure,
             CheckoutPaymentStatus::Pending => Self::AuthenticationPending,
-            CheckoutPaymentStatus::CardVerified => Self::Pending,
+            CheckoutPaymentStatus::CardVerified | CheckoutPaymentStatus::RetryScheduled => {
+                Self::Pending
+            }
+            CheckoutPaymentStatus::Voided => Self::Voided,
         }
     }
 }
@@ -545,6 +603,7 @@ pub struct Links {
 pub struct PaymentsResponse {
     id: String,
     amount: Option<i32>,
+    currency: Option<String>,
     action_id: Option<String>,
     status: CheckoutPaymentStatus,
     #[serde(rename = "_links")]
@@ -553,6 +612,8 @@ pub struct PaymentsResponse {
     reference: Option<String>,
     response_code: Option<String>,
     response_summary: Option<String>,
+    approved: Option<bool>,
+    processed_on: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -616,7 +677,7 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
                     .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                 reason: item.response.response_summary,
                 attempt_status: None,
-                connector_transaction_id: None,
+                connector_transaction_id: Some(item.response.id.clone()),
             })
         } else {
             None
@@ -668,7 +729,7 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
                     .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                 reason: item.response.response_summary,
                 attempt_status: None,
-                connector_transaction_id: None,
+                connector_transaction_id: Some(item.response.id.clone()),
             })
         } else {
             None
@@ -1118,11 +1179,18 @@ pub fn is_chargeback_event(event_code: &CheckoutWebhookEventType) -> bool {
 pub enum CheckoutWebhookEventType {
     AuthenticationStarted,
     AuthenticationApproved,
+    AuthenticationAttempted,
+    AuthenticationExpired,
+    AuthenticationFailed,
     PaymentApproved,
     PaymentCaptured,
     PaymentDeclined,
     PaymentRefunded,
     PaymentRefundDeclined,
+    PaymentAuthenticationFailed,
+    PaymentCanceled,
+    PaymentCaptureDeclined,
+    PaymentVoided,
     DisputeReceived,
     DisputeExpired,
     DisputeAccepted,
@@ -1155,6 +1223,8 @@ pub struct CheckoutWebhookData {
     pub response_code: Option<String>,
     pub response_summary: Option<String>,
     pub currency: String,
+    pub processed_on: Option<String>,
+    pub approved: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1182,21 +1252,14 @@ pub struct CheckoutDisputeWebhookData {
 #[derive(Debug, Deserialize)]
 pub struct CheckoutDisputeWebhookBody {
     #[serde(rename = "type")]
-    pub transaction_type: CheckoutTransactionType,
+    pub transaction_type: CheckoutDisputeTransactionType,
     pub data: CheckoutDisputeWebhookData,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created_on: Option<PrimitiveDateTime>,
 }
 #[derive(Debug, Deserialize, strum::Display, Clone)]
 #[serde(rename_all = "snake_case")]
-pub enum CheckoutTransactionType {
-    AuthenticationStarted,
-    AuthenticationApproved,
-    PaymentApproved,
-    PaymentCaptured,
-    PaymentDeclined,
-    PaymentRefunded,
-    PaymentRefundDeclined,
+pub enum CheckoutDisputeTransactionType {
     DisputeReceived,
     DisputeExpired,
     DisputeAccepted,
@@ -1213,13 +1276,22 @@ pub enum CheckoutTransactionType {
 impl From<CheckoutWebhookEventType> for api::IncomingWebhookEvent {
     fn from(transaction_type: CheckoutWebhookEventType) -> Self {
         match transaction_type {
-            CheckoutWebhookEventType::AuthenticationStarted => Self::EventNotSupported,
-            CheckoutWebhookEventType::AuthenticationApproved => Self::EventNotSupported,
+            CheckoutWebhookEventType::AuthenticationStarted
+            | CheckoutWebhookEventType::AuthenticationApproved
+            | CheckoutWebhookEventType::AuthenticationAttempted => Self::EventNotSupported,
+            CheckoutWebhookEventType::AuthenticationExpired
+            | CheckoutWebhookEventType::AuthenticationFailed
+            | CheckoutWebhookEventType::PaymentAuthenticationFailed => {
+                Self::PaymentIntentAuthorizationFailure
+            }
             CheckoutWebhookEventType::PaymentApproved => Self::EventNotSupported,
             CheckoutWebhookEventType::PaymentCaptured => Self::PaymentIntentSuccess,
             CheckoutWebhookEventType::PaymentDeclined => Self::PaymentIntentFailure,
             CheckoutWebhookEventType::PaymentRefunded => Self::RefundSuccess,
             CheckoutWebhookEventType::PaymentRefundDeclined => Self::RefundFailure,
+            CheckoutWebhookEventType::PaymentCanceled => Self::PaymentIntentCancelFailure,
+            CheckoutWebhookEventType::PaymentCaptureDeclined => Self::PaymentIntentCaptureFailure,
+            CheckoutWebhookEventType::PaymentVoided => Self::PaymentIntentCancelled,
             CheckoutWebhookEventType::DisputeReceived
             | CheckoutWebhookEventType::DisputeEvidenceRequired => Self::DisputeOpened,
             CheckoutWebhookEventType::DisputeExpired => Self::DisputeExpired,
@@ -1238,12 +1310,20 @@ impl From<CheckoutWebhookEventType> for api::IncomingWebhookEvent {
     }
 }
 
-impl From<CheckoutTransactionType> for api_models::enums::DisputeStage {
-    fn from(code: CheckoutTransactionType) -> Self {
+impl From<CheckoutDisputeTransactionType> for api_models::enums::DisputeStage {
+    fn from(code: CheckoutDisputeTransactionType) -> Self {
         match code {
-            CheckoutTransactionType::DisputeArbitrationLost
-            | CheckoutTransactionType::DisputeArbitrationWon => Self::PreArbitration,
-            _ => Self::Dispute,
+            CheckoutDisputeTransactionType::DisputeArbitrationLost
+            | CheckoutDisputeTransactionType::DisputeArbitrationWon => Self::PreArbitration,
+            CheckoutDisputeTransactionType::DisputeReceived
+            | CheckoutDisputeTransactionType::DisputeExpired
+            | CheckoutDisputeTransactionType::DisputeAccepted
+            | CheckoutDisputeTransactionType::DisputeCanceled
+            | CheckoutDisputeTransactionType::DisputeEvidenceSubmitted
+            | CheckoutDisputeTransactionType::DisputeEvidenceAcknowledgedByScheme
+            | CheckoutDisputeTransactionType::DisputeEvidenceRequired
+            | CheckoutDisputeTransactionType::DisputeWon
+            | CheckoutDisputeTransactionType::DisputeLost => Self::Dispute,
         }
     }
 }
@@ -1314,6 +1394,9 @@ impl TryFrom<&api::IncomingWebhookRequestDetails<'_>> for PaymentsResponse {
             response_code: data.response_code,
             response_summary: data.response_summary,
             action_id: data.action_id,
+            currency: Some(data.currency),
+            processed_on: data.processed_on,
+            approved: data.approved,
         };
 
         Ok(psync_struct)
