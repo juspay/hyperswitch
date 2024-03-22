@@ -1998,11 +1998,8 @@ impl ReverseLookupInterface for KafkaStore {
     async fn get_lookup_by_lookup_id(
         &self,
         id: &str,
-        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<ReverseLookup, errors::StorageError> {
-        self.diesel_store
-            .get_lookup_by_lookup_id(id, storage_scheme)
-            .await
+        self.diesel_store.get_lookup_by_lookup_id(id).await
     }
 }
 

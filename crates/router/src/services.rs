@@ -79,6 +79,7 @@ pub async fn get_store(
         config.drainer.stream_name.clone(),
         config.drainer.num_partitions,
         config.kv_config.ttl,
+        config.kv_config.reverse_lookup_offset,
     );
 
     Ok(store)

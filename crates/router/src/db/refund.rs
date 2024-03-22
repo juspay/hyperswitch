@@ -318,8 +318,7 @@ mod storage {
                 enums::MerchantStorageScheme::RedisKv => {
                     let lookup_id = format!("ref_inter_ref_{merchant_id}_{internal_reference_id}");
                     let lookup = fallback_reverse_lookup_not_found!(
-                        self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
-                            .await,
+                        self.get_lookup_by_lookup_id(&lookup_id).await,
                         database_call().await
                     );
 
@@ -490,8 +489,7 @@ mod storage {
                     let lookup_id =
                         format!("pa_conn_trans_{merchant_id}_{connector_transaction_id}");
                     let lookup = fallback_reverse_lookup_not_found!(
-                        self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
-                            .await,
+                        self.get_lookup_by_lookup_id(&lookup_id).await,
                         database_call().await
                     );
 
@@ -586,8 +584,7 @@ mod storage {
                 enums::MerchantStorageScheme::RedisKv => {
                     let lookup_id = format!("ref_ref_id_{merchant_id}_{refund_id}");
                     let lookup = fallback_reverse_lookup_not_found!(
-                        self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
-                            .await,
+                        self.get_lookup_by_lookup_id(&lookup_id).await,
                         database_call().await
                     );
 
@@ -635,8 +632,7 @@ mod storage {
                     let lookup_id =
                         format!("ref_connector_{merchant_id}_{connector_refund_id}_{connector}");
                     let lookup = fallback_reverse_lookup_not_found!(
-                        self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
-                            .await,
+                        self.get_lookup_by_lookup_id(&lookup_id).await,
                         database_call().await
                     );
 

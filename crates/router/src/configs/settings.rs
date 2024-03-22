@@ -135,6 +135,7 @@ pub struct Frm {
 #[derive(Debug, Deserialize, Clone)]
 pub struct KvConfig {
     pub ttl: u32,
+    pub reverse_lookup_offset: u32,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

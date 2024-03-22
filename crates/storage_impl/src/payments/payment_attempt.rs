@@ -595,8 +595,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 // We assume that PaymentAttempt <=> PaymentIntent is a one-to-one relation for now
                 let lookup_id = format!("pa_conn_trans_{merchant_id}_{connector_transaction_id}");
                 let lookup = fallback_reverse_lookup_not_found!(
-                    self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
-                        .await,
+                    self.get_lookup_by_lookup_id(&lookup_id).await,
                     self.router_store
                         .find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
                             connector_transaction_id,
@@ -741,8 +740,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             MerchantStorageScheme::RedisKv => {
                 let lookup_id = format!("pa_conn_trans_{merchant_id}_{connector_txn_id}");
                 let lookup = fallback_reverse_lookup_not_found!(
-                    self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
-                        .await,
+                    self.get_lookup_by_lookup_id(&lookup_id).await,
                     self.router_store
                         .find_payment_attempt_by_merchant_id_connector_txn_id(
                             merchant_id,
@@ -842,8 +840,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             MerchantStorageScheme::RedisKv => {
                 let lookup_id = format!("pa_{merchant_id}_{attempt_id}");
                 let lookup = fallback_reverse_lookup_not_found!(
-                    self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
-                        .await,
+                    self.get_lookup_by_lookup_id(&lookup_id).await,
                     self.router_store
                         .find_payment_attempt_by_attempt_id_merchant_id(
                             attempt_id,
@@ -899,8 +896,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             MerchantStorageScheme::RedisKv => {
                 let lookup_id = format!("pa_preprocessing_{merchant_id}_{preprocessing_id}");
                 let lookup = fallback_reverse_lookup_not_found!(
-                    self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
-                        .await,
+                    self.get_lookup_by_lookup_id(&lookup_id).await,
                     self.router_store
                         .find_payment_attempt_by_preprocessing_id_merchant_id(
                             preprocessing_id,

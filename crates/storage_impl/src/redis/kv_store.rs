@@ -166,11 +166,11 @@ where
             KvOperation::SetNx(value, sql) => {
                 logger::debug!(kv_operation= %operation, value = ?value);
 
+                value.check_for_constraints(&redis_conn).await?;
+
                 let result = redis_conn
                     .serialize_and_set_key_if_not_exist(key, value, Some(ttl.into()))
                     .await?;
-
-                value.check_for_constraints(&redis_conn).await?;
 
                 if matches!(result, redis_interface::SetnxReply::KeySet) {
                     store

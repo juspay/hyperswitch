@@ -123,7 +123,10 @@ impl Default for super::settings::DrainerSettings {
 #[cfg(feature = "kv_store")]
 impl Default for super::settings::KvConfig {
     fn default() -> Self {
-        Self { ttl: 900 }
+        Self {
+            ttl: 900,
+            reverse_lookup_offset: 120,
+        }
     }
 }
 
