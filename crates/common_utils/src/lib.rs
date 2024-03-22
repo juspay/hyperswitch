@@ -35,9 +35,6 @@ pub mod date_time {
         },
         OffsetDateTime, PrimitiveDateTime,
     };
-    /// Struct to represent milliseconds in time sensitive data fields
-    #[derive(Debug)]
-    pub struct Milliseconds(i32);
 
     /// Enum to represent date formats
     #[derive(Debug)]
