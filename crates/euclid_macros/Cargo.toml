@@ -10,8 +10,8 @@ license.workspace = true
 proc-macro = true
 
 [dependencies]
-proc-macro2 = "1.0.51"
-quote = "1.0.23"
+proc-macro2 = "1.0.79"
+quote = "1.0.35"
 rustc-hash = "1.1.0"
 strum = { version = "0.24", features = ["derive"] }
 syn = "1.0.109"

@@ -13,18 +13,18 @@ kv_store = []
 
 [dependencies]
 async-bb8-diesel = { git = "https://github.com/jarnura/async-bb8-diesel", rev = "53b4ab901aab7635c8215fd1c2d542c8db443094" }
-diesel = { version = "2.1.0", features = ["postgres", "serde_json", "time", "64-column-tables"] }
+diesel = { version = "2.1.5", features = ["postgres", "serde_json", "time", "64-column-tables"] }
 error-stack = "0.4.1"
-frunk = "0.4.1"
-frunk_core = "0.4.1"
-serde = { version = "1.0.193", features = ["derive"] }
-serde_json = "1.0.108"
+frunk = "0.4.2"
+frunk_core = "0.4.2"
+serde = { version = "1.0.197", features = ["derive"] }
+serde_json = "1.0.114"
 strum = { version = "0.24.1", features = ["derive"] }
-thiserror = "1.0.40"
-time = { version = "0.3.21", features = ["serde", "serde-well-known", "std"] }
+thiserror = "1.0.58"
+time = { version = "0.3.34", features = ["serde", "serde-well-known", "std"] }
 
 # First party crates
-common_enums = { path = "../common_enums" }
+common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
 masking = { version = "0.1.0", path = "../masking" }
 router_derive = { version = "0.1.0", path = "../router_derive" }
