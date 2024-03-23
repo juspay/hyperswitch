@@ -4,6 +4,7 @@ description = "DSL for static routing"
 version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
 
 [dependencies]
 erased-serde = "0.3.28"

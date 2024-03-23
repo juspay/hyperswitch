@@ -4,6 +4,7 @@ description = "Utilities for constructing and working with Knowledge Graphs"
 version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
 
 [features]
 dummy_connector = ["api_models/dummy_connector", "euclid/dummy_connector"]
