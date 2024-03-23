@@ -24,5 +24,5 @@ http = "0.2.12"
 mime = "0.3.17"
 serde = "1.0.197"
 serde_json = "1.0.114"
-strum = { version = "0.24.1", features = ["derive"] }
+strum = { version = "0.26.2", features = ["derive"] }
 thiserror = "1.0.58"

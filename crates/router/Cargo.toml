@@ -84,7 +84,7 @@ serde_urlencoded = "0.7.1"
 serde_with = "3.7.0"
 sha-1 = { version = "0.9" }
 sqlx = { version = "0.6.3", features = ["postgres", "runtime-actix", "runtime-actix-native-tls", "time", "bigdecimal"] }
-strum = { version = "0.25", features = ["derive"] }
+strum = { version = "0.26", features = ["derive"] }
 tera = "1.19.1"
 thiserror = "1.0.58"
 time = { version = "0.3.34", features = ["serde", "serde-well-known", "std"] }

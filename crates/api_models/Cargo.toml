@@ -29,7 +29,7 @@ mime = "0.3.17"
 reqwest = { version = "0.11.27", optional = true }
 serde = { version = "1.0.197", features = ["derive"] }
 serde_json = "1.0.114"
-strum = { version = "0.25", features = ["derive"] }
+strum = { version = "0.26", features = ["derive"] }
 time = { version = "0.3.34", features = ["serde", "serde-well-known", "std"] }
 url = { version = "2.5.0", features = ["serde"] }
 utoipa = { version = "3.5.0", features = ["preserve_order", "preserve_path_order"] }

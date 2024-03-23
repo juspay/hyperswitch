@@ -13,5 +13,5 @@ proc-macro = true
 proc-macro2 = "1.0.79"
 quote = "1.0.35"
 rustc-hash = "1.1.0"
-strum = { version = "0.24", features = ["derive"] }
+strum = { version = "0.26", features = ["derive"] }
 syn = "1.0.109"
