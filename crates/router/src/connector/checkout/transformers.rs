@@ -197,6 +197,14 @@ pub struct GiroPaySource {
 }
 
 #[derive(Debug, Serialize)]
+pub struct IdealSource {
+    #[serde(rename = "type")]
+    pub source_type: CheckoutSourceTypes,
+    pub description: String,
+    pub bic: String,
+}
+
+#[derive(Debug, Serialize)]
 pub struct Address {
     pub address_line1: String,
     pub address_line2: String,
@@ -225,6 +233,7 @@ pub enum PaymentSource {
     Wallets(WalletSource),
     ApplePayPredecrypt(Box<ApplePayPredecrypt>),
     Giropay(GiroPaySource),
+    Ideal(IdealSource),
 }
 
 #[derive(Debug, Serialize)]
@@ -245,6 +254,7 @@ pub enum CheckoutSourceTypes {
     Card,
     Token,
     Giropay,
+    Ideal,
 }
 
 pub struct CheckoutAuthType {
@@ -294,6 +304,64 @@ pub struct CheckoutThreeDS {
     cryptogram: Option<String>,
     xid: Option<String>,
     version: Option<String>,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum BankNames {
+    AbnAmro,
+    AsnBank,
+    Bunq,
+    Ing,
+    Knab,
+    N26,
+    NationaleNederlanden,
+    Rabobank,
+    Regiobank,
+    Revolut,
+    SnsBank,
+    TriodosBank,
+    VanLanschot,
+    Yoursafe,
+}
+
+pub struct CheckoutTestBankNames<'a>(&'a str);
+
+impl<'a> TryFrom<&api::enums::BankNames> for CheckoutTestBankNames<'a> {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(bank: &api::enums::BankNames) -> Result<Self, Self::Error> {
+        Ok(match bank {
+            api_models::enums::BankNames::AbnAmro => Self("SBXINL2G"),
+            api_models::enums::BankNames::AsnBank => Self("SBXINL2G"),
+            api_models::enums::BankNames::Bunq => Self("SBXINL2G"),
+            api_models::enums::BankNames::Ing => Self("INGBNL2A"),
+            api_models::enums::BankNames::Knab => Self("SBXINL2G"),
+            api_models::enums::BankNames::N26 => Self("SBXINL2G"),
+            api_models::enums::BankNames::NationaleNederlanden => Self("SBXINL2G"),
+            api_models::enums::BankNames::Rabobank => Self("RABONL2U"),
+            api_models::enums::BankNames::Regiobank => Self("SBXINL2G"),
+            api_models::enums::BankNames::Revolut => Self("SBXINL2G"),
+            api_models::enums::BankNames::SnsBank => Self("SBXINL2G"),
+            api_models::enums::BankNames::TriodosBank => Self("SBXINL2G"),
+            api_models::enums::BankNames::VanLanschot => Self("SBXINL2G"),
+            api_models::enums::BankNames::Yoursafe => Self("SBXINL2G"),
+            _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Checkout"),
+            ))?,
+        })
+    }
 }
 
 impl TryFrom<&types::ConnectorAuthType> for CheckoutAuthType {
@@ -422,11 +490,26 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
 
                         Ok(a)
                     }
+                    api_models::payments::BankRedirectData::Ideal { bank_name, .. } => {
+                        let issuer = Some(
+                            CheckoutTestBankNames::try_from(&bank_name.ok_or(
+                                errors::ConnectorError::MissingRequiredField {
+                                    field_name: "ideal.bank_name",
+                                },
+                            )?)?
+                            .0,
+                        );
+                        let a = PaymentSource::Ideal(IdealSource {
+                            source_type: CheckoutSourceTypes::Ideal,
+                            description: item.router_data.description.as_ref().unwrap().clone(),
+                            bic: issuer.unwrap().to_string(),
+                        });
+                        Ok(a)
+                    }
                     api_models::payments::BankRedirectData::BancontactCard { .. }
                     | api_models::payments::BankRedirectData::Bizum { .. }
                     | api_models::payments::BankRedirectData::Blik { .. }
                     | api_models::payments::BankRedirectData::Eps { .. }
-                    | api_models::payments::BankRedirectData::Ideal { .. }
                     | api_models::payments::BankRedirectData::Interac { .. }
                     | api_models::payments::BankRedirectData::OnlineBankingCzechRepublic {
                         ..
