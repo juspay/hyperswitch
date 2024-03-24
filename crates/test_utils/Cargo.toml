@@ -26,7 +26,7 @@ serial_test = "2.0.0"
 thirtyfour = "0.31.0"
 time = { version = "0.3.34", features = ["macros"] }
 tokio = "1.36.0"
-toml = "0.7.8"
+toml = "0.8.12"
 
 # First party crates
 masking = { version = "0.1.0", path = "../masking" }
