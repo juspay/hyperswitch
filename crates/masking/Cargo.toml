@@ -19,7 +19,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 [dependencies]
 bytes = { version = "1", optional = true }
 diesel = { version = "2.1.5", features = ["postgres", "serde_json", "time"], optional = true }
-erased-serde = "0.3.31"
+erased-serde = "0.4.4"
 serde = { version = "1", features = ["derive"], optional = true }
 serde_json = { version = "1.0.114", optional = true }
 subtle = "2.5.0"

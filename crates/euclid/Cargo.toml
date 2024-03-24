@@ -7,7 +7,7 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
-erased-serde = "0.3.31"
+erased-serde = "0.4.4"
 frunk = "0.4.2"
 frunk_core = "0.4.2"
 nom = { version = "7.1.3", features = ["alloc"], optional = true }
