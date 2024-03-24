@@ -122,6 +122,28 @@ services:
     labels:
       logs: "promtail"
 
+    web-client:
+    # Configuration for the web client service
+    image: <web_client_image>:<tag>  
+    ports:
+      - "8081:8081"  
+    networks:
+      - router_net
+    volumes:
+      - ./web-client:/app  
+    environment:
+      - ENV_VARIABLE=value  
+
+  control-center:
+    # Configuration for the control center service
+    image: <control_center_image>:<tag>  
+    networks:
+      - router_net
+    depends_on:
+      - web-client  # Ensure web-client service is started before control-center
+    environment:
+      - WEB_CLIENT_URL=http://web-client:8081
+
   ### Clustered Redis setup
   redis-cluster:
     image: redis:7
