@@ -39,7 +39,7 @@ actix-web = "4.5.1"
 async-bb8-diesel = { git = "https://github.com/jarnura/async-bb8-diesel", rev = "53b4ab901aab7635c8215fd1c2d542c8db443094" }
 argon2 = { version = "0.5.3", features = ["std"] }
 async-trait = "0.1.79"
-base64 = "0.21.7"
+base64 = "0.22.0"
 bb8 = "0.8"
 bigdecimal = "0.3.1"
 blake3 = "1.5.1"

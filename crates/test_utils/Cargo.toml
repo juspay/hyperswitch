@@ -14,7 +14,7 @@ payouts = []
 
 [dependencies]
 async-trait = "0.1.79"
-base64 = "0.21.7"
+base64 = "0.22.0"
 clap = { version = "4.4.18", default-features = false, features = ["std", "derive", "help", "usage"] }
 rand = "0.8.5"
 regex = "1.10.4"
