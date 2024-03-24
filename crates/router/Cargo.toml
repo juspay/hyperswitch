@@ -60,7 +60,7 @@ image = "0.23.14"
 infer = "0.13.0"
 josekit = "0.8.6"
 jsonwebtoken = "8.3.0"
-maud = { version = "0.25", features = ["actix-web"] }
+maud = { version = "0.26.0", features = ["actix-web"] }
 mimalloc = { version = "0.1", optional = true }
 mime = "0.3.17"
 nanoid = "0.4.0"
