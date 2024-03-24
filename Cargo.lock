@@ -2824,7 +2824,7 @@ dependencies = [
  "once_cell",
  "ron-parser",
  "serde",
- "serde-wasm-bindgen",
+ "serde-wasm-bindgen 0.6.5",
  "strum 0.26.2",
  "wasm-bindgen",
 ]
@@ -5637,7 +5637,7 @@ checksum = "1c7280c46017fafbe4275179689e446a9b0db3bd91ea61aaee22841ef618405a"
 dependencies = [
  "nom",
  "serde",
- "serde-wasm-bindgen",
+ "serde-wasm-bindgen 0.5.0",
  "serde_json",
  "wasm-bindgen",
 ]
@@ -6154,6 +6154,17 @@ name = "serde-wasm-bindgen"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f3b143e2833c57ab9ad3ea280d21fd34e285a42837aeb0ee301f4f41890fa00e"
+dependencies = [
+ "js-sys",
+ "serde",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "serde-wasm-bindgen"
+version = "0.6.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8302e169f0eddcc139c70f139d19d6467353af16f9fce27e8c30158036a1e16b"
 dependencies = [
  "js-sys",
  "serde",
