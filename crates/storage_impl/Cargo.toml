@@ -31,7 +31,7 @@ async-bb8-diesel = { git = "https://github.com/jarnura/async-bb8-diesel", rev = 
 async-trait = "0.1.79"
 bb8 = "0.8.3"
 bytes = "1.6.0"
-config = { version = "0.13.4", features = ["toml"] }
+config = { version = "0.14.0", features = ["toml"] }
 crc32fast = "1.4.0"
 diesel = { version = "2.1.5", default-features = false, features = ["postgres"] }
 dyn-clone = "1.0.17"

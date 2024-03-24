@@ -45,7 +45,7 @@ bigdecimal = "0.3.1"
 blake3 = "1.5.1"
 bytes = "1.6.0"
 clap = { version = "4.4.18", default-features = false, features = ["std", "derive", "help", "usage"] }
-config = { version = "0.13.4", features = ["toml"] }
+config = { version = "0.14.0", features = ["toml"] }
 cookie = "0.18.0"
 diesel = { version = "2.1.5", features = ["postgres"] }
 digest = "0.9"
