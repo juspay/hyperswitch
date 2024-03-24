@@ -140,11 +140,7 @@ where
             .chars()
             .skip(base_url.len() - 1)
             .collect();
-        let sha256 = self.generate_digest(
-            types::RequestBody::get_inner_value(boa_req)
-                .expose()
-                .as_bytes(),
-        );
+        let sha256 = self.generate_digest(boa_req.get_inner_value().expose().as_bytes());
         let signature = self.generate_signature(
             auth,
             host.to_string(),

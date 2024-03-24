@@ -172,6 +172,8 @@ pub enum ApiErrorResponse {
     ApiKeyNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Payout does not exist in our records")]
     PayoutNotFound,
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Event does not exist in our records")]
+    EventNotFound,
     #[error(error_type = ErrorType::ValidationError, code = "HE_03", message = "Invalid mandate id passed from connector")]
     MandateSerializationFailed,
     #[error(error_type = ErrorType::ValidationError, code = "HE_03", message = "Unable to parse the mandate identifier passed from connector")]

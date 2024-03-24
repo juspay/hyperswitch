@@ -257,7 +257,7 @@ pub async fn retrieve_api_key(
         .find_api_key_by_merchant_id_key_id_optional(merchant_id, key_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError) // If retrieve failed
-        .attach_printable("Failed to retrieve new API key")?
+        .attach_printable("Failed to retrieve API key")?
         .ok_or(report!(errors::ApiErrorResponse::ApiKeyNotFound))?; // If retrieve returned `None`
 
     Ok(ApplicationResponse::Json(api_key.foreign_into()))
