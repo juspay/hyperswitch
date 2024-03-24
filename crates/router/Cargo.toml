@@ -91,7 +91,7 @@ time = { version = "0.3.34", features = ["serde", "serde-well-known", "std"] }
 tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread"] }
 unicode-segmentation = "1.11.0"
 url = { version = "2.5.0", features = ["serde"] }
-utoipa = { version = "3.5.0", features = ["preserve_order", "preserve_path_order", "time"] }
+utoipa = { version = "4.2.0", features = ["preserve_order", "preserve_path_order", "time"] }
 uuid = { version = "1.8.0", features = ["v4"] }
 validator = "0.16.1"
 x509-parser = "0.15.1"

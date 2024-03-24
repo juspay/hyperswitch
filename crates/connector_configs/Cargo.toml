@@ -19,4 +19,4 @@ api_models = { version = "0.1.0", path = "../api_models", package = "api_models"
 serde = { version = "1.0.197", features = ["derive"] }
 serde_with = "3.7.0"
 toml = "0.8.12"
-utoipa = { version = "3.5.0", features = ["preserve_order", "preserve_path_order"] }
+utoipa = { version = "4.2.0", features = ["preserve_order", "preserve_path_order"] }
