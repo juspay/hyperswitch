@@ -59,7 +59,7 @@ hyper = "0.14.28"
 image = { version = "0.25.0", default-features = false, features = ["png"] }
 infer = "0.15.0"
 josekit = "0.8.6"
-jsonwebtoken = "8.3.0"
+jsonwebtoken = "9.2.0"
 maud = { version = "0.26.0", features = ["actix-web"] }
 mimalloc = { version = "0.1", optional = true }
 mime = "0.3.17"
