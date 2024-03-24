@@ -48,7 +48,7 @@ clap = { version = "4.4.18", default-features = false, features = ["std", "deriv
 config = { version = "0.14.0", features = ["toml"] }
 cookie = "0.18.0"
 diesel = { version = "2.1.5", features = ["postgres"] }
-digest = "0.9"
+digest = "0.10.7"
 dyn-clone = "1.0.17"
 encoding_rs = "0.8.33"
 error-stack = "0.4.1"
