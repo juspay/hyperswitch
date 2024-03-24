@@ -2794,7 +2794,7 @@ dependencies = [
  "quote",
  "rustc-hash",
  "strum 0.26.2",
- "syn 1.0.109",
+ "syn 2.0.55",
 ]
 
 [[package]]
