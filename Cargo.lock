@@ -6558,7 +6558,6 @@ dependencies = [
  "moka",
  "once_cell",
  "redis_interface",
- "ring 0.16.20",
  "router_derive",
  "router_env",
  "serde",
