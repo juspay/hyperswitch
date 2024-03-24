@@ -1970,7 +1970,7 @@ dependencies = [
  "once_cell",
  "phonenumber",
  "proptest",
- "quick-xml 0.28.2",
+ "quick-xml 0.31.0",
  "rand",
  "regex",
  "reqwest",
@@ -5260,7 +5260,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ce5e73202a820a31f8a0ee32ada5e21029c81fd9e3ebf668a40832e4219d9d1"
 dependencies = [
  "memchr",
- "serde",
 ]
 
 [[package]]
