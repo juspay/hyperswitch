@@ -5,10 +5,10 @@ import State from "../../utils/State";
 
 let globalState;
 
-describe("Card - Sync payment flow test", () => {  
+describe("Card - Sync payment flow test", () => {
 
-  before("seed global state",  () => {
-    
+  before("seed global state", () => {
+
     cy.task('getGlobalState').then((state) => {
       // visit non same-origin url https://www.cypress-dx.com
       globalState = new State(state);
@@ -17,12 +17,12 @@ describe("Card - Sync payment flow test", () => {
   })
 
   after("flush global state", () => {
-    console.log("flushing globalState -> "+ JSON.stringify(globalState));
+    console.log("flushing globalState -> " + JSON.stringify(globalState));
     cy.task('setGlobalState', globalState.data);
   })
   it("create-payment-call-test", () => {
     let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
-    cy.createPaymentIntentTest( createPaymentBody, det.currency, "no_three_ds", "automatic", globalState);
+    cy.createPaymentIntentTest(createPaymentBody, det.currency, "no_three_ds", "automatic", globalState);
   });
 
   it("payment_methods-call-test", () => {
@@ -30,9 +30,9 @@ describe("Card - Sync payment flow test", () => {
   });
 
   it("confirm-call-test", () => {
-    console.log("confirm -> "+globalState.get("connectorId"));
+    console.log("confirm -> " + globalState.get("connectorId"));
     let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
-    console.log("det -> "+det.card);
+    console.log("det -> " + det.card);
     cy.confirmCallTest(confirmBody, det, true, globalState);
   });
 

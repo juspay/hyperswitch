@@ -6,10 +6,10 @@ import State from "../../utils/State";
 
 let globalState;
 
-describe("Card - NoThreeDS payment flow test", () => {  
+describe("Card - NoThreeDS payment flow test", () => {
 
-  before("seed global state",  () => {
-    
+  before("seed global state", () => {
+
     cy.task('getGlobalState').then((state) => {
       // visit non same-origin url https://www.cypress-dx.com
       globalState = new State(state);
@@ -18,27 +18,27 @@ describe("Card - NoThreeDS payment flow test", () => {
   })
 
   after("flush global state", () => {
-    console.log("flushing globalState -> "+ JSON.stringify(globalState));
+    console.log("flushing globalState -> " + JSON.stringify(globalState));
     cy.task('setGlobalState', globalState.data);
   })
 
   context("Card-NoThreeDS payment flow test Create and confirm", () => {
-    
+
     it("create-payment-call-test", () => {
       let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
-      cy.createPaymentIntentTest( createPaymentBody, det.currency, "no_three_ds", "automatic", globalState);
+      cy.createPaymentIntentTest(createPaymentBody, det.currency, "no_three_ds", "automatic", globalState);
     });
-  
+
     it("payment_methods-call-test", () => {
       cy.paymentMethodsCallTest(globalState);
     });
-  
+
     it("Confirm No 3DS", () => {
       let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
       cy.confirmCallTest(confirmBody, det, true, globalState);
     });
 
-    it("retrieve-payment-call-test", () => {  
+    it("retrieve-payment-call-test", () => {
       cy.retrievePaymentCallTest(globalState);
     });
 
@@ -49,10 +49,10 @@ describe("Card - NoThreeDS payment flow test", () => {
     it("create+confirm-payment-call-test", () => {
       console.log("confirm -> " + globalState.get("connectorId"));
       let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
-      cy.createConfirmPaymentTest( createConfirmPaymentBody, det,"no_three_ds", "automatic", globalState);
+      cy.createConfirmPaymentTest(createConfirmPaymentBody, det, "no_three_ds", "automatic", globalState);
     });
 
-    it("retrieve-payment-call-test", () => {  
+    it("retrieve-payment-call-test", () => {
       cy.retrievePaymentCallTest(globalState);
     });
 

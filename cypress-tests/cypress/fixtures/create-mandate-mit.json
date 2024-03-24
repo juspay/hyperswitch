@@ -1,35 +1,35 @@
 {
-    "amount": 6540,
-    "currency": "USD",
-    "capture_method": "automatic",
-    "off_session": true,
-    "confirm": true,
-    "description": "Initiated by merchant",
-    "mandate_id": "mandate_id",
-    "customer_id": "StripeCustomer",
-    "billing": {
-      "address": {
-        "line1": "1467",
-        "line2": "Harrison Street",
-        "line3": "Harrison Street",
-        "city": "San Fransico",
-        "state": "California",
-        "zip": "94122",
-        "country": "US",
-        "first_name": "john",
-        "last_name": "Doe"
-      }
-    },
-    "browser_info": {
-      "ip_address": "129.0.0.1",
-      "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      "accept_header": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
-      "language": "en-US",
-      "color_depth": 30,
-      "screen_height": 1117,
-      "screen_width": 1728,
-      "time_zone": -330,
-      "java_enabled": true,
-      "java_script_enabled": true
+  "amount": 6540,
+  "currency": "USD",
+  "capture_method": "automatic",
+  "off_session": true,
+  "confirm": true,
+  "description": "Initiated by merchant",
+  "mandate_id": "mandate_id",
+  "customer_id": "StripeCustomer",
+  "billing": {
+    "address": {
+      "line1": "1467",
+      "line2": "Harrison Street",
+      "line3": "Harrison Street",
+      "city": "San Fransico",
+      "state": "California",
+      "zip": "94122",
+      "country": "US",
+      "first_name": "john",
+      "last_name": "Doe"
     }
+  },
+  "browser_info": {
+    "ip_address": "129.0.0.1",
+    "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "accept_header": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+    "language": "en-US",
+    "color_depth": 30,
+    "screen_height": 1117,
+    "screen_width": 1728,
+    "time_zone": -330,
+    "java_enabled": true,
+    "java_script_enabled": true
   }
+}

@@ -17,16 +17,16 @@ const successfulThreeDSTestCardDetails = {
 export const connectorDetails = {
     "3DS": {
         "card": successfulThreeDSTestCardDetails,
-        "currency":"USD",
+        "currency": "USD",
         "paymentSuccessfulStatus": "requires_customer_action",
         "paymentSyncStatus": "succeeded",
         "refundStatus": "pending",
         "refundSyncStatus": "succeeded"
-        
+
     },
     "No3DS": {
         "card": successfulNo3DSCardDetails,
-        "currency":"USD",
+        "currency": "USD",
         "paymentSuccessfulStatus": "processing",
         "paymentSyncStatus": "succeeded",
         "refundStatus": "pending",
@@ -34,7 +34,7 @@ export const connectorDetails = {
     },
     "MandateSingleUse3DS": {
         "card": successfulThreeDSTestCardDetails,
-        "currency":"USD",
+        "currency": "USD",
         "paymentSuccessfulStatus": "requires_customer_action",
         "paymentSyncStatus": "processing",
         "refundStatus": "pending",
@@ -48,7 +48,7 @@ export const connectorDetails = {
     },
     "MandateSingleUseNo3DS": {
         "card": successfulNo3DSCardDetails,
-        "currency":"USD",
+        "currency": "USD",
         "paymentSuccessfulStatus": "processing",
         "paymentSyncStatus": "succeeded",
         "refundStatus": "pending",
@@ -62,7 +62,7 @@ export const connectorDetails = {
     },
     "MandateMultiUseNo3DS": {
         "card": successfulNo3DSCardDetails,
-        "currency":"USD",
+        "currency": "USD",
         "paymentSuccessfulStatus": "processing",
         "paymentSyncStatus": "succeeded",
         "refundStatus": "pending",
@@ -76,7 +76,7 @@ export const connectorDetails = {
     },
     "MandateMultiUse3DS": {
         "card": successfulThreeDSTestCardDetails,
-        "currency":"USD",
+        "currency": "USD",
         "paymentSuccessfulStatus": "requires_customer_action",
         "paymentSyncStatus": "succeeded",
         "refundStatus": "pending",

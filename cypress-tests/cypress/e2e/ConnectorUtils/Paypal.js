@@ -18,21 +18,21 @@ const successfulThreeDSTestCardDetails = {
 export const connectorDetails = {
     "3DS": {
         "card": successfulThreeDSTestCardDetails,
-        "currency":"USD",
+        "currency": "USD",
         "paymentSuccessfulStatus": "requires_customer_action",
         "paymentSyncStatus": "processing",
 
     },
     "No3DS": {
         "card": successfulNo3DSCardDetails,
-        "currency":"USD",
+        "currency": "USD",
         "paymentSuccessfulStatus": "processing",
         "paymentSyncStatus": "processing",
 
     },
     "MandateSingleUse3DS": {
         "card": successfulThreeDSTestCardDetails,
-        "currency":"USD",
+        "currency": "USD",
         "paymentSuccessfulStatus": "requires_customer_action",
         "paymentSyncStatus": "processing",
         "mandate_type": {
@@ -44,7 +44,7 @@ export const connectorDetails = {
     },
     "MandateSingleUseNo3DS": {
         "card": successfulNo3DSCardDetails,
-        "currency":"USD",
+        "currency": "USD",
         "paymentSuccessfulStatus": "succeeded",
         "paymentSyncStatus": "succeeded",
         "mandate_type": {
@@ -56,7 +56,7 @@ export const connectorDetails = {
     },
     "MandateMultiUseNo3DS": {
         "card": successfulNo3DSCardDetails,
-        "currency":"USD",
+        "currency": "USD",
         "paymentSuccessfulStatus": "succeeded",
         "paymentSyncStatus": "succeeded",
         "mandate_type": {
@@ -68,7 +68,7 @@ export const connectorDetails = {
     },
     "MandateMultiUse3DS": {
         "card": successfulThreeDSTestCardDetails,
-        "currency":"USD",
+        "currency": "USD",
         "paymentSuccessfulStatus": "requires_customer_action",
         "paymentSyncStatus": "processing",
         "mandate_type": {

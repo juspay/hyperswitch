@@ -5,15 +5,15 @@ import State from "../../utils/State";
 let globalState;
 describe("Account Create flow test", () => {
 
-  before("seed global state",  () => {
-    
+  before("seed global state", () => {
+
     cy.task('getGlobalState').then((state) => {
       globalState = new State(state);
-      console.log("seeding globalState -> "+JSON.stringify(globalState));
+      console.log("seeding globalState -> " + JSON.stringify(globalState));
     })
   })
   after("flush global state", () => {
-    console.log("flushing globalState -> "+ JSON.stringify(globalState));
+    console.log("flushing globalState -> " + JSON.stringify(globalState));
     cy.task('setGlobalState', globalState.data);
   })
 
@@ -23,5 +23,5 @@ describe("Account Create flow test", () => {
   it("api-key-create-call-test", () => {
     cy.apiKeyCreateTest(apiKeyCreateBody, globalState);
   });
-  
+
 });

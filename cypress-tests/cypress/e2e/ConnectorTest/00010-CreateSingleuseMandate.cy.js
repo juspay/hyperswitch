@@ -1,4 +1,3 @@
-import createPaymentBody from "../../fixtures/create-payment-body.json";
 import captureBody from "../../fixtures/capture-flow-body.json";
 import citConfirmBody from "../../fixtures/create-mandate-cit.json";
 import mitConfirmBody from "../../fixtures/create-mandate-mit.json";
@@ -61,6 +60,10 @@ describe("Card - SingleUse Mandates flow test", () => {
             console.log("det -> " + det.card);
             cy.captureCallTest(captureBody, 7000, det.paymentSuccessfulStatus, globalState);
         });
+
+        it("list-mandate-call-test", () => {
+            cy.listMandateCallTest(globalState);
+        });
     });
 
     context.skip("Card - ThreeDS Create + Confirm Manual CIT and MIT payment flow test", () => {
@@ -80,6 +83,10 @@ describe("Card - SingleUse Mandates flow test", () => {
 
         it("Confirm No 3DS MIT", () => {
             cy.mitForMandatesCallTest(mitConfirmBody, 7000, true, "automatic", globalState);
+        });
+
+        it("list-mandate-call-test", () => {
+            cy.listMandateCallTest(globalState);
         });
     });
 });

@@ -7,7 +7,7 @@
     "connector_account_details": {
         "auth_type": "BodyKey",
         "api_key": "api-key",
-        "key1":"value1"
+        "key1": "value1"
     },
     "test_mode": false,
     "disabled": false,
@@ -57,6 +57,6 @@
     "metadata": {
         "city": "NY",
         "unit": "245",
-        "endpoint_prefix":"AD"
+        "endpoint_prefix": "AD"
     }
 }
