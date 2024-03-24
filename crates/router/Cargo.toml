@@ -93,7 +93,7 @@ unicode-segmentation = "1.11.0"
 url = { version = "2.5.0", features = ["serde"] }
 utoipa = { version = "4.2.0", features = ["preserve_order", "preserve_path_order", "time"] }
 uuid = { version = "1.8.0", features = ["v4"] }
-validator = "0.16.1"
+validator = "0.17.0"
 x509-parser = "0.15.1"
 tracing-futures = { version = "0.2.5", features = ["tokio"] }
 
