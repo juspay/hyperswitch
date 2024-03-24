@@ -133,7 +133,7 @@ actix-http = "3.6.0"
 awc = { version = "3.4.0", features = ["rustls"] }
 derive_deref = "1.1.1"
 rand = "0.8.5"
-serial_test = "2.0.0"
+serial_test = "3.0.0"
 time = { version = "0.3.34", features = ["macros"] }
 tokio = "1.36.0"
 wiremock = "0.5.22"
