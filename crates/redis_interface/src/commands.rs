@@ -13,7 +13,7 @@ use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt, Encode, StringExt},
     fp_utils,
 };
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use fred::{
     interfaces::{HashesInterface, KeysInterface, SetsInterface, StreamsInterface},
     prelude::RedisErrorKind,
@@ -562,11 +562,11 @@ impl super::RedisConnectionPool {
                 ids,
             )
             .await
-            .map_err(|err| match err.current_context().kind() {
+            .map_err(|err| match err.kind() {
                 RedisErrorKind::NotFound | RedisErrorKind::Parse => {
-                    err.change_context(errors::RedisError::StreamEmptyOrNotAvailable)
+                    report!(err).change_context(errors::RedisError::StreamEmptyOrNotAvailable)
                 }
-                _ => err.change_context(errors::RedisError::StreamReadFailed),
+                _ => report!(err).change_context(errors::RedisError::StreamReadFailed),
             })
     }
 
@@ -591,11 +591,11 @@ impl super::RedisConnectionPool {
             }
             None => self.pool.xread_map(count, block, streams, ids).await,
         }
-        .map_err(|err| match err.current_context().kind() {
+        .map_err(|err| match err.kind() {
             RedisErrorKind::NotFound | RedisErrorKind::Parse => {
-                err.change_context(errors::RedisError::StreamEmptyOrNotAvailable)
+                report!(err).change_context(errors::RedisError::StreamEmptyOrNotAvailable)
             }
-            _ => err.change_context(errors::RedisError::StreamReadFailed),
+            _ => report!(err).change_context(errors::RedisError::StreamReadFailed),
         })
     }
 

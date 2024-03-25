@@ -4,7 +4,6 @@
 //!
 
 use common_utils::errors::CustomResult;
-use error_stack::ResultExt;
 use fred::types::RedisValue as FredRedisValue;
 
 use crate::errors;
@@ -82,7 +81,8 @@ impl RedisSettings {
             || {
                 Err(errors::RedisError::InvalidConfiguration(
                     "Unresponsive timeout cannot be greater than the command timeout".into(),
-                ))
+                )
+                .into())
             },
         )
     }
