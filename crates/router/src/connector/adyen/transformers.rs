@@ -3,7 +3,7 @@ use api_models::payouts::PayoutMethodData;
 use api_models::{enums, payments, webhooks};
 use cards::CardNumber;
 use common_utils::{ext_traits::Encode, pii};
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -294,7 +294,7 @@ impl ForeignTryFrom<(bool, AdyenWebhookStatus)> for storage_enums::AttemptStatus
             //If Unexpected Event is received, need to understand how it reached this point
             //Webhooks with Payment Events only should try to conume this resource object.
             AdyenWebhookStatus::UnexpectedEvent => {
-                Err(errors::ConnectorError::WebhookBodyDecodingFailed)
+                Err(report!(errors::ConnectorError::WebhookBodyDecodingFailed))
             }
         }
     }

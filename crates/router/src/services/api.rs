@@ -1487,7 +1487,6 @@ pub fn build_redirection_form(
                 </script>
                 "#))
 
-
                 h3 style="text-align: center;" { "Please wait while we process your payment..." }
                     form action=(PreEscaped(endpoint)) method=(method.to_string()) #payment_form {
                         @for (field, value) in form_fields {
@@ -1545,7 +1544,6 @@ pub fn build_redirection_form(
                         </script>
                         "#))
 
-
                         h3 style="text-align: center;" { "Please wait while we process your payment..." }
                     }
 
@@ -1601,7 +1599,6 @@ pub fn build_redirection_form(
                             </script>
                             "#))
 
-
                         h3 style="text-align: center;" { "Please wait while we process your payment..." }
                     }
 
@@ -1653,7 +1650,6 @@ pub fn build_redirection_form(
                             })
                             </script>
                             "#))
-
 
                         h3 style="text-align: center;" { "Please wait while we process your payment..." }
                     }
@@ -1732,7 +1728,6 @@ pub fn build_redirection_form(
                             })
                             </script>
                             "#))
-
 
                         h3 style="text-align: center;" { "Please wait while we process your payment..." }
                     }

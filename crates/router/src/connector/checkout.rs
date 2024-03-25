@@ -78,8 +78,7 @@ impl ConnectorCommon for Checkout {
         &self,
         auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth: checkout::CheckoutAuthType = auth_type
-            .try_into()
+        let auth = checkout::CheckoutAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
@@ -754,12 +753,11 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             response,
             status: res.status_code,
         };
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -829,12 +827,11 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .iter()
             .find(|&x| x.action_id.clone() == refund_action_id)
             .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 

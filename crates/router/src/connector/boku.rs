@@ -3,7 +3,7 @@ use std::fmt::Debug;
 
 use common_utils::{ext_traits::XmlExt, request::RequestContent};
 use diesel_models::enums;
-use error_stack::{Report, ResultExt};
+use error_stack::{report, Report, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret, WithType};
 use ring::hmac;
 use roxmltree;
@@ -628,21 +628,21 @@ impl api::IncomingWebhook for Boku {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented)
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_event_type(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented)
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_resource_object(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented)
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
 

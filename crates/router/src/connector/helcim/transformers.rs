@@ -158,9 +158,9 @@ impl TryFrom<&types::SetupMandateRouterData> for HelcimVerifyRequest {
     fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(req_card) => Self::try_from((item, &req_card)),
-            api_models::payments::PaymentMethodData::BankTransfer(_) => Err(
-                errors::ConnectorError::NotImplemented("Payment Method".to_string()),
-            ),
+            api_models::payments::PaymentMethodData::BankTransfer(_) => {
+                Err(errors::ConnectorError::NotImplemented("Payment Method".to_string()).into())
+            }
             api_models::payments::PaymentMethodData::CardRedirect(_)
             | api_models::payments::PaymentMethodData::Wallet(_)
             | api_models::payments::PaymentMethodData::PayLater(_)
@@ -259,9 +259,9 @@ impl TryFrom<&HelcimRouterData<&types::PaymentsAuthorizeRouterData>> for HelcimP
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(req_card) => Self::try_from((item, &req_card)),
-            api_models::payments::PaymentMethodData::BankTransfer(_) => Err(
-                errors::ConnectorError::NotImplemented("Payment Method".to_string()),
-            ),
+            api_models::payments::PaymentMethodData::BankTransfer(_) => {
+                Err(errors::ConnectorError::NotImplemented("Payment Method".to_string()).into())
+            }
             api_models::payments::PaymentMethodData::CardRedirect(_)
             | api_models::payments::PaymentMethodData::Wallet(_)
             | api_models::payments::PaymentMethodData::PayLater(_)

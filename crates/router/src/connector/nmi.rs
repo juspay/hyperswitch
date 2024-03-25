@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
 use diesel_models::enums;
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use regex::Regex;
 use transformers as nmi;
 
@@ -868,7 +868,7 @@ impl api::IncomingWebhook for Nmi {
             return Ok(signature.as_bytes().to_vec());
         }
 
-        Err(errors::ConnectorError::WebhookSignatureNotFound)
+        Err(report!(errors::ConnectorError::WebhookSignatureNotFound))
     }
 
     fn get_webhook_source_verification_message(
@@ -895,7 +895,7 @@ impl api::IncomingWebhook for Nmi {
 
             return Ok(message.into_bytes());
         }
-        Err(errors::ConnectorError::WebhookSignatureNotFound)
+        Err(report!(errors::ConnectorError::WebhookSignatureNotFound))
     }
 
     fn get_webhook_object_reference_id(

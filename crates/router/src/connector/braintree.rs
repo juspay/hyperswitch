@@ -6,7 +6,7 @@ use api_models::webhooks::IncomingWebhookEvent;
 use base64::Engine;
 use common_utils::{crypto, ext_traits::XmlExt, request::RequestContent};
 use diesel_models::enums;
-use error_stack::{Report, ResultExt};
+use error_stack::{report, Report, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 use ring::hmac;
 use sha1::{Digest, Sha1};
@@ -92,8 +92,7 @@ impl ConnectorCommon for Braintree {
         &self,
         auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth: braintree::BraintreeAuthType = auth_type
-            .try_into()
+        let auth = braintree::BraintreeAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
@@ -631,7 +630,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
                 Ok(RequestContent::Json(Box::new(connector_req)))
             }
-            false => Err(errors::ConnectorError::RequestEncodingFailed),
+            false => Err(report!(errors::ConnectorError::RequestEncodingFailed)),
         }
     }
 
@@ -978,7 +977,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
                     braintree_graphql_transformers::BraintreeCancelRequest::try_from(req)?;
                 Ok(RequestContent::Json(Box::new(connector_req)))
             }
-            false => Err(errors::ConnectorError::RequestEncodingFailed),
+            false => Err(report!(errors::ConnectorError::RequestEncodingFailed)),
         }
     }
 
@@ -1242,7 +1241,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
                     braintree_graphql_transformers::BraintreeRSyncRequest::try_from(req)?;
                 Ok(RequestContent::Json(Box::new(connector_req)))
             }
-            false => Err(errors::ConnectorError::RequestEncodingFailed),
+            false => Err(report!(errors::ConnectorError::RequestEncodingFailed)),
         }
     }
 
@@ -1419,7 +1418,7 @@ impl api::IncomingWebhook for Braintree {
                     dispute_data.transaction.id,
                 ),
             )),
-            None => Err(errors::ConnectorError::WebhookReferenceIdNotFound),
+            None => Err(report!(errors::ConnectorError::WebhookReferenceIdNotFound)),
         }
     }
 

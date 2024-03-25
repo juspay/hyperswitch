@@ -149,7 +149,8 @@ fn get_card_details(
         )),
         _ => Err(errors::ConnectorError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("Nmi"),
-        )),
+        )
+        .into()),
     }
 }
 
@@ -552,7 +553,8 @@ impl TryFrom<&api_models::payments::PaymentMethodData> for PaymentMethod {
                 | api_models::payments::WalletData::SwishQr(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("nmi"),
-                    ))
+                    )
+                    .into())
                 }
             },
             api::PaymentMethodData::CardRedirect(_)
@@ -568,7 +570,8 @@ impl TryFrom<&api_models::payments::PaymentMethodData> for PaymentMethod {
             | api::PaymentMethodData::GiftCard(_)
             | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("nmi"),
-            )),
+            )
+            .into()),
         }
     }
 }

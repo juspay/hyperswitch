@@ -6,7 +6,7 @@ use api_models::{enums::PaymentMethodType, webhooks::IncomingWebhookEvent};
 use base64::Engine;
 use common_utils::request::RequestContent;
 use diesel_models::{enums as storage_enums, enums};
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
 use ring::hmac;
 use router_env::{instrument, tracing};
@@ -1770,7 +1770,7 @@ impl api::IncomingWebhook for Adyen {
                 ),
             ));
         }
-        Err(errors::ConnectorError::WebhookReferenceIdNotFound)
+        Err(report!(errors::ConnectorError::WebhookReferenceIdNotFound))
     }
 
     fn get_webhook_event_type(

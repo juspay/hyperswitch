@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use common_utils::request::RequestContent;
 use diesel_models::enums;
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use transformers as bambora;
 
 use super::utils::RefundsRequestData;
@@ -74,8 +74,7 @@ impl ConnectorCommon for Bambora {
         &self,
         auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth: bambora::BamboraAuthType = auth_type
-            .try_into()
+        let auth = bambora::BamboraAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
@@ -607,7 +606,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RefundsRouterData::try_from(types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -704,7 +703,7 @@ impl api::IncomingWebhook for Bambora {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented)
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_event_type(
@@ -718,7 +717,7 @@ impl api::IncomingWebhook for Bambora {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented)
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
 

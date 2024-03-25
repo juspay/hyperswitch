@@ -379,11 +379,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                         Err(errors::ConnectorError::MissingRequiredField {
                             field_name:
                                 "setup_future_usage.mandate_data.mandate_type.multi_use.amount",
-                        })
+                        }
+                        .into())
                     }
                     None => Err(errors::ConnectorError::MissingRequiredField {
                         field_name: "setup_future_usage.mandate_data.mandate_type",
-                    }),
+                    }
+                    .into()),
                 }?;
 
                 Ok::<NoonSubscriptionData, error_stack::Report<errors::ConnectorError>>(

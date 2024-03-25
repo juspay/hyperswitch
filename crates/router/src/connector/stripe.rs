@@ -53,8 +53,7 @@ impl ConnectorCommon for Stripe {
         &self,
         auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth: stripe::StripeAuthType = auth_type
-            .try_into()
+        let auth = stripe::StripeAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![
             (

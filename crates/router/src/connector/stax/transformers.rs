@@ -157,7 +157,8 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for StaxCustomerRequest {
         if item.request.email.is_none() && item.request.name.is_none() {
             Err(errors::ConnectorError::MissingRequiredField {
                 field_name: "email or name",
-            })
+            }
+            .into())
         } else {
             Ok(Self {
                 email: item.request.email.to_owned(),

@@ -127,7 +127,7 @@ impl<E> ConnectorResponseExt
     for Result<Result<types::Response, types::Response>, error_stack::Report<E>>
 {
     fn get_error_response(self) -> RouterResult<types::Response> {
-        self.change_context(errors::ApiErrorResponse::InternalServerError)
+        self.map_err(|error| error.change_context(errors::ApiErrorResponse::InternalServerError))
             .attach_printable("Error while receiving response")
             .and_then(|inner| match inner {
                 Ok(res) => {
@@ -141,7 +141,7 @@ impl<E> ConnectorResponseExt
     }
 
     fn get_response(self) -> RouterResult<types::Response> {
-        self.change_context(errors::ApiErrorResponse::InternalServerError)
+        self.map_err(|error| error.change_context(errors::ApiErrorResponse::InternalServerError))
             .attach_printable("Error while receiving response")
             .and_then(|inner| match inner {
                 Err(err_res) => {

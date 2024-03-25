@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use common_utils::request::RequestContent;
 use diesel_models::enums;
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 
 use super::utils::RefundsRequestData;
 use crate::{
@@ -594,7 +594,7 @@ impl<const T: u8> api::IncomingWebhook for DummyConnector<T> {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented)
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_event_type(
@@ -608,6 +608,6 @@ impl<const T: u8> api::IncomingWebhook for DummyConnector<T> {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented)
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }

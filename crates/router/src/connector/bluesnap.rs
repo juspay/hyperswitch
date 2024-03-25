@@ -9,7 +9,7 @@ use common_utils::{
     request::RequestContent,
 };
 use diesel_models::enums;
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use masking::PeekInterface;
 use transformers as bluesnap;
 
@@ -83,8 +83,7 @@ impl ConnectorCommon for Bluesnap {
         &self,
         auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth: bluesnap::BluesnapAuthType = auth_type
-            .try_into()
+        let auth = bluesnap::BluesnapAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let encoded_api_key =
             consts::BASE64_ENGINE.encode(format!("{}:{}", auth.key1.peek(), auth.api_key.peek()));
@@ -195,7 +194,8 @@ impl ConnectorValidation for Bluesnap {
             return Err(
                 errors::ConnectorError::MissingConnectorRelatedTransactionID {
                     id: "connector_transaction_id".to_string(),
-                },
+                }
+                .into(),
             );
         }
         // if connector_transaction_id is present, psync can be made
@@ -1100,7 +1100,7 @@ impl api::IncomingWebhook for Bluesnap {
                 ))
             }
             bluesnap::BluesnapWebhookEvents::Unknown => {
-                Err(errors::ConnectorError::WebhookReferenceIdNotFound)
+                Err(report!(errors::ConnectorError::WebhookReferenceIdNotFound))
             }
         }
     }

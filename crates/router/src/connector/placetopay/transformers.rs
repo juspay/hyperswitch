@@ -171,7 +171,7 @@ impl TryFrom<&types::ConnectorAuthType> for PlacetopayAuth {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         let placetopay_auth = PlacetopayAuthType::try_from(auth_type)?;
         let nonce_bytes = utils::generate_random_bytes(16);
-        let now = error_stack::IntoReport::into_report(date_time::date_as_yyyymmddthhmmssmmmz())
+        let now = date_time::date_as_yyyymmddthhmmssmmmz()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let seed = format!("{}+00:00", now.split_at(now.len() - 5).0);
         let mut context = digest::Context::new(&digest::SHA256);

@@ -303,7 +303,7 @@ fn get_card_token(
                         .to_string(),
                 );
             }
-            Ok(queries)
+            Ok::<_, errors::ConnectorError>(queries)
         })
         .transpose()?
         .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
