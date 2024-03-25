@@ -88,11 +88,11 @@ where
         .await
     {
         Ok(value) => Ok(value),
-        Err(err) => match err.current_context() {
+        Err(err) => match err {
             DieselError::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _) => {
-                Err(err).change_context(errors::DatabaseError::UniqueViolation)
+                Err(report!(err)).change_context(errors::DatabaseError::UniqueViolation)
             }
-            _ => Err(err).change_context(errors::DatabaseError::Others),
+            _ => Err(report!(err)).change_context(errors::DatabaseError::Others),
         },
     }
     .attach_printable_lazy(|| format!("Error while inserting {debug_values}"))
@@ -330,9 +330,11 @@ where
     match track_database_call::<T, _, _>(query.first_async(conn), DatabaseOperation::FindOne).await
     {
         Ok(value) => Ok(value),
-        Err(err) => match err.current_context() {
-            DieselError::NotFound => Err(err).change_context(errors::DatabaseError::NotFound),
-            _ => Err(err).change_context(errors::DatabaseError::Others),
+        Err(err) => match err {
+            DieselError::NotFound => {
+                Err(report!(err)).change_context(errors::DatabaseError::NotFound)
+            }
+            _ => Err(report!(err)).change_context(errors::DatabaseError::Others),
         },
     }
     .attach_printable_lazy(|| format!("Error finding record by primary key: {id:?}"))
@@ -375,9 +377,9 @@ where
 
     track_database_call::<T, _, _>(query.get_result_async(conn), DatabaseOperation::FindOne)
         .await
-        .map_err(|err| match err.current_context() {
-            DieselError::NotFound => err.change_context(errors::DatabaseError::NotFound),
-            _ => err.change_context(errors::DatabaseError::Others),
+        .map_err(|err| match err {
+            DieselError::NotFound => report!(err).change_context(errors::DatabaseError::NotFound),
+            _ => report!(err).change_context(errors::DatabaseError::Others),
         })
         .attach_printable("Error finding record by predicate")
 }

@@ -1,6 +1,6 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, QueryDsl};
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use time::PrimitiveDateTime;
 
 use crate::{
@@ -81,7 +81,7 @@ impl RoutingAlgorithm {
             .change_context(DatabaseError::Others)?
             .into_iter()
             .next()
-            .ok_or(DatabaseError::NotFound)
+            .ok_or(report!(DatabaseError::NotFound))
             .map(
                 |(
                     profile_id,
