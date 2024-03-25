@@ -78,7 +78,7 @@ impl ProcessTrackerBatch {
             let offset_date_time = time::OffsetDateTime::from_unix_timestamp(
                 created_time
                     .as_str()
-                    .parse()
+                    .parse::<i64>()
                     .change_context(errors::ParsingError::UnknownError)
                     .change_context(errors::ProcessTrackerError::DeserializationFailed)?,
             )
@@ -103,7 +103,8 @@ impl ProcessTrackerBatch {
             .attach_printable_lazy(|| {
                 format!("Unable to parse trackers from JSON string: {trackers:?}")
             })
-            .change_context(errors::ProcessTrackerError::DeserializationFailed)?;
+            .change_context(errors::ProcessTrackerError::DeserializationFailed)
+            .attach_printable("Error parsing ProcessTracker from redis stream entry")?;
 
         Ok(Self {
             id,
@@ -114,6 +115,5 @@ impl ProcessTrackerBatch {
             rule,
             trackers,
         })
-        .attach_printable("Error parsing ProcessTracker from redis stream entry")
     }
 }
