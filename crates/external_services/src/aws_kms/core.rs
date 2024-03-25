@@ -6,7 +6,7 @@ use aws_config::meta::region::RegionProviderChain;
 use aws_sdk_kms::{config::Region, primitives::Blob, Client};
 use base64::Engine;
 use common_utils::errors::CustomResult;
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use router_env::logger;
 
 use crate::{consts, metrics};
@@ -70,7 +70,7 @@ impl AwsKmsClient {
 
         let output = decrypt_output
             .plaintext
-            .ok_or(AwsKmsError::MissingPlaintextDecryptionOutput)
+            .ok_or(report!(AwsKmsError::MissingPlaintextDecryptionOutput))
             .and_then(|blob| {
                 String::from_utf8(blob.into_inner()).change_context(AwsKmsError::Utf8DecodingFailed)
             })?;
