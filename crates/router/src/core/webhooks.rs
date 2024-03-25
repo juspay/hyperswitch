@@ -45,7 +45,7 @@ use crate::{
         api::{self, mandates::MandateResponseExt},
         domain::{self, types as domain_types},
         storage::{self, enums},
-        transformers::{ForeignInto, ForeignTryInto},
+        transformers::{ForeignInto, ForeignTryFrom},
     },
     utils::{self as helper_utils, generate_id, OptionExt, ValueExt},
     workflows::outgoing_webhook_retry,
@@ -241,8 +241,7 @@ pub async fn refunds_incoming_webhook_flow(
         let refund_update = storage::RefundUpdate::StatusUpdate {
             connector_refund_id: None,
             sent_to_gateway: true,
-            refund_status: event_type
-                .foreign_try_into()
+            refund_status: common_enums::RefundStatus::foreign_try_from(event_type)
                 .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
                 .attach_printable("failed refund status mapping from event type")?,
             updated_by: merchant_account.storage_scheme.to_string(),
@@ -355,8 +354,7 @@ pub async fn get_or_update_dispute_object(
                 amount: dispute_details.amount.clone(),
                 currency: dispute_details.currency,
                 dispute_stage: dispute_details.dispute_stage,
-                dispute_status: event_type
-                    .foreign_try_into()
+                dispute_status: common_enums::DisputeStatus::foreign_try_from(event_type)
                     .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
                     .attach_printable("event type to dispute status mapping failed")?,
                 payment_id: payment_attempt.payment_id.to_owned(),
@@ -384,8 +382,7 @@ pub async fn get_or_update_dispute_object(
         Some(dispute) => {
             logger::info!("Dispute Already exists, Updating the dispute details");
             metrics::INCOMING_DISPUTE_WEBHOOK_UPDATE_RECORD_METRIC.add(&metrics::CONTEXT, 1, &[]);
-            let dispute_status: diesel_models::enums::DisputeStatus = event_type
-                .foreign_try_into()
+            let dispute_status = diesel_models::enums::DisputeStatus::foreign_try_from(event_type)
                 .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
                 .attach_printable("event type to dispute state conversion failure")?;
             crate::core::utils::validate_dispute_stage_and_dispute_status(
@@ -445,8 +442,7 @@ pub async fn mandates_incoming_webhook_flow(
             _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
                 .attach_printable("received a non-mandate id for retrieving mandate")?,
         };
-        let mandate_status = event_type
-            .foreign_try_into()
+        let mandate_status = common_enums::MandateStatus::foreign_try_from(event_type)
             .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
             .attach_printable("event type to mandate status mapping failed")?;
         let updated_mandate = db
@@ -487,7 +483,9 @@ pub async fn mandates_incoming_webhook_flow(
         })
     } else {
         logger::error!("Webhook source verification failed for mandates webhook flow");
-        Err(errors::ApiErrorResponse::WebhookAuthenticationFailed)
+        Err(report!(
+            errors::ApiErrorResponse::WebhookAuthenticationFailed
+        ))
     }
 }
 
@@ -557,7 +555,9 @@ pub async fn disputes_incoming_webhook_flow(
         })
     } else {
         metrics::INCOMING_DISPUTE_WEBHOOK_SIGNATURE_FAILURE_METRIC.add(&metrics::CONTEXT, 1, &[]);
-        Err(errors::ApiErrorResponse::WebhookAuthenticationFailed)
+        Err(report!(
+            errors::ApiErrorResponse::WebhookAuthenticationFailed
+        ))
     }
 }
 
