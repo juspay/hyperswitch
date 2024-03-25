@@ -117,74 +117,76 @@ pub async fn create_or_update_address_for_payment_by_request(
         Some(id) => match req_address {
             Some(address) => {
                 let address_update = async {
-                    Ok(storage::AddressUpdate::Update {
-                        city: address
-                            .address
-                            .as_ref()
-                            .and_then(|value| value.city.clone()),
-                        country: address.address.as_ref().and_then(|value| value.country),
-                        line1: address
-                            .address
-                            .as_ref()
-                            .and_then(|value| value.line1.clone())
-                            .async_lift(|inner| types::encrypt_optional(inner, key))
-                            .await?,
-                        line2: address
-                            .address
-                            .as_ref()
-                            .and_then(|value| value.line2.clone())
-                            .async_lift(|inner| types::encrypt_optional(inner, key))
-                            .await?,
-                        line3: address
-                            .address
-                            .as_ref()
-                            .and_then(|value| value.line3.clone())
-                            .async_lift(|inner| types::encrypt_optional(inner, key))
-                            .await?,
-                        state: address
-                            .address
-                            .as_ref()
-                            .and_then(|value| value.state.clone())
-                            .async_lift(|inner| types::encrypt_optional(inner, key))
-                            .await?,
-                        zip: address
-                            .address
-                            .as_ref()
-                            .and_then(|value| value.zip.clone())
-                            .async_lift(|inner| types::encrypt_optional(inner, key))
-                            .await?,
-                        first_name: address
-                            .address
-                            .as_ref()
-                            .and_then(|value| value.first_name.clone())
-                            .async_lift(|inner| types::encrypt_optional(inner, key))
-                            .await?,
-                        last_name: address
-                            .address
-                            .as_ref()
-                            .and_then(|value| value.last_name.clone())
-                            .async_lift(|inner| types::encrypt_optional(inner, key))
-                            .await?,
-                        phone_number: address
-                            .phone
-                            .as_ref()
-                            .and_then(|value| value.number.clone())
-                            .async_lift(|inner| types::encrypt_optional(inner, key))
-                            .await?,
-                        country_code: address
-                            .phone
-                            .as_ref()
-                            .and_then(|value| value.country_code.clone()),
-                        updated_by: storage_scheme.to_string(),
-                        email: address
-                            .email
-                            .as_ref()
-                            .cloned()
-                            .async_lift(|inner| {
-                                types::encrypt_optional(inner.map(|inner| inner.expose()), key)
-                            })
-                            .await?,
-                    })
+                    Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(
+                        storage::AddressUpdate::Update {
+                            city: address
+                                .address
+                                .as_ref()
+                                .and_then(|value| value.city.clone()),
+                            country: address.address.as_ref().and_then(|value| value.country),
+                            line1: address
+                                .address
+                                .as_ref()
+                                .and_then(|value| value.line1.clone())
+                                .async_lift(|inner| types::encrypt_optional(inner, key))
+                                .await?,
+                            line2: address
+                                .address
+                                .as_ref()
+                                .and_then(|value| value.line2.clone())
+                                .async_lift(|inner| types::encrypt_optional(inner, key))
+                                .await?,
+                            line3: address
+                                .address
+                                .as_ref()
+                                .and_then(|value| value.line3.clone())
+                                .async_lift(|inner| types::encrypt_optional(inner, key))
+                                .await?,
+                            state: address
+                                .address
+                                .as_ref()
+                                .and_then(|value| value.state.clone())
+                                .async_lift(|inner| types::encrypt_optional(inner, key))
+                                .await?,
+                            zip: address
+                                .address
+                                .as_ref()
+                                .and_then(|value| value.zip.clone())
+                                .async_lift(|inner| types::encrypt_optional(inner, key))
+                                .await?,
+                            first_name: address
+                                .address
+                                .as_ref()
+                                .and_then(|value| value.first_name.clone())
+                                .async_lift(|inner| types::encrypt_optional(inner, key))
+                                .await?,
+                            last_name: address
+                                .address
+                                .as_ref()
+                                .and_then(|value| value.last_name.clone())
+                                .async_lift(|inner| types::encrypt_optional(inner, key))
+                                .await?,
+                            phone_number: address
+                                .phone
+                                .as_ref()
+                                .and_then(|value| value.number.clone())
+                                .async_lift(|inner| types::encrypt_optional(inner, key))
+                                .await?,
+                            country_code: address
+                                .phone
+                                .as_ref()
+                                .and_then(|value| value.country_code.clone()),
+                            updated_by: storage_scheme.to_string(),
+                            email: address
+                                .email
+                                .as_ref()
+                                .cloned()
+                                .async_lift(|inner| {
+                                    types::encrypt_optional(inner.map(|inner| inner.expose()), key)
+                                })
+                                .await?,
+                        },
+                    )
                 }
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -936,7 +938,8 @@ pub fn validate_customer_id_mandatory_cases(
     match (has_setup_future_usage, customer_id) {
         (true, None) => Err(errors::ApiErrorResponse::PreconditionFailed {
             message: "customer_id is mandatory when setup_future_usage is given".to_string(),
-        }),
+        }
+        .into()),
         _ => Ok(()),
     }
 }
@@ -1417,34 +1420,36 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, Ctx>(
                     {
                         let key = key_store.key.get_inner().peek();
                         let customer_update = async {
-                            Ok(Update {
-                                name: request_customer_details
-                                    .name
-                                    .async_lift(|inner| types::encrypt_optional(inner, key))
-                                    .await?,
-                                email: request_customer_details
-                                    .email
-                                    .clone()
-                                    .async_lift(|inner| {
-                                        types::encrypt_optional(
-                                            inner.map(|inner| inner.expose()),
-                                            key,
-                                        )
-                                    })
-                                    .await?,
-                                phone: Box::new(
-                                    request_customer_details
-                                        .phone
-                                        .clone()
+                            Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(
+                                Update {
+                                    name: request_customer_details
+                                        .name
                                         .async_lift(|inner| types::encrypt_optional(inner, key))
                                         .await?,
-                                ),
-                                phone_country_code: request_customer_details.phone_country_code,
-                                description: None,
-                                connector_customer: None,
-                                metadata: None,
-                                address_id: None,
-                            })
+                                    email: request_customer_details
+                                        .email
+                                        .clone()
+                                        .async_lift(|inner| {
+                                            types::encrypt_optional(
+                                                inner.map(|inner| inner.expose()),
+                                                key,
+                                            )
+                                        })
+                                        .await?,
+                                    phone: Box::new(
+                                        request_customer_details
+                                            .phone
+                                            .clone()
+                                            .async_lift(|inner| types::encrypt_optional(inner, key))
+                                            .await?,
+                                    ),
+                                    phone_country_code: request_customer_details.phone_country_code,
+                                    description: None,
+                                    connector_customer: None,
+                                    metadata: None,
+                                    address_id: None,
+                                },
+                            )
                         }
                         .await
                         .change_context(errors::StorageError::SerializationFailed)
@@ -1464,35 +1469,42 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, Ctx>(
                 None => {
                     let new_customer = async {
                         let key = key_store.key.get_inner().peek();
-                        Ok(domain::Customer {
-                            customer_id: customer_id.to_string(),
-                            merchant_id: merchant_id.to_string(),
-                            name: request_customer_details
-                                .name
-                                .async_lift(|inner| types::encrypt_optional(inner, key))
-                                .await?,
-                            email: request_customer_details
-                                .email
-                                .clone()
-                                .async_lift(|inner| {
-                                    types::encrypt_optional(inner.map(|inner| inner.expose()), key)
-                                })
-                                .await?,
-                            phone: request_customer_details
-                                .phone
-                                .clone()
-                                .async_lift(|inner| types::encrypt_optional(inner, key))
-                                .await?,
-                            phone_country_code: request_customer_details.phone_country_code.clone(),
-                            description: None,
-                            created_at: common_utils::date_time::now(),
-                            id: None,
-                            metadata: None,
-                            modified_at: common_utils::date_time::now(),
-                            connector_customer: None,
-                            address_id: None,
-                            default_payment_method_id: None,
-                        })
+                        Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(
+                            domain::Customer {
+                                customer_id: customer_id.to_string(),
+                                merchant_id: merchant_id.to_string(),
+                                name: request_customer_details
+                                    .name
+                                    .async_lift(|inner| types::encrypt_optional(inner, key))
+                                    .await?,
+                                email: request_customer_details
+                                    .email
+                                    .clone()
+                                    .async_lift(|inner| {
+                                        types::encrypt_optional(
+                                            inner.map(|inner| inner.expose()),
+                                            key,
+                                        )
+                                    })
+                                    .await?,
+                                phone: request_customer_details
+                                    .phone
+                                    .clone()
+                                    .async_lift(|inner| types::encrypt_optional(inner, key))
+                                    .await?,
+                                phone_country_code: request_customer_details
+                                    .phone_country_code
+                                    .clone(),
+                                description: None,
+                                created_at: common_utils::date_time::now(),
+                                id: None,
+                                metadata: None,
+                                modified_at: common_utils::date_time::now(),
+                                connector_customer: None,
+                                address_id: None,
+                                default_payment_method_id: None,
+                            },
+                        )
                     }
                     .await
                     .change_context(errors::StorageError::SerializationFailed)
