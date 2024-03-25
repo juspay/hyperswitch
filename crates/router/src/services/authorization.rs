@@ -39,10 +39,8 @@ where
     let permissions =
         get_permissions_from_db(state, &token.role_id, &token.merchant_id, &token.org_id).await?;
 
-    let token_expiry: i64 = token
-        .exp
-        .try_into()
-        .change_context(ApiErrorResponse::InternalServerError)?;
+    let token_expiry =
+        i64::try_from(token.exp).change_context(ApiErrorResponse::InternalServerError)?;
     let cache_ttl = token_expiry - common_utils::date_time::now_unix_timestamp();
 
     set_permissions_in_cache(state, &token.role_id, &permissions, cache_ttl)

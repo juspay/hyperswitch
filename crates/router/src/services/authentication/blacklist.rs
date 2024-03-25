@@ -131,9 +131,7 @@ fn get_redis_connection<A: AppStateInfo>(state: &A) -> RouterResult<Arc<RedisCon
 }
 
 fn expiry_to_i64(expiry: u64) -> RouterResult<i64> {
-    expiry
-        .try_into()
-        .change_context(ApiErrorResponse::InternalServerError)
+    i64::try_from(expiry).change_context(ApiErrorResponse::InternalServerError)
 }
 
 #[async_trait::async_trait]

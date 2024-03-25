@@ -29,7 +29,8 @@ impl VerifyConnector for connector::Stripe {
             (env::Env::Production, "card_declined") => Ok(services::ApplicationResponse::StatusOk),
             _ => Err(errors::ApiErrorResponse::InvalidRequestData {
                 message: error.reason.unwrap_or(error.message),
-            }),
+            }
+            .into()),
         }
     }
 }

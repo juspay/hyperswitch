@@ -57,6 +57,7 @@ pub async fn verify_connector_credentials(
         _ => Err(errors::ApiErrorResponse::FlowNotSupported {
             flow: "Verify credentials".to_string(),
             connector: req.connector_name.to_string(),
-        }),
+        }
+        .into()),
     }
 }

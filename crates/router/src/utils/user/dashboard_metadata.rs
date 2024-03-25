@@ -8,7 +8,7 @@ use diesel_models::{
     enums::DashboardMetadata as DBEnum,
     user::dashboard_metadata::{DashboardMetadata, DashboardMetadataNew, DashboardMetadataUpdate},
 };
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use masking::Secret;
 
 use crate::{
@@ -183,7 +183,7 @@ where
 {
     data.map(|metadata| serde_json::from_value(metadata.data_value.clone()))
         .transpose()
-        .map_err(|_| UserErrors::InternalServerError.into())
+        .change_context(UserErrors::InternalServerError)
         .attach_printable("Error Serializing Metadata from DB")
 }
 
@@ -244,10 +244,10 @@ pub fn set_ip_address_if_required(
     if let SetMetaDataRequest::ProductionAgreement(req) = request {
         let ip_address_from_request: Secret<String, common_utils::pii::IpAddress> = headers
             .get(headers::X_FORWARDED_FOR)
-            .ok_or(UserErrors::IpAddressParsingFailed.into())
+            .ok_or(report!(UserErrors::IpAddressParsingFailed))
             .attach_printable("X-Forwarded-For header not found")?
             .to_str()
-            .map_err(|_| UserErrors::IpAddressParsingFailed.into())
+            .change_context(UserErrors::IpAddressParsingFailed)
             .attach_printable("Error converting Header Value to Str")?
             .split(',')
             .next()
@@ -255,7 +255,7 @@ pub fn set_ip_address_if_required(
                 let ip_addr: Result<IpAddr, _> = ip.parse();
                 ip_addr.ok()
             })
-            .ok_or(UserErrors::IpAddressParsingFailed.into())
+            .ok_or(report!(UserErrors::IpAddressParsingFailed))
             .attach_printable("Error Parsing header value to ip")?
             .to_string()
             .into();
@@ -270,7 +270,7 @@ pub fn parse_string_to_enums(query: String) -> UserResult<GetMultipleMetaDataPay
             .split(',')
             .map(GetMetaDataRequest::from_str)
             .collect::<Result<Vec<GetMetaDataRequest>, _>>()
-            .map_err(|_| UserErrors::InvalidMetadataRequest.into())
+            .change_context(UserErrors::InvalidMetadataRequest)
             .attach_printable("Error Parsing to DashboardMetadata enums")?,
     })
 }

@@ -11,7 +11,7 @@ pub fn generate_card_from_details(
 ) -> errors::RouterResult<api::Card> {
     Ok(api::Card {
         card_number: card_number
-            .parse()
+            .parse::<cards::CardNumber>()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error while parsing card number")?,
         card_issuer: None,
