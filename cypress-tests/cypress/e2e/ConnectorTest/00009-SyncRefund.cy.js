@@ -11,7 +11,6 @@ describe("Card - Sync Refund flow test", () => {
     before("seed global state", () => {
 
         cy.task('getGlobalState').then((state) => {
-            // visit non same-origin url https://www.cypress-dx.com
             globalState = new State(state);
             console.log("seeding globalState -> " + JSON.stringify(globalState));
         })
