@@ -100,7 +100,8 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                     Ok(HsetnxReply::KeyNotSet) => Err(StorageError::DuplicateValue {
                         entity: "payouts",
                         key: Some(key),
-                    }),
+                    }
+                    .into()),
                     Ok(HsetnxReply::KeySet) => Ok(created_payout),
                     Err(error) => Err(error.change_context(StorageError::KVError)),
                 }
@@ -473,6 +474,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
                 error_stack::report!(diesel_models::errors::DatabaseError::from(er))
                     .attach_printable("Error filtering payout records"),
             )
+            .into()
         })
     }
 
@@ -601,6 +603,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
                     error_stack::report!(diesel_models::errors::DatabaseError::from(er))
                         .attach_printable("Error filtering payout records"),
                 )
+                .into()
             })
     }
 

@@ -104,7 +104,8 @@ impl<T: DatabaseStore> ReverseLookupInterface for KVRouterStore<T> {
                     Ok(SetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
                         entity: "reverse_lookup",
                         key: Some(created_rev_lookup.lookup_id.clone()),
-                    }),
+                    }
+                    .into()),
                     Err(er) => Err(er).change_context(errors::StorageError::KVError),
                 }
             }

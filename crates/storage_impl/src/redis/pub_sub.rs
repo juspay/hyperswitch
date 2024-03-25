@@ -48,8 +48,7 @@ impl PubSubInterface for redis_interface::RedisConnectionPool {
         let mut rx = self.subscriber.on_message();
         while let Ok(message) = rx.recv().await {
             logger::debug!("Invalidating {message:?}");
-            let key: CacheKind<'_> = match RedisValue::new(message.value)
-                .try_into()
+            let key = match CacheKind::try_from(RedisValue::new(message.value))
                 .change_context(redis_errors::RedisError::OnMessageError)
             {
                 Ok(value) => value,

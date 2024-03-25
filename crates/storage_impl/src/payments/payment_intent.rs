@@ -128,7 +128,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     Ok(HsetnxReply::KeyNotSet) => Err(StorageError::DuplicateValue {
                         entity: "payment_intent",
                         key: Some(key),
-                    }),
+                    }
+                    .into()),
                     Ok(HsetnxReply::KeySet) => Ok(created_intent),
                     Err(error) => Err(error.change_context(StorageError::KVError)),
                 }
@@ -507,6 +508,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 error_stack::report!(diesel_models::errors::DatabaseError::from(er))
                     .attach_printable("Error filtering payment records"),
             )
+            .into()
         })
     }
 
@@ -661,6 +663,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     error_stack::report!(diesel_models::errors::DatabaseError::from(er))
                         .attach_printable("Error filtering payment records"),
                 )
+                .into()
             })
     }
 
@@ -728,6 +731,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 error_stack::report!(diesel_models::errors::DatabaseError::from(er))
                     .attach_printable("Error filtering payment records"),
             )
+            .into()
         })
     }
 }
