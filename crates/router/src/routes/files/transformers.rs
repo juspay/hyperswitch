@@ -56,9 +56,7 @@ pub async fn get_create_file_request(
             .attach_printable("Missing / Invalid file in the request")?,
     };
     //Get and validate file size
-    let file_size: i32 = file
-        .len()
-        .try_into()
+    let file_size = i32::try_from(file.len())
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("File size error")?;
     // Check if empty file and throw error

@@ -1,5 +1,5 @@
 use diesel_models::gsm as storage;
-use error_stack::ResultExt;
+use error_stack::report;
 use router_env::{instrument, tracing};
 
 use super::MockDb;
@@ -59,7 +59,9 @@ impl GsmInterface for Store {
         rule: storage::GatewayStatusMappingNew,
     ) -> CustomResult<storage::GatewayStatusMap, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        rule.insert(&conn).await.map_err(Into::into)
+        rule.insert(&conn)
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -76,7 +78,7 @@ impl GsmInterface for Store {
             &conn, connector, flow, sub_flow, code, message,
         )
         .await
-        .map_err(Into::into)
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -91,7 +93,7 @@ impl GsmInterface for Store {
         let conn = connection::pg_connection_read(self).await?;
         storage::GatewayStatusMap::find(&conn, connector, flow, sub_flow, code, message)
             .await
-            .map_err(Into::into)
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -107,7 +109,7 @@ impl GsmInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::GatewayStatusMap::update(&conn, connector, flow, sub_flow, code, message, data)
             .await
-            .map_err(Into::into)
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -122,7 +124,7 @@ impl GsmInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::GatewayStatusMap::delete(&conn, connector, flow, sub_flow, code, message)
             .await
-            .map_err(Into::into)
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
 

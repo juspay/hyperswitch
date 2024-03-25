@@ -66,9 +66,7 @@ pub async fn get_attach_evidence_request(
     let evidence_type = option_evidence_type.get_required_value("evidence_type")?;
     let file = file_content.get_required_value("file")?.concat().to_vec();
     //Get and validate file size
-    let file_size: i32 = file
-        .len()
-        .try_into()
+    let file_size = i32::try_from(file.len())
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("File size error")?;
     // Check if empty file and throw error

@@ -2,7 +2,7 @@ use std::{str::FromStr, vec::IntoIter};
 
 use common_utils::ext_traits::Encode;
 use diesel_models::enums as storage_enums;
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use router_env::{
     logger,
     tracing::{self, instrument},
@@ -142,11 +142,11 @@ where
                     retries = retries.map(|i| i - 1);
                 }
                 api_models::gsm::GsmDecision::Requeue => {
-                    Err(errors::ApiErrorResponse::NotImplemented {
+                    Err(report!(errors::ApiErrorResponse::NotImplemented {
                         message: errors::api_error_response::NotImplementedMessage::Reason(
                             "Requeue not implemented".to_string(),
                         ),
-                    })?
+                    }))?
                 }
                 api_models::gsm::GsmDecision::DoDefault => break,
             }
@@ -233,9 +233,8 @@ pub fn get_gsm_decision(
     let option_gsm_decision = option_gsm
             .and_then(|gsm| {
                 api_models::gsm::GsmDecision::from_str(gsm.decision.as_str())
-
                     .map_err(|err| {
-                        let api_error = err.change_context(errors::ApiErrorResponse::InternalServerError)
+                        let api_error = report!(err).change_context(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable("gsm decision parsing failed");
                         logger::warn!(get_gsm_decision_parse_error=?api_error, "error fetching gsm decision");
                         api_error
