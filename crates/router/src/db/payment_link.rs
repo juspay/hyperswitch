@@ -1,4 +1,4 @@
-use error_stack::IntoReport;
+use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
 use crate::{
@@ -39,7 +39,6 @@ impl PaymentLinkInterface for Store {
         storage::PaymentLink::find_link_by_payment_link_id(&conn, payment_link_id)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 
     #[instrument(skip_all)]
@@ -48,11 +47,7 @@ impl PaymentLinkInterface for Store {
         payment_link_config: storage::PaymentLinkNew,
     ) -> CustomResult<storage::PaymentLink, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        payment_link_config
-            .insert(&conn)
-            .await
-            .map_err(Into::into)
-            .into_report()
+        payment_link_config.insert(&conn).await.map_err(Into::into)
     }
 
     #[instrument(skip_all)]
@@ -65,7 +60,6 @@ impl PaymentLinkInterface for Store {
         storage::PaymentLink::filter_by_constraints(&conn, merchant_id, payment_link_constraints)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 }
 

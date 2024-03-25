@@ -2,7 +2,7 @@
 use std::collections::HashSet;
 
 use diesel_models::{errors::DatabaseError, refund::RefundUpdateInternal};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 
 use super::MockDb;
 use crate::{
@@ -93,7 +93,7 @@ pub trait RefundInterface {
 
 #[cfg(not(feature = "kv_store"))]
 mod storage {
-    use error_stack::IntoReport;
+    use error_stack::ResultExt;
     use router_env::{instrument, tracing};
 
     use super::RefundInterface;
@@ -121,7 +121,6 @@ mod storage {
             )
             .await
             .map_err(Into::into)
-            .into_report()
         }
 
         #[instrument(skip_all)]
@@ -131,7 +130,7 @@ mod storage {
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<storage_types::Refund, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
-            new.insert(&conn).await.map_err(Into::into).into_report()
+            new.insert(&conn).await.map_err(Into::into)
         }
 
         #[instrument(skip_all)]
@@ -149,7 +148,6 @@ mod storage {
             )
             .await
             .map_err(Into::into)
-            .into_report()
         }
 
         #[instrument(skip_all)]
@@ -160,10 +158,7 @@ mod storage {
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<storage_types::Refund, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
-            this.update(&conn, refund)
-                .await
-                .map_err(Into::into)
-                .into_report()
+            this.update(&conn, refund).await.map_err(Into::into)
         }
 
         #[instrument(skip_all)]
@@ -177,7 +172,6 @@ mod storage {
             storage_types::Refund::find_by_merchant_id_refund_id(&conn, merchant_id, refund_id)
                 .await
                 .map_err(Into::into)
-                .into_report()
         }
 
         #[instrument(skip_all)]
@@ -197,7 +191,6 @@ mod storage {
             )
             .await
             .map_err(Into::into)
-            .into_report()
         }
 
         #[instrument(skip_all)]
@@ -211,7 +204,6 @@ mod storage {
             storage_types::Refund::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id)
                 .await
                 .map_err(Into::into)
-                .into_report()
         }
 
         #[cfg(feature = "olap")]
@@ -234,7 +226,6 @@ mod storage {
             )
             .await
             .map_err(Into::into)
-            .into_report()
         }
 
         #[cfg(feature = "olap")]
@@ -253,7 +244,6 @@ mod storage {
             )
             .await
             .map_err(Into::into)
-            .into_report()
         }
         #[cfg(feature = "olap")]
         #[instrument(skip_all)]
@@ -271,7 +261,6 @@ mod storage {
             )
             .await
             .map_err(Into::into)
-            .into_report()
         }
     }
 }
@@ -279,7 +268,7 @@ mod storage {
 #[cfg(feature = "kv_store")]
 mod storage {
     use common_utils::{date_time, ext_traits::Encode, fallback_reverse_lookup_not_found};
-    use error_stack::{IntoReport, ResultExt};
+    use error_stack::ResultExt;
     use redis_interface::HsetnxReply;
     use router_env::{instrument, tracing};
     use storage_impl::redis::kv_store::{kv_wrapper, KvOperation};
@@ -311,7 +300,6 @@ mod storage {
                 )
                 .await
                 .map_err(Into::into)
-                .into_report()
             };
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
@@ -350,7 +338,7 @@ mod storage {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
                     let conn = connection::pg_connection_write(self).await?;
-                    new.insert(&conn).await.map_err(Into::into).into_report()
+                    new.insert(&conn).await.map_err(Into::into)
                 }
                 enums::MerchantStorageScheme::RedisKv => {
                     let key = format!("mid_{}_pid_{}", new.merchant_id, new.payment_id);
@@ -457,8 +445,7 @@ mod storage {
                         Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
                             entity: "refund",
                             key: Some(created_refund.refund_id),
-                        })
-                        .into_report(),
+                        }),
                         Ok(HsetnxReply::KeySet) => Ok(created_refund),
                         Err(er) => Err(er).change_context(errors::StorageError::KVError),
                     }
@@ -482,7 +469,6 @@ mod storage {
                 )
                 .await
                 .map_err(Into::into)
-                .into_report()
             };
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
@@ -526,10 +512,7 @@ mod storage {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
                     let conn = connection::pg_connection_write(self).await?;
-                    this.update(&conn, refund)
-                        .await
-                        .map_err(Into::into)
-                        .into_report()
+                    this.update(&conn, refund).await.map_err(Into::into)
                 }
                 enums::MerchantStorageScheme::RedisKv => {
                     let key = format!("mid_{}_pid_{}", this.merchant_id, this.payment_id);
@@ -579,7 +562,6 @@ mod storage {
                 storage_types::Refund::find_by_merchant_id_refund_id(&conn, merchant_id, refund_id)
                     .await
                     .map_err(Into::into)
-                    .into_report()
             };
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
@@ -627,7 +609,6 @@ mod storage {
                 )
                 .await
                 .map_err(Into::into)
-                .into_report()
             };
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
@@ -674,7 +655,6 @@ mod storage {
                 )
                 .await
                 .map_err(Into::into)
-                .into_report()
             };
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
@@ -717,7 +697,6 @@ mod storage {
             )
             .await
             .map_err(Into::into)
-            .into_report()
         }
 
         #[cfg(feature = "olap")]
@@ -732,7 +711,6 @@ mod storage {
             <diesel_models::refund::Refund as storage_types::RefundDbExt>::filter_by_meta_constraints(&conn, merchant_id, refund_details)
                         .await
                         .map_err(Into::into)
-                        .into_report()
         }
 
         #[cfg(feature = "olap")]
@@ -751,7 +729,6 @@ mod storage {
             )
             .await
             .map_err(Into::into)
-            .into_report()
         }
     }
 }
@@ -789,7 +766,6 @@ impl RefundInterface for MockDb {
             id: refunds
                 .len()
                 .try_into()
-                .into_report()
                 .change_context(errors::StorageError::MockDbError)?,
             internal_reference_id: new.internal_reference_id,
             refund_id: new.refund_id,

@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
 use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use transformers as shift4;
 
 use super::utils::{self as connector_utils, RefundsRequestData};
@@ -834,7 +834,7 @@ impl api::IncomingWebhook for Shift4 {
                 ),
             ))
         } else {
-            Err(errors::ConnectorError::WebhookReferenceIdNotFound).into_report()
+            Err(errors::ConnectorError::WebhookReferenceIdNotFound)
         }
     }
 

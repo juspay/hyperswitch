@@ -1,4 +1,4 @@
-use error_stack::{report, IntoReport};
+use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 use time::PrimitiveDateTime;
 
@@ -139,7 +139,6 @@ pub fn validate_for_valid_refunds(
                     })
                 },
             )
-            .into_report()
         }
         _ => Ok(()),
     }

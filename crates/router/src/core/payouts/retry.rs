@@ -1,7 +1,7 @@
 use std::{cmp::Ordering, str::FromStr, vec::IntoIter};
 
 use api_models::payouts::PayoutCreateRequest;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use router_env::{
     logger,
     tracing::{self, instrument},
@@ -87,8 +87,7 @@ pub async fn do_gsm_multiple_connector_actions(
                     message: errors::api_error_response::NotImplementedMessage::Reason(
                         "Requeue not implemented".to_string(),
                     ),
-                })
-                .into_report()?
+                })?
             }
             api_models::gsm::GsmDecision::DoDefault => break,
         }
@@ -154,8 +153,7 @@ pub async fn do_gsm_single_connector_actions(
                     message: errors::api_error_response::NotImplementedMessage::Reason(
                         "Requeue not implemented".to_string(),
                     ),
-                })
-                .into_report()?
+                })?
             }
             api_models::gsm::GsmDecision::DoDefault => break,
         }
@@ -189,7 +187,6 @@ pub async fn get_retries(
                     retries_config
                         .config
                         .parse::<i32>()
-                        .into_report()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Retries config parsing failed")
                 })
@@ -226,7 +223,7 @@ pub fn get_gsm_decision(
     let option_gsm_decision = option_gsm
             .and_then(|gsm| {
                 api_models::gsm::GsmDecision::from_str(gsm.decision.as_str())
-                    .into_report()
+
                     .map_err(|err| {
                         let api_error = err.change_context(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable("gsm decision parsing failed");

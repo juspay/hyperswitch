@@ -8,7 +8,7 @@ use diesel::{
     sql_types::Jsonb,
     AsExpression, FromSqlRow,
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use semver::Version;
 use serde::{de::Visitor, Deserialize, Deserializer};
 
@@ -38,7 +38,6 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
             Ok(Self {
                 percentage: value
                     .parse()
-                    .into_report()
                     .change_context(PercentageError::InvalidPercentageValue)?,
             })
         } else {
@@ -79,7 +78,6 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
     fn is_valid_float_string(value: &str) -> CustomResult<f32, PercentageError> {
         value
             .parse()
-            .into_report()
             .change_context(PercentageError::InvalidPercentageValue)
     }
     fn is_valid_range(value: f32) -> bool {
@@ -182,7 +180,7 @@ impl FromStr for SemanticVersion {
     type Err = error_stack::Report<ParsingError>;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Self(Version::from_str(s).into_report().change_context(
+        Ok(Self(Version::from_str(s).change_context(
             ParsingError::StructParseFailure("SemanticVersion"),
         )?))
     }

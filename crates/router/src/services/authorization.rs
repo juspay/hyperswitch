@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use common_enums::PermissionGroup;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use redis_interface::RedisConnectionPool;
 use router_env::logger;
 
@@ -42,7 +42,6 @@ where
     let token_expiry: i64 = token
         .exp
         .try_into()
-        .into_report()
         .change_context(ApiErrorResponse::InternalServerError)?;
     let cache_ttl = token_expiry - common_utils::date_time::now_unix_timestamp();
 

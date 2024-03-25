@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use common_utils::request::RequestContent;
 use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use transformers as bambora;
 
 use super::utils::RefundsRequestData;
@@ -704,7 +704,7 @@ impl api::IncomingWebhook for Bambora {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(errors::ConnectorError::WebhooksNotImplemented)
     }
 
     fn get_webhook_event_type(
@@ -718,7 +718,7 @@ impl api::IncomingWebhook for Bambora {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(errors::ConnectorError::WebhooksNotImplemented)
     }
 }
 

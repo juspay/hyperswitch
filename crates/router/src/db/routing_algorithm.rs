@@ -1,5 +1,5 @@
 use diesel_models::routing_algorithm as routing_storage;
-use error_stack::IntoReport;
+use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 use storage_impl::mock_db::MockDb;
 
@@ -67,11 +67,7 @@ impl RoutingAlgorithmInterface for Store {
         routing_algorithm: routing_storage::RoutingAlgorithm,
     ) -> StorageResult<routing_storage::RoutingAlgorithm> {
         let conn = connection::pg_connection_write(self).await?;
-        routing_algorithm
-            .insert(&conn)
-            .await
-            .map_err(Into::into)
-            .into_report()
+        routing_algorithm.insert(&conn).await.map_err(Into::into)
     }
 
     #[instrument(skip_all)]
@@ -88,7 +84,6 @@ impl RoutingAlgorithmInterface for Store {
         )
         .await
         .map_err(Into::into)
-        .into_report()
     }
 
     #[instrument(skip_all)]
@@ -105,7 +100,6 @@ impl RoutingAlgorithmInterface for Store {
         )
         .await
         .map_err(Into::into)
-        .into_report()
     }
 
     #[instrument(skip_all)]
@@ -122,7 +116,6 @@ impl RoutingAlgorithmInterface for Store {
         )
         .await
         .map_err(Into::into)
-        .into_report()
     }
 
     #[instrument(skip_all)]
@@ -138,7 +131,6 @@ impl RoutingAlgorithmInterface for Store {
         )
         .await
         .map_err(Into::into)
-        .into_report()
     }
 
     #[instrument(skip_all)]
@@ -157,7 +149,6 @@ impl RoutingAlgorithmInterface for Store {
         )
         .await
         .map_err(Into::into)
-        .into_report()
     }
 
     async fn list_routing_algorithm_metadata_by_merchant_id_transaction_type(
@@ -177,7 +168,6 @@ impl RoutingAlgorithmInterface for Store {
         )
         .await
         .map_err(Into::into)
-        .into_report()
     }
 }
 

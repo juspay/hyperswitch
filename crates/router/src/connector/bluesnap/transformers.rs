@@ -7,7 +7,7 @@ use common_utils::{
     ext_traits::{ByteSliceExt, StringExt, ValueExt},
     pii::Email,
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -250,7 +250,6 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>>
                 Err(errors::ConnectorError::NotImplemented(
                     "Selected payment method via Token flow through bluesnap".to_string(),
                 ))
-                .into_report()
             }
         }
     }
@@ -496,7 +495,6 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
 
         let wallet_token = consts::BASE64_ENGINE
             .decode(response.wallet_token.clone().expose())
-            .into_report()
             .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
         let session_response: api_models::payments::NoThirdPartySdkSessionResponse =
@@ -1071,7 +1069,6 @@ impl TryFrom<BluesnapWebhookObjectResource> for Value {
             BluesnapWebhookEvents::Chargeback | BluesnapWebhookEvents::ChargebackStatusChanged => {
                 //It won't be consumed in dispute flow, so currently does not hold any significance
                 return serde_json::to_value(details)
-                    .into_report()
                     .change_context(errors::ConnectorError::WebhookBodyDecodingFailed);
             }
             BluesnapWebhookEvents::Refund => Ok((
@@ -1082,7 +1079,7 @@ impl TryFrom<BluesnapWebhookObjectResource> for Value {
                     .ok_or(errors::ConnectorError::WebhookResourceObjectNotFound)?,
             )),
             BluesnapWebhookEvents::Unknown => {
-                Err(errors::ConnectorError::WebhookResourceObjectNotFound).into_report()
+                Err(errors::ConnectorError::WebhookResourceObjectNotFound)
             }
         }?;
         let sync_struct = BluesnapPaymentsResponse {
@@ -1095,7 +1092,6 @@ impl TryFrom<BluesnapWebhookObjectResource> for Value {
             card_transaction_type,
         };
         serde_json::to_value(sync_struct)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
     }
 }

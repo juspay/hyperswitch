@@ -28,7 +28,7 @@ use diesel_models::{
     query::generics::db_metrics,
     schema::{payment_attempt::dsl as pa_dsl, payment_intent::dsl as pi_dsl},
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use redis_interface::HsetnxReply;
 #[cfg(feature = "olap")]
 use router_env::logger;
@@ -128,8 +128,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     Ok(HsetnxReply::KeyNotSet) => Err(StorageError::DuplicateValue {
                         entity: "payment_intent",
                         key: Some(key),
-                    })
-                    .into_report(),
+                    }),
                     Ok(HsetnxReply::KeySet) => Ok(created_intent),
                     Err(error) => Err(error.change_context(StorageError::KVError)),
                 }
@@ -509,7 +508,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     .attach_printable("Error filtering payment records"),
             )
         })
-        .into_report()
     }
 
     #[cfg(feature = "olap")]
@@ -664,7 +662,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                         .attach_printable("Error filtering payment records"),
                 )
             })
-            .into_report()
     }
 
     #[cfg(feature = "olap")]
@@ -732,7 +729,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     .attach_printable("Error filtering payment records"),
             )
         })
-        .into_report()
     }
 }
 

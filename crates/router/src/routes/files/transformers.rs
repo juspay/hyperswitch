@@ -1,7 +1,7 @@
 use actix_multipart::Multipart;
 use actix_web::web::Bytes;
 use common_utils::errors::CustomResult;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use futures::{StreamExt, TryStreamExt};
 
 use crate::{
@@ -37,7 +37,6 @@ pub async fn get_create_file_request(
                     match chunk {
                         Ok(bytes) => file_data.push(bytes),
                         Err(err) => Err(errors::ApiErrorResponse::InternalServerError)
-                            .into_report()
                             .attach_printable(format!("{}{}", "File parsing error: ", err))?,
                     }
                 }
@@ -54,20 +53,17 @@ pub async fn get_create_file_request(
     let file = match file_content {
         Some(valid_file_content) => valid_file_content.concat().to_vec(),
         None => Err(errors::ApiErrorResponse::MissingFile)
-            .into_report()
             .attach_printable("Missing / Invalid file in the request")?,
     };
     //Get and validate file size
     let file_size: i32 = file
         .len()
         .try_into()
-        .into_report()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("File size error")?;
     // Check if empty file and throw error
     if file_size <= 0 {
         Err(errors::ApiErrorResponse::MissingFile)
-            .into_report()
             .attach_printable("Missing / Invalid file in the request")?
     }
     // Get file mime type using 'infer'
@@ -75,7 +71,6 @@ pub async fn get_create_file_request(
     let file_type = kind
         .mime_type()
         .parse::<mime::Mime>()
-        .into_report()
         .change_context(errors::ApiErrorResponse::MissingFileContentType)
         .attach_printable("File content type error")?;
     Ok(CreateFileRequest {

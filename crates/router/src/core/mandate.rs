@@ -3,7 +3,7 @@ pub mod utils;
 use api_models::payments;
 use common_utils::ext_traits::Encode;
 use diesel_models::{enums as storage_enums, Mandate};
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use futures::future;
 use router_env::{instrument, logger, tracing};
 
@@ -136,15 +136,13 @@ pub async fn revoke_mandate(
                     connector: mandate.connector,
                     status_code: err.status_code,
                     reason: err.reason,
-                })
-                .into_report(),
+                }),
             }
         }
         common_enums::MandateStatus::Revoked => {
             Err(errors::ApiErrorResponse::MandateValidationFailed {
                 reason: "Mandate has already been revoked".to_string(),
             })
-            .into_report()
         }
     };
     mandate_revoke_status
@@ -261,7 +259,6 @@ where
             mandate_reference, ..
         }) => mandate_reference,
         Ok(_) => Err(errors::ApiErrorResponse::InternalServerError)
-            .into_report()
             .attach_printable("Unexpected response received")?,
         Err(_) => return Ok(resp),
     };

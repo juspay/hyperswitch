@@ -1,4 +1,4 @@
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
 use super::{MockDb, Store};
@@ -59,7 +59,6 @@ impl MandateInterface for Store {
         storage::Mandate::find_by_merchant_id_mandate_id(&conn, merchant_id, mandate_id)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 
     #[instrument(skip_all)]
@@ -76,7 +75,6 @@ impl MandateInterface for Store {
         )
         .await
         .map_err(Into::into)
-        .into_report()
     }
 
     #[instrument(skip_all)]
@@ -89,7 +87,6 @@ impl MandateInterface for Store {
         storage::Mandate::find_by_merchant_id_customer_id(&conn, merchant_id, customer_id)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 
     #[instrument(skip_all)]
@@ -103,7 +100,6 @@ impl MandateInterface for Store {
         storage::Mandate::update_by_merchant_id_mandate_id(&conn, merchant_id, mandate_id, mandate)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 
     #[instrument(skip_all)]
@@ -116,7 +112,6 @@ impl MandateInterface for Store {
         storage::Mandate::filter_by_constraints(&conn, merchant_id, mandate_constraints)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 
     #[instrument(skip_all)]
@@ -125,11 +120,7 @@ impl MandateInterface for Store {
         mandate: storage::MandateNew,
     ) -> CustomResult<storage::Mandate, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        mandate
-            .insert(&conn)
-            .await
-            .map_err(Into::into)
-            .into_report()
+        mandate.insert(&conn).await.map_err(Into::into)
     }
 }
 
@@ -291,7 +282,6 @@ impl MandateInterface for MockDb {
             id: mandates
                 .len()
                 .try_into()
-                .into_report()
                 .change_context(errors::StorageError::MockDbError)?,
             mandate_id: mandate_new.mandate_id.clone(),
             customer_id: mandate_new.customer_id,

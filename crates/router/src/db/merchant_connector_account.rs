@@ -1,5 +1,5 @@
 use common_utils::ext_traits::{AsyncExt, ByteSliceExt, Encode};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 #[cfg(feature = "accounts_cache")]
 use storage_impl::redis::cache;
@@ -184,7 +184,6 @@ impl MerchantConnectorAccountInterface for Store {
             )
             .await
             .map_err(Into::into)
-            .into_report()
         };
 
         #[cfg(not(feature = "accounts_cache"))]
@@ -230,7 +229,6 @@ impl MerchantConnectorAccountInterface for Store {
             )
             .await
             .map_err(Into::into)
-            .into_report()
         };
 
         #[cfg(not(feature = "accounts_cache"))]
@@ -275,7 +273,6 @@ impl MerchantConnectorAccountInterface for Store {
         )
         .await
         .map_err(Into::into)
-        .into_report()
         .async_and_then(|items| async {
             let mut output = Vec::with_capacity(items.len());
             for item in items.into_iter() {
@@ -306,7 +303,6 @@ impl MerchantConnectorAccountInterface for Store {
             )
             .await
             .map_err(Into::into)
-            .into_report()
         };
 
         #[cfg(not(feature = "accounts_cache"))]
@@ -346,7 +342,6 @@ impl MerchantConnectorAccountInterface for Store {
             .insert(&conn)
             .await
             .map_err(Into::into)
-            .into_report()
             .async_and_then(|item| async {
                 item.convert(key_store.key.get_inner())
                     .await
@@ -366,7 +361,6 @@ impl MerchantConnectorAccountInterface for Store {
         storage::MerchantConnectorAccount::find_by_merchant_id(&conn, merchant_id, get_disabled)
             .await
             .map_err(Into::into)
-            .into_report()
             .async_and_then(|items| async {
                 let mut output = Vec::with_capacity(items.len());
                 for item in items.into_iter() {
@@ -407,7 +401,6 @@ impl MerchantConnectorAccountInterface for Store {
                 .update(&conn, merchant_connector_account)
                 .await
                 .map_err(Into::into)
-                .into_report()
                 .async_and_then(|item| async {
                     item.convert(key_store.key.get_inner())
                         .await
@@ -455,7 +448,6 @@ impl MerchantConnectorAccountInterface for Store {
             )
             .await
             .map_err(Into::into)
-            .into_report()
         };
 
         #[cfg(feature = "accounts_cache")]
@@ -471,8 +463,7 @@ impl MerchantConnectorAccountInterface for Store {
                 merchant_connector_id,
             )
             .await
-            .map_err(Into::into)
-            .into_report()?;
+            .map_err(Into::into)?;
 
             let _profile_id = mca.profile_id.ok_or(errors::StorageError::ValueNotFound(
                 "profile_id".to_string(),
@@ -631,7 +622,6 @@ impl MerchantConnectorAccountInterface for MockDb {
             id: accounts
                 .len()
                 .try_into()
-                .into_report()
                 .change_context(errors::StorageError::MockDbError)?,
             merchant_id: t.merchant_id,
             connector_name: t.connector_name,

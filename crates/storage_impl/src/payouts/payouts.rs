@@ -23,7 +23,7 @@ use diesel_models::{
     query::generics::db_metrics,
     schema::{payout_attempt::dsl as poa_dsl, payouts::dsl as po_dsl},
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use redis_interface::HsetnxReply;
 #[cfg(feature = "olap")]
 use router_env::logger;
@@ -100,8 +100,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                     Ok(HsetnxReply::KeyNotSet) => Err(StorageError::DuplicateValue {
                         entity: "payouts",
                         key: Some(key),
-                    })
-                    .into_report(),
+                    }),
                     Ok(HsetnxReply::KeySet) => Ok(created_payout),
                     Err(error) => Err(error.change_context(StorageError::KVError)),
                 }
@@ -475,7 +474,6 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
                     .attach_printable("Error filtering payout records"),
             )
         })
-        .into_report()
     }
 
     #[cfg(feature = "olap")]
@@ -604,7 +602,6 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
                         .attach_printable("Error filtering payout records"),
                 )
             })
-            .into_report()
     }
 
     #[cfg(feature = "olap")]

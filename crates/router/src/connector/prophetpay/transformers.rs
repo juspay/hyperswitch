@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use common_utils::{consts, errors::CustomResult};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -201,7 +201,6 @@ impl<F>
         );
 
         let redirect_url = Url::parse(url_data.as_str())
-            .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         let redirection_data = get_redirect_url_form(
@@ -306,8 +305,7 @@ fn get_card_token(
             }
             Ok(queries)
         })
-        .transpose()
-        .into_report()?
+        .transpose()?
         .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
 
     for (key, val) in queries_params {

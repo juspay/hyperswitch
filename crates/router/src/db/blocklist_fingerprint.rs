@@ -1,4 +1,4 @@
-use error_stack::IntoReport;
+use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 use storage_impl::MockDb;
 
@@ -32,11 +32,7 @@ impl BlocklistFingerprintInterface for Store {
         pm_fingerprint_new: storage::BlocklistFingerprintNew,
     ) -> CustomResult<storage::BlocklistFingerprint, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        pm_fingerprint_new
-            .insert(&conn)
-            .await
-            .map_err(Into::into)
-            .into_report()
+        pm_fingerprint_new.insert(&conn).await.map_err(Into::into)
     }
 
     #[instrument(skip_all)]
@@ -53,7 +49,6 @@ impl BlocklistFingerprintInterface for Store {
         )
         .await
         .map_err(Into::into)
-        .into_report()
     }
 }
 

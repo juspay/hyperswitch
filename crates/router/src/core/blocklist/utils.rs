@@ -2,7 +2,7 @@ use api_models::blocklist as api_blocklist;
 use common_enums::MerchantDecision;
 use common_utils::errors::CustomResult;
 use diesel_models::configs;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::StrongSecret;
 
 use super::{errors, transformers::generate_fingerprint, AppState};
@@ -121,7 +121,6 @@ fn validate_card_bin(bin: &str) -> RouterResult<()> {
             field_name: "data".to_string(),
             expected_format: "a 6 digit number".to_string(),
         })
-        .into_report()
     }
 }
 
@@ -133,7 +132,6 @@ fn validate_extended_card_bin(bin: &str) -> RouterResult<()> {
             field_name: "data".to_string(),
             expected_format: "an 8 digit number".to_string(),
         })
-        .into_report()
     }
 }
 
@@ -176,8 +174,7 @@ pub async fn insert_entry_into_blocklist(
                     return Err(errors::ApiErrorResponse::PreconditionFailed {
                         message: "data associated with the given fingerprint is already blocked"
                             .to_string(),
-                    })
-                    .into_report();
+                    });
                 }
 
                 // if it is a db not found error, we can proceed as normal
@@ -259,8 +256,7 @@ async fn duplicate_check_insert_bin(
         Ok(_) => {
             return Err(errors::ApiErrorResponse::PreconditionFailed {
                 message: "provided bin is already blocked".to_string(),
-            })
-            .into_report();
+            });
         }
 
         Err(e) if e.current_context().is_db_not_found() => {}

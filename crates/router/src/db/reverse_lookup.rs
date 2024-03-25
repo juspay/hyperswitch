@@ -23,7 +23,7 @@ pub trait ReverseLookupInterface {
 
 #[cfg(not(feature = "kv_store"))]
 mod storage {
-    use error_stack::IntoReport;
+    use error_stack::ResultExt;
     use router_env::{instrument, tracing};
 
     use super::{ReverseLookupInterface, Store};
@@ -45,7 +45,7 @@ mod storage {
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<ReverseLookup, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
-            new.insert(&conn).await.map_err(Into::into).into_report()
+            new.insert(&conn).await.map_err(Into::into)
         }
 
         #[instrument(skip_all)]
@@ -58,14 +58,13 @@ mod storage {
             ReverseLookup::find_by_lookup_id(id, &conn)
                 .await
                 .map_err(Into::into)
-                .into_report()
         }
     }
 }
 
 #[cfg(feature = "kv_store")]
 mod storage {
-    use error_stack::{IntoReport, ResultExt};
+    use error_stack::ResultExt;
     use redis_interface::SetnxReply;
     use router_env::{instrument, tracing};
     use storage_impl::redis::kv_store::{kv_wrapper, KvOperation};
@@ -93,7 +92,7 @@ mod storage {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
                     let conn = connection::pg_connection_write(self).await?;
-                    new.insert(&conn).await.map_err(Into::into).into_report()
+                    new.insert(&conn).await.map_err(Into::into)
                 }
                 enums::MerchantStorageScheme::RedisKv => {
                     let created_rev_lookup = ReverseLookup {
@@ -122,8 +121,7 @@ mod storage {
                         Ok(SetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
                             entity: "reverse_lookup",
                             key: Some(created_rev_lookup.lookup_id.clone()),
-                        })
-                        .into_report(),
+                        }),
                         Err(er) => Err(er).change_context(errors::StorageError::KVError),
                     }
                 }
@@ -141,7 +139,6 @@ mod storage {
                 ReverseLookup::find_by_lookup_id(id, &conn)
                     .await
                     .map_err(Into::into)
-                    .into_report()
             };
 
             match storage_scheme {

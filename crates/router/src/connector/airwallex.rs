@@ -7,7 +7,7 @@ use common_utils::{
     request::RequestContent,
 };
 use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::PeekInterface;
 use transformers as airwallex;
 
@@ -1011,13 +1011,10 @@ impl api::IncomingWebhook for Airwallex {
                     .to_str()
                     .map(String::from)
                     .map_err(|_| errors::ConnectorError::WebhookSignatureNotFound)
-                    .into_report()
             })
-            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)
-            .into_report()??;
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)??;
 
         hex::decode(security_header)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)
     }
 
@@ -1035,10 +1032,8 @@ impl api::IncomingWebhook for Airwallex {
                     .to_str()
                     .map(String::from)
                     .map_err(|_| errors::ConnectorError::WebhookSignatureNotFound)
-                    .into_report()
             })
-            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)
-            .into_report()??;
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)??;
 
         Ok(format!("{}{}", timestamp, String::from_utf8_lossy(request.body)).into_bytes())
     }
@@ -1081,7 +1076,7 @@ impl api::IncomingWebhook for Airwallex {
                 ),
             ))
         } else {
-            Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()
+            Err(errors::ConnectorError::WebhookEventTypeNotFound)
         }
     }
 

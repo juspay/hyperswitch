@@ -1,6 +1,6 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, QueryDsl};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
 use crate::{
@@ -78,12 +78,10 @@ impl RoutingAlgorithm {
                 enums::TransactionType,
             )>(conn)
             .await
-            .into_report()
             .change_context(DatabaseError::Others)?
             .into_iter()
             .next()
             .ok_or(DatabaseError::NotFound)
-            .into_report()
             .map(
                 |(
                     profile_id,
@@ -138,7 +136,6 @@ impl RoutingAlgorithm {
                 enums::TransactionType,
             )>(conn)
             .await
-            .into_report()
             .change_context(DatabaseError::Others)?
             .into_iter()
             .map(
@@ -197,7 +194,6 @@ impl RoutingAlgorithm {
                 enums::TransactionType,
             )>(conn)
             .await
-            .into_report()
             .change_context(DatabaseError::Others)?
             .into_iter()
             .map(
@@ -260,7 +256,6 @@ impl RoutingAlgorithm {
                 enums::TransactionType,
             )>(conn)
             .await
-            .into_report()
             .change_context(DatabaseError::Others)?
             .into_iter()
             .map(

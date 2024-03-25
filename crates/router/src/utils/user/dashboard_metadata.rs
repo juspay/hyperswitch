@@ -8,7 +8,7 @@ use diesel_models::{
     enums::DashboardMetadata as DBEnum,
     user::dashboard_metadata::{DashboardMetadata, DashboardMetadataNew, DashboardMetadataUpdate},
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::Secret;
 
 use crate::{
@@ -26,7 +26,6 @@ pub async fn insert_merchant_scoped_metadata_to_db(
 ) -> UserResult<DashboardMetadata> {
     let now = common_utils::date_time::now();
     let data_value = serde_json::to_value(metadata_value)
-        .into_report()
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Error Converting Struct To Serde Value")?;
     state
@@ -60,7 +59,6 @@ pub async fn insert_user_scoped_metadata_to_db(
 ) -> UserResult<DashboardMetadata> {
     let now = common_utils::date_time::now();
     let data_value = serde_json::to_value(metadata_value)
-        .into_report()
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Error Converting Struct To Serde Value")?;
     state
@@ -131,7 +129,6 @@ pub async fn update_merchant_scoped_metadata(
     metadata_value: impl serde::Serialize,
 ) -> UserResult<DashboardMetadata> {
     let data_value = serde_json::to_value(metadata_value)
-        .into_report()
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Error Converting Struct To Serde Value")?;
 
@@ -160,7 +157,6 @@ pub async fn update_user_scoped_metadata(
     metadata_value: impl serde::Serialize,
 ) -> UserResult<DashboardMetadata> {
     let data_value = serde_json::to_value(metadata_value)
-        .into_report()
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Error Converting Struct To Serde Value")?;
 

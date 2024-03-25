@@ -1,4 +1,4 @@
-use error_stack::IntoReport;
+use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
 use crate::{
@@ -28,7 +28,6 @@ impl CardsInfoInterface for Store {
         CardInfo::find_by_iin(&conn, card_iin)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 }
 

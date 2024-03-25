@@ -23,7 +23,7 @@ use diesel_models::{
     },
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use redis_interface::HsetnxReply;
 use router_env::{instrument, tracing};
 
@@ -299,7 +299,6 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             .get_replica_pool()
             .get()
             .await
-            .into_report()
             .change_context(errors::StorageError::DatabaseConnectionError)?;
         let connector_strings = connector.as_ref().map(|connector| {
             connector
@@ -449,8 +448,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
                         entity: "payment attempt",
                         key: Some(key),
-                    })
-                    .into_report(),
+                    }),
                     Ok(HsetnxReply::KeySet) => Ok(created_attempt),
                     Err(error) => Err(error.change_context(errors::StorageError::KVError)),
                 }
@@ -483,7 +481,6 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 );
                 // Check for database presence as well Maybe use a read replica here ?
                 let redis_value = serde_json::to_string(&updated_attempt)
-                    .into_report()
                     .change_context(errors::StorageError::KVError)?;
                 let field = format!("pa_{}", updated_attempt.attempt_id);
 

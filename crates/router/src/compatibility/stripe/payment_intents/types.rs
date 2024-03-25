@@ -7,7 +7,7 @@ use common_utils::{
     ext_traits::StringExt,
     pii::{IpAddress, SecretSerdeValue, UpiVpaMaskingStrategy},
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -298,7 +298,6 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             })
             .map(|r| {
                 serde_json::to_value(r)
-                    .into_report()
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("converting to routing failed")
             })
@@ -308,7 +307,6 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             .receipt_ipaddress
             .map(|ip| std::net::IpAddr::from_str(ip.as_str()))
             .transpose()
-            .into_report()
             .change_context(errors::ApiErrorResponse::InvalidDataFormat {
                 field_name: "receipt_ipaddress".to_string(),
                 expected_format: "127.0.0.1".to_string(),
@@ -383,7 +381,6 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
                     user_agent: item.user_agent,
                     ..Default::default()
                 })
-                .into_report()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("convert to browser info failed")?,
             ),
@@ -723,7 +720,6 @@ impl ForeignTryFrom<(Option<MandateData>, Option<String>)> for Option<payments::
             .ok_or(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "currency",
             })
-            .into_report()
             .and_then(|c| {
                 c.to_uppercase().parse_enum("currency").change_context(
                     errors::ApiErrorResponse::InvalidDataValue {

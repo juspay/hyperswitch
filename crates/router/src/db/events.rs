@@ -1,5 +1,5 @@
 use common_utils::ext_traits::AsyncExt;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
 use super::{MockDb, Store};
@@ -106,8 +106,7 @@ impl EventInterface for Store {
             .change_context(errors::StorageError::EncryptionError)?
             .insert(&conn)
             .await
-            .map_err(Into::into)
-            .into_report()?
+            .map_err(Into::into)?
             .convert(merchant_key_store.key.get_inner())
             .await
             .change_context(errors::StorageError::DecryptionError)
@@ -123,8 +122,7 @@ impl EventInterface for Store {
         let conn = connection::pg_connection_read(self).await?;
         storage::Event::find_by_merchant_id_event_id(&conn, merchant_id, event_id)
             .await
-            .map_err(Into::into)
-            .into_report()?
+            .map_err(Into::into)?
             .convert(merchant_key_store.key.get_inner())
             .await
             .change_context(errors::StorageError::DecryptionError)
@@ -145,7 +143,6 @@ impl EventInterface for Store {
         )
         .await
         .map_err(Into::into)
-        .into_report()
         .async_and_then(|events| async {
             let mut domain_events = Vec::with_capacity(events.len());
             for event in events.into_iter() {
@@ -182,7 +179,6 @@ impl EventInterface for Store {
         )
         .await
         .map_err(Into::into)
-        .into_report()
         .async_and_then(|events| async {
             let mut domain_events = Vec::with_capacity(events.len());
             for event in events.into_iter() {
@@ -213,7 +209,6 @@ impl EventInterface for Store {
         )
         .await
         .map_err(Into::into)
-        .into_report()
         .async_and_then(|events| async {
             let mut domain_events = Vec::with_capacity(events.len());
             for event in events.into_iter() {
@@ -244,7 +239,6 @@ impl EventInterface for Store {
         )
         .await
         .map_err(Into::into)
-        .into_report()
         .async_and_then(|events| async {
             let mut domain_events = Vec::with_capacity(events.len());
             for event in events.into_iter() {
@@ -281,7 +275,6 @@ impl EventInterface for Store {
         )
         .await
         .map_err(Into::into)
-        .into_report()
         .async_and_then(|events| async {
             let mut domain_events = Vec::with_capacity(events.len());
             for event in events.into_iter() {
@@ -308,7 +301,6 @@ impl EventInterface for Store {
         storage::Event::list_by_profile_id_initial_attempt_id(&conn, profile_id, initial_attempt_id)
             .await
             .map_err(Into::into)
-            .into_report()
             .async_and_then(|events| async {
                 let mut domain_events = Vec::with_capacity(events.len());
                 for event in events.into_iter() {
@@ -335,8 +327,7 @@ impl EventInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::Event::update_by_merchant_id_event_id(&conn, merchant_id, event_id, event.into())
             .await
-            .map_err(Into::into)
-            .into_report()?
+            .map_err(Into::into)?
             .convert(merchant_key_store.key.get_inner())
             .await
             .change_context(errors::StorageError::DecryptionError)

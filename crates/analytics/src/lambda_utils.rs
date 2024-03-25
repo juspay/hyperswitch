@@ -2,7 +2,7 @@ use aws_config::{self, meta::region::RegionProviderChain, Region};
 use aws_sdk_lambda::{types::InvocationType::Event, Client};
 use aws_smithy_types::Blob;
 use common_utils::errors::CustomResult;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 
 use crate::errors::AnalyticsError;
 
@@ -25,7 +25,6 @@ pub async fn invoke_lambda(
         .payload(Blob::new(json_bytes.to_owned()))
         .send()
         .await
-        .into_report()
         .map_err(|er| {
             let er_rep = format!("{er:?}");
             er.attach_printable(er_rep)

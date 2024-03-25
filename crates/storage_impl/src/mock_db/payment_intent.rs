@@ -8,7 +8,7 @@ use data_models::{
     },
 };
 use diesel_models::enums as storage_enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 
 use super::MockDb;
 use crate::DataModelExt;
@@ -69,7 +69,6 @@ impl PaymentIntentInterface for MockDb {
             id: payment_intents
                 .len()
                 .try_into()
-                .into_report()
                 .change_context(StorageError::MockDbError)?,
             payment_id: new.payment_id,
             merchant_id: new.merchant_id,

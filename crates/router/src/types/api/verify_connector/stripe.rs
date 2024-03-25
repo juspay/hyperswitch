@@ -1,4 +1,4 @@
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use router_env::env;
 
 use super::VerifyConnector;
@@ -29,8 +29,7 @@ impl VerifyConnector for connector::Stripe {
             (env::Env::Production, "card_declined") => Ok(services::ApplicationResponse::StatusOk),
             _ => Err(errors::ApiErrorResponse::InvalidRequestData {
                 message: error.reason.unwrap_or(error.message),
-            })
-            .into_report(),
+            }),
         }
     }
 }

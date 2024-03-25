@@ -1,7 +1,7 @@
 use common_utils::errors::CustomResult;
 pub use diesel_models as storage;
 use diesel_models::enums as storage_enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use storage_impl::{connection, errors, mock_db::MockDb};
 use time::PrimitiveDateTime;
 
@@ -74,7 +74,6 @@ impl ProcessTrackerInterface for Store {
         storage::ProcessTracker::find_process_by_id(&conn, id)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 
     async fn reinitialize_limbo_processes(
@@ -86,7 +85,6 @@ impl ProcessTrackerInterface for Store {
         storage::ProcessTracker::reinitialize_limbo_processes(&conn, ids, schedule_time)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 
     async fn find_processes_by_time_status(
@@ -106,7 +104,6 @@ impl ProcessTrackerInterface for Store {
         )
         .await
         .map_err(Into::into)
-        .into_report()
     }
 
     async fn insert_process(
@@ -114,10 +111,7 @@ impl ProcessTrackerInterface for Store {
         new: storage::ProcessTrackerNew,
     ) -> CustomResult<storage::ProcessTracker, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        new.insert_process(&conn)
-            .await
-            .map_err(Into::into)
-            .into_report()
+        new.insert_process(&conn).await.map_err(Into::into)
     }
 
     async fn update_process(
@@ -126,10 +120,7 @@ impl ProcessTrackerInterface for Store {
         process: storage::ProcessTrackerUpdate,
     ) -> CustomResult<storage::ProcessTracker, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        this.update(&conn, process)
-            .await
-            .map_err(Into::into)
-            .into_report()
+        this.update(&conn, process).await.map_err(Into::into)
     }
 
     async fn reset_process(
@@ -195,7 +186,6 @@ impl ProcessTrackerInterface for Store {
         storage::ProcessTracker::update_process_status_by_ids(&conn, task_ids, task_update)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 }
 

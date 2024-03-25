@@ -5,7 +5,7 @@ use std::fmt::Debug;
 use base64::Engine;
 use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
 use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface};
 use ring::hmac;
 use time::{format_description, OffsetDateTime};
@@ -65,11 +65,9 @@ impl Worldline {
         let format = format_description::parse(
             "[weekday repr:short], [day] [month repr:short] [year] [hour]:[minute]:[second] GMT",
         )
-        .into_report()
         .change_context(errors::ConnectorError::InvalidDateFormat)?;
         OffsetDateTime::now_utc()
             .format(&format)
-            .into_report()
             .change_context(errors::ConnectorError::InvalidDateFormat)
     }
 }
@@ -785,7 +783,6 @@ impl api::IncomingWebhook for Worldline {
             connector_utils::get_header_key_value("X-GCS-Signature", request.headers)?;
         let signature = consts::BASE64_ENGINE
             .decode(header_value.as_bytes())
-            .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         Ok(signature)
     }
@@ -866,7 +863,6 @@ impl api::IncomingWebhook for Worldline {
             Some(header_value) => {
                 let verification_signature_value = header_value
                     .to_str()
-                    .into_report()
                     .change_context(errors::ConnectorError::WebhookResponseEncodingFailed)?
                     .to_string();
                 services::api::ApplicationResponse::TextPlain(verification_signature_value)

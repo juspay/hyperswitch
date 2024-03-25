@@ -1,5 +1,5 @@
 use api_models::{enums::Connector, verify_connector::VerifyConnectorRequest};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 
 use crate::{
     connector,
@@ -25,12 +25,12 @@ pub async fn verify_connector_credentials(
     )
     .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)?;
 
-    let card_details = utils::get_test_card_details(req.connector_name)?
-        .ok_or(errors::ApiErrorResponse::FlowNotSupported {
+    let card_details = utils::get_test_card_details(req.connector_name)?.ok_or(
+        errors::ApiErrorResponse::FlowNotSupported {
             flow: "Verify credentials".to_string(),
             connector: req.connector_name.to_string(),
-        })
-        .into_report()?;
+        },
+    )?;
 
     match req.connector_name {
         Connector::Stripe => {
@@ -57,7 +57,6 @@ pub async fn verify_connector_credentials(
         _ => Err(errors::ApiErrorResponse::FlowNotSupported {
             flow: "Verify credentials".to_string(),
             connector: req.connector_name.to_string(),
-        })
-        .into_report(),
+        }),
     }
 }

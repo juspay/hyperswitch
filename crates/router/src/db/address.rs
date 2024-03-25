@@ -76,7 +76,7 @@ where
 #[cfg(not(feature = "kv_store"))]
 mod storage {
     use common_utils::ext_traits::AsyncExt;
-    use error_stack::{IntoReport, ResultExt};
+    use error_stack::ResultExt;
     use router_env::{instrument, tracing};
 
     use super::AddressInterface;
@@ -104,7 +104,6 @@ mod storage {
             storage_types::Address::find_by_address_id(&conn, address_id)
                 .await
                 .map_err(Into::into)
-                .into_report()
                 .async_and_then(|address| async {
                     address
                         .convert(key_store.key.get_inner())
@@ -132,7 +131,6 @@ mod storage {
             )
             .await
             .map_err(Into::into)
-            .into_report()
             .async_and_then(|address| async {
                 address
                     .convert(key_store.key.get_inner())
@@ -153,7 +151,6 @@ mod storage {
             storage_types::Address::update_by_address_id(&conn, address_id, address.into())
                 .await
                 .map_err(Into::into)
-                .into_report()
                 .async_and_then(|address| async {
                     address
                         .convert(key_store.key.get_inner())
@@ -180,7 +177,6 @@ mod storage {
                 .update(&conn, address_update.into())
                 .await
                 .map_err(Into::into)
-                .into_report()
                 .async_and_then(|address| async {
                     address
                         .convert(key_store.key.get_inner())
@@ -206,7 +202,6 @@ mod storage {
                 .insert(&conn)
                 .await
                 .map_err(Into::into)
-                .into_report()
                 .async_and_then(|address| async {
                     address
                         .convert(key_store.key.get_inner())
@@ -230,7 +225,6 @@ mod storage {
                 .insert(&conn)
                 .await
                 .map_err(Into::into)
-                .into_report()
                 .async_and_then(|address| async {
                     address
                         .convert(key_store.key.get_inner())
@@ -257,7 +251,6 @@ mod storage {
             )
             .await
             .map_err(Into::into)
-            .into_report()
             .async_and_then(|addresses| async {
                 let mut output = Vec::with_capacity(addresses.len());
                 for address in addresses.into_iter() {
@@ -279,7 +272,7 @@ mod storage {
 mod storage {
     use common_utils::ext_traits::AsyncExt;
     use diesel_models::{enums::MerchantStorageScheme, AddressUpdateInternal};
-    use error_stack::{IntoReport, ResultExt};
+    use error_stack::ResultExt;
     use redis_interface::HsetnxReply;
     use router_env::{instrument, tracing};
     use storage_impl::redis::kv_store::{kv_wrapper, KvOperation};
@@ -310,7 +303,6 @@ mod storage {
             storage_types::Address::find_by_address_id(&conn, address_id)
                 .await
                 .map_err(Into::into)
-                .into_report()
                 .async_and_then(|address| async {
                     address
                         .convert(key_store.key.get_inner())
@@ -339,7 +331,6 @@ mod storage {
                 )
                 .await
                 .map_err(Into::into)
-                .into_report()
             };
             let address = match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => database_call().await,
@@ -378,7 +369,6 @@ mod storage {
             storage_types::Address::update_by_address_id(&conn, address_id, address.into())
                 .await
                 .map_err(Into::into)
-                .into_report()
                 .async_and_then(|address| async {
                     address
                         .convert(key_store.key.get_inner())
@@ -407,7 +397,6 @@ mod storage {
                         .update(&conn, address_update.into())
                         .await
                         .map_err(Into::into)
-                        .into_report()
                         .async_and_then(|address| async {
                             address
                                 .convert(key_store.key.get_inner())
@@ -422,7 +411,6 @@ mod storage {
                     let updated_address = AddressUpdateInternal::from(address_update.clone())
                         .create_address(address.clone());
                     let redis_value = serde_json::to_string(&updated_address)
-                        .into_report()
                         .change_context(errors::StorageError::KVError)?;
 
                     let redis_entry = kv::TypedSql {
@@ -478,7 +466,6 @@ mod storage {
                         .insert(&conn)
                         .await
                         .map_err(Into::into)
-                        .into_report()
                         .async_and_then(|address| async {
                             address
                                 .convert(key_store.key.get_inner())
@@ -535,8 +522,7 @@ mod storage {
                         Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
                             entity: "address",
                             key: Some(created_address.address_id),
-                        })
-                        .into_report(),
+                        }),
                         Ok(HsetnxReply::KeySet) => Ok(created_address
                             .convert(key_store.key.get_inner())
                             .await
@@ -561,7 +547,6 @@ mod storage {
                 .insert(&conn)
                 .await
                 .map_err(Into::into)
-                .into_report()
                 .async_and_then(|address| async {
                     address
                         .convert(key_store.key.get_inner())
@@ -588,7 +573,6 @@ mod storage {
             )
             .await
             .map_err(Into::into)
-            .into_report()
             .async_and_then(|addresses| async {
                 let mut output = Vec::with_capacity(addresses.len());
                 for address in addresses.into_iter() {

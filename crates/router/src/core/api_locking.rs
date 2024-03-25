@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use actix_web::rt::time as actix_time;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use redis_interface as redis;
 use router_env::{instrument, logger, tracing};
 
@@ -102,7 +102,7 @@ impl LockAction {
                     }
                 }
 
-                Err(errors::ApiErrorResponse::ResourceBusy).into_report()
+                Err(errors::ApiErrorResponse::ResourceBusy)
             }
             Self::QueueWithOk | Self::Drop | Self::NotApplicable => Ok(()),
         }
@@ -135,19 +135,18 @@ impl LockAction {
                                         .record("redis_lock_released", redis_locking_key);
                                     Ok(())
                                 }
-                                Ok(redis::types::DelReply::KeyNotDeleted) => Err(
-                                    errors::ApiErrorResponse::InternalServerError,
-                                )
-                                .into_report()
-                                .attach_printable(
-                                    "Status release lock called but key is not found in redis",
-                                ),
+                                Ok(redis::types::DelReply::KeyNotDeleted) => {
+                                    Err(errors::ApiErrorResponse::InternalServerError)
+                                        .attach_printable(
+                                        "Status release lock called but key is not found in redis",
+                                    )
+                                }
                                 Err(error) => Err(error)
                                     .change_context(errors::ApiErrorResponse::InternalServerError),
                             }
                         } else {
                             Err(errors::ApiErrorResponse::InternalServerError)
-                                .into_report().attach_printable("The request_id which acquired the lock is not equal to the request_id requesting for releasing the lock")
+                                .attach_printable("The request_id which acquired the lock is not equal to the request_id requesting for releasing the lock")
                         }
                     }
                     Err(error) => {

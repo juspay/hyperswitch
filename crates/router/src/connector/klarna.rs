@@ -3,7 +3,7 @@ use std::fmt::Debug;
 
 use api_models::payments as api_payments;
 use common_utils::request::RequestContent;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use transformers as klarna;
 
 use crate::{
@@ -532,7 +532,7 @@ impl api::IncomingWebhook for Klarna {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(errors::ConnectorError::WebhooksNotImplemented)
     }
 
     fn get_webhook_event_type(
@@ -546,6 +546,6 @@ impl api::IncomingWebhook for Klarna {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(errors::ConnectorError::WebhooksNotImplemented)
     }
 }

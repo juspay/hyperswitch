@@ -1,5 +1,5 @@
 use common_utils::crypto::{self, GenerateDigest};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use rand::distributions::DistString;
 use serde::{Deserialize, Serialize};
@@ -265,9 +265,7 @@ impl<F, T>
             })
             .filter(|redirect_str| !redirect_str.is_empty())
             .map(|url| {
-                Url::parse(url)
-                    .into_report()
-                    .change_context(errors::ConnectorError::FailedToObtainIntegrationUrl)
+                Url::parse(url).change_context(errors::ConnectorError::FailedToObtainIntegrationUrl)
             })
             .transpose()?;
         let redirection_data =
@@ -488,8 +486,7 @@ impl TryFrom<&api_models::payments::BankRedirectData> for PaymentMethodData {
             })),
             _ => Err(errors::ConnectorError::NotImplemented(
                 "Payment method".to_string(),
-            ))
-            .into_report(),
+            )),
         }
     }
 }

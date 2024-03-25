@@ -1,5 +1,5 @@
 use diesel_models::payment_method::PaymentMethodUpdateInternal;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
 use super::{MockDb, Store};
@@ -72,7 +72,6 @@ impl PaymentMethodInterface for Store {
         storage::PaymentMethod::find_by_payment_method_id(&conn, payment_method_id)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 
     #[instrument(skip_all)]
@@ -84,7 +83,6 @@ impl PaymentMethodInterface for Store {
         storage::PaymentMethod::find_by_locker_id(&conn, locker_id)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 
     #[instrument(skip_all)]
@@ -103,7 +101,6 @@ impl PaymentMethodInterface for Store {
         )
         .await
         .map_err(Into::into)
-        .into_report()
     }
 
     #[instrument(skip_all)]
@@ -112,11 +109,7 @@ impl PaymentMethodInterface for Store {
         payment_method_new: storage::PaymentMethodNew,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        payment_method_new
-            .insert(&conn)
-            .await
-            .map_err(Into::into)
-            .into_report()
+        payment_method_new.insert(&conn).await.map_err(Into::into)
     }
 
     #[instrument(skip_all)]
@@ -130,7 +123,6 @@ impl PaymentMethodInterface for Store {
             .update_with_payment_method_id(&conn, payment_method_update)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 
     #[instrument(skip_all)]
@@ -149,7 +141,6 @@ impl PaymentMethodInterface for Store {
         )
         .await
         .map_err(Into::into)
-        .into_report()
     }
 
     #[instrument(skip_all)]
@@ -170,7 +161,6 @@ impl PaymentMethodInterface for Store {
         )
         .await
         .map_err(Into::into)
-        .into_report()
     }
 
     async fn delete_payment_method_by_merchant_id_payment_method_id(
@@ -186,7 +176,6 @@ impl PaymentMethodInterface for Store {
         )
         .await
         .map_err(Into::into)
-        .into_report()
     }
 }
 
@@ -247,7 +236,6 @@ impl PaymentMethodInterface for MockDb {
             .count();
         count
             .try_into()
-            .into_report()
             .change_context(errors::StorageError::MockDbError)
     }
 
@@ -261,7 +249,6 @@ impl PaymentMethodInterface for MockDb {
             id: payment_methods
                 .len()
                 .try_into()
-                .into_report()
                 .change_context(errors::StorageError::MockDbError)?,
             customer_id: payment_method_new.customer_id,
             merchant_id: payment_method_new.merchant_id,
@@ -339,7 +326,6 @@ impl PaymentMethodInterface for MockDb {
             Err(errors::StorageError::ValueNotFound(
                 "cannot find payment methods".to_string(),
             ))
-            .into_report()
         } else {
             Ok(payment_methods_found)
         }

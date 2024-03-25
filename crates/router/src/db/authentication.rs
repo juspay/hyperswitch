@@ -1,5 +1,5 @@
 use diesel_models::authentication::AuthenticationUpdateInternal;
-use error_stack::IntoReport;
+use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
 use super::{MockDb, Store};
@@ -37,11 +37,7 @@ impl AuthenticationInterface for Store {
         authentication: storage::AuthenticationNew,
     ) -> CustomResult<storage::Authentication, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        authentication
-            .insert(&conn)
-            .await
-            .map_err(Into::into)
-            .into_report()
+        authentication.insert(&conn).await.map_err(Into::into)
     }
 
     #[instrument(skip_all)]
@@ -58,7 +54,6 @@ impl AuthenticationInterface for Store {
         )
         .await
         .map_err(Into::into)
-        .into_report()
     }
 
     #[instrument(skip_all)]
@@ -76,7 +71,6 @@ impl AuthenticationInterface for Store {
         )
         .await
         .map_err(Into::into)
-        .into_report()
     }
 }
 

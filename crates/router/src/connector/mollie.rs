@@ -3,7 +3,7 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use common_utils::request::RequestContent;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::PeekInterface;
 use transformers as mollie;
 
@@ -415,7 +415,6 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             flow: "Capture".to_string(),
             connector: self.id().to_string(),
         })
-        .into_report()
     }
 }
 
@@ -431,7 +430,6 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
             flow: "Void".to_string(),
             connector: self.id().to_string(),
         })
-        .into_report()
     }
 }
 
@@ -606,7 +604,7 @@ impl api::IncomingWebhook for Mollie {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(errors::ConnectorError::WebhooksNotImplemented)
     }
 
     fn get_webhook_event_type(
@@ -620,7 +618,7 @@ impl api::IncomingWebhook for Mollie {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(errors::ConnectorError::WebhooksNotImplemented)
     }
 }
 

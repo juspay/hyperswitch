@@ -15,7 +15,7 @@ use data_models::{
 };
 use diesel_models::enums;
 // TODO : Evaluate all the helper functions ()
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use josekit::jwe;
 use masking::{ExposeInterface, PeekInterface};
 use openssl::{
@@ -69,24 +69,19 @@ pub fn create_identity_from_certificate_and_key(
 ) -> Result<reqwest::Identity, error_stack::Report<errors::ApiClientError>> {
     let decoded_certificate = BASE64_ENGINE
         .decode(encoded_certificate)
-        .into_report()
         .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
 
     let decoded_certificate_key = BASE64_ENGINE
         .decode(encoded_certificate_key)
-        .into_report()
         .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
 
     let certificate = String::from_utf8(decoded_certificate)
-        .into_report()
         .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
 
     let certificate_key = String::from_utf8(decoded_certificate_key)
-        .into_report()
         .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
 
     reqwest::Identity::from_pkcs8_pem(certificate.as_bytes(), certificate_key.as_bytes())
-        .into_report()
         .change_context(errors::ApiClientError::CertificateDecodeFailed)
 }
 
@@ -769,11 +764,11 @@ pub fn validate_card_data(
                 message: "Invalid card_cvc length".to_string()
             }))?
         }
-        let card_cvc = cvc.parse::<u16>().into_report().change_context(
-            errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "card_cvc",
-            },
-        )?;
+        let card_cvc =
+            cvc.parse::<u16>()
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "card_cvc",
+                })?;
         ::cards::CardSecurityCode::try_from(card_cvc).change_context(
             errors::ApiErrorResponse::PreconditionFailed {
                 message: "Invalid Card CVC".to_string(),
@@ -785,7 +780,6 @@ pub fn validate_card_data(
             .peek()
             .to_string()
             .parse::<u8>()
-            .into_report()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "card_exp_month",
             })?;
@@ -798,11 +792,12 @@ pub fn validate_card_data(
         if year_str.len() == 2 {
             year_str = format!("20{}", year_str);
         }
-        let exp_year = year_str.parse::<u16>().into_report().change_context(
-            errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "card_exp_year",
-            },
-        )?;
+        let exp_year =
+            year_str
+                .parse::<u16>()
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "card_exp_year",
+                })?;
         let year = ::cards::CardExpirationYear::try_from(exp_year).change_context(
             errors::ApiErrorResponse::PreconditionFailed {
                 message: "Invalid Expiry Year".to_string(),
@@ -941,8 +936,7 @@ pub fn validate_customer_id_mandatory_cases(
     match (has_setup_future_usage, customer_id) {
         (true, None) => Err(errors::ApiErrorResponse::PreconditionFailed {
             message: "customer_id is mandatory when setup_future_usage is given".to_string(),
-        })
-        .into_report(),
+        }),
         _ => Ok(()),
     }
 }
@@ -1148,7 +1142,6 @@ where
                     );
                     super::reset_process_sync_task(&*state.store, payment_attempt, stime)
                         .await
-                        .into_report()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed while updating task in process tracker")
                 }
@@ -1633,7 +1626,6 @@ pub async fn retrieve_payment_method_with_temporary_token(
         }
 
         Some(_) => Err(errors::ApiErrorResponse::InternalServerError)
-            .into_report()
             .attach_printable("Payment method received from locker is unsupported by locker")?,
 
         None => None,
@@ -2326,7 +2318,6 @@ pub fn make_merchant_url_with_response(
 
     let payment_client_secret = client_secret
         .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .into_report()
         .attach_printable("Expected client secret to be `Some`")?;
 
     let merchant_url_with_response = if business_profile.redirect_to_merchant_with_http_post {
@@ -2344,7 +2335,6 @@ pub fn make_merchant_url_with_response(
                 ),
             ],
         )
-        .into_report()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to parse the url with param")?
     } else {
@@ -2364,7 +2354,6 @@ pub fn make_merchant_url_with_response(
                 ),
             ],
         )
-        .into_report()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to parse the url with param")?
     };
@@ -2426,7 +2415,6 @@ pub fn make_url_with_signature(
     business_profile: &diesel_models::business_profile::BusinessProfile,
 ) -> RouterResult<api::RedirectionResponse> {
     let mut url = url::Url::parse(redirect_url)
-        .into_report()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to parse the url")?;
 
@@ -2754,8 +2742,7 @@ pub fn get_business_details(
 pub(crate) fn get_payment_id_from_client_secret(cs: &str) -> RouterResult<String> {
     let (payment_id, _) = cs
         .rsplit_once("_secret_")
-        .ok_or(errors::ApiErrorResponse::ClientSecretInvalid)
-        .into_report()?;
+        .ok_or(errors::ApiErrorResponse::ClientSecretInvalid)?;
     Ok(payment_id.to_string())
 }
 
@@ -3203,7 +3190,6 @@ pub fn get_attempt_type(
                             )],
                         );
                         Err(errors::ApiErrorResponse::InternalServerError)
-                            .into_report()
                             .attach_printable("Payment Attempt unexpected state")
                     }
 
@@ -3700,7 +3686,6 @@ impl ApplePayData {
         let symmetric_key = self.symmetric_key(&merchant_id, &shared_secret)?;
         let decrypted = self.decrypt_ciphertext(&symmetric_key)?;
         let parsed_decrypted: serde_json::Value = serde_json::from_str(&decrypted)
-            .into_report()
             .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?;
         Ok(parsed_decrypted)
     }
@@ -3719,12 +3704,10 @@ impl ApplePayData {
 
         let base64_decode_cert_data = BASE64_ENGINE
             .decode(cert_data)
-            .into_report()
             .change_context(errors::ApplePayDecryptionError::Base64DecodingFailed)?;
 
         // Parsing the certificate using x509-parser
         let (_, certificate) = parse_x509_certificate(&base64_decode_cert_data)
-            .into_report()
             .change_context(errors::ApplePayDecryptionError::CertificateParsingFailed)
             .attach_printable("Error parsing apple pay PPC")?;
 
@@ -3747,7 +3730,6 @@ impl ApplePayData {
                 merchant_id
             })
             .ok_or(errors::ApplePayDecryptionError::MissingMerchantId)
-            .into_report()
             .attach_printable("Unable to find merchant ID extension in the certificate")?;
 
         Ok(apple_pay_m_id)
@@ -3759,11 +3741,9 @@ impl ApplePayData {
     ) -> CustomResult<Vec<u8>, errors::ApplePayDecryptionError> {
         let public_ec_bytes = BASE64_ENGINE
             .decode(self.header.ephemeral_public_key.peek().as_bytes())
-            .into_report()
             .change_context(errors::ApplePayDecryptionError::Base64DecodingFailed)?;
 
         let public_key = PKey::public_key_from_der(&public_ec_bytes)
-            .into_report()
             .change_context(errors::ApplePayDecryptionError::KeyDeserializationFailed)
             .attach_printable("Failed to deserialize the public key")?;
 
@@ -3777,26 +3757,22 @@ impl ApplePayData {
 
         // Create PKey objects from EcKey
         let private_key = PKey::private_key_from_pem(decrypted_apple_pay_ppc_key.as_bytes())
-            .into_report()
             .change_context(errors::ApplePayDecryptionError::KeyDeserializationFailed)
             .attach_printable("Failed to deserialize the private key")?;
 
         // Create the Deriver object and set the peer public key
         let mut deriver = Deriver::new(&private_key)
-            .into_report()
             .change_context(errors::ApplePayDecryptionError::DerivingSharedSecretKeyFailed)
             .attach_printable("Failed to create a deriver for the private key")?;
 
         deriver
             .set_peer(&public_key)
-            .into_report()
             .change_context(errors::ApplePayDecryptionError::DerivingSharedSecretKeyFailed)
             .attach_printable("Failed to set the peer key for the secret derivation")?;
 
         // Compute the shared secret
         let shared_secret = deriver
             .derive_to_vec()
-            .into_report()
             .change_context(errors::ApplePayDecryptionError::DerivingSharedSecretKeyFailed)
             .attach_printable("Final key derivation failed")?;
         Ok(shared_secret)
@@ -3809,7 +3785,6 @@ impl ApplePayData {
     ) -> CustomResult<Vec<u8>, errors::ApplePayDecryptionError> {
         let kdf_algorithm = b"\x0did-aes256-GCM";
         let kdf_party_v = hex::decode(merchant_id)
-            .into_report()
             .change_context(errors::ApplePayDecryptionError::Base64DecodingFailed)?;
         let kdf_party_u = b"Apple";
         let kdf_info = [&kdf_algorithm[..], kdf_party_u, &kdf_party_v[..]].concat();
@@ -3829,7 +3804,6 @@ impl ApplePayData {
     ) -> CustomResult<String, errors::ApplePayDecryptionError> {
         let data = BASE64_ENGINE
             .decode(self.data.peek().as_bytes())
-            .into_report()
             .change_context(errors::ApplePayDecryptionError::Base64DecodingFailed)?;
         let iv = [0u8; 16]; //Initialization vector IV is typically used in AES-GCM (Galois/Counter Mode) encryption for randomizing the encryption process.
         let ciphertext = data
@@ -3840,10 +3814,8 @@ impl ApplePayData {
             .ok_or(errors::ApplePayDecryptionError::DecryptionFailed)?;
         let cipher = Cipher::aes_256_gcm();
         let decrypted_data = decrypt_aead(cipher, symmetric_key, Some(&iv), &[], ciphertext, tag)
-            .into_report()
             .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?;
         let decrypted = String::from_utf8(decrypted_data)
-            .into_report()
             .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?;
 
         Ok(decrypted)
@@ -4128,7 +4100,6 @@ pub async fn get_payment_method_details_from_payment_token(
     };
     let token = hyperswitch_token
         .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .into_report()
         .attach_printable("missing hyperswitch_token")?;
     match token {
         storage::PaymentTokenData::TemporaryGeneric(generic_token) => {

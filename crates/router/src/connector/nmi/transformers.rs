@@ -6,7 +6,7 @@ use common_utils::{
     ext_traits::XmlExt,
     pii::{self, Email},
 };
-use error_stack::{IntoReport, Report, ResultExt};
+use error_stack::{Report, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -149,8 +149,7 @@ fn get_card_details(
         )),
         _ => Err(errors::ConnectorError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("Nmi"),
-        ))
-        .into_report(),
+        )),
     }
 }
 
@@ -314,7 +313,6 @@ impl TryFrom<&NmiRouterData<&types::PaymentsCompleteAuthorizeRouterData>> for Nm
             .expose();
 
         let three_ds_data: NmiRedirectResponseData = serde_json::from_value(payload_data)
-            .into_report()
             .change_context(errors::ConnectorError::MissingConnectorRedirectionPayload {
                 field_name: "three_ds_data",
             })?;
@@ -555,7 +553,6 @@ impl TryFrom<&api_models::payments::PaymentMethodData> for PaymentMethod {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("nmi"),
                     ))
-                    .into_report()
                 }
             },
             api::PaymentMethodData::CardRedirect(_)
@@ -571,8 +568,7 @@ impl TryFrom<&api_models::payments::PaymentMethodData> for PaymentMethod {
             | api::PaymentMethodData::GiftCard(_)
             | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("nmi"),
-            ))
-            .into_report(),
+            )),
         }
     }
 }
@@ -962,11 +958,9 @@ impl TryFrom<Vec<u8>> for SyncResponse {
     type Error = Error;
     fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
         let query_response = String::from_utf8(bytes)
-            .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         query_response
             .parse_xml::<Self>()
-            .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)
     }
 }
@@ -975,11 +969,9 @@ impl TryFrom<Vec<u8>> for NmiRefundSyncResponse {
     type Error = Error;
     fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
         let query_response = String::from_utf8(bytes)
-            .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         query_response
             .parse_xml::<Self>()
-            .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)
     }
 }

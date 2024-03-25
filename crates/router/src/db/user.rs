@@ -1,5 +1,5 @@
 use diesel_models::{user as storage, user_role::UserRole};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::Secret;
 use router_env::{instrument, tracing};
 
@@ -59,11 +59,7 @@ impl UserInterface for Store {
         user_data: storage::UserNew,
     ) -> CustomResult<storage::User, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        user_data
-            .insert(&conn)
-            .await
-            .map_err(Into::into)
-            .into_report()
+        user_data.insert(&conn).await.map_err(Into::into)
     }
 
     #[instrument(skip_all)]
@@ -75,7 +71,6 @@ impl UserInterface for Store {
         storage::User::find_by_user_email(&conn, user_email)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 
     #[instrument(skip_all)]
@@ -87,7 +82,6 @@ impl UserInterface for Store {
         storage::User::find_by_user_id(&conn, user_id)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 
     #[instrument(skip_all)]
@@ -100,7 +94,6 @@ impl UserInterface for Store {
         storage::User::update_by_user_id(&conn, user_id, user)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 
     #[instrument(skip_all)]
@@ -113,7 +106,6 @@ impl UserInterface for Store {
         storage::User::update_by_user_email(&conn, user_email, user)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 
     #[instrument(skip_all)]
@@ -125,7 +117,6 @@ impl UserInterface for Store {
         storage::User::delete_by_user_id(&conn, user_id)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 
     #[instrument(skip_all)]
@@ -137,7 +128,6 @@ impl UserInterface for Store {
         storage::User::find_joined_users_and_roles_by_merchant_id(&conn, merchant_id)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 }
 
@@ -162,7 +152,6 @@ impl UserInterface for MockDb {
             id: users
                 .len()
                 .try_into()
-                .into_report()
                 .change_context(errors::StorageError::MockDbError)?,
             user_id: user_data.user_id,
             email: user_data.email,

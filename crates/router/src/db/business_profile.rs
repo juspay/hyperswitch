@@ -1,4 +1,4 @@
-use error_stack::IntoReport;
+use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
 use super::Store;
@@ -53,11 +53,7 @@ impl BusinessProfileInterface for Store {
         business_profile: business_profile::BusinessProfileNew,
     ) -> CustomResult<business_profile::BusinessProfile, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        business_profile
-            .insert(&conn)
-            .await
-            .map_err(Into::into)
-            .into_report()
+        business_profile.insert(&conn).await.map_err(Into::into)
     }
 
     #[instrument(skip_all)]
@@ -69,7 +65,6 @@ impl BusinessProfileInterface for Store {
         storage::business_profile::BusinessProfile::find_by_profile_id(&conn, profile_id)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 
     #[instrument(skip_all)]
@@ -86,7 +81,6 @@ impl BusinessProfileInterface for Store {
         )
         .await
         .map_err(Into::into)
-        .into_report()
     }
 
     #[instrument(skip_all)]
@@ -103,7 +97,6 @@ impl BusinessProfileInterface for Store {
         )
         .await
         .map_err(Into::into)
-        .into_report()
     }
 
     #[instrument(skip_all)]
@@ -120,7 +113,6 @@ impl BusinessProfileInterface for Store {
         )
         .await
         .map_err(Into::into)
-        .into_report()
     }
 
     #[instrument(skip_all)]
@@ -135,7 +127,6 @@ impl BusinessProfileInterface for Store {
         )
         .await
         .map_err(Into::into)
-        .into_report()
     }
 }
 

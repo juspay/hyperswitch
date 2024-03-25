@@ -1,4 +1,4 @@
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
 use super::{MockDb, Store};
@@ -37,7 +37,6 @@ impl LockerMockUpInterface for Store {
         storage::LockerMockUp::find_by_card_id(&conn, card_id)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 
     #[instrument(skip_all)]
@@ -46,7 +45,7 @@ impl LockerMockUpInterface for Store {
         new: storage::LockerMockUpNew,
     ) -> CustomResult<storage::LockerMockUp, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        new.insert(&conn).await.map_err(Into::into).into_report()
+        new.insert(&conn).await.map_err(Into::into)
     }
 
     #[instrument(skip_all)]
@@ -58,7 +57,6 @@ impl LockerMockUpInterface for Store {
         storage::LockerMockUp::delete_by_card_id(&conn, card_id)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 }
 
@@ -91,7 +89,6 @@ impl LockerMockUpInterface for MockDb {
             id: locked_lockers
                 .len()
                 .try_into()
-                .into_report()
                 .change_context(errors::StorageError::MockDbError)?,
             card_id: new.card_id,
             external_id: new.external_id,

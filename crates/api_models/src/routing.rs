@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use common_utils::errors::ParsingError;
-use error_stack::IntoReport;
+use error_stack::ResultExt;
 pub use euclid::{
     dssa::types::EuclidAnalysable,
     frontend::{
@@ -379,14 +379,12 @@ impl TryFrom<RoutingAlgorithmSerde> for RoutingAlgorithm {
             RoutingAlgorithmSerde::Priority(i) if i.is_empty() => {
                 Err(ParsingError::StructParseFailure(
                     "Connectors list can't be empty for Priority Algorithm",
-                ))
-                .into_report()?
+                ))?
             }
             RoutingAlgorithmSerde::VolumeSplit(i) if i.is_empty() => {
                 Err(ParsingError::StructParseFailure(
                     "Connectors list can't be empty for Volume split Algorithm",
-                ))
-                .into_report()?
+                ))?
             }
             _ => {}
         };
@@ -446,14 +444,12 @@ impl TryFrom<StraightThroughAlgorithmSerde> for StraightThroughAlgorithm {
             StraightThroughAlgorithmInner::Priority(i) if i.is_empty() => {
                 Err(ParsingError::StructParseFailure(
                     "Connectors list can't be empty for Priority Algorithm",
-                ))
-                .into_report()?
+                ))?
             }
             StraightThroughAlgorithmInner::VolumeSplit(i) if i.is_empty() => {
                 Err(ParsingError::StructParseFailure(
                     "Connectors list can't be empty for Volume split Algorithm",
-                ))
-                .into_report()?
+                ))?
             }
             _ => {}
         };

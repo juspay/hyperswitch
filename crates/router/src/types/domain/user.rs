@@ -11,7 +11,7 @@ use diesel_models::{
     user as storage_user,
     user_role::{UserRole, UserRoleNew},
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use once_cell::sync::Lazy;
 use router_env::env;
@@ -319,8 +319,7 @@ impl NewUserMerchant {
             return Err(UserErrors::MerchantAccountCreationError(format!(
                 "Merchant with {} already exists",
                 self.get_merchant_id()
-            )))
-            .into_report();
+            )));
         }
         Ok(())
     }
@@ -515,7 +514,7 @@ impl NewUser {
             .await
             .is_ok()
         {
-            return Err(UserErrors::UserExists).into_report();
+            return Err(UserErrors::UserExists);
         }
         Ok(())
     }

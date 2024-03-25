@@ -1,4 +1,4 @@
-use error_stack::IntoReport;
+use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 use storage_impl::MockDb;
 
@@ -51,11 +51,7 @@ impl BlocklistInterface for Store {
         pm_blocklist: storage::BlocklistNew,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        pm_blocklist
-            .insert(&conn)
-            .await
-            .map_err(Into::into)
-            .into_report()
+        pm_blocklist.insert(&conn).await.map_err(Into::into)
     }
 
     #[instrument(skip_all)]
@@ -68,7 +64,6 @@ impl BlocklistInterface for Store {
         storage::Blocklist::find_by_merchant_id_fingerprint_id(&conn, merchant_id, fingerprint_id)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 
     #[instrument(skip_all)]
@@ -80,7 +75,6 @@ impl BlocklistInterface for Store {
         storage::Blocklist::list_by_merchant_id(&conn, merchant_id)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 
     #[instrument(skip_all)]
@@ -101,7 +95,6 @@ impl BlocklistInterface for Store {
         )
         .await
         .map_err(Into::into)
-        .into_report()
     }
 
     #[instrument(skip_all)]
@@ -114,7 +107,6 @@ impl BlocklistInterface for Store {
         storage::Blocklist::delete_by_merchant_id_fingerprint_id(&conn, merchant_id, fingerprint_id)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 }
 

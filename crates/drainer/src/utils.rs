@@ -1,6 +1,6 @@
 use std::sync::{atomic, Arc};
 
-use error_stack::IntoReport;
+use error_stack::ResultExt;
 use redis_interface as redis;
 use serde::de::Deserialize;
 
@@ -13,14 +13,9 @@ pub fn parse_stream_entries<'a>(
     read_result: &'a StreamReadResult,
     stream_name: &str,
 ) -> errors::DrainerResult<&'a StreamEntries> {
-    read_result
-        .get(stream_name)
-        .ok_or_else(|| {
-            errors::DrainerError::RedisError(error_stack::report!(
-                redis::errors::RedisError::NotFound
-            ))
-        })
-        .into_report()
+    read_result.get(stream_name).ok_or_else(|| {
+        errors::DrainerError::RedisError(error_stack::report!(redis::errors::RedisError::NotFound))
+    })
 }
 
 pub(crate) fn deserialize_i64<'de, D>(deserializer: D) -> Result<i64, D::Error>

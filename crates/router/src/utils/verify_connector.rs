@@ -1,5 +1,5 @@
 use api_models::enums::Connector;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 
 use crate::{core::errors, types::api};
 
@@ -12,7 +12,6 @@ pub fn generate_card_from_details(
     Ok(api::Card {
         card_number: card_number
             .parse()
-            .into_report()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error while parsing card number")?,
         card_issuer: None,

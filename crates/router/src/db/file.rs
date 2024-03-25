@@ -1,4 +1,4 @@
-use error_stack::IntoReport;
+use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
 use super::{MockDb, Store};
@@ -42,7 +42,7 @@ impl FileMetadataInterface for Store {
         file: storage::FileMetadataNew,
     ) -> CustomResult<storage::FileMetadata, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        file.insert(&conn).await.map_err(Into::into).into_report()
+        file.insert(&conn).await.map_err(Into::into)
     }
 
     #[instrument(skip_all)]
@@ -55,7 +55,6 @@ impl FileMetadataInterface for Store {
         storage::FileMetadata::find_by_merchant_id_file_id(&conn, merchant_id, file_id)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 
     #[instrument(skip_all)]
@@ -68,7 +67,6 @@ impl FileMetadataInterface for Store {
         storage::FileMetadata::delete_by_merchant_id_file_id(&conn, merchant_id, file_id)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 
     #[instrument(skip_all)]
@@ -78,10 +76,7 @@ impl FileMetadataInterface for Store {
         file_metadata: storage::FileMetadataUpdate,
     ) -> CustomResult<storage::FileMetadata, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        this.update(&conn, file_metadata)
-            .await
-            .map_err(Into::into)
-            .into_report()
+        this.update(&conn, file_metadata).await.map_err(Into::into)
     }
 }
 

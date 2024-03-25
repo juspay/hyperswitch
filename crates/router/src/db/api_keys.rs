@@ -1,4 +1,4 @@
-use error_stack::IntoReport;
+use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 #[cfg(feature = "accounts_cache")]
 use storage_impl::redis::cache::CacheKind;
@@ -59,11 +59,7 @@ impl ApiKeyInterface for Store {
         api_key: storage::ApiKeyNew,
     ) -> CustomResult<storage::ApiKey, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        api_key
-            .insert(&conn)
-            .await
-            .map_err(Into::into)
-            .into_report()
+        api_key.insert(&conn).await.map_err(Into::into)
     }
 
     #[instrument(skip_all)]
@@ -80,7 +76,6 @@ impl ApiKeyInterface for Store {
             storage::ApiKey::update_by_merchant_id_key_id(&conn, merchant_id, key_id, api_key)
                 .await
                 .map_err(Into::into)
-                .into_report()
         };
 
         #[cfg(not(feature = "accounts_cache"))]
@@ -101,8 +96,7 @@ impl ApiKeyInterface for Store {
                 &_key_id,
             )
             .await
-            .map_err(Into::into)
-            .into_report()?
+            .map_err(Into::into)?
             .ok_or(report!(errors::StorageError::ValueNotFound(format!(
                 "ApiKey of {_key_id} not found"
             ))))?;
@@ -127,7 +121,6 @@ impl ApiKeyInterface for Store {
             storage::ApiKey::revoke_by_merchant_id_key_id(&conn, merchant_id, key_id)
                 .await
                 .map_err(Into::into)
-                .into_report()
         };
         #[cfg(not(feature = "accounts_cache"))]
         {
@@ -145,8 +138,7 @@ impl ApiKeyInterface for Store {
             let api_key =
                 storage::ApiKey::find_optional_by_merchant_id_key_id(&conn, merchant_id, key_id)
                     .await
-                    .map_err(Into::into)
-                    .into_report()?
+                    .map_err(Into::into)?
                     .ok_or(report!(errors::StorageError::ValueNotFound(format!(
                         "ApiKey of {key_id} not found"
                     ))))?;
@@ -170,7 +162,6 @@ impl ApiKeyInterface for Store {
         storage::ApiKey::find_optional_by_merchant_id_key_id(&conn, merchant_id, key_id)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 
     #[instrument(skip_all)]
@@ -184,7 +175,6 @@ impl ApiKeyInterface for Store {
             storage::ApiKey::find_optional_by_hashed_api_key(&conn, hashed_api_key)
                 .await
                 .map_err(Into::into)
-                .into_report()
         };
 
         #[cfg(not(feature = "accounts_cache"))]
@@ -215,7 +205,6 @@ impl ApiKeyInterface for Store {
         storage::ApiKey::find_by_merchant_id(&conn, merchant_id, limit, offset)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 }
 

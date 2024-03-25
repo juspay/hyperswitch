@@ -3,7 +3,7 @@ use std::{collections::HashMap, ops::Deref, str::FromStr, sync::Arc, time::Durat
 use api_models::enums;
 use common_utils::{date_time, errors::CustomResult, events::ApiEventMetric, ext_traits::AsyncExt};
 use currency_conversion::types::{CurrencyFactors, ExchangeRates};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::PeekInterface;
 use once_cell::sync::Lazy;
 use redis_interface::DelReply;
@@ -150,12 +150,10 @@ impl TryFrom<DefaultExchangeRates> for ExchangeRates {
         let mut conversion_usable: HashMap<enums::Currency, CurrencyFactors> = HashMap::new();
         for (curr, conversion) in value.conversion {
             let enum_curr = enums::Currency::from_str(curr.as_str())
-                .into_report()
                 .change_context(ForexCacheError::ConversionError)?;
             conversion_usable.insert(enum_curr, CurrencyFactors::from(conversion));
         }
         let base_curr = enums::Currency::from_str(value.base_currency.as_str())
-            .into_report()
             .change_context(ForexCacheError::ConversionError)?;
         Ok(Self {
             base_currency: base_curr,
@@ -342,7 +340,6 @@ async fn fetch_forex_rates(
     let forex_response = response
         .json::<ForexResponse>()
         .await
-        .into_report()
         .change_context(ForexCacheError::ParsingError)?;
 
     logger::info!("{:?}", forex_response);
@@ -399,7 +396,6 @@ pub async fn fallback_fetch_forex_rates(
     let fallback_forex_response = response
         .json::<FallbackForexResponse>()
         .await
-        .into_report()
         .change_context(ForexCacheError::ParsingError)?;
 
     logger::info!("{:?}", fallback_forex_response);
@@ -466,7 +462,6 @@ async fn acquire_redis_lock(app_state: &AppState) -> CustomResult<bool, ForexCac
                 (forex_api.local_fetch_retry_count * forex_api.local_fetch_retry_delay
                     + forex_api.api_timeout)
                     .try_into()
-                    .into_report()
                     .change_context(ForexCacheError::ConversionError)?,
             ),
         )
@@ -530,16 +525,13 @@ pub async fn convert_currency(
     .change_context(ForexCacheError::ApiError)?;
 
     let to_currency = api_models::enums::Currency::from_str(to_currency.as_str())
-        .into_report()
         .change_context(ForexCacheError::CurrencyNotAcceptable)?;
 
     let from_currency = api_models::enums::Currency::from_str(from_currency.as_str())
-        .into_report()
         .change_context(ForexCacheError::CurrencyNotAcceptable)?;
 
     let converted_amount =
         currency_conversion::conversion::convert(&rates.data, from_currency, to_currency, amount)
-            .into_report()
             .change_context(ForexCacheError::ConversionError)?;
 
     Ok(api_models::currency::CurrencyConversionResponse {

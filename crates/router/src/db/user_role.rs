@@ -2,7 +2,7 @@ use std::{collections::HashSet, ops::Not};
 
 use async_bb8_diesel::AsyncConnection;
 use diesel_models::{enums, user_role as storage};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
 use super::MockDb;
@@ -71,11 +71,7 @@ impl UserRoleInterface for Store {
         user_role: storage::UserRoleNew,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        user_role
-            .insert(&conn)
-            .await
-            .map_err(Into::into)
-            .into_report()
+        user_role.insert(&conn).await.map_err(Into::into)
     }
 
     #[instrument(skip_all)]
@@ -87,7 +83,6 @@ impl UserRoleInterface for Store {
         storage::UserRole::find_by_user_id(&conn, user_id.to_owned())
             .await
             .map_err(Into::into)
-            .into_report()
     }
 
     #[instrument(skip_all)]
@@ -104,7 +99,6 @@ impl UserRoleInterface for Store {
         )
         .await
         .map_err(Into::into)
-        .into_report()
     }
 
     #[instrument(skip_all)]
@@ -123,7 +117,6 @@ impl UserRoleInterface for Store {
         )
         .await
         .map_err(Into::into)
-        .into_report()
     }
 
     #[instrument(skip_all)]
@@ -142,7 +135,6 @@ impl UserRoleInterface for Store {
         )
         .await
         .map_err(Into::into)
-        .into_report()
     }
 
     #[instrument(skip_all)]
@@ -159,7 +151,6 @@ impl UserRoleInterface for Store {
         )
         .await
         .map_err(Into::into)
-        .into_report()
     }
 
     #[instrument(skip_all)]
@@ -171,7 +162,6 @@ impl UserRoleInterface for Store {
         storage::UserRole::list_by_user_id(&conn, user_id.to_owned())
             .await
             .map_err(Into::into)
-            .into_report()
     }
 
     #[instrument(skip_all)]
@@ -248,9 +238,7 @@ impl UserRoleInterface for Store {
             Ok::<_, errors::DatabaseError>(())
         })
         .await
-        .into_report()
-        .map_err(Into::into)
-        .into_report()?;
+        .map_err(Into::into)?;
 
         Ok(())
     }
@@ -276,7 +264,6 @@ impl UserRoleInterface for MockDb {
             id: user_roles
                 .len()
                 .try_into()
-                .into_report()
                 .change_context(errors::StorageError::MockDbError)?,
             user_id: user_role.user_id,
             merchant_id: user_role.merchant_id,

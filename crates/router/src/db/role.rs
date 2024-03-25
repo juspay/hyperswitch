@@ -1,6 +1,6 @@
 use common_enums::enums;
 use diesel_models::role as storage;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
 use super::MockDb;
@@ -55,7 +55,7 @@ impl RoleInterface for Store {
         role: storage::RoleNew,
     ) -> CustomResult<storage::Role, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        role.insert(&conn).await.map_err(Into::into).into_report()
+        role.insert(&conn).await.map_err(Into::into)
     }
 
     #[instrument(skip_all)]
@@ -67,7 +67,6 @@ impl RoleInterface for Store {
         storage::Role::find_by_role_id(&conn, role_id)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 
     #[instrument(skip_all)]
@@ -81,7 +80,6 @@ impl RoleInterface for Store {
         storage::Role::find_by_role_id_in_merchant_scope(&conn, role_id, merchant_id, org_id)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 
     #[instrument(skip_all)]
@@ -94,7 +92,6 @@ impl RoleInterface for Store {
         storage::Role::update_by_role_id(&conn, role_id, role_update)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 
     #[instrument(skip_all)]
@@ -106,7 +103,6 @@ impl RoleInterface for Store {
         storage::Role::delete_by_role_id(&conn, role_id)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 
     #[instrument(skip_all)]
@@ -119,7 +115,6 @@ impl RoleInterface for Store {
         storage::Role::list_roles(&conn, merchant_id, org_id)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 }
 
@@ -143,7 +138,6 @@ impl RoleInterface for MockDb {
             id: roles
                 .len()
                 .try_into()
-                .into_report()
                 .change_context(errors::StorageError::MockDbError)?,
             role_name: role.role_name,
             role_id: role.role_id,

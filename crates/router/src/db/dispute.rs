@@ -1,4 +1,4 @@
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
 use super::{MockDb, Store};
@@ -55,11 +55,7 @@ impl DisputeInterface for Store {
         dispute: storage::DisputeNew,
     ) -> CustomResult<storage::Dispute, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        dispute
-            .insert(&conn)
-            .await
-            .map_err(Into::into)
-            .into_report()
+        dispute.insert(&conn).await.map_err(Into::into)
     }
 
     #[instrument(skip_all)]
@@ -78,7 +74,6 @@ impl DisputeInterface for Store {
         )
         .await
         .map_err(Into::into)
-        .into_report()
     }
 
     #[instrument(skip_all)]
@@ -91,7 +86,6 @@ impl DisputeInterface for Store {
         storage::Dispute::find_by_merchant_id_dispute_id(&conn, merchant_id, dispute_id)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 
     #[instrument(skip_all)]
@@ -104,7 +98,6 @@ impl DisputeInterface for Store {
         storage::Dispute::filter_by_constraints(&conn, merchant_id, dispute_constraints)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 
     #[instrument(skip_all)]
@@ -117,7 +110,6 @@ impl DisputeInterface for Store {
         storage::Dispute::find_by_merchant_id_payment_id(&conn, merchant_id, payment_id)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 
     #[instrument(skip_all)]
@@ -127,10 +119,7 @@ impl DisputeInterface for Store {
         dispute: storage::DisputeUpdate,
     ) -> CustomResult<storage::Dispute, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        this.update(&conn, dispute)
-            .await
-            .map_err(Into::into)
-            .into_report()
+        this.update(&conn, dispute).await.map_err(Into::into)
     }
 }
 
@@ -157,7 +146,6 @@ impl DisputeInterface for MockDb {
             id: locked_disputes
                 .len()
                 .try_into()
-                .into_report()
                 .change_context(errors::StorageError::MockDbError)?,
             dispute_id: dispute.dispute_id,
             amount: dispute.amount,

@@ -11,7 +11,7 @@ use common_utils::{
     pii,
 };
 use diesel_models::configs;
-use error_stack::{report, FutureExt, IntoReport, ResultExt};
+use error_stack::{report, FutureExt, ResultExt};
 use futures::future::try_join_all;
 use masking::{PeekInterface, Secret};
 use pm_auth::connector::plaid::transformers::PlaidAuthType;
@@ -796,25 +796,20 @@ pub async fn create_payment_connector(
         if req.connector_type != api_enums::ConnectorType::PaymentMethodAuth {
             return Err(errors::ApiErrorResponse::InvalidRequestData {
                 message: "Invalid connector type given".to_string(),
-            })
-            .into_report();
+            });
         }
     } else if authentication_connector.is_some() {
         if req.connector_type != api_enums::ConnectorType::AuthenticationProcessor {
             return Err(errors::ApiErrorResponse::InvalidRequestData {
                 message: "Invalid connector type given".to_string(),
-            })
-            .into_report();
+            });
         }
     } else {
-        let routable_connector_option = req
-            .connector_name
-            .to_string()
-            .parse()
-            .into_report()
-            .change_context(errors::ApiErrorResponse::InvalidRequestData {
+        let routable_connector_option = req.connector_name.to_string().parse().change_context(
+            errors::ApiErrorResponse::InvalidRequestData {
                 message: "Invalid connector name given".to_string(),
-            })?;
+            },
+        )?;
         routable_connector = Some(routable_connector_option);
     };
 
@@ -1047,7 +1042,6 @@ async fn validate_pm_auth(
     profile_id: &Option<String>,
 ) -> RouterResponse<()> {
     let config = serde_json::from_value::<api_models::pm_auth::PaymentMethodAuthConfig>(val)
-        .into_report()
         .change_context(errors::ApiErrorResponse::InvalidRequestData {
             message: "invalid data received for payment method auth config".to_string(),
         })
@@ -1071,15 +1065,13 @@ async fn validate_pm_auth(
             .find(|mca| mca.merchant_connector_id == conn_choice.mca_id)
             .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
                 message: "payment method auth connector account not found".to_string(),
-            })
-            .into_report()?;
+            })?;
 
         if &pm_auth_mca.profile_id != profile_id {
             return Err(errors::ApiErrorResponse::GenericNotFoundError {
                 message: "payment method auth profile_id differs from connector profile_id"
                     .to_string(),
-            })
-            .into_report();
+            });
         }
     }
 
@@ -1205,7 +1197,6 @@ pub async fn update_payment_connector(
     let metadata = req.metadata.clone().or(mca.metadata.clone());
     let connector_name = mca.connector_name.as_ref();
     let connector_enum = api_models::enums::Connector::from_str(connector_name)
-        .into_report()
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "connector",
         })
@@ -1297,7 +1288,6 @@ pub async fn update_payment_connector(
         .profile_id
         .clone()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .into_report()
         .attach_printable("Missing `profile_id` in merchant connector account")?;
 
     let request_connector_label = req.connector_label;

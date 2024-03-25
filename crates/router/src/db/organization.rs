@@ -1,6 +1,6 @@
 use common_utils::errors::CustomResult;
 use diesel_models::organization as storage;
-use error_stack::IntoReport;
+use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
 use crate::{connection, core::errors, services::Store};
@@ -32,11 +32,7 @@ impl OrganizationInterface for Store {
         organization: storage::OrganizationNew,
     ) -> CustomResult<storage::Organization, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        organization
-            .insert(&conn)
-            .await
-            .map_err(Into::into)
-            .into_report()
+        organization.insert(&conn).await.map_err(Into::into)
     }
 
     #[instrument(skip_all)]
@@ -48,7 +44,6 @@ impl OrganizationInterface for Store {
         storage::Organization::find_by_org_id(&conn, org_id.to_string())
             .await
             .map_err(Into::into)
-            .into_report()
     }
 
     #[instrument(skip_all)]
@@ -62,7 +57,6 @@ impl OrganizationInterface for Store {
         storage::Organization::update_by_org_id(&conn, org_id.to_string(), update)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 }
 

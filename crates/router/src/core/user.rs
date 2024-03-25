@@ -3,7 +3,7 @@ use api_models::user::{self as user_api, InviteMultipleUserResponse};
 use diesel_models::user_role::UserRoleUpdate;
 use diesel_models::{enums::UserStatus, user as storage_user, user_role::UserRoleNew};
 #[cfg(feature = "email")]
-use error_stack::IntoReport;
+use error_stack::ResultExt;
 use error_stack::ResultExt;
 use masking::ExposeInterface;
 #[cfg(feature = "email")]
@@ -219,7 +219,7 @@ pub async fn connect_account(
         .unwrap_or(false)
     {
         if matches!(env::which(), env::Env::Production) {
-            return Err(UserErrors::InvalidCredentials).into_report();
+            return Err(UserErrors::InvalidCredentials);
         }
 
         let new_user = domain::NewUser::try_from(request)?;

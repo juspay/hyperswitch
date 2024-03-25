@@ -1,4 +1,4 @@
-use error_stack::IntoReport;
+use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 use storage_impl::MockDb;
 
@@ -42,7 +42,6 @@ impl BlocklistLookupInterface for Store {
             .insert(&conn)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 
     #[instrument(skip_all)]
@@ -55,7 +54,6 @@ impl BlocklistLookupInterface for Store {
         storage::BlocklistLookup::find_by_merchant_id_fingerprint(&conn, merchant_id, fingerprint)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 
     #[instrument(skip_all)]
@@ -68,7 +66,6 @@ impl BlocklistLookupInterface for Store {
         storage::BlocklistLookup::delete_by_merchant_id_fingerprint(&conn, merchant_id, fingerprint)
             .await
             .map_err(Into::into)
-            .into_report()
     }
 }
 

@@ -32,7 +32,7 @@ pub trait CaptureInterface {
 
 #[cfg(feature = "kv_store")]
 mod storage {
-    use error_stack::IntoReport;
+    use error_stack::ResultExt;
     use router_env::{instrument, tracing};
 
     use super::CaptureInterface;
@@ -53,11 +53,7 @@ mod storage {
         ) -> CustomResult<Capture, errors::StorageError> {
             let db_call = || async {
                 let conn = connection::pg_connection_write(self).await?;
-                capture
-                    .insert(&conn)
-                    .await
-                    .map_err(Into::into)
-                    .into_report()
+                capture.insert(&conn).await.map_err(Into::into)
             };
             db_call().await
         }
@@ -74,7 +70,6 @@ mod storage {
                 this.update_with_capture_id(&conn, capture)
                     .await
                     .map_err(Into::into)
-                    .into_report()
             };
             db_call().await
         }
@@ -97,7 +92,6 @@ mod storage {
                 )
                 .await
                 .map_err(Into::into)
-                .into_report()
             };
             db_call().await
         }
@@ -106,7 +100,7 @@ mod storage {
 
 #[cfg(not(feature = "kv_store"))]
 mod storage {
-    use error_stack::IntoReport;
+    use error_stack::ResultExt;
     use router_env::{instrument, tracing};
 
     use super::CaptureInterface;
@@ -127,11 +121,7 @@ mod storage {
         ) -> CustomResult<Capture, errors::StorageError> {
             let db_call = || async {
                 let conn = connection::pg_connection_write(self).await?;
-                capture
-                    .insert(&conn)
-                    .await
-                    .map_err(Into::into)
-                    .into_report()
+                capture.insert(&conn).await.map_err(Into::into)
             };
             db_call().await
         }
@@ -148,7 +138,6 @@ mod storage {
                 this.update_with_capture_id(&conn, capture)
                     .await
                     .map_err(Into::into)
-                    .into_report()
             };
             db_call().await
         }
@@ -171,7 +160,6 @@ mod storage {
                 )
                 .await
                 .map_err(Into::into)
-                .into_report()
             };
             db_call().await
         }

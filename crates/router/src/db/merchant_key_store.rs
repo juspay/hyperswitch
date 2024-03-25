@@ -1,4 +1,4 @@
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::Secret;
 use router_env::{instrument, tracing};
 #[cfg(feature = "accounts_cache")]
@@ -57,8 +57,7 @@ impl MerchantKeyStoreInterface for Store {
             .change_context(errors::StorageError::EncryptionError)?
             .insert(&conn)
             .await
-            .map_err(Into::into)
-            .into_report()?
+            .map_err(Into::into)?
             .convert(key)
             .await
             .change_context(errors::StorageError::DecryptionError)
@@ -79,7 +78,6 @@ impl MerchantKeyStoreInterface for Store {
             )
             .await
             .map_err(Into::into)
-            .into_report()
         };
 
         #[cfg(not(feature = "accounts_cache"))]
@@ -120,7 +118,6 @@ impl MerchantKeyStoreInterface for Store {
             )
             .await
             .map_err(Into::into)
-            .into_report()
         };
 
         #[cfg(not(feature = "accounts_cache"))]
@@ -156,7 +153,6 @@ impl MerchantKeyStoreInterface for Store {
             )
             .await
             .map_err(Into::into)
-            .into_report()
         };
 
         futures::future::try_join_all(fetch_func().await?.into_iter().map(|key_store| async {
