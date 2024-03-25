@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use actix_web::http::StatusCode;
 use common_utils::errors::ParsingError;
-use error_stack::{Report, ResultExt};
+use error_stack::{report, Report, ResultExt};
 use router_env::logger;
 use time::PrimitiveDateTime;
 
@@ -80,7 +80,7 @@ impl ClickhouseClient {
                     Err(ClickhouseError::ResponseError)
                         .attach_printable_lazy(|| format!("Error: {er:?}"))
                 },
-                |t| Err(ClickhouseError::ResponseNotOK(t)),
+                |t| Err(report!(ClickhouseError::ResponseNotOK(t))),
             )
         } else {
             Ok(response
@@ -146,7 +146,7 @@ where
 {
     fn load_row(row: Self::Row) -> common_utils::errors::CustomResult<T, QueryExecutionError> {
         row.try_into()
-            .change_context(QueryExecutionError::RowExtractionFailure)
+            .map_err(|error| error.change_context(QueryExecutionError::RowExtractionFailure))
     }
 }
 
