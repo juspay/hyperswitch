@@ -1,4 +1,4 @@
-use error_stack::ResultExt;
+use error_stack::report;
 use router_env::{instrument, tracing};
 
 use super::Store;
@@ -53,7 +53,10 @@ impl BusinessProfileInterface for Store {
         business_profile: business_profile::BusinessProfileNew,
     ) -> CustomResult<business_profile::BusinessProfile, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        business_profile.insert(&conn).await.map_err(Into::into)
+        business_profile
+            .insert(&conn)
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -64,7 +67,7 @@ impl BusinessProfileInterface for Store {
         let conn = connection::pg_connection_read(self).await?;
         storage::business_profile::BusinessProfile::find_by_profile_id(&conn, profile_id)
             .await
-            .map_err(Into::into)
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -80,7 +83,7 @@ impl BusinessProfileInterface for Store {
             merchant_id,
         )
         .await
-        .map_err(Into::into)
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -96,7 +99,7 @@ impl BusinessProfileInterface for Store {
             business_profile_update,
         )
         .await
-        .map_err(Into::into)
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -112,7 +115,7 @@ impl BusinessProfileInterface for Store {
             merchant_id,
         )
         .await
-        .map_err(Into::into)
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -126,7 +129,7 @@ impl BusinessProfileInterface for Store {
             merchant_id,
         )
         .await
-        .map_err(Into::into)
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
 

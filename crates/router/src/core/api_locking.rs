@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use actix_web::rt::time as actix_time;
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use redis_interface as redis;
 use router_env::{instrument, logger, tracing};
 
@@ -102,7 +102,7 @@ impl LockAction {
                     }
                 }
 
-                Err(errors::ApiErrorResponse::ResourceBusy)
+                Err(report!(errors::ApiErrorResponse::ResourceBusy))
             }
             Self::QueueWithOk | Self::Drop | Self::NotApplicable => Ok(()),
         }

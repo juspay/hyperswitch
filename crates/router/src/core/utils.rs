@@ -997,7 +997,8 @@ pub async fn validate_and_get_business_profile(
             if business_profile.merchant_id.ne(merchant_id) {
                 Err(errors::ApiErrorResponse::AccessForbidden {
                     resource: business_profile.profile_id,
-                })
+                }
+                .into())
             } else {
                 Ok(business_profile)
             }

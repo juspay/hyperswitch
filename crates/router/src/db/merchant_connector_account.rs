@@ -1,5 +1,5 @@
 use common_utils::ext_traits::{AsyncExt, ByteSliceExt, Encode};
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 #[cfg(feature = "accounts_cache")]
 use storage_impl::redis::cache;
@@ -183,7 +183,7 @@ impl MerchantConnectorAccountInterface for Store {
                 connector_label,
             )
             .await
-            .map_err(Into::into)
+            .map_err(|error| report!(errors::StorageError::from(error)))
         };
 
         #[cfg(not(feature = "accounts_cache"))]
@@ -228,7 +228,7 @@ impl MerchantConnectorAccountInterface for Store {
                 connector_name,
             )
             .await
-            .map_err(Into::into)
+            .map_err(|error| report!(errors::StorageError::from(error)))
         };
 
         #[cfg(not(feature = "accounts_cache"))]
@@ -272,7 +272,7 @@ impl MerchantConnectorAccountInterface for Store {
             connector_name,
         )
         .await
-        .map_err(Into::into)
+        .map_err(|error| report!(errors::StorageError::from(error)))
         .async_and_then(|items| async {
             let mut output = Vec::with_capacity(items.len());
             for item in items.into_iter() {
@@ -302,7 +302,7 @@ impl MerchantConnectorAccountInterface for Store {
                 merchant_connector_id,
             )
             .await
-            .map_err(Into::into)
+            .map_err(|error| report!(errors::StorageError::from(error)))
         };
 
         #[cfg(not(feature = "accounts_cache"))]
@@ -341,7 +341,7 @@ impl MerchantConnectorAccountInterface for Store {
             .change_context(errors::StorageError::EncryptionError)?
             .insert(&conn)
             .await
-            .map_err(Into::into)
+            .map_err(|error| report!(errors::StorageError::from(error)))
             .async_and_then(|item| async {
                 item.convert(key_store.key.get_inner())
                     .await
@@ -360,7 +360,7 @@ impl MerchantConnectorAccountInterface for Store {
         let conn = connection::pg_connection_read(self).await?;
         storage::MerchantConnectorAccount::find_by_merchant_id(&conn, merchant_id, get_disabled)
             .await
-            .map_err(Into::into)
+            .map_err(|error| report!(errors::StorageError::from(error)))
             .async_and_then(|items| async {
                 let mut output = Vec::with_capacity(items.len());
                 for item in items.into_iter() {
@@ -400,7 +400,7 @@ impl MerchantConnectorAccountInterface for Store {
                 .change_context(errors::StorageError::EncryptionError)?
                 .update(&conn, merchant_connector_account)
                 .await
-                .map_err(Into::into)
+                .map_err(|error| report!(errors::StorageError::from(error)))
                 .async_and_then(|item| async {
                     item.convert(key_store.key.get_inner())
                         .await
@@ -447,7 +447,7 @@ impl MerchantConnectorAccountInterface for Store {
                 merchant_connector_id,
             )
             .await
-            .map_err(Into::into)
+            .map_err(|error| report!(errors::StorageError::from(error)))
         };
 
         #[cfg(feature = "accounts_cache")]
@@ -463,7 +463,7 @@ impl MerchantConnectorAccountInterface for Store {
                 merchant_connector_id,
             )
             .await
-            .map_err(Into::into)?;
+            .map_err(|error| report!(errors::StorageError::from(error)))?;
 
             let _profile_id = mca.profile_id.ok_or(errors::StorageError::ValueNotFound(
                 "profile_id".to_string(),
@@ -619,10 +619,7 @@ impl MerchantConnectorAccountInterface for MockDb {
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
         let mut accounts = self.merchant_connector_accounts.lock().await;
         let account = storage::MerchantConnectorAccount {
-            id: accounts
-                .len()
-                .try_into()
-                .change_context(errors::StorageError::MockDbError)?,
+            id: i32::try_from(accounts.len()).change_context(errors::StorageError::MockDbError)?,
             merchant_id: t.merchant_id,
             connector_name: t.connector_name,
             connector_account_details: t.connector_account_details.into(),

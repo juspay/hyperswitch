@@ -2,7 +2,7 @@ use common_utils::{
     crypto::{Encryptable, GcmAes256},
     errors::ReportSwitchExt,
 };
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
 use router_env::{instrument, tracing};
 
@@ -55,7 +55,9 @@ pub async fn create_customer(
                 Ok(())
             }
         }
-        Ok(_) => Err(errors::CustomersErrorResponse::CustomerAlreadyExists),
+        Ok(_) => Err(report!(
+            errors::CustomersErrorResponse::CustomerAlreadyExists
+        )),
     }?;
 
     let key = key_store.key.get_inner().peek();

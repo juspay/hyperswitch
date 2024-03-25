@@ -175,7 +175,7 @@ pub async fn create_merchant_account(
     };
 
     let mut merchant_account = async {
-        Ok(domain::MerchantAccount {
+        Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(domain::MerchantAccount {
             merchant_id: req.merchant_id,
             merchant_name: req
                 .merchant_name
@@ -279,8 +279,7 @@ pub async fn create_merchant_account(
     .ok();
 
     Ok(service_api::ApplicationResponse::Json(
-        merchant_account
-            .try_into()
+        api::MerchantAccountResponse::try_from(merchant_account)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed while generating response")?,
     ))
@@ -300,11 +299,11 @@ pub async fn list_merchant_account(
     let merchant_accounts = merchant_accounts
         .into_iter()
         .map(|merchant_account| {
-            merchant_account
-                .try_into()
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            api::MerchantAccountResponse::try_from(merchant_account).change_context(
+                errors::ApiErrorResponse::InvalidDataValue {
                     field_name: "merchant_account",
-                })
+                },
+            )
         })
         .collect::<Result<Vec<_>, _>>()?;
 
@@ -330,8 +329,7 @@ pub async fn get_merchant_account(
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     Ok(service_api::ApplicationResponse::Json(
-        merchant_account
-            .try_into()
+        api::MerchantAccountResponse::try_from(merchant_account)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct response")?,
     ))
@@ -609,8 +607,7 @@ pub async fn merchant_account_update(
     // If there are any new business labels generated, create business profile
 
     Ok(service_api::ApplicationResponse::Json(
-        response
-            .try_into()
+        api::MerchantAccountResponse::try_from(response)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed while generating response")?,
     ))
@@ -796,20 +793,24 @@ pub async fn create_payment_connector(
         if req.connector_type != api_enums::ConnectorType::PaymentMethodAuth {
             return Err(errors::ApiErrorResponse::InvalidRequestData {
                 message: "Invalid connector type given".to_string(),
-            });
+            }
+            .into());
         }
     } else if authentication_connector.is_some() {
         if req.connector_type != api_enums::ConnectorType::AuthenticationProcessor {
             return Err(errors::ApiErrorResponse::InvalidRequestData {
                 message: "Invalid connector type given".to_string(),
-            });
+            }
+            .into());
         }
     } else {
-        let routable_connector_option = req.connector_name.to_string().parse().change_context(
-            errors::ApiErrorResponse::InvalidRequestData {
+        let routable_connector_option = req
+            .connector_name
+            .to_string()
+            .parse::<api_enums::RoutableConnectors>()
+            .change_context(errors::ApiErrorResponse::InvalidRequestData {
                 message: "Invalid connector name given".to_string(),
-            },
-        )?;
+            })?;
         routable_connector = Some(routable_connector_option);
     };
 
@@ -1071,7 +1072,8 @@ async fn validate_pm_auth(
             return Err(errors::ApiErrorResponse::GenericNotFoundError {
                 message: "payment method auth profile_id differs from connector profile_id"
                     .to_string(),
-            });
+            }
+            .into());
         }
     }
 
