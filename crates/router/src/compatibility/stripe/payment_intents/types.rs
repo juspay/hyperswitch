@@ -717,9 +717,12 @@ impl ForeignTryFrom<(Option<MandateData>, Option<String>)> for Option<payments::
         (mandate_data, currency): (Option<MandateData>, Option<String>),
     ) -> errors::RouterResult<Self> {
         let currency = currency
-            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "currency",
-            })
+            .ok_or(
+                errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "currency",
+                }
+                .into(),
+            )
             .and_then(|c| {
                 c.to_uppercase().parse_enum("currency").change_context(
                     errors::ApiErrorResponse::InvalidDataValue {
