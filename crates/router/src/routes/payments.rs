@@ -6,7 +6,7 @@ pub mod helpers;
 
 use actix_web::{web, Responder};
 use api_models::payments::HeaderPayload;
-use error_stack::{report, ResultExt};
+use error_stack::report;
 use router_env::{env, instrument, tracing, types, Flow};
 
 use crate::{
