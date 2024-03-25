@@ -275,11 +275,12 @@ impl DecodeMessage for GcmAes256 {
             .change_context(errors::CryptoError::DecodingFailed)?;
 
         let nonce_sequence = NonceSequence::from_bytes(
-            msg.get(..ring::aead::NONCE_LEN)
-                .ok_or(errors::CryptoError::DecodingFailed)
-                .attach_printable("Failed to read the nonce form the encrypted ciphertext")?
-                .try_into()
-                .change_context(errors::CryptoError::DecodingFailed)?,
+            <[u8; ring::aead::NONCE_LEN]>::try_from(
+                msg.get(..ring::aead::NONCE_LEN)
+                    .ok_or(errors::CryptoError::DecodingFailed)
+                    .attach_printable("Failed to read the nonce form the encrypted ciphertext")?,
+            )
+            .change_context(errors::CryptoError::DecodingFailed)?,
         );
 
         let mut key = OpeningKey::new(key, nonce_sequence);

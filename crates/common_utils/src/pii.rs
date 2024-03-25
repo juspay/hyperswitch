@@ -308,7 +308,8 @@ impl FromStr for Email {
             }
             Err(_) => Err(ValidationError::InvalidValue {
                 message: "Invalid email address format".into(),
-            }),
+            }
+            .into()),
         }
     }
 }

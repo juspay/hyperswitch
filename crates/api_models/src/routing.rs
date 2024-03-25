@@ -1,7 +1,6 @@
 use std::fmt::Debug;
 
 use common_utils::errors::ParsingError;
-use error_stack::ResultExt;
 pub use euclid::{
     dssa::types::EuclidAnalysable,
     frontend::{
