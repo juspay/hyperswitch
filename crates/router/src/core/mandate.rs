@@ -59,7 +59,7 @@ pub async fn revoke_mandate(
         .find_mandate_by_merchant_id_mandate_id(&merchant_account.merchant_id, &req.mandate_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
-    let mandate_revoke_status = match mandate.mandate_status {
+    match mandate.mandate_status {
         common_enums::MandateStatus::Active
         | common_enums::MandateStatus::Inactive
         | common_enums::MandateStatus::Pending => {
@@ -136,16 +136,17 @@ pub async fn revoke_mandate(
                     connector: mandate.connector,
                     status_code: err.status_code,
                     reason: err.reason,
-                }),
+                }
+                .into()),
             }
         }
         common_enums::MandateStatus::Revoked => {
             Err(errors::ApiErrorResponse::MandateValidationFailed {
                 reason: "Mandate has already been revoked".to_string(),
-            })
+            }
+            .into())
         }
-    };
-    mandate_revoke_status
+    }
 }
 
 #[instrument(skip(db))]

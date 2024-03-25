@@ -20,7 +20,7 @@ use super::payments;
 #[cfg(feature = "payouts")]
 use super::payouts;
 #[cfg(feature = "business_profile_routing")]
-use crate::types::transformers::{ForeignInto, ForeignTryInto};
+use crate::types::transformers::{ForeignInto, ForeignTryFrom};
 use crate::{
     consts,
     core::{
@@ -396,8 +396,7 @@ pub async fn retrieve_routing_config(
         .get_required_value("BusinessProfile")
         .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?;
 
-        let response = routing_algorithm
-            .foreign_try_into()
+        let response = routing_types::MerchantRoutingAlgorithm::foreign_try_from(routing_algorithm)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("unable to parse routing algorithm")?;
 

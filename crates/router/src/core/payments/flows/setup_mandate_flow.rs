@@ -406,7 +406,8 @@ impl types::SetupMandateRouterData {
                     "Update Mandate flow not implemented for the connector {:?}",
                     connector.connector_name
                 ),
-            })
+            }
+            .into())
         }
     }
 }

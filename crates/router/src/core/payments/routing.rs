@@ -638,10 +638,10 @@ pub async fn refresh_kgraph_cache(
         profile_id,
     );
 
-    let api_mcas: Vec<admin_api::MerchantConnectorResponse> = merchant_connector_accounts
+    let api_mcas = merchant_connector_accounts
         .into_iter()
-        .map(|acct| acct.try_into())
-        .collect::<Result<_, _>>()
+        .map(admin_api::MerchantConnectorResponse::try_from)
+        .collect::<Result<Vec<_>, _>>()
         .change_context(errors::RoutingError::KgraphCacheRefreshFailed)?;
 
     let kgraph = mca_graph::make_mca_graph(api_mcas)
