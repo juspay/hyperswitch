@@ -32,7 +32,7 @@ pub trait CaptureInterface {
 
 #[cfg(feature = "kv_store")]
 mod storage {
-    use error_stack::ResultExt;
+    use error_stack::report;
     use router_env::{instrument, tracing};
 
     use super::CaptureInterface;
@@ -53,7 +53,10 @@ mod storage {
         ) -> CustomResult<Capture, errors::StorageError> {
             let db_call = || async {
                 let conn = connection::pg_connection_write(self).await?;
-                capture.insert(&conn).await.map_err(Into::into)
+                capture
+                    .insert(&conn)
+                    .await
+                    .map_err(|error| report!(errors::StorageError::from(error)))
             };
             db_call().await
         }
@@ -69,7 +72,7 @@ mod storage {
                 let conn = connection::pg_connection_write(self).await?;
                 this.update_with_capture_id(&conn, capture)
                     .await
-                    .map_err(Into::into)
+                    .map_err(|error| report!(errors::StorageError::from(error)))
             };
             db_call().await
         }
@@ -91,7 +94,7 @@ mod storage {
                     &conn,
                 )
                 .await
-                .map_err(Into::into)
+                .map_err(|error| report!(errors::StorageError::from(error)))
             };
             db_call().await
         }
@@ -100,7 +103,7 @@ mod storage {
 
 #[cfg(not(feature = "kv_store"))]
 mod storage {
-    use error_stack::ResultExt;
+    use error_stack::report;
     use router_env::{instrument, tracing};
 
     use super::CaptureInterface;
@@ -121,7 +124,10 @@ mod storage {
         ) -> CustomResult<Capture, errors::StorageError> {
             let db_call = || async {
                 let conn = connection::pg_connection_write(self).await?;
-                capture.insert(&conn).await.map_err(Into::into)
+                capture
+                    .insert(&conn)
+                    .await
+                    .map_err(|error| report!(errors::StorageError::from(error)))
             };
             db_call().await
         }
@@ -137,7 +143,7 @@ mod storage {
                 let conn = connection::pg_connection_write(self).await?;
                 this.update_with_capture_id(&conn, capture)
                     .await
-                    .map_err(Into::into)
+                    .map_err(|error| report!(errors::StorageError::from(error)))
             };
             db_call().await
         }
@@ -159,7 +165,7 @@ mod storage {
                     &conn,
                 )
                 .await
-                .map_err(Into::into)
+                .map_err(|error| report!(errors::StorageError::from(error)))
             };
             db_call().await
         }
