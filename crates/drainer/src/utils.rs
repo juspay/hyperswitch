@@ -1,6 +1,6 @@
 use std::sync::{atomic, Arc};
 
-use error_stack::ResultExt;
+use error_stack::report;
 use redis_interface as redis;
 use serde::de::Deserialize;
 
@@ -14,7 +14,9 @@ pub fn parse_stream_entries<'a>(
     stream_name: &str,
 ) -> errors::DrainerResult<&'a StreamEntries> {
     read_result.get(stream_name).ok_or_else(|| {
-        errors::DrainerError::RedisError(error_stack::report!(redis::errors::RedisError::NotFound))
+        report!(errors::DrainerError::RedisError(report!(
+            redis::errors::RedisError::NotFound
+        )))
     })
 }
 

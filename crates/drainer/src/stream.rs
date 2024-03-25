@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use error_stack::ResultExt;
 use redis_interface as redis;
 use router_env::{logger, tracing};
 
@@ -75,7 +74,7 @@ impl Store {
             &[metrics::KeyValue::new("stream", stream_name.to_owned())],
         );
 
-        output
+        Ok(output?)
     }
     pub async fn trim_from_stream(
         &self,
