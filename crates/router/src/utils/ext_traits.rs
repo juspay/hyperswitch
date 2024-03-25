@@ -1,4 +1,4 @@
-use common_utils::ext_traits::ValueExt;
+use common_utils::{errors::ValidationError, ext_traits::ValueExt};
 use error_stack::{IntoReport, Report, ResultExt};
 
 use crate::{
@@ -9,7 +9,7 @@ use crate::{
 pub trait OptionExt<T> {
     fn check_value_present(&self, field_name: &'static str) -> RouterResult<()>;
 
-    fn get_required_value(self, field_name: &'static str) -> RouterResult<T>;
+    fn get_required_value(self, field_name: &'static str) -> CustomResult<T, ValidationError>;
 
     fn parse_enum<E>(self, enum_name: &'static str) -> CustomResult<E, errors::ParsingError>
     where
@@ -41,14 +41,13 @@ where
 
     // This will allow the error message that was generated in this function to point to the call site
     #[track_caller]
-    fn get_required_value(self, field_name: &'static str) -> RouterResult<T> {
-        match self {
-            Some(v) => Ok(v),
-            None => Err(
-                Report::new(ApiErrorResponse::MissingRequiredField { field_name })
-                    .attach_printable(format!("Missing required field {field_name} in {self:?}")),
-            ),
-        }
+    fn get_required_value(self, field_name: &'static str) -> CustomResult<T, ValidationError> {
+        self.ok_or(
+            Report::new(ValidationError::MissingRequiredField {
+                field_name: field_name.to_owned(),
+            })
+            .attach_printable(format!("Missing required field {field_name} in {self:?}")),
+        )
     }
 
     fn parse_enum<E>(self, enum_name: &'static str) -> CustomResult<E, errors::ParsingError>
