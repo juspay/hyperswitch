@@ -1,4 +1,4 @@
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
 use super::{MockDb, Store};
@@ -36,7 +36,7 @@ impl LockerMockUpInterface for Store {
         let conn = connection::pg_connection_read(self).await?;
         storage::LockerMockUp::find_by_card_id(&conn, card_id)
             .await
-            .map_err(Into::into)
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -45,7 +45,9 @@ impl LockerMockUpInterface for Store {
         new: storage::LockerMockUpNew,
     ) -> CustomResult<storage::LockerMockUp, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        new.insert(&conn).await.map_err(Into::into)
+        new.insert(&conn)
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -56,7 +58,7 @@ impl LockerMockUpInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::LockerMockUp::delete_by_card_id(&conn, card_id)
             .await
-            .map_err(Into::into)
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
 
@@ -86,9 +88,7 @@ impl LockerMockUpInterface for MockDb {
         }
 
         let created_locker = storage::LockerMockUp {
-            id: locked_lockers
-                .len()
-                .try_into()
+            id: i32::try_from(locked_lockers.len())
                 .change_context(errors::StorageError::MockDbError)?,
             card_id: new.card_id,
             external_id: new.external_id,

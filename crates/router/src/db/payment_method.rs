@@ -1,5 +1,5 @@
 use diesel_models::payment_method::PaymentMethodUpdateInternal;
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
 use super::{MockDb, Store};
@@ -71,7 +71,7 @@ impl PaymentMethodInterface for Store {
         let conn = connection::pg_connection_read(self).await?;
         storage::PaymentMethod::find_by_payment_method_id(&conn, payment_method_id)
             .await
-            .map_err(Into::into)
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -82,7 +82,7 @@ impl PaymentMethodInterface for Store {
         let conn = connection::pg_connection_read(self).await?;
         storage::PaymentMethod::find_by_locker_id(&conn, locker_id)
             .await
-            .map_err(Into::into)
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -100,7 +100,7 @@ impl PaymentMethodInterface for Store {
             status,
         )
         .await
-        .map_err(Into::into)
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -109,7 +109,10 @@ impl PaymentMethodInterface for Store {
         payment_method_new: storage::PaymentMethodNew,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        payment_method_new.insert(&conn).await.map_err(Into::into)
+        payment_method_new
+            .insert(&conn)
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -122,7 +125,7 @@ impl PaymentMethodInterface for Store {
         payment_method
             .update_with_payment_method_id(&conn, payment_method_update)
             .await
-            .map_err(Into::into)
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -140,7 +143,7 @@ impl PaymentMethodInterface for Store {
             limit,
         )
         .await
-        .map_err(Into::into)
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -160,7 +163,7 @@ impl PaymentMethodInterface for Store {
             limit,
         )
         .await
-        .map_err(Into::into)
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     async fn delete_payment_method_by_merchant_id_payment_method_id(
@@ -175,7 +178,7 @@ impl PaymentMethodInterface for Store {
             payment_method_id,
         )
         .await
-        .map_err(Into::into)
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
 
@@ -234,9 +237,7 @@ impl PaymentMethodInterface for MockDb {
                     && pm.status == status
             })
             .count();
-        count
-            .try_into()
-            .change_context(errors::StorageError::MockDbError)
+        i64::try_from(count).change_context(errors::StorageError::MockDbError)
     }
 
     async fn insert_payment_method(
@@ -246,9 +247,7 @@ impl PaymentMethodInterface for MockDb {
         let mut payment_methods = self.payment_methods.lock().await;
 
         let payment_method = storage::PaymentMethod {
-            id: payment_methods
-                .len()
-                .try_into()
+            id: i32::try_from(payment_methods.len())
                 .change_context(errors::StorageError::MockDbError)?,
             customer_id: payment_method_new.customer_id,
             merchant_id: payment_method_new.merchant_id,
@@ -323,9 +322,10 @@ impl PaymentMethodInterface for MockDb {
             .collect();
 
         if payment_methods_found.is_empty() {
-            Err(errors::StorageError::ValueNotFound(
-                "cannot find payment methods".to_string(),
-            ))
+            Err(
+                errors::StorageError::ValueNotFound("cannot find payment methods".to_string())
+                    .into(),
+            )
         } else {
             Ok(payment_methods_found)
         }

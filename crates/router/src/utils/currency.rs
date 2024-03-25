@@ -459,10 +459,11 @@ async fn acquire_redis_lock(app_state: &AppState) -> CustomResult<bool, ForexCac
             REDIX_FOREX_CACHE_KEY,
             "",
             Some(
-                (forex_api.local_fetch_retry_count * forex_api.local_fetch_retry_delay
-                    + forex_api.api_timeout)
-                    .try_into()
-                    .change_context(ForexCacheError::ConversionError)?,
+                i64::try_from(
+                    forex_api.local_fetch_retry_count * forex_api.local_fetch_retry_delay
+                        + forex_api.api_timeout,
+                )
+                .change_context(ForexCacheError::ConversionError)?,
             ),
         )
         .await

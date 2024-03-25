@@ -1023,9 +1023,7 @@ pub async fn mock_get_card<'a>(
         card_fingerprint: locker_mock_up.card_fingerprint.into(),
         card_global_fingerprint: locker_mock_up.card_global_fingerprint.into(),
         merchant_id: Some(locker_mock_up.merchant_id),
-        card_number: locker_mock_up
-            .card_number
-            .try_into()
+        card_number: cards::CardNumber::try_from(locker_mock_up.card_number)
             .change_context(errors::VaultError::ResponseDeserializationFailed)
             .attach_printable("Invalid card number format from the mock locker")
             .map(Some)?,
@@ -1489,9 +1487,8 @@ pub async fn list_payment_methods(
                     .connector
                     .connector_name
                     .to_string()
-                    .parse()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("")?,
+                    .parse::<api_enums::RoutableConnectors>()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
                 #[cfg(feature = "connector_choice_mca_id")]
                 merchant_connector_id: choice.connector.merchant_connector_id,
                 #[cfg(not(feature = "connector_choice_mca_id"))]
@@ -3154,7 +3151,7 @@ async fn get_masked_bank_details(
                 mask: bank_details.mask,
             })),
         },
-        None => Err(errors::ApiErrorResponse::InternalServerError.into())
+        None => Err(report!(errors::ApiErrorResponse::InternalServerError))
             .attach_printable("Unable to fetch payment method data"),
     }
 }
@@ -3184,7 +3181,8 @@ async fn get_bank_account_connector_details(
         Some(pmd) => match pmd {
             PaymentMethodsData::Card(_) => Err(errors::ApiErrorResponse::UnprocessableEntity {
                 message: "Card is not a valid entity".to_string(),
-            }),
+            }
+            .into()),
             PaymentMethodsData::BankDetails(bank_details) => {
                 let connector_details = bank_details
                     .connector_details
