@@ -165,6 +165,7 @@ impl
             transaction_reference: item.router_data.connector_request_reference_id.clone(),
             channel: None,
             customer: None,
+            merchant_transaction_id: Some(item.connector_request_reference_id.to_owned()),
         })
     }
 }
