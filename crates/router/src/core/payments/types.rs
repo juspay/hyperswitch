@@ -379,7 +379,7 @@ impl SurchargeMetadata {
 
 #[derive(Debug, Clone)]
 pub struct AuthenticationData {
-    pub eci: String,
+    pub eci: Option<String>,
     pub cavv: String,
     pub threeds_server_transaction_id: String,
     pub message_version: String,
@@ -409,14 +409,8 @@ impl ForeignTryFrom<&storage::Authentication> for AuthenticationData {
                 .get_required_value("cavv")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("cavv must not be null when authentication_status is success")?;
-            let eci = authentication
-                .eci
-                .clone()
-                .get_required_value("eci")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("eci must not be null when authentication_status is success")?;
             Ok(Self {
-                eci,
+                eci: authentication.eci.clone(),
                 cavv,
                 threeds_server_transaction_id,
                 message_version: message_version.to_string(),
