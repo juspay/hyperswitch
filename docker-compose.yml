@@ -134,7 +134,11 @@ services:
     networks:
       - router_net
     environment:
+      - HYPERSWITCH_PUBLISHABLE_KEY=
+      - HYPERSWITCH_SECRET_KEY=
       - HYPERSWITCH_SERVER_URL=http://hyperswitch-server:8080
+      - HYPERSWITCH_CLIENT_URL=
+      - SELF_SERVER_URL=
     depends_on:
       hyperswitch-server:
         condition: service_started
