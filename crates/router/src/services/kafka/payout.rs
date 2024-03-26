@@ -2,7 +2,7 @@ use common_utils::pii;
 use diesel_models::enums as storage_enums;
 use time::OffsetDateTime;
 
-use crate::types::storage::payouts::Payouts;
+use crate::types::storage::Payouts;
 
 #[derive(serde::Serialize, Debug)]
 pub struct KafkaPayout<'a> {

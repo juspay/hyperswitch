@@ -14,7 +14,7 @@ mod payment_intent;
 mod payout;
 mod refund;
 use data_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
-use diesel_models::{payouts::Payouts, refund::Refund};
+use diesel_models::refund::Refund;
 use serde::Serialize;
 use time::OffsetDateTime;
 
@@ -22,7 +22,7 @@ use self::{
     dispute::KafkaDispute, payment_attempt::KafkaPaymentAttempt,
     payment_intent::KafkaPaymentIntent, payout::KafkaPayout, refund::KafkaRefund,
 };
-use crate::types::storage::Dispute;
+use crate::types::storage::{Dispute, Payouts};
 // Using message queue result here to avoid confusion with Kafka result provided by library
 pub type MQResult<T> = CustomResult<T, KafkaError>;
 
