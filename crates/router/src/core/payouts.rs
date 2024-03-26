@@ -7,12 +7,20 @@ use std::vec::IntoIter;
 
 use api_models::enums as api_enums;
 use common_utils::{crypto::Encryptable, ext_traits::ValueExt, pii};
+#[cfg(feature = "olap")]
+use data_models::errors::StorageError;
 use diesel_models::enums as storage_enums;
 use error_stack::{report, IntoReport, ResultExt};
+#[cfg(feature = "olap")]
+use futures::future::join_all;
+#[cfg(feature = "olap")]
+use router_env::logger;
 use router_env::{instrument, tracing};
 use serde_json;
 
 use super::errors::{ConnectorErrorExt, StorageErrorExt};
+#[cfg(feature = "olap")]
+use crate::types::transformers::ForeignFrom;
 use crate::{
     core::{
         errors::{self, RouterResponse, RouterResult},
@@ -26,13 +34,11 @@ use crate::{
         api::{self, payouts},
         domain,
         storage::{self, PaymentRoutingInfo},
-        transformers::ForeignTryInto,
     },
     utils::{self, OptionExt},
 };
 
 // ********************************************** TYPES **********************************************
-#[cfg(feature = "payouts")]
 #[derive(Clone)]
 pub struct PayoutData {
     pub billing_address: Option<domain::Address>,
@@ -64,12 +70,12 @@ pub async fn get_connector_choice(
     connector: Option<String>,
     routing_algorithm: Option<serde_json::Value>,
     payout_data: &mut PayoutData,
-    eligible_connectors: Option<Vec<api_models::enums::Connector>>,
+    eligible_connectors: Option<Vec<api_models::enums::PayoutConnectors>>,
 ) -> RouterResult<api::ConnectorCallType> {
     let eligible_routable_connectors = eligible_connectors.map(|connectors| {
         connectors
             .into_iter()
-            .flat_map(|c| c.foreign_try_into())
+            .map(api::enums::RoutableConnectors::from)
             .collect()
     });
     let connector_choice = helpers::get_default_payout_connector(state, routing_algorithm).await?;
@@ -249,7 +255,6 @@ pub async fn make_connector_decision(
     }
 }
 
-#[cfg(feature = "payouts")]
 #[instrument(skip_all)]
 pub async fn payouts_create_core(
     state: AppState,
@@ -303,13 +308,13 @@ pub async fn payouts_create_core(
     .await
 }
 
-#[cfg(feature = "payouts")]
 pub async fn payouts_update_core(
     state: AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutCreateRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
+    let payout_id = req.payout_id.clone().get_required_value("payout_id")?;
     let mut payout_data = make_payout_data(
         &state,
         &merchant_account,
@@ -326,7 +331,7 @@ pub async fn payouts_update_core(
         return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
             message: format!(
                 "Payout {} cannot be updated for status {}",
-                payout_attempt.payout_id, status
+                payout_id, status
             ),
         }));
     }
@@ -337,27 +342,23 @@ pub async fn payouts_update_core(
         amount: req.amount.unwrap_or(payouts.amount.into()).into(),
         destination_currency: req.currency.unwrap_or(payouts.destination_currency),
         source_currency: req.currency.unwrap_or(payouts.source_currency),
-        description: req.description.clone().or(payouts.description),
+        description: req.description.clone().or(payouts.description.clone()),
         recurring: req.recurring.unwrap_or(payouts.recurring),
         auto_fulfill: req.auto_fulfill.unwrap_or(payouts.auto_fulfill),
-        return_url: req.return_url.clone().or(payouts.return_url),
+        return_url: req.return_url.clone().or(payouts.return_url.clone()),
         entity_type: req.entity_type.unwrap_or(payouts.entity_type),
-        metadata: req.metadata.clone().or(payouts.metadata),
-        last_modified_at: Some(common_utils::date_time::now()),
+        metadata: req.metadata.clone().or(payouts.metadata.clone()),
+        status: Some(status),
+        profile_id: Some(payout_attempt.profile_id),
     };
 
     let db = &*state.store;
-    let payout_id = req.payout_id.clone().get_required_value("payout_id")?;
-    let payout_attempt_id =
-        utils::get_payment_attempt_id(payout_id.to_owned(), payouts.attempt_count);
-    let merchant_id = &merchant_account.merchant_id;
     payout_data.payouts = db
-        .update_payout_by_merchant_id_payout_id(merchant_id, &payout_id, updated_payouts)
+        .update_payout(&payouts, updated_payouts, merchant_account.storage_scheme)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error updating payouts")?;
 
-    let payout_attempt = payout_data.payout_attempt.to_owned();
     let updated_business_country =
         payout_attempt
             .business_country
@@ -377,16 +378,16 @@ pub async fn payouts_update_core(
     match (updated_business_country, updated_business_label) {
         (None, None) => {}
         (business_country, business_label) => {
-            let update_payout_attempt = storage::PayoutAttemptUpdate::BusinessUpdate {
+            let payout_attempt = payout_data.payout_attempt;
+            let updated_payout_attempt = storage::PayoutAttemptUpdate::BusinessUpdate {
                 business_country,
                 business_label,
-                last_modified_at: Some(common_utils::date_time::now()),
             };
             payout_data.payout_attempt = db
-                .update_payout_attempt_by_merchant_id_payout_attempt_id(
-                    merchant_id,
-                    &payout_attempt_id,
-                    update_payout_attempt,
+                .update_payout_attempt(
+                    &payout_attempt,
+                    updated_payout_attempt,
+                    merchant_account.storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -411,9 +412,10 @@ pub async fn payouts_update_core(
                 payout_data.payout_attempt.payout_token.as_deref(),
                 &payout_data.payout_attempt.customer_id,
                 &payout_data.payout_attempt.merchant_id,
-                &payout_data.payout_attempt.payout_id,
                 Some(&payouts.payout_type),
                 &key_store,
+                Some(&payout_data),
+                merchant_account.storage_scheme,
             )
             .await?
             .get_required_value("payout_method_data")?,
@@ -450,7 +452,6 @@ pub async fn payouts_update_core(
     .await
 }
 
-#[cfg(feature = "payouts")]
 #[instrument(skip_all)]
 pub async fn payouts_retrieve_core(
     state: AppState,
@@ -475,7 +476,6 @@ pub async fn payouts_retrieve_core(
     .await
 }
 
-#[cfg(feature = "payouts")]
 #[instrument(skip_all)]
 pub async fn payouts_cancel_core(
     state: AppState,
@@ -512,14 +512,13 @@ pub async fn payouts_cancel_core(
             error_message: Some("Cancelled by user".to_string()),
             error_code: None,
             is_eligible: None,
-            last_modified_at: Some(common_utils::date_time::now()),
         };
         payout_data.payout_attempt = state
             .store
-            .update_payout_attempt_by_merchant_id_payout_id(
-                &merchant_account.merchant_id,
-                &payout_attempt.payout_id,
+            .update_payout_attempt(
+                &payout_attempt,
                 updated_payout_attempt,
+                merchant_account.storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -568,7 +567,6 @@ pub async fn payouts_cancel_core(
     .await
 }
 
-#[cfg(feature = "payouts")]
 #[instrument(skip_all)]
 pub async fn payouts_fulfill_core(
     state: AppState,
@@ -627,9 +625,10 @@ pub async fn payouts_fulfill_core(
             payout_attempt.payout_token.as_deref(),
             &payout_attempt.customer_id,
             &payout_attempt.merchant_id,
-            &payout_attempt.payout_id,
             Some(&payout_data.payouts.payout_type),
             &key_store,
+            Some(&payout_data),
+            merchant_account.storage_scheme,
         )
         .await?
         .get_required_value("payout_method_data")?,
@@ -662,8 +661,134 @@ pub async fn payouts_fulfill_core(
     .await
 }
 
+#[cfg(feature = "olap")]
+pub async fn payouts_list_core(
+    state: AppState,
+    merchant_account: domain::MerchantAccount,
+    constraints: payouts::PayoutListConstraints,
+) -> RouterResponse<payouts::PayoutListResponse> {
+    validator::validate_payout_list_request(&constraints)?;
+    let merchant_id = &merchant_account.merchant_id;
+    let db = state.store.as_ref();
+    let payouts = helpers::filter_by_constraints(
+        db,
+        &constraints,
+        merchant_id,
+        merchant_account.storage_scheme,
+    )
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
+
+    let collected_futures = payouts.into_iter().map(|payouts| async {
+        match db
+            .find_payout_attempt_by_merchant_id_payout_attempt_id(
+                merchant_id,
+                &utils::get_payment_attempt_id(payouts.payout_id.clone(), payouts.attempt_count),
+                storage_enums::MerchantStorageScheme::PostgresOnly,
+            )
+            .await
+        {
+            Ok(payout_attempt) => Some(Ok((payouts, payout_attempt))),
+            Err(error) => {
+                if matches!(error.current_context(), StorageError::ValueNotFound(_)) {
+                    logger::warn!(
+                        ?error,
+                        "payout_attempt missing for payout_id : {}",
+                        payouts.payout_id,
+                    );
+                    return None;
+                }
+                Some(Err(error))
+            }
+        }
+    });
+
+    let pi_pa_tuple_vec: Result<Vec<(storage::Payouts, storage::PayoutAttempt)>, _> =
+        join_all(collected_futures)
+            .await
+            .into_iter()
+            .flatten()
+            .collect::<Result<Vec<(storage::Payouts, storage::PayoutAttempt)>, _>>();
+
+    let data: Vec<api::PayoutCreateResponse> = pi_pa_tuple_vec
+        .change_context(errors::ApiErrorResponse::InternalServerError)?
+        .into_iter()
+        .map(ForeignFrom::foreign_from)
+        .collect();
+
+    Ok(services::ApplicationResponse::Json(
+        api::PayoutListResponse {
+            size: data.len(),
+            data,
+        },
+    ))
+}
+
+#[cfg(feature = "olap")]
+pub async fn payouts_filtered_list_core(
+    state: AppState,
+    merchant_account: domain::MerchantAccount,
+    filters: payouts::PayoutListFilterConstraints,
+) -> RouterResponse<payouts::PayoutListResponse> {
+    let limit = &filters.limit;
+    validator::validate_payout_list_request_for_joins(*limit)?;
+    let db = state.store.as_ref();
+    let list: Vec<(storage::Payouts, storage::PayoutAttempt)> = db
+        .filter_payouts_and_attempts(
+            &merchant_account.merchant_id,
+            &filters.clone().into(),
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
+
+    let data: Vec<api::PayoutCreateResponse> =
+        list.into_iter().map(ForeignFrom::foreign_from).collect();
+
+    Ok(services::ApplicationResponse::Json(
+        api::PayoutListResponse {
+            size: data.len(),
+            data,
+        },
+    ))
+}
+
+#[cfg(feature = "olap")]
+pub async fn payouts_list_available_filters_core(
+    state: AppState,
+    merchant_account: domain::MerchantAccount,
+    time_range: api::TimeRange,
+) -> RouterResponse<api::PayoutListFilters> {
+    let db = state.store.as_ref();
+    let payout = db
+        .filter_payouts_by_time_range_constraints(
+            &merchant_account.merchant_id,
+            &time_range,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    let filters = db
+        .get_filters_for_payouts(
+            payout.as_slice(),
+            &merchant_account.merchant_id,
+            storage_enums::MerchantStorageScheme::PostgresOnly,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    Ok(services::ApplicationResponse::Json(
+        api::PayoutListFilters {
+            connector: filters.connector,
+            currency: filters.currency,
+            status: filters.status,
+            payout_method: filters.payout_method,
+        },
+    ))
+}
+
 // ********************************************** HELPERS **********************************************
-#[cfg(feature = "payouts")]
 pub async fn call_connector_payout(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
@@ -673,7 +798,7 @@ pub async fn call_connector_payout(
     payout_data: &mut PayoutData,
 ) -> RouterResult<PayoutData> {
     let payout_attempt = &payout_data.payout_attempt.to_owned();
-    let payouts: &diesel_models::payouts::Payouts = &payout_data.payouts.to_owned();
+    let payouts = &payout_data.payouts.to_owned();
 
     // update connector_name
     if payout_data.payout_attempt.connector.is_none()
@@ -685,10 +810,10 @@ pub async fn call_connector_payout(
             routing_info: payout_data.payout_attempt.routing_info.clone(),
         };
         let db = &*state.store;
-        db.update_payout_attempt_by_merchant_id_payout_attempt_id(
-            &payout_data.payout_attempt.merchant_id,
-            &payout_data.payout_attempt.payout_attempt_id,
+        db.update_payout_attempt(
+            &payout_data.payout_attempt,
             updated_payout_attempt,
+            merchant_account.storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -704,9 +829,10 @@ pub async fn call_connector_payout(
                 payout_attempt.payout_token.as_deref(),
                 &payout_attempt.customer_id,
                 &payout_attempt.merchant_id,
-                &payout_attempt.payout_id,
                 Some(&payouts.payout_type),
                 key_store,
+                Some(payout_data),
+                merchant_account.storage_scheme,
             )
             .await?
             .get_required_value("payout_method_data")?,
@@ -807,7 +933,6 @@ pub async fn call_connector_payout(
     Ok(payout_data.to_owned())
 }
 
-#[cfg(feature = "payouts")]
 pub async fn create_recipient(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
@@ -892,7 +1017,6 @@ pub async fn create_recipient(
     Ok(payout_data.clone())
 }
 
-#[cfg(feature = "payouts")]
 pub async fn check_payout_eligibility(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
@@ -933,31 +1057,24 @@ pub async fn check_payout_eligibility(
 
     // 4. Process data returned by the connector
     let db = &*state.store;
-    let merchant_id = &merchant_account.merchant_id;
-    let payout_id = &payout_data.payouts.payout_id;
-    let payout_attempt_id =
-        &utils::get_payment_attempt_id(payout_id, payout_data.payouts.attempt_count);
-
     match router_data_resp.response {
         Ok(payout_response_data) => {
             let payout_attempt = &payout_data.payout_attempt;
             let status = payout_response_data
                 .status
                 .unwrap_or(payout_attempt.status.to_owned());
-            let updated_payout_attempt =
-                storage::payout_attempt::PayoutAttemptUpdate::StatusUpdate {
-                    connector_payout_id: payout_response_data.connector_payout_id,
-                    status,
-                    error_code: None,
-                    error_message: None,
-                    is_eligible: payout_response_data.payout_eligible,
-                    last_modified_at: Some(common_utils::date_time::now()),
-                };
+            let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
+                connector_payout_id: payout_response_data.connector_payout_id,
+                status,
+                error_code: None,
+                error_message: None,
+                is_eligible: payout_response_data.payout_eligible,
+            };
             payout_data.payout_attempt = db
-                .update_payout_attempt_by_merchant_id_payout_attempt_id(
-                    merchant_id,
-                    payout_attempt_id,
+                .update_payout_attempt(
+                    payout_attempt,
                     updated_payout_attempt,
+                    merchant_account.storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -971,20 +1088,18 @@ pub async fn check_payout_eligibility(
             }
         }
         Err(err) => {
-            let updated_payout_attempt =
-                storage::payout_attempt::PayoutAttemptUpdate::StatusUpdate {
-                    connector_payout_id: String::default(),
-                    status: storage_enums::PayoutStatus::Failed,
-                    error_code: Some(err.code),
-                    error_message: Some(err.message),
-                    is_eligible: None,
-                    last_modified_at: Some(common_utils::date_time::now()),
-                };
+            let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
+                connector_payout_id: String::default(),
+                status: storage_enums::PayoutStatus::Failed,
+                error_code: Some(err.code),
+                error_message: Some(err.message),
+                is_eligible: Some(false),
+            };
             payout_data.payout_attempt = db
-                .update_payout_attempt_by_merchant_id_payout_attempt_id(
-                    merchant_id,
-                    payout_attempt_id,
+                .update_payout_attempt(
+                    &payout_data.payout_attempt,
                     updated_payout_attempt,
+                    merchant_account.storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -995,7 +1110,6 @@ pub async fn check_payout_eligibility(
     Ok(payout_data.clone())
 }
 
-#[cfg(feature = "payouts")]
 pub async fn create_payout(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
@@ -1042,31 +1156,24 @@ pub async fn create_payout(
 
     // 5. Process data returned by the connector
     let db = &*state.store;
-    let merchant_id = &merchant_account.merchant_id;
-    let payout_id = &payout_data.payouts.payout_id;
-    let payout_attempt_id =
-        &utils::get_payment_attempt_id(payout_id, payout_data.payouts.attempt_count);
-
     match router_data_resp.response {
         Ok(payout_response_data) => {
             let payout_attempt = &payout_data.payout_attempt;
             let status = payout_response_data
                 .status
                 .unwrap_or(payout_attempt.status.to_owned());
-            let updated_payout_attempt =
-                storage::payout_attempt::PayoutAttemptUpdate::StatusUpdate {
-                    connector_payout_id: payout_response_data.connector_payout_id,
-                    status,
-                    error_code: None,
-                    error_message: None,
-                    is_eligible: payout_response_data.payout_eligible,
-                    last_modified_at: Some(common_utils::date_time::now()),
-                };
+            let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
+                connector_payout_id: payout_response_data.connector_payout_id,
+                status,
+                error_code: None,
+                error_message: None,
+                is_eligible: payout_response_data.payout_eligible,
+            };
             payout_data.payout_attempt = db
-                .update_payout_attempt_by_merchant_id_payout_attempt_id(
-                    merchant_id,
-                    payout_attempt_id,
+                .update_payout_attempt(
+                    payout_attempt,
                     updated_payout_attempt,
+                    merchant_account.storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1080,20 +1187,18 @@ pub async fn create_payout(
             }
         }
         Err(err) => {
-            let updated_payout_attempt =
-                storage::payout_attempt::PayoutAttemptUpdate::StatusUpdate {
-                    connector_payout_id: String::default(),
-                    status: storage_enums::PayoutStatus::Failed,
-                    error_code: Some(err.code),
-                    error_message: Some(err.message),
-                    is_eligible: None,
-                    last_modified_at: Some(common_utils::date_time::now()),
-                };
+            let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
+                connector_payout_id: String::default(),
+                status: storage_enums::PayoutStatus::Failed,
+                error_code: Some(err.code),
+                error_message: Some(err.message),
+                is_eligible: None,
+            };
             payout_data.payout_attempt = db
-                .update_payout_attempt_by_merchant_id_payout_attempt_id(
-                    merchant_id,
-                    payout_attempt_id,
+                .update_payout_attempt(
+                    &payout_data.payout_attempt,
                     updated_payout_attempt,
+                    merchant_account.storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1104,7 +1209,6 @@ pub async fn create_payout(
     Ok(payout_data.clone())
 }
 
-#[cfg(feature = "payouts")]
 pub async fn cancel_payout(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
@@ -1145,47 +1249,41 @@ pub async fn cancel_payout(
 
     // 4. Process data returned by the connector
     let db = &*state.store;
-    let merchant_id = &merchant_account.merchant_id;
-    let payout_id = &payout_data.payout_attempt.payout_id;
     match router_data_resp.response {
         Ok(payout_response_data) => {
             let status = payout_response_data
                 .status
                 .unwrap_or(payout_data.payout_attempt.status.to_owned());
-            let updated_payout_attempt =
-                storage::payout_attempt::PayoutAttemptUpdate::StatusUpdate {
-                    connector_payout_id: payout_response_data.connector_payout_id,
-                    status,
-                    error_code: None,
-                    error_message: None,
-                    is_eligible: payout_response_data.payout_eligible,
-                    last_modified_at: Some(common_utils::date_time::now()),
-                };
+            let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
+                connector_payout_id: payout_response_data.connector_payout_id,
+                status,
+                error_code: None,
+                error_message: None,
+                is_eligible: payout_response_data.payout_eligible,
+            };
             payout_data.payout_attempt = db
-                .update_payout_attempt_by_merchant_id_payout_id(
-                    merchant_id,
-                    payout_id,
+                .update_payout_attempt(
+                    &payout_data.payout_attempt,
                     updated_payout_attempt,
+                    merchant_account.storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error updating payout_attempt in db")?
         }
         Err(err) => {
-            let updated_payouts_create =
-                storage::payout_attempt::PayoutAttemptUpdate::StatusUpdate {
-                    connector_payout_id: String::default(),
-                    status: storage_enums::PayoutStatus::Failed,
-                    error_code: Some(err.code),
-                    error_message: Some(err.message),
-                    is_eligible: None,
-                    last_modified_at: Some(common_utils::date_time::now()),
-                };
+            let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
+                connector_payout_id: String::default(),
+                status: storage_enums::PayoutStatus::Failed,
+                error_code: Some(err.code),
+                error_message: Some(err.message),
+                is_eligible: None,
+            };
             payout_data.payout_attempt = db
-                .update_payout_attempt_by_merchant_id_payout_id(
-                    merchant_id,
-                    payout_id,
-                    updated_payouts_create,
+                .update_payout_attempt(
+                    &payout_data.payout_attempt,
+                    updated_payout_attempt,
+                    merchant_account.storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1196,7 +1294,6 @@ pub async fn cancel_payout(
     Ok(payout_data.clone())
 }
 
-#[cfg(feature = "payouts")]
 pub async fn fulfill_payout(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
@@ -1237,18 +1334,17 @@ pub async fn fulfill_payout(
 
     // 4. Process data returned by the connector
     let db = &*state.store;
-    let merchant_id = &merchant_account.merchant_id;
     let payout_attempt = &payout_data.payout_attempt;
-    let payout_id = &payout_attempt.payout_id;
-    let payout_attempt_id =
-        &utils::get_payment_attempt_id(payout_id, payout_data.payouts.attempt_count);
-
     match router_data_resp.response {
         Ok(payout_response_data) => {
+            let status = payout_response_data
+                .status
+                .unwrap_or(payout_attempt.status.to_owned());
+            payout_data.payouts.status = status;
             if payout_data.payouts.recurring && payout_data.payouts.payout_method_id.is_none() {
                 helpers::save_payout_data_to_locker(
                     state,
-                    payout_attempt,
+                    payout_data,
                     &payout_data
                         .payout_method_data
                         .clone()
@@ -1258,22 +1354,18 @@ pub async fn fulfill_payout(
                 )
                 .await?;
             }
-            let status = payout_response_data
-                .status
-                .unwrap_or(payout_attempt.status.to_owned());
-            let updated_payouts = storage::payout_attempt::PayoutAttemptUpdate::StatusUpdate {
+            let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
                 connector_payout_id: payout_attempt.connector_payout_id.to_owned(),
                 status,
                 error_code: None,
                 error_message: None,
                 is_eligible: payout_response_data.payout_eligible,
-                last_modified_at: Some(common_utils::date_time::now()),
             };
             payout_data.payout_attempt = db
-                .update_payout_attempt_by_merchant_id_payout_attempt_id(
-                    merchant_id,
-                    payout_attempt_id,
-                    updated_payouts,
+                .update_payout_attempt(
+                    payout_attempt,
+                    updated_payout_attempt,
+                    merchant_account.storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1287,19 +1379,18 @@ pub async fn fulfill_payout(
             }
         }
         Err(err) => {
-            let updated_payouts = storage::payout_attempt::PayoutAttemptUpdate::StatusUpdate {
+            let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
                 connector_payout_id: String::default(),
                 status: storage_enums::PayoutStatus::Failed,
                 error_code: Some(err.code),
                 error_message: Some(err.message),
                 is_eligible: None,
-                last_modified_at: Some(common_utils::date_time::now()),
             };
             payout_data.payout_attempt = db
-                .update_payout_attempt_by_merchant_id_payout_attempt_id(
-                    merchant_id,
-                    payout_attempt_id,
-                    updated_payouts,
+                .update_payout_attempt(
+                    &payout_data.payout_attempt,
+                    updated_payout_attempt,
+                    merchant_account.storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1310,7 +1401,6 @@ pub async fn fulfill_payout(
     Ok(payout_data.clone())
 }
 
-#[cfg(feature = "payouts")]
 pub async fn response_handler(
     _state: &AppState,
     merchant_account: &domain::MerchantAccount,
@@ -1377,13 +1467,14 @@ pub async fn response_handler(
         error_message: payout_attempt.error_message.to_owned(),
         error_code: payout_attempt.error_code,
         profile_id: payout_attempt.profile_id,
+        created: Some(payouts.created_at),
+        attempts: None,
     };
     Ok(services::ApplicationResponse::Json(response))
 }
 
 // DB entries
 #[allow(clippy::too_many_arguments)]
-#[cfg(feature = "payouts")]
 pub async fn payout_create_db_entries(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
@@ -1454,28 +1545,27 @@ pub async fn payout_create_db_entries(
         None
     };
 
-    let payouts_req = storage::PayoutsNew::default()
-        .set_payout_id(payout_id.to_owned())
-        .set_merchant_id(merchant_id.to_owned())
-        .set_customer_id(customer_id.to_owned())
-        .set_address_id(address_id.to_owned())
-        .set_payout_type(payout_type)
-        .set_amount(req.amount.unwrap_or(api::Amount::Zero).into())
-        .set_destination_currency(currency)
-        .set_source_currency(currency)
-        .set_description(req.description.to_owned())
-        .set_recurring(req.recurring.unwrap_or(false))
-        .set_auto_fulfill(req.auto_fulfill.unwrap_or(false))
-        .set_return_url(req.return_url.to_owned())
-        .set_entity_type(req.entity_type.unwrap_or_default())
-        .set_metadata(req.metadata.to_owned())
-        .set_created_at(Some(common_utils::date_time::now()))
-        .set_last_modified_at(Some(common_utils::date_time::now()))
-        .set_payout_method_id(payout_method_id)
-        .set_attempt_count(1)
-        .to_owned();
+    let payouts_req = storage::PayoutsNew {
+        payout_id: payout_id.to_string(),
+        merchant_id: merchant_id.to_string(),
+        customer_id: customer_id.to_owned(),
+        address_id: address_id.to_owned(),
+        payout_type,
+        amount: req.amount.unwrap_or(api::Amount::Zero).into(),
+        destination_currency: currency,
+        source_currency: currency,
+        description: req.description.to_owned(),
+        recurring: req.recurring.unwrap_or(false),
+        auto_fulfill: req.auto_fulfill.unwrap_or(false),
+        return_url: req.return_url.to_owned(),
+        entity_type: req.entity_type.unwrap_or_default(),
+        payout_method_id,
+        profile_id: profile_id.to_string(),
+        attempt_count: 1,
+        ..Default::default()
+    };
     let payouts = db
-        .insert_payout(payouts_req)
+        .insert_payout(payouts_req, merchant_account.storage_scheme)
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayout {
             payout_id: payout_id.to_owned(),
@@ -1493,22 +1583,21 @@ pub async fn payout_create_db_entries(
     };
     let payout_attempt_id = utils::get_payment_attempt_id(payout_id, 1);
 
-    let payout_attempt_req = storage::PayoutAttemptNew::default()
-        .set_payout_attempt_id(payout_attempt_id.to_string())
-        .set_payout_id(payout_id.to_owned())
-        .set_customer_id(customer_id.to_owned())
-        .set_merchant_id(merchant_id.to_owned())
-        .set_address_id(address_id.to_owned())
-        .set_status(status)
-        .set_business_country(req.business_country.to_owned())
-        .set_business_label(req.business_label.to_owned())
-        .set_payout_token(req.payout_token.to_owned())
-        .set_created_at(Some(common_utils::date_time::now()))
-        .set_last_modified_at(Some(common_utils::date_time::now()))
-        .set_profile_id(Some(profile_id.to_string()))
-        .to_owned();
+    let payout_attempt_req = storage::PayoutAttemptNew {
+        payout_attempt_id: payout_attempt_id.to_string(),
+        payout_id: payout_id.to_owned(),
+        customer_id: customer_id.to_owned(),
+        merchant_id: merchant_id.to_owned(),
+        address_id: address_id.to_owned(),
+        status,
+        business_country: req.business_country.to_owned(),
+        business_label: req.business_label.to_owned(),
+        payout_token: req.payout_token.to_owned(),
+        profile_id: profile_id.to_string(),
+        ..Default::default()
+    };
     let payout_attempt = db
-        .insert_payout_attempt(payout_attempt_req)
+        .insert_payout_attempt(payout_attempt_req, merchant_account.storage_scheme)
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayout {
             payout_id: payout_id.to_owned(),
@@ -1536,7 +1625,6 @@ pub async fn payout_create_db_entries(
     })
 }
 
-#[cfg(feature = "payouts")]
 pub async fn make_payout_data(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
@@ -1552,14 +1640,22 @@ pub async fn make_payout_data(
     };
 
     let payouts = db
-        .find_payout_by_merchant_id_payout_id(merchant_id, &payout_id)
+        .find_payout_by_merchant_id_payout_id(
+            merchant_id,
+            &payout_id,
+            merchant_account.storage_scheme,
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
 
     let payout_attempt_id = utils::get_payment_attempt_id(payout_id, payouts.attempt_count);
 
     let payout_attempt = db
-        .find_payout_attempt_by_merchant_id_payout_attempt_id(merchant_id, &payout_attempt_id)
+        .find_payout_attempt_by_merchant_id_payout_attempt_id(
+            merchant_id,
+            &payout_attempt_id,
+            merchant_account.storage_scheme,
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
 

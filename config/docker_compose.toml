@@ -277,7 +277,7 @@ refund_retrieve_tolerance = 100
 authorize_ttl = 36000
 assets_base_url = "https://app.hyperswitch.io/assets/TestProcessor/"
 default_return_url = "https://app.hyperswitch.io/"
-slack_invite_url = "https://join.slack.com/t/hyperswitch-io/shared_invite/zt-1k6cz4lee-SAJzhz6bjmpp4jZCDOtOIg"
+slack_invite_url = "https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2awm23agh-p_G5xNpziv6yAiedTkkqLg"
 discord_invite_url = "https://discord.gg/wJZ7DVW8mm"
 
 [payouts]
@@ -456,3 +456,4 @@ region = "eu-central-1"
 payment_attempts = "hyperswitch-payment-attempt-events"
 payment_intents = "hyperswitch-payment-intent-events"
 refunds = "hyperswitch-refund-events"
+disputes = "hyperswitch-dispute-events"
