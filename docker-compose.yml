@@ -122,6 +122,37 @@ services:
     labels:
       logs: "promtail"
 
+  hyperswitch-web:
+    ports:
+      - "9050:9050"
+      - "9060:9060"
+      - "5252:5252"
+    build:
+      context: ./docker
+      dockerfile: web.Dockerfile
+    networks:
+      - router_net
+    environment:
+      - HYPERSWITCH_SERVER_URL=http://localhost:8080
+    depends_on:
+      hyperswitch-server:
+        condition: service_started
+
+  hyperswitch-control-center:
+    image: juspaydotin/hyperswitch-control-center
+    ports:
+      - "9000:9000"
+    networks:
+      - router_net
+    environment:
+      - apiBaseUrl=http://localhost:8080
+      - sdkBaseUrl=http://localhost:9050
+    depends_on:
+      hyperswitch-server:
+        condition: service_started
+      hyperswitch-web:
+        condition: service_started
+
   ### Clustered Redis setup
   redis-cluster:
     image: redis:7
