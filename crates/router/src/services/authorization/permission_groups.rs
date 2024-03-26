@@ -19,22 +19,24 @@ pub fn get_permissions_vec(permission_group: &PermissionGroup) -> &[Permission] 
     }
 }
 
-pub static OPERATIONS_VIEW: [Permission; 6] = [
+pub static OPERATIONS_VIEW: [Permission; 7] = [
     Permission::PaymentRead,
     Permission::RefundRead,
     Permission::MandateRead,
     Permission::DisputeRead,
     Permission::CustomerRead,
     Permission::MerchantAccountRead,
+    Permission::PayoutRead,
 ];
 
-pub static OPERATIONS_MANAGE: [Permission; 6] = [
+pub static OPERATIONS_MANAGE: [Permission; 7] = [
     Permission::PaymentWrite,
     Permission::RefundWrite,
     Permission::MandateWrite,
     Permission::DisputeWrite,
     Permission::CustomerWrite,
     Permission::MerchantAccountRead,
+    Permission::PayoutWrite,
 ];
 
 pub static CONNECTORS_VIEW: [Permission; 2] = [
@@ -73,11 +75,12 @@ pub static USERS_MANAGE: [Permission; 2] =
 
 pub static MERCHANT_DETAILS_VIEW: [Permission; 1] = [Permission::MerchantAccountRead];
 
-pub static MERCHANT_DETAILS_MANAGE: [Permission; 4] = [
+pub static MERCHANT_DETAILS_MANAGE: [Permission; 5] = [
     Permission::MerchantAccountWrite,
     Permission::ApiKeyRead,
     Permission::ApiKeyWrite,
     Permission::MerchantAccountRead,
+    Permission::WebhookEventRead,
 ];
 
 pub static ORGANIZATION_MANAGE: [Permission; 2] = [

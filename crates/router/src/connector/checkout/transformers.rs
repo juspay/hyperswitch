@@ -1345,7 +1345,7 @@ pub fn construct_file_upload_request(
             request.file_key,
             request
                 .file_type
-                .to_string()
+                .as_ref()
                 .split('/')
                 .last()
                 .unwrap_or_default()
