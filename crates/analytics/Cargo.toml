@@ -9,12 +9,9 @@ edition = "2021"
 
 [dependencies]
 # First party crates
-api_models = { version = "0.1.0", path = "../api_models", features = [
-    "errors",
-] }
+api_models = { version = "0.1.0", path = "../api_models", features = ["errors"] }
 storage_impl = { version = "0.1.0", path = "../storage_impl", default-features = false }
 common_utils = { version = "0.1.0", path = "../common_utils" }
-external_services = { version = "0.1.0", path = "../external_services", default-features = false }
 hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces" }
 masking = { version = "0.1.0", path = "../masking" }
 router_env = { version = "0.1.0", path = "../router_env", features = [
@@ -28,9 +25,8 @@ diesel_models = { version = "0.1.0", path = "../diesel_models", features = [
 #Third Party dependencies
 actix-web = "4.3.1"
 async-trait = "0.1.68"
-aws-config = { version = "1.1.6", features = ["behavior-version-latest"] }
-aws-sdk-lambda = { version = "1.1.4" }
-aws-smithy-types = { version = "1.1.6" }
+aws-config = { version = "1.1.8", features = ["behavior-version-latest"] }
+aws-sdk-lambda = { version = "1.15.0" }
 bigdecimal = { version = "0.3.1", features = ["serde"] }
 error-stack = "0.3.1"
 futures = "0.3.28"

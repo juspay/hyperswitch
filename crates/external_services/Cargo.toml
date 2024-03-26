@@ -11,16 +11,17 @@ license.workspace = true
 aws_kms = ["dep:aws-config", "dep:aws-sdk-kms"]
 email = ["dep:aws-config"]
 aws_s3 = ["dep:aws-config", "dep:aws-sdk-s3"]
-hashicorp-vault = [ "dep:vaultrs" ]
+hashicorp-vault = ["dep:vaultrs"]
 
 [dependencies]
 async-trait = "0.1.68"
-aws-config = { version = "0.55.3", optional = true }
-aws-sdk-kms = { version = "0.28.0", optional = true }
-aws-sdk-sesv2 = "0.28.0"
-aws-sdk-sts = "0.28.0"
-aws-sdk-s3 = { version = "0.28.0", optional = true }
-aws-smithy-client = "0.55.3"
+aws-config = { version = "1.1.8", optional = true, features = ["behavior-version-latest"] }
+aws-sdk-kms = { version = "1.15.0", optional = true }
+aws-sdk-sesv2 = "1.15.0"
+aws-sdk-sts = "1.15.0"
+aws-sdk-s3 = { version = "1.17.0", optional = true }
+aws-smithy-client = { version = "0.55.3", features = ["client-hyper"] }
+aws-smithy-runtime = "1.1.8"
 base64 = "0.21.2"
 dyn-clone = "1.0.11"
 error-stack = "0.3.1"

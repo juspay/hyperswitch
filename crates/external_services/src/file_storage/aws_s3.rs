@@ -142,15 +142,15 @@ impl FileStorageInterface for AwsFileStorageClient {
 enum AwsS3StorageError {
     /// Error indicating that file upload to S3 failed.
     #[error("File upload to S3 failed: {0:?}")]
-    UploadFailure(aws_smithy_client::SdkError<PutObjectError>),
+    UploadFailure(aws_sdk_s3::error::SdkError<PutObjectError>),
 
     /// Error indicating that file retrieval from S3 failed.
     #[error("File retrieve from S3 failed: {0:?}")]
-    RetrieveFailure(aws_smithy_client::SdkError<GetObjectError>),
+    RetrieveFailure(aws_sdk_s3::error::SdkError<GetObjectError>),
 
     /// Error indicating that file deletion from S3 failed.
     #[error("File delete from S3 failed: {0:?}")]
-    DeleteFailure(aws_smithy_client::SdkError<DeleteObjectError>),
+    DeleteFailure(aws_sdk_s3::error::SdkError<DeleteObjectError>),
 
     /// Unknown error occurred.
     #[error("Unknown error occurred: {0:?}")]
