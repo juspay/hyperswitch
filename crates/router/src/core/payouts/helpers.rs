@@ -725,3 +725,16 @@ pub fn is_eligible_for_local_payout_cancellation(status: api_enums::PayoutStatus
             | api_enums::PayoutStatus::RequiresPayoutMethodData,
     )
 }
+
+#[cfg(feature = "olap")]
+pub(super) async fn filter_by_constraints(
+    db: &dyn StorageInterface,
+    constraints: &api::PayoutListConstraints,
+    merchant_id: &str,
+    storage_scheme: storage::enums::MerchantStorageScheme,
+) -> CustomResult<Vec<storage::Payouts>, errors::DataStorageError> {
+    let result = db
+        .filter_payouts_by_constraints(merchant_id, &constraints.clone().into(), storage_scheme)
+        .await?;
+    Ok(result)
+}

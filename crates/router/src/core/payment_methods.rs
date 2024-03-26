@@ -7,7 +7,6 @@ pub use api_models::enums::Connector;
 use api_models::payments::CardToken;
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
-pub use common_utils::request::RequestBody;
 use data_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 use diesel_models::enums;
 use error_stack::{report, ResultExt};

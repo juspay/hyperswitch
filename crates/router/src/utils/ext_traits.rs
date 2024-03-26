@@ -85,27 +85,6 @@ where
     }
 }
 
-#[allow(dead_code)]
-/// Merge two `serde_json::Value` instances. Will need to be updated to handle merging arrays.
-pub(crate) fn merge_json_values(a: &mut serde_json::Value, b: &serde_json::Value) {
-    // Reference: https://github.com/serde-rs/json/issues/377#issuecomment-341490464
-    // See also (for better implementations):
-    //   - https://github.com/marirs/serde-json-utils
-    //   - https://github.com/jmfiaschi/json_value_merge
-    use serde_json::Value;
-
-    match (a, b) {
-        (&mut Value::Object(ref mut a), Value::Object(b)) => {
-            for (k, v) in b {
-                merge_json_values(a.entry(k.clone()).or_insert(Value::Null), v);
-            }
-        }
-        (a, b) => {
-            *a = b.clone();
-        }
-    }
-}
-
 pub trait ValidateCall<T, F> {
     fn validate_opt(self, func: F) -> CustomResult<(), errors::ValidationError>;
 }
@@ -121,12 +100,3 @@ where
         }
     }
 }
-
-// pub fn validate_address(address: &serde_json::Value) -> CustomResult<(), errors::ValidationError> {
-//     if let Err(err) = serde_json::from_value::<AddressDetails>(address.clone()) {
-//         return Err(report!(errors::ValidationError::InvalidValue {
-//             message: format!("Invalid address: {err}")
-//         }));
-//     }
-//     Ok(())
-// }
