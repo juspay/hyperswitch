@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use reqwest::StatusCode;
+use actix_web::http::StatusCode;
 use serde::Serialize;
 
 #[derive(Debug, serde::Serialize)]

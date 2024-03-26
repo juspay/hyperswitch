@@ -1,8 +1,8 @@
 use super::types::ApiErrorResponse;
 
 impl actix_web::ResponseError for ApiErrorResponse {
-    fn status_code(&self) -> reqwest::StatusCode {
-        use reqwest::StatusCode;
+    fn status_code(&self) -> actix_web::http::StatusCode {
+        use actix_web::http::StatusCode;
 
         match self {
             Self::Unauthorized(_) => StatusCode::UNAUTHORIZED,
