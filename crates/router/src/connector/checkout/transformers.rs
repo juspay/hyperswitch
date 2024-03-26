@@ -309,7 +309,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                         token: match item.router_data.get_payment_method_token()? {
                             types::PaymentMethodToken::Token(token) => token.into(),
                             types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
-                                unimplemented_payment_method!("Apple Pay", "Decrypt", "Checkout"),
+                                unimplemented_payment_method!("Apple Pay", "Simplified", "Checkout"),
                             )?,
                         },
                     }))

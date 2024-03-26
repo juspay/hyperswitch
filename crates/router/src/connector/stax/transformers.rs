@@ -82,7 +82,7 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
                     payment_method_id: Secret::new(match pm_token {
                         types::PaymentMethodToken::Token(token) => token,
                         types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
-                            unimplemented_payment_method!("Apple Pay", "Decrypt", "Stax"),
+                            unimplemented_payment_method!("Apple Pay", "Simplified", "Stax"),
                         )?,
                     }),
                     idempotency_id: Some(item.router_data.connector_request_reference_id.clone()),
@@ -101,7 +101,7 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
                     payment_method_id: Secret::new(match pm_token {
                         types::PaymentMethodToken::Token(token) => token,
                         types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
-                            unimplemented_payment_method!("Apple Pay", "Decrypt", "Stax"),
+                            unimplemented_payment_method!("Apple Pay", "Simplified", "Stax"),
                         )?,
                     }),
                     idempotency_id: Some(item.router_data.connector_request_reference_id.clone()),

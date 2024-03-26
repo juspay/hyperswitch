@@ -710,7 +710,7 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
                 let buyer_key = match pm_token {
                     types::PaymentMethodToken::Token(token) => token,
                     types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
-                        unimplemented_payment_method!("Apple Pay", "Decrypt", "Payme"),
+                        unimplemented_payment_method!("Apple Pay", "Simplified", "Payme"),
                     )?,
                 };
                 Ok(Self {

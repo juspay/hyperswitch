@@ -259,7 +259,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
                     source_id: Secret::new(match pm_token {
                         types::PaymentMethodToken::Token(token) => token,
                         types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
-                            unimplemented_payment_method!("Apple Pay", "Decrypt", "Square"),
+                            unimplemented_payment_method!("Apple Pay", "Simplified", "Square"),
                         )?,
                     }),
                     amount_money: SquarePaymentsAmountData {
