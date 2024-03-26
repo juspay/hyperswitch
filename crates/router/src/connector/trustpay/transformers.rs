@@ -824,9 +824,16 @@ fn handle_bank_redirects_sync_response(
             .status_reason_information
             .unwrap_or_default();
         Some(types::ErrorResponse {
-            code: reason_info.reason.code.clone().unwrap_or(consts::NO_ERROR_CODE.to_string()),
+            code: reason_info
+                .reason
+                .code
+                .clone()
+                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
             // message vary for the same code, so relying on code alone as it is unique
-            message: reason_info.reason.code.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            message: reason_info
+                .reason
+                .code
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason: reason_info.reason.reject_reason,
             status_code,
             attempt_status: None,
@@ -876,9 +883,16 @@ pub fn handle_webhook_response(
             .status_reason_information
             .unwrap_or_default();
         Some(types::ErrorResponse {
-            code: reason_info.reason.code.clone().unwrap_or(consts::NO_ERROR_CODE.to_string()),
+            code: reason_info
+                .reason
+                .code
+                .clone()
+                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
             // message vary for the same code, so relying on code alone as it is unique
-            message: reason_info.reason.code.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            message: reason_info
+                .reason
+                .code
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason: reason_info.reason.reject_reason,
             status_code,
             attempt_status: None,
@@ -1484,9 +1498,16 @@ fn handle_webhooks_refund_response(
     let error = if utils::is_refund_failure(refund_status) {
         let reason_info = response.status_reason_information.unwrap_or_default();
         Some(types::ErrorResponse {
-            code: reason_info.reason.code.clone().unwrap_or(consts::NO_ERROR_CODE.to_string()),
+            code: reason_info
+                .reason
+                .code
+                .clone()
+                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
             // message vary for the same code, so relying on code alone as it is unique
-            message: reason_info.reason.code.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            message: reason_info
+                .reason
+                .code
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason: reason_info.reason.reject_reason,
             status_code,
             attempt_status: None,
@@ -1541,9 +1562,16 @@ fn handle_bank_redirects_refund_sync_response(
             .status_reason_information
             .unwrap_or_default();
         Some(types::ErrorResponse {
-            code: reason_info.reason.code.clone().unwrap_or(consts::NO_ERROR_CODE.to_string()),
+            code: reason_info
+                .reason
+                .code
+                .clone()
+                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
             // message vary for the same code, so relying on code alone as it is unique
-            message: reason_info.reason.code.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            message: reason_info
+                .reason
+                .code
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason: reason_info.reason.reject_reason,
             status_code,
             attempt_status: None,
