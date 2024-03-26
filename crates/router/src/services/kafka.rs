@@ -11,15 +11,16 @@ use crate::events::EventType;
 mod dispute;
 mod payment_attempt;
 mod payment_intent;
+mod payout;
 mod refund;
 use data_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
-use diesel_models::refund::Refund;
+use diesel_models::{payouts::Payouts, refund::Refund};
 use serde::Serialize;
 use time::OffsetDateTime;
 
 use self::{
     dispute::KafkaDispute, payment_attempt::KafkaPaymentAttempt,
-    payment_intent::KafkaPaymentIntent, refund::KafkaRefund,
+    payment_intent::KafkaPaymentIntent, payout::KafkaPayout, refund::KafkaRefund,
 };
 use crate::types::storage::Dispute;
 // Using message queue result here to avoid confusion with Kafka result provided by library
@@ -93,7 +94,7 @@ pub struct KafkaSettings {
     outgoing_webhook_logs_topic: String,
     dispute_analytics_topic: String,
     audit_events_topic: String,
-    payout_analytics_topic: String
+    payout_analytics_topic: String,
 }
 
 impl KafkaSettings {
@@ -351,6 +352,28 @@ impl KafkaProducer {
         };
         self.log_event(&KafkaEvent::new(&KafkaDispute::from_storage(dispute)))
             .attach_printable_lazy(|| format!("Failed to add positive dispute event {dispute:?}"))
+    }
+
+    pub async fn log_payout(&self, payout: &Payouts, old_payout: Option<Payouts>) -> MQResult<()> {
+        if let Some(negative_event) = old_payout {
+            self.log_event(&KafkaEvent::old(&KafkaPayout::from_storage(
+                &negative_event,
+            )))
+            .attach_printable_lazy(|| {
+                format!("Failed to add negative payout event {negative_event:?}")
+            })?;
+        };
+        self.log_event(&KafkaEvent::new(&KafkaPayout::from_storage(payout)))
+            .attach_printable_lazy(|| format!("Failed to add positive payout event {payout:?}"))
+    }
+
+    pub async fn log_payout_delete(&self, delete_old_payout: &Payouts) -> MQResult<()> {
+        self.log_event(&KafkaEvent::old(&KafkaPayout::from_storage(
+            delete_old_payout,
+        )))
+        .attach_printable_lazy(|| {
+            format!("Failed to add negative payout event {delete_old_payout:?}")
+        })
     }
 
     pub fn get_topic(&self, event: EventType) -> &str {
