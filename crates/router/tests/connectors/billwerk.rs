@@ -12,7 +12,8 @@ impl utils::Connector for BillwerkTest {
         use router::connector::Billwerk;
         types::api::ConnectorData {
             connector: Box::new(&Billwerk),
-            connector_name: types::Connector::Billwerk,
+            // Added as Dummy connector as template code is added for future usage
+            connector_name: types::Connector::DummyConnector1,
             get_token: types::api::GetToken::Connector,
             merchant_connector_id: None,
         }

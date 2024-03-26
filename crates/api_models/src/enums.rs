@@ -78,7 +78,7 @@ pub enum Connector {
     Authorizedotnet,
     Bambora,
     Bankofamerica,
-    Billwerk,
+    // Billwerk, Added as template code for future usage
     Bitpay,
     Bluesnap,
     Boku,
@@ -166,7 +166,7 @@ impl Connector {
             | Self::Authorizedotnet
             | Self::Bambora
             | Self::Bankofamerica
-            | Self::Billwerk
+            // | Self::Billwerk Added as template code for future usage
             | Self::Bitpay
             | Self::Bluesnap
             | Self::Boku
