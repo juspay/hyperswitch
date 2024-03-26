@@ -171,3 +171,24 @@ pub async fn payment_method_update_api() {}
     security(("api_key" = []))
 )]
 pub async fn payment_method_delete_api() {}
+
+/// Payment Method - Set Default Payment Method for Customer
+///
+/// Set the Payment Method as Default for the Customer.
+#[utoipa::path(
+    get,
+    path = "/{customer_id}/payment_methods/{payment_method_id}/default",
+    params (
+        ("customer_id" = String,Path, description ="The unique identifier for the Customer"),
+        ("payment_method_id" = String,Path, description = "The unique identifier for the Payment Method"),
+    ),
+    responses(
+        (status = 200, description = "Payment Method has been set as default", body =CustomerDefaultPaymentMethodResponse ),
+        (status = 400, description = "Payment Method has already been set as default for that customer"),
+        (status = 404, description = "Payment Method not found for the customer")
+    ),
+    tag = "Payment Methods",
+    operation_id = "Set the Payment Method as Default",
+    security(("ephemeral_key" = []))
+)]
+pub async fn default_payment_method_set_api() {}

@@ -120,6 +120,9 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such payout")]
     PayoutNotFound,
 
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such event")]
+    EventNotFound,
+
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "Duplicate payout request")]
     DuplicatePayout { payout_id: String },
 
@@ -518,6 +521,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::MandateNotFound => Self::MandateNotFound,
             errors::ApiErrorResponse::ApiKeyNotFound => Self::ApiKeyNotFound,
             errors::ApiErrorResponse::PayoutNotFound => Self::PayoutNotFound,
+            errors::ApiErrorResponse::EventNotFound => Self::EventNotFound,
             errors::ApiErrorResponse::MandateValidationFailed { reason } => {
                 Self::PaymentIntentMandateInvalid { message: reason }
             }
@@ -656,6 +660,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::MandateNotFound
             | Self::ApiKeyNotFound
             | Self::PayoutNotFound
+            | Self::EventNotFound
             | Self::DuplicateMerchantAccount
             | Self::DuplicateMerchantConnectorAccount { .. }
             | Self::DuplicatePaymentMethod

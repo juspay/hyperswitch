@@ -95,45 +95,8 @@ pub async fn customers_delete() {}
         (status = 200, description = "Customers retrieved", body = Vec<CustomerResponse>),
         (status = 400, description = "Invalid Data"),
     ),
-    tag = "Customers List",
+    tag = "Customers",
     operation_id = "List all Customers for a Merchant",
     security(("api_key" = []))
 )]
 pub async fn customers_list() {}
-
-/// Customers - Mandates List
-///
-/// Lists all the mandates for a particular customer id.
-#[utoipa::path(
-    post,
-    path = "/customers/{customer_id}/mandates",
-    responses(
-        (status = 200, description = "List of retrieved mandates for a customer", body = Vec<MandateResponse>),
-        (status = 400, description = "Invalid Data"),
-    ),
-    tag = "Customers Mandates List",
-    operation_id = "List all Mandates for a Customer",
-    security(("api_key" = []))
-)]
-pub async fn customers_mandates_list() {}
-
-/// Customers - Set Default Payment Method
-///
-/// Set the Payment Method as Default for the Customer.
-#[utoipa::path(
-    get,
-    path = "/{customer_id}/payment_methods/{payment_method_id}/default",
-    params (
-        ("customer_id" = String,Path, description ="The unique identifier for the Customer"),
-        ("payment_method_id" = String,Path, description = "The unique identifier for the Payment Method"),
-    ),
-    responses(
-        (status = 200, description = "Payment Method has been set as default", body =CustomerDefaultPaymentMethodResponse ),
-        (status = 400, description = "Payment Method has already been set as default for that customer"),
-        (status = 404, description = "Payment Method not found for the customer")
-    ),
-    tag = "Customer Set Default Payment Method",
-    operation_id = "Set the Payment Method as Default",
-    security(("ephemeral_key" = []))
-)]
-pub async fn default_payment_method_set_api() {}

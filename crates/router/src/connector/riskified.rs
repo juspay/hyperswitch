@@ -63,7 +63,7 @@ where
 
         let riskified_req = self.get_request_body(req, connectors)?;
 
-        let binding = types::RequestBody::get_inner_value(riskified_req);
+        let binding = riskified_req.get_inner_value();
         let payload = binding.peek();
 
         let digest = self
