@@ -13,6 +13,7 @@ mod authorizedotnet;
 mod bambora;
 #[cfg(feature = "dummy_connector")]
 mod bankofamerica;
+#[cfg(feature = "dummy_connector")]
 mod billwerk;
 mod bitpay;
 mod bluesnap;
