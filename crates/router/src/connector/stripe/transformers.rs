@@ -123,6 +123,7 @@ pub struct PaymentIntentRequest {
     #[serde(flatten)]
     pub payment_data: Option<StripePaymentMethodData>,
     pub capture_method: StripeCaptureMethod,
+    #[serde(flatten)]
     pub payment_method_options: Option<StripePaymentMethodOptions>, // For mandate txns using network_txns_id, needs to be validated
     pub setup_future_usage: Option<enums::FutureUsage>,
     pub off_session: Option<bool>,
@@ -170,9 +171,9 @@ pub struct StripeCardData {
     #[serde(rename = "payment_method_data[card][exp_year]")]
     pub payment_method_data_card_exp_year: Secret<String>,
     #[serde(rename = "payment_method_data[card][cvc]")]
-    pub payment_method_data_card_cvc: Secret<String>,
+    pub payment_method_data_card_cvc: Option<Secret<String>>,
     #[serde(rename = "payment_method_options[card][request_three_d_secure]")]
-    pub payment_method_auth_type: Auth3ds,
+    pub payment_method_auth_type: Option<Auth3ds>,
 }
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripePayLaterData {
@@ -1483,8 +1484,8 @@ impl TryFrom<(&payments::Card, Auth3ds)> for StripePaymentMethodData {
             payment_method_data_card_number: card.card_number.clone(),
             payment_method_data_card_exp_month: card.card_exp_month.clone(),
             payment_method_data_card_exp_year: card.card_exp_year.clone(),
-            payment_method_data_card_cvc: card.card_cvc.clone(),
-            payment_method_auth_type,
+            payment_method_data_card_cvc: Some(card.card_cvc.clone()),
+            payment_method_auth_type: Some(payment_method_auth_type),
         }))
     }
 }
@@ -1808,7 +1809,45 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                             network_transaction_id: Secret::new(network_transaction_id),
                         }),
                     });
-                    (None, None, None, StripeBillingAddress::default(), None)
+
+                    let payment_data = match item.request.payment_method_data {
+                        payments::PaymentMethodData::Card(ref card) => {
+                            StripePaymentMethodData::Card(StripeCardData {
+                                payment_method_data_type: StripePaymentMethodType::Card,
+                                payment_method_data_card_number: card.card_number.clone(),
+                                payment_method_data_card_exp_month: card.card_exp_month.clone(),
+                                payment_method_data_card_exp_year: card.card_exp_year.clone(),
+                                payment_method_data_card_cvc: None,
+                                payment_method_auth_type: None,
+                            })
+                        }
+                        payments::PaymentMethodData::CardRedirect(_)
+                        | payments::PaymentMethodData::Wallet(_)
+                        | payments::PaymentMethodData::PayLater(_)
+                        | payments::PaymentMethodData::BankRedirect(_)
+                        | payments::PaymentMethodData::BankDebit(_)
+                        | payments::PaymentMethodData::BankTransfer(_)
+                        | payments::PaymentMethodData::Crypto(_)
+                        | payments::PaymentMethodData::MandatePayment
+                        | payments::PaymentMethodData::Reward
+                        | payments::PaymentMethodData::Upi(_)
+                        | payments::PaymentMethodData::Voucher(_)
+                        | payments::PaymentMethodData::GiftCard(_)
+                        | api::PaymentMethodData::CardToken(_) => {
+                            Err(errors::ConnectorError::NotSupported {
+                                message: "Network tokenization for payment method".to_string(),
+                                connector: "Adyen",
+                            })?
+                        }
+                    };
+
+                    (
+                        Some(payment_data),
+                        None,
+                        None,
+                        StripeBillingAddress::default(),
+                        None,
+                    )
                 }
                 _ => {
                     let (payment_method_data, payment_method_type, billing_address) =
@@ -2993,10 +3032,14 @@ impl TryFrom<&types::PaymentsCancelRouterData> for CancelRequest {
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 #[non_exhaustive]
 #[serde(rename_all = "snake_case")]
+#[serde(untagged)]
 pub enum StripePaymentMethodOptions {
     Card {
+        #[serde(flatten)]
         mandate_options: Option<StripeMandateOptions>,
+        #[serde(rename = "payment_method_options[card][network_transaction_id]")]
         network_transaction_id: Option<Secret<String>>,
+        #[serde(flatten)]
         mit_exemption: Option<MitExemption>, // To be used for MIT mandate txns
     },
     Klarna {},
@@ -3027,6 +3070,7 @@ pub enum StripePaymentMethodOptions {
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct MitExemption {
+    #[serde(rename = "payment_method_options[card][mit_exemption][network_transaction_id]")]
     pub network_transaction_id: Secret<String>,
 }
 
@@ -3055,6 +3099,7 @@ pub struct Card {
 // pub struct Card
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug, Default, Eq, PartialEq)]
 pub struct StripeMandateOptions {
+    #[serde(rename = "payment_method_options[card][mandate_options]")]
     reference: Secret<String>, // Extendable, But only important field to be captured
 }
 /// Represents the capture request body for stripe connector.
