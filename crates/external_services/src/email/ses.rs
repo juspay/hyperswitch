@@ -1,6 +1,5 @@
 use std::time::{Duration, SystemTime};
 
-use crate::email::{EmailClient, EmailError, EmailResult, EmailSettings, IntermediateString};
 use aws_sdk_sesv2::{
     config::Region,
     operation::send_email::SendEmailError,
@@ -14,6 +13,8 @@ use error_stack::{report, IntoReport, ResultExt};
 use hyper::Uri;
 use masking::PeekInterface;
 use router_env::logger;
+
+use crate::email::{EmailClient, EmailError, EmailResult, EmailSettings, IntermediateString};
 
 /// Client for AWS SES operation
 #[derive(Debug, Clone)]
