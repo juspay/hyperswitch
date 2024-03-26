@@ -223,7 +223,7 @@ impl Connector {
             | Self::Authorizedotnet
             | Self::Bambora
             | Self::Bankofamerica
-            | Self::Billwerk
+            // | Self::Billwerk Added as template for future usage
             | Self::Bitpay
             | Self::Bluesnap
             | Self::Boku
