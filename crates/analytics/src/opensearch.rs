@@ -14,9 +14,9 @@ use opensearch::{
         transport::{SingleNodeConnectionPool, Transport, TransportBuilder},
         Url,
     },
-    Msearch, MsearchParts, OpenSearch, Search, SearchParts,
+    MsearchParts, OpenSearch, SearchParts,
 };
-use serde_json::{json, Map, Value};
+use serde_json::{json, Value};
 use storage_impl::errors::ApplicationError;
 use strum::IntoEnumIterator;
 
@@ -134,7 +134,7 @@ impl OpenSearchClient {
                     payload_with_indexes.push(
                         json!({"index": self.search_index_to_opensearch_index(index)}).into(),
                     );
-                    payload_with_indexes.push(*index_hit);
+                    payload_with_indexes.push(JsonBody::new(index_hit.clone()));
                 }
 
                 self.client
@@ -147,11 +147,11 @@ impl OpenSearchClient {
             }
             OpenSearchQuery::Search(index) => {
                 let payload = query_builder
-                    .construct_payload(vec![index])
+                    .clone()
+                    .construct_payload(vec![index.clone()])
                     .change_context(OpenSearchError::ResponseError)?;
 
-                let JsonBody(final_payload) =
-                    *payload.get(0).unwrap_or(&JsonBody::from(Value::Null));
+                let final_payload = payload.get(0).unwrap_or(&Value::Null);
 
                 self.client
                     .search(SearchParts::Index(&[
@@ -285,13 +285,13 @@ pub struct OpenSearchHealth {
     pub status: OpenSearchHealthStatus,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum OpenSearchQuery {
     Msearch,
     Search(SearchIndex),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct OpenSearchQueryBuilder {
     pub query_type: OpenSearchQuery,
     pub query: String,
@@ -322,10 +322,7 @@ impl OpenSearchQueryBuilder {
         Ok(())
     }
 
-    pub fn construct_payload(
-        &self,
-        indexes: Vec<SearchIndex>,
-    ) -> QueryResult<Vec<JsonBody<Value>>> {
+    pub fn construct_payload(&self, indexes: Vec<SearchIndex>) -> QueryResult<Vec<Value>> {
         let filters = self
             .filters
             .iter()
@@ -334,7 +331,7 @@ impl OpenSearchQueryBuilder {
 
         // TODO add index specific filters
         Ok(indexes.iter().map(|_| {
-            json!({"query": {"bool": {"must": {"query_string": {"query": self.query}}, "filter": filters}}}).into()
-        }).collect::<Vec<JsonBody<Value>>>())
+            json!({"query": {"bool": {"must": {"query_string": {"query": self.query}}, "filter": filters}}})
+        }).collect::<Vec<Value>>())
     }
 }
