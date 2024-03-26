@@ -76,7 +76,7 @@ macro_rules! unimplemented_payment_method {
             $payment_method, $connector
         ))
     };
-    ($payment_method:expr, $connector:expr, $flow:expr) => {
+    ($payment_method:expr, $flow:expr, $connector:expr) => {
         errors::ConnectorError::NotImplemented(format!(
             "{} {} through {}",
             $payment_method, $flow, $connector
