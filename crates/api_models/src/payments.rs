@@ -1071,9 +1071,12 @@ pub enum BankDebitData {
         /// International bank account number (iban) for SEPA
         #[schema(value_type = String, example = "DE89370400440532013000")]
         iban: Secret<String>,
-        /// Owner name for bank debit
+        /// Holder name for bank debit
         #[schema(value_type = String, example = "A. Schneider")]
         bank_account_holder_name: Option<Secret<String>>,
+        /// Holder email for bank debit
+        #[schema(max_length = 255, value_type = Option<String>, example = "a_schneider@test.com")]
+        bank_account_holder_email: Option<Secret<String>>,
     },
     BecsBankDebit {
         /// Billing details for bank debit
@@ -1097,9 +1100,12 @@ pub enum BankDebitData {
         /// Sort code for Bacs payment method
         #[schema(value_type = String, example = "108800")]
         sort_code: Secret<String>,
-        /// holder name for bank debit
+        /// Holder name for bank debit
         #[schema(value_type = String, example = "A. Schneider")]
         bank_account_holder_name: Option<Secret<String>>,
+        /// Holder email for bank debit
+        #[schema(max_length = 255, value_type = Option<String>, example = "a_schneider@test.com")]
+        bank_account_holder_email: Option<Secret<String>>,
     },
 }
 
