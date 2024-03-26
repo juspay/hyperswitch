@@ -93,6 +93,7 @@ pub struct KafkaSettings {
     outgoing_webhook_logs_topic: String,
     dispute_analytics_topic: String,
     audit_events_topic: String,
+    payout_analytics_topic: String
 }
 
 impl KafkaSettings {
@@ -158,6 +159,12 @@ impl KafkaSettings {
             ))
         })?;
 
+        common_utils::fp_utils::when(self.payout_analytics_topic.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "Kafka Payout Analytics topic must not be empty".into(),
+            ))
+        })?;
+
         Ok(())
     }
 }
@@ -173,6 +180,7 @@ pub struct KafkaProducer {
     outgoing_webhook_logs_topic: String,
     dispute_analytics_topic: String,
     audit_events_topic: String,
+    payout_analytics_topic: String,
 }
 
 struct RdKafkaProducer(ThreadedProducer<DefaultProducerContext>);
@@ -213,6 +221,7 @@ impl KafkaProducer {
             outgoing_webhook_logs_topic: conf.outgoing_webhook_logs_topic.clone(),
             dispute_analytics_topic: conf.dispute_analytics_topic.clone(),
             audit_events_topic: conf.audit_events_topic.clone(),
+            payout_analytics_topic: conf.payout_analytics_topic.clone(),
         })
     }
 
@@ -227,6 +236,7 @@ impl KafkaProducer {
             EventType::OutgoingWebhookLogs => &self.outgoing_webhook_logs_topic,
             EventType::Dispute => &self.dispute_analytics_topic,
             EventType::AuditEvent => &self.audit_events_topic,
+            EventType::Payout => &self.payout_analytics_topic,
         };
         self.producer
             .0
@@ -353,6 +363,7 @@ impl KafkaProducer {
             EventType::OutgoingWebhookLogs => &self.outgoing_webhook_logs_topic,
             EventType::Dispute => &self.dispute_analytics_topic,
             EventType::AuditEvent => &self.audit_events_topic,
+            EventType::Payout => &self.payout_analytics_topic,
         }
     }
 }
