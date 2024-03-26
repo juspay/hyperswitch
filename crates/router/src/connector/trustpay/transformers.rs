@@ -112,7 +112,7 @@ pub struct Amount {
 #[derive(Default, Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct Reason {
-    pub code: String,
+    pub code: Option<String>,
     pub reject_reason: Option<String>,
 }
 
@@ -510,6 +510,7 @@ fn is_payment_failed(payment_status: &str) -> (bool, &'static str) {
         "800.100.172" => (true, "Transaction declined (account blocked)"),
         "800.100.190" => (true, "Transaction declined (invalid configuration data)"),
         "800.100.202" => (true, "Account Closed"),
+        "800.100.203" => (true, "Insufficient Funds"),
         "800.120.100" => (true, "Rejected by throttling"),
         "800.300.102" => (true, "Country blacklisted"),
         "800.300.401" => (true, "Bin blacklisted"),
@@ -823,9 +824,9 @@ fn handle_bank_redirects_sync_response(
             .status_reason_information
             .unwrap_or_default();
         Some(types::ErrorResponse {
-            code: reason_info.reason.code.clone(),
+            code: reason_info.reason.code.clone().unwrap_or(consts::NO_ERROR_CODE.to_string()),
             // message vary for the same code, so relying on code alone as it is unique
-            message: reason_info.reason.code,
+            message: reason_info.reason.code.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason: reason_info.reason.reject_reason,
             status_code,
             attempt_status: None,
@@ -875,9 +876,9 @@ pub fn handle_webhook_response(
             .status_reason_information
             .unwrap_or_default();
         Some(types::ErrorResponse {
-            code: reason_info.reason.code.clone(),
+            code: reason_info.reason.code.clone().unwrap_or(consts::NO_ERROR_CODE.to_string()),
             // message vary for the same code, so relying on code alone as it is unique
-            message: reason_info.reason.code,
+            message: reason_info.reason.code.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason: reason_info.reason.reject_reason,
             status_code,
             attempt_status: None,
@@ -1483,9 +1484,9 @@ fn handle_webhooks_refund_response(
     let error = if utils::is_refund_failure(refund_status) {
         let reason_info = response.status_reason_information.unwrap_or_default();
         Some(types::ErrorResponse {
-            code: reason_info.reason.code.clone(),
+            code: reason_info.reason.code.clone().unwrap_or(consts::NO_ERROR_CODE.to_string()),
             // message vary for the same code, so relying on code alone as it is unique
-            message: reason_info.reason.code,
+            message: reason_info.reason.code.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason: reason_info.reason.reject_reason,
             status_code,
             attempt_status: None,
@@ -1540,9 +1541,9 @@ fn handle_bank_redirects_refund_sync_response(
             .status_reason_information
             .unwrap_or_default();
         Some(types::ErrorResponse {
-            code: reason_info.reason.code.clone(),
+            code: reason_info.reason.code.clone().unwrap_or(consts::NO_ERROR_CODE.to_string()),
             // message vary for the same code, so relying on code alone as it is unique
-            message: reason_info.reason.code,
+            message: reason_info.reason.code.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason: reason_info.reason.reject_reason,
             status_code,
             attempt_status: None,
