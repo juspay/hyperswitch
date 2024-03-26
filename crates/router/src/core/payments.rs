@@ -2978,7 +2978,10 @@ pub async fn decide_connector_for_token_based_mit_flow<F: Clone>(
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?;
             let pg_agnostic = state
                 .store
-                .find_config_by_key(&format!("pg_agnostic_mandate_{}", profile_id))
+                .find_config_by_key_unwrap_or(
+                    &format!("pg_agnostic_mandate_{}", profile_id),
+                    Some("false".to_string()),
+                )
                 .await
                 .change_context(errors::ApiErrorResponse::ResourceIdNotFound)
                 .attach_printable("The conditional config was not found in the DB")?;
