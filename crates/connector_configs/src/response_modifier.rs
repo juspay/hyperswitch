@@ -276,78 +276,9 @@ impl ConnectorApiIntegrationPayload {
             card_provider: Some(credit_details),
         };
 
-        let google_pay = Self::get_google_pay_metadata_response(response.clone());
-        let metadata = response.metadata;
-
-        let (
-            account_name,
-            merchant_account_id,
-            merchant_id,
-            terminal_id,
-            endpoint_prefix,
-            apple_pay,
-            apple_pay_combined,
-            merchant_config_currency,
-            mcc,
-            merchant_country_code,
-            merchant_name,
-            acquirer_bin,
-            acquirer_merchant_id,
-        ) = match metadata {
-            Some(meta_data) => {
-                let ApiModelMetaData {
-                    account_name,
-                    merchant_account_id,
-                    merchant_id,
-                    terminal_id,
-                    endpoint_prefix,
-                    apple_pay,
-                    apple_pay_combined,
-                    merchant_config_currency,
-                    mcc,
-                    merchant_country_code,
-                    merchant_name,
-                    acquirer_bin,
-                    acquirer_merchant_id,
-                    google_pay: _,
-                } = meta_data;
-                (
-                    account_name.clone(),
-                    merchant_account_id.clone(),
-                    merchant_id.clone(),
-                    terminal_id.clone(),
-                    endpoint_prefix.clone(),
-                    apple_pay.clone(),
-                    apple_pay_combined.clone(),
-                    merchant_config_currency.clone(),
-                    mcc.clone(),
-                    merchant_country_code.clone(),
-                    merchant_name.clone(),
-                    acquirer_bin.clone(),
-                    acquirer_merchant_id.clone(),
-                )
-            }
-            None => (
-                None, None, None, None, None, None, None, None, None, None, None, None, None,
-            ),
-        };
-
-        let meta_data = DashboardMetaData {
-            merchant_config_currency,
-            merchant_account_id,
-            apple_pay,
-            apple_pay_combined,
-            google_pay,
-            account_name,
-            terminal_id,
-            merchant_id,
-            endpoint_prefix,
-            mcc,
-            merchant_country_code,
-            merchant_name,
-            acquirer_bin,
-            acquirer_merchant_id,
-        };
+        let meta_data = response
+            .metadata
+            .map(|metadata| DashboardMetaData::from(metadata));
 
         DashboardRequestPayload {
             connector: response.connector_name,
@@ -366,35 +297,52 @@ impl ConnectorApiIntegrationPayload {
                 credit_details,
                 gift_card,
             ]),
-            metadata: Some(meta_data),
+            metadata: meta_data,
         }
     }
+}
 
-    pub fn get_google_pay_metadata_response(response: Self) -> Option<GooglePayData> {
-        match response.metadata {
-            Some(meta_data) => {
-                match meta_data.google_pay {
-                    Some(google_pay) => match google_pay {
-                        GoogleApiModelData::Standard(standard_data) => {
-                            let data = standard_data.allowed_payment_methods.first().map(
-                                |allowed_pm| {
-                                    allowed_pm.tokenization_specification.parameters.clone()
-                                },
-                            )?;
-                            Some(GooglePayData::Standard(GpayDashboardPayLoad {
-                                gateway_merchant_id: data.gateway_merchant_id,
-                                stripe_version: data.stripe_version,
-                                stripe_publishable_key: data.stripe_publishable_key,
-                                merchant_name: standard_data.merchant_info.merchant_name,
-                                merchant_id: standard_data.merchant_info.merchant_id,
-                            }))
-                        }
-                        GoogleApiModelData::Zen(data) => Some(GooglePayData::Zen(data)),
-                    },
-                    None => None,
-                }
-            }
-            None => None,
+impl From<ApiModelMetaData> for DashboardMetaData {
+    fn from(api_model: ApiModelMetaData) -> Self {
+        Self {
+            merchant_config_currency: api_model.merchant_config_currency,
+            merchant_account_id: api_model.merchant_account_id,
+            account_name: api_model.account_name,
+            terminal_id: api_model.terminal_id,
+            merchant_id: api_model.merchant_id,
+            google_pay: get_google_pay_metadata_response(api_model.google_pay),
+            apple_pay: api_model.apple_pay,
+            apple_pay_combined: api_model.apple_pay_combined,
+            endpoint_prefix: api_model.endpoint_prefix,
+            mcc: api_model.mcc,
+            merchant_country_code: api_model.merchant_country_code,
+            merchant_name: api_model.merchant_name,
+            acquirer_bin: api_model.acquirer_bin,
+            acquirer_merchant_id: api_model.acquirer_merchant_id,
         }
+    }
+}
+
+pub fn get_google_pay_metadata_response(
+    google_pay_data: Option<GoogleApiModelData>,
+) -> Option<GooglePayData> {
+    match google_pay_data {
+        Some(google_pay) => match google_pay {
+            GoogleApiModelData::Standard(standard_data) => {
+                let data = standard_data
+                    .allowed_payment_methods
+                    .first()
+                    .map(|allowed_pm| allowed_pm.tokenization_specification.parameters.clone())?;
+                Some(GooglePayData::Standard(GpayDashboardPayLoad {
+                    gateway_merchant_id: data.gateway_merchant_id,
+                    stripe_version: data.stripe_version,
+                    stripe_publishable_key: data.stripe_publishable_key,
+                    merchant_name: standard_data.merchant_info.merchant_name,
+                    merchant_id: standard_data.merchant_info.merchant_id,
+                }))
+            }
+            GoogleApiModelData::Zen(data) => Some(GooglePayData::Zen(data)),
+        },
+        None => None,
     }
 }
