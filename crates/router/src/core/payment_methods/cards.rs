@@ -3490,7 +3490,7 @@ pub async fn delete_payment_method(
 
     let payment_methods_count = db
         .get_payment_method_count_by_customer_id_merchant_id_status(
-            &key.customer_id,
+            &pm.customer_id,
             &merchant_account.merchant_id,
             api_enums::PaymentMethodStatus::Active,
         )
@@ -3544,8 +3544,8 @@ pub async fn delete_payment_method(
         };
 
         db.update_customer_by_customer_id_merchant_id(
-            key.customer_id,
-            key.merchant_id,
+            pm.customer_id,
+            pm.merchant_id,
             customer_update,
             &key_store,
         )

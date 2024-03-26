@@ -187,13 +187,7 @@ impl PaymentMethodRetrieve for Oss {
                     |(payment_method_data, payment_method)| storage::PaymentMethodDataWithId {
                         payment_method_data: Some(payment_method_data),
                         payment_method: Some(payment_method),
-                        payment_method_id: Some(
-                            card_token
-                                .payment_method_id
-                                .as_ref()
-                                .unwrap_or(&card_token.token)
-                                .to_string(),
-                        ),
+                        payment_method_id: Some(card_token.payment_method_id.clone()),
                     },
                 )
                 .unwrap_or_default()
@@ -219,13 +213,7 @@ impl PaymentMethodRetrieve for Oss {
                     |(payment_method_data, payment_method)| storage::PaymentMethodDataWithId {
                         payment_method_data: Some(payment_method_data),
                         payment_method: Some(payment_method),
-                        payment_method_id: Some(
-                            card_token
-                                .payment_method_id
-                                .as_ref()
-                                .unwrap_or(&card_token.token)
-                                .to_string(),
-                        ),
+                        payment_method_id: Some(card_token.payment_method_id.clone()),
                     },
                 )
                 .unwrap_or_default()

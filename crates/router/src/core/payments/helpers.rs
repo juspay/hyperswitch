@@ -1622,19 +1622,13 @@ pub async fn retrieve_payment_method_from_db_with_token_data(
     token_data: &storage::PaymentTokenData,
 ) -> RouterResult<Option<storage::PaymentMethod>> {
     match token_data {
-        storage::PaymentTokenData::PermanentCard(data) => {
-            if let Some(ref payment_method_id) = data.payment_method_id {
-                state
-                    .store
-                    .find_payment_method(payment_method_id)
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
-                    .attach_printable("error retrieving payment method from DB")
-                    .map(Some)
-            } else {
-                Ok(None)
-            }
-        }
+        storage::PaymentTokenData::PermanentCard(data) => state
+            .store
+            .find_payment_method(&data.payment_method_id)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
+            .attach_printable("error retrieving payment method from DB")
+            .map(Some),
 
         storage::PaymentTokenData::WalletToken(data) => state
             .store
@@ -4074,11 +4068,12 @@ pub async fn get_payment_method_details_from_payment_token(
 
         storage::PaymentTokenData::Permanent(card_token) => retrieve_card_with_permanent_token(
             state,
-            &card_token.token,
             card_token
-                .payment_method_id
+                .locker_id
                 .as_ref()
-                .unwrap_or(&card_token.token),
+                .ok_or(report!(errors::ApiErrorResponse::InternalServerError))
+                .attach_printable("locker_id not found in redis")?,
+            &card_token.payment_method_id,
             payment_intent,
             None,
         )
@@ -4087,11 +4082,12 @@ pub async fn get_payment_method_details_from_payment_token(
 
         storage::PaymentTokenData::PermanentCard(card_token) => retrieve_card_with_permanent_token(
             state,
-            &card_token.token,
             card_token
-                .payment_method_id
+                .locker_id
                 .as_ref()
-                .unwrap_or(&card_token.token),
+                .ok_or(report!(errors::ApiErrorResponse::InternalServerError))
+                .attach_printable("locker_id not found in redis")?,
+            &card_token.payment_method_id,
             payment_intent,
             None,
         )
