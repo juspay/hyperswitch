@@ -2407,9 +2407,7 @@ impl<F, T>
                             connector_metadata: None,
                             network_txn_id: info_response.processor_information.as_ref().and_then(
                                 |processor_information| {
-                                    processor_information
-                                        .network_transaction_id
-                                        .clone()
+                                    processor_information.network_transaction_id.clone()
                                 },
                             ),
                             connector_response_reference_id: Some(
