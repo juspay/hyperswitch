@@ -1,5 +1,4 @@
 // const { defineConfig } = require('cypress');
-
 let globalState;
 module.exports = {
   e2e: {
