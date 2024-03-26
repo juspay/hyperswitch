@@ -1,3 +1,4 @@
+use common_enums::AttemptStatus;
 use common_utils::pii::{Email, IpAddress};
 use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
@@ -592,7 +593,7 @@ pub enum MandateType {
     Unscheduled,
 }
 
-impl From<MultisafepayPaymentStatus> for enums::AttemptStatus {
+impl From<MultisafepayPaymentStatus> for AttemptStatus {
     fn from(item: MultisafepayPaymentStatus) -> Self {
         match item {
             MultisafepayPaymentStatus::Completed => Self::Charged,
@@ -687,6 +688,7 @@ impl<F, T>
                             payment_response.data.reason.clone(),
                             payment_response.data.reason,
                             item.http_code,
+                            Some(status),
                             Some(payment_response.data.order_id),
                         ))
                     } else {
@@ -714,16 +716,20 @@ impl<F, T>
                     ..item.data
                 })
             }
-            MultisafepayAuthResponse::ErrorResponse(error_response) => Ok(Self {
-                response: Err(utils::get_connector_error_response(
-                    Some(error_response.error_code.to_string()),
-                    Some(error_response.error_info.clone()),
-                    Some(error_response.error_info),
-                    item.http_code,
-                    None,
-                )),
-                ..item.data
-            }),
+            MultisafepayAuthResponse::ErrorResponse(error_response) => {
+                let attempt_status = Option::<AttemptStatus>::from(error_response.clone());
+                Ok(Self {
+                    response: Err(utils::get_connector_error_response(
+                        Some(error_response.error_code.to_string()),
+                        Some(error_response.error_info.clone()),
+                        Some(error_response.error_info),
+                        item.http_code,
+                        attempt_status,
+                        None,
+                    )),
+                    ..item.data
+                })
+            }
         }
     }
 }
@@ -821,17 +827,20 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, MultisafepayRefundRe
                     ..item.data
                 })
             }
-            MultisafepayRefundResponse::ErrorResponse(error_response) => Ok(Self {
-                response: Err(types::ErrorResponse {
-                    code: error_response.error_code.to_string(),
-                    message: error_response.error_info.clone(),
-                    reason: Some(error_response.error_info),
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                }),
-                ..item.data
-            }),
+            MultisafepayRefundResponse::ErrorResponse(error_response) => {
+                let attempt_status = Option::<AttemptStatus>::from(error_response.clone());
+                Ok(Self {
+                    response: Err(types::ErrorResponse {
+                        code: error_response.error_code.to_string(),
+                        message: error_response.error_info.clone(),
+                        reason: Some(error_response.error_info),
+                        status_code: item.http_code,
+                        attempt_status,
+                        connector_transaction_id: None,
+                    }),
+                    ..item.data
+                })
+            }
         }
     }
 }
@@ -878,4 +887,48 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, MultisafepayRefundResp
 pub struct MultisafepayErrorResponse {
     pub error_code: i32,
     pub error_info: String,
+}
+
+impl From<MultisafepayErrorResponse> for Option<AttemptStatus> {
+    fn from(error_data: MultisafepayErrorResponse) -> Option<AttemptStatus> {
+        match error_data.error_code {
+            10001 // InvalidAmount
+            | 1002 // InvalidCurrency
+            | 1003  // InvalidAccountID
+            | 1004 // InvalidSiteID
+            | 1005 // InvalidSecurityCode
+            | 1006 // InvalidTransactionID
+            | 1007 // InvalidIPAddress
+            | 1008 // InvalidDescription
+            | 1010 // InvalidVariable
+            | 1011 // InvalidCustomerAccountID
+            | 1012 // InvalidCustomerSecurityCode
+            | 1013 // InvalidSignature
+            | 1015 //UnknownAccountID
+            | 1016 // MissingData
+            | 1018 // InvalidCountryCode
+            | 1025 // MultisafepayErrorCodes::IncorrectCustomerIPAddress
+            | 1026 // MultisafepayErrorCodes::MultipleCurrenciesInCart
+            | 1027 // MultisafepayErrorCodes::CartCurrencyDifferentToOrderCurrency
+            | 1028 // IncorrectCustomTaxRate
+            | 1029 // IncorrectItemTaxRate
+            | 1030 // IncorrectItemCurrency
+            | 1031 // IncorrectItemPrice
+            | 1035 // InvalidSignatureRefund
+            | 1036 // InvalidIdealIssuerID
+            | 5001 // CartDataNotValidated 
+            | 1032 // InvalidAPIKey
+            => {
+                Some(AttemptStatus::AuthenticationFailed)
+            }
+
+            1034 // CannotRefundTransaction
+            | 1022 // CannotInitiateTransaction
+            | 1024 //TransactionDeclined 
+            => Some(AttemptStatus::Failure),
+            1017 // InsufficientFunds
+            => Some(AttemptStatus::AuthorizationFailed),
+            _ => None,
+        }
+    }
 }

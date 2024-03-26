@@ -1810,6 +1810,7 @@ pub fn get_connector_error_response(
     message: Option<String>,
     reason: Option<String>,
     http_code: u16,
+    attempt_status: Option<enums::AttemptStatus>,
     connector_transaction_id: Option<String>,
 ) -> types::ErrorResponse {
     types::ErrorResponse {
@@ -1819,7 +1820,7 @@ pub fn get_connector_error_response(
             .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
         reason,
         status_code: http_code,
-        attempt_status: None,
+        attempt_status,
         connector_transaction_id,
     }
 }
