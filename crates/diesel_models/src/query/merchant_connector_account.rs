@@ -1,5 +1,4 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Table};
-use router_env::{instrument, tracing};
 
 use super::generics;
 use crate::{
@@ -13,14 +12,12 @@ use crate::{
 };
 
 impl MerchantConnectorAccountNew {
-    #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<MerchantConnectorAccount> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl MerchantConnectorAccount {
-    #[instrument(skip(conn))]
     pub async fn update(
         self,
         conn: &PgPooledConn,
@@ -55,7 +52,6 @@ impl MerchantConnectorAccount {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_by_merchant_id_connector(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -70,7 +66,6 @@ impl MerchantConnectorAccount {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_by_profile_id_connector_name(
         conn: &PgPooledConn,
         profile_id: &str,
@@ -85,7 +80,6 @@ impl MerchantConnectorAccount {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_by_merchant_id_connector_name(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -108,7 +102,6 @@ impl MerchantConnectorAccount {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_by_merchant_id_merchant_connector_id(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -123,24 +116,18 @@ impl MerchantConnectorAccount {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_by_merchant_id(
         conn: &PgPooledConn,
         merchant_id: &str,
         get_disabled: bool,
     ) -> StorageResult<Vec<Self>> {
         if get_disabled {
-            generics::generic_filter::<
-                <Self as HasTable>::Table,
-                _,
-                <<Self as HasTable>::Table as Table>::PrimaryKey,
-                _,
-            >(
+            generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
                 conn,
                 dsl::merchant_id.eq(merchant_id.to_owned()),
                 None,
                 None,
-                None,
+                Some(dsl::created_at.asc()),
             )
             .await
         } else {

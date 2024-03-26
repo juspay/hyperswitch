@@ -12,11 +12,15 @@
   ],
   "body": {
     "mode": "raw",
-    "raw": "{\n  \"amount_to_capture\": {{capture_amount}},\n  \"statement_descriptor_name\": \"Joseph\",\n  \"statement_descriptor_suffix\": \"JS\"\n}",
     "options": {
       "raw": {
         "language": "json"
       }
+    },
+    "raw_json_formatted": {
+      "amount_to_capture": "{{capture_amount}}",
+      "statement_descriptor_name": "Joseph",
+      "statement_descriptor_suffix": "JS"
     }
   },
   "url": {

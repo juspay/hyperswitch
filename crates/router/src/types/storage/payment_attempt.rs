@@ -7,7 +7,6 @@ use error_stack::ResultExt;
 use crate::{
     core::errors, errors::RouterResult, types::transformers::ForeignFrom, utils::OptionExt,
 };
-
 pub trait PaymentAttemptExt {
     fn make_new_capture(
         &self,
@@ -16,7 +15,8 @@ pub trait PaymentAttemptExt {
     ) -> RouterResult<CaptureNew>;
 
     fn get_next_capture_id(&self) -> String;
-    fn get_intent_status(&self, amount_captured: Option<i64>) -> enums::IntentStatus;
+    fn get_total_amount(&self) -> i64;
+    fn get_surcharge_details(&self) -> Option<api_models::payments::RequestSurchargeDetails>;
 }
 
 impl PaymentAttemptExt for PaymentAttempt {
@@ -58,14 +58,26 @@ impl PaymentAttemptExt for PaymentAttempt {
         let next_sequence_number = self.multiple_capture_count.unwrap_or_default() + 1;
         format!("{}_{}", self.attempt_id.clone(), next_sequence_number)
     }
+    fn get_surcharge_details(&self) -> Option<api_models::payments::RequestSurchargeDetails> {
+        self.surcharge_amount.map(|surcharge_amount| {
+            api_models::payments::RequestSurchargeDetails {
+                surcharge_amount,
+                tax_amount: self.tax_amount,
+            }
+        })
+    }
+    fn get_total_amount(&self) -> i64 {
+        self.amount + self.surcharge_amount.unwrap_or(0) + self.tax_amount.unwrap_or(0)
+    }
+}
 
-    fn get_intent_status(&self, amount_captured: Option<i64>) -> enums::IntentStatus {
-        let intent_status = enums::IntentStatus::foreign_from(self.status);
-        if intent_status == enums::IntentStatus::Cancelled && amount_captured > Some(0) {
-            enums::IntentStatus::Succeeded
-        } else {
-            intent_status
-        }
+pub trait AttemptStatusExt {
+    fn maps_to_intent_status(self, intent_status: enums::IntentStatus) -> bool;
+}
+
+impl AttemptStatusExt for enums::AttemptStatus {
+    fn maps_to_intent_status(self, intent_status: enums::IntentStatus) -> bool {
+        enums::IntentStatus::foreign_from(self) == intent_status
     }
 }
 
@@ -90,8 +102,13 @@ mod tests {
         let conf = Settings::new().expect("invalid settings");
         let tx: oneshot::Sender<()> = oneshot::channel().0;
         let api_client = Box::new(services::MockApiClient);
-        let state =
-            routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx, api_client).await;
+        let state = Box::pin(routes::AppState::with_storage(
+            conf,
+            StorageImpl::PostgresqlTest,
+            tx,
+            api_client,
+        ))
+        .await;
 
         let payment_id = Uuid::new_v4().to_string();
         let current_time = common_utils::date_time::now();
@@ -121,11 +138,14 @@ mod tests {
         use crate::configs::settings::Settings;
         let conf = Settings::new().expect("invalid settings");
         let tx: oneshot::Sender<()> = oneshot::channel().0;
-
         let api_client = Box::new(services::MockApiClient);
-
-        let state =
-            routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx, api_client).await;
+        let state = Box::pin(routes::AppState::with_storage(
+            conf,
+            StorageImpl::PostgresqlTest,
+            tx,
+            api_client,
+        ))
+        .await;
 
         let current_time = common_utils::date_time::now();
         let payment_id = Uuid::new_v4().to_string();
@@ -174,9 +194,13 @@ mod tests {
         let tx: oneshot::Sender<()> = oneshot::channel().0;
 
         let api_client = Box::new(services::MockApiClient);
-
-        let state =
-            routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx, api_client).await;
+        let state = Box::pin(routes::AppState::with_storage(
+            conf,
+            StorageImpl::PostgresqlTest,
+            tx,
+            api_client,
+        ))
+        .await;
         let current_time = common_utils::date_time::now();
         let connector = types::Connector::DummyConnector1.to_string();
 

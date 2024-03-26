@@ -1,4 +1,24 @@
 {
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "value",
+        "value": "{{publishable_key}}",
+        "type": "string"
+      },
+      {
+        "key": "key",
+        "value": "api-key",
+        "type": "string"
+      },
+      {
+        "key": "in",
+        "value": "header",
+        "type": "string"
+      }
+    ]
+  },
   "method": "POST",
   "header": [
     {
@@ -18,14 +38,15 @@
       }
     },
     "raw_json_formatted": {
+      "client_secret": "{{client_secret}}",
       "return_url": "https://integ.hyperswitch.io/home",
       "payment_method": "card",
       "payment_method_data": {
         "card": {
-          "card_number": "4200000000000067",
+          "card_number": "5200000000000015",
           "card_exp_month": "03",
           "card_exp_year": "2030",
-          "card_holder_name": "",
+          "card_holder_name": "John Doe",
           "card_cvc": "737",
           "card_issuer": "",
           "card_network": "Visa"

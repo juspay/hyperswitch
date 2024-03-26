@@ -21,11 +21,11 @@ fn verify_iin_length(card_iin: &str) -> Result<(), errors::ApiErrorResponse> {
 
 #[instrument(skip_all)]
 pub async fn retrieve_card_info(
-    state: &routes::AppState,
+    state: routes::AppState,
     merchant_account: domain::MerchantAccount,
     request: api_models::cards_info::CardsInfoRequest,
 ) -> RouterResponse<api_models::cards_info::CardInfoResponse> {
-    let db = &*state.store;
+    let db = state.store.as_ref();
 
     verify_iin_length(&request.card_iin)?;
     helpers::verify_payment_intent_time_and_client_secret(

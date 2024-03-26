@@ -1,37 +1,53 @@
 use base64::Engine;
 use common_utils::errors::CustomResult;
 use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
 use masking::{PeekInterface, Secret};
+use serde::Serialize;
 
 use super::{requests::*, response::*};
 use crate::{
     connector::utils,
     consts,
     core::errors,
-    types::{self, api},
+    types::{self, api, PaymentsAuthorizeData, PaymentsResponseData},
 };
 
+#[derive(Debug, Serialize)]
+pub struct WorldpayRouterData<T> {
+    amount: i64,
+    router_data: T,
+}
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for WorldpayRouterData<T>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (_currency_unit, _currency, amount, item): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount,
+            router_data: item,
+        })
+    }
+}
 fn fetch_payment_instrument(
     payment_method: api::PaymentMethodData,
 ) -> CustomResult<PaymentInstrument, errors::ConnectorError> {
     match payment_method {
         api::PaymentMethodData::Card(card) => Ok(PaymentInstrument::Card(CardPayment {
             card_expiry_date: CardExpiryDate {
-                month: card
-                    .card_exp_month
-                    .peek()
-                    .clone()
-                    .parse::<i8>()
-                    .into_report()
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
-                year: card
-                    .card_exp_year
-                    .peek()
-                    .clone()
-                    .parse::<i32>()
-                    .into_report()
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
+                month: utils::CardData::get_expiry_month_as_i8(&card)?,
+                year: utils::CardData::get_expiry_year_as_i32(&card)?,
             },
             card_number: card.card_number,
             ..CardPayment::default()
@@ -40,14 +56,14 @@ fn fetch_payment_instrument(
             api_models::payments::WalletData::GooglePay(data) => {
                 Ok(PaymentInstrument::Googlepay(WalletPayment {
                     payment_type: PaymentType::Googlepay,
-                    wallet_token: data.tokenization_data.token,
+                    wallet_token: Secret::new(data.tokenization_data.token),
                     ..WalletPayment::default()
                 }))
             }
             api_models::payments::WalletData::ApplePay(data) => {
                 Ok(PaymentInstrument::Applepay(WalletPayment {
                     payment_type: PaymentType::Applepay,
-                    wallet_token: data.payment_data,
+                    wallet_token: Secret::new(data.payment_data),
                     ..WalletPayment::default()
                 }))
             }
@@ -91,7 +107,8 @@ fn fetch_payment_instrument(
         | api_models::payments::PaymentMethodData::Upi(_)
         | api_models::payments::PaymentMethodData::Voucher(_)
         | api_models::payments::PaymentMethodData::CardRedirect(_)
-        | api_models::payments::PaymentMethodData::GiftCard(_) => {
+        | api_models::payments::PaymentMethodData::GiftCard(_)
+        | api_models::payments::PaymentMethodData::CardToken(_) => {
             Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("worldpay"),
             )
@@ -100,29 +117,52 @@ fn fetch_payment_instrument(
     }
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for WorldpayPaymentsRequest {
+impl
+    TryFrom<
+        &WorldpayRouterData<
+            &types::RouterData<
+                types::api::payments::Authorize,
+                PaymentsAuthorizeData,
+                PaymentsResponseData,
+            >,
+        >,
+    > for WorldpayPaymentsRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+
+    fn try_from(
+        item: &WorldpayRouterData<
+            &types::RouterData<
+                types::api::payments::Authorize,
+                PaymentsAuthorizeData,
+                PaymentsResponseData,
+            >,
+        >,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
             instruction: Instruction {
                 value: PaymentValue {
-                    amount: item.request.amount,
-                    currency: item.request.currency.to_string(),
+                    amount: item.amount,
+                    currency: item.router_data.request.currency.to_string(),
                 },
                 narrative: InstructionNarrative {
-                    line1: item.merchant_id.clone().replace('_', "-"),
+                    line1: item.router_data.merchant_id.clone().replace('_', "-"),
                     ..Default::default()
                 },
                 payment_instrument: fetch_payment_instrument(
-                    item.request.payment_method_data.clone(),
+                    item.router_data.request.payment_method_data.clone(),
                 )?,
                 debt_repayment: None,
             },
             merchant: Merchant {
-                entity: item.attempt_id.clone().replace('_', "-"),
+                entity: item
+                    .router_data
+                    .connector_request_reference_id
+                    .clone()
+                    .replace('_', "-"),
                 ..Default::default()
             },
-            transaction_reference: item.attempt_id.clone(),
+            transaction_reference: item.router_data.connector_request_reference_id.clone(),
             channel: None,
             customer: None,
         })
@@ -165,7 +205,13 @@ impl From<EventType> for enums::AttemptStatus {
             EventType::CaptureFailed => Self::CaptureFailed,
             EventType::Refused => Self::Failure,
             EventType::Charged | EventType::SentForSettlement => Self::Charged,
-            _ => Self::Pending,
+            EventType::Cancelled
+            | EventType::SentForRefund
+            | EventType::RefundFailed
+            | EventType::Refunded
+            | EventType::Error
+            | EventType::Expired
+            | EventType::Unknown => Self::Pending,
         }
     }
 }
@@ -175,7 +221,16 @@ impl From<EventType> for enums::RefundStatus {
         match value {
             EventType::Refunded => Self::Success,
             EventType::RefundFailed => Self::Failure,
-            _ => Self::Pending,
+            EventType::Authorized
+            | EventType::Cancelled
+            | EventType::Charged
+            | EventType::SentForRefund
+            | EventType::Refused
+            | EventType::Error
+            | EventType::SentForSettlement
+            | EventType::Expired
+            | EventType::CaptureFailed
+            | EventType::Unknown => Self::Pending,
         }
     }
 }
@@ -202,6 +257,7 @@ impl TryFrom<types::PaymentsResponseRouterData<WorldpayPaymentsResponse>>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })

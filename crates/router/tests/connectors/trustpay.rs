@@ -18,6 +18,7 @@ impl utils::Connector for TrustpayTest {
             connector: Box::new(&Trustpay),
             connector_name: types::Connector::Trustpay,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
@@ -66,8 +67,9 @@ fn get_default_payment_authorize_data() -> Option<types::PaymentsAuthorizeData> 
 
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     Some(utils::PaymentInfo {
-        address: Some(types::PaymentAddress {
-            billing: Some(api::Address {
+        address: Some(types::PaymentAddress::new(
+            None,
+            Some(api::Address {
                 address: Some(api::AddressDetails {
                     first_name: Some(Secret::new("first".to_string())),
                     last_name: Some(Secret::new("last".to_string())),
@@ -79,9 +81,10 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                     ..Default::default()
                 }),
                 phone: None,
+                email: None,
             }),
-            ..Default::default()
-        }),
+            None,
+        )),
         ..Default::default()
     })
 }

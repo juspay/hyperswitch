@@ -16,17 +16,32 @@ jobs:
     name: Validate generated OpenAPI spec file
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout PR
-        if: ${{ github.event_name == 'pull_request' }}
-        uses: actions/checkout@v3
+      - name: Generate a token
+        if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
+        id: generate_token
+        uses: actions/create-github-app-token@v1
         with:
-          # Checkout pull request branch instead of merge commit
+          app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
+          private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
+
+      - name: Checkout PR from fork
+        if: ${{ (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name) }}
+        uses: actions/checkout@v4
+        with:
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
 
+      - name: Checkout PR with token
+        if: ${{ (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          token: ${{ steps.generate_token.outputs.token }}
+
       - name: Checkout merge group HEAD commit
         if: ${{ github.event_name == 'merge_group' }}
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.merge_group.head_sha }}
 
@@ -37,7 +52,7 @@ jobs:
 
       - name: Generate the OpenAPI spec file
         shell: bash
-        run: cargo run --features openapi -- generate-openapi-spec
+        run: cargo run -p openapi
 
       - name: Install `swagger-cli`
         shell: bash
@@ -47,10 +62,24 @@ jobs:
         shell: bash
         run: swagger-cli validate ./openapi/openapi_spec.json
 
-      - name: Fail check if the JSON file is not up-to-date
+      - name: Commit the JSON file if it is not up-to-date
+        # PR originated from same repository
+        if: ${{ (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
         shell: bash
         run: |
           if ! git diff --quiet --exit-code -- openapi/openapi_spec.json ; then
-            echo '::error::The OpenAPI spec file is not up-to-date. Please re-generate the OpenAPI spec file using `cargo run --features openapi -- generate-openapi-spec` and commit it.'
+            git config --local user.name 'hyperswitch-bot[bot]'
+            git config --local user.email '148525504+hyperswitch-bot[bot]@users.noreply.github.com'
+            git add openapi/openapi_spec.json
+            git commit --message 'docs(openapi): re-generate OpenAPI specification'
+            git push
+          fi
+
+      - name: Fail check if the JSON file is not up-to-date
+        if: ${{ (github.event_name == 'merge_group') || ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name)) }}
+        shell: bash
+        run: |
+          if ! git diff --quiet --exit-code -- openapi/openapi_spec.json ; then
+            echo '::error::The OpenAPI spec file is not up-to-date. Please re-generate the OpenAPI spec file using `cargo run -p openapi` and commit it.'
             exit 1
           fi

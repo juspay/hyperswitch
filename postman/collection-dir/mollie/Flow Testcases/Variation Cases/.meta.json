@@ -1,5 +1,3 @@
 {
-  "childrenOrder": [
-    "Scenario2-Confirming the payment without PMD"
-  ]
+  "childrenOrder": ["Scenario2-Confirming the payment without PMD"]
 }

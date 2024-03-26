@@ -1,0 +1,2590 @@
+[aci]
+[[aci.credit]]
+  payment_method_type = "Mastercard"
+[[aci.credit]]
+  payment_method_type = "Visa"
+[[aci.credit]]
+  payment_method_type = "Interac"
+[[aci.credit]]
+  payment_method_type = "AmericanExpress"
+[[aci.credit]]
+  payment_method_type = "JCB"
+[[aci.credit]]
+  payment_method_type = "DinersClub"
+[[aci.credit]]
+  payment_method_type = "Discover"
+[[aci.credit]]
+  payment_method_type = "CartesBancaires"
+[[aci.credit]]
+  payment_method_type = "UnionPay"
+[[aci.debit]]
+  payment_method_type = "Mastercard"
+[[aci.debit]]
+  payment_method_type = "Visa"
+[[aci.debit]]
+  payment_method_type = "Interac"
+[[aci.debit]]
+  payment_method_type = "AmericanExpress"
+[[aci.debit]]
+  payment_method_type = "JCB"
+[[aci.debit]]
+  payment_method_type = "DinersClub"
+[[aci.debit]]
+  payment_method_type = "Discover"
+[[aci.debit]]
+  payment_method_type = "CartesBancaires"
+[[aci.debit]]
+  payment_method_type = "UnionPay"
+[[aci.wallet]]
+  payment_method_type = "ali_pay"
+[[aci.wallet]]
+  payment_method_type = "mb_way"
+[[aci.bank_redirect]]
+  payment_method_type = "ideal"
+[[aci.bank_redirect]]
+  payment_method_type = "giropay"
+[[aci.bank_redirect]]
+  payment_method_type = "sofort"
+[[aci.bank_redirect]]
+  payment_method_type = "eps"
+[[aci.bank_redirect]]
+  payment_method_type = "przelewy24"
+[[aci.bank_redirect]]
+  payment_method_type = "trustly"
+[[aci.bank_redirect]]
+  payment_method_type = "interac"
+[aci.connector_auth.BodyKey]
+api_key="API Key"
+key1="Entity ID"
+[aci.connector_webhook_details]
+merchant_secret="Source verification key"
+
+
+[adyen]
+[[adyen.credit]]
+  payment_method_type = "Mastercard"
+[[adyen.credit]]
+  payment_method_type = "Visa"
+[[adyen.credit]]
+  payment_method_type = "Interac"
+[[adyen.credit]]
+  payment_method_type = "AmericanExpress"
+[[adyen.credit]]
+  payment_method_type = "JCB"
+[[adyen.credit]]
+  payment_method_type = "DinersClub"
+[[adyen.credit]]
+  payment_method_type = "Discover"
+[[adyen.credit]]
+  payment_method_type = "CartesBancaires"
+[[adyen.credit]]
+  payment_method_type = "UnionPay"
+[[adyen.debit]]
+  payment_method_type = "Mastercard"
+[[adyen.debit]]
+  payment_method_type = "Visa"
+[[adyen.debit]]
+  payment_method_type = "Interac"
+[[adyen.debit]]
+  payment_method_type = "AmericanExpress"
+[[adyen.debit]]
+  payment_method_type = "JCB"
+[[adyen.debit]]
+  payment_method_type = "DinersClub"
+[[adyen.debit]]
+  payment_method_type = "Discover"
+[[adyen.debit]]
+  payment_method_type = "CartesBancaires"
+[[adyen.debit]]
+  payment_method_type = "UnionPay"
+[[adyen.pay_later]]
+  payment_method_type = "klarna"
+[[adyen.pay_later]]
+  payment_method_type = "affirm"
+[[adyen.pay_later]]
+  payment_method_type = "afterpay_clearpay"
+[[adyen.pay_later]]
+  payment_method_type = "pay_bright"
+[[adyen.pay_later]]
+  payment_method_type = "walley"
+[[adyen.pay_later]]
+  payment_method_type = "alma"
+[[adyen.pay_later]]
+  payment_method_type = "atome"
+[[adyen.bank_debit]]
+  payment_method_type = "ach"
+[[adyen.bank_debit]]
+  payment_method_type = "bacs"
+[[adyen.bank_debit]]
+  payment_method_type = "sepa"
+[[adyen.bank_redirect]]
+  payment_method_type = "ideal"
+[[adyen.bank_redirect]]
+  payment_method_type = "giropay"
+[[adyen.bank_redirect]]
+  payment_method_type = "sofort"
+[[adyen.bank_redirect]]
+  payment_method_type = "eps"
+[[adyen.bank_redirect]]
+  payment_method_type = "blik"
+[[adyen.bank_redirect]]
+  payment_method_type = "przelewy24"
+[[adyen.bank_redirect]]
+  payment_method_type = "trustly"
+[[adyen.bank_redirect]]
+  payment_method_type = "online_banking_czech_republic"
+[[adyen.bank_redirect]]
+  payment_method_type = "online_banking_finland"
+[[adyen.bank_redirect]]
+  payment_method_type = "online_banking_poland"
+[[adyen.bank_redirect]]
+  payment_method_type = "online_banking_slovakia"
+[[adyen.bank_redirect]]
+  payment_method_type = "bancontact_card"
+[[adyen.bank_redirect]]
+  payment_method_type = "online_banking_fpx"
+[[adyen.bank_redirect]]
+  payment_method_type = "online_banking_thailand"
+[[adyen.bank_redirect]]
+  payment_method_type = "bizum"
+[[adyen.bank_redirect]]
+  payment_method_type = "open_banking_uk"
+[[adyen.bank_transfer]]
+  payment_method_type = "permata_bank_transfer"
+[[adyen.bank_transfer]]
+  payment_method_type = "bca_bank_transfer"
+[[adyen.bank_transfer]]
+  payment_method_type = "bni_va"
+[[adyen.bank_transfer]]
+  payment_method_type = "bri_va"
+[[adyen.bank_transfer]]
+  payment_method_type = "cimb_va"
+[[adyen.bank_transfer]]
+  payment_method_type = "danamon_va"
+[[adyen.bank_transfer]]
+  payment_method_type = "mandiri_va"
+[[adyen.bank_transfer]]
+  payment_method_type = "pix"
+[[adyen.wallet]]
+  payment_method_type = "apple_pay"
+[[adyen.wallet]]
+  payment_method_type = "google_pay"
+[[adyen.wallet]]
+  payment_method_type = "paypal"
+[[adyen.wallet]]
+  payment_method_type = "we_chat_pay"
+[[adyen.wallet]]
+  payment_method_type = "ali_pay"
+[[adyen.wallet]]
+  payment_method_type = "mb_way"
+[[adyen.wallet]]
+  payment_method_type = "ali_pay_hk"
+[[adyen.wallet]]
+  payment_method_type = "go_pay"
+[[adyen.wallet]]
+  payment_method_type = "kakao_pay"
+[[adyen.wallet]]
+  payment_method_type = "twint"
+[[adyen.wallet]]
+  payment_method_type = "gcash"
+[[adyen.wallet]]
+  payment_method_type = "vipps"
+[[adyen.wallet]]
+  payment_method_type = "dana"
+[[adyen.wallet]]
+  payment_method_type = "momo"
+[[adyen.wallet]]
+  payment_method_type = "swish"
+[[adyen.wallet]]
+  payment_method_type = "touch_n_go"
+[[adyen.voucher]]
+  payment_method_type = "boleto"
+[[adyen.voucher]]
+  payment_method_type = "alfamart"
+[[adyen.voucher]]
+  payment_method_type = "indomaret"
+[[adyen.voucher]]
+  payment_method_type = "oxxo"
+[[adyen.voucher]]
+  payment_method_type = "seven_eleven"
+[[adyen.voucher]]
+  payment_method_type = "lawson"
+[[adyen.voucher]]
+  payment_method_type = "mini_stop"
+[[adyen.voucher]]
+  payment_method_type = "family_mart"
+[[adyen.voucher]]
+  payment_method_type = "seicomart"
+[[adyen.voucher]]
+  payment_method_type = "pay_easy"
+[[adyen.gift_card]]
+  payment_method_type = "pay_safe_card"
+[[adyen.gift_card]]
+  payment_method_type = "givex"
+[[adyen.card_redirect]]
+  payment_method_type = "benefit"
+[[adyen.card_redirect]]
+  payment_method_type = "knet"
+[[adyen.card_redirect]]
+  payment_method_type = "momo_atm"
+[adyen.connector_auth.BodyKey]
+api_key="Adyen API Key"
+key1="Adyen Account Id"
+[adyen.connector_webhook_details]
+merchant_secret="Source verification key"
+[adyen.metadata]
+endpoint_prefix="Live endpoint prefix"
+[adyen.metadata.google_pay]
+merchant_name="Google Pay Merchant Name"
+gateway_merchant_id="Google Pay Merchant Key"
+merchant_id="Google Pay Merchant ID"
+
+[adyen.metadata.apple_pay.session_token_data]
+certificate="Merchant Certificate (Base64 Encoded)"
+certificate_keys="Merchant PrivateKey (Base64 Encoded)"
+merchant_identifier="Apple Merchant Identifier"
+display_name="Display Name"
+initiative="Domain"
+initiative_context="Domain Name"
+[adyen.metadata.apple_pay.payment_request_data]
+supported_networks=["visa","masterCard","amex","discover"]
+merchant_capabilities=["supports3DS"]
+label="apple"
+
+[airwallex]
+[[airwallex.credit]]
+  payment_method_type = "Mastercard"
+[[airwallex.credit]]
+  payment_method_type = "Visa"
+[[airwallex.credit]]
+  payment_method_type = "Interac"
+[[airwallex.credit]]
+  payment_method_type = "AmericanExpress"
+[[airwallex.credit]]
+  payment_method_type = "JCB"
+[[airwallex.credit]]
+  payment_method_type = "DinersClub"
+[[airwallex.credit]]
+  payment_method_type = "Discover"
+[[airwallex.credit]]
+  payment_method_type = "CartesBancaires"
+[[airwallex.credit]]
+  payment_method_type = "UnionPay"
+[[airwallex.debit]]
+  payment_method_type = "Mastercard"
+[[airwallex.debit]]
+  payment_method_type = "Visa"
+[[airwallex.debit]]
+  payment_method_type = "Interac"
+[[airwallex.debit]]
+  payment_method_type = "AmericanExpress"
+[[airwallex.debit]]
+  payment_method_type = "JCB"
+[[airwallex.debit]]
+  payment_method_type = "DinersClub"
+[[airwallex.debit]]
+  payment_method_type = "Discover"
+[[airwallex.debit]]
+  payment_method_type = "CartesBancaires"
+[[airwallex.debit]]
+  payment_method_type = "UnionPay"
+[[airwallex.wallet]]
+  payment_method_type = "google_pay"
+[airwallex.connector_auth.BodyKey]
+api_key="API Key"
+key1="Client ID"
+[airwallex.connector_webhook_details]
+merchant_secret="Source verification key"
+
+
+[authorizedotnet]
+[[authorizedotnet.credit]]
+  payment_method_type = "Mastercard"
+[[authorizedotnet.credit]]
+  payment_method_type = "Visa"
+[[authorizedotnet.credit]]
+  payment_method_type = "Interac"
+[[authorizedotnet.credit]]
+  payment_method_type = "AmericanExpress"
+[[authorizedotnet.credit]]
+  payment_method_type = "JCB"
+[[authorizedotnet.credit]]
+  payment_method_type = "DinersClub"
+[[authorizedotnet.credit]]
+  payment_method_type = "Discover"
+[[authorizedotnet.credit]]
+  payment_method_type = "CartesBancaires"
+[[authorizedotnet.credit]]
+  payment_method_type = "UnionPay"
+[[authorizedotnet.debit]]
+  payment_method_type = "Mastercard"
+[[authorizedotnet.debit]]
+  payment_method_type = "Visa"
+[[authorizedotnet.debit]]
+  payment_method_type = "Interac"
+[[authorizedotnet.debit]]
+  payment_method_type = "AmericanExpress"
+[[authorizedotnet.debit]]
+  payment_method_type = "JCB"
+[[authorizedotnet.debit]]
+  payment_method_type = "DinersClub"
+[[authorizedotnet.debit]]
+  payment_method_type = "Discover"
+[[authorizedotnet.debit]]
+  payment_method_type = "CartesBancaires"
+[[authorizedotnet.debit]]
+  payment_method_type = "UnionPay"
+[[authorizedotnet.wallet]]
+  payment_method_type = "apple_pay"
+[[authorizedotnet.wallet]]
+  payment_method_type = "google_pay"
+[[authorizedotnet.wallet]]
+  payment_method_type = "paypal"
+[authorizedotnet.connector_auth.BodyKey]
+api_key="API Login ID"
+key1="Transaction Key"
+[authorizedotnet.metadata.google_pay]
+merchant_name="Google Pay Merchant Name"
+gateway_merchant_id="Google Pay Merchant Key"
+merchant_id="Google Pay Merchant ID"
+[authorizedotnet.metadata.apple_pay.session_token_data]
+certificate="Merchant Certificate (Base64 Encoded)"
+certificate_keys="Merchant PrivateKey (Base64 Encoded)"
+merchant_identifier="Apple Merchant Identifier"
+display_name="Display Name"
+initiative="Domain"
+initiative_context="Domain Name"
+[authorizedotnet.metadata.apple_pay.payment_request_data]
+supported_networks=["visa","masterCard","amex","discover"]
+merchant_capabilities=["supports3DS"]
+label="apple"
+[authorizedotnet.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[bambora]
+[[bambora.credit]]
+  payment_method_type = "Mastercard"
+[[bambora.credit]]
+  payment_method_type = "Visa"
+[[bambora.credit]]
+  payment_method_type = "Interac"
+[[bambora.credit]]
+  payment_method_type = "AmericanExpress"
+[[bambora.credit]]
+  payment_method_type = "JCB"
+[[bambora.credit]]
+  payment_method_type = "DinersClub"
+[[bambora.credit]]
+  payment_method_type = "Discover"
+[[bambora.credit]]
+  payment_method_type = "CartesBancaires"
+[[bambora.credit]]
+  payment_method_type = "UnionPay"
+[[bambora.debit]]
+  payment_method_type = "Mastercard"
+[[bambora.debit]]
+  payment_method_type = "Visa"
+[[bambora.debit]]
+  payment_method_type = "Interac"
+[[bambora.debit]]
+  payment_method_type = "AmericanExpress"
+[[bambora.debit]]
+  payment_method_type = "JCB"
+[[bambora.debit]]
+  payment_method_type = "DinersClub"
+[[bambora.debit]]
+  payment_method_type = "Discover"
+[[bambora.debit]]
+  payment_method_type = "CartesBancaires"
+[[bambora.debit]]
+  payment_method_type = "UnionPay"
+[[bambora.wallet]]
+  payment_method_type = "apple_pay"
+[[bambora.wallet]]
+  payment_method_type = "paypal"
+[bambora.connector_auth.BodyKey]
+api_key="Passcode"
+key1="Merchant Id"
+[bambora.connector_webhook_details]
+merchant_secret="Source verification key"
+[bambora.metadata.apple_pay.session_token_data]
+certificate="Merchant Certificate (Base64 Encoded)"
+certificate_keys="Merchant PrivateKey (Base64 Encoded)"
+merchant_identifier="Apple Merchant Identifier"
+display_name="Display Name"
+initiative="Domain"
+initiative_context="Domain Name"
+[bambora.metadata.apple_pay.payment_request_data]
+supported_networks=["visa","masterCard","amex","discover"]
+merchant_capabilities=["supports3DS"]
+label="apple"
+
+[bankofamerica]
+[[bankofamerica.credit]]
+  payment_method_type = "Mastercard"
+[[bankofamerica.credit]]
+  payment_method_type = "Visa"
+[[bankofamerica.credit]]
+  payment_method_type = "Interac"
+[[bankofamerica.credit]]
+  payment_method_type = "AmericanExpress"
+[[bankofamerica.credit]]
+  payment_method_type = "JCB"
+[[bankofamerica.credit]]
+  payment_method_type = "DinersClub"
+[[bankofamerica.credit]]
+  payment_method_type = "Discover"
+[[bankofamerica.credit]]
+  payment_method_type = "CartesBancaires"
+[[bankofamerica.credit]]
+  payment_method_type = "UnionPay"
+[[bankofamerica.debit]]
+  payment_method_type = "Mastercard"
+[[bankofamerica.debit]]
+  payment_method_type = "Visa"
+[[bankofamerica.debit]]
+  payment_method_type = "Interac"
+[[bankofamerica.debit]]
+  payment_method_type = "AmericanExpress"
+[[bankofamerica.debit]]
+  payment_method_type = "JCB"
+[[bankofamerica.debit]]
+  payment_method_type = "DinersClub"
+[[bankofamerica.debit]]
+  payment_method_type = "Discover"
+[[bankofamerica.debit]]
+  payment_method_type = "CartesBancaires"
+[[bankofamerica.debit]]
+  payment_method_type = "UnionPay"
+[[bankofamerica.wallet]]
+  payment_method_type = "apple_pay"
+[[bankofamerica.wallet]]
+  payment_method_type = "google_pay"
+[bankofamerica.connector_auth.SignatureKey]
+api_key="Key"
+key1="Merchant ID"
+api_secret="Shared Secret"
+[bankofamerica.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[bankofamerica.metadata.apple_pay.session_token_data]
+certificate="Merchant Certificate (Base64 Encoded)"
+certificate_keys="Merchant PrivateKey (Base64 Encoded)"
+merchant_identifier="Apple Merchant Identifier"
+display_name="Display Name"
+initiative="Domain"
+initiative_context="Domain Name"
+[bankofamerica.metadata.apple_pay.payment_request_data]
+supported_networks=["visa","masterCard","amex","discover"]
+merchant_capabilities=["supports3DS"]
+label="apple"
+
+[bankofamerica.metadata.google_pay]
+merchant_name="Google Pay Merchant Name"
+gateway_merchant_id="Google Pay Merchant Key"
+merchant_id="Google Pay Merchant ID"
+
+[bitpay]
+[[bitpay.crypto]]
+  payment_method_type = "crypto_currency"
+[bitpay.connector_auth.HeaderKey]
+api_key="API Key"
+[bitpay.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[bluesnap]
+[[bluesnap.credit]]
+  payment_method_type = "Mastercard"
+[[bluesnap.credit]]
+  payment_method_type = "Visa"
+[[bluesnap.credit]]
+  payment_method_type = "Interac"
+[[bluesnap.credit]]
+  payment_method_type = "AmericanExpress"
+[[bluesnap.credit]]
+  payment_method_type = "JCB"
+[[bluesnap.credit]]
+  payment_method_type = "DinersClub"
+[[bluesnap.credit]]
+  payment_method_type = "Discover"
+[[bluesnap.credit]]
+  payment_method_type = "CartesBancaires"
+[[bluesnap.credit]]
+  payment_method_type = "UnionPay"
+[[bluesnap.debit]]
+  payment_method_type = "Mastercard"
+[[bluesnap.debit]]
+  payment_method_type = "Visa"
+[[bluesnap.debit]]
+  payment_method_type = "Interac"
+[[bluesnap.debit]]
+  payment_method_type = "AmericanExpress"
+[[bluesnap.debit]]
+  payment_method_type = "JCB"
+[[bluesnap.debit]]
+  payment_method_type = "DinersClub"
+[[bluesnap.debit]]
+  payment_method_type = "Discover"
+[[bluesnap.debit]]
+  payment_method_type = "CartesBancaires"
+[[bluesnap.debit]]
+  payment_method_type = "UnionPay"
+[[bluesnap.wallet]]
+  payment_method_type = "google_pay"
+[[bluesnap.wallet]]
+  payment_method_type = "apple_pay"
+[bluesnap.connector_auth.BodyKey]
+api_key="Password"
+key1="Username"
+[bluesnap.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[bluesnap.metadata.google_pay]
+merchant_name="Google Pay Merchant Name"
+gateway_merchant_id="Google Pay Merchant Key"
+merchant_id="Google Pay Merchant ID"
+
+[bluesnap.metadata.apple_pay.session_token_data]
+certificate="Merchant Certificate (Base64 Encoded)"
+certificate_keys="Merchant PrivateKey (Base64 Encoded)"
+merchant_identifier="Apple Merchant Identifier"
+display_name="Display Name"
+initiative="Domain"
+initiative_context="Domain Name"
+[bluesnap.metadata.apple_pay.payment_request_data]
+supported_networks=["visa","masterCard","amex","discover"]
+merchant_capabilities=["supports3DS"]
+label="apple"
+[bluesnap.metadata]
+merchant_id="Merchant Id"
+
+[boku]
+[[boku.wallet]]
+  payment_method_type = "dana"
+[[boku.wallet]]
+  payment_method_type = "gcash"
+[[boku.wallet]]
+  payment_method_type = "go_pay"
+[[boku.wallet]]
+  payment_method_type = "kakao_pay"
+[[boku.wallet]]
+  payment_method_type = "momo"
+[boku.connector_auth.BodyKey]
+api_key="API KEY"
+key1= "MERCHANT ID"
+[boku.connector_webhook_details]
+merchant_secret="Source verification key"
+
+
+[braintree]
+[[braintree.credit]]
+  payment_method_type = "Mastercard"
+[[braintree.credit]]
+  payment_method_type = "Visa"
+[[braintree.credit]]
+  payment_method_type = "Interac"
+[[braintree.credit]]
+  payment_method_type = "AmericanExpress"
+[[braintree.credit]]
+  payment_method_type = "JCB"
+[[braintree.credit]]
+  payment_method_type = "DinersClub"
+[[braintree.credit]]
+  payment_method_type = "Discover"
+[[braintree.credit]]
+  payment_method_type = "CartesBancaires"
+[[braintree.credit]]
+  payment_method_type = "UnionPay"
+[[braintree.debit]]
+  payment_method_type = "Mastercard"
+[[braintree.debit]]
+  payment_method_type = "Visa"
+[[braintree.debit]]
+  payment_method_type = "Interac"
+[[braintree.debit]]
+  payment_method_type = "AmericanExpress"
+[[braintree.debit]]
+  payment_method_type = "JCB"
+[[braintree.debit]]
+  payment_method_type = "DinersClub"
+[[braintree.debit]]
+  payment_method_type = "Discover"
+[[braintree.debit]]
+  payment_method_type = "CartesBancaires"
+[[braintree.debit]]
+  payment_method_type = "UnionPay"
+[[braintree.debit]]
+  payment_method_type = "UnionPay"
+[braintree.connector_webhook_details]
+merchant_secret="Source verification key"
+
+
+[braintree.connector_auth.SignatureKey]
+api_key="Public Key"
+key1="Merchant Id"
+api_secret="Private Key"
+[braintree.metadata]
+merchant_account_id="Merchant Account Id"
+merchant_config_currency="Currency"
+
+[cashtocode]
+[[cashtocode.reward]]
+  payment_method_type = "classic"
+[[cashtocode.reward]]
+  payment_method_type = "evoucher"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.EUR.classic]
+password_classic="Password Classic"
+username_classic="Username Classic"
+merchant_id_classic="MerchantId Classic"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.EUR.evoucher]
+password_evoucher="Password Evoucher"
+username_evoucher="Username Evoucher"
+merchant_id_evoucher="MerchantId Evoucher"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.GBP.classic]
+password_classic="Password Classic"
+username_classic="Username Classic"
+merchant_id_classic="MerchantId Classic"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.GBP.evoucher]
+password_evoucher="Password Evoucher"
+username_evoucher="Username Evoucher"
+merchant_id_evoucher="MerchantId Evoucher"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.USD.classic]
+password_classic="Password Classic"
+username_classic="Username Classic"
+merchant_id_classic="MerchantId Classic"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.USD.evoucher]
+password_evoucher="Password Evoucher"
+username_evoucher="Username Evoucher"
+merchant_id_evoucher="MerchantId Evoucher"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.CAD.classic]
+password_classic="Password Classic"
+username_classic="Username Classic"
+merchant_id_classic="MerchantId Classic"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.CAD.evoucher]
+password_evoucher="Password Evoucher"
+username_evoucher="Username Evoucher"
+merchant_id_evoucher="MerchantId Evoucher"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.CHF.classic]
+password_classic="Password Classic"
+username_classic="Username Classic"
+merchant_id_classic="MerchantId Classic"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.CHF.evoucher]
+password_evoucher="Password Evoucher"
+username_evoucher="Username Evoucher"
+merchant_id_evoucher="MerchantId Evoucher"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.AUD.classic]
+password_classic="Password Classic"
+username_classic="Username Classic"
+merchant_id_classic="MerchantId Classic"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.AUD.evoucher]
+password_evoucher="Password Evoucher"
+username_evoucher="Username Evoucher"
+merchant_id_evoucher="MerchantId Evoucher"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.INR.classic]
+password_classic="Password Classic"
+username_classic="Username Classic"
+merchant_id_classic="MerchantId Classic"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.INR.evoucher]
+password_evoucher="Password Evoucher"
+username_evoucher="Username Evoucher"
+merchant_id_evoucher="MerchantId Evoucher"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.JPY.classic]
+password_classic="Password Classic"
+username_classic="Username Classic"
+merchant_id_classic="MerchantId Classic"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.JPY.evoucher]
+password_evoucher="Password Evoucher"
+username_evoucher="Username Evoucher"
+merchant_id_evoucher="MerchantId Evoucher"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.NZD.classic]
+password_classic="Password Classic"
+username_classic="Username Classic"
+merchant_id_classic="MerchantId Classic"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.NZD.evoucher]
+password_evoucher="Password Evoucher"
+username_evoucher="Username Evoucher"
+merchant_id_evoucher="MerchantId Evoucher"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.ZAR.classic]
+password_classic="Password Classic"
+username_classic="Username Classic"
+merchant_id_classic="MerchantId Classic"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.ZAR.evoucher]
+password_evoucher="Password Evoucher"
+username_evoucher="Username Evoucher"
+merchant_id_evoucher="MerchantId Evoucher"
+[cashtocode.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[checkout]
+[[checkout.credit]]
+  payment_method_type = "Mastercard"
+[[checkout.credit]]
+  payment_method_type = "Visa"
+[[checkout.credit]]
+  payment_method_type = "Interac"
+[[checkout.credit]]
+  payment_method_type = "AmericanExpress"
+[[checkout.credit]]
+  payment_method_type = "JCB"
+[[checkout.credit]]
+  payment_method_type = "DinersClub"
+[[checkout.credit]]
+  payment_method_type = "Discover"
+[[checkout.credit]]
+  payment_method_type = "CartesBancaires"
+[[checkout.credit]]
+  payment_method_type = "UnionPay"
+[[checkout.debit]]
+  payment_method_type = "Mastercard"
+[[checkout.debit]]
+  payment_method_type = "Visa"
+[[checkout.debit]]
+  payment_method_type = "Interac"
+[[checkout.debit]]
+  payment_method_type = "AmericanExpress"
+[[checkout.debit]]
+  payment_method_type = "JCB"
+[[checkout.debit]]
+  payment_method_type = "DinersClub"
+[[checkout.debit]]
+  payment_method_type = "Discover"
+[[checkout.debit]]
+  payment_method_type = "CartesBancaires"
+[[checkout.debit]]
+  payment_method_type = "UnionPay"
+[[checkout.wallet]]
+  payment_method_type = "apple_pay"
+[[checkout.wallet]]
+  payment_method_type = "google_pay"
+[checkout.connector_auth.SignatureKey]
+api_key="Checkout API Public Key"
+key1="Processing Channel ID"
+api_secret="Checkout API Secret Key"
+[checkout.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[checkout.metadata.google_pay]
+merchant_name="Google Pay Merchant Name"
+gateway_merchant_id="Google Pay Merchant Key"
+merchant_id="Google Pay Merchant ID"
+
+[checkout.metadata.apple_pay.session_token_data]
+certificate="Merchant Certificate (Base64 Encoded)"
+certificate_keys="Merchant PrivateKey (Base64 Encoded)"
+merchant_identifier="Apple Merchant Identifier"
+display_name="Display Name"
+initiative="Domain"
+initiative_context="Domain Name"
+[checkout.metadata.apple_pay.payment_request_data]
+supported_networks=["visa","masterCard","amex","discover"]
+merchant_capabilities=["supports3DS"]
+label="apple"
+
+[checkout.metadata]
+acquirer_bin = "Acquirer Bin"
+acquirer_merchant_id = "Acquirer Merchant ID"
+
+[coinbase]
+[[coinbase.crypto]]
+  payment_method_type = "crypto_currency"
+[coinbase.connector_auth.HeaderKey]
+api_key="API Key"
+[coinbase.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[cryptopay]
+[[cryptopay.crypto]]
+  payment_method_type = "crypto_currency"
+[cryptopay.connector_auth.BodyKey]
+api_key="API Key"
+key1="Secret Key"
+[cryptopay.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[cybersource]
+[[cybersource.credit]]
+  payment_method_type = "Mastercard"
+[[cybersource.credit]]
+  payment_method_type = "Visa"
+[[cybersource.credit]]
+  payment_method_type = "Interac"
+[[cybersource.credit]]
+  payment_method_type = "AmericanExpress"
+[[cybersource.credit]]
+  payment_method_type = "JCB"
+[[cybersource.credit]]
+  payment_method_type = "DinersClub"
+[[cybersource.credit]]
+  payment_method_type = "Discover"
+[[cybersource.credit]]
+  payment_method_type = "CartesBancaires"
+[[cybersource.credit]]
+  payment_method_type = "UnionPay"
+[[cybersource.debit]]
+  payment_method_type = "Mastercard"
+[[cybersource.debit]]
+  payment_method_type = "Visa"
+[[cybersource.debit]]
+  payment_method_type = "Interac"
+[[cybersource.debit]]
+  payment_method_type = "AmericanExpress"
+[[cybersource.debit]]
+  payment_method_type = "JCB"
+[[cybersource.debit]]
+  payment_method_type = "DinersClub"
+[[cybersource.debit]]
+  payment_method_type = "Discover"
+[[cybersource.debit]]
+  payment_method_type = "CartesBancaires"
+[[cybersource.debit]]
+  payment_method_type = "UnionPay"
+[[cybersource.wallet]]
+  payment_method_type = "apple_pay"
+[[cybersource.wallet]]
+  payment_method_type = "google_pay"
+[cybersource.connector_auth.SignatureKey]
+api_key="Key"
+key1="Merchant ID"
+api_secret="Shared Secret"
+[cybersource.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[cybersource.metadata.apple_pay.session_token_data]
+certificate="Merchant Certificate (Base64 Encoded)"
+certificate_keys="Merchant PrivateKey (Base64 Encoded)"
+merchant_identifier="Apple Merchant Identifier"
+display_name="Display Name"
+initiative="Domain"
+initiative_context="Domain Name"
+[cybersource.metadata.apple_pay.payment_request_data]
+supported_networks=["visa","masterCard","amex","discover"]
+merchant_capabilities=["supports3DS"]
+label="apple"
+
+[cybersource.metadata.google_pay]
+merchant_name="Google Pay Merchant Name"
+gateway_merchant_id="Google Pay Merchant Key"
+merchant_id="Google Pay Merchant ID"
+
+[dlocal]
+[[dlocal.credit]]
+  payment_method_type = "Mastercard"
+[[dlocal.credit]]
+  payment_method_type = "Visa"
+[[dlocal.credit]]
+  payment_method_type = "Interac"
+[[dlocal.credit]]
+  payment_method_type = "AmericanExpress"
+[[dlocal.credit]]
+  payment_method_type = "JCB"
+[[dlocal.credit]]
+  payment_method_type = "DinersClub"
+[[dlocal.credit]]
+  payment_method_type = "Discover"
+[[dlocal.credit]]
+  payment_method_type = "CartesBancaires"
+[[dlocal.credit]]
+  payment_method_type = "UnionPay"
+[[dlocal.debit]]
+  payment_method_type = "Mastercard"
+[[dlocal.debit]]
+  payment_method_type = "Visa"
+[[dlocal.debit]]
+  payment_method_type = "Interac"
+[[dlocal.debit]]
+  payment_method_type = "AmericanExpress"
+[[dlocal.debit]]
+  payment_method_type = "JCB"
+[[dlocal.debit]]
+  payment_method_type = "DinersClub"
+[[dlocal.debit]]
+  payment_method_type = "Discover"
+[[dlocal.debit]]
+  payment_method_type = "CartesBancaires"
+[[dlocal.debit]]
+  payment_method_type = "UnionPay"
+[dlocal.connector_auth.SignatureKey]
+api_key="X Login"
+key1="X Trans Key"
+api_secret="Secret Key"
+[dlocal.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[fiserv]
+[[fiserv.credit]]
+  payment_method_type = "Mastercard"
+[[fiserv.credit]]
+  payment_method_type = "Visa"
+[[fiserv.credit]]
+  payment_method_type = "Interac"
+[[fiserv.credit]]
+  payment_method_type = "AmericanExpress"
+[[fiserv.credit]]
+  payment_method_type = "JCB"
+[[fiserv.credit]]
+  payment_method_type = "DinersClub"
+[[fiserv.credit]]
+  payment_method_type = "Discover"
+[[fiserv.credit]]
+  payment_method_type = "CartesBancaires"
+[[fiserv.credit]]
+  payment_method_type = "UnionPay"
+[[fiserv.debit]]
+  payment_method_type = "Mastercard"
+[[fiserv.debit]]
+  payment_method_type = "Visa"
+[[fiserv.debit]]
+  payment_method_type = "Interac"
+[[fiserv.debit]]
+  payment_method_type = "AmericanExpress"
+[[fiserv.debit]]
+  payment_method_type = "JCB"
+[[fiserv.debit]]
+  payment_method_type = "DinersClub"
+[[fiserv.debit]]
+  payment_method_type = "Discover"
+[[fiserv.debit]]
+  payment_method_type = "CartesBancaires"
+[[fiserv.debit]]
+  payment_method_type = "UnionPay"
+[fiserv.connector_auth.SignatureKey]
+api_key="API Key"
+key1="Merchant ID"
+api_secret="API Secret"
+[fiserv.metadata]
+terminal_id="Terminal ID"
+[fiserv.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[forte]
+[[forte.credit]]
+  payment_method_type = "Mastercard"
+[[forte.credit]]
+  payment_method_type = "Visa"
+[[forte.credit]]
+  payment_method_type = "Interac"
+[[forte.credit]]
+  payment_method_type = "AmericanExpress"
+[[forte.credit]]
+  payment_method_type = "JCB"
+[[forte.credit]]
+  payment_method_type = "DinersClub"
+[[forte.credit]]
+  payment_method_type = "Discover"
+[[forte.credit]]
+  payment_method_type = "CartesBancaires"
+[[forte.credit]]
+  payment_method_type = "UnionPay"
+[[forte.debit]]
+  payment_method_type = "Mastercard"
+[[forte.debit]]
+  payment_method_type = "Visa"
+[[forte.debit]]
+  payment_method_type = "Interac"
+[[forte.debit]]
+  payment_method_type = "AmericanExpress"
+[[forte.debit]]
+  payment_method_type = "JCB"
+[[forte.debit]]
+  payment_method_type = "DinersClub"
+[[forte.debit]]
+  payment_method_type = "Discover"
+[[forte.debit]]
+  payment_method_type = "CartesBancaires"
+[[forte.debit]]
+  payment_method_type = "UnionPay"
+[forte.connector_auth.MultiAuthKey]
+api_key="API Access ID"
+key1="Organization ID"
+api_secret="API Secure Key"
+key2="Location ID"
+[forte.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[globalpay]
+[[globalpay.credit]]
+  payment_method_type = "Mastercard"
+[[globalpay.credit]]
+  payment_method_type = "Visa"
+[[globalpay.credit]]
+  payment_method_type = "Interac"
+[[globalpay.credit]]
+  payment_method_type = "AmericanExpress"
+[[globalpay.credit]]
+  payment_method_type = "JCB"
+[[globalpay.credit]]
+  payment_method_type = "DinersClub"
+[[globalpay.credit]]
+  payment_method_type = "Discover"
+[[globalpay.credit]]
+  payment_method_type = "CartesBancaires"
+[[globalpay.credit]]
+  payment_method_type = "UnionPay"
+[[globalpay.debit]]
+  payment_method_type = "Mastercard"
+[[globalpay.debit]]
+  payment_method_type = "Visa"
+[[globalpay.debit]]
+  payment_method_type = "Interac"
+[[globalpay.debit]]
+  payment_method_type = "AmericanExpress"
+[[globalpay.debit]]
+  payment_method_type = "JCB"
+[[globalpay.debit]]
+  payment_method_type = "DinersClub"
+[[globalpay.debit]]
+  payment_method_type = "Discover"
+[[globalpay.debit]]
+  payment_method_type = "CartesBancaires"
+[[globalpay.debit]]
+  payment_method_type = "UnionPay"
+[[globalpay.bank_redirect]]
+  payment_method_type = "ideal"
+[[globalpay.bank_redirect]]
+  payment_method_type = "giropay"
+[[globalpay.bank_redirect]]
+  payment_method_type = "sofort"
+[[globalpay.bank_redirect]]
+  payment_method_type = "eps"
+[[globalpay.wallet]]
+  payment_method_type = "google_pay"
+[[globalpay.wallet]]
+  payment_method_type = "paypal"
+[globalpay.connector_auth.BodyKey]
+api_key="Global App Key"
+key1="Global App ID"
+[globalpay.metadata]
+account_name="Account Name"
+[globalpay.connector_webhook_details]
+merchant_secret="Source verification key"
+[globalpay.metadata.google_pay]
+merchant_name="Google Pay Merchant Name"
+gateway_merchant_id="Google Pay Merchant Key"
+merchant_id="Google Pay Merchant ID"
+
+[globepay]
+[[globepay.wallet]]
+  payment_method_type = "we_chat_pay"
+[[globepay.wallet]]
+  payment_method_type = "ali_pay"
+[globepay.connector_auth.BodyKey]
+api_key="Partner Code"
+key1="Credential Code"
+[globepay.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[gocardless]
+[[gocardless.bank_debit]]
+  payment_method_type = "ach"
+[[gocardless.bank_debit]]
+  payment_method_type = "becs"
+[[gocardless.bank_debit]]
+  payment_method_type = "sepa"
+[gocardless.connector_auth.HeaderKey]
+api_key="Access Token"
+[gocardless.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[iatapay]
+[[iatapay.upi]]
+  payment_method_type = "upi_collect"
+[iatapay.connector_auth.SignatureKey]
+api_key="Client ID"
+key1="Airline ID"
+api_secret="Client Secret"
+[iatapay.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[klarna]
+[[klarna.pay_later]]
+  payment_method_type = "klarna"
+[klarna.connector_auth.HeaderKey]
+api_key="Klarna API Key"
+[klarna.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[mollie]
+[[mollie.credit]]
+  payment_method_type = "Mastercard"
+[[mollie.credit]]
+  payment_method_type = "Visa"
+[[mollie.credit]]
+  payment_method_type = "Interac"
+[[mollie.credit]]
+  payment_method_type = "AmericanExpress"
+[[mollie.credit]]
+  payment_method_type = "JCB"
+[[mollie.credit]]
+  payment_method_type = "DinersClub"
+[[mollie.credit]]
+  payment_method_type = "Discover"
+[[mollie.credit]]
+  payment_method_type = "CartesBancaires"
+[[mollie.credit]]
+  payment_method_type = "UnionPay"
+[[mollie.debit]]
+  payment_method_type = "Mastercard"
+[[mollie.debit]]
+  payment_method_type = "Visa"
+[[mollie.debit]]
+  payment_method_type = "Interac"
+[[mollie.debit]]
+  payment_method_type = "AmericanExpress"
+[[mollie.debit]]
+  payment_method_type = "JCB"
+[[mollie.debit]]
+  payment_method_type = "DinersClub"
+[[mollie.debit]]
+  payment_method_type = "Discover"
+[[mollie.debit]]
+  payment_method_type = "CartesBancaires"
+[[mollie.debit]]
+  payment_method_type = "UnionPay"
+[[mollie.bank_redirect]]
+  payment_method_type = "ideal"
+[[mollie.bank_redirect]]
+  payment_method_type = "giropay"
+[[mollie.bank_redirect]]
+  payment_method_type = "sofort"
+[[mollie.bank_redirect]]
+  payment_method_type = "eps"
+[[mollie.bank_redirect]]
+  payment_method_type = "przelewy24"
+[[mollie.bank_redirect]]
+  payment_method_type = "bancontact_card"
+[[mollie.wallet]]
+  payment_method_type = "paypal"
+[mollie.connector_auth.BodyKey]
+api_key="API Key"
+key1="Profile Token"
+[mollie.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[multisafepay]
+[[multisafepay.credit]]
+  payment_method_type = "Mastercard"
+[[multisafepay.credit]]
+  payment_method_type = "Visa"
+[[multisafepay.credit]]
+  payment_method_type = "Interac"
+[[multisafepay.credit]]
+  payment_method_type = "AmericanExpress"
+[[multisafepay.credit]]
+  payment_method_type = "JCB"
+[[multisafepay.credit]]
+  payment_method_type = "DinersClub"
+[[multisafepay.credit]]
+  payment_method_type = "Discover"
+[[multisafepay.credit]]
+  payment_method_type = "CartesBancaires"
+[[multisafepay.credit]]
+  payment_method_type = "UnionPay"
+[[multisafepay.debit]]
+  payment_method_type = "Mastercard"
+[[multisafepay.debit]]
+  payment_method_type = "Visa"
+[[multisafepay.debit]]
+  payment_method_type = "Interac"
+[[multisafepay.debit]]
+  payment_method_type = "AmericanExpress"
+[[multisafepay.debit]]
+  payment_method_type = "JCB"
+[[multisafepay.debit]]
+  payment_method_type = "DinersClub"
+[[multisafepay.debit]]
+  payment_method_type = "Discover"
+[[multisafepay.debit]]
+  payment_method_type = "CartesBancaires"
+[[multisafepay.debit]]
+  payment_method_type = "UnionPay"
+[[multisafepay.wallet]]
+  payment_method_type = "google_pay"
+[[multisafepay.wallet]]
+  payment_method_type = "paypal"
+[multisafepay.connector_auth.HeaderKey]
+api_key="Enter API Key"
+[multisafepay.connector_webhook_details]
+merchant_secret="Source verification key"
+[multisafepay.metadata.google_pay]
+merchant_name="Google Pay Merchant Name"
+gateway_merchant_id="Google Pay Merchant Key"
+merchant_id="Google Pay Merchant ID"
+
+[nexinets]
+[[nexinets.credit]]
+  payment_method_type = "Mastercard"
+[[nexinets.credit]]
+  payment_method_type = "Visa"
+[[nexinets.credit]]
+  payment_method_type = "Interac"
+[[nexinets.credit]]
+  payment_method_type = "AmericanExpress"
+[[nexinets.credit]]
+  payment_method_type = "JCB"
+[[nexinets.credit]]
+  payment_method_type = "DinersClub"
+[[nexinets.credit]]
+  payment_method_type = "Discover"
+[[nexinets.credit]]
+  payment_method_type = "CartesBancaires"
+[[nexinets.credit]]
+  payment_method_type = "UnionPay"
+[[nexinets.debit]]
+  payment_method_type = "Mastercard"
+[[nexinets.debit]]
+  payment_method_type = "Visa"
+[[nexinets.debit]]
+  payment_method_type = "Interac"
+[[nexinets.debit]]
+  payment_method_type = "AmericanExpress"
+[[nexinets.debit]]
+  payment_method_type = "JCB"
+[[nexinets.debit]]
+  payment_method_type = "DinersClub"
+[[nexinets.debit]]
+  payment_method_type = "Discover"
+[[nexinets.debit]]
+  payment_method_type = "CartesBancaires"
+[[nexinets.debit]]
+  payment_method_type = "UnionPay"
+[[nexinets.bank_redirect]]
+  payment_method_type = "ideal"
+[[nexinets.bank_redirect]]
+  payment_method_type = "giropay"
+[[nexinets.bank_redirect]]
+  payment_method_type = "sofort"
+[[nexinets.bank_redirect]]
+  payment_method_type = "eps"
+[[nexinets.wallet]]
+  payment_method_type = "apple_pay"
+[[nexinets.wallet]]
+  payment_method_type = "paypal"
+[nexinets.connector_auth.BodyKey]
+api_key="API Key"
+key1="Merchant ID"
+[nexinets.connector_webhook_details]
+merchant_secret="Source verification key"
+[nexinets.metadata.apple_pay.session_token_data]
+certificate="Merchant Certificate (Base64 Encoded)"
+certificate_keys="Merchant PrivateKey (Base64 Encoded)"
+merchant_identifier="Apple Merchant Identifier"
+display_name="Display Name"
+initiative="Domain"
+initiative_context="Domain Name"
+[nexinets.metadata.apple_pay.payment_request_data]
+supported_networks=["visa","masterCard","amex","discover"]
+merchant_capabilities=["supports3DS"]
+label="apple"
+
+[nmi]
+[[nmi.credit]]
+  payment_method_type = "Mastercard"
+[[nmi.credit]]
+  payment_method_type = "Visa"
+[[nmi.credit]]
+  payment_method_type = "Interac"
+[[nmi.credit]]
+  payment_method_type = "AmericanExpress"
+[[nmi.credit]]
+  payment_method_type = "JCB"
+[[nmi.credit]]
+  payment_method_type = "DinersClub"
+[[nmi.credit]]
+  payment_method_type = "Discover"
+[[nmi.credit]]
+  payment_method_type = "CartesBancaires"
+[[nmi.credit]]
+  payment_method_type = "UnionPay"
+[[nmi.debit]]
+  payment_method_type = "Mastercard"
+[[nmi.debit]]
+  payment_method_type = "Visa"
+[[nmi.debit]]
+  payment_method_type = "Interac"
+[[nmi.debit]]
+  payment_method_type = "AmericanExpress"
+[[nmi.debit]]
+  payment_method_type = "JCB"
+[[nmi.debit]]
+  payment_method_type = "DinersClub"
+[[nmi.debit]]
+  payment_method_type = "Discover"
+[[nmi.debit]]
+  payment_method_type = "CartesBancaires"
+[[nmi.debit]]
+  payment_method_type = "UnionPay"
+[[nmi.bank_redirect]]
+  payment_method_type = "ideal"
+[[nmi.wallet]]
+  payment_method_type = "apple_pay"
+[[nmi.wallet]]
+  payment_method_type = "google_pay"
+[nmi.connector_auth.BodyKey]
+api_key="API Key"
+key1="Public Key"
+[nmi.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[nmi.metadata.google_pay]
+merchant_name="Google Pay Merchant Name"
+gateway_merchant_id="Google Pay Merchant Key"
+merchant_id="Google Pay Merchant ID"
+
+[nmi.metadata.apple_pay.session_token_data]
+certificate="Merchant Certificate (Base64 Encoded)"
+certificate_keys="Merchant PrivateKey (Base64 Encoded)"
+merchant_identifier="Apple Merchant Identifier"
+display_name="Display Name"
+initiative="Domain"
+initiative_context="Domain Name"
+[nmi.metadata.apple_pay.payment_request_data]
+supported_networks=["visa","masterCard","amex","discover"]
+merchant_capabilities=["supports3DS"]
+label="apple"
+
+[noon]
+[[noon.credit]]
+  payment_method_type = "Mastercard"
+[[noon.credit]]
+  payment_method_type = "Visa"
+[[noon.credit]]
+  payment_method_type = "Interac"
+[[noon.credit]]
+  payment_method_type = "AmericanExpress"
+[[noon.credit]]
+  payment_method_type = "JCB"
+[[noon.credit]]
+  payment_method_type = "DinersClub"
+[[noon.credit]]
+  payment_method_type = "Discover"
+[[noon.credit]]
+  payment_method_type = "CartesBancaires"
+[[noon.credit]]
+  payment_method_type = "UnionPay"
+[[noon.debit]]
+  payment_method_type = "Mastercard"
+[[noon.debit]]
+  payment_method_type = "Visa"
+[[noon.debit]]
+  payment_method_type = "Interac"
+[[noon.debit]]
+  payment_method_type = "AmericanExpress"
+[[noon.debit]]
+  payment_method_type = "JCB"
+[[noon.debit]]
+  payment_method_type = "DinersClub"
+[[noon.debit]]
+  payment_method_type = "Discover"
+[[noon.debit]]
+  payment_method_type = "CartesBancaires"
+[[noon.debit]]
+  payment_method_type = "UnionPay"
+[[noon.wallet]]
+  payment_method_type = "apple_pay"
+[[noon.wallet]]
+  payment_method_type = "google_pay"
+[[noon.wallet]]
+  payment_method_type = "paypal"
+[noon.connector_auth.SignatureKey]
+api_key="API Key"
+key1="Business Identifier"
+api_secret="Application Identifier"
+[noon.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[noon.metadata.google_pay]
+merchant_name="Google Pay Merchant Name"
+gateway_merchant_id="Google Pay Merchant Key"
+merchant_id="Google Pay Merchant ID"
+
+[noon.metadata.apple_pay.session_token_data]
+certificate="Merchant Certificate (Base64 Encoded)"
+certificate_keys="Merchant PrivateKey (Base64 Encoded)"
+merchant_identifier="Apple Merchant Identifier"
+display_name="Display Name"
+initiative="Domain"
+initiative_context="Domain Name"
+[noon.metadata.apple_pay.payment_request_data]
+supported_networks=["visa","masterCard","amex","discover"]
+merchant_capabilities=["supports3DS"]
+label="apple"
+
+[nuvei]
+[[nuvei.credit]]
+  payment_method_type = "Mastercard"
+[[nuvei.credit]]
+  payment_method_type = "Visa"
+[[nuvei.credit]]
+  payment_method_type = "Interac"
+[[nuvei.credit]]
+  payment_method_type = "AmericanExpress"
+[[nuvei.credit]]
+  payment_method_type = "JCB"
+[[nuvei.credit]]
+  payment_method_type = "DinersClub"
+[[nuvei.credit]]
+  payment_method_type = "Discover"
+[[nuvei.credit]]
+  payment_method_type = "CartesBancaires"
+[[nuvei.credit]]
+  payment_method_type = "UnionPay"
+[[nuvei.debit]]
+  payment_method_type = "Mastercard"
+[[nuvei.debit]]
+  payment_method_type = "Visa"
+[[nuvei.debit]]
+  payment_method_type = "Interac"
+[[nuvei.debit]]
+  payment_method_type = "AmericanExpress"
+[[nuvei.debit]]
+  payment_method_type = "JCB"
+[[nuvei.debit]]
+  payment_method_type = "DinersClub"
+[[nuvei.debit]]
+  payment_method_type = "Discover"
+[[nuvei.debit]]
+  payment_method_type = "CartesBancaires"
+[[nuvei.debit]]
+  payment_method_type = "UnionPay"
+[[nuvei.pay_later]]
+  payment_method_type = "klarna"
+[[nuvei.pay_later]]
+  payment_method_type = "afterpay_clearpay"
+[[nuvei.bank_redirect]]
+  payment_method_type = "ideal"
+[[nuvei.bank_redirect]]
+  payment_method_type = "giropay"
+[[nuvei.bank_redirect]]
+  payment_method_type = "sofort"
+[[nuvei.bank_redirect]]
+  payment_method_type = "eps"
+[[nuvei.wallet]]
+  payment_method_type = "apple_pay"
+[[nuvei.wallet]]
+  payment_method_type = "google_pay"
+[[nuvei.wallet]]
+  payment_method_type = "paypal"
+[nuvei.connector_auth.SignatureKey]
+api_key="Merchant ID"
+key1="Merchant Site ID"
+api_secret="Merchant Secret"
+[nuvei.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[nuvei.metadata.google_pay]
+merchant_name="Google Pay Merchant Name"
+gateway_merchant_id="Google Pay Merchant Key"
+merchant_id="Google Pay Merchant ID"
+
+[nuvei.metadata.apple_pay.session_token_data]
+certificate="Merchant Certificate (Base64 Encoded)"
+certificate_keys="Merchant PrivateKey (Base64 Encoded)"
+merchant_identifier="Apple Merchant Identifier"
+display_name="Display Name"
+initiative="Domain"
+initiative_context="Domain Name"
+[nuvei.metadata.apple_pay.payment_request_data]
+supported_networks=["visa","masterCard","amex","discover"]
+merchant_capabilities=["supports3DS"]
+label="apple"
+
+
+[opennode]
+[[opennode.crypto]]
+  payment_method_type = "crypto_currency"
+[opennode.connector_auth.HeaderKey]
+api_key="API Key"
+[opennode.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[prophetpay]
+[[prophetpay.card_redirect]]
+  payment_method_type = "card_redirect"
+[prophetpay.connector_auth.SignatureKey]
+api_key="Username"
+key1="Token"
+api_secret="Profile"
+
+[payme]
+[[payme.credit]]
+  payment_method_type = "Mastercard"
+[[payme.credit]]
+  payment_method_type = "Visa"
+[[payme.credit]]
+  payment_method_type = "Interac"
+[[payme.credit]]
+  payment_method_type = "AmericanExpress"
+[[payme.credit]]
+  payment_method_type = "JCB"
+[[payme.credit]]
+  payment_method_type = "DinersClub"
+[[payme.credit]]
+  payment_method_type = "Discover"
+[[payme.credit]]
+  payment_method_type = "CartesBancaires"
+[[payme.credit]]
+  payment_method_type = "UnionPay"
+[[payme.debit]]
+  payment_method_type = "Mastercard"
+[[payme.debit]]
+  payment_method_type = "Visa"
+[[payme.debit]]
+  payment_method_type = "Interac"
+[[payme.debit]]
+  payment_method_type = "AmericanExpress"
+[[payme.debit]]
+  payment_method_type = "JCB"
+[[payme.debit]]
+  payment_method_type = "DinersClub"
+[[payme.debit]]
+  payment_method_type = "Discover"
+[[payme.debit]]
+  payment_method_type = "CartesBancaires"
+[[payme.debit]]
+  payment_method_type = "UnionPay"
+[payme.connector_auth.BodyKey]
+api_key="Seller Payme Id"
+key1="Payme Public Key"
+[payme.connector_webhook_details]
+merchant_secret="Payme Client Secret"
+additional_secret="Payme Client Key"
+
+[paypal]
+[[paypal.credit]]
+  payment_method_type = "Mastercard"
+[[paypal.credit]]
+  payment_method_type = "Visa"
+[[paypal.credit]]
+  payment_method_type = "Interac"
+[[paypal.credit]]
+  payment_method_type = "AmericanExpress"
+[[paypal.credit]]
+  payment_method_type = "JCB"
+[[paypal.credit]]
+  payment_method_type = "DinersClub"
+[[paypal.credit]]
+  payment_method_type = "Discover"
+[[paypal.credit]]
+  payment_method_type = "CartesBancaires"
+[[paypal.credit]]
+  payment_method_type = "UnionPay"
+[[paypal.debit]]
+  payment_method_type = "Mastercard"
+[[paypal.debit]]
+  payment_method_type = "Visa"
+[[paypal.debit]]
+  payment_method_type = "Interac"
+[[paypal.debit]]
+  payment_method_type = "AmericanExpress"
+[[paypal.debit]]
+  payment_method_type = "JCB"
+[[paypal.debit]]
+  payment_method_type = "DinersClub"
+[[paypal.debit]]
+  payment_method_type = "Discover"
+[[paypal.debit]]
+  payment_method_type = "CartesBancaires"
+[[paypal.debit]]
+  payment_method_type = "UnionPay"
+[[paypal.wallet]]
+  payment_method_type = "paypal"
+[[paypal.bank_redirect]]
+  payment_method_type = "ideal"
+[[paypal.bank_redirect]]
+  payment_method_type = "giropay"
+[[paypal.bank_redirect]]
+  payment_method_type = "sofort"
+[[paypal.bank_redirect]]
+  payment_method_type = "eps"
+is_verifiable = true
+[paypal.connector_auth.BodyKey]
+api_key="Client Secret"
+key1="Client ID"
+[paypal.connector_webhook_details]
+merchant_secret="Source verification key"
+
+
+[payu]
+[[payu.credit]]
+  payment_method_type = "Mastercard"
+[[payu.credit]]
+  payment_method_type = "Visa"
+[[payu.credit]]
+  payment_method_type = "Interac"
+[[payu.credit]]
+  payment_method_type = "AmericanExpress"
+[[payu.credit]]
+  payment_method_type = "JCB"
+[[payu.credit]]
+  payment_method_type = "DinersClub"
+[[payu.credit]]
+  payment_method_type = "Discover"
+[[payu.credit]]
+  payment_method_type = "CartesBancaires"
+[[payu.credit]]
+  payment_method_type = "UnionPay"
+[[payu.debit]]
+  payment_method_type = "Mastercard"
+[[payu.debit]]
+  payment_method_type = "Visa"
+[[payu.debit]]
+  payment_method_type = "Interac"
+[[payu.debit]]
+  payment_method_type = "AmericanExpress"
+[[payu.debit]]
+  payment_method_type = "JCB"
+[[payu.debit]]
+  payment_method_type = "DinersClub"
+[[payu.debit]]
+  payment_method_type = "Discover"
+[[payu.debit]]
+  payment_method_type = "CartesBancaires"
+[[payu.debit]]
+  payment_method_type = "UnionPay"
+[[payu.wallet]]
+  payment_method_type = "google_pay"
+[payu.connector_auth.BodyKey]
+api_key="API Key"
+key1="Merchant POS ID"
+[payu.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[payu.metadata.google_pay]
+merchant_name="Google Pay Merchant Name"
+gateway_merchant_id="Google Pay Merchant Key"
+merchant_id="Google Pay Merchant ID"
+
+[placetopay]
+[[placetopay.credit]]
+  payment_method_type = "Mastercard"
+[[placetopay.credit]]
+  payment_method_type = "Visa"
+[[placetopay.credit]]
+  payment_method_type = "Interac"
+[[placetopay.credit]]
+  payment_method_type = "AmericanExpress"
+[[placetopay.credit]]
+  payment_method_type = "JCB"
+[[placetopay.credit]]
+  payment_method_type = "DinersClub"
+[[placetopay.credit]]
+  payment_method_type = "Discover"
+[[placetopay.credit]]
+  payment_method_type = "CartesBancaires"
+[[placetopay.credit]]
+  payment_method_type = "UnionPay"
+[[placetopay.debit]]
+  payment_method_type = "Mastercard"
+[[placetopay.debit]]
+  payment_method_type = "Visa"
+[[placetopay.debit]]
+  payment_method_type = "Interac"
+[[placetopay.debit]]
+  payment_method_type = "AmericanExpress"
+[[placetopay.debit]]
+  payment_method_type = "JCB"
+[[placetopay.debit]]
+  payment_method_type = "DinersClub"
+[[placetopay.debit]]
+  payment_method_type = "Discover"
+[[placetopay.debit]]
+  payment_method_type = "CartesBancaires"
+[[placetopay.debit]]
+  payment_method_type = "UnionPay"
+[placetopay.connector_auth.BodyKey]
+api_key="Login"
+key1="Trankey"
+
+[powertranz]
+[[powertranz.credit]]
+  payment_method_type = "Mastercard"
+[[powertranz.credit]]
+  payment_method_type = "Visa"
+[[powertranz.credit]]
+  payment_method_type = "Interac"
+[[powertranz.credit]]
+  payment_method_type = "AmericanExpress"
+[[powertranz.credit]]
+  payment_method_type = "JCB"
+[[powertranz.credit]]
+  payment_method_type = "DinersClub"
+[[powertranz.credit]]
+  payment_method_type = "Discover"
+[[powertranz.credit]]
+  payment_method_type = "CartesBancaires"
+[[powertranz.credit]]
+  payment_method_type = "UnionPay"
+[[powertranz.debit]]
+  payment_method_type = "Mastercard"
+[[powertranz.debit]]
+  payment_method_type = "Visa"
+[[powertranz.debit]]
+  payment_method_type = "Interac"
+[[powertranz.debit]]
+  payment_method_type = "AmericanExpress"
+[[powertranz.debit]]
+  payment_method_type = "JCB"
+[[powertranz.debit]]
+  payment_method_type = "DinersClub"
+[[powertranz.debit]]
+  payment_method_type = "Discover"
+[[powertranz.debit]]
+  payment_method_type = "CartesBancaires"
+[[powertranz.debit]]
+  payment_method_type = "UnionPay"
+[powertranz.connector_auth.BodyKey]
+key1 = "PowerTranz Id"
+api_key="PowerTranz Password"
+[powertranz.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[rapyd]
+[[rapyd.credit]]
+  payment_method_type = "Mastercard"
+[[rapyd.credit]]
+  payment_method_type = "Visa"
+[[rapyd.credit]]
+  payment_method_type = "Interac"
+[[rapyd.credit]]
+  payment_method_type = "AmericanExpress"
+[[rapyd.credit]]
+  payment_method_type = "JCB"
+[[rapyd.credit]]
+  payment_method_type = "DinersClub"
+[[rapyd.credit]]
+  payment_method_type = "Discover"
+[[rapyd.credit]]
+  payment_method_type = "CartesBancaires"
+[[rapyd.credit]]
+  payment_method_type = "UnionPay"
+[[rapyd.debit]]
+  payment_method_type = "Mastercard"
+[[rapyd.debit]]
+  payment_method_type = "Visa"
+[[rapyd.debit]]
+  payment_method_type = "Interac"
+[[rapyd.debit]]
+  payment_method_type = "AmericanExpress"
+[[rapyd.debit]]
+  payment_method_type = "JCB"
+[[rapyd.debit]]
+  payment_method_type = "DinersClub"
+[[rapyd.debit]]
+  payment_method_type = "Discover"
+[[rapyd.debit]]
+  payment_method_type = "CartesBancaires"
+[[rapyd.debit]]
+  payment_method_type = "UnionPay"
+[[rapyd.wallet]]
+  payment_method_type = "apple_pay"
+[rapyd.connector_auth.BodyKey]
+api_key="Access Key"
+key1="API Secret"
+[rapyd.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[rapyd.metadata.apple_pay.session_token_data]
+certificate="Merchant Certificate (Base64 Encoded)"
+certificate_keys="Merchant PrivateKey (Base64 Encoded)"
+merchant_identifier="Apple Merchant Identifier"
+display_name="Display Name"
+initiative="Domain"
+initiative_context="Domain Name"
+[rapyd.metadata.apple_pay.payment_request_data]
+supported_networks=["visa","masterCard","amex","discover"]
+merchant_capabilities=["supports3DS"]
+label="apple"
+
+[shift4]
+[[shift4.credit]]
+  payment_method_type = "Mastercard"
+[[shift4.credit]]
+  payment_method_type = "Visa"
+[[shift4.credit]]
+  payment_method_type = "Interac"
+[[shift4.credit]]
+  payment_method_type = "AmericanExpress"
+[[shift4.credit]]
+  payment_method_type = "JCB"
+[[shift4.credit]]
+  payment_method_type = "DinersClub"
+[[shift4.credit]]
+  payment_method_type = "Discover"
+[[shift4.credit]]
+  payment_method_type = "CartesBancaires"
+[[shift4.credit]]
+  payment_method_type = "UnionPay"
+[[shift4.debit]]
+  payment_method_type = "Mastercard"
+[[shift4.debit]]
+  payment_method_type = "Visa"
+[[shift4.debit]]
+  payment_method_type = "Interac"
+[[shift4.debit]]
+  payment_method_type = "AmericanExpress"
+[[shift4.debit]]
+  payment_method_type = "JCB"
+[[shift4.debit]]
+  payment_method_type = "DinersClub"
+[[shift4.debit]]
+  payment_method_type = "Discover"
+[[shift4.debit]]
+  payment_method_type = "CartesBancaires"
+[[shift4.debit]]
+  payment_method_type = "UnionPay"
+[[shift4.bank_redirect]]
+  payment_method_type = "ideal"
+[[shift4.bank_redirect]]
+  payment_method_type = "giropay"
+[[shift4.bank_redirect]]
+  payment_method_type = "sofort"
+[[shift4.bank_redirect]]
+  payment_method_type = "eps"
+[shift4.connector_auth.HeaderKey]
+api_key="API Key"
+[shift4.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[stripe]
+[[stripe.credit]]
+  payment_method_type = "Mastercard"
+[[stripe.credit]]
+  payment_method_type = "Visa"
+[[stripe.credit]]
+  payment_method_type = "Interac"
+[[stripe.credit]]
+  payment_method_type = "AmericanExpress"
+[[stripe.credit]]
+  payment_method_type = "JCB"
+[[stripe.credit]]
+  payment_method_type = "DinersClub"
+[[stripe.credit]]
+  payment_method_type = "Discover"
+[[stripe.credit]]
+  payment_method_type = "CartesBancaires"
+[[stripe.credit]]
+  payment_method_type = "UnionPay"
+[[stripe.debit]]
+  payment_method_type = "Mastercard"
+[[stripe.debit]]
+  payment_method_type = "Visa"
+[[stripe.debit]]
+  payment_method_type = "Interac"
+[[stripe.debit]]
+  payment_method_type = "AmericanExpress"
+[[stripe.debit]]
+  payment_method_type = "JCB"
+[[stripe.debit]]
+  payment_method_type = "DinersClub"
+[[stripe.debit]]
+  payment_method_type = "Discover"
+[[stripe.debit]]
+  payment_method_type = "CartesBancaires"
+[[stripe.debit]]
+  payment_method_type = "UnionPay"
+[[stripe.pay_later]]
+  payment_method_type = "klarna"
+[[stripe.pay_later]]
+  payment_method_type = "affirm"
+[[stripe.pay_later]]
+  payment_method_type = "afterpay_clearpay"
+[[stripe.bank_redirect]]
+  payment_method_type = "ideal"
+[[stripe.bank_redirect]]
+  payment_method_type = "giropay"
+[[stripe.bank_redirect]]
+  payment_method_type = "sofort"
+[[stripe.bank_redirect]]
+  payment_method_type = "eps"
+[[stripe.bank_redirect]]
+  payment_method_type = "bancontact_card"
+[[stripe.bank_redirect]]
+  payment_method_type = "przelewy24"
+[[stripe.bank_debit]]
+  payment_method_type = "ach"
+[[stripe.bank_debit]]
+  payment_method_type = "bacs"
+[[stripe.bank_debit]]
+  payment_method_type = "becs"
+[[stripe.bank_debit]]
+  payment_method_type = "sepa"
+[[stripe.bank_transfer]]
+  payment_method_type = "ach"
+[[stripe.bank_transfer]]
+  payment_method_type = "bacs"
+[[stripe.bank_transfer]]
+  payment_method_type = "sepa"
+[[stripe.bank_transfer]]
+  payment_method_type = "multibanco"
+[[stripe.wallet]]
+  payment_method_type = "apple_pay"
+[[stripe.wallet]]
+  payment_method_type = "google_pay"
+[[stripe.wallet]]
+  payment_method_type = "we_chat_pay"
+[[stripe.wallet]]
+  payment_method_type = "ali_pay"
+[[stripe.wallet]]
+  payment_method_type = "cashapp"
+is_verifiable = true
+[stripe.connector_auth.HeaderKey]
+api_key="Secret Key"
+[stripe.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[stripe.metadata.google_pay]
+merchant_name="Google Pay Merchant Name"
+stripe_publishable_key="Stripe Publishable Key"
+merchant_id="Google Pay Merchant ID"
+
+[stripe.metadata.apple_pay.session_token_data]
+certificate="Merchant Certificate (Base64 Encoded)"
+certificate_keys="Merchant PrivateKey (Base64 Encoded)"
+merchant_identifier="Apple Merchant Identifier"
+display_name="Display Name"
+initiative="Domain"
+initiative_context="Domain Name"
+[stripe.metadata.apple_pay.payment_request_data]
+supported_networks=["visa","masterCard","amex","discover"]
+merchant_capabilities=["supports3DS"]
+label="apple"
+
+[stax]
+[[stax.credit]]
+  payment_method_type = "Mastercard"
+[[stax.credit]]
+  payment_method_type = "Visa"
+[[stax.credit]]
+  payment_method_type = "Interac"
+[[stax.credit]]
+  payment_method_type = "AmericanExpress"
+[[stax.credit]]
+  payment_method_type = "JCB"
+[[stax.credit]]
+  payment_method_type = "DinersClub"
+[[stax.credit]]
+  payment_method_type = "Discover"
+[[stax.credit]]
+  payment_method_type = "CartesBancaires"
+[[stax.credit]]
+  payment_method_type = "UnionPay"
+[[stax.debit]]
+  payment_method_type = "Mastercard"
+[[stax.debit]]
+  payment_method_type = "Visa"
+[[stax.debit]]
+  payment_method_type = "Interac"
+[[stax.debit]]
+  payment_method_type = "AmericanExpress"
+[[stax.debit]]
+  payment_method_type = "JCB"
+[[stax.debit]]
+  payment_method_type = "DinersClub"
+[[stax.debit]]
+  payment_method_type = "Discover"
+[[stax.debit]]
+  payment_method_type = "CartesBancaires"
+[[stax.debit]]
+  payment_method_type = "UnionPay"
+[[stax.bank_debit]]
+  payment_method_type = "ach"
+[stax.connector_auth.HeaderKey]
+api_key="Api Key"
+[stax.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[square]
+[[square.credit]]
+  payment_method_type = "Mastercard"
+[[square.credit]]
+  payment_method_type = "Visa"
+[[square.credit]]
+  payment_method_type = "Interac"
+[[square.credit]]
+  payment_method_type = "AmericanExpress"
+[[square.credit]]
+  payment_method_type = "JCB"
+[[square.credit]]
+  payment_method_type = "DinersClub"
+[[square.credit]]
+  payment_method_type = "Discover"
+[[square.credit]]
+  payment_method_type = "CartesBancaires"
+[[square.credit]]
+  payment_method_type = "UnionPay"
+[[square.debit]]
+  payment_method_type = "Mastercard"
+[[square.debit]]
+  payment_method_type = "Visa"
+[[square.debit]]
+  payment_method_type = "Interac"
+[[square.debit]]
+  payment_method_type = "AmericanExpress"
+[[square.debit]]
+  payment_method_type = "JCB"
+[[square.debit]]
+  payment_method_type = "DinersClub"
+[[square.debit]]
+  payment_method_type = "Discover"
+[[square.debit]]
+  payment_method_type = "CartesBancaires"
+[[square.debit]]
+  payment_method_type = "UnionPay"
+[square_payout.connector_auth.BodyKey]
+api_key = "Square API Key"
+key1 = "Square Client Id"
+[square.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[trustpay]
+[[trustpay.credit]]
+  payment_method_type = "Mastercard"
+[[trustpay.credit]]
+  payment_method_type = "Visa"
+[[trustpay.credit]]
+  payment_method_type = "Interac"
+[[trustpay.credit]]
+  payment_method_type = "AmericanExpress"
+[[trustpay.credit]]
+  payment_method_type = "JCB"
+[[trustpay.credit]]
+  payment_method_type = "DinersClub"
+[[trustpay.credit]]
+  payment_method_type = "Discover"
+[[trustpay.credit]]
+  payment_method_type = "CartesBancaires"
+[[trustpay.credit]]
+  payment_method_type = "UnionPay"
+[[trustpay.debit]]
+  payment_method_type = "Mastercard"
+[[trustpay.debit]]
+  payment_method_type = "Visa"
+[[trustpay.debit]]
+  payment_method_type = "Interac"
+[[trustpay.debit]]
+  payment_method_type = "AmericanExpress"
+[[trustpay.debit]]
+  payment_method_type = "JCB"
+[[trustpay.debit]]
+  payment_method_type = "DinersClub"
+[[trustpay.debit]]
+  payment_method_type = "Discover"
+[[trustpay.debit]]
+  payment_method_type = "CartesBancaires"
+[[trustpay.debit]]
+  payment_method_type = "UnionPay"
+[[trustpay.bank_redirect]]
+  payment_method_type = "ideal"
+[[trustpay.bank_redirect]]
+  payment_method_type = "giropay"
+[[trustpay.bank_redirect]]
+  payment_method_type = "sofort"
+[[trustpay.bank_redirect]]
+  payment_method_type = "eps"
+[[trustpay.bank_redirect]]
+  payment_method_type = "blik"
+[[trustpay.wallet]]
+  payment_method_type = "apple_pay"
+[[trustpay.wallet]]
+  payment_method_type = "google_pay"
+[trustpay.connector_auth.SignatureKey]
+api_key="API Key"
+key1="Project ID"
+api_secret="Secret Key"
+[trustpay.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[trustpay.metadata.apple_pay.session_token_data]
+certificate="Merchant Certificate (Base64 Encoded)"
+certificate_keys="Merchant PrivateKey (Base64 Encoded)"
+merchant_identifier="Apple Merchant Identifier"
+display_name="Display Name"
+initiative="Domain"
+initiative_context="Domain Name"
+[trustpay.metadata.apple_pay.payment_request_data]
+supported_networks=["visa","masterCard","amex","discover"]
+merchant_capabilities=["supports3DS"]
+label="apple"
+
+[tsys]
+[[tsys.credit]]
+  payment_method_type = "Mastercard"
+[[tsys.credit]]
+  payment_method_type = "Visa"
+[[tsys.credit]]
+  payment_method_type = "Interac"
+[[tsys.credit]]
+  payment_method_type = "AmericanExpress"
+[[tsys.credit]]
+  payment_method_type = "JCB"
+[[tsys.credit]]
+  payment_method_type = "DinersClub"
+[[tsys.credit]]
+  payment_method_type = "Discover"
+[[tsys.credit]]
+  payment_method_type = "CartesBancaires"
+[[tsys.credit]]
+  payment_method_type = "UnionPay"
+[[tsys.debit]]
+  payment_method_type = "Mastercard"
+[[tsys.debit]]
+  payment_method_type = "Visa"
+[[tsys.debit]]
+  payment_method_type = "Interac"
+[[tsys.debit]]
+  payment_method_type = "AmericanExpress"
+[[tsys.debit]]
+  payment_method_type = "JCB"
+[[tsys.debit]]
+  payment_method_type = "DinersClub"
+[[tsys.debit]]
+  payment_method_type = "Discover"
+[[tsys.debit]]
+  payment_method_type = "CartesBancaires"
+[[tsys.debit]]
+  payment_method_type = "UnionPay"
+[tsys.connector_auth.SignatureKey]
+api_key="Device Id"
+key1="Transaction Key"
+api_secret="Developer Id"
+[tsys.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[volt]
+[[volt.bank_redirect]]
+  payment_method_type = "open_banking_uk"
+[volt.connector_auth.MultiAuthKey]
+api_key = "Username"
+api_secret = "Password"
+key1 = "Client ID"
+key2 = "Client Secret"
+[volt.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[worldline]
+[[worldline.credit]]
+  payment_method_type = "Mastercard"
+[[worldline.credit]]
+  payment_method_type = "Visa"
+[[worldline.credit]]
+  payment_method_type = "Interac"
+[[worldline.credit]]
+  payment_method_type = "AmericanExpress"
+[[worldline.credit]]
+  payment_method_type = "JCB"
+[[worldline.credit]]
+  payment_method_type = "DinersClub"
+[[worldline.credit]]
+  payment_method_type = "Discover"
+[[worldline.credit]]
+  payment_method_type = "CartesBancaires"
+[[worldline.credit]]
+  payment_method_type = "UnionPay"
+[[worldline.debit]]
+  payment_method_type = "Mastercard"
+[[worldline.debit]]
+  payment_method_type = "Visa"
+[[worldline.debit]]
+  payment_method_type = "Interac"
+[[worldline.debit]]
+  payment_method_type = "AmericanExpress"
+[[worldline.debit]]
+  payment_method_type = "JCB"
+[[worldline.debit]]
+  payment_method_type = "DinersClub"
+[[worldline.debit]]
+  payment_method_type = "Discover"
+[[worldline.debit]]
+  payment_method_type = "CartesBancaires"
+[[worldline.debit]]
+  payment_method_type = "UnionPay"
+[[worldline.bank_redirect]]
+  payment_method_type = "ideal"
+[[worldline.bank_redirect]]
+  payment_method_type = "giropay"
+[worldline.connector_auth.SignatureKey]
+api_key="API Key ID"
+key1="Merchant ID"
+api_secret="Secret API Key"
+[worldline.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[worldpay]
+[[worldpay.credit]]
+  payment_method_type = "Mastercard"
+[[worldpay.credit]]
+  payment_method_type = "Visa"
+[[worldpay.credit]]
+  payment_method_type = "Interac"
+[[worldpay.credit]]
+  payment_method_type = "AmericanExpress"
+[[worldpay.credit]]
+  payment_method_type = "JCB"
+[[worldpay.credit]]
+  payment_method_type = "DinersClub"
+[[worldpay.credit]]
+  payment_method_type = "Discover"
+[[worldpay.credit]]
+  payment_method_type = "CartesBancaires"
+[[worldpay.credit]]
+  payment_method_type = "UnionPay"
+[[worldpay.debit]]
+  payment_method_type = "Mastercard"
+[[worldpay.debit]]
+  payment_method_type = "Visa"
+[[worldpay.debit]]
+  payment_method_type = "Interac"
+[[worldpay.debit]]
+  payment_method_type = "AmericanExpress"
+[[worldpay.debit]]
+  payment_method_type = "JCB"
+[[worldpay.debit]]
+  payment_method_type = "DinersClub"
+[[worldpay.debit]]
+  payment_method_type = "Discover"
+[[worldpay.debit]]
+  payment_method_type = "CartesBancaires"
+[[worldpay.debit]]
+  payment_method_type = "UnionPay"
+[[worldpay.wallet]]
+  payment_method_type = "google_pay"
+[[worldpay.wallet]]
+  payment_method_type = "apple_pay"
+[worldpay.connector_auth.BodyKey]
+api_key="Username"
+key1="Password"
+[worldpay.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[worldpay.metadata.google_pay]
+merchant_name="Google Pay Merchant Name"
+gateway_merchant_id="Google Pay Merchant Key"
+merchant_id="Google Pay Merchant ID"
+
+[worldpay.metadata.apple_pay.session_token_data]
+certificate="Merchant Certificate (Base64 Encoded)"
+certificate_keys="Merchant PrivateKey (Base64 Encoded)"
+merchant_identifier="Apple Merchant Identifier"
+display_name="Display Name"
+initiative="Domain"
+initiative_context="Domain Name"
+[worldpay.metadata.apple_pay.payment_request_data]
+supported_networks=["visa","masterCard","amex","discover"]
+merchant_capabilities=["supports3DS"]
+label="apple"
+
+[zen]
+[[zen.credit]]
+  payment_method_type = "Mastercard"
+[[zen.credit]]
+  payment_method_type = "Visa"
+[[zen.credit]]
+  payment_method_type = "Interac"
+[[zen.credit]]
+  payment_method_type = "AmericanExpress"
+[[zen.credit]]
+  payment_method_type = "JCB"
+[[zen.credit]]
+  payment_method_type = "DinersClub"
+[[zen.credit]]
+  payment_method_type = "Discover"
+[[zen.credit]]
+  payment_method_type = "CartesBancaires"
+[[zen.credit]]
+  payment_method_type = "UnionPay"
+[[zen.debit]]
+  payment_method_type = "Mastercard"
+[[zen.debit]]
+  payment_method_type = "Visa"
+[[zen.debit]]
+  payment_method_type = "Interac"
+[[zen.debit]]
+  payment_method_type = "AmericanExpress"
+[[zen.debit]]
+  payment_method_type = "JCB"
+[[zen.debit]]
+  payment_method_type = "DinersClub"
+[[zen.debit]]
+  payment_method_type = "Discover"
+[[zen.debit]]
+  payment_method_type = "CartesBancaires"
+[[zen.debit]]
+  payment_method_type = "UnionPay"
+[[zen.voucher]]
+  payment_method_type = "boleto"
+[[zen.voucher]]
+  payment_method_type = "efecty"
+[[zen.voucher]]
+  payment_method_type = "pago_efectivo"
+[[zen.voucher]]
+  payment_method_type = "red_compra"
+[[zen.voucher]]
+  payment_method_type = "red_pagos"
+[[zen.bank_transfer]]
+  payment_method_type = "pix"
+[[zen.bank_transfer]]
+  payment_method_type = "pse"
+[[zen.wallet]]
+  payment_method_type = "apple_pay"
+[[zen.wallet]]
+  payment_method_type = "google_pay"
+[zen.connector_auth.HeaderKey]
+api_key="API Key"
+[zen.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[zen.metadata.apple_pay]
+terminal_uuid="Terminal UUID"
+pay_wall_secret="Pay Wall Secret"
+[zen.metadata.google_pay]
+terminal_uuid="Terminal UUID"
+pay_wall_secret="Pay Wall Secret"
+
+
+[dummy_connector]
+[[dummy_connector.credit]]
+  payment_method_type = "Mastercard"
+[[dummy_connector.credit]]
+  payment_method_type = "Visa"
+[[dummy_connector.credit]]
+  payment_method_type = "Interac"
+[[dummy_connector.credit]]
+  payment_method_type = "AmericanExpress"
+[[dummy_connector.credit]]
+  payment_method_type = "JCB"
+[[dummy_connector.credit]]
+  payment_method_type = "DinersClub"
+[[dummy_connector.credit]]
+  payment_method_type = "Discover"
+[[dummy_connector.credit]]
+  payment_method_type = "CartesBancaires"
+[[dummy_connector.credit]]
+  payment_method_type = "UnionPay"
+[[dummy_connector.debit]]
+  payment_method_type = "Mastercard"
+[[dummy_connector.debit]]
+  payment_method_type = "Visa"
+[[dummy_connector.debit]]
+  payment_method_type = "Interac"
+[[dummy_connector.debit]]
+  payment_method_type = "AmericanExpress"
+[[dummy_connector.debit]]
+  payment_method_type = "JCB"
+[[dummy_connector.debit]]
+  payment_method_type = "DinersClub"
+[[dummy_connector.debit]]
+  payment_method_type = "Discover"
+[[dummy_connector.debit]]
+  payment_method_type = "CartesBancaires"
+[[dummy_connector.debit]]
+  payment_method_type = "UnionPay"
+[dummy_connector.connector_auth.HeaderKey]
+api_key="Api Key"
+
+[paypal_test]
+[[paypal_test.credit]]
+  payment_method_type = "Mastercard"
+[[paypal_test.credit]]
+  payment_method_type = "Visa"
+[[paypal_test.credit]]
+  payment_method_type = "Interac"
+[[paypal_test.credit]]
+  payment_method_type = "AmericanExpress"
+[[paypal_test.credit]]
+  payment_method_type = "JCB"
+[[paypal_test.credit]]
+  payment_method_type = "DinersClub"
+[[paypal_test.credit]]
+  payment_method_type = "Discover"
+[[paypal_test.credit]]
+  payment_method_type = "CartesBancaires"
+[[paypal_test.credit]]
+  payment_method_type = "UnionPay"
+[[paypal_test.debit]]
+  payment_method_type = "Mastercard"
+[[paypal_test.debit]]
+  payment_method_type = "Visa"
+[[paypal_test.debit]]
+  payment_method_type = "Interac"
+[[paypal_test.debit]]
+  payment_method_type = "AmericanExpress"
+[[paypal_test.debit]]
+  payment_method_type = "JCB"
+[[paypal_test.debit]]
+  payment_method_type = "DinersClub"
+[[paypal_test.debit]]
+  payment_method_type = "Discover"
+[[paypal_test.debit]]
+  payment_method_type = "CartesBancaires"
+[[paypal_test.debit]]
+  payment_method_type = "UnionPay"
+[[paypal_test.wallet]]
+  payment_method_type = "paypal"
+[paypal_test.connector_auth.HeaderKey]
+api_key="Api Key"
+
+[stripe_test]
+[[stripe_test.credit]]
+  payment_method_type = "Mastercard"
+[[stripe_test.credit]]
+  payment_method_type = "Visa"
+[[stripe_test.credit]]
+  payment_method_type = "Interac"
+[[stripe_test.credit]]
+  payment_method_type = "AmericanExpress"
+[[stripe_test.credit]]
+  payment_method_type = "JCB"
+[[stripe_test.credit]]
+  payment_method_type = "DinersClub"
+[[stripe_test.credit]]
+  payment_method_type = "Discover"
+[[stripe_test.credit]]
+  payment_method_type = "CartesBancaires"
+[[stripe_test.credit]]
+  payment_method_type = "UnionPay"
+[[stripe_test.debit]]
+  payment_method_type = "Mastercard"
+[[stripe_test.debit]]
+  payment_method_type = "Visa"
+[[stripe_test.debit]]
+  payment_method_type = "Interac"
+[[stripe_test.debit]]
+  payment_method_type = "AmericanExpress"
+[[stripe_test.debit]]
+  payment_method_type = "JCB"
+[[stripe_test.debit]]
+  payment_method_type = "DinersClub"
+[[stripe_test.debit]]
+  payment_method_type = "Discover"
+[[stripe_test.debit]]
+  payment_method_type = "CartesBancaires"
+[[stripe_test.debit]]
+  payment_method_type = "UnionPay"
+[[stripe_test.wallet]]
+  payment_method_type = "google_pay"
+[[stripe_test.wallet]]
+  payment_method_type = "ali_pay"
+[[stripe_test.wallet]]
+  payment_method_type = "we_chat_pay"
+[[stripe_test.pay_later]]
+  payment_method_type = "klarna"
+[[stripe_test.pay_later]]
+  payment_method_type = "affirm"
+[[stripe_test.pay_later]]
+  payment_method_type = "afterpay_clearpay"
+[stripe_test.connector_auth.HeaderKey]
+api_key="Api Key"
+
+[helcim]
+[[helcim.credit]]
+  payment_method_type = "Mastercard"
+[[helcim.credit]]
+  payment_method_type = "Visa"
+[[helcim.credit]]
+  payment_method_type = "Interac"
+[[helcim.credit]]
+  payment_method_type = "AmericanExpress"
+[[helcim.credit]]
+  payment_method_type = "JCB"
+[[helcim.credit]]
+  payment_method_type = "DinersClub"
+[[helcim.credit]]
+  payment_method_type = "Discover"
+[[helcim.credit]]
+  payment_method_type = "CartesBancaires"
+[[helcim.credit]]
+  payment_method_type = "UnionPay"
+[[helcim.debit]]
+  payment_method_type = "Mastercard"
+[[helcim.debit]]
+  payment_method_type = "Visa"
+[[helcim.debit]]
+  payment_method_type = "Interac"
+[[helcim.debit]]
+  payment_method_type = "AmericanExpress"
+[[helcim.debit]]
+  payment_method_type = "JCB"
+[[helcim.debit]]
+  payment_method_type = "DinersClub"
+[[helcim.debit]]
+  payment_method_type = "Discover"
+[[helcim.debit]]
+  payment_method_type = "CartesBancaires"
+[[helcim.debit]]
+  payment_method_type = "UnionPay"
+[helcim.connector_auth.HeaderKey]
+api_key="Api Key"
+
+
+
+
+[adyen_payout]
+[[adyen_payout.credit]]
+  payment_method_type = "Mastercard"
+[[adyen_payout.credit]]
+  payment_method_type = "Visa"
+[[adyen_payout.credit]]
+  payment_method_type = "Interac"
+[[adyen_payout.credit]]
+  payment_method_type = "AmericanExpress"
+[[adyen_payout.credit]]
+  payment_method_type = "JCB"
+[[adyen_payout.credit]]
+  payment_method_type = "DinersClub"
+[[adyen_payout.credit]]
+  payment_method_type = "Discover"
+[[adyen_payout.credit]]
+  payment_method_type = "CartesBancaires"
+[[adyen_payout.credit]]
+  payment_method_type = "UnionPay"
+[[adyen_payout.debit]]
+  payment_method_type = "Mastercard"
+[[adyen_payout.debit]]
+  payment_method_type = "Visa"
+[[adyen_payout.debit]]
+  payment_method_type = "Interac"
+[[adyen_payout.debit]]
+  payment_method_type = "AmericanExpress"
+[[adyen_payout.debit]]
+  payment_method_type = "JCB"
+[[adyen_payout.debit]]
+  payment_method_type = "DinersClub"
+[[adyen_payout.debit]]
+  payment_method_type = "Discover"
+[[adyen_payout.debit]]
+  payment_method_type = "CartesBancaires"
+[[adyen_payout.debit]]
+  payment_method_type = "UnionPay"
+[[adyen_payout.bank_transfer]]
+  payment_method_type = "ach"
+[[adyen_payout.bank_transfer]]
+  payment_method_type = "bacs"
+[[adyen_payout.bank_transfer]]
+  payment_method_type = "sepa"
+[[adyen_payout.wallet]]
+  payment_method_type = "paypal"
+[adyen_payout.metadata]
+  endpoint_prefix="Live endpoint prefix"
+[adyen_payout.connector_auth.SignatureKey]
+api_key = "Adyen API Key (Payout creation)"
+api_secret = "Adyen Key (Payout submission)"
+key1 = "Adyen Account Id"
+
+[wise_payout]
+[[wise_payout.bank_transfer]]
+  payment_method_type = "ach"
+[[wise_payout.bank_transfer]]
+  payment_method_type = "bacs"
+[[wise_payout.bank_transfer]]
+  payment_method_type = "sepa"
+[wise_payout.connector_auth.BodyKey]
+api_key = "Wise API Key"
+key1 = "Wise Account Id"
+
+[threedsecureio]
+[threedsecureio.connector_auth.HeaderKey]
+api_key="Api Key"
+[threedsecureio.metadata]
+mcc="MCC"
+merchant_country_code="3 digit numeric country code"
+merchant_name="Name of the merchant"

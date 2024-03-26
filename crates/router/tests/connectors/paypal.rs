@@ -17,6 +17,7 @@ impl Connector for PaypalTest {
             connector: Box::new(&Paypal),
             connector_name: types::Connector::Paypal,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
@@ -140,6 +141,7 @@ async fn should_sync_authorized_payment() {
                 capture_method: None,
                 sync_type: types::SyncRequestType::SinglePaymentSync,
                 connector_meta,
+                payment_method_type: None,
             }),
             get_default_payment_info(),
         )
@@ -336,6 +338,7 @@ async fn should_sync_auto_captured_payment() {
                 capture_method: Some(enums::CaptureMethod::Automatic),
                 sync_type: types::SyncRequestType::SinglePaymentSync,
                 connector_meta,
+                payment_method_type: None,
             }),
             get_default_payment_info(),
         )

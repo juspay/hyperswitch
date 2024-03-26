@@ -27,6 +27,7 @@ mod storage {
     use common_utils::date_time;
     use error_stack::ResultExt;
     use redis_interface::HsetnxReply;
+    use router_env::{instrument, tracing};
     use storage_impl::redis::kv_store::RedisConnInterface;
     use time::ext::NumericalDuration;
 
@@ -39,6 +40,7 @@ mod storage {
 
     #[async_trait::async_trait]
     impl EphemeralKeyInterface for Store {
+        #[instrument(skip_all)]
         async fn create_ephemeral_key(
             &self,
             new: EphemeralKeyNew,
@@ -64,6 +66,7 @@ mod storage {
                 .serialize_and_set_multiple_hash_field_if_not_exist(
                     &[(&secret_key, &created_ek), (&id_key, &created_ek)],
                     "ephkey",
+                    None,
                 )
                 .await
             {
@@ -91,6 +94,7 @@ mod storage {
                 Err(er) => Err(er).change_context(errors::StorageError::KVError),
             }
         }
+        #[instrument(skip_all)]
         async fn get_ephemeral_key(
             &self,
             key: &str,

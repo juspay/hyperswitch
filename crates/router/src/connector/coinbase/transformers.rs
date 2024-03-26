@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use common_utils::pii;
+use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -19,7 +21,7 @@ pub struct LocalPrice {
 #[derive(Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Metadata {
     pub customer_id: Option<String>,
-    pub customer_name: Option<String>,
+    pub customer_name: Option<Secret<String>>,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -136,7 +138,7 @@ impl<F, T>
             .last()
             .ok_or(errors::ConnectorError::ResponseHandlingFailed)?
             .clone();
-        let connector_id = types::ResponseId::ConnectorTransactionId(item.response.data.id);
+        let connector_id = types::ResponseId::ConnectorTransactionId(item.response.data.id.clone());
         let attempt_status = timeline.status.clone();
         let response_data = timeline.context.map_or(
             Ok(types::PaymentsResponseData::TransactionResponse {
@@ -145,7 +147,8 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.data.id.clone()),
+                incremental_authorization_allowed: None,
             }),
             |context| {
                 Ok(types::PaymentsResponseData::TransactionUnresolvedResponse{
@@ -155,7 +158,7 @@ impl<F, T>
                 message: "Please check the transaction in coinbase dashboard and resolve manually"
                     .to_string(),
                 }),
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.data.id),
             })
             },
         );
@@ -231,7 +234,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct CoinbaseErrorData {
     #[serde(rename = "type")]
     pub error_type: String,
@@ -239,7 +242,7 @@ pub struct CoinbaseErrorData {
     pub code: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct CoinbaseErrorResponse {
     pub error: CoinbaseErrorData,
 }
@@ -247,6 +250,14 @@ pub struct CoinbaseErrorResponse {
 #[derive(Default, Debug, Deserialize, PartialEq)]
 pub struct CoinbaseConnectorMeta {
     pub pricing_type: String,
+}
+
+impl TryFrom<&Option<pii::SecretSerdeValue>> for CoinbaseConnectorMeta {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
+        utils::to_connector_meta_from_secret(meta_data.clone())
+            .change_context(errors::ConnectorError::InvalidConnectorConfig { config: "metadata" })
+    }
 }
 
 fn get_crypto_specific_payment_data(
@@ -259,11 +270,10 @@ fn get_crypto_specific_payment_data(
     let name =
         billing_address.and_then(|add| add.get_first_name().ok().map(|name| name.to_owned()));
     let description = item.get_description().ok();
-    let connector_meta: CoinbaseConnectorMeta =
-        utils::to_connector_meta_from_secret_with_required_field(
-            item.connector_meta_data.clone(),
-            "Pricing Type Not present in connector meta data",
-        )?;
+    let connector_meta = CoinbaseConnectorMeta::try_from(&item.connector_meta_data)
+        .change_context(errors::ConnectorError::InvalidConnectorConfig {
+            config: "Merchant connector account metadata",
+        })?;
     let pricing_type = connector_meta.pricing_type;
     let local_price = get_local_price(item);
     let redirect_url = item.request.get_return_url()?;
@@ -325,7 +335,7 @@ pub enum WebhookEventType {
 pub struct CoinbasePaymentResponseData {
     pub id: String,
     pub code: String,
-    pub name: Option<String>,
+    pub name: Option<Secret<String>>,
     pub utxo: bool,
     pub pricing: HashMap<String, OverpaymentAbsoluteThreshold>,
     pub fee_rate: f64,
@@ -345,7 +355,7 @@ pub struct CoinbasePaymentResponseData {
     pub fees_settled: bool,
     pub pricing_type: String,
     pub redirect_url: String,
-    pub support_email: String,
+    pub support_email: pii::Email,
     pub brand_logo_url: String,
     pub offchain_eligible: bool,
     pub organization_name: String,

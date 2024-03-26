@@ -83,13 +83,24 @@ pub struct CaptureUpdateInternal {
 
 impl CaptureUpdate {
     pub fn apply_changeset(self, source: Capture) -> Capture {
-        let capture_update: CaptureUpdateInternal = self.into();
+        let CaptureUpdateInternal {
+            status,
+            error_message,
+            error_code,
+            error_reason,
+            modified_at: _,
+            connector_capture_id,
+            connector_response_reference_id,
+        } = self.into();
         Capture {
-            status: capture_update.status.unwrap_or(source.status),
-            error_message: capture_update.error_message.or(source.error_message),
-            error_code: capture_update.error_code.or(source.error_code),
-            error_reason: capture_update.error_reason.or(source.error_reason),
+            status: status.unwrap_or(source.status),
+            error_message: error_message.or(source.error_message),
+            error_code: error_code.or(source.error_code),
+            error_reason: error_reason.or(source.error_reason),
             modified_at: common_utils::date_time::now(),
+            connector_capture_id: connector_capture_id.or(source.connector_capture_id),
+            connector_response_reference_id: connector_response_reference_id
+                .or(source.connector_response_reference_id),
             ..source
         }
     }

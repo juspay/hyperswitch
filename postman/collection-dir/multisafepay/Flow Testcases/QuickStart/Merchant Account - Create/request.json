@@ -75,7 +75,7 @@
         "payment_succeeded_enabled": true,
         "payment_failed_enabled": true
       },
-      
+
       "sub_merchants_enabled": false,
       "metadata": {
         "city": "NY",
@@ -85,12 +85,8 @@
   },
   "url": {
     "raw": "{{baseUrl}}/accounts",
-    "host": [
-      "{{baseUrl}}"
-    ],
-    "path": [
-      "accounts"
-    ]
+    "host": ["{{baseUrl}}"],
+    "path": ["accounts"]
   },
   "description": "Create a new account for a merchant. The merchant could be a seller or retailer or client who likes to receive and send payments."
 }

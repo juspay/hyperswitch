@@ -20,6 +20,7 @@ impl utils::Connector for Cybersource {
             connector: Box::new(&Cybersource),
             connector_name: types::Connector::Cybersource,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
     fn get_auth_token(&self) -> types::ConnectorAuthType {
@@ -37,8 +38,9 @@ impl utils::Connector for Cybersource {
 
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     Some(utils::PaymentInfo {
-        address: Some(types::PaymentAddress {
-            billing: Some(api::Address {
+        address: Some(types::PaymentAddress::new(
+            None,
+            Some(api::Address {
                 address: Some(api::AddressDetails {
                     first_name: Some(Secret::new("first".to_string())),
                     last_name: Some(Secret::new("last".to_string())),
@@ -53,9 +55,10 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                     number: Some(Secret::new("1234567890".to_string())),
                     country_code: Some("+91".to_string()),
                 }),
+                email: None,
             }),
-            ..Default::default()
-        }),
+            None,
+        )),
         ..Default::default()
     })
 }
@@ -314,7 +317,7 @@ async fn should_partially_refund_succeeded_payment() {
 }
 
 #[actix_web::test]
-#[ignore = "refunds tests are ignored for this connector becuase it takes one day for a payment to be settled."]
+#[ignore = "refunds tests are ignored for this connector because it takes one day for a payment to be settled."]
 async fn should_partially_refund_manually_captured_payment() {
     let connector = Cybersource {};
     let response = connector
@@ -373,17 +376,17 @@ async fn should_sync_refund() {
 }
 
 #[actix_web::test]
-#[ignore = "refunds tests are ignored for this connector becuase it takes one day for a payment to be settled."]
+#[ignore = "refunds tests are ignored for this connector because it takes one day for a payment to be settled."]
 async fn should_sync_manually_captured_refund() {}
 
 #[actix_web::test]
-#[ignore = "refunds tests are ignored for this connector becuase it takes one day for a payment to be settled."]
+#[ignore = "refunds tests are ignored for this connector because it takes one day for a payment to be settled."]
 async fn should_refund_auto_captured_payment() {}
 
 #[actix_web::test]
-#[ignore = "refunds tests are ignored for this connector becuase it takes one day for a payment to be settled."]
+#[ignore = "refunds tests are ignored for this connector because it takes one day for a payment to be settled."]
 async fn should_refund_succeeded_payment_multiple_times() {}
 
 #[actix_web::test]
-#[ignore = "refunds tests are ignored for this connector becuase it takes one day for a payment to be settled."]
+#[ignore = "refunds tests are ignored for this connector because it takes one day for a payment to be settled."]
 async fn should_fail_for_refund_amount_higher_than_payment_amount() {}

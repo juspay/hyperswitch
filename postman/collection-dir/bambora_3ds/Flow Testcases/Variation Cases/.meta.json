@@ -1,5 +1,3 @@
 {
-  "childrenOrder": [
-    "Scenario6-Create 3DS payment with greater capture"
-  ]
+  "childrenOrder": ["Scenario6-Create 3DS payment with greater capture"]
 }

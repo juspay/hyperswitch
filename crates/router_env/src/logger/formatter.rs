@@ -10,7 +10,7 @@ use std::{
 
 use once_cell::sync::Lazy;
 use serde::ser::{SerializeMap, Serializer};
-use serde_json::Value;
+use serde_json::{ser::Formatter, Value};
 // use time::format_description::well_known::Rfc3339;
 use time::format_description::well_known::Iso8601;
 use tracing::{Event, Metadata, Subscriber};
@@ -51,6 +51,8 @@ const REQUEST_METHOD: &str = "request_method";
 const REQUEST_URL_PATH: &str = "request_url_path";
 const REQUEST_ID: &str = "request_id";
 const WORKFLOW_ID: &str = "workflow_id";
+const GLOBAL_ID: &str = "global_id";
+const SESSION_ID: &str = "session_id";
 
 /// Set of predefined implicit keys.
 pub static IMPLICIT_KEYS: Lazy<rustc_hash::FxHashSet<&str>> = Lazy::new(|| {
@@ -85,6 +87,8 @@ pub static EXTRA_IMPLICIT_KEYS: Lazy<rustc_hash::FxHashSet<&str>> = Lazy::new(||
     set.insert(REQUEST_METHOD);
     set.insert(REQUEST_URL_PATH);
     set.insert(REQUEST_ID);
+    set.insert(GLOBAL_ID);
+    set.insert(SESSION_ID);
     set.insert(WORKFLOW_ID);
 
     set
@@ -117,9 +121,10 @@ impl fmt::Display for RecordType {
 /// `FormattingLayer` relies on the `tracing_bunyan_formatter::JsonStorageLayer` which is storage of entries.
 ///
 #[derive(Debug)]
-pub struct FormattingLayer<W>
+pub struct FormattingLayer<W, F>
 where
     W: for<'a> MakeWriter<'a> + 'static,
+    F: Formatter + Clone,
 {
     dst_writer: W,
     pid: u32,
@@ -131,11 +136,13 @@ where
     #[cfg(feature = "vergen")]
     build: String,
     default_fields: HashMap<String, Value>,
+    formatter: F,
 }
 
-impl<W> FormattingLayer<W>
+impl<W, F> FormattingLayer<W, F>
 where
     W: for<'a> MakeWriter<'a> + 'static,
+    F: Formatter + Clone,
 {
     ///
     /// Constructor of `FormattingLayer`.
@@ -145,11 +152,11 @@ where
     ///
     /// ## Example
     /// ```rust
-    /// let formatting_layer = router_env::FormattingLayer::new(router_env::service_name!(),std::io::stdout);
+    /// let formatting_layer = router_env::FormattingLayer::new(router_env::service_name!(),std::io::stdout, CompactFormatter);
     /// ```
     ///
-    pub fn new(service: &str, dst_writer: W) -> Self {
-        Self::new_with_implicit_entries(service, dst_writer, HashMap::new())
+    pub fn new(service: &str, dst_writer: W, formatter: F) -> Self {
+        Self::new_with_implicit_entries(service, dst_writer, HashMap::new(), formatter)
     }
 
     /// Construct of `FormattingLayer with implicit default entries.
@@ -157,6 +164,7 @@ where
         service: &str,
         dst_writer: W,
         default_fields: HashMap<String, Value>,
+        formatter: F,
     ) -> Self {
         let pid = std::process::id();
         let hostname = gethostname::gethostname().to_string_lossy().into_owned();
@@ -178,6 +186,7 @@ where
             #[cfg(feature = "vergen")]
             build,
             default_fields,
+            formatter,
         }
     }
 
@@ -283,7 +292,6 @@ where
     }
 
     /// Serialize entries of span.
-    #[cfg(feature = "log_active_span_json")]
     fn span_serialize<S>(
         &self,
         span: &SpanRef<'_, S>,
@@ -293,7 +301,8 @@ where
         S: Subscriber + for<'a> LookupSpan<'a>,
     {
         let mut buffer = Vec::new();
-        let mut serializer = serde_json::Serializer::new(&mut buffer);
+        let mut serializer =
+            serde_json::Serializer::with_formatter(&mut buffer, self.formatter.clone());
         let mut map_serializer = serializer.serialize_map(None)?;
         let message = Self::span_message(span, ty);
 
@@ -320,7 +329,8 @@ where
         S: Subscriber + for<'a> LookupSpan<'a>,
     {
         let mut buffer = Vec::new();
-        let mut serializer = serde_json::Serializer::new(&mut buffer);
+        let mut serializer =
+            serde_json::Serializer::with_formatter(&mut buffer, self.formatter.clone());
         let mut map_serializer = serializer.serialize_map(None)?;
 
         let mut storage = Storage::default();
@@ -394,10 +404,11 @@ where
 }
 
 #[allow(clippy::expect_used)]
-impl<S, W> Layer<S> for FormattingLayer<W>
+impl<S, W, F> Layer<S> for FormattingLayer<W, F>
 where
     S: Subscriber + for<'a> LookupSpan<'a>,
     W: for<'a> MakeWriter<'a> + 'static,
+    F: Formatter + Clone + 'static,
 {
     fn on_event(&self, event: &Event<'_>, ctx: Context<'_, S>) {
         // Event could have no span.
@@ -414,6 +425,16 @@ where
         let span = ctx.span(id).expect("No span");
         if let Ok(serialized) = self.span_serialize(&span, RecordType::EnterSpan) {
             let _ = self.flush(serialized);
+        }
+    }
+
+    #[cfg(not(feature = "log_active_span_json"))]
+    fn on_close(&self, id: tracing::Id, ctx: Context<'_, S>) {
+        let span = ctx.span(&id).expect("No span");
+        if span.parent().is_none() {
+            if let Ok(serialized) = self.span_serialize(&span, RecordType::ExitSpan) {
+                let _ = self.flush(serialized);
+            }
         }
     }
 

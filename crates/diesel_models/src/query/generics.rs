@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use async_bb8_diesel::{AsyncRunQueryDsl, ConnectionError};
+use async_bb8_diesel::AsyncRunQueryDsl;
 use diesel::{
     associations::HasTable,
     debug_query,
@@ -20,12 +20,9 @@ use diesel::{
     Expression, Insertable, QueryDsl, QuerySource, Table,
 };
 use error_stack::{report, IntoReport, ResultExt};
-use router_env::{instrument, logger, tracing};
+use router_env::logger;
 
-use crate::{
-    errors::{self},
-    PgPooledConn, StorageResult,
-};
+use crate::{errors, PgPooledConn, StorageResult};
 
 pub mod db_metrics {
     use router_env::opentelemetry::KeyValue;
@@ -40,6 +37,7 @@ pub mod db_metrics {
         DeleteWithResult,
         UpdateWithResults,
         UpdateOne,
+        Count,
     }
 
     #[inline]
@@ -71,7 +69,6 @@ pub mod db_metrics {
 
 use db_metrics::*;
 
-#[instrument(level = "DEBUG", skip_all)]
 pub async fn generic_insert<T, V, R>(conn: &PgPooledConn, values: V) -> StorageResult<R>
 where
     T: HasTable<Table = T> + Table + 'static + Debug,
@@ -93,17 +90,15 @@ where
     {
         Ok(value) => Ok(value),
         Err(err) => match err.current_context() {
-            ConnectionError::Query(DieselError::DatabaseError(
-                diesel::result::DatabaseErrorKind::UniqueViolation,
-                _,
-            )) => Err(err).change_context(errors::DatabaseError::UniqueViolation),
+            DieselError::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _) => {
+                Err(err).change_context(errors::DatabaseError::UniqueViolation)
+            }
             _ => Err(err).change_context(errors::DatabaseError::Others),
         },
     }
     .attach_printable_lazy(|| format!("Error while inserting {debug_values}"))
 }
 
-#[instrument(level = "DEBUG", skip_all)]
 pub async fn generic_update<T, V, P>(
     conn: &PgPooledConn,
     predicate: P,
@@ -131,7 +126,6 @@ where
         .attach_printable_lazy(|| format!("Error while updating {debug_values}"))
 }
 
-#[instrument(level = "DEBUG", skip_all)]
 pub async fn generic_update_with_results<T, V, P, R>(
     conn: &PgPooledConn,
     predicate: P,
@@ -168,20 +162,17 @@ where
             logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
             Ok(result)
         }
-        Err(ConnectionError::Query(DieselError::QueryBuilderError(_))) => {
+        Err(DieselError::QueryBuilderError(_)) => {
             Err(report!(errors::DatabaseError::NoFieldsToUpdate))
                 .attach_printable_lazy(|| format!("Error while updating {debug_values}"))
         }
-        Err(ConnectionError::Query(DieselError::NotFound)) => {
-            Err(report!(errors::DatabaseError::NotFound))
-                .attach_printable_lazy(|| format!("Error while updating {debug_values}"))
-        }
+        Err(DieselError::NotFound) => Err(report!(errors::DatabaseError::NotFound))
+            .attach_printable_lazy(|| format!("Error while updating {debug_values}")),
         _ => Err(report!(errors::DatabaseError::Others))
             .attach_printable_lazy(|| format!("Error while updating {debug_values}")),
     }
 }
 
-#[instrument(level = "DEBUG", skip_all)]
 pub async fn generic_update_with_unique_predicate_get_result<T, V, P, R>(
     conn: &PgPooledConn,
     predicate: P,
@@ -219,7 +210,6 @@ where
         })?
 }
 
-#[instrument(level = "DEBUG", skip_all)]
 pub async fn generic_update_by_id<T, V, Pk, R>(
     conn: &PgPooledConn,
     id: Pk,
@@ -259,20 +249,17 @@ where
             logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
             Ok(result)
         }
-        Err(ConnectionError::Query(DieselError::QueryBuilderError(_))) => {
+        Err(DieselError::QueryBuilderError(_)) => {
             Err(report!(errors::DatabaseError::NoFieldsToUpdate))
                 .attach_printable_lazy(|| format!("Error while updating by ID {debug_values}"))
         }
-        Err(ConnectionError::Query(DieselError::NotFound)) => {
-            Err(report!(errors::DatabaseError::NotFound))
-                .attach_printable_lazy(|| format!("Error while updating by ID {debug_values}"))
-        }
+        Err(DieselError::NotFound) => Err(report!(errors::DatabaseError::NotFound))
+            .attach_printable_lazy(|| format!("Error while updating by ID {debug_values}")),
         _ => Err(report!(errors::DatabaseError::Others))
             .attach_printable_lazy(|| format!("Error while updating by ID {debug_values}")),
     }
 }
 
-#[instrument(level = "DEBUG", skip_all)]
 pub async fn generic_delete<T, P>(conn: &PgPooledConn, predicate: P) -> StorageResult<bool>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
@@ -289,7 +276,7 @@ where
         .await
         .into_report()
         .change_context(errors::DatabaseError::Others)
-        .attach_printable_lazy(|| "Error while deleting")
+        .attach_printable("Error while deleting")
         .and_then(|result| match result {
             n if n > 0 => {
                 logger::debug!("{n} records deleted");
@@ -302,7 +289,6 @@ where
         })
 }
 
-#[instrument(level = "DEBUG", skip_all)]
 pub async fn generic_delete_one_with_result<T, P, R>(
     conn: &PgPooledConn,
     predicate: P,
@@ -326,7 +312,7 @@ where
     .await
     .into_report()
     .change_context(errors::DatabaseError::Others)
-    .attach_printable_lazy(|| "Error while deleting")
+    .attach_printable("Error while deleting")
     .and_then(|result| {
         result.first().cloned().ok_or_else(|| {
             report!(errors::DatabaseError::NotFound)
@@ -335,7 +321,6 @@ where
     })
 }
 
-#[instrument(level = "DEBUG", skip_all)]
 async fn generic_find_by_id_core<T, Pk, R>(conn: &PgPooledConn, id: Pk) -> StorageResult<R>
 where
     T: FindDsl<Pk> + HasTable<Table = T> + LimitDsl + Table + 'static,
@@ -353,16 +338,13 @@ where
     {
         Ok(value) => Ok(value),
         Err(err) => match err.current_context() {
-            ConnectionError::Query(DieselError::NotFound) => {
-                Err(err).change_context(errors::DatabaseError::NotFound)
-            }
+            DieselError::NotFound => Err(err).change_context(errors::DatabaseError::NotFound),
             _ => Err(err).change_context(errors::DatabaseError::Others),
         },
     }
     .attach_printable_lazy(|| format!("Error finding record by primary key: {id:?}"))
 }
 
-#[instrument(level = "DEBUG", skip_all)]
 pub async fn generic_find_by_id<T, Pk, R>(conn: &PgPooledConn, id: Pk) -> StorageResult<R>
 where
     T: FindDsl<Pk> + HasTable<Table = T> + LimitDsl + Table + 'static,
@@ -374,7 +356,6 @@ where
     generic_find_by_id_core::<T, _, _>(conn, id).await
 }
 
-#[instrument(level = "DEBUG", skip_all)]
 pub async fn generic_find_by_id_optional<T, Pk, R>(
     conn: &PgPooledConn,
     id: Pk,
@@ -390,7 +371,6 @@ where
     to_optional(generic_find_by_id_core::<T, _, _>(conn, id).await)
 }
 
-#[instrument(level = "DEBUG", skip_all)]
 async fn generic_find_one_core<T, P, R>(conn: &PgPooledConn, predicate: P) -> StorageResult<R>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
@@ -404,15 +384,12 @@ where
         .await
         .into_report()
         .map_err(|err| match err.current_context() {
-            ConnectionError::Query(DieselError::NotFound) => {
-                err.change_context(errors::DatabaseError::NotFound)
-            }
+            DieselError::NotFound => err.change_context(errors::DatabaseError::NotFound),
             _ => err.change_context(errors::DatabaseError::Others),
         })
-        .attach_printable_lazy(|| "Error finding record by predicate")
+        .attach_printable("Error finding record by predicate")
 }
 
-#[instrument(level = "DEBUG", skip_all)]
 pub async fn generic_find_one<T, P, R>(conn: &PgPooledConn, predicate: P) -> StorageResult<R>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
@@ -422,7 +399,6 @@ where
     generic_find_one_core::<T, _, _>(conn, predicate).await
 }
 
-#[instrument(level = "DEBUG", skip_all)]
 pub async fn generic_find_one_optional<T, P, R>(
     conn: &PgPooledConn,
     predicate: P,
@@ -435,7 +411,6 @@ where
     to_optional(generic_find_one_core::<T, _, _>(conn, predicate).await)
 }
 
-#[instrument(level = "DEBUG", skip_all)]
 pub async fn generic_filter<T, P, O, R>(
     conn: &PgPooledConn,
     predicate: P,
@@ -476,7 +451,7 @@ where
         .await
         .into_report()
         .change_context(errors::DatabaseError::NotFound)
-        .attach_printable_lazy(|| "Error filtering records by predicate")
+        .attach_printable("Error filtering records by predicate")
 }
 
 fn to_optional<T>(arg: StorageResult<T>) -> StorageResult<Option<T>> {

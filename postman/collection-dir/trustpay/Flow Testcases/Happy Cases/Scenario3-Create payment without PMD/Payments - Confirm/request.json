@@ -1,4 +1,24 @@
 {
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "value",
+        "value": "{{publishable_key}}",
+        "type": "string"
+      },
+      {
+        "key": "key",
+        "value": "api-key",
+        "type": "string"
+      },
+      {
+        "key": "in",
+        "value": "header",
+        "type": "string"
+      }
+    ]
+  },
   "method": "POST",
   "header": [
     {
@@ -18,6 +38,7 @@
       }
     },
     "raw_json_formatted": {
+      "client_secret": "{{client_secret}}",
       "browser_info": {
         "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36",
         "accept_header": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
@@ -33,7 +54,7 @@
       "payment_method": "card",
       "payment_method_data": {
         "card": {
-          "card_number": "4200000000000000",
+          "card_number": "4242424242424242",
           "card_exp_month": "10",
           "card_exp_year": "25",
           "card_holder_name": "joseph Doe",

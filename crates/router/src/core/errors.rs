@@ -1,6 +1,9 @@
 pub mod api_error_response;
+pub mod customers_error_response;
 pub mod error_handlers;
 pub mod transformers;
+#[cfg(feature = "olap")]
+pub mod user;
 pub mod utils;
 
 use std::fmt::Display;
@@ -12,9 +15,12 @@ use diesel_models::errors as storage_errors;
 pub use redis_interface::errors::RedisError;
 use scheduler::errors as sch_errors;
 use storage_impl::errors as storage_impl_errors;
+#[cfg(feature = "olap")]
+pub use user::*;
 
 pub use self::{
-    api_error_response::ApiErrorResponse,
+    api_error_response::{ApiErrorResponse, NotImplementedMessage},
+    customers_error_response::CustomersErrorResponse,
     sch_errors::*,
     storage_errors::*,
     storage_impl_errors::*,
@@ -23,6 +29,12 @@ pub use self::{
 use crate::services;
 pub type RouterResult<T> = CustomResult<T, ApiErrorResponse>;
 pub type RouterResponse<T> = CustomResult<services::ApplicationResponse<T>, ApiErrorResponse>;
+
+pub type ApplicationResult<T> = Result<T, ApplicationError>;
+pub type ApplicationResponse<T> = ApplicationResult<services::ApplicationResponse<T>>;
+
+pub type CustomerResponse<T> =
+    CustomResult<services::ApplicationResponse<T>, CustomersErrorResponse>;
 
 macro_rules! impl_error_display {
     ($st: ident, $arg: tt) => {
@@ -35,6 +47,24 @@ macro_rules! impl_error_display {
                 )
             }
         }
+    };
+}
+
+#[macro_export]
+macro_rules! capture_method_not_supported {
+    ($connector:expr, $capture_method:expr) => {
+        Err(errors::ConnectorError::NotSupported {
+            message: format!("{} for selected payment method", $capture_method),
+            connector: $connector,
+        }
+        .into())
+    };
+    ($connector:expr, $capture_method:expr, $payment_method_type:expr) => {
+        Err(errors::ConnectorError::NotSupported {
+            message: format!("{} for {}", $capture_method, $payment_method_type),
+            connector: $connector,
+        }
+        .into())
     };
 }
 
@@ -131,6 +161,8 @@ pub enum ConnectorError {
     WebhookSourceVerificationFailed,
     #[error("Could not find merchant secret in DB for incoming webhook source verification")]
     WebhookVerificationSecretNotFound,
+    #[error("Merchant secret found for incoming webhook source verification is invalid")]
+    WebhookVerificationSecretInvalid,
     #[error("Incoming webhook object reference ID not found")]
     WebhookReferenceIdNotFound,
     #[error("Incoming webhook event type not found")]
@@ -168,6 +200,14 @@ pub enum ConnectorError {
         message: String,
         connector: &'static str,
     },
+    #[error("Invalid Configuration")]
+    InvalidConnectorConfig { config: &'static str },
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum HealthCheckOutGoing {
+    #[error("Outgoing call failed with error: {message}")]
+    OutGoingFailed { message: String },
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -196,60 +236,68 @@ pub enum VaultError {
     FetchPaymentMethodFailed,
     #[error("Failed to save payment method in vault")]
     SavePaymentMethodFailed,
+    #[error("Failed to generate fingerprint")]
+    GenerateFingerprintFailed,
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum KmsError {
+pub enum AwsKmsError {
     #[error("Failed to base64 decode input data")]
     Base64DecodingFailed,
-    #[error("Failed to KMS decrypt input data")]
+    #[error("Failed to AWS KMS decrypt input data")]
     DecryptionFailed,
-    #[error("Missing plaintext KMS decryption output")]
+    #[error("Missing plaintext AWS KMS decryption output")]
     MissingPlaintextDecryptionOutput,
     #[error("Failed to UTF-8 decode decryption output")]
     Utf8DecodingFailed,
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, serde::Serialize)]
 pub enum WebhooksFlowError {
     #[error("Merchant webhook config not found")]
     MerchantConfigNotFound,
     #[error("Webhook details for merchant not configured")]
     MerchantWebhookDetailsNotFound,
     #[error("Merchant does not have a webhook URL configured")]
-    MerchantWebhookURLNotConfigured,
-    #[error("Payments core flow failed")]
-    PaymentsCoreFailed,
-    #[error("Refunds core flow failed")]
-    RefundsCoreFailed,
-    #[error("Dispuste core flow failed")]
-    DisputeCoreFailed,
-    #[error("Webhook event creation failed")]
-    WebhookEventCreationFailed,
+    MerchantWebhookUrlNotConfigured,
     #[error("Webhook event updation failed")]
     WebhookEventUpdationFailed,
     #[error("Outgoing webhook body signing failed")]
     OutgoingWebhookSigningFailed,
-    #[error("Unable to fork webhooks flow for outgoing webhooks")]
-    ForkFlowFailed,
     #[error("Webhook api call to merchant failed")]
     CallToMerchantFailed,
     #[error("Webhook not received by merchant")]
     NotReceivedByMerchant,
-    #[error("Resource not found")]
-    ResourceNotFound,
-    #[error("Webhook source verification failed")]
-    WebhookSourceVerificationFailed,
-    #[error("Webhook event object creation failed")]
-    WebhookEventObjectCreationFailed,
-    #[error("Not implemented")]
-    NotImplemented,
     #[error("Dispute webhook status validation failed")]
     DisputeWebhookValidationFailed,
     #[error("Outgoing webhook body encoding failed")]
     OutgoingWebhookEncodingFailed,
-    #[error("Missing required field: {field_name}")]
-    MissingRequiredField { field_name: &'static str },
+    #[error("Failed to update outgoing webhook process tracker task")]
+    OutgoingWebhookProcessTrackerTaskUpdateFailed,
+    #[error("Failed to schedule retry attempt for outgoing webhook")]
+    OutgoingWebhookRetrySchedulingFailed,
+    #[error("Outgoing webhook response encoding failed")]
+    OutgoingWebhookResponseEncodingFailed,
+}
+
+impl WebhooksFlowError {
+    pub(crate) fn is_webhook_delivery_retryable_error(&self) -> bool {
+        match self {
+            Self::MerchantConfigNotFound
+            | Self::MerchantWebhookDetailsNotFound
+            | Self::MerchantWebhookUrlNotConfigured
+            | Self::OutgoingWebhookResponseEncodingFailed => false,
+
+            Self::WebhookEventUpdationFailed
+            | Self::OutgoingWebhookSigningFailed
+            | Self::CallToMerchantFailed
+            | Self::NotReceivedByMerchant
+            | Self::DisputeWebhookValidationFailed
+            | Self::OutgoingWebhookEncodingFailed
+            | Self::OutgoingWebhookProcessTrackerTaskUpdateFailed
+            | Self::OutgoingWebhookRetrySchedulingFailed => true,
+        }
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -313,3 +361,69 @@ pub mod error_stack_parsing {
 }
 #[cfg(feature = "detailed_errors")]
 pub use error_stack_parsing::*;
+
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum RoutingError {
+    #[error("Merchant routing algorithm not found in cache")]
+    CacheMiss,
+    #[error("Final connector selection failed")]
+    ConnectorSelectionFailed,
+    #[error("[DSL] Missing required field in payment data: '{field_name}'")]
+    DslMissingRequiredField { field_name: String },
+    #[error("The lock on the DSL cache is most probably poisoned")]
+    DslCachePoisoned,
+    #[error("Expected DSL to be saved in DB but did not find")]
+    DslMissingInDb,
+    #[error("Unable to parse DSL from JSON")]
+    DslParsingError,
+    #[error("Failed to initialize DSL backend")]
+    DslBackendInitError,
+    #[error("Error updating merchant with latest dsl cache contents")]
+    DslMerchantUpdateError,
+    #[error("Error executing the DSL")]
+    DslExecutionError,
+    #[error("Final connector selection failed")]
+    DslFinalConnectorSelectionFailed,
+    #[error("[DSL] Received incorrect selection algorithm as DSL output")]
+    DslIncorrectSelectionAlgorithm,
+    #[error("there was an error saving/retrieving values from the kgraph cache")]
+    KgraphCacheFailure,
+    #[error("failed to refresh the kgraph cache")]
+    KgraphCacheRefreshFailed,
+    #[error("there was an error during the kgraph analysis phase")]
+    KgraphAnalysisError,
+    #[error("'profile_id' was not provided")]
+    ProfileIdMissing,
+    #[error("the profile was not found in the database")]
+    ProfileNotFound,
+    #[error("failed to fetch the fallback config for the merchant")]
+    FallbackConfigFetchFailed,
+    #[error("Invalid connector name received: '{0}'")]
+    InvalidConnectorName(String),
+    #[error("The routing algorithm in merchant account had invalid structure")]
+    InvalidRoutingAlgorithmStructure,
+    #[error("Volume split failed")]
+    VolumeSplitFailed,
+    #[error("Unable to parse metadata")]
+    MetadataParsingError,
+}
+
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum ConditionalConfigError {
+    #[error("failed to fetch the fallback config for the merchant")]
+    FallbackConfigFetchFailed,
+    #[error("The lock on the DSL cache is most probably poisoned")]
+    DslCachePoisoned,
+    #[error("Merchant routing algorithm not found in cache")]
+    CacheMiss,
+    #[error("Expected DSL to be saved in DB but did not find")]
+    DslMissingInDb,
+    #[error("Unable to parse DSL from JSON")]
+    DslParsingError,
+    #[error("Failed to initialize DSL backend")]
+    DslBackendInitError,
+    #[error("Error executing the DSL")]
+    DslExecutionError,
+    #[error("Error constructing the Input")]
+    InputConstructionError,
+}

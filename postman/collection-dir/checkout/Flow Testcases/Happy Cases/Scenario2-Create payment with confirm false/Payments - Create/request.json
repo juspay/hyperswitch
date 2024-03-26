@@ -30,7 +30,7 @@
       "phone_country_code": "+1",
       "description": "Its my first payment request",
       "authentication_type": "no_three_ds",
-      "return_url": "https://duck.com",
+      "return_url": "https://google.com",
       "payment_method": "card",
       "payment_method_data": {
         "card": {

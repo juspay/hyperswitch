@@ -15,6 +15,7 @@ impl utils::Connector for CheckoutTest {
             connector: Box::new(&Checkout),
             connector_name: types::Connector::Checkout,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 

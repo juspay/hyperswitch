@@ -43,6 +43,7 @@
         "auth_type": "HeaderKey",
         "api_key": "{{connector_api_key}}"
       },
+      "connector_label": "updated_stripe_connector",
       "test_mode": false,
       "disabled": false,
       "payment_methods_enabled": [
@@ -51,10 +52,7 @@
           "payment_method_types": [
             {
               "payment_method_type": "credit",
-              "card_networks": [
-                "Visa",
-                "Mastercard"
-              ],
+              "card_networks": ["Visa", "Mastercard"],
               "minimum_amount": 1,
               "maximum_amount": 68607706,
               "recurring_enabled": true,
@@ -62,10 +60,7 @@
             },
             {
               "payment_method_type": "debit",
-              "card_networks": [
-                "Visa",
-                "Mastercard"
-              ],
+              "card_networks": ["Visa", "Mastercard"],
               "minimum_amount": 1,
               "maximum_amount": 68607706,
               "recurring_enabled": true,
@@ -111,15 +106,8 @@
   },
   "url": {
     "raw": "{{baseUrl}}/account/:account_id/connectors/:connector_id",
-    "host": [
-      "{{baseUrl}}"
-    ],
-    "path": [
-      "account",
-      ":account_id",
-      "connectors",
-      ":connector_id"
-    ],
+    "host": ["{{baseUrl}}"],
+    "path": ["account", ":account_id", "connectors", ":connector_id"],
     "variable": [
       {
         "key": "account_id",

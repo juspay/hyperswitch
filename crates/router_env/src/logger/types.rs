@@ -49,11 +49,18 @@ pub enum Tag {
 
     /// Event: general.
     Event,
+
+    /// Compatibility Layer Request
+    CompatibilityLayerRequest,
 }
 
 /// API Flow
 #[derive(Debug, Display, Clone, PartialEq, Eq)]
 pub enum Flow {
+    /// Health check
+    HealthCheck,
+    /// Deep health Check
+    DeepHealthCheck,
     /// Merchants account create flow.
     MerchantsAccountCreate,
     /// Merchants account retrieve flow.
@@ -66,6 +73,8 @@ pub enum Flow {
     MerchantConnectorsCreate,
     /// Merchant Connectors retrieve flow.
     MerchantConnectorsRetrieve,
+    /// Merchant account list
+    MerchantAccountList,
     /// Merchant Connectors update flow.
     MerchantConnectorsUpdate,
     /// Merchant Connectors delete flow.
@@ -78,6 +87,8 @@ pub enum Flow {
     ConfigKeyFetch,
     /// ConfigKey Update flow.
     ConfigKeyUpdate,
+    /// ConfigKey Delete flow.
+    ConfigKeyDelete,
     /// Customers create flow.
     CustomersCreate,
     /// Customers retrieve flow.
@@ -104,16 +115,22 @@ pub enum Flow {
     PaymentMethodsList,
     /// Customer payment methods list flow.
     CustomerPaymentMethodsList,
+    /// List Customers for a merchant
+    CustomersList,
     /// Payment methods retrieve flow.
     PaymentMethodsRetrieve,
     /// Payment methods update flow.
     PaymentMethodsUpdate,
     /// Payment methods delete flow.
     PaymentMethodsDelete,
+    /// Default Payment method flow.
+    DefaultPaymentMethodsSet,
     /// Payments create flow.
     PaymentsCreate,
     /// Payments Retrieve flow.
     PaymentsRetrieve,
+    /// Payments Retrieve force sync flow.
+    PaymentsRetrieveForceSync,
     /// Payments update flow.
     PaymentsUpdate,
     /// Payments confirm flow.
@@ -147,6 +164,12 @@ pub enum Flow {
     #[cfg(feature = "payouts")]
     /// Payouts fulfill flow.
     PayoutsFulfill,
+    #[cfg(feature = "payouts")]
+    /// Payouts list flow.
+    PayoutsList,
+    #[cfg(feature = "payouts")]
+    /// Payouts filter flow.
+    PayoutsFilter,
     /// Payouts accounts flow.
     PayoutsAccounts,
     /// Payments Redirect flow.
@@ -155,10 +178,50 @@ pub enum Flow {
     RefundsCreate,
     /// Refunds retrieve flow.
     RefundsRetrieve,
+    /// Refunds retrieve force sync flow.
+    RefundsRetrieveForceSync,
     /// Refunds update flow.
     RefundsUpdate,
     /// Refunds list flow.
     RefundsList,
+    // Retrieve forex flow.
+    RetrieveForexFlow,
+    /// Toggles recon service for a merchant.
+    ReconMerchantUpdate,
+    /// Recon token request flow.
+    ReconTokenRequest,
+    /// Initial request for recon service.
+    ReconServiceRequest,
+    /// Recon token verification flow
+    ReconVerifyToken,
+    /// Routing create flow,
+    RoutingCreateConfig,
+    /// Routing link config
+    RoutingLinkConfig,
+    /// Routing link config
+    RoutingUnlinkConfig,
+    /// Routing retrieve config
+    RoutingRetrieveConfig,
+    /// Routing retrieve active config
+    RoutingRetrieveActiveConfig,
+    /// Routing retrieve default config
+    RoutingRetrieveDefaultConfig,
+    /// Routing retrieve dictionary
+    RoutingRetrieveDictionary,
+    /// Routing update config
+    RoutingUpdateConfig,
+    /// Routing update default config
+    RoutingUpdateDefaultConfig,
+    /// Routing delete config
+    RoutingDeleteConfig,
+    /// Add record to blocklist
+    AddToBlocklist,
+    /// Delete record from blocklist
+    DeleteFromBlocklist,
+    /// List entries from blocklist
+    ListBlocklist,
+    /// Toggle blocklist for merchant
+    ToggleBlocklistGuard,
     /// Incoming Webhook Receive
     IncomingWebhookReceive,
     /// Validate payment method flow
@@ -191,10 +254,20 @@ pub enum Flow {
     CreateConfigKey,
     /// Attach Dispute Evidence flow
     AttachDisputeEvidence,
+    /// Delete Dispute Evidence flow
+    DeleteDisputeEvidence,
     /// Retrieve Dispute Evidence flow
     RetrieveDisputeEvidence,
     /// Invalidate cache flow
     CacheInvalidate,
+    /// Payment Link Retrieve flow
+    PaymentLinkRetrieve,
+    /// payment Link Initiate flow
+    PaymentLinkInitiate,
+    /// Payment Link List flow
+    PaymentLinkList,
+    /// Payment Link Status
+    PaymentLinkStatus,
     /// Create a business profile
     BusinessProfileCreate,
     /// Update a business profile
@@ -207,6 +280,120 @@ pub enum Flow {
     BusinessProfileList,
     /// Different verification flows
     Verification,
+    /// Rust locker migration
+    RustLockerMigration,
+    /// Gsm Rule Creation flow
+    GsmRuleCreate,
+    /// Gsm Rule Retrieve flow
+    GsmRuleRetrieve,
+    /// Gsm Rule Update flow
+    GsmRuleUpdate,
+    /// Gsm Rule Delete flow
+    GsmRuleDelete,
+    /// User Sign Up
+    UserSignUp,
+    /// User Sign Up
+    UserSignUpWithMerchantId,
+    /// User Sign In without invite checks
+    UserSignInWithoutInviteChecks,
+    /// User Sign In
+    UserSignIn,
+    /// User connect account
+    UserConnectAccount,
+    /// Upsert Decision Manager Config
+    DecisionManagerUpsertConfig,
+    /// Delete Decision Manager Config
+    DecisionManagerDeleteConfig,
+    /// Retrieve Decision Manager Config
+    DecisionManagerRetrieveConfig,
+    /// Manual payment fulfillment acknowledgement
+    FrmFulfillment,
+    /// Change password flow
+    ChangePassword,
+    /// Signout flow
+    Signout,
+    /// Set Dashboard Metadata flow
+    SetDashboardMetadata,
+    /// Get Multiple Dashboard Metadata flow
+    GetMultipleDashboardMetadata,
+    /// Payment Connector Verify
+    VerifyPaymentConnector,
+    /// Internal user signup
+    InternalUserSignup,
+    /// Switch merchant
+    SwitchMerchant,
+    /// Get permission info
+    GetAuthorizationInfo,
+    /// List roles
+    ListRoles,
+    /// Get role
+    GetRole,
+    /// Get role from token
+    GetRoleFromToken,
+    /// Update user role
+    UpdateUserRole,
+    /// Transfer organization ownership
+    TransferOrgOwnership,
+    /// Create merchant account for user in a org
+    UserMerchantAccountCreate,
+    /// Generate Sample Data
+    GenerateSampleData,
+    /// Delete Sample Data
+    DeleteSampleData,
+    /// List merchant accounts for user
+    UserMerchantAccountList,
+    /// Get details of a user in a merchant account
+    GetUserDetails,
+    /// List users for merchant account
+    ListUsersForMerchantAccount,
+    /// PaymentMethodAuth Link token create
+    PmAuthLinkTokenCreate,
+    /// PaymentMethodAuth Exchange token create
+    PmAuthExchangeToken,
+    /// Get reset password link
+    ForgotPassword,
+    /// Reset password using link
+    ResetPassword,
+    /// Invite users
+    InviteUser,
+    /// Invite multiple users
+    InviteMultipleUser,
+    /// Reinvite user
+    ReInviteUser,
+    /// Accept invite from email
+    AcceptInviteFromEmail,
+    /// Delete user role
+    DeleteUserRole,
+    /// Incremental Authorization flow
+    PaymentsIncrementalAuthorization,
+    /// Get action URL for connector onboarding
+    GetActionUrl,
+    /// Sync connector onboarding status
+    SyncOnboardingStatus,
+    /// Reset tracking id
+    ResetTrackingId,
+    /// Verify email token without invite checks
+    VerifyEmailWithoutInviteChecks,
+    /// Verify email Token
+    VerifyEmail,
+    /// Send verify email
+    VerifyEmailRequest,
+    /// Update user account details
+    UpdateUserAccountDetails,
+    /// Accept user invitation
+    AcceptInvitation,
+    /// Initiate external authentication for a payment
+    PaymentsExternalAuthentication,
+    /// Authorize the payment after external 3ds authentication
+    PaymentsAuthorize,
+    /// Create Role
+    CreateRole,
+    /// Update Role
+    UpdateRole,
+    /// List initial webhook delivery attempts
+    WebhookEventInitialDeliveryAttemptList,
+    /// List delivery attempts for a webhook event
+    WebhookEventDeliveryAttemptList,
 }
 
 ///

@@ -5,7 +5,7 @@
     "Scenario3-Capture greater amount",
     "Scenario4-Capture the succeeded payment",
     "Scenario5-Void the success_slash_failure payment",
-    "Scenario7-Refund exceeds amount",
-    "Scenario8-Refund for unsuccessful payment"
+    "Scenario6-Refund exceeds amount",
+    "Scenario6-Refund for unsuccessful payment"
   ]
 }

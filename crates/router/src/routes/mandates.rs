@@ -3,14 +3,14 @@ use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
-    core::mandate,
-    services::{api, authentication as auth},
+    core::{api_locking, mandate},
+    services::{api, authentication as auth, authorization::permissions::Permission},
     types::api::mandates,
 };
 
 /// Mandates - Retrieve Mandate
 ///
-/// Retrieve a mandate
+/// Retrieves a mandate created using the Payments/Create API
 #[utoipa::path(
     get,
     path = "/mandates/{mandate_id}",
@@ -38,23 +38,23 @@ pub async fn get_mandate(
     };
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         mandate_id,
-        |state, auth, req| mandate::get_mandate(state, auth.merchant_account, req),
+        |state, auth, req| mandate::get_mandate(state, auth.merchant_account, auth.key_store, req),
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Mandates - Revoke Mandate
 ///
-/// Revoke a mandate
+/// Revokes a mandate created using the Payments/Create API
 #[utoipa::path(
     post,
     path = "/mandates/revoke/{mandate_id}",
     params(
-        ("mandate_id" = String, Path, description = "The identifier for mandate")
+        ("mandate_id" = String, Path, description = "The identifier for a mandate")
     ),
     responses(
         (status = 200, description = "The mandate was revoked successfully", body = MandateRevokedResponse),
@@ -75,17 +75,19 @@ pub async fn revoke_mandate(
     let mandate_id = mandates::MandateId {
         mandate_id: path.into_inner(),
     };
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         mandate_id,
-        |state, auth, req| mandate::revoke_mandate(&*state.store, auth.merchant_account, req),
+        |state, auth, req| {
+            mandate::revoke_mandate(state, auth.merchant_account, auth.key_store, req)
+        },
         &auth::ApiKeyAuth,
-    )
+        api_locking::LockAction::NotApplicable,
+    ))
     .await
 }
-
 /// Mandates - List Mandates
 #[utoipa::path(
     get,
@@ -99,6 +101,7 @@ pub async fn revoke_mandate(
         ("created_time.gt" = Option<PrimitiveDateTime>, Query, description = "Time greater than the mandate created time"),
         ("created_time.lte" = Option<PrimitiveDateTime>, Query, description = "Time less than or equals to the mandate created time"),
         ("created_time.gte" = Option<PrimitiveDateTime>, Query, description = "Time greater than or equals to the mandate created time"),
+        ("offset" = Option<i64>, Query, description = "The number of Mandate Objects to skip when retrieving the list Mandates."),
     ),
     responses(
         (status = 200, description = "The mandate list was retrieved successfully", body = Vec<MandateResponse>),
@@ -116,13 +119,20 @@ pub async fn retrieve_mandates_list(
 ) -> HttpResponse {
     let flow = Flow::MandatesList;
     let payload = payload.into_inner();
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
-        |state, auth, req| mandate::retrieve_mandates_list(state, auth.merchant_account, req),
-        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
-    )
+        |state, auth, req| {
+            mandate::retrieve_mandates_list(state, auth.merchant_account, auth.key_store, req)
+        },
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::MandateRead),
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
     .await
 }

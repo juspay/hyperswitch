@@ -5,54 +5,34 @@ edition = "2021"
 
 [features]
 default = ["kv_store", "olap"]
-olap = []
+olap = ["storage_impl/olap"]
 kv_store = []
+email = ["external_services/email"]
 
 [dependencies]
-async-bb8-diesel = { git = "https://github.com/juspay/async-bb8-diesel", rev = "9a71d142726dbc33f41c1fd935ddaa79841c7be5" }
-clap = { version = "4.2.2", default-features = false, features = ["std", "derive", "help", "usage"] }
-diesel = { version = "2.0.3", features = ["postgres", "serde_json", "time"] }
+# Third party crates
+async-trait = "0.1.68"
 error-stack = "0.3.1"
-frunk = "0.4.1"
-frunk_core = "0.4.1"
 futures = "0.3.28"
-once_cell = "1.17.1"
-serde = "1.0.159"
-serde_json = "1.0.91"
-strum = { version = "0.24.1", features = ["derive"] }
-time = { version = "0.3.20", features = ["serde", "serde-well-known", "std"] }
-env_logger = "0.10.0"
+num_cpus = "1.15.0"
+once_cell = "1.18.0"
 rand = "0.8.5"
-signal-hook = "0.3.15"
-uuid = { version = "1.3.1", features = ["serde", "v4"] }
+serde = "1.0.193"
+serde_json = "1.0.108"
+strum = { version = "0.24.1", features = ["derive"] }
+thiserror = "1.0.40"
+time = { version = "0.3.21", features = ["serde", "serde-well-known", "std"] }
+tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread"] }
+uuid = { version = "1.7.0", features = ["v4"] }
 
 # First party crates
-api_models = { version = "0.1.0", path = "../api_models", features = ["errors"] }
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["signals", "async_ext"] }
-cards = { version = "0.1.0", path = "../cards" }
+diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store"] }
 external_services = { version = "0.1.0", path = "../external_services" }
 masking = { version = "0.1.0", path = "../masking" }
 redis_interface = { version = "0.1.0", path = "../redis_interface" }
-router_derive = { version = "0.1.0", path = "../router_derive" }
-storage_impl = { version = "0.1.0", path = "../storage_impl" , default-features = false }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
-diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store"] }
-actix-multipart = "0.6.0"
-aws-sdk-s3 = { version = "0.25.0", optional = true }
-aws-config = {version = "0.55.1", optional = true }
-infer = "0.13.0"
-
-[target.'cfg(not(target_os = "windows"))'.dependencies]
-signal-hook-tokio = { version = "0.3.1", features = ["futures-v0_3"]}
-
-# Third party crates
-actix-rt = "2.8.0"
-actix-web = "4.3.1"
-thiserror = "1.0.39"
-async-trait = "0.1.66"
-dyn-clone = "1.0.11"
-tokio = { version = "1.26.0", features = ["macros", "rt-multi-thread"] }
-
+storage_impl = { version = "0.1.0", path = "../storage_impl", default-features = false }
 
 # [[bin]]
 # name = "scheduler"

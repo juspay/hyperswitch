@@ -32,13 +32,8 @@
   },
   "url": {
     "raw": "{{baseUrl}}/payment_methods/:id",
-    "host": [
-      "{{baseUrl}}"
-    ],
-    "path": [
-      "payment_methods",
-      ":id"
-    ],
+    "host": ["{{baseUrl}}"],
+    "path": ["payment_methods", ":id"],
     "variable": [
       {
         "key": "id",

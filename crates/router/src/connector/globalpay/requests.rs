@@ -41,7 +41,7 @@ pub struct GlobalpayPaymentsRequest {
     /// Indicates whether the Merchant or the Payer initiated the creation of a transaction.
     pub initiator: Option<Initiator>,
     /// Indicates the source IP Address of the system used to create the transaction.
-    pub ip_address: Option<String>,
+    pub ip_address: Option<Secret<String, common_utils::pii::IpAddress>>,
     /// Indicates the language the transaction was executed in. In the format ISO-639-1 (alpha-2)
     /// or ISO-639-1 (alpha-2)_ISO-3166(alpha-2)
     pub language: Option<Language>,
@@ -80,8 +80,8 @@ pub struct GlobalpayPaymentsRequest {
 #[derive(Debug, Serialize)]
 pub struct GlobalpayRefreshTokenRequest {
     pub app_id: Secret<String>,
-    pub nonce: String,
-    pub secret: String,
+    pub nonce: Secret<String>,
+    pub secret: Secret<String>,
     pub grant_type: String,
 }
 
@@ -106,10 +106,10 @@ pub struct Device {
     /// Describes the receipts a device prints when processing a transaction.
     pub print_receipt_mode: Option<PrintReceiptMode>,
     /// The sequence number from the device used to align with processing platform.
-    pub sequence_number: Option<String>,
+    pub sequence_number: Option<Secret<String>>,
     /// A unique identifier for the physical device. This value persists with the device even if
     /// it is repurposed.
-    pub serial_number: Option<String>,
+    pub serial_number: Option<Secret<String>>,
     /// The time from the device in ISO8601 format
     pub time: Option<String>,
 }
@@ -209,15 +209,15 @@ pub struct PaymentMethod {
     /// Indicates whether to execute the fingerprint signature functionality.
     pub fingerprint_mode: Option<FingerprintMode>,
     /// Specify the first name of the owner of the payment method.
-    pub first_name: Option<String>,
+    pub first_name: Option<Secret<String>>,
     /// Unique Global Payments generated id used to reference a stored payment method on the
     /// Global Payments system. Often referred to as the payment method token. This value can be
     /// used instead of payment method details such as a card number and expiry date.
-    pub id: Option<String>,
+    pub id: Option<Secret<String>>,
     /// Specify the surname of the owner of the payment method.
-    pub last_name: Option<String>,
+    pub last_name: Option<Secret<String>>,
     /// The full name of the owner of the payment method.
-    pub name: Option<String>,
+    pub name: Option<Secret<String>>,
     /// Contains the value a merchant wishes to appear on the payer's payment method statement
     /// for this transaction
     pub narrative: Option<String>,
@@ -274,11 +274,11 @@ pub struct ThreeDs {
 
 pub struct BankTransfer {
     /// The number or reference for the payer's bank account.
-    pub account_number: Option<String>,
+    pub account_number: Option<Secret<String>>,
 
     pub bank: Option<Bank>,
     /// The number or reference for the check
-    pub check_reference: Option<String>,
+    pub check_reference: Option<Secret<String>>,
     /// The type of bank account associated with the payer's bank account.
     pub number_type: Option<NumberType>,
     /// Indicates how the transaction was authorized by the merchant.
@@ -289,7 +289,7 @@ pub struct BankTransfer {
 pub struct Bank {
     pub address: Option<Address>,
     /// The local identifier code for the bank.
-    pub code: Option<String>,
+    pub code: Option<Secret<String>>,
     /// The name of the bank.
     pub name: Option<String>,
 }
@@ -297,17 +297,17 @@ pub struct Bank {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Address {
     /// Merchant defined field common to all transactions that are part of the same order.
-    pub city: Option<String>,
+    pub city: Option<Secret<String>>,
     /// The country in ISO-3166-1(alpha-2 code) format.
     pub country: Option<String>,
     /// First line of the address.
-    pub line_1: Option<String>,
+    pub line_1: Option<Secret<String>>,
     /// Second line of the address.
-    pub line_2: Option<String>,
+    pub line_2: Option<Secret<String>>,
     /// Third  line of the address.
-    pub line_3: Option<String>,
+    pub line_3: Option<Secret<String>>,
     /// The city or town of the address.
-    pub postal_code: Option<String>,
+    pub postal_code: Option<Secret<String>>,
     /// The state or region of the address. ISO 3166-2 minus the country code itself. For
     /// example, US Illinois = IL, or in the case of GB counties Wiltshire = WI or Aberdeenshire
     /// = ABD
@@ -319,7 +319,7 @@ pub struct Card {
     /// The card providers description of their card product.
     pub account_type: Option<String>,
     /// Code generated when the card is successfully authorized.
-    pub authcode: Option<String>,
+    pub authcode: Option<Secret<String>>,
     /// First line of the address associated with the card.
     pub avs_address: Option<String>,
     /// Postal code of the address associated with the card.
@@ -340,11 +340,11 @@ pub struct Card {
     /// The the card account number used to authorize the transaction. Also known as PAN.
     pub number: cards::CardNumber,
     /// Contains the pin block info, relating to the pin code the Payer entered.
-    pub pin_block: Option<String>,
+    pub pin_block: Option<Secret<String>>,
     /// The full card tag data for an EMV/chip card transaction.
-    pub tag: Option<String>,
+    pub tag: Option<Secret<String>>,
     /// Data from magnetic stripe of a card
-    pub track: Option<String>,
+    pub track: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -358,7 +358,7 @@ pub struct DigitalWallet {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Encryption {
     /// The encryption info used when sending encrypted card data to Global Payments.
-    pub info: Option<String>,
+    pub info: Option<Secret<String>>,
     /// The encryption method used when sending encrypted card data to Global Payments.
     pub method: Option<Method>,
     /// The version of encryption being used.
@@ -806,6 +806,7 @@ pub struct GlobalpayRefundRequest {
 pub struct GlobalpayCaptureRequest {
     pub amount: Option<String>,
     pub capture_sequence: Option<Sequence>,
+    pub reference: Option<String>,
 }
 
 #[derive(Default, Debug, Serialize)]

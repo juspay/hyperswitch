@@ -8,13 +8,8 @@
   ],
   "url": {
     "raw": "{{baseUrl}}/account/payment_methods",
-    "host": [
-      "{{baseUrl}}"
-    ],
-    "path": [
-      "account",
-      "payment_methods"
-    ],
+    "host": ["{{baseUrl}}"],
+    "path": ["account", "payment_methods"],
     "query": [
       {
         "key": "client_secret",

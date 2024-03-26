@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::types::api::{admin, refunds};
 
-#[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub struct StripeCreateRefundRequest {
     pub refund_id: Option<String>,
     pub amount: Option<i64>,
@@ -17,6 +17,8 @@ pub struct StripeCreateRefundRequest {
 
 #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct StripeUpdateRefundRequest {
+    #[serde(skip)]
+    pub refund_id: String,
     pub metadata: Option<pii::SecretSerdeValue>,
 }
 
@@ -58,6 +60,7 @@ impl From<StripeCreateRefundRequest> for refunds::RefundRequest {
 impl From<StripeUpdateRefundRequest> for refunds::RefundUpdateRequest {
     fn from(req: StripeUpdateRefundRequest) -> Self {
         Self {
+            refund_id: req.refund_id,
             metadata: req.metadata,
             reason: None,
         }

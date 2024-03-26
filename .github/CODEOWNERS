@@ -1,16 +1,15 @@
-* @juspay/hyperswitch-maintainers @jarnura @ashokkjag
+* @juspay/hyperswitch-maintainers
 
 docs/ @juspay/hyperswitch-maintainers
-openapi/ @juspay/hyperswitch-maintainers
-postman/ @juspay/hyperswitch-maintainers
 scripts/ @juspay/hyperswitch-maintainers
 *.md @juspay/hyperswitch-maintainers
 *.sh @juspay/hyperswitch-maintainers
 LICENSE @juspay/hyperswitch-maintainers
 NOTICE @juspay/hyperswitch-maintainers
-.github/ @juspay/hyperswitch-maintainers
 .gitignore @juspay/hyperswitch-maintainers
 Makefile @juspay/hyperswitch-maintainers
+
+.github/ @juspay/hyperswitch-devops
 
 config/ @juspay/hyperswitch-framework
 crates/ @juspay/hyperswitch-framework
@@ -19,13 +18,96 @@ crates/router/src/services/ @juspay/hyperswitch-framework
 crates/router/src/db/ @juspay/hyperswitch-framework
 crates/router/src/routes/ @juspay/hyperswitch-framework
 migrations/ @juspay/hyperswitch-framework
+openapi/ @juspay/hyperswitch-framework
+postman/ @juspay/hyperswitch-framework
+Cargo.toml @juspay/hyperswitch-framework
+Cargo.lock @juspay/hyperswitch-framework
+
+crates/api_models/src/events/ @juspay/hyperswitch-analytics
+crates/api_models/src/events.rs @juspay/hyperswitch-analytics
+crates/api_models/src/analytics/ @juspay/hyperswitch-analytics
+crates/api_models/src/analytics.rs @juspay/hyperswitch-analytics
+crates/router/src/analytics.rs @juspay/hyperswitch-analytics
+crates/router/src/events/ @juspay/hyperswitch-analytics
+crates/router/src/events.rs @juspay/hyperswitch-analytics
+crates/common_utils/src/events/ @juspay/hyperswitch-analytics
+crates/common_utils/src/events.rs @juspay/hyperswitch-analytics
+crates/analytics/ @juspay/hyperswitch-analytics
 
 connector-template/ @juspay/hyperswitch-connector
 crates/router/src/connector/ @juspay/hyperswitch-connector
+crates/router/tests/connectors/ @juspay/hyperswitch-connector
+crates/test_utils/tests/connectors/ @juspay/hyperswitch-connector
+crates/test_utils/tests/sample_auth.toml @juspay/hyperswitch-connector
 
 crates/router/src/compatibility/ @juspay/hyperswitch-compatibility
 
 crates/router/src/core/ @juspay/hyperswitch-core
+
+crates/api_models/src/routing.rs @juspay/hyperswitch-routing
+crates/euclid @juspay/hyperswitch-routing
+crates/euclid_macros @juspay/hyperswitch-routing
+crates/euclid_wasm @juspay/hyperswitch-routing
+crates/kgraph_utils @juspay/hyperswitch-routing
+crates/router/src/routes/routing.rs @juspay/hyperswitch-routing
+crates/router/src/core/routing @juspay/hyperswitch-routing
+crates/router/src/core/routing.rs @juspay/hyperswitch-routing
+crates/router/src/core/payments/routing @juspay/hyperswitch-routing
+crates/router/src/core/payments/routing.rs @juspay/hyperswitch-routing
+
+crates/api_models/src/connector_onboarding.rs @juspay/hyperswitch-dashboard
+crates/api_models/src/user @juspay/hyperswitch-dashboard
+crates/api_models/src/user.rs @juspay/hyperswitch-dashboard
+crates/api_models/src/user_role.rs @juspay/hyperswitch-dashboard
+crates/api_models/src/verify_connector.rs @juspay/hyperswitch-dashboard
+crates/api_models/src/connector_onboarding.rs @juspay/hyperswitch-dashboard
+crates/diesel_models/src/query/dashboard_metadata.rs @juspay/hyperswitch-dashboard
+crates/diesel_models/src/query/user @juspay/hyperswitch-dashboard
+crates/diesel_models/src/query/user_role.rs @juspay/hyperswitch-dashboard
+crates/diesel_models/src/query/user.rs @juspay/hyperswitch-dashboard
+crates/diesel_models/src/user @juspay/hyperswitch-dashboard
+crates/diesel_models/src/user.rs @juspay/hyperswitch-dashboard
+crates/diesel_models/src/user_role.rs @juspay/hyperswitch-dashboard
+crates/router/src/consts/user.rs @juspay/hyperswitch-dashboard 
+crates/router/src/consts/user_role.rs @juspay/hyperswitch-dashboard
+crates/router/src/core/connector_onboarding @juspay/hyperswitch-dashboard 
+crates/router/src/core/connector_onboarding.rs @juspay/hyperswitch-dashboard 
+crates/router/src/core/errors/user.rs @juspay/hyperswitch-dashboard
+crates/router/src/core/errors/user @juspay/hyperswitch-dashboard
+crates/router/src/core/user @juspay/hyperswitch-dashboard 
+crates/router/src/core/user.rs @juspay/hyperswitch-dashboard 
+crates/router/src/core/user_role.rs @juspay/hyperswitch-dashboard 
+crates/router/src/core/verify_connector.rs @juspay/hyperswitch-dashboard
+crates/router/src/db/dashboard_metadata.rs @juspay/hyperswitch-dashboard 
+crates/router/src/db/user @juspay/hyperswitch-dashboard
+crates/router/src/db/user.rs @juspay/hyperswitch-dashboard
+crates/router/src/db/user_role.rs @juspay/hyperswitch-dashboard
+crates/router/src/routes/connector_onboarding.rs @juspay/hyperswitch-dashboard
+crates/router/src/routes/dummy_connector @juspay/hyperswitch-dashboard
+crates/router/src/routes/dummy_connector.rs @juspay/hyperswitch-dashboard
+crates/router/src/routes/user.rs @juspay/hyperswitch-dashboard
+crates/router/src/routes/user_role.rs @juspay/hyperswitch-dashboard
+crates/router/src/routes/verify_connector.rs @juspay/hyperswitch-dashboard
+crates/router/src/services/authentication.rs @juspay/hyperswitch-dashboard
+crates/router/src/services/authorization @juspay/hyperswitch-dashboard
+crates/router/src/services/authorization.rs @juspay/hyperswitch-dashboard
+crates/router/src/services/jwt.rs @juspay/hyperswitch-dashboard
+crates/router/src/services/email/types.rs @juspay/hyperswitch-dashboard
+crates/router/src/types/api/connector_onboarding @juspay/hyperswitch-dashboard
+crates/router/src/types/api/connector_onboarding.rs @juspay/hyperswitch-dashboard
+crates/router/src/types/api/verify_connector @juspay/hyperswitch-dashboard
+crates/router/src/types/api/verify_connector.rs @juspay/hyperswitch-dashboard
+crates/router/src/types/domain/user @juspay/hyperswitch-dashboard
+crates/router/src/types/domain/user.rs @juspay/hyperswitch-dashboard
+crates/router/src/types/storage/user.rs @juspay/hyperswitch-dashboard
+crates/router/src/types/storage/user_role.rs @juspay/hyperswitch-dashboard
+crates/router/src/types/storage/dashboard_metadata.rs @juspay/hyperswitch-dashboard
+crates/router/src/utils/connector_onboarding @juspay/hyperswitch-dashboard
+crates/router/src/utils/connector_onboarding.rs @juspay/hyperswitch-dashboard
+crates/router/src/utils/user @juspay/hyperswitch-dashboard
+crates/router/src/utils/user.rs @juspay/hyperswitch-dashboard
+crates/router/src/utils/user_role.rs @juspay/hyperswitch-dashboard
+crates/router/src/utils/verify_connector.rs @juspay/hyperswitch-dashboard
 
 crates/router/src/scheduler/ @juspay/hyperswitch-process-tracker
 

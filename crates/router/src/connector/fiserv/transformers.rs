@@ -1,15 +1,50 @@
-use common_utils::ext_traits::ValueExt;
+use common_utils::{ext_traits::ValueExt, pii};
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, PaymentsCancelRequestData, PaymentsSyncRequestData, RouterData},
+    connector::utils::{
+        self, CardData as CardDataUtil, PaymentsCancelRequestData, PaymentsSyncRequestData,
+        RouterData,
+    },
     core::errors,
     pii::Secret,
     types::{self, api, storage::enums},
 };
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
+pub struct FiservRouterData<T> {
+    pub amount: String,
+    pub router_data: T,
+}
+
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for FiservRouterData<T>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        (currency_unit, currency, amount, router_data): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
+        Ok(Self {
+            amount,
+            router_data,
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FiservPaymentsRequest {
     amount: Amount,
@@ -19,7 +54,7 @@ pub struct FiservPaymentsRequest {
     transaction_interaction: TransactionInteraction,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(tag = "sourceType")]
 pub enum Source {
     PaymentCard {
@@ -27,13 +62,13 @@ pub enum Source {
     },
     #[allow(dead_code)]
     GooglePay {
-        data: String,
-        signature: String,
+        data: Secret<String>,
+        signature: Secret<String>,
         version: String,
     },
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CardData {
     card_data: cards::CardNumber,
@@ -42,36 +77,37 @@ pub struct CardData {
     security_code: Secret<String>,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GooglePayToken {
-    signature: String,
-    signed_message: String,
+    signature: Secret<String>,
+    signed_message: Secret<String>,
     protocol_version: String,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize)]
 pub struct Amount {
     #[serde(serialize_with = "utils::str_to_f32")]
     total: String,
     currency: String,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TransactionDetails {
     capture_flag: Option<bool>,
     reversal_reason_code: Option<String>,
+    merchant_transaction_id: String,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MerchantDetails {
     merchant_id: Secret<String>,
-    terminal_id: Option<String>,
+    terminal_id: Option<Secret<String>>,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TransactionInteraction {
     origin: TransactionInteractionOrigin,
@@ -79,44 +115,49 @@ pub struct TransactionInteraction {
     pos_condition_code: TransactionInteractionPosConditionCode,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum TransactionInteractionOrigin {
     #[default]
     Ecom,
 }
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum TransactionInteractionEciIndicator {
     #[default]
     ChannelEncrypted,
 }
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum TransactionInteractionPosConditionCode {
     #[default]
     CardNotPresentEcom,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for FiservPaymentsRequest {
+impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let auth: FiservAuthType = FiservAuthType::try_from(&item.connector_auth_type)?;
+    fn try_from(
+        item: &FiservRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let auth: FiservAuthType = FiservAuthType::try_from(&item.router_data.connector_auth_type)?;
         let amount = Amount {
-            total: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
-            currency: item.request.currency.to_string(),
+            total: item.amount.clone(),
+            currency: item.router_data.request.currency.to_string(),
         };
         let transaction_details = TransactionDetails {
             capture_flag: Some(matches!(
-                item.request.capture_method,
+                item.router_data.request.capture_method,
                 Some(enums::CaptureMethod::Automatic) | None
             )),
             reversal_reason_code: None,
+            merchant_transaction_id: item.router_data.connector_request_reference_id.clone(),
         };
-        let metadata = item.get_connector_meta()?;
-        let session: SessionObject = metadata
-            .parse_value("SessionObject")
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let metadata = item.router_data.get_connector_meta()?;
+        let session: FiservSessionObject = metadata
+            .parse_value("FiservSessionObject")
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "Merchant connector account metadata",
+            })?;
 
         let merchant_details = MerchantDetails {
             merchant_id: auth.merchant_account,
@@ -131,19 +172,33 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FiservPaymentsRequest {
             //card not present in online transaction
             pos_condition_code: TransactionInteractionPosConditionCode::CardNotPresentEcom,
         };
-        let source = match item.request.payment_method_data.clone() {
+        let source = match item.router_data.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(ref ccard) => {
                 let card = CardData {
                     card_data: ccard.card_number.clone(),
                     expiration_month: ccard.card_exp_month.clone(),
-                    expiration_year: ccard.card_exp_year.clone(),
+                    expiration_year: ccard.get_expiry_year_4_digit(),
                     security_code: ccard.card_cvc.clone(),
                 };
                 Source::PaymentCard { card }
             }
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment Methods".to_string(),
-            ))?,
+            api::PaymentMethodData::Wallet(_)
+            | api::PaymentMethodData::PayLater(_)
+            | api::PaymentMethodData::BankRedirect(_)
+            | api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::CardRedirect(_)
+            | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::MandatePayment
+            | api::PaymentMethodData::Reward
+            | api::PaymentMethodData::Upi(_)
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("fiserv"),
+                ))
+            }?,
         };
         Ok(Self {
             amount,
@@ -181,7 +236,7 @@ impl TryFrom<&types::ConnectorAuthType> for FiservAuthType {
     }
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FiservCancelRequest {
     transaction_details: TransactionDetails,
@@ -194,9 +249,11 @@ impl TryFrom<&types::PaymentsCancelRouterData> for FiservCancelRequest {
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         let auth: FiservAuthType = FiservAuthType::try_from(&item.connector_auth_type)?;
         let metadata = item.get_connector_meta()?;
-        let session: SessionObject = metadata
-            .parse_value("SessionObject")
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let session: FiservSessionObject = metadata
+            .parse_value("FiservSessionObject")
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "Merchant connector account metadata",
+            })?;
         Ok(Self {
             merchant_details: MerchantDetails {
                 merchant_id: auth.merchant_account,
@@ -208,19 +265,20 @@ impl TryFrom<&types::PaymentsCancelRouterData> for FiservCancelRequest {
             transaction_details: TransactionDetails {
                 capture_flag: None,
                 reversal_reason_code: Some(item.request.get_cancellation_reason()?),
+                merchant_transaction_id: item.connector_request_reference_id.clone(),
             },
         })
     }
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ErrorResponse {
     pub details: Option<Vec<ErrorDetails>>,
     pub error: Option<Vec<ErrorDetails>>,
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ErrorDetails {
     #[serde(rename = "type")]
@@ -262,7 +320,7 @@ impl From<FiservPaymentStatus> for enums::RefundStatus {
             | FiservPaymentStatus::Authorized
             | FiservPaymentStatus::Captured => Self::Success,
             FiservPaymentStatus::Declined | FiservPaymentStatus::Failed => Self::Failure,
-            _ => Self::Pending,
+            FiservPaymentStatus::Voided | FiservPaymentStatus::Processing => Self::Pending,
         }
     }
 }
@@ -315,7 +373,10 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(
+                    gateway_resp.transaction_processing_details.order_id,
+                ),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -350,14 +411,21 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, FiservSyncResponse, T, types::Pa
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(
+                    gateway_resp
+                        .gateway_response
+                        .transaction_processing_details
+                        .order_id
+                        .clone(),
+                ),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
     }
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FiservCaptureRequest {
     amount: Amount,
@@ -366,52 +434,70 @@ pub struct FiservCaptureRequest {
     reference_transaction_details: ReferenceTransactionDetails,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReferenceTransactionDetails {
     reference_transaction_id: String,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SessionObject {
-    pub terminal_id: String,
+pub struct FiservSessionObject {
+    pub terminal_id: Secret<String>,
 }
 
-impl TryFrom<&types::PaymentsCaptureRouterData> for FiservCaptureRequest {
+impl TryFrom<&Option<pii::SecretSerdeValue>> for FiservSessionObject {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
-        let auth: FiservAuthType = FiservAuthType::try_from(&item.connector_auth_type)?;
+    fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
+        let metadata: Self = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "metadata",
+            })?;
+        Ok(metadata)
+    }
+}
+
+impl TryFrom<&FiservRouterData<&types::PaymentsCaptureRouterData>> for FiservCaptureRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &FiservRouterData<&types::PaymentsCaptureRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let auth: FiservAuthType = FiservAuthType::try_from(&item.router_data.connector_auth_type)?;
         let metadata = item
+            .router_data
             .connector_meta_data
             .clone()
             .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
-        let session: SessionObject = metadata
-            .parse_value("SessionObject")
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        let amount =
-            utils::to_currency_base_unit(item.request.amount_to_capture, item.request.currency)?;
+        let session: FiservSessionObject = metadata
+            .parse_value("FiservSessionObject")
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "Merchant connector account metadata",
+            })?;
         Ok(Self {
             amount: Amount {
-                total: amount,
-                currency: item.request.currency.to_string(),
+                total: item.amount.clone(),
+                currency: item.router_data.request.currency.to_string(),
             },
             transaction_details: TransactionDetails {
                 capture_flag: Some(true),
                 reversal_reason_code: None,
+                merchant_transaction_id: item.router_data.connector_request_reference_id.clone(),
             },
             merchant_details: MerchantDetails {
                 merchant_id: auth.merchant_account,
                 terminal_id: Some(session.terminal_id),
             },
             reference_transaction_details: ReferenceTransactionDetails {
-                reference_transaction_id: item.request.connector_transaction_id.to_string(),
+                reference_transaction_id: item
+                    .router_data
+                    .request
+                    .connector_transaction_id
+                    .to_string(),
             },
         })
     }
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FiservSyncRequest {
     merchant_details: MerchantDetails,
@@ -465,31 +551,37 @@ pub struct FiservRefundRequest {
     reference_transaction_details: ReferenceTransactionDetails,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for FiservRefundRequest {
+impl<F> TryFrom<&FiservRouterData<&types::RefundsRouterData<F>>> for FiservRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        let auth: FiservAuthType = FiservAuthType::try_from(&item.connector_auth_type)?;
+    fn try_from(
+        item: &FiservRouterData<&types::RefundsRouterData<F>>,
+    ) -> Result<Self, Self::Error> {
+        let auth: FiservAuthType = FiservAuthType::try_from(&item.router_data.connector_auth_type)?;
         let metadata = item
+            .router_data
             .connector_meta_data
             .clone()
             .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
-        let session: SessionObject = metadata
-            .parse_value("SessionObject")
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let session: FiservSessionObject = metadata
+            .parse_value("FiservSessionObject")
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "Merchant connector account metadata",
+            })?;
         Ok(Self {
             amount: Amount {
-                total: utils::to_currency_base_unit(
-                    item.request.refund_amount,
-                    item.request.currency,
-                )?,
-                currency: item.request.currency.to_string(),
+                total: item.amount.clone(),
+                currency: item.router_data.request.currency.to_string(),
             },
             merchant_details: MerchantDetails {
                 merchant_id: auth.merchant_account,
                 terminal_id: Some(session.terminal_id),
             },
             reference_transaction_details: ReferenceTransactionDetails {
-                reference_transaction_id: item.request.connector_transaction_id.to_string(),
+                reference_transaction_id: item
+                    .router_data
+                    .request
+                    .connector_transaction_id
+                    .to_string(),
             },
         })
     }

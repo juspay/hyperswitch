@@ -17,7 +17,6 @@ use super::{
 pub struct Address {
     #[serde(skip_serializing)]
     pub id: Option<i32>,
-    #[serde(skip_serializing)]
     pub address_id: String,
     pub city: Option<String>,
     pub country: Option<enums::CountryAlpha2>,
@@ -36,8 +35,11 @@ pub struct Address {
     #[serde(skip_serializing)]
     #[serde(with = "custom_serde::iso8601")]
     pub modified_at: PrimitiveDateTime,
-    pub customer_id: String,
+    pub customer_id: Option<String>,
     pub merchant_id: String,
+    pub payment_id: Option<String>,
+    pub updated_by: String,
+    pub email: crypto::OptionalEncryptableEmail,
 }
 
 #[async_trait]
@@ -47,9 +49,7 @@ impl behaviour::Conversion for Address {
 
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(diesel_models::address::Address {
-            id: self.id.ok_or(ValidationError::MissingRequiredField {
-                field_name: "id".to_string(),
-            })?,
+            id: self.id,
             address_id: self.address_id,
             city: self.city,
             country: self.country,
@@ -66,6 +66,9 @@ impl behaviour::Conversion for Address {
             modified_at: self.modified_at,
             customer_id: self.customer_id,
             merchant_id: self.merchant_id,
+            payment_id: self.payment_id,
+            updated_by: self.updated_by,
+            email: self.email.map(Encryption::from),
         })
     }
 
@@ -75,8 +78,9 @@ impl behaviour::Conversion for Address {
     ) -> CustomResult<Self, ValidationError> {
         async {
             let inner_decrypt = |inner| types::decrypt(inner, key.peek());
+            let inner_decrypt_email = |inner| types::decrypt(inner, key.peek());
             Ok(Self {
-                id: Some(other.id),
+                id: other.id,
                 address_id: other.address_id,
                 city: other.city,
                 country: other.country,
@@ -93,6 +97,9 @@ impl behaviour::Conversion for Address {
                 modified_at: other.modified_at,
                 customer_id: other.customer_id,
                 merchant_id: other.merchant_id,
+                payment_id: other.payment_id,
+                updated_by: other.updated_by,
+                email: other.email.async_lift(inner_decrypt_email).await?,
             })
         }
         .await
@@ -102,11 +109,6 @@ impl behaviour::Conversion for Address {
     }
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
-        common_utils::fp_utils::when(self.id.is_some(), || {
-            Err(ValidationError::InvalidValue {
-                message: "id present while creating a new database entry".to_string(),
-            })
-        })?;
         let now = date_time::now();
         Ok(Self::NewDstType {
             address_id: self.address_id,
@@ -123,13 +125,16 @@ impl behaviour::Conversion for Address {
             country_code: self.country_code,
             customer_id: self.customer_id,
             merchant_id: self.merchant_id,
+            payment_id: self.payment_id,
             created_at: now,
             modified_at: now,
+            updated_by: self.updated_by,
+            email: self.email.map(Encryption::from),
         })
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum AddressUpdate {
     Update {
         city: Option<String>,
@@ -143,6 +148,8 @@ pub enum AddressUpdate {
         last_name: crypto::OptionalEncryptableSecretString,
         phone_number: crypto::OptionalEncryptableSecretString,
         country_code: Option<String>,
+        updated_by: String,
+        email: crypto::OptionalEncryptableEmail,
     },
 }
 
@@ -161,6 +168,8 @@ impl From<AddressUpdate> for AddressUpdateInternal {
                 last_name,
                 phone_number,
                 country_code,
+                updated_by,
+                email,
             } => Self {
                 city,
                 country,
@@ -174,6 +183,8 @@ impl From<AddressUpdate> for AddressUpdateInternal {
                 phone_number: phone_number.map(Encryption::from),
                 country_code,
                 modified_at: date_time::convert_to_pdt(OffsetDateTime::now_utc()),
+                updated_by,
+                email: email.map(Encryption::from),
             },
         }
     }

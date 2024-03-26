@@ -1,12 +1,12 @@
 use error_stack::{IntoReport, ResultExt};
-use masking::PeekInterface;
+use masking::{ExposeInterface, PeekInterface};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
 use uuid::Uuid;
 
 use crate::{
-    connector::utils,
+    connector::utils::{self, CardData},
     core::errors,
     pii::Secret,
     services,
@@ -48,7 +48,39 @@ impl TryFrom<&types::PaymentsInitRouterData> for AirwallexIntentRequest {
             request_id: Uuid::new_v4().to_string(),
             amount: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
             currency: item.request.currency,
-            merchant_order_id: item.payment_id.clone(),
+            merchant_order_id: item.connector_request_reference_id.clone(),
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct AirwallexRouterData<T> {
+    pub amount: String,
+    pub router_data: T,
+}
+
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for AirwallexRouterData<T>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        (currency_unit, currency, amount, router_data): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
+        Ok(Self {
+            amount,
+            router_data,
         })
     }
 }
@@ -125,32 +157,48 @@ pub struct AirwallexCardPaymentOptions {
     auto_capture: bool,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for AirwallexPaymentsRequest {
+impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
+    for AirwallexPaymentsRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &AirwallexRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
         let mut payment_method_options = None;
-        let payment_method = match item.request.payment_method_data.clone() {
+        let request = &item.router_data.request;
+        let payment_method = match request.payment_method_data.clone() {
             api::PaymentMethodData::Card(ccard) => {
                 payment_method_options =
                     Some(AirwallexPaymentOptions::Card(AirwallexCardPaymentOptions {
                         auto_capture: matches!(
-                            item.request.capture_method,
+                            request.capture_method,
                             Some(enums::CaptureMethod::Automatic) | None
                         ),
                     }));
                 Ok(AirwallexPaymentMethod::Card(AirwallexCard {
                     card: AirwallexCardDetails {
-                        number: ccard.card_number,
+                        number: ccard.card_number.clone(),
                         expiry_month: ccard.card_exp_month.clone(),
-                        expiry_year: ccard.card_exp_year.clone(),
+                        expiry_year: ccard.get_expiry_year_4_digit(),
                         cvc: ccard.card_cvc,
                     },
                     payment_method_type: AirwallexPaymentType::Card,
                 }))
             }
             api::PaymentMethodData::Wallet(ref wallet_data) => get_wallet_details(wallet_data),
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Unknown payment method".to_string(),
+            api::PaymentMethodData::PayLater(_)
+            | api::PaymentMethodData::BankRedirect(_)
+            | api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::CardRedirect(_)
+            | api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::MandatePayment
+            | api::PaymentMethodData::Reward
+            | api::PaymentMethodData::Upi(_)
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("airwallex"),
             )),
         }?;
 
@@ -158,7 +206,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AirwallexPaymentsRequest {
             request_id: Uuid::new_v4().to_string(),
             payment_method,
             payment_method_options,
-            return_url: item.request.complete_authorize_url.clone(),
+            return_url: request.complete_authorize_url.clone(),
         })
     }
 }
@@ -178,14 +226,40 @@ fn get_wallet_details(
                 payment_method_type: AirwallexPaymentType::Googlepay,
             }))
         }
-        _ => Err(errors::ConnectorError::NotImplemented(
-            "Payment method".to_string(),
-        ))?,
+        api_models::payments::WalletData::AliPayQr(_)
+        | api_models::payments::WalletData::AliPayRedirect(_)
+        | api_models::payments::WalletData::AliPayHkRedirect(_)
+        | api_models::payments::WalletData::MomoRedirect(_)
+        | api_models::payments::WalletData::KakaoPayRedirect(_)
+        | api_models::payments::WalletData::GoPayRedirect(_)
+        | api_models::payments::WalletData::GcashRedirect(_)
+        | api_models::payments::WalletData::ApplePay(_)
+        | api_models::payments::WalletData::ApplePayRedirect(_)
+        | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
+        | api_models::payments::WalletData::DanaRedirect {}
+        | api_models::payments::WalletData::GooglePayRedirect(_)
+        | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
+        | api_models::payments::WalletData::MbWayRedirect(_)
+        | api_models::payments::WalletData::MobilePayRedirect(_)
+        | api_models::payments::WalletData::PaypalRedirect(_)
+        | api_models::payments::WalletData::PaypalSdk(_)
+        | api_models::payments::WalletData::SamsungPay(_)
+        | api_models::payments::WalletData::TwintRedirect {}
+        | api_models::payments::WalletData::VippsRedirect {}
+        | api_models::payments::WalletData::TouchNGoRedirect(_)
+        | api_models::payments::WalletData::WeChatPayRedirect(_)
+        | api_models::payments::WalletData::WeChatPayQr(_)
+        | api_models::payments::WalletData::CashappQr(_)
+        | api_models::payments::WalletData::SwishQr(_) => {
+            Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("airwallex"),
+            ))?
+        }
     };
     Ok(wallet_details)
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug, Serialize)]
 pub struct AirwallexAuthUpdateResponse {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     expires_at: PrimitiveDateTime,
@@ -294,7 +368,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for AirwallexPaymentsCancelReques
 }
 
 // PaymentsResponse
-#[derive(Debug, Clone, Default, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum AirwallexPaymentStatus {
     Succeeded,
@@ -339,18 +413,18 @@ pub enum AirwallexNextActionStage {
     WaitingUserInfoInput,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct AirwallexRedirectFormData {
     #[serde(rename = "JWT")]
-    jwt: Option<String>,
+    jwt: Option<Secret<String>>,
     #[serde(rename = "threeDSMethodData")]
-    three_ds_method_data: Option<String>,
-    token: Option<String>,
+    three_ds_method_data: Option<Secret<String>>,
+    token: Option<Secret<String>>,
     provider: Option<String>,
     version: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct AirwallexPaymentsNextAction {
     url: Url,
     method: services::Method,
@@ -358,25 +432,25 @@ pub struct AirwallexPaymentsNextAction {
     stage: AirwallexNextActionStage,
 }
 
-#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct AirwallexPaymentsResponse {
     status: AirwallexPaymentStatus,
     //Unique identifier for the PaymentIntent
     id: String,
     amount: Option<f32>,
     //ID of the PaymentConsent related to this PaymentIntent
-    payment_consent_id: Option<String>,
+    payment_consent_id: Option<Secret<String>>,
     next_action: Option<AirwallexPaymentsNextAction>,
 }
 
-#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct AirwallexPaymentsSyncResponse {
     status: AirwallexPaymentStatus,
     //Unique identifier for the PaymentIntent
     id: String,
     amount: Option<f32>,
     //ID of the PaymentConsent related to this PaymentIntent
-    payment_consent_id: Option<String>,
+    payment_consent_id: Option<Secret<String>>,
     next_action: Option<AirwallexPaymentsNextAction>,
 }
 
@@ -390,18 +464,27 @@ fn get_redirection_form(
             //Some form fields might be empty based on the authentication type by the connector
             (
                 "JWT".to_string(),
-                response_url_data.data.jwt.unwrap_or_default(),
+                response_url_data
+                    .data
+                    .jwt
+                    .map(|jwt| jwt.expose())
+                    .unwrap_or_default(),
             ),
             (
                 "threeDSMethodData".to_string(),
                 response_url_data
                     .data
                     .three_ds_method_data
+                    .map(|three_ds_method_data| three_ds_method_data.expose())
                     .unwrap_or_default(),
             ),
             (
                 "token".to_string(),
-                response_url_data.data.token.unwrap_or_default(),
+                response_url_data
+                    .data
+                    .token
+                    .map(|token: Secret<String>| token.expose())
+                    .unwrap_or_default(),
             ),
             (
                 "provider".to_string(),
@@ -481,6 +564,7 @@ impl<F, T>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -522,6 +606,7 @@ impl
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -538,17 +623,16 @@ pub struct AirwallexRefundRequest {
     payment_intent_id: String,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for AirwallexRefundRequest {
+impl<F> TryFrom<&AirwallexRouterData<&types::RefundsRouterData<F>>> for AirwallexRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &AirwallexRouterData<&types::RefundsRouterData<F>>,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
-            amount: Some(utils::to_currency_base_unit(
-                item.request.refund_amount,
-                item.request.currency,
-            )?),
-            reason: item.request.reason.clone(),
-            payment_intent_id: item.request.connector_transaction_id.clone(),
+            amount: Some(item.amount.to_owned()),
+            reason: item.router_data.request.reason.clone(),
+            payment_intent_id: item.router_data.request.connector_transaction_id.clone(),
         })
     }
 }
@@ -752,7 +836,8 @@ pub enum AirwallexDisputeStage {
 
 #[derive(Debug, Deserialize)]
 pub struct AirwallexWebhookDataResource {
-    pub object: serde_json::Value,
+    // Should this be a secret by default since it represents webhook payload
+    pub object: Secret<serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize)]

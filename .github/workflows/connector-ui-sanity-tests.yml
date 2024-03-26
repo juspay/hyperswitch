@@ -2,7 +2,6 @@ name: Connector UI Sanity Tests
 
 on:
   workflow_dispatch:
-  
   pull_request:
   merge_group:
     types:
@@ -34,6 +33,7 @@ env:
   RUST_BACKTRACE: short
   # Use cargo's sparse index protocol
   CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+  RUST_MIN_STACK: 10485760
 
 jobs:
   test_connectors:
@@ -42,7 +42,7 @@ jobs:
 
     services:
       redis:
-        image: redis
+        image: "redis"
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
@@ -51,7 +51,7 @@ jobs:
         ports:
           - 6379:6379
       postgres:
-        image: postgres:14.5
+        image: "postgres:14.5"
         env:
           POSTGRES_USER: db_user
           POSTGRES_PASSWORD: db_pass
@@ -71,7 +71,6 @@ jobs:
           # do not use more than 2 runners, try to group less time taking connectors together
           - stripe,airwallex,bluesnap,checkout,trustpay_3ds,payu,authorizedotnet,aci,noon
           - adyen_uk,shift4,worldline,multisafepay,paypal,mollie,nexinets
-          
 
     steps:
       - name: Ignore Tests incase of merge group or pull request from external repository
@@ -83,24 +82,33 @@ jobs:
 
       - name: Checkout repository
         if: ${{ (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Decrypt connector auth file
+      - name: Download Encrypted TOML from S3 and Decrypt
         if: ${{ (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
         env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.CONNECTOR_CREDS_AWS_ACCESS_KEY_ID }}
+          AWS_REGION: ${{ secrets.CONNECTOR_CREDS_AWS_REGION }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.CONNECTOR_CREDS_AWS_SECRET_ACCESS_KEY }}
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
+          CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
+          DESTINATION_FILE_NAME: "connector_auth.toml.gpg"
+          S3_SOURCE_FILE_NAME: "cf05a6ab-525e-4888-98b3-3b4a443b87c0.toml.gpg"
         shell: bash
-        run: ./scripts/decrypt_connector_auth.sh
+        run: |
+          mkdir -p ${HOME}/target/secrets ${HOME}/target/test
+          aws s3 cp "${CONNECTOR_CREDS_S3_BUCKET_URI}/${S3_SOURCE_FILE_NAME}" "${HOME}/target/secrets/${DESTINATION_FILE_NAME}"
+          gpg --quiet --batch --yes --decrypt --passphrase="${CONNECTOR_AUTH_PASSPHRASE}" --output "${HOME}/target/test/connector_auth.toml" "${HOME}/target/secrets/${DESTINATION_FILE_NAME}"
 
       - name: Set connector auth file path in env
         if: ${{ (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
         shell: bash
-        run: echo "CONNECTOR_AUTH_FILE_PATH=$HOME/target/test/connector_auth.toml" >> $GITHUB_ENV
+        run: echo "CONNECTOR_AUTH_FILE_PATH=${HOME}/target/test/connector_auth.toml" >> $GITHUB_ENV
 
       - name: Set connector tests file path in env
         if: ${{ (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
         shell: bash
-        run: echo "CONNECTOR_TESTS_FILE_PATH=$HOME/target/test/connector_tests.json" >> $GITHUB_ENV
+        run: echo "CONNECTOR_TESTS_FILE_PATH=${HOME}/target/test/connector_tests.json" >> $GITHUB_ENV
 
       - name: Set ignore_browser_profile usage in env
         if: ${{ (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
@@ -113,9 +121,11 @@ jobs:
         with:
           toolchain: stable
 
-      - uses: Swatinem/rust-cache@v2.4.0
+      - name: Build and Cache Rust Dependencies
+        uses: Swatinem/rust-cache@v2.7.0
 
-      - uses: baptiste0928/cargo-install@v2.1.0
+      - name: Install Diesel CLI with Postgres Support
+        uses: baptiste0928/cargo-install@v2.2.0
         if: ${{ (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
         with:
           crate: diesel_cli
@@ -129,23 +139,38 @@ jobs:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: diesel migration run
 
-      - name: Start server and run tests
+      - name: Build project
+        if: ${{ (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
+        run: cargo build --package router --bin router
+
+      - name: Start server
         if: ${{ (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
         env:
+          BROWSER_DATA_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
+          INPUT: ${{ matrix.connector }}
           UI_TESTCASES_PATH: ${{ secrets.UI_TESTCASES_PATH }}
+        shell: bash
+        run: .github/scripts/start_ui_test_server.sh
+
+      - name: Run tests
+        if: ${{ (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
+        env:
           INPUT: ${{ matrix.connector }}
         shell: bash
-        run: sh .github/scripts/run_ui_tests.sh
-
-      - name: View test results
-        if: ${{ (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
-        shell: bash
-        run: cat tests/test_results.log
-
-      - name: Check test results
-        if: ${{ (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
-        shell: bash
         run: |
-          if test "$( grep 'test result: FAILED' -r tests/test_results.log | wc -l )" -gt "0"; then
-            exit 1
+          RED='\033[0;31m'
+          RESET='\033[0m'
+          failed_connectors=()
+
+          for i in $(echo "$INPUT" | tr "," "\n"); do
+              echo "${i}"
+              if ! cargo test --package test_utils --test connectors -- "${i}_ui::" --test-threads=1; then
+                  failed_connectors+=("${i}")
+              fi
+          done
+
+          if [ ${#failed_connectors[@]} -gt 0 ]; then
+              echo -e "${RED}One or more connectors failed to run:${RESET}"
+              printf '%s\n' "${failed_connectors[@]}"
+              exit 1
           fi

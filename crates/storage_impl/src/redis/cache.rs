@@ -109,7 +109,6 @@ impl Cache {
     /// `max_capacity`: Max size in MB's that the cache can hold
     pub fn new(time_to_live: u64, time_to_idle: u64, max_capacity: Option<u64>) -> Self {
         let mut cache_builder = MokaCache::builder()
-            .eviction_listener_with_queued_delivery_mode(|_, _, _| {})
             .time_to_live(std::time::Duration::from_secs(time_to_live))
             .time_to_idle(std::time::Duration::from_secs(time_to_idle));
 
@@ -126,8 +125,8 @@ impl Cache {
         self.insert(key, Arc::new(val)).await;
     }
 
-    pub fn get_val<T: Clone + Cacheable>(&self, key: &str) -> Option<T> {
-        let val = self.get(key)?;
+    pub async fn get_val<T: Clone + Cacheable>(&self, key: &str) -> Option<T> {
+        let val = self.get(key).await?;
         (*val).as_any().downcast_ref::<T>().cloned()
     }
 
@@ -138,7 +137,7 @@ impl Cache {
 
 pub async fn get_or_populate_redis<T, F, Fut>(
     store: &(dyn RedisConnInterface + Send + Sync),
-    key: &str,
+    key: impl AsRef<str>,
     fun: F,
 ) -> CustomResult<T, StorageError>
 where
@@ -147,6 +146,7 @@ where
     Fut: futures::Future<Output = CustomResult<T, StorageError>> + Send,
 {
     let type_name = std::any::type_name::<T>();
+    let key = key.as_ref();
     let redis = &store
         .get_redis_conn()
         .map_err(|er| {
@@ -187,7 +187,7 @@ where
     F: FnOnce() -> Fut + Send,
     Fut: futures::Future<Output = CustomResult<T, StorageError>> + Send,
 {
-    let cache_val = cache.get_val::<T>(key);
+    let cache_val = cache.get_val::<T>(key).await;
     if let Some(val) = cache_val {
         Ok(val)
     } else {
@@ -265,14 +265,17 @@ mod cache_tests {
     async fn construct_and_get_cache() {
         let cache = Cache::new(1800, 1800, None);
         cache.push("key".to_string(), "val".to_string()).await;
-        assert_eq!(cache.get_val::<String>("key"), Some(String::from("val")));
+        assert_eq!(
+            cache.get_val::<String>("key").await,
+            Some(String::from("val"))
+        );
     }
 
     #[tokio::test]
     async fn eviction_on_size_test() {
         let cache = Cache::new(2, 2, Some(0));
         cache.push("key".to_string(), "val".to_string()).await;
-        assert_eq!(cache.get_val::<String>("key"), None);
+        assert_eq!(cache.get_val::<String>("key").await, None);
     }
 
     #[tokio::test]
@@ -282,7 +285,7 @@ mod cache_tests {
 
         cache.remove("key").await;
 
-        assert_eq!(cache.get_val::<String>("key"), None);
+        assert_eq!(cache.get_val::<String>("key").await, None);
     }
 
     #[tokio::test]
@@ -290,6 +293,6 @@ mod cache_tests {
         let cache = Cache::new(2, 2, None);
         cache.push("key".to_string(), "val".to_string()).await;
         tokio::time::sleep(std::time::Duration::from_secs(3)).await;
-        assert_eq!(cache.get_val::<String>("key"), None);
+        assert_eq!(cache.get_val::<String>("key").await, None);
     }
 }

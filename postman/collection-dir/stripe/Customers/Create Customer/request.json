@@ -32,12 +32,8 @@
   },
   "url": {
     "raw": "{{baseUrl}}/customers",
-    "host": [
-      "{{baseUrl}}"
-    ],
-    "path": [
-      "customers"
-    ]
+    "host": ["{{baseUrl}}"],
+    "path": ["customers"]
   },
   "description": "Create a customer object and store the customer details to be reused for future payments. Incase the customer already exists in the system, this API will respond with the customer details."
 }

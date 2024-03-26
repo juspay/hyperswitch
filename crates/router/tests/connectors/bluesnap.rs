@@ -21,6 +21,7 @@ impl utils::Connector for BluesnapTest {
             connector: Box::new(&Bluesnap),
             connector_name: types::Connector::Bluesnap,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
@@ -45,17 +46,19 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
 }
 fn get_payment_info() -> Option<PaymentInfo> {
     Some(PaymentInfo {
-        address: Some(PaymentAddress {
-            billing: Some(Address {
+        address: Some(PaymentAddress::new(
+            None,
+            Some(Address {
                 address: Some(AddressDetails {
                     first_name: Some(Secret::new("joseph".to_string())),
                     last_name: Some(Secret::new("Doe".to_string())),
                     ..Default::default()
                 }),
                 phone: None,
+                email: None,
             }),
-            ..Default::default()
-        }),
+            None,
+        )),
         ..Default::default()
     })
 }
@@ -399,7 +402,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
             Some(types::PaymentsAuthorizeData {
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_holder_name: Secret::new("John Doe".to_string()),
+                    card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
                     card_cvc: Secret::new("12345".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -425,7 +428,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
             Some(types::PaymentsAuthorizeData {
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_holder_name: Secret::new("John Doe".to_string()),
+                    card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
                     card_exp_month: Secret::new("20".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -451,7 +454,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
             Some(types::PaymentsAuthorizeData {
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_holder_name: Secret::new("John Doe".to_string()),
+                    card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
                     card_exp_year: Secret::new("2000".to_string()),
                     ..utils::CCardType::default().0
                 }),

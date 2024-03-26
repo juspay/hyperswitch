@@ -3,16 +3,14 @@ use error_stack::{report, ResultExt};
 use storage_impl::redis::cache::CacheKind;
 
 use super::errors;
-use crate::{
-    db::{cache::publish_into_redact_channel, StorageInterface},
-    services,
-};
+use crate::{db::cache::publish_into_redact_channel, routes::AppState, services};
 
 pub async fn invalidate(
-    store: &dyn StorageInterface,
+    state: AppState,
     key: &str,
 ) -> CustomResult<services::api::ApplicationResponse<serde_json::Value>, errors::ApiErrorResponse> {
-    let result = publish_into_redact_channel(store, CacheKind::All(key.into()))
+    let store = state.store.as_ref();
+    let result = publish_into_redact_channel(store, [CacheKind::All(key.into())])
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 

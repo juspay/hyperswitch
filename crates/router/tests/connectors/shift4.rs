@@ -18,6 +18,7 @@ impl utils::Connector for Shift4Test {
             connector: Box::new(&Shift4),
             connector_name: types::Connector::Shift4,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 

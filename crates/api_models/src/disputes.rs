@@ -43,6 +43,10 @@ pub struct DisputeResponse {
     /// Time at which dispute is received
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
+    /// The `profile_id` associated with the dispute
+    pub profile_id: Option<String>,
+    /// The `merchant_connector_id` of the connector / processor through which the dispute was processed
+    pub merchant_connector_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, ToSchema, Eq, PartialEq)]
@@ -75,7 +79,7 @@ pub struct DisputeResponsePaymentsRetrieve {
     pub created_at: PrimitiveDateTime,
 }
 
-#[derive(Debug, Serialize, strum::Display, Clone)]
+#[derive(Debug, Serialize, Deserialize, strum::Display, Clone)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum EvidenceType {
@@ -99,11 +103,13 @@ pub struct DisputeEvidenceBlock {
     pub file_metadata_response: files::FileMetadataResponse,
 }
 
-#[derive(Clone, Debug, Deserialize, ToSchema)]
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct DisputeListConstraints {
     /// limit on the number of objects to return
     pub limit: Option<i64>,
+    /// The identifier for business profile
+    pub profile_id: Option<String>,
     /// status of the dispute
     pub dispute_status: Option<DisputeStatus>,
     /// stage of the dispute
@@ -189,4 +195,12 @@ pub struct SubmitEvidenceRequest {
     pub uncategorized_file: Option<String>,
     /// Any additional evidence statements
     pub uncategorized_text: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
+pub struct DeleteEvidenceRequest {
+    /// Id of the dispute
+    pub dispute_id: String,
+    /// Evidence Type to be deleted
+    pub evidence_type: EvidenceType,
 }

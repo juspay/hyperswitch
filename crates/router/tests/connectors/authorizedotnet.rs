@@ -18,6 +18,7 @@ impl utils::Connector for AuthorizedotnetTest {
             connector: Box::new(&Authorizedotnet),
             connector_name: types::Connector::Authorizedotnet,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
@@ -41,7 +42,7 @@ fn get_payment_method_data() -> api::Card {
         card_number: cards::CardNumber::from_str("5424000000000015").unwrap(),
         card_exp_month: Secret::new("02".to_string()),
         card_exp_year: Secret::new("2035".to_string()),
-        card_holder_name: Secret::new("John Doe".to_string()),
+        card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
         card_cvc: Secret::new("123".to_string()),
         ..Default::default()
     }
@@ -512,31 +513,31 @@ async fn should_fail_capture_for_invalid_payment() {
 }
 
 #[actix_web::test]
-#[ignore = "refunds tests are ignored for this connector becuase it takes one day for a payment to be settled."]
+#[ignore = "refunds tests are ignored for this connector because it takes one day for a payment to be settled."]
 async fn should_partially_refund_manually_captured_payment() {}
 
 #[actix_web::test]
-#[ignore = "refunds tests are ignored for this connector becuase it takes one day for a payment to be settled."]
+#[ignore = "refunds tests are ignored for this connector because it takes one day for a payment to be settled."]
 async fn should_refund_manually_captured_payment() {}
 
 #[actix_web::test]
-#[ignore = "refunds tests are ignored for this connector becuase it takes one day for a payment to be settled."]
+#[ignore = "refunds tests are ignored for this connector because it takes one day for a payment to be settled."]
 async fn should_sync_manually_captured_refund() {}
 
 #[actix_web::test]
-#[ignore = "refunds tests are ignored for this connector becuase it takes one day for a payment to be settled."]
+#[ignore = "refunds tests are ignored for this connector because it takes one day for a payment to be settled."]
 async fn should_refund_auto_captured_payment() {}
 
 #[actix_web::test]
-#[ignore = "refunds tests are ignored for this connector becuase it takes one day for a payment to be settled."]
+#[ignore = "refunds tests are ignored for this connector because it takes one day for a payment to be settled."]
 async fn should_partially_refund_succeeded_payment() {}
 
 #[actix_web::test]
-#[ignore = "refunds tests are ignored for this connector becuase it takes one day for a payment to be settled."]
+#[ignore = "refunds tests are ignored for this connector because it takes one day for a payment to be settled."]
 async fn should_refund_succeeded_payment_multiple_times() {}
 
 #[actix_web::test]
-#[ignore = "refunds tests are ignored for this connector becuase it takes one day for a payment to be settled."]
+#[ignore = "refunds tests are ignored for this connector because it takes one day for a payment to be settled."]
 async fn should_fail_for_refund_amount_higher_than_payment_amount() {}
 
 // Connector dependent test cases goes here

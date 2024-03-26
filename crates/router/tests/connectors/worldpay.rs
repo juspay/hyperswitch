@@ -23,6 +23,7 @@ impl utils::Connector for Worldpay {
             connector: Box::new(&Worldpay),
             connector_name: types::Connector::Worldpay,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 

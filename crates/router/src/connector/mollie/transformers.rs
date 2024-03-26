@@ -9,8 +9,8 @@ use url::Url;
 
 use crate::{
     connector::utils::{
-        self, AddressDetailsData, BrowserInformationData, CardData, PaymentsAuthorizeRequestData,
-        RouterData,
+        self, AddressDetailsData, BrowserInformationData, CardData,
+        PaymentMethodTokenizationRequestData, PaymentsAuthorizeRequestData, RouterData,
     },
     core::errors,
     services, types,
@@ -18,6 +18,38 @@ use crate::{
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
+
+#[derive(Debug, Serialize)]
+pub struct MollieRouterData<T> {
+    pub amount: String,
+    pub router_data: T,
+}
+
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for MollieRouterData<T>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        (currency_unit, currency, amount, router_data): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
+        Ok(Self {
+            amount,
+            router_data,
+        })
+    }
+}
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -30,9 +62,9 @@ pub struct MolliePaymentsRequest {
     locale: Option<String>,
     #[serde(flatten)]
     payment_method_data: PaymentMethodData,
-    metadata: Option<serde_json::Value>,
+    metadata: Option<MollieMetadata>,
     sequence_type: SequenceType,
-    mandate_id: Option<String>,
+    mandate_id: Option<Secret<String>>,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -60,7 +92,7 @@ pub enum PaymentMethodData {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplePayMethodData {
-    apple_pay_payment_token: String,
+    apple_pay_payment_token: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -116,54 +148,61 @@ pub struct Address {
     pub country: api_models::enums::CountryAlpha2,
 }
 
-pub struct MollieBrowserInfo {
-    language: String,
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MollieMetadata {
+    pub order_id: String,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for MolliePaymentsRequest {
+impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MolliePaymentsRequest {
     type Error = Error;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &MollieRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
         let amount = Amount {
-            currency: item.request.currency,
-            value: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
+            currency: item.router_data.request.currency,
+            value: item.amount.clone(),
         };
-        let description = item.get_description()?;
-        let redirect_url = item.request.get_return_url()?;
-        let payment_method_data = match item.request.capture_method.unwrap_or_default() {
-            enums::CaptureMethod::Automatic => match &item.request.payment_method_data {
-                api_models::payments::PaymentMethodData::Card(_) => {
-                    let pm_token = item.get_payment_method_token()?;
-                    Ok(PaymentMethodData::CreditCard(Box::new(
-                        CreditCardMethodData {
-                            billing_address: get_billing_details(item)?,
-                            shipping_address: get_shipping_details(item)?,
-                            card_token: Some(Secret::new(match pm_token {
-                                types::PaymentMethodToken::Token(token) => token,
-                                types::PaymentMethodToken::ApplePayDecrypt(_) => {
-                                    Err(errors::ConnectorError::InvalidWalletToken)?
-                                }
-                            })),
-                        },
-                    )))
+        let description = item.router_data.get_description()?;
+        let redirect_url = item.router_data.request.get_return_url()?;
+        let payment_method_data = match item.router_data.request.capture_method.unwrap_or_default()
+        {
+            enums::CaptureMethod::Automatic => {
+                match &item.router_data.request.payment_method_data {
+                    api_models::payments::PaymentMethodData::Card(_) => {
+                        let pm_token = item.router_data.get_payment_method_token()?;
+                        Ok(PaymentMethodData::CreditCard(Box::new(
+                            CreditCardMethodData {
+                                billing_address: get_billing_details(item.router_data)?,
+                                shipping_address: get_shipping_details(item.router_data)?,
+                                card_token: Some(Secret::new(match pm_token {
+                                    types::PaymentMethodToken::Token(token) => token,
+                                    types::PaymentMethodToken::ApplePayDecrypt(_) => {
+                                        Err(errors::ConnectorError::InvalidWalletToken)?
+                                    }
+                                })),
+                            },
+                        )))
+                    }
+                    api_models::payments::PaymentMethodData::BankRedirect(ref redirect_data) => {
+                        PaymentMethodData::try_from(redirect_data)
+                    }
+                    api_models::payments::PaymentMethodData::Wallet(ref wallet_data) => {
+                        get_payment_method_for_wallet(item.router_data, wallet_data)
+                    }
+                    api_models::payments::PaymentMethodData::BankDebit(ref directdebit_data) => {
+                        PaymentMethodData::try_from(directdebit_data)
+                    }
+                    _ => Err(errors::ConnectorError::NotImplemented(
+                        "Payment Method".to_string(),
+                    ))
+                    .into_report(),
                 }
-                api_models::payments::PaymentMethodData::BankRedirect(ref redirect_data) => {
-                    PaymentMethodData::try_from(redirect_data)
-                }
-                api_models::payments::PaymentMethodData::Wallet(ref wallet_data) => {
-                    get_payment_method_for_wallet(item, wallet_data)
-                }
-                api_models::payments::PaymentMethodData::BankDebit(ref directdebit_data) => {
-                    PaymentMethodData::try_from(directdebit_data)
-                }
-                _ => Err(errors::ConnectorError::NotImplemented(
-                    "Payment Method".to_string(),
-                ))
-                .into_report(),
-            },
+            }
             _ => Err(errors::ConnectorError::FlowNotSupported {
                 flow: format!(
                     "{} capture",
-                    item.request.capture_method.unwrap_or_default()
+                    item.router_data.request.capture_method.unwrap_or_default()
                 ),
                 connector: "Mollie".to_string(),
             })
@@ -179,7 +218,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MolliePaymentsRequest {
             webhook_url: "".to_string(),
             locale: None,
             payment_method_data,
-            metadata: None,
+            metadata: Some(MollieMetadata {
+                order_id: item.router_data.connector_request_reference_id.clone(),
+            }),
             sequence_type: SequenceType::Oneoff,
             mandate_id: None,
         })
@@ -245,17 +286,15 @@ impl TryFrom<&types::TokenizationRouterData> for MollieCardTokenRequest {
         match item.request.payment_method_data.clone() {
             api_models::payments::PaymentMethodData::Card(ccard) => {
                 let auth = MollieAuthType::try_from(&item.connector_auth_type)?;
-                let card_holder = ccard.card_holder_name.clone();
+                let card_holder = ccard
+                    .card_holder_name
+                    .clone()
+                    .unwrap_or(Secret::new("".to_string()));
                 let card_number = ccard.card_number.clone();
                 let card_expiry_date =
-                    ccard.get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned());
+                    ccard.get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned())?;
                 let card_cvv = ccard.card_cvc;
-                let browser_info = get_browser_info(item)?;
-                let locale = browser_info
-                    .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "browser_info.language",
-                    })?
-                    .language;
+                let locale = item.request.get_browser_info()?.get_language()?;
                 let testmode =
                     item.test_mode
                         .ok_or(errors::ConnectorError::MissingRequiredField {
@@ -294,7 +333,7 @@ fn get_payment_method_for_wallet(
         }
         api_models::payments::WalletData::ApplePay(applepay_wallet_data) => {
             Ok(PaymentMethodData::Applepay(Box::new(ApplePayMethodData {
-                apple_pay_payment_token: applepay_wallet_data.payment_data.to_owned(),
+                apple_pay_payment_token: Secret::new(applepay_wallet_data.payment_data.to_owned()),
             })))
         }
         _ => Err(errors::ConnectorError::NotImplemented(
@@ -308,9 +347,7 @@ fn get_shipping_details(
     item: &types::PaymentsAuthorizeRouterData,
 ) -> Result<Option<Address>, Error> {
     let shipping_address = item
-        .address
-        .shipping
-        .as_ref()
+        .get_optional_shipping()
         .and_then(|shipping| shipping.address.as_ref());
     get_address_details(shipping_address)
 }
@@ -319,9 +356,7 @@ fn get_billing_details(
     item: &types::PaymentsAuthorizeRouterData,
 ) -> Result<Option<Address>, Error> {
     let billing_address = item
-        .address
-        .billing
-        .as_ref()
+        .get_optional_billing()
         .and_then(|billing| billing.address.as_ref());
     get_address_details(billing_address)
 }
@@ -349,32 +384,14 @@ fn get_address_details(
     Ok(address_details)
 }
 
-fn get_browser_info(
-    item: &types::TokenizationRouterData,
-) -> Result<Option<MollieBrowserInfo>, error_stack::Report<errors::ConnectorError>> {
-    if matches!(item.auth_type, enums::AuthenticationType::ThreeDs) {
-        item.request
-            .browser_info
-            .as_ref()
-            .map(|info| {
-                Ok(MollieBrowserInfo {
-                    language: info.get_language()?,
-                })
-            })
-            .transpose()
-    } else {
-        Ok(None)
-    }
-}
-
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MolliePaymentsResponse {
     pub resource: String,
     pub id: String,
     pub amount: Amount,
     pub description: Option<String>,
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<MollieMetadata>,
     pub status: MolliePaymentStatus,
     pub is_cancelable: Option<bool>,
     pub sequence_type: SequenceType,
@@ -430,16 +447,16 @@ pub struct Links {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CardDetails {
-    pub card_number: String,
-    pub card_holder: String,
-    pub card_expiry_date: String,
-    pub card_cvv: String,
+    pub card_number: Secret<String>,
+    pub card_holder: Secret<String>,
+    pub card_expiry_date: Secret<String>,
+    pub card_cvv: Secret<String>,
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct BankDetails {
-    billing_email: String,
+    billing_email: Email,
 }
 
 pub struct MollieAuthType {
@@ -507,12 +524,13 @@ impl<F, T>
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: url,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.id),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -524,18 +542,24 @@ impl<F, T>
 pub struct MollieRefundRequest {
     amount: Amount,
     description: Option<String>,
+    metadata: Option<MollieMetadata>,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for MollieRefundRequest {
+impl<F> TryFrom<&MollieRouterData<&types::RefundsRouterData<F>>> for MollieRefundRequest {
     type Error = Error;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &MollieRouterData<&types::RefundsRouterData<F>>,
+    ) -> Result<Self, Self::Error> {
         let amount = Amount {
-            currency: item.request.currency,
-            value: utils::to_currency_base_unit(item.request.refund_amount, item.request.currency)?,
+            currency: item.router_data.request.currency,
+            value: item.amount.clone(),
         };
         Ok(Self {
             amount,
-            description: item.request.reason.to_owned(),
+            description: item.router_data.request.reason.to_owned(),
+            metadata: Some(MollieMetadata {
+                order_id: item.router_data.request.refund_id.clone(),
+            }),
         })
     }
 }
@@ -550,7 +574,7 @@ pub struct RefundResponse {
     settlement_amount: Option<Amount>,
     status: MollieRefundStatus,
     description: Option<String>,
-    metadata: serde_json::Value,
+    metadata: Option<MollieMetadata>,
     payment_id: String,
     #[serde(rename = "_links")]
     links: Links,
@@ -597,12 +621,10 @@ impl<T> TryFrom<types::RefundsResponseRouterData<T, RefundResponse>>
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ErrorResponse {
     pub status: u16,
     pub title: Option<String>,
     pub detail: String,
     pub field: Option<String>,
-    #[serde(rename = "_links")]
-    pub links: Option<Links>,
 }

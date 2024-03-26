@@ -1,4 +1,7 @@
-use crate::{core::errors, routes::metrics};
+use crate::{
+    core::errors::{self, utils::RedisErrorExt},
+    routes::metrics,
+};
 
 /// Generates hscan field pattern. Suppose the field is pa_1234_ref_1211 it will generate
 /// pa_1234_ref_*
@@ -28,7 +31,8 @@ where
                 metrics::KV_MISS.add(&metrics::CONTEXT, 1, &[]);
                 database_call_closure().await
             }
-            _ => Err(redis_error.change_context(errors::StorageError::KVError)),
+            // Keeping the key empty here since the error would never go here.
+            _ => Err(redis_error.to_redis_failed_response("")),
         },
     }
 }

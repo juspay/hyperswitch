@@ -4,7 +4,7 @@ use common_utils::ext_traits::AsyncExt;
 use error_stack::{report, IntoReport, ResultExt};
 use masking::PeekInterface;
 use maud::html;
-use rand::Rng;
+use rand::{distributions::Uniform, prelude::Distribution};
 use tokio::time as tokio;
 
 use super::{
@@ -15,8 +15,14 @@ use crate::{configs::settings, routes::AppState};
 
 pub async fn tokio_mock_sleep(delay: u64, tolerance: u64) {
     let mut rng = rand::thread_rng();
-    let effective_delay = rng.gen_range((delay - tolerance)..(delay + tolerance));
-    tokio::sleep(tokio::Duration::from_millis(effective_delay)).await
+    // TODO: change this to `Uniform::try_from`
+    // this would require changing the fn signature
+    // to return a Result
+    let effective_delay = Uniform::from((delay - tolerance)..(delay + tolerance));
+    tokio::sleep(tokio::Duration::from_millis(
+        effective_delay.sample(&mut rng),
+    ))
+    .await
 }
 
 pub async fn store_data_in_redis(

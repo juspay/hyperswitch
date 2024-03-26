@@ -1,9 +1,10 @@
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{encryption::Encryption, enums, schema::address};
 
-#[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
+#[derive(Clone, Debug, Insertable, Serialize, Deserialize, router_derive::DebugAsDisplay)]
 #[diesel(table_name = address)]
 pub struct AddressNew {
     pub address_id: String,
@@ -18,16 +19,19 @@ pub struct AddressNew {
     pub last_name: Option<Encryption>,
     pub phone_number: Option<Encryption>,
     pub country_code: Option<String>,
-    pub customer_id: String,
+    pub customer_id: Option<String>,
     pub merchant_id: String,
+    pub payment_id: Option<String>,
     pub created_at: PrimitiveDateTime,
     pub modified_at: PrimitiveDateTime,
+    pub updated_by: String,
+    pub email: Option<Encryption>,
 }
 
-#[derive(Clone, Debug, Identifiable, Queryable)]
-#[diesel(table_name = address)]
+#[derive(Clone, Debug, Queryable, Identifiable, Serialize, Deserialize)]
+#[diesel(table_name = address, primary_key(address_id))]
 pub struct Address {
-    pub id: i32,
+    pub id: Option<i32>,
     pub address_id: String,
     pub city: Option<String>,
     pub country: Option<enums::CountryAlpha2>,
@@ -42,11 +46,14 @@ pub struct Address {
     pub country_code: Option<String>,
     pub created_at: PrimitiveDateTime,
     pub modified_at: PrimitiveDateTime,
-    pub customer_id: String,
+    pub customer_id: Option<String>,
     pub merchant_id: String,
+    pub payment_id: Option<String>,
+    pub updated_by: String,
+    pub email: Option<Encryption>,
 }
 
-#[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
+#[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay, Serialize, Deserialize)]
 #[diesel(table_name = address)]
 pub struct AddressUpdateInternal {
     pub city: Option<String>,
@@ -61,6 +68,8 @@ pub struct AddressUpdateInternal {
     pub phone_number: Option<Encryption>,
     pub country_code: Option<String>,
     pub modified_at: PrimitiveDateTime,
+    pub updated_by: String,
+    pub email: Option<Encryption>,
 }
 
 impl AddressUpdateInternal {
@@ -78,7 +87,7 @@ impl AddressUpdateInternal {
             phone_number: self.phone_number,
             country_code: self.country_code,
             modified_at: self.modified_at,
-
+            updated_by: self.updated_by,
             ..source
         }
     }

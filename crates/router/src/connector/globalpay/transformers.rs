@@ -1,6 +1,6 @@
 use common_utils::crypto::{self, GenerateDigest};
 use error_stack::{IntoReport, ResultExt};
-use masking::{PeekInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use rand::distributions::DistString;
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -39,7 +39,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
             account_name,
             amount: Some(item.request.amount.to_string()),
             currency: item.request.currency.to_string(),
-            reference: item.attempt_id.to_string(),
+            reference: item.connector_request_reference_id.to_string(),
             country: item.get_billing_country()?,
             capture_mode: Some(requests::CaptureMode::from(item.request.capture_method)),
             payment_method: requests::PaymentMethod {
@@ -98,6 +98,11 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for requests::GlobalpayCaptureRe
                     Sequence::Subsequent
                 }
             }),
+            reference: value
+                .request
+                .multiple_capture_data
+                .as_ref()
+                .map(|mcd| mcd.capture_reference.clone()),
         })
     }
 }
@@ -159,8 +164,8 @@ impl TryFrom<&types::RefreshTokenRouterData> for GlobalpayRefreshTokenRequest {
 
         Ok(Self {
             app_id: globalpay_auth.app_id,
-            nonce,
-            secret,
+            nonce: Secret::new(nonce),
+            secret: Secret::new(secret),
             grant_type: "client_credentials".to_string(),
         })
     }
@@ -210,7 +215,7 @@ fn get_payment_response(
             .as_ref()
             .and_then(|card| card.brand_reference.to_owned())
             .map(|id| types::MandateReference {
-                connector_mandate_id: Some(id),
+                connector_mandate_id: Some(id.expose()),
                 payment_method_id: None,
             })
     });
@@ -228,7 +233,8 @@ fn get_payment_response(
             mandate_reference,
             connector_metadata: None,
             network_txn_id: None,
-            connector_response_reference_id: None,
+            connector_response_reference_id: response.reference,
+            incremental_authorization_allowed: None,
         }),
     }
 }
@@ -271,6 +277,35 @@ impl<F, T>
             response: get_payment_response(status, item.response, redirection_data),
             ..item.data
         })
+    }
+}
+
+impl
+    TryFrom<(
+        types::PaymentsSyncResponseRouterData<GlobalpayPaymentsResponse>,
+        bool,
+    )> for types::PaymentsSyncRouterData
+{
+    type Error = Error;
+
+    fn try_from(
+        (value, is_multiple_capture_sync): (
+            types::PaymentsSyncResponseRouterData<GlobalpayPaymentsResponse>,
+            bool,
+        ),
+    ) -> Result<Self, Self::Error> {
+        if is_multiple_capture_sync {
+            let capture_sync_response_list =
+                utils::construct_captures_response_hashmap(vec![value.response]);
+            Ok(Self {
+                response: Ok(types::PaymentsResponseData::MultipleCaptureResponse {
+                    capture_sync_response_list,
+                }),
+                ..value.data
+            })
+        } else {
+            Self::try_from(value)
+        }
     }
 }
 
@@ -350,7 +385,7 @@ fn get_payment_method_data(
         api::PaymentMethodData::Card(ccard) => Ok(PaymentMethodData::Card(requests::Card {
             number: ccard.card_number.clone(),
             expiry_month: ccard.card_exp_month.clone(),
-            expiry_year: ccard.get_card_expiry_year_2_digit(),
+            expiry_year: ccard.get_card_expiry_year_2_digit()?,
             cvv: ccard.card_cvc.clone(),
             account_type: None,
             authcode: None,
@@ -456,5 +491,29 @@ impl TryFrom<&api_models::payments::BankRedirectData> for PaymentMethodData {
             ))
             .into_report(),
         }
+    }
+}
+
+impl utils::MultipleCaptureSyncResponse for GlobalpayPaymentsResponse {
+    fn get_connector_capture_id(&self) -> String {
+        self.id.clone()
+    }
+
+    fn get_capture_attempt_status(&self) -> diesel_models::enums::AttemptStatus {
+        enums::AttemptStatus::from(self.status)
+    }
+
+    fn is_capture_response(&self) -> bool {
+        true
+    }
+
+    fn get_amount_captured(&self) -> Option<i64> {
+        match self.amount.clone() {
+            Some(amount) => amount.parse().ok(),
+            None => None,
+        }
+    }
+    fn get_connector_reference_id(&self) -> Option<String> {
+        self.reference.clone()
     }
 }

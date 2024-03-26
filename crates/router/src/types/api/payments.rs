@@ -4,12 +4,14 @@ pub use api_models::payments::{
     MandateTransactionType, MandateType, MandateValidationFields, NextActionType, OnlineMandate,
     PayLaterData, PaymentIdType, PaymentListConstraints, PaymentListFilterConstraints,
     PaymentListFilters, PaymentListResponse, PaymentListResponseV2, PaymentMethodData,
-    PaymentMethodDataResponse, PaymentOp, PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials,
-    PaymentsApproveRequest, PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsRedirectRequest,
-    PaymentsRedirectionResponse, PaymentsRejectRequest, PaymentsRequest, PaymentsResponse,
-    PaymentsResponseForm, PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse,
-    PaymentsStartRequest, PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken,
-    TimeRange, UrlDetails, VerifyRequest, VerifyResponse, WalletData,
+    PaymentMethodDataRequest, PaymentMethodDataResponse, PaymentOp, PaymentRetrieveBody,
+    PaymentRetrieveBodyWithCredentials, PaymentsApproveRequest, PaymentsCancelRequest,
+    PaymentsCaptureRequest, PaymentsExternalAuthenticationRequest,
+    PaymentsIncrementalAuthorizationRequest, PaymentsRedirectRequest, PaymentsRedirectionResponse,
+    PaymentsRejectRequest, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
+    PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
+    PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, TimeRange, UrlDetails,
+    VerifyRequest, VerifyResponse, WalletData,
 };
 use error_stack::{IntoReport, ResultExt};
 
@@ -76,10 +78,13 @@ pub struct PaymentMethodToken;
 pub struct CreateConnectorCustomer;
 
 #[derive(Debug, Clone)]
-pub struct Verify;
+pub struct SetupMandate;
 
 #[derive(Debug, Clone)]
 pub struct PreProcessing;
+
+#[derive(Debug, Clone)]
+pub struct IncrementalAuthorization;
 
 pub trait PaymentIdTypeExt {
     fn get_payment_intent_id(&self) -> errors::CustomResult<String, errors::ValidationError>;
@@ -159,8 +164,17 @@ pub trait PaymentSession:
 {
 }
 
-pub trait PreVerify:
-    api::ConnectorIntegration<Verify, types::VerifyRequestData, types::PaymentsResponseData>
+pub trait MandateSetup:
+    api::ConnectorIntegration<SetupMandate, types::SetupMandateRequestData, types::PaymentsResponseData>
+{
+}
+
+pub trait PaymentIncrementalAuthorization:
+    api::ConnectorIntegration<
+    IncrementalAuthorization,
+    types::PaymentsIncrementalAuthorizationData,
+    types::PaymentsResponseData,
+>
 {
 }
 
@@ -210,11 +224,12 @@ pub trait Payment:
     + PaymentVoid
     + PaymentApprove
     + PaymentReject
-    + PreVerify
+    + MandateSetup
     + PaymentSession
     + PaymentToken
     + PaymentsPreProcessing
     + ConnectorCustomer
+    + PaymentIncrementalAuthorization
 {
 }
 
@@ -230,7 +245,7 @@ mod payments_test {
             card_number: "1234432112344321".to_string().try_into().unwrap(),
             card_exp_month: "12".to_string().into(),
             card_exp_year: "99".to_string().into(),
-            card_holder_name: "JohnDoe".to_string().into(),
+            card_holder_name: Some(masking::Secret::new("JohnDoe".to_string())),
             card_cvc: "123".to_string().into(),
             card_issuer: Some("HDFC".to_string()),
             card_network: Some(api_models::enums::CardNetwork::Visa),
@@ -245,7 +260,10 @@ mod payments_test {
     fn payments_request() -> PaymentsRequest {
         PaymentsRequest {
             amount: Some(Amount::from(200)),
-            payment_method_data: Some(PaymentMethodData::Card(card())),
+            payment_method_data: Some(PaymentMethodDataRequest {
+                payment_method_data: PaymentMethodData::Card(card()),
+                billing: None,
+            }),
             ..PaymentsRequest::default()
         }
     }

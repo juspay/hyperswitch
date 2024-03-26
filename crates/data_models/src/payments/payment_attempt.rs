@@ -3,22 +3,26 @@ use common_enums as storage_enums;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use super::payment_intent::PaymentIntent;
-use crate::{errors, mandates::MandateDataType, MerchantStorageScheme};
+use super::PaymentIntent;
+use crate::{
+    errors,
+    mandates::{MandateDataType, MandateDetails},
+    ForeignIDRef,
+};
 
 #[async_trait::async_trait]
 pub trait PaymentAttemptInterface {
     async fn insert_payment_attempt(
         &self,
         payment_attempt: PaymentAttemptNew,
-        storage_scheme: MerchantStorageScheme,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
     async fn update_payment_attempt_with_attempt_id(
         &self,
         this: PaymentAttempt,
         payment_attempt: PaymentAttemptUpdate,
-        storage_scheme: MerchantStorageScheme,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
     async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
@@ -26,21 +30,28 @@ pub trait PaymentAttemptInterface {
         connector_transaction_id: &str,
         payment_id: &str,
         merchant_id: &str,
-        storage_scheme: MerchantStorageScheme,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
     async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
         &self,
         payment_id: &str,
         merchant_id: &str,
-        storage_scheme: MerchantStorageScheme,
+        storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+
+    async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
+        &self,
+        payment_id: &str,
+        merchant_id: &str,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
         &self,
         merchant_id: &str,
         connector_txn_id: &str,
-        storage_scheme: MerchantStorageScheme,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
     async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
@@ -48,44 +59,47 @@ pub trait PaymentAttemptInterface {
         payment_id: &str,
         merchant_id: &str,
         attempt_id: &str,
-        storage_scheme: MerchantStorageScheme,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
     async fn find_payment_attempt_by_attempt_id_merchant_id(
         &self,
         attempt_id: &str,
         merchant_id: &str,
-        storage_scheme: MerchantStorageScheme,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
     async fn find_payment_attempt_by_preprocessing_id_merchant_id(
         &self,
         preprocessing_id: &str,
         merchant_id: &str,
-        storage_scheme: MerchantStorageScheme,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
     async fn find_attempts_by_merchant_id_payment_id(
         &self,
         merchant_id: &str,
         payment_id: &str,
-        storage_scheme: MerchantStorageScheme,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentAttempt>, errors::StorageError>;
 
     async fn get_filters_for_payments(
         &self,
         pi: &[PaymentIntent],
         merchant_id: &str,
-        storage_scheme: MerchantStorageScheme,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentListFilters, errors::StorageError>;
 
+    #[allow(clippy::too_many_arguments)]
     async fn get_total_count_of_filtered_payment_attempts(
         &self,
         merchant_id: &str,
         active_attempt_ids: &[String],
         connector: Option<Vec<Connector>>,
-        payment_methods: Option<Vec<storage_enums::PaymentMethod>>,
-        storage_scheme: MerchantStorageScheme,
+        payment_method: Option<Vec<storage_enums::PaymentMethod>>,
+        payment_method_type: Option<Vec<storage_enums::PaymentMethodType>>,
+        authentication_type: Option<Vec<storage_enums::AuthenticationType>>,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<i64, errors::StorageError>;
 }
 
@@ -97,6 +111,7 @@ pub struct PaymentAttempt {
     pub attempt_id: String,
     pub status: storage_enums::AttemptStatus,
     pub amount: i64,
+    pub net_amount: i64,
     pub currency: Option<storage_enums::Currency>,
     pub save_to_locker: Option<bool>,
     pub connector: Option<String>,
@@ -138,6 +153,28 @@ pub struct PaymentAttempt {
     // reference to the payment at connector side
     pub connector_response_reference_id: Option<String>,
     pub amount_capturable: i64,
+    pub updated_by: String,
+    pub authentication_data: Option<serde_json::Value>,
+    pub encoded_data: Option<String>,
+    pub merchant_connector_id: Option<String>,
+    pub unified_code: Option<String>,
+    pub unified_message: Option<String>,
+    pub external_three_ds_authentication_attempted: Option<bool>,
+    pub authentication_connector: Option<String>,
+    pub authentication_id: Option<String>,
+    pub mandate_data: Option<MandateDetails>,
+    pub payment_method_billing_address_id: Option<String>,
+    pub fingerprint_id: Option<String>,
+}
+
+impl PaymentAttempt {
+    pub fn get_total_amount(&self) -> i64 {
+        self.amount + self.surcharge_amount.unwrap_or(0) + self.tax_amount.unwrap_or(0)
+    }
+    pub fn get_total_surcharge_amount(&self) -> Option<i64> {
+        self.surcharge_amount
+            .map(|surcharge_amount| surcharge_amount + self.tax_amount.unwrap_or(0))
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -146,6 +183,8 @@ pub struct PaymentListFilters {
     pub currency: Vec<storage_enums::Currency>,
     pub status: Vec<storage_enums::IntentStatus>,
     pub payment_method: Vec<storage_enums::PaymentMethod>,
+    pub payment_method_type: Vec<storage_enums::PaymentMethodType>,
+    pub authentication_type: Vec<storage_enums::AuthenticationType>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -155,6 +194,9 @@ pub struct PaymentAttemptNew {
     pub attempt_id: String,
     pub status: storage_enums::AttemptStatus,
     pub amount: i64,
+    /// amount + surcharge_amount + tax_amount
+    /// This field will always be derived before updating in the Database
+    pub net_amount: i64,
     pub currency: Option<storage_enums::Currency>,
     // pub auto_capture: Option<bool>,
     pub save_to_locker: Option<bool>,
@@ -194,6 +236,31 @@ pub struct PaymentAttemptNew {
     pub connector_response_reference_id: Option<String>,
     pub multiple_capture_count: Option<i16>,
     pub amount_capturable: i64,
+    pub updated_by: String,
+    pub authentication_data: Option<serde_json::Value>,
+    pub encoded_data: Option<String>,
+    pub merchant_connector_id: Option<String>,
+    pub unified_code: Option<String>,
+    pub unified_message: Option<String>,
+    pub external_three_ds_authentication_attempted: Option<bool>,
+    pub authentication_connector: Option<String>,
+    pub authentication_id: Option<String>,
+    pub mandate_data: Option<MandateDetails>,
+    pub payment_method_billing_address_id: Option<String>,
+    pub fingerprint_id: Option<String>,
+}
+
+impl PaymentAttemptNew {
+    /// returns amount + surcharge_amount + tax_amount
+    pub fn calculate_net_amount(&self) -> i64 {
+        self.amount + self.surcharge_amount.unwrap_or(0) + self.tax_amount.unwrap_or(0)
+    }
+
+    pub fn populate_derived_fields(self) -> Self {
+        let mut payment_attempt_new = self;
+        payment_attempt_new.net_amount = payment_attempt_new.calculate_net_amount();
+        payment_attempt_new
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -211,14 +278,24 @@ pub enum PaymentAttemptUpdate {
         business_sub_label: Option<String>,
         amount_to_capture: Option<i64>,
         capture_method: Option<storage_enums::CaptureMethod>,
+        surcharge_amount: Option<i64>,
+        tax_amount: Option<i64>,
+        fingerprint_id: Option<String>,
+        updated_by: String,
     },
     UpdateTrackers {
         payment_token: Option<String>,
         connector: Option<String>,
         straight_through_algorithm: Option<serde_json::Value>,
+        amount_capturable: Option<i64>,
+        surcharge_amount: Option<i64>,
+        tax_amount: Option<i64>,
+        updated_by: String,
+        merchant_connector_id: Option<String>,
     },
     AuthenticationTypeUpdate {
         authentication_type: storage_enums::AuthenticationType,
+        updated_by: String,
     },
     ConfirmUpdate {
         amount: i64,
@@ -236,15 +313,34 @@ pub enum PaymentAttemptUpdate {
         straight_through_algorithm: Option<serde_json::Value>,
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
+        amount_capturable: Option<i64>,
+        updated_by: String,
+        surcharge_amount: Option<i64>,
+        tax_amount: Option<i64>,
+        merchant_connector_id: Option<String>,
+        external_three_ds_authentication_attempted: Option<bool>,
+        authentication_connector: Option<String>,
+        authentication_id: Option<String>,
+        payment_method_billing_address_id: Option<String>,
+        fingerprint_id: Option<String>,
+        payment_method_id: Option<String>,
     },
     RejectUpdate {
         status: storage_enums::AttemptStatus,
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
+        updated_by: String,
+    },
+    BlocklistUpdate {
+        status: storage_enums::AttemptStatus,
+        error_code: Option<Option<String>>,
+        error_message: Option<Option<String>>,
+        updated_by: String,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
         cancellation_reason: Option<String>,
+        updated_by: String,
     },
     ResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -260,6 +356,12 @@ pub enum PaymentAttemptUpdate {
         error_reason: Option<Option<String>>,
         connector_response_reference_id: Option<String>,
         amount_capturable: Option<i64>,
+        updated_by: String,
+        authentication_data: Option<serde_json::Value>,
+        encoded_data: Option<String>,
+        unified_code: Option<Option<String>>,
+        unified_message: Option<Option<String>>,
+        payment_method_data: Option<serde_json::Value>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -270,9 +372,11 @@ pub enum PaymentAttemptUpdate {
         error_message: Option<Option<String>>,
         error_reason: Option<Option<String>>,
         connector_response_reference_id: Option<String>,
+        updated_by: String,
     },
     StatusUpdate {
         status: storage_enums::AttemptStatus,
+        updated_by: String,
     },
     ErrorUpdate {
         connector: Option<String>,
@@ -281,13 +385,21 @@ pub enum PaymentAttemptUpdate {
         error_message: Option<Option<String>>,
         error_reason: Option<Option<String>>,
         amount_capturable: Option<i64>,
+        updated_by: String,
+        unified_code: Option<Option<String>>,
+        unified_message: Option<Option<String>>,
+        connector_transaction_id: Option<String>,
+        payment_method_data: Option<serde_json::Value>,
     },
-    MultipleCaptureCountUpdate {
-        multiple_capture_count: i16,
+    CaptureUpdate {
+        amount_to_capture: Option<i64>,
+        multiple_capture_count: Option<i16>,
+        updated_by: String,
     },
     AmountToCaptureUpdate {
         status: storage_enums::AttemptStatus,
         amount_capturable: i64,
+        updated_by: String,
     },
     PreprocessingUpdate {
         status: storage_enums::AttemptStatus,
@@ -296,5 +408,30 @@ pub enum PaymentAttemptUpdate {
         preprocessing_step_id: Option<String>,
         connector_transaction_id: Option<String>,
         connector_response_reference_id: Option<String>,
+        updated_by: String,
     },
+    ConnectorResponse {
+        authentication_data: Option<serde_json::Value>,
+        encoded_data: Option<String>,
+        connector_transaction_id: Option<String>,
+        connector: Option<String>,
+        updated_by: String,
+    },
+    IncrementalAuthorizationAmountUpdate {
+        amount: i64,
+        amount_capturable: i64,
+    },
+    AuthenticationUpdate {
+        status: storage_enums::AttemptStatus,
+        external_three_ds_authentication_attempted: Option<bool>,
+        authentication_connector: Option<String>,
+        authentication_id: Option<String>,
+        updated_by: String,
+    },
+}
+
+impl ForeignIDRef for PaymentAttempt {
+    fn foreign_id(&self) -> String {
+        self.attempt_id.clone()
+    }
 }

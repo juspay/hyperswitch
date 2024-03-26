@@ -3,7 +3,7 @@ use data_models::errors::StorageError;
 use diesel::PgConnection;
 use error_stack::{IntoReport, ResultExt};
 
-use crate::{metrics, DatabaseStore};
+use crate::{errors::RedisErrorExt, metrics, DatabaseStore};
 
 pub async fn pg_connection_read<T: DatabaseStore>(
     store: &T,
@@ -64,17 +64,8 @@ where
                 metrics::KV_MISS.add(&metrics::CONTEXT, 1, &[]);
                 database_call_closure().await
             }
-            _ => Err(redis_error.change_context(StorageError::KVError)),
+            // Keeping the key empty here since the error would never go here.
+            _ => Err(redis_error.to_redis_failed_response("")),
         },
     }
-}
-
-/// Generates hscan field pattern. Suppose the field is pa_1234 it will generate
-/// pa_*
-pub fn generate_hscan_pattern_for_attempt(sk: &str) -> String {
-    sk.split('_')
-        .take(1)
-        .chain(["*"])
-        .collect::<Vec<&str>>()
-        .join("_")
 }

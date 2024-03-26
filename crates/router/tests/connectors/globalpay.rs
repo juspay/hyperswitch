@@ -19,6 +19,7 @@ impl Connector for Globalpay {
             connector: Box::new(&Globalpay),
             connector_name: types::Connector::Globalpay,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
@@ -56,16 +57,18 @@ impl Globalpay {
     }
     fn get_payment_info() -> Option<PaymentInfo> {
         Some(PaymentInfo {
-            address: Some(types::PaymentAddress {
-                billing: Some(api::Address {
+            address: Some(types::PaymentAddress::new(
+                None,
+                Some(api::Address {
                     address: Some(api::AddressDetails {
                         country: Some(api_models::enums::CountryAlpha2::US),
                         ..Default::default()
                     }),
                     phone: None,
+                    ..Default::default()
                 }),
-                ..Default::default()
-            }),
+                None,
+            )),
             access_token: get_access_token(),
             connector_meta_data: CONNECTOR.get_connector_meta(),
             ..Default::default()

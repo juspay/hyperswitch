@@ -17,6 +17,7 @@ impl utils::Connector for MultisafepayTest {
             connector: Box::new(&Multisafepay),
             connector_name: types::Connector::Multisafepay,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
@@ -37,9 +38,9 @@ impl utils::Connector for MultisafepayTest {
 static CONNECTOR: MultisafepayTest = MultisafepayTest {};
 
 fn get_default_payment_info() -> Option<PaymentInfo> {
-    let address = Some(PaymentAddress {
-        shipping: None,
-        billing: Some(Address {
+    let address = Some(PaymentAddress::new(
+        None,
+        Some(Address {
             address: Some(AddressDetails {
                 first_name: Some(Secret::new("John".to_string())),
                 last_name: Some(Secret::new("Doe".to_string())),
@@ -52,8 +53,10 @@ fn get_default_payment_info() -> Option<PaymentInfo> {
                 state: Some(Secret::new("Amsterdam".to_string())),
             }),
             phone: None,
+            email: None,
         }),
-    });
+        None,
+    ));
     Some(PaymentInfo {
         address,
         ..utils::PaymentInfo::default()

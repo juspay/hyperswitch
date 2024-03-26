@@ -1,13 +1,15 @@
 use cards::CardNumber;
 use common_utils::{
+    consts::default_payouts_list_limit,
     crypto,
     pii::{self, Email},
 };
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::{admin, enums as api_enums, payments};
+use crate::{enums as api_enums, payments};
 
 #[derive(Debug, Deserialize, Serialize, Clone, ToSchema)]
 pub enum PayoutRequest {
@@ -48,15 +50,11 @@ pub struct PayoutCreateRequest {
         "type": "single",
         "data": "adyen"
     }))]
-    #[serde(
-        default,
-        deserialize_with = "admin::payout_routing_algorithm::deserialize_option"
-    )]
     pub routing: Option<serde_json::Value>,
 
     /// This allows the merchant to manually select a connector with which the payout can go through
-    #[schema(value_type = Option<Vec<Connector>>, max_length = 255, example = json!(["wise", "adyen"]))]
-    pub connector: Option<Vec<api_enums::Connector>>,
+    #[schema(value_type = Option<Vec<PayoutConnectors>>, max_length = 255, example = json!(["wise", "adyen"]))]
+    pub connector: Option<Vec<api_enums::PayoutConnectors>>,
 
     /// The boolean value to create payout with connector
     #[schema(value_type = bool, example = true, default = false)]
@@ -146,6 +144,10 @@ pub struct PayoutCreateRequest {
     /// Provide a reference to a stored payment method
     #[schema(example = "187282ab-40ef-47a9-9206-5099ba31e432")]
     pub payout_token: Option<String>,
+
+    /// The business profile to use for this payment, if not passed the default business profile
+    /// associated with the merchant account will be used.
+    pub profile_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
@@ -153,6 +155,7 @@ pub struct PayoutCreateRequest {
 pub enum PayoutMethodData {
     Card(Card),
     Bank(Bank),
+    Wallet(Wallet),
 }
 
 impl Default for PayoutMethodData {
@@ -177,7 +180,7 @@ pub struct Card {
 
     /// The card holder's name
     #[schema(value_type = String, example = "John Doe")]
-    pub card_holder_name: Secret<String>,
+    pub card_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -191,16 +194,16 @@ pub enum Bank {
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct AchBankTransfer {
     /// Bank name
-    #[schema(value_type = String, example = "Deutsche Bank")]
-    pub bank_name: String,
+    #[schema(value_type = Option<String>, example = "Deutsche Bank")]
+    pub bank_name: Option<String>,
 
     /// Bank country code
-    #[schema(value_type = CountryAlpha2, example = "US")]
-    pub bank_country_code: api_enums::CountryAlpha2,
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    pub bank_country_code: Option<api_enums::CountryAlpha2>,
 
     /// Bank city
-    #[schema(value_type = String, example = "California")]
-    pub bank_city: String,
+    #[schema(value_type = Option<String>, example = "California")]
+    pub bank_city: Option<String>,
 
     /// Bank account number is an unique identifier assigned by a bank to a customer.
     #[schema(value_type = String, example = "000123456")]
@@ -214,16 +217,16 @@ pub struct AchBankTransfer {
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct BacsBankTransfer {
     /// Bank name
-    #[schema(value_type = String, example = "Deutsche Bank")]
-    pub bank_name: String,
+    #[schema(value_type = Option<String>, example = "Deutsche Bank")]
+    pub bank_name: Option<String>,
 
     /// Bank country code
-    #[schema(value_type = CountryAlpha2, example = "US")]
-    pub bank_country_code: api_enums::CountryAlpha2,
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    pub bank_country_code: Option<api_enums::CountryAlpha2>,
 
     /// Bank city
-    #[schema(value_type = String, example = "California")]
-    pub bank_city: String,
+    #[schema(value_type = Option<String>, example = "California")]
+    pub bank_city: Option<String>,
 
     /// Bank account number is an unique identifier assigned by a bank to a customer.
     #[schema(value_type = String, example = "000123456")]
@@ -238,16 +241,16 @@ pub struct BacsBankTransfer {
 // The SEPA (Single Euro Payments Area) is a pan-European network that allows you to send and receive payments in euros between two cross-border bank accounts in the eurozone.
 pub struct SepaBankTransfer {
     /// Bank name
-    #[schema(value_type = String, example = "Deutsche Bank")]
-    pub bank_name: String,
+    #[schema(value_type = Option<String>, example = "Deutsche Bank")]
+    pub bank_name: Option<String>,
 
     /// Bank country code
-    #[schema(value_type = CountryAlpha2, example = "US")]
-    pub bank_country_code: api_enums::CountryAlpha2,
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    pub bank_country_code: Option<api_enums::CountryAlpha2>,
 
     /// Bank city
-    #[schema(value_type = String, example = "California")]
-    pub bank_city: String,
+    #[schema(value_type = Option<String>, example = "California")]
+    pub bank_city: Option<String>,
 
     /// International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.
     #[schema(value_type = String, example = "DE89370400440532013000")]
@@ -258,7 +261,20 @@ pub struct SepaBankTransfer {
     pub bic: Option<Secret<String>>,
 }
 
-#[derive(Debug, ToSchema, Clone, Serialize)]
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum Wallet {
+    Paypal(Paypal),
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct Paypal {
+    /// Email linked with paypal account
+    #[schema(value_type = String, example = "john.doe@example.com")]
+    pub email: Option<Email>,
+}
+
+#[derive(Debug, Default, ToSchema, Clone, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct PayoutCreateResponse {
     /// Unique identifier for the payout. This ensures idempotency for multiple payouts
@@ -376,6 +392,57 @@ pub struct PayoutCreateResponse {
     /// If there was an error while calling the connectors the code is received here
     #[schema(value_type = String, example = "E0001")]
     pub error_code: Option<String>,
+
+    /// The business profile that is associated with this payment
+    pub profile_id: String,
+
+    /// Time when the payout was created
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub created: Option<PrimitiveDateTime>,
+
+    /// List of attempts
+    #[schema(value_type = Option<Vec<PayoutAttemptResponse>>)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub attempts: Option<Vec<PayoutAttemptResponse>>,
+}
+
+#[derive(
+    Default, Debug, serde::Serialize, Clone, PartialEq, ToSchema, router_derive::PolymorphicSchema,
+)]
+pub struct PayoutAttemptResponse {
+    /// Unique identifier for the attempt
+    pub attempt_id: String,
+    /// The status of the attempt
+    #[schema(value_type = PayoutStatus, example = "failed")]
+    pub status: api_enums::PayoutStatus,
+    /// The payout attempt amount. Amount for the payout in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
+    pub amount: i64,
+    /// The currency of the amount of the payout attempt
+    #[schema(value_type = Option<Currency>, example = "USD")]
+    pub currency: Option<api_enums::Currency>,
+    /// The connector used for the payout
+    pub connector: Option<String>,
+    /// Connector's error code in case of failures
+    pub error_code: Option<String>,
+    /// Connector's error message in case of failures
+    pub error_message: Option<String>,
+    /// The payout method that was used
+    #[schema(value_type = Option<PayoutType>, example = "bank")]
+    pub payment_method: Option<api_enums::PayoutType>,
+    /// Payment Method Type
+    #[schema(value_type = Option<PaymentMethodType>, example = "bacs")]
+    pub payout_method_type: Option<api_enums::PaymentMethodType>,
+    /// A unique identifier for a payout provided by the connector
+    pub connector_transaction_id: Option<String>,
+    /// If the payout was cancelled the reason provided here
+    pub cancellation_reason: Option<String>,
+    /// Provide a reference to a stored payout method
+    pub payout_token: Option<String>,
+    /// error code unified across the connectors is received here if there was an error while calling connector
+    pub unified_code: Option<String>,
+    /// error message unified across the connectors is received here if there was an error while calling connector
+    pub unified_message: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize, ToSchema)]
@@ -412,4 +479,97 @@ pub struct PayoutActionRequest {
         example = "payout_mbabizu24mvu3mela5njyhpit4"
     )]
     pub payout_id: String,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct PayoutListConstraints {
+    /// The identifier for customer
+    #[schema(example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub customer_id: Option<String>,
+
+    /// A cursor for use in pagination, fetch the next list after some object
+    #[schema(example = "pay_fafa124123")]
+    pub starting_after: Option<String>,
+
+    /// A cursor for use in pagination, fetch the previous list before some object
+    #[schema(example = "pay_fafa124123")]
+    pub ending_before: Option<String>,
+
+    /// limit on the number of objects to return
+    #[schema(default = 10, maximum = 100)]
+    #[serde(default = "default_payouts_list_limit")]
+    pub limit: u32,
+
+    /// The time at which payout is created
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub created: Option<PrimitiveDateTime>,
+
+    /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
+    #[serde(flatten)]
+    #[schema(value_type = Option<TimeRange>)]
+    pub time_range: Option<payments::TimeRange>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct PayoutListFilterConstraints {
+    /// The identifier for payout
+    #[schema(
+    value_type = Option<String>,
+    min_length = 30,
+    max_length = 30,
+    example = "payout_mbabizu24mvu3mela5njyhpit4"
+)]
+    pub payout_id: Option<String>,
+    /// The identifier for business profile
+    pub profile_id: Option<String>,
+    /// The identifier for customer
+    #[schema(example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub customer_id: Option<String>,
+    /// The limit on the number of objects. The default limit is 10 and max limit is 20
+    #[serde(default = "default_payouts_list_limit")]
+    pub limit: u32,
+    /// The starting point within a list of objects
+    pub offset: Option<u32>,
+    /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
+    #[serde(flatten)]
+    #[schema(value_type = Option<TimeRange>)]
+    pub time_range: Option<payments::TimeRange>,
+    /// The list of connectors to filter payouts list
+    #[schema(value_type = Option<Vec<PayoutConnectors>>, max_length = 255, example = json!(["wise", "adyen"]))]
+    pub connector: Option<Vec<api_enums::PayoutConnectors>>,
+    /// The list of currencies to filter payouts list
+    #[schema(value_type = Currency, example = "USD")]
+    pub currency: Option<Vec<api_enums::Currency>>,
+    /// The list of payout status to filter payouts list
+    #[schema(value_type = Option<Vec<PayoutStatus>>, example = json!(["pending", "failed"]))]
+    pub status: Option<Vec<api_enums::PayoutStatus>>,
+    /// The list of payout methods to filter payouts list
+    #[schema(value_type = Option<Vec<PayoutType>>, example = json!(["bank", "card"]))]
+    pub payout_method: Option<Vec<common_enums::PayoutType>>,
+    /// Type of recipient
+    #[schema(value_type = PayoutEntityType, example = "Individual")]
+    pub entity_type: Option<common_enums::PayoutEntityType>,
+}
+
+#[derive(Clone, Debug, serde::Serialize, ToSchema)]
+pub struct PayoutListResponse {
+    /// The number of payouts included in the list
+    pub size: usize,
+    // The list of payouts response objects
+    pub data: Vec<PayoutCreateResponse>,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PayoutListFilters {
+    /// The list of available connector filters
+    pub connector: Vec<api_enums::PayoutConnectors>,
+    /// The list of available currency filters
+    pub currency: Vec<common_enums::Currency>,
+    /// The list of available payment status filters
+    pub status: Vec<common_enums::PayoutStatus>,
+    /// The list of available payment method filters
+    pub payout_method: Vec<common_enums::PayoutType>,
 }

@@ -20,6 +20,7 @@ impl utils::Connector for PaymeTest {
             connector: Box::new(&Payme),
             connector_name: types::Connector::Payme,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
@@ -41,9 +42,9 @@ static CONNECTOR: PaymeTest = PaymeTest {};
 
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     Some(utils::PaymentInfo {
-        address: Some(PaymentAddress {
-            shipping: None,
-            billing: Some(Address {
+        address: Some(PaymentAddress::new(
+            None,
+            Some(Address {
                 address: Some(AddressDetails {
                     city: None,
                     country: None,
@@ -56,8 +57,10 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                     last_name: Some(Secret::new("Doe".to_string())),
                 }),
                 phone: None,
+                email: None,
             }),
-        }),
+            None,
+        )),
         auth_type: None,
         access_token: None,
         connector_meta_data: None,
@@ -66,6 +69,7 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
         payment_method_token: None,
         country: None,
         currency: None,
+        #[cfg(feature = "payouts")]
         payout_method_data: None,
     })
 }
@@ -76,6 +80,12 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
             product_name: "iphone 13".to_string(),
             quantity: 1,
             amount: 1000,
+            product_img_link: None,
+            requires_shipping: None,
+            product_id: None,
+            category: None,
+            brand: None,
+            product_type: None,
         }]),
         router_return_url: Some("https://hyperswitch.io".to_string()),
         webhook_url: Some("https://hyperswitch.io".to_string()),
@@ -85,7 +95,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
             card_cvc: Secret::new("123".to_string()),
             card_exp_month: Secret::new("10".to_string()),
             card_exp_year: Secret::new("2025".to_string()),
-            card_holder_name: Secret::new("John Doe".to_string()),
+            card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
             ..utils::CCardType::default().0
         }),
         amount: 1000,
@@ -370,6 +380,12 @@ async fn should_fail_payment_for_incorrect_cvc() {
                     product_name: "iphone 13".to_string(),
                     quantity: 1,
                     amount: 100,
+                    product_img_link: None,
+                    requires_shipping: None,
+                    product_id: None,
+                    category: None,
+                    brand: None,
+                    product_type: None,
                 }]),
                 router_return_url: Some("https://hyperswitch.io".to_string()),
                 webhook_url: Some("https://hyperswitch.io".to_string()),
@@ -402,6 +418,12 @@ async fn should_fail_payment_for_invalid_exp_month() {
                     product_name: "iphone 13".to_string(),
                     quantity: 1,
                     amount: 100,
+                    product_img_link: None,
+                    requires_shipping: None,
+                    product_id: None,
+                    category: None,
+                    brand: None,
+                    product_type: None,
                 }]),
                 router_return_url: Some("https://hyperswitch.io".to_string()),
                 webhook_url: Some("https://hyperswitch.io".to_string()),
@@ -434,6 +456,12 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
                     product_name: "iphone 13".to_string(),
                     quantity: 1,
                     amount: 100,
+                    product_img_link: None,
+                    requires_shipping: None,
+                    product_id: None,
+                    category: None,
+                    brand: None,
+                    product_type: None,
                 }]),
                 router_return_url: Some("https://hyperswitch.io".to_string()),
                 webhook_url: Some("https://hyperswitch.io".to_string()),

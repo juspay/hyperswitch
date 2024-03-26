@@ -1,13 +1,18 @@
 {
   "childrenOrder": [
+    "Scenario11-Save card flow",
+    "Scenario12-Don't Pass CVV for save card flow and verify success payment",
+    "Scenario13-Pass Invalid CVV for save card flow and verify failed payment",
+    "Scenario14-Save card payment with manual capture",
     "Scenario1-Create payment with confirm true",
     "Scenario2-Create payment with confirm false",
     "Scenario3-Create payment without PMD",
     "Scenario4-Create payment with Manual capture with confirm false",
-    "Scenario4-Create payment with Manual capture",
-    "Scenario11-Create Partial Capture payment",
-    "Scenario5-Void the payment",
-    "Scenario9-Refund full payment",
-    "Scenario10-Partial refund"
+    "Scenario5-Create payment with Manual capture",
+    "Scenario6-Create Partial Capture payment",
+    "Scenario7-Void the payment",
+    "Scenario8-Refund full payment",
+    "Scenario9-Partial refund",
+    "Scenario10-Multiple Captures"
   ]
 }

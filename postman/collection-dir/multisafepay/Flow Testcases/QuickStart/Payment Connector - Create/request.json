@@ -259,10 +259,7 @@
             {
               "type": "CARD",
               "parameters": {
-                "allowed_auth_methods": [
-                  "PAN_ONLY",
-                  "CRYPTOGRAM_3DS"
-                ],
+                "allowed_auth_methods": ["PAN_ONLY", "CRYPTOGRAM_3DS"],
                 "allowed_card_networks": [
                   "AMEX",
                   "DISCOVER",
@@ -290,14 +287,8 @@
   },
   "url": {
     "raw": "{{baseUrl}}/account/:account_id/connectors",
-    "host": [
-      "{{baseUrl}}"
-    ],
-    "path": [
-      "account",
-      ":account_id",
-      "connectors"
-    ],
+    "host": ["{{baseUrl}}"],
+    "path": ["account", ":account_id", "connectors"],
     "variable": [
       {
         "key": "account_id",

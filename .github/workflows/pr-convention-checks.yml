@@ -1,0 +1,130 @@
+name: Pull Request Convention Checks
+
+on:
+  # This is a dangerous event trigger as it causes the workflow to run in the
+  # context of the target repository.
+  # Avoid checking out the head of the pull request or building code from the
+  # pull request whenever this trigger is used.
+  # Since we do not have a checkout step in this workflow, this is an
+  # acceptable use of this trigger.
+  pull_request_target:
+    types:
+      - opened
+      - edited
+      - reopened
+      - ready_for_review
+      - synchronize
+
+  merge_group:
+    types:
+      - checks_requested
+
+env:
+  # Allow more retries for network requests in cargo (downloading crates) and
+  # rustup (installing toolchains). This should help to reduce flaky CI failures
+  # from transient network timeouts or other issues.
+  CARGO_NET_RETRY: 10
+  RUSTUP_MAX_RETRIES: 10
+
+jobs:
+  pr_title_conventional_commit_check:
+    name: Verify PR title follows conventional commit standards
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - uses: baptiste0928/cargo-install@v2.2.0
+        with:
+          crate: cocogitto
+
+      - name: Verify PR title follows conventional commit standards
+        if: ${{ github.event_name == 'pull_request_target' }}
+        shell: bash
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: cog verify "$TITLE"
+
+      - name: Verify commit message follows conventional commit standards
+        if: ${{ github.event_name == 'merge_group' }}
+        shell: bash
+        env:
+          COMMIT_MESSAGE: ${{ github.event.merge_group.head_commit.message }}
+        run: cog verify "$COMMIT_MESSAGE"
+
+  pr_linked_issues_check:
+    name: Verify PR contains one or more linked issues
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Skip check for merge queue
+        if: ${{ github.event_name == 'merge_group' }}
+        shell: bash
+        run: echo "Skipping PR linked issues check for merge queue"
+
+      - name: Generate GitHub app token
+        id: generate_app_token
+        if: ${{ github.event_name == 'pull_request_target' }}
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
+          private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
+          owner: ${{ github.event.repository.owner.login }}
+
+      - name: Verify PR contains one or more linked issues
+        if: ${{ github.event_name == 'pull_request_target' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
+        run: |
+          # GitHub does not provide information about linked issues for a pull request via the REST API.
+          # This information is available only within the GraphQL API.
+
+          # Obtain issue number and repository name with owner (in the `owner/repo` format) for all linked issues
+          query='query ($owner: String!, $repository: String!, $prNumber: Int!) {
+              repository(owner: $owner, name: $repository) {
+                pullRequest(number: $prNumber) {
+                  closingIssuesReferences(first: 10) {
+                    nodes {
+                      number
+                      repository {
+                        nameWithOwner
+                      }
+                    }
+                  }
+                }
+              }
+            }'
+
+          # Obtain linked issues in the `owner/repo#issue_number` format, one issue per line.
+          # The variable contains an empty string if the pull request has no linked issues.
+          linked_issues="$(
+            gh api graphql \
+              --raw-field "query=${query}" \
+              --field 'owner=${{ github.event.repository.owner.login }}' \
+              --field 'repository=${{ github.event.repository.name }}' \
+              --field 'prNumber=${{ github.event.pull_request.number }}' \
+              --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[] | "\(.repository.nameWithOwner)#\(.number)"'
+          )"
+
+          if [[ -z "${linked_issues}" ]]; then
+            echo "::error::PR does not contain any linked issues"
+            exit 1
+          else
+            echo "PR contains at least one linked issue"
+          fi
+
+          while IFS= read -r issue; do
+            # Split `${issue}` by `#` to obtain repository with owner (in `owner/repository` format) and issue number
+            IFS='#' read -r repository_with_owner issue_number <<< "${issue}"
+            issue_state="$(gh issue view --repo "${repository_with_owner}" --json 'state' "${issue_number}" --jq '.state')"
+
+            # Transform `${issue_state}` to lowercase for comparison
+            if [[ "${issue_state,,}" != 'open' ]]; then
+              echo "::error::At least one of the linked issues is not open"
+              exit 1
+            fi
+          done <<< "${linked_issues}"

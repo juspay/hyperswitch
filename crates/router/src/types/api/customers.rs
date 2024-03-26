@@ -2,6 +2,7 @@ use api_models::customers;
 pub use api_models::customers::{CustomerDeleteResponse, CustomerId, CustomerRequest};
 use serde::Serialize;
 
+use super::payments;
 use crate::{core::errors::RouterResult, newtype, types::domain};
 
 newtype!(
@@ -9,12 +10,18 @@ newtype!(
     derives = (Debug, Clone, Serialize)
 );
 
+impl common_utils::events::ApiEventMetric for CustomerResponse {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        self.0.get_api_event_type()
+    }
+}
+
 pub(crate) trait CustomerRequestExt: Sized {
     fn validate(self) -> RouterResult<Self>;
 }
 
-impl From<domain::Customer> for CustomerResponse {
-    fn from(cust: domain::Customer) -> Self {
+impl From<(domain::Customer, Option<payments::AddressDetails>)> for CustomerResponse {
+    fn from((cust, address): (domain::Customer, Option<payments::AddressDetails>)) -> Self {
         customers::CustomerResponse {
             customer_id: cust.customer_id,
             name: cust.name,
@@ -24,7 +31,8 @@ impl From<domain::Customer> for CustomerResponse {
             description: cust.description,
             created_at: cust.created_at,
             metadata: cust.metadata,
-            address: None,
+            address,
+            default_payment_method_id: cust.default_payment_method_id,
         }
         .into()
     }

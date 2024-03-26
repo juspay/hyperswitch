@@ -31,12 +31,7 @@
   },
   "url": {
     "raw": "{{baseUrl}}/payments/session_tokens",
-    "host": [
-      "{{baseUrl}}"
-    ],
-    "path": [
-      "payments",
-      "session_tokens"
-    ]
+    "host": ["{{baseUrl}}"],
+    "path": ["payments", "session_tokens"]
   }
 }

@@ -8,13 +8,8 @@
   ],
   "url": {
     "raw": "{{baseUrl}}/payments/list",
-    "host": [
-      "{{baseUrl}}"
-    ],
-    "path": [
-      "payments",
-      "list"
-    ],
+    "host": ["{{baseUrl}}"],
+    "path": ["payments", "list"],
     "query": [
       {
         "key": "customer_id",

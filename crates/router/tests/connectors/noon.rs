@@ -21,6 +21,7 @@ impl utils::Connector for NoonTest {
             connector: Box::new(&Noon),
             connector_name: types::Connector::Noon,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 

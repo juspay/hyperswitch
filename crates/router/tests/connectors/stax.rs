@@ -16,6 +16,7 @@ impl utils::Connector for StaxTest {
             connector: Box::new(&Stax),
             connector_name: types::Connector::Stax,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
@@ -47,6 +48,7 @@ fn get_default_payment_info(
         return_url: None,
         connector_customer,
         payment_method_token,
+        #[cfg(feature = "payouts")]
         payout_method_data: None,
         currency: None,
         country: None,

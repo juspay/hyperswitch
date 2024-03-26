@@ -10,7 +10,7 @@ mod utils;
 #[ignore]
 // verify the API-KEY/merchant id has stripe as first choice
 async fn customer_success() {
-    utils::setup().await;
+    Box::pin(utils::setup()).await;
 
     let customer_id = format!("customer_{}", uuid::Uuid::new_v4());
     let api_key = ("API-KEY", "MySecretApiKey");
@@ -79,7 +79,7 @@ async fn customer_success() {
 #[ignore]
 // verify the API-KEY/merchant id has stripe as first choice
 async fn customer_failure() {
-    utils::setup().await;
+    Box::pin(utils::setup()).await;
 
     let customer_id = format!("customer_{}", uuid::Uuid::new_v4());
     let api_key = ("api-key", "MySecretApiKey");

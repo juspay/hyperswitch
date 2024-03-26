@@ -12,8 +12,9 @@ impl utils::Connector for HelcimTest {
         use router::connector::Helcim;
         types::api::ConnectorData {
             connector: Box::new(&Helcim),
-            connector_name: types::Connector::DummyConnector1,
+            connector_name: types::Connector::Helcim,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 

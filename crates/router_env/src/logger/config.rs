@@ -101,17 +101,21 @@ pub struct LogTelemetry {
     pub otel_exporter_otlp_timeout: Option<u64>,
     /// Whether to use xray ID generator, (enable this if you plan to use AWS-XRAY)
     pub use_xray_generator: bool,
+    /// Route Based Tracing
+    pub route_to_trace: Option<Vec<String>>,
 }
 
 /// Telemetry / tracing.
 #[derive(Default, Debug, Deserialize, Clone, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 pub enum LogFormat {
     /// Default pretty log format
     Default,
     /// JSON based structured logging
     #[default]
     Json,
+    /// JSON based structured logging with pretty print
+    PrettyJson,
 }
 
 impl Config {
@@ -141,7 +145,7 @@ impl Config {
         let config_path = Self::config_path(&environment.to_string(), explicit_config_path);
 
         let config = Self::builder(&environment.to_string())?
-            .add_source(config::File::from(config_path).required(true))
+            .add_source(config::File::from(config_path).required(false))
             .add_source(config::Environment::with_prefix("ROUTER").separator("__"))
             .build()?;
 

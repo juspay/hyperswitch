@@ -12,9 +12,11 @@ use opentelemetry::{
         trace::BatchConfig,
         Resource,
     },
+    trace::{TraceContextExt, TraceState},
     KeyValue,
 };
 use opentelemetry_otlp::{TonicExporterBuilder, WithExportConfig};
+use serde_json::ser::{CompactFormatter, PrettyFormatter};
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::{fmt, prelude::*, util::SubscriberInitExt, EnvFilter, Layer};
 
@@ -68,7 +70,10 @@ pub fn setup(
         );
         println!("Using file logging filter: {file_filter}");
 
-        Some(FormattingLayer::new(service_name, file_writer).with_filter(file_filter))
+        Some(
+            FormattingLayer::new(service_name, file_writer, CompactFormatter)
+                .with_filter(file_filter),
+        )
     } else {
         None
     };
@@ -101,8 +106,17 @@ pub fn setup(
                 subscriber.with(logging_layer).init();
             }
             config::LogFormat::Json => {
+                error_stack::Report::set_color_mode(error_stack::fmt::ColorMode::None);
                 let logging_layer =
-                    FormattingLayer::new(service_name, console_writer).with_filter(console_filter);
+                    FormattingLayer::new(service_name, console_writer, CompactFormatter)
+                        .with_filter(console_filter);
+                subscriber.with(logging_layer).init();
+            }
+            config::LogFormat::PrettyJson => {
+                error_stack::Report::set_color_mode(error_stack::fmt::ColorMode::None);
+                let logging_layer =
+                    FormattingLayer::new(service_name, console_writer, PrettyFormatter::new())
+                        .with_filter(console_filter);
                 subscriber.with(logging_layer).init();
             }
         }
@@ -131,6 +145,92 @@ fn get_opentelemetry_exporter(config: &config::LogTelemetry) -> TonicExporterBui
     exporter_builder
 }
 
+#[derive(Debug, Clone)]
+enum TraceUrlAssert {
+    Match(String),
+    EndsWith(String),
+}
+
+impl TraceUrlAssert {
+    fn compare_url(&self, url: &str) -> bool {
+        match self {
+            Self::Match(value) => url == value,
+            Self::EndsWith(end) => url.ends_with(end),
+        }
+    }
+}
+
+impl From<String> for TraceUrlAssert {
+    fn from(value: String) -> Self {
+        match value {
+            url if url.starts_with('*') => Self::EndsWith(url.trim_start_matches('*').to_string()),
+            url => Self::Match(url),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct TraceAssertion {
+    clauses: Option<Vec<TraceUrlAssert>>,
+    /// default behaviour for tracing if no condition is provided
+    default: bool,
+}
+
+impl TraceAssertion {
+    ///
+    /// Should the provided url be traced
+    ///
+    fn should_trace_url(&self, url: &str) -> bool {
+        match &self.clauses {
+            Some(clauses) => clauses.iter().all(|cur| cur.compare_url(url)),
+            None => self.default,
+        }
+    }
+}
+
+///
+/// Conditional Sampler for providing control on url based tracing
+///
+#[derive(Clone, Debug)]
+struct ConditionalSampler<T: trace::ShouldSample + Clone + 'static>(TraceAssertion, T);
+
+impl<T: trace::ShouldSample + Clone + 'static> trace::ShouldSample for ConditionalSampler<T> {
+    fn should_sample(
+        &self,
+        parent_context: Option<&opentelemetry::Context>,
+        trace_id: opentelemetry::trace::TraceId,
+        name: &str,
+        span_kind: &opentelemetry::trace::SpanKind,
+        attributes: &opentelemetry::trace::OrderMap<opentelemetry::Key, opentelemetry::Value>,
+        links: &[opentelemetry::trace::Link],
+        instrumentation_library: &opentelemetry::InstrumentationLibrary,
+    ) -> opentelemetry::trace::SamplingResult {
+        match attributes
+            .get(&opentelemetry::Key::new("http.route"))
+            .map_or(self.0.default, |inner| {
+                self.0.should_trace_url(&inner.as_str())
+            }) {
+            true => self.1.should_sample(
+                parent_context,
+                trace_id,
+                name,
+                span_kind,
+                attributes,
+                links,
+                instrumentation_library,
+            ),
+            false => opentelemetry::trace::SamplingResult {
+                decision: opentelemetry::trace::SamplingDecision::Drop,
+                attributes: Vec::new(),
+                trace_state: match parent_context {
+                    Some(ctx) => ctx.span().span_context().trace_state().clone(),
+                    None => TraceState::default(),
+                },
+            },
+        }
+    }
+}
+
 fn setup_tracing_pipeline(
     config: &config::LogTelemetry,
     service_name: &str,
@@ -139,9 +239,16 @@ fn setup_tracing_pipeline(
     global::set_text_map_propagator(TraceContextPropagator::new());
 
     let mut trace_config = trace::config()
-        .with_sampler(trace::Sampler::TraceIdRatioBased(
-            config.sampling_rate.unwrap_or(1.0),
-        ))
+        .with_sampler(trace::Sampler::ParentBased(Box::new(ConditionalSampler(
+            TraceAssertion {
+                clauses: config
+                    .route_to_trace
+                    .clone()
+                    .map(|inner| inner.into_iter().map(Into::into).collect()),
+                default: false,
+            },
+            trace::Sampler::TraceIdRatioBased(config.sampling_rate.unwrap_or(1.0)),
+        ))))
         .with_resource(Resource::new(vec![KeyValue::new(
             "service.name",
             service_name.to_owned(),

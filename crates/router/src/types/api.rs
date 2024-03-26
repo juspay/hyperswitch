@@ -1,31 +1,51 @@
 pub mod admin;
 pub mod api_keys;
+pub mod authentication;
 pub mod configs;
+#[cfg(feature = "olap")]
+pub mod connector_onboarding;
 pub mod customers;
 pub mod disputes;
 pub mod enums;
 pub mod ephemeral_key;
 pub mod files;
+#[cfg(feature = "frm")]
+pub mod fraud_check;
 pub mod mandates;
+pub mod payment_link;
 pub mod payment_methods;
 pub mod payments;
+#[cfg(feature = "payouts")]
 pub mod payouts;
 pub mod refunds;
+pub mod routing;
+#[cfg(feature = "olap")]
+pub mod verify_connector;
+#[cfg(feature = "olap")]
+pub mod webhook_events;
 pub mod webhooks;
 
 use std::{fmt::Debug, str::FromStr};
 
 use error_stack::{report, IntoReport, ResultExt};
 
+#[cfg(feature = "frm")]
+pub use self::fraud_check::*;
+#[cfg(feature = "payouts")]
+pub use self::payouts::*;
 pub use self::{
-    admin::*, api_keys::*, configs::*, customers::*, disputes::*, files::*, payment_methods::*,
-    payments::*, payouts::*, refunds::*, webhooks::*,
+    admin::*, api_keys::*, authentication::*, configs::*, customers::*, disputes::*, files::*,
+    payment_link::*, payment_methods::*, payments::*, refunds::*, webhooks::*,
 };
 use super::ErrorResponse;
 use crate::{
     configs::settings::Connectors,
     connector, consts,
-    core::errors::{self, CustomResult},
+    core::{
+        errors::{self, CustomResult},
+        payments::types as payments_types,
+    },
+    events::connector_api_logs::ConnectorEvent,
     services::{request, ConnectorIntegration, ConnectorRedirectResponse, ConnectorValidation},
     types::{self, api::enums as api_enums},
 };
@@ -38,6 +58,37 @@ pub trait ConnectorAccessToken:
 {
 }
 
+#[derive(Clone)]
+pub enum ConnectorCallType {
+    PreDetermined(ConnectorData),
+    Retryable(Vec<ConnectorData>),
+    SessionMultiple(Vec<SessionConnectorData>),
+}
+
+#[derive(Clone, Debug)]
+pub struct VerifyWebhookSource;
+
+pub trait ConnectorVerifyWebhookSource:
+    ConnectorIntegration<
+    VerifyWebhookSource,
+    types::VerifyWebhookSourceRequestData,
+    types::VerifyWebhookSourceResponseData,
+>
+{
+}
+
+#[derive(Clone, Debug)]
+pub struct MandateRevoke;
+
+pub trait ConnectorMandateRevoke:
+    ConnectorIntegration<
+    MandateRevoke,
+    types::MandateRevokeRequestData,
+    types::MandateRevokeResponseData,
+>
+{
+}
+
 pub trait ConnectorTransactionId: ConnectorCommon + Sync {
     fn connector_transaction_id(
         &self,
@@ -47,9 +98,19 @@ pub trait ConnectorTransactionId: ConnectorCommon + Sync {
     }
 }
 
+pub enum CurrencyUnit {
+    Base,
+    Minor,
+}
+
 pub trait ConnectorCommon {
     /// Name of the connector (in lowercase).
     fn id(&self) -> &'static str;
+
+    /// Connector accepted currency unit as either "Base" or "Minor"
+    fn get_currency_unit(&self) -> CurrencyUnit {
+        CurrencyUnit::Minor // Default implementation should be remove once it is implemented in all connectors
+    }
 
     /// HTTP header used for authorization.
     fn get_auth_header(
@@ -75,12 +136,15 @@ pub trait ConnectorCommon {
     fn build_error_response(
         &self,
         res: types::Response,
+        _event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: consts::NO_ERROR_CODE.to_string(),
             message: consts::NO_ERROR_MESSAGE.to_string(),
             reason: None,
+            attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
@@ -113,6 +177,10 @@ pub trait Connector:
     + FileUpload
     + ConnectorTransactionId
     + Payouts
+    + ConnectorVerifyWebhookSource
+    + FraudCheck
+    + ConnectorMandateRevoke
+    + ExternalAuthentication
 {
 }
 
@@ -131,7 +199,11 @@ impl<
             + Dispute
             + FileUpload
             + ConnectorTransactionId
-            + Payouts,
+            + Payouts
+            + ConnectorVerifyWebhookSource
+            + FraudCheck
+            + ConnectorMandateRevoke
+            + ExternalAuthentication,
     > Connector for T
 {
 }
@@ -140,34 +212,22 @@ type BoxedConnector = Box<&'static (dyn Connector + Sync)>;
 
 // Normal flow will call the connector and follow the flow specific operations (capture, authorize)
 // SessionTokenFromMetadata will avoid calling the connector instead create the session token ( for sdk )
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub enum GetToken {
     GpayMetadata,
     ApplePayMetadata,
     Connector,
 }
 
-#[derive(Clone)]
+/// Routing algorithm will output merchant connector identifier instead of connector name
+/// In order to support backwards compatibility for older routing algorithms and merchant accounts
+/// the support for connector name is retained
+#[derive(Clone, Debug)]
 pub struct ConnectorData {
     pub connector: BoxedConnector,
     pub connector_name: types::Connector,
     pub get_token: GetToken,
-}
-
-#[cfg(feature = "payouts")]
-#[derive(Clone)]
-pub struct PayoutConnectorData {
-    pub connector: BoxedConnector,
-    pub connector_name: api_enums::PayoutConnectors,
-    pub get_token: GetToken,
-}
-
-#[cfg(feature = "payouts")]
-#[derive(Clone)]
-pub struct PayoutSessionConnectorData {
-    pub payment_method_type: api_enums::PaymentMethodType,
-    pub connector: PayoutConnectorData,
-    pub business_sub_label: Option<String>,
+    pub merchant_connector_id: Option<String>,
 }
 
 #[derive(Clone)]
@@ -177,74 +237,38 @@ pub struct SessionConnectorData {
     pub business_sub_label: Option<String>,
 }
 
+/// Session Surcharge type
+pub enum SessionSurchargeDetails {
+    /// Surcharge is calculated by hyperswitch
+    Calculated(payments_types::SurchargeMetadata),
+    /// Surcharge is sent by merchant
+    PreDetermined(payments_types::SurchargeDetails),
+}
+
+impl SessionSurchargeDetails {
+    pub fn fetch_surcharge_details(
+        &self,
+        payment_method: &enums::PaymentMethod,
+        payment_method_type: &enums::PaymentMethodType,
+        card_network: Option<&enums::CardNetwork>,
+    ) -> Option<payments_types::SurchargeDetails> {
+        match self {
+            Self::Calculated(surcharge_metadata) => surcharge_metadata
+                .get_surcharge_details(payments_types::SurchargeKey::PaymentMethodData(
+                    *payment_method,
+                    *payment_method_type,
+                    card_network.cloned(),
+                ))
+                .cloned(),
+            Self::PreDetermined(surcharge_details) => Some(surcharge_details.clone()),
+        }
+    }
+}
+
 pub enum ConnectorChoice {
     SessionMultiple(Vec<SessionConnectorData>),
     StraightThrough(serde_json::Value),
     Decide,
-}
-
-#[cfg(feature = "payouts")]
-pub enum PayoutConnectorChoice {
-    SessionMultiple(Vec<PayoutSessionConnectorData>),
-    StraightThrough(serde_json::Value),
-    Decide,
-}
-
-#[derive(Clone)]
-pub enum ConnectorCallType {
-    Multiple(Vec<SessionConnectorData>),
-    Single(ConnectorData),
-}
-
-#[cfg(feature = "payouts")]
-#[derive(Clone)]
-pub enum PayoutConnectorCallType {
-    Multiple(Vec<PayoutSessionConnectorData>),
-    Single(PayoutConnectorData),
-}
-
-impl ConnectorCallType {
-    pub fn is_single(&self) -> bool {
-        matches!(self, Self::Single(_))
-    }
-}
-
-#[cfg(feature = "payouts")]
-impl PayoutConnectorData {
-    pub fn get_connector_by_name(
-        connectors: &Connectors,
-        name: &str,
-        connector_type: GetToken,
-    ) -> CustomResult<Self, errors::ApiErrorResponse> {
-        let connector = Self::convert_connector(connectors, name)?;
-        let connector_name = api_enums::PayoutConnectors::from_str(name)
-            .into_report()
-            .change_context(errors::ConnectorError::InvalidConnectorName)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable_lazy(|| {
-                format!("unable to parse payout connector name {connector:?}")
-            })?;
-        Ok(Self {
-            connector,
-            connector_name,
-            get_token: connector_type,
-        })
-    }
-
-    fn convert_connector(
-        _connectors: &Connectors,
-        connector_name: &str,
-    ) -> CustomResult<BoxedConnector, errors::ApiErrorResponse> {
-        match enums::PayoutConnectors::from_str(connector_name) {
-            Ok(name) => match name {
-                enums::PayoutConnectors::Adyen => Ok(Box::new(&connector::Adyen)),
-                enums::PayoutConnectors::Wise => Ok(Box::new(&connector::Wise)),
-            },
-            Err(_) => Err(report!(errors::ConnectorError::InvalidConnectorName)
-                .attach_printable(format!("invalid payout connector name: {connector_name}")))
-            .change_context(errors::ApiErrorResponse::InternalServerError),
-        }
-    }
 }
 
 impl ConnectorData {
@@ -252,6 +276,7 @@ impl ConnectorData {
         connectors: &Connectors,
         name: &str,
         connector_type: GetToken,
+        connector_id: Option<String>,
     ) -> CustomResult<Self, errors::ApiErrorResponse> {
         let connector = Self::convert_connector(connectors, name)?;
         let connector_name = api_enums::Connector::from_str(name)
@@ -263,6 +288,31 @@ impl ConnectorData {
             connector,
             connector_name,
             get_token: connector_type,
+            merchant_connector_id: connector_id,
+        })
+    }
+
+    #[cfg(feature = "payouts")]
+    pub fn get_payout_connector_by_name(
+        connectors: &Connectors,
+        name: &str,
+        connector_type: GetToken,
+        connector_id: Option<String>,
+    ) -> CustomResult<Self, errors::ApiErrorResponse> {
+        let connector = Self::convert_connector(connectors, name)?;
+        let payout_connector_name = api_enums::PayoutConnectors::from_str(name)
+            .into_report()
+            .change_context(errors::ConnectorError::InvalidConnectorName)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable_lazy(|| {
+                format!("unable to parse payout connector name {connector:?}")
+            })?;
+        let connector_name = api_enums::Connector::from(payout_connector_name);
+        Ok(Self {
+            connector,
+            connector_name,
+            get_token: connector_type,
+            merchant_connector_id: connector_id,
         })
     }
 
@@ -277,6 +327,7 @@ impl ConnectorData {
                 enums::Connector::Airwallex => Ok(Box::new(&connector::Airwallex)),
                 enums::Connector::Authorizedotnet => Ok(Box::new(&connector::Authorizedotnet)),
                 enums::Connector::Bambora => Ok(Box::new(&connector::Bambora)),
+                enums::Connector::Bankofamerica => Ok(Box::new(&connector::Bankofamerica)),
                 enums::Connector::Bitpay => Ok(Box::new(&connector::Bitpay)),
                 enums::Connector::Bluesnap => Ok(Box::new(&connector::Bluesnap)),
                 enums::Connector::Boku => Ok(Box::new(&connector::Boku)),
@@ -305,7 +356,8 @@ impl ConnectorData {
                 enums::Connector::Forte => Ok(Box::new(&connector::Forte)),
                 enums::Connector::Globalpay => Ok(Box::new(&connector::Globalpay)),
                 enums::Connector::Globepay => Ok(Box::new(&connector::Globepay)),
-                //enums::Connector::Helcim => Ok(Box::new(&connector::Helcim)), , it is added as template code for future usage
+                enums::Connector::Gocardless => Ok(Box::new(&connector::Gocardless)),
+                enums::Connector::Helcim => Ok(Box::new(&connector::Helcim)),
                 enums::Connector::Iatapay => Ok(Box::new(&connector::Iatapay)),
                 enums::Connector::Klarna => Ok(Box::new(&connector::Klarna)),
                 enums::Connector::Mollie => Ok(Box::new(&connector::Mollie)),
@@ -316,7 +368,9 @@ impl ConnectorData {
                 // "payeezy" => Ok(Box::new(&connector::Payeezy)), As psync and rsync are not supported by this connector, it is added as template code for future usage
                 enums::Connector::Payme => Ok(Box::new(&connector::Payme)),
                 enums::Connector::Payu => Ok(Box::new(&connector::Payu)),
+                enums::Connector::Placetopay => Ok(Box::new(&connector::Placetopay)),
                 enums::Connector::Powertranz => Ok(Box::new(&connector::Powertranz)),
+                enums::Connector::Prophetpay => Ok(Box::new(&connector::Prophetpay)),
                 enums::Connector::Rapyd => Ok(Box::new(&connector::Rapyd)),
                 enums::Connector::Shift4 => Ok(Box::new(&connector::Shift4)),
                 enums::Connector::Square => Ok(Box::new(&connector::Square)),
@@ -330,8 +384,12 @@ impl ConnectorData {
                 enums::Connector::Paypal => Ok(Box::new(&connector::Paypal)),
                 enums::Connector::Trustpay => Ok(Box::new(&connector::Trustpay)),
                 enums::Connector::Tsys => Ok(Box::new(&connector::Tsys)),
+                enums::Connector::Volt => Ok(Box::new(&connector::Volt)),
                 enums::Connector::Zen => Ok(Box::new(&connector::Zen)),
-                enums::Connector::Signifyd => {
+                enums::Connector::Signifyd
+                | enums::Connector::Plaid
+                | enums::Connector::Riskified
+                | enums::Connector::Threedsecureio => {
                     Err(report!(errors::ConnectorError::InvalidConnectorName)
                         .attach_printable(format!("invalid connector name: {connector_name}")))
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -343,6 +401,34 @@ impl ConnectorData {
         }
     }
 }
+
+#[cfg(feature = "frm")]
+pub trait FraudCheck:
+    ConnectorCommon
+    + FraudCheckSale
+    + FraudCheckTransaction
+    + FraudCheckCheckout
+    + FraudCheckFulfillment
+    + FraudCheckRecordReturn
+{
+}
+
+#[cfg(not(feature = "frm"))]
+pub trait FraudCheck {}
+
+#[cfg(feature = "payouts")]
+pub trait Payouts:
+    ConnectorCommon
+    + PayoutCancel
+    + PayoutCreate
+    + PayoutEligibility
+    + PayoutFulfill
+    + PayoutQuote
+    + PayoutRecipient
+{
+}
+#[cfg(not(feature = "payouts"))]
+pub trait Payouts {}
 
 #[cfg(test)]
 mod test {

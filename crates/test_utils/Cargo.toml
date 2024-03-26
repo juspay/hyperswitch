@@ -9,30 +9,24 @@ license.workspace = true
 
 [features]
 default = ["dummy_connector", "payouts"]
-dummy_connector = ["api_models/dummy_connector"]
+dummy_connector = []
 payouts = []
 
 [dependencies]
 async-trait = "0.1.68"
-actix-web = "4.3.1"
 base64 = "0.21.2"
 clap = { version = "4.3.2", default-features = false, features = ["std", "derive", "help", "usage"] }
-serde = { version = "1.0.163", features = ["derive"] }
-serde_json = "1.0.96"
-serde_path_to_error = "0.1.11"
-toml = "0.7.4"
-serial_test = "2.0.0"
-serde_urlencoded = "0.7.1"
-actix-http = "3.3.1"
-awc = { version = "3.1.1", features = ["rustls"] }
-derive_deref = "1.1.1"
 rand = "0.8.5"
+regex = "1.10.3"
 reqwest = { version = "0.11.18", features = ["native-tls"] }
+serde = { version = "1.0.193", features = ["derive"] }
+serde_json = "1.0.108"
+serde_urlencoded = "0.7.1"
+serial_test = "2.0.0"
 thirtyfour = "0.31.0"
 time = { version = "0.3.21", features = ["macros"] }
-tokio = "1.28.2"
-uuid = { version = "1.3.3", features = ["serde", "v4"] }
+tokio = "1.36.0"
+toml = "0.7.4"
 
 # First party crates
-api_models = { version = "0.1.0", path = "../api_models", features = ["errors"] }
 masking = { version = "0.1.0", path = "../masking" }

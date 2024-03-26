@@ -10,7 +10,7 @@ use crate::{
 };
 
 pub async fn payment(
-    state: &AppState,
+    state: AppState,
     req: types::DummyConnectorPaymentRequest,
 ) -> types::DummyConnectorResponse<types::DummyConnectorPaymentResponse> {
     utils::tokio_mock_sleep(
@@ -21,17 +21,17 @@ pub async fn payment(
 
     let payment_attempt: types::DummyConnectorPaymentAttempt = req.into();
     let payment_data =
-        types::DummyConnectorPaymentData::process_payment_attempt(state, payment_attempt)?;
+        types::DummyConnectorPaymentData::process_payment_attempt(&state, payment_attempt)?;
 
     utils::store_data_in_redis(
-        state,
+        &state,
         payment_data.attempt_id.clone(),
         payment_data.payment_id.clone(),
         state.conf.dummy_connector.authorize_ttl,
     )
     .await?;
     utils::store_data_in_redis(
-        state,
+        &state,
         payment_data.payment_id.clone(),
         payment_data.clone(),
         state.conf.dummy_connector.payment_ttl,
@@ -41,7 +41,7 @@ pub async fn payment(
 }
 
 pub async fn payment_data(
-    state: &AppState,
+    state: AppState,
     req: types::DummyConnectorPaymentRetrieveRequest,
 ) -> types::DummyConnectorResponse<types::DummyConnectorPaymentResponse> {
     utils::tokio_mock_sleep(
@@ -50,15 +50,15 @@ pub async fn payment_data(
     )
     .await;
 
-    let payment_data = utils::get_payment_data_from_payment_id(state, req.payment_id).await?;
+    let payment_data = utils::get_payment_data_from_payment_id(&state, req.payment_id).await?;
     Ok(api::ApplicationResponse::Json(payment_data.into()))
 }
 
 pub async fn payment_authorize(
-    state: &AppState,
+    state: AppState,
     req: types::DummyConnectorPaymentConfirmRequest,
 ) -> types::DummyConnectorResponse<String> {
-    let payment_data = utils::get_payment_data_by_attempt_id(state, req.attempt_id.clone()).await;
+    let payment_data = utils::get_payment_data_by_attempt_id(&state, req.attempt_id.clone()).await;
     let dummy_connector_conf = &state.conf.dummy_connector;
 
     if let Ok(payment_data_inner) = payment_data {
@@ -83,7 +83,7 @@ pub async fn payment_authorize(
 }
 
 pub async fn payment_complete(
-    state: &AppState,
+    state: AppState,
     req: types::DummyConnectorPaymentCompleteRequest,
 ) -> types::DummyConnectorResponse<()> {
     utils::tokio_mock_sleep(
@@ -92,7 +92,7 @@ pub async fn payment_complete(
     )
     .await;
 
-    let payment_data = utils::get_payment_data_by_attempt_id(state, req.attempt_id.clone()).await;
+    let payment_data = utils::get_payment_data_by_attempt_id(&state, req.attempt_id.clone()).await;
 
     let payment_status = if req.confirm {
         types::DummyConnectorStatus::Succeeded
@@ -115,7 +115,7 @@ pub async fn payment_complete(
             ..payment_data
         };
         utils::store_data_in_redis(
-            state,
+            &state,
             updated_payment_data.payment_id.clone(),
             updated_payment_data.clone(),
             state.conf.dummy_connector.payment_ttl,
@@ -145,7 +145,7 @@ pub async fn payment_complete(
 }
 
 pub async fn refund_payment(
-    state: &AppState,
+    state: AppState,
     req: types::DummyConnectorRefundRequest,
 ) -> types::DummyConnectorResponse<types::DummyConnectorRefundResponse> {
     utils::tokio_mock_sleep(
@@ -162,7 +162,7 @@ pub async fn refund_payment(
         })?;
 
     let mut payment_data =
-        utils::get_payment_data_from_payment_id(state, payment_id.clone()).await?;
+        utils::get_payment_data_from_payment_id(&state, payment_id.clone()).await?;
 
     payment_data.is_eligible_for_refund(req.amount)?;
 
@@ -170,7 +170,7 @@ pub async fn refund_payment(
     payment_data.eligible_amount -= req.amount;
 
     utils::store_data_in_redis(
-        state,
+        &state,
         payment_id,
         payment_data.to_owned(),
         state.conf.dummy_connector.payment_ttl,
@@ -187,7 +187,7 @@ pub async fn refund_payment(
     );
 
     utils::store_data_in_redis(
-        state,
+        &state,
         refund_id,
         refund_data.to_owned(),
         state.conf.dummy_connector.refund_ttl,
@@ -197,7 +197,7 @@ pub async fn refund_payment(
 }
 
 pub async fn refund_data(
-    state: &AppState,
+    state: AppState,
     req: types::DummyConnectorRefundRetrieveRequest,
 ) -> types::DummyConnectorResponse<types::DummyConnectorRefundResponse> {
     let refund_id = req.refund_id;

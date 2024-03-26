@@ -16,6 +16,7 @@ impl utils::Connector for NmiTest {
             connector: Box::new(&Nmi),
             connector_name: types::Connector::Nmi,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 

@@ -23,3 +23,48 @@ pub static FRM_CONFIGS_EG: &str = r#"
 pub const PAYMENTS_LIST_MAX_LIMIT_V1: u32 = 100;
 /// Maximum limit for payments list post api with filters
 pub const PAYMENTS_LIST_MAX_LIMIT_V2: u32 = 20;
+/// Default limit for payments list API
+pub fn default_payments_list_limit() -> u32 {
+    10
+}
+
+/// Maximum limit for payment link list get api
+pub const PAYMENTS_LINK_LIST_LIMIT: u32 = 100;
+
+/// Maximum limit for payouts list get api
+pub const PAYOUTS_LIST_MAX_LIMIT_GET: u32 = 100;
+/// Maximum limit for payouts list post api
+pub const PAYOUTS_LIST_MAX_LIMIT_POST: u32 = 20;
+/// Default limit for payouts list API
+pub fn default_payouts_list_limit() -> u32 {
+    10
+}
+
+/// surcharge percentage maximum precision length
+pub const SURCHARGE_PERCENTAGE_PRECISION_LENGTH: u8 = 2;
+
+/// Header Key for application overhead of a request
+pub const X_HS_LATENCY: &str = "x-hs-latency";
+
+/// Default Payment Link Background color
+pub const DEFAULT_BACKGROUND_COLOR: &str = "#212E46";
+
+/// Default product Img Link
+pub const DEFAULT_PRODUCT_IMG: &str =
+    "https://live.hyperswitch.io/payment-link-assets/cart_placeholder.png";
+
+/// Default Merchant Logo Link
+pub const DEFAULT_MERCHANT_LOGO: &str =
+    "https://live.hyperswitch.io/payment-link-assets/Merchant_placeholder.png";
+
+/// Redirect url for Prophetpay
+pub const PROPHETPAY_REDIRECT_URL: &str = "https://ccm-thirdparty.cps.golf/hp/tokenize/";
+
+/// Variable which store the card token for Prophetpay
+pub const PROPHETPAY_TOKEN: &str = "cctoken";
+
+/// Default SDK Layout
+pub const DEFAULT_SDK_LAYOUT: &str = "tabs";
+
+/// Payment intent default client secret expiry (in seconds)
+pub const DEFAULT_SESSION_EXPIRY: i64 = 15 * 60;

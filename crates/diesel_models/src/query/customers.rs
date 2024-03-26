@@ -1,5 +1,4 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
-use router_env::{instrument, tracing};
 
 use super::generics;
 use crate::{
@@ -10,14 +9,12 @@ use crate::{
 };
 
 impl CustomerNew {
-    #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Customer> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl Customer {
-    #[instrument(skip(conn))]
     pub async fn update_by_customer_id_merchant_id(
         conn: &PgPooledConn,
         customer_id: String,
@@ -45,7 +42,6 @@ impl Customer {
         }
     }
 
-    #[instrument(skip(conn))]
     pub async fn delete_by_customer_id_merchant_id(
         conn: &PgPooledConn,
         customer_id: &str,
@@ -60,7 +56,6 @@ impl Customer {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_by_customer_id_merchant_id(
         conn: &PgPooledConn,
         customer_id: &str,
@@ -73,7 +68,20 @@ impl Customer {
         .await
     }
 
-    #[instrument(skip(conn))]
+    pub async fn list_by_merchant_id(
+        conn: &PgPooledConn,
+        merchant_id: &str,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            dsl::merchant_id.eq(merchant_id.to_owned()),
+            None,
+            None,
+            Some(dsl::created_at),
+        )
+        .await
+    }
+
     pub async fn find_optional_by_customer_id_merchant_id(
         conn: &PgPooledConn,
         customer_id: &str,

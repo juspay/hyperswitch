@@ -28,7 +28,10 @@ impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::Payme
     ) -> RouterResult<
         types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
     > {
-        transformers::construct_payment_router_data::<api::PSync, types::PaymentsSyncData>(
+        Box::pin(transformers::construct_payment_router_data::<
+            api::PSync,
+            types::PaymentsSyncData,
+        >(
             state,
             self.clone(),
             connector_id,
@@ -36,7 +39,7 @@ impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::Payme
             key_store,
             customer,
             merchant_connector_account,
-        )
+        ))
         .await
     }
 }
@@ -157,10 +160,9 @@ impl types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsRespo
             types::PaymentsResponseData,
         >,
     ) -> RouterResult<Self> {
-        let mut capture_sync_response_list = HashMap::new();
-        for connector_capture_id in pending_connector_capture_id_list {
-            self.request.connector_transaction_id =
-                types::ResponseId::ConnectorTransactionId(connector_capture_id.clone());
+        let mut capture_sync_response_map = HashMap::new();
+        if let payments::CallConnectorAction::HandleResponse(_) = call_connector_action {
+            // webhook consume flow, only call connector once. Since there will only be a single event in every webhook
             let resp = services::execute_connector_processing_step(
                 state,
                 connector_integration.clone(),
@@ -170,30 +172,41 @@ impl types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsRespo
             )
             .await
             .to_payment_failed_response()?;
-            let capture_sync_response = match resp.response {
-                Err(err) => types::CaptureSyncResponse::Error {
-                    code: err.code,
-                    message: err.message,
-                    reason: err.reason,
-                    status_code: err.status_code,
-                },
-                Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id,
-                    connector_response_reference_id,
-                    ..
-                }) => types::CaptureSyncResponse::Success {
-                    resource_id,
-                    status: resp.status,
-                    connector_response_reference_id,
-                },
-                // this error is never meant to occur. response type will always be PaymentsResponseData::TransactionResponse
-                _ => Err(ApiErrorResponse::PreconditionFailed { message: "Response type must be PaymentsResponseData::TransactionResponse for payment sync".into() })?,
-            };
-            capture_sync_response_list.insert(connector_capture_id.clone(), capture_sync_response);
+            Ok(resp)
+        } else {
+            // in trigger, call connector for every capture_id
+            for connector_capture_id in pending_connector_capture_id_list {
+                self.request.connector_transaction_id =
+                    types::ResponseId::ConnectorTransactionId(connector_capture_id.clone());
+                let resp = services::execute_connector_processing_step(
+                    state,
+                    connector_integration.clone(),
+                    &self,
+                    call_connector_action.clone(),
+                    None,
+                )
+                .await
+                .to_payment_failed_response()?;
+                match resp.response {
+                    Err(err) => {
+                        capture_sync_response_map.insert(connector_capture_id, types::CaptureSyncResponse::Error {
+                            code: err.code,
+                            message: err.message,
+                            reason: err.reason,
+                            status_code: err.status_code,
+                            amount: None,
+                        });
+                    },
+                    Ok(types::PaymentsResponseData::MultipleCaptureResponse { capture_sync_response_list })=> {
+                        capture_sync_response_map.extend(capture_sync_response_list.into_iter());
+                    }
+                    _ => Err(ApiErrorResponse::PreconditionFailed { message: "Response type must be PaymentsResponseData::MultipleCaptureResponse for payment sync".into() })?,
+                };
+            }
+            self.response = Ok(types::PaymentsResponseData::MultipleCaptureResponse {
+                capture_sync_response_list: capture_sync_response_map,
+            });
+            Ok(self)
         }
-        self.response = Ok(types::PaymentsResponseData::MultipleCaptureResponse {
-            capture_sync_response_list,
-        });
-        Ok(self)
     }
 }

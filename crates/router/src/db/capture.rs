@@ -1,3 +1,5 @@
+use router_env::{instrument, tracing};
+
 use super::MockDb;
 use crate::{
     core::errors::{self, CustomResult},
@@ -31,6 +33,7 @@ pub trait CaptureInterface {
 #[cfg(feature = "kv_store")]
 mod storage {
     use error_stack::IntoReport;
+    use router_env::{instrument, tracing};
 
     use super::CaptureInterface;
     use crate::{
@@ -42,6 +45,7 @@ mod storage {
 
     #[async_trait::async_trait]
     impl CaptureInterface for Store {
+        #[instrument(skip_all)]
         async fn insert_capture(
             &self,
             capture: CaptureNew,
@@ -58,6 +62,7 @@ mod storage {
             db_call().await
         }
 
+        #[instrument(skip_all)]
         async fn update_capture_with_capture_id(
             &self,
             this: Capture,
@@ -74,6 +79,7 @@ mod storage {
             db_call().await
         }
 
+        #[instrument(skip_all)]
         async fn find_all_captures_by_merchant_id_payment_id_authorized_attempt_id(
             &self,
             merchant_id: &str,
@@ -101,6 +107,7 @@ mod storage {
 #[cfg(not(feature = "kv_store"))]
 mod storage {
     use error_stack::IntoReport;
+    use router_env::{instrument, tracing};
 
     use super::CaptureInterface;
     use crate::{
@@ -112,6 +119,7 @@ mod storage {
 
     #[async_trait::async_trait]
     impl CaptureInterface for Store {
+        #[instrument(skip_all)]
         async fn insert_capture(
             &self,
             capture: CaptureNew,
@@ -128,6 +136,7 @@ mod storage {
             db_call().await
         }
 
+        #[instrument(skip_all)]
         async fn update_capture_with_capture_id(
             &self,
             this: Capture,
@@ -144,6 +153,7 @@ mod storage {
             db_call().await
         }
 
+        #[instrument(skip_all)]
         async fn find_all_captures_by_merchant_id_payment_id_authorized_attempt_id(
             &self,
             merchant_id: &str,
@@ -199,6 +209,7 @@ impl CaptureInterface for MockDb {
         Ok(capture)
     }
 
+    #[instrument(skip_all)]
     async fn update_capture_with_capture_id(
         &self,
         _this: types::Capture,

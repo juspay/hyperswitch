@@ -11,6 +11,12 @@ use time::PrimitiveDateTime;
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+pub struct MandateDetails {
+    pub update_mandate_id: Option<String>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
 pub enum MandateDataType {
     SingleUse(MandateAmountData),
     MultiUse(Option<MandateAmountData>),
@@ -29,6 +35,8 @@ pub struct MandateAmountData {
 // information about creating mandates
 #[derive(Default, Eq, PartialEq, Debug, Clone)]
 pub struct MandateData {
+    /// A way to update the mandate's payment method details
+    pub update_mandate_id: Option<String>,
     /// A concent from the customer to store the payment method
     pub customer_acceptance: Option<CustomerAcceptance>,
     /// A way to select the type of mandate used
@@ -90,12 +98,23 @@ impl From<ApiMandateData> for MandateData {
         Self {
             customer_acceptance: value.customer_acceptance.map(|d| d.into()),
             mandate_type: value.mandate_type.map(|d| d.into()),
+            update_mandate_id: value.update_mandate_id,
         }
     }
 }
 
 impl From<ApiCustomerAcceptance> for CustomerAcceptance {
     fn from(value: ApiCustomerAcceptance) -> Self {
+        Self {
+            acceptance_type: value.acceptance_type.into(),
+            accepted_at: value.accepted_at,
+            online: value.online.map(|d| d.into()),
+        }
+    }
+}
+
+impl From<CustomerAcceptance> for ApiCustomerAcceptance {
+    fn from(value: CustomerAcceptance) -> Self {
         Self {
             acceptance_type: value.acceptance_type.into(),
             accepted_at: value.accepted_at,
@@ -112,9 +131,25 @@ impl From<ApiAcceptanceType> for AcceptanceType {
         }
     }
 }
+impl From<AcceptanceType> for ApiAcceptanceType {
+    fn from(value: AcceptanceType) -> Self {
+        match value {
+            AcceptanceType::Online => Self::Online,
+            AcceptanceType::Offline => Self::Offline,
+        }
+    }
+}
 
 impl From<ApiOnlineMandate> for OnlineMandate {
     fn from(value: ApiOnlineMandate) -> Self {
+        Self {
+            ip_address: value.ip_address,
+            user_agent: value.user_agent,
+        }
+    }
+}
+impl From<OnlineMandate> for ApiOnlineMandate {
+    fn from(value: OnlineMandate) -> Self {
         Self {
             ip_address: value.ip_address,
             user_agent: value.user_agent,

@@ -9,7 +9,7 @@ use std::{
     collections::{HashMap, HashSet},
     env,
     io::Read,
-    path::MAIN_SEPARATOR,
+    path::{MAIN_SEPARATOR, MAIN_SEPARATOR_STR},
     time::Duration,
 };
 
@@ -60,6 +60,7 @@ pub enum Assert<'a> {
     Eq(Selector, &'a str),
     Contains(Selector, &'a str),
     ContainsAny(Selector, Vec<&'a str>),
+    EitherOfThemExist(&'a str, &'a str),
     IsPresent(&'a str),
     IsElePresent(By),
     IsPresentNow(&'a str),
@@ -117,6 +118,10 @@ pub trait SeleniumTest {
                         }
                         _ => assert!(driver.title().await?.contains(search_keys.first().unwrap())),
                     },
+                    Assert::EitherOfThemExist(text_1, text_2) => assert!(
+                        is_text_present_now(driver, text_1).await?
+                            || is_text_present_now(driver, text_2).await?
+                    ),
                     Assert::Eq(_selector, text) => assert_eq!(driver.title().await?, text),
                     Assert::IsPresent(text) => {
                         assert!(is_text_present(driver, text).await?)
@@ -149,6 +154,13 @@ pub trait SeleniumTest {
                     },
                     Assert::Eq(_selector, text) => {
                         if text == driver.title().await? {
+                            self.complete_actions(driver, events).await?;
+                        }
+                    }
+                    Assert::EitherOfThemExist(text_1, text_2) => {
+                        if is_text_present_now(driver, text_1).await.is_ok()
+                            || is_text_present_now(driver, text_2).await.is_ok()
+                        {
                             self.complete_actions(driver, events).await?;
                         }
                     }
@@ -203,6 +215,19 @@ pub trait SeleniumTest {
                         self.complete_actions(
                             driver,
                             if text == driver.title().await? {
+                                success
+                            } else {
+                                failure
+                            },
+                        )
+                        .await?;
+                    }
+                    Assert::EitherOfThemExist(text_1, text_2) => {
+                        self.complete_actions(
+                            driver,
+                            if is_text_present_now(driver, text_1).await.is_ok()
+                                || is_text_present_now(driver, text_2).await.is_ok()
+                            {
                                 success
                             } else {
                                 failure
@@ -372,7 +397,7 @@ pub trait SeleniumTest {
     ) -> Result<(), WebDriverError> {
         let config = self.get_configs().automation_configs.unwrap();
         if config.run_minimum_steps.unwrap() {
-            self.complete_actions(&web_driver, actions[..3].to_vec())
+            self.complete_actions(&web_driver, actions.get(..3).unwrap().to_vec())
                 .await
         } else {
             self.complete_actions(&web_driver, actions).await
@@ -400,7 +425,7 @@ pub trait SeleniumTest {
             Event::Trigger(Trigger::SwitchTab(Position::Next)),
             Event::Trigger(Trigger::Sleep(5)),
             Event::RunIf(
-                Assert::IsPresentNow("Sign in"),
+                Assert::EitherOfThemExist("Use your Google Account", "Sign in"),
                 vec![
                     Event::Trigger(Trigger::SendKeys(By::Id("identifierId"), email)),
                     Event::Trigger(Trigger::ClickNth(By::Tag("button"), 2)),
@@ -513,7 +538,7 @@ pub trait SeleniumTest {
             let response = client.get(outgoing_webhook_url).send().await.unwrap(); // get events from outgoing webhook endpoint
             let body_text = response.text().await.unwrap();
             let data: WebhookResponse = serde_json::from_str(&body_text).unwrap();
-            let last_three_events = &data.data[data.data.len().saturating_sub(3)..]; // Get the last three elements if available
+            let last_three_events = data.data.get(data.data.len().saturating_sub(3)..).unwrap(); // Get the last three elements if available
             for last_event in last_three_events {
                 let last_event_body = &last_event.step.request.body;
                 let decoded_bytes = base64::engine::general_purpose::STANDARD //decode the encoded outgoing webhook event
@@ -737,7 +762,7 @@ macro_rules! function {
             std::any::type_name::<T>()
         }
         let name = type_name_of(f);
-        &name[..name.len() - 3]
+        &name.get(..name.len() - 3).unwrap()
     }};
 }
 
@@ -787,8 +812,14 @@ pub fn should_ignore_test(name: &str) -> bool {
     let tests_to_ignore: HashSet<String> =
         serde_json::from_value(conf).unwrap_or_else(|_| HashSet::new());
     let modules: Vec<_> = name.split("::").collect();
-    let file_match = format!("{}::*", <&str>::clone(&modules[1]));
-    let module_name = modules[1..3].join("::");
+    let file_match = format!(
+        "{}::*",
+        <&str>::clone(modules.get(1).expect("Error obtaining module path segment"))
+    );
+    let module_name = modules
+        .get(1..3)
+        .expect("Error obtaining module path segment")
+        .join("::");
     // Ignore if it matches patterns like nuvei_ui::*, nuvei_ui::should_make_nuvei_eps_payment_test
     tests_to_ignore.contains(&file_match) || tests_to_ignore.contains(&module_name)
 }
@@ -807,6 +838,8 @@ pub fn make_capabilities(browser: &str) -> Capabilities {
                 let profile_path = &format!("-profile={}", get_firefox_profile_path().unwrap());
                 caps.add_firefox_arg(profile_path).unwrap();
             } else {
+                let profile_path = &format!("-profile={}", get_firefox_profile_path().unwrap());
+                caps.add_firefox_arg(profile_path).unwrap();
                 caps.add_firefox_arg("--headless").ok();
             }
             caps.into()
@@ -829,10 +862,13 @@ fn get_chrome_profile_path() -> Result<String, WebDriverError> {
         .map(|str| {
             let mut fp = str.split(MAIN_SEPARATOR).collect::<Vec<_>>();
             fp.truncate(3);
-            fp.join(&MAIN_SEPARATOR.to_string())
+            fp.join(MAIN_SEPARATOR_STR)
         })
         .unwrap();
-    base_path.push_str(r"/Library/Application\ Support/Google/Chrome/Default"); //Issue: 1573
+    if env::consts::OS == "macos" {
+        base_path.push_str(r"/Library/Application\ Support/Google/Chrome/Default");
+        //Issue: 1573
+    } // We're only using Firefox on Ubuntu runner
     Ok(base_path)
 }
 
@@ -844,10 +880,20 @@ fn get_firefox_profile_path() -> Result<String, WebDriverError> {
         .map(|str| {
             let mut fp = str.split(MAIN_SEPARATOR).collect::<Vec<_>>();
             fp.truncate(3);
-            fp.join(&MAIN_SEPARATOR.to_string())
+            fp.join(MAIN_SEPARATOR_STR)
         })
         .unwrap();
-    base_path.push_str(r#"/Library/Application Support/Firefox/Profiles/hs-test"#); //Issue: 1573
+    if env::consts::OS == "macos" {
+        base_path.push_str(r#"/Library/Application Support/Firefox/Profiles/hs-test"#);
+    //Issue: 1573
+    } else if env::consts::OS == "linux" {
+        if let Some(home_dir) = env::var_os("HOME") {
+            if let Some(home_path) = home_dir.to_str() {
+                let profile_path = format!("{}/.mozilla/firefox/hs-test", home_path);
+                return Ok(profile_path);
+            }
+        }
+    }
     Ok(base_path)
 }
 

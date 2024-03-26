@@ -20,6 +20,7 @@ impl Connector for SquareTest {
             connector: Box::new(&Square),
             connector_name: types::Connector::Square,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
@@ -48,6 +49,7 @@ fn get_default_payment_info(payment_method_token: Option<String>) -> Option<util
         return_url: None,
         connector_customer: None,
         payment_method_token,
+        #[cfg(feature = "payouts")]
         payout_method_data: None,
         currency: None,
         country: None,
@@ -114,6 +116,7 @@ async fn should_capture_authorized_payment() {
 
 // Partially captures a payment using the manual capture flow (Non 3DS).
 #[actix_web::test]
+#[ignore = "Connector does not support partial capture"]
 async fn should_partially_capture_authorized_payment() {
     let response = CONNECTOR
         .authorize_and_capture_payment(

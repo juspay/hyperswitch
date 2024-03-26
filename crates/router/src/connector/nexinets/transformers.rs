@@ -3,13 +3,13 @@ use base64::Engine;
 use cards::CardNumber;
 use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
-use masking::{PeekInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
     connector::utils::{
-        CardData, PaymentsAuthorizeRequestData, PaymentsCancelRequestData, WalletData,
+        self, CardData, PaymentsAuthorizeRequestData, PaymentsCancelRequestData, WalletData,
     },
     consts,
     core::errors,
@@ -27,6 +27,7 @@ pub struct NexinetsPaymentsRequest {
     payment: Option<NexinetsPaymentDetails>,
     #[serde(rename = "async")]
     nexinets_async: NexinetsAsyncDetails,
+    merchant_order_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Default)]
@@ -85,7 +86,7 @@ pub struct CardDetails {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentInstrument {
-    payment_instrument_id: Option<String>,
+    payment_instrument_id: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -172,6 +173,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NexinetsPaymentsRequest {
             failure_url: return_url,
         };
         let (payment, product) = get_payment_details_and_product(item)?;
+        let merchant_order_id = match item.payment_method {
+            // Merchant order id is sent only in case of card payment
+            enums::PaymentMethod::Card => Some(item.connector_request_reference_id.clone()),
+            _ => None,
+        };
         Ok(Self {
             initial_amount: item.request.amount,
             currency: item.request.currency,
@@ -179,6 +185,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NexinetsPaymentsRequest {
             product,
             payment,
             nexinets_async,
+            merchant_order_id,
         })
     }
 }
@@ -204,7 +211,7 @@ impl TryFrom<&types::ConnectorAuthType> for NexinetsAuthType {
     }
 }
 // PaymentsResponse
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum NexinetsPaymentStatus {
     Success,
@@ -268,7 +275,7 @@ impl TryFrom<&api_models::enums::BankNames> for NexinetsBIC {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexinetsPreAuthOrDebitResponse {
     order_id: String,
@@ -278,7 +285,7 @@ pub struct NexinetsPreAuthOrDebitResponse {
     redirect_url: Option<Url>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexinetsTransaction {
     pub transaction_id: String,
@@ -350,7 +357,7 @@ impl<F, T>
             .payment_instrument
             .payment_instrument_id
             .map(|id| types::MandateReference {
-                connector_mandate_id: Some(id),
+                connector_mandate_id: Some(id.expose()),
                 payment_method_id: None,
             });
         Ok(Self {
@@ -364,7 +371,8 @@ impl<F, T>
                 mandate_reference,
                 connector_metadata: Some(connector_metadata),
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.order_id),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -378,7 +386,7 @@ pub struct NexinetsCaptureOrVoidRequest {
     pub currency: enums::Currency,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexinetsOrder {
     pub order_id: String,
@@ -404,7 +412,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for NexinetsCaptureOrVoidRequest 
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexinetsPaymentResponse {
     pub transaction_id: String,
@@ -425,7 +433,7 @@ impl<F, T>
         let transaction_id = Some(item.response.transaction_id.clone());
         let connector_metadata = serde_json::to_value(NexinetsPaymentsMetadata {
             transaction_id,
-            order_id: Some(item.response.order.order_id),
+            order_id: Some(item.response.order.order_id.clone()),
             psync_flow: item.response.transaction_type.clone(),
         })
         .into_report()
@@ -447,7 +455,8 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: Some(connector_metadata),
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.order.order_id),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -474,7 +483,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for NexinetsRefundRequest {
 }
 
 // Type definition for Refund Response
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexinetsRefundResponse {
     pub transaction_id: String,
@@ -485,7 +494,7 @@ pub struct NexinetsRefundResponse {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum RefundStatus {
     Success,
@@ -495,7 +504,7 @@ pub enum RefundStatus {
     InProgress,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum RefundType {
     Refund,
@@ -545,7 +554,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, NexinetsRefundResponse
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct NexinetsErrorResponse {
     pub status: u16,
     pub code: u16,
@@ -553,7 +562,7 @@ pub struct NexinetsErrorResponse {
     pub errors: Vec<OrderErrorDetails>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Serialize)]
 pub struct OrderErrorDetails {
     pub code: u16,
     pub message: String,
@@ -590,12 +599,36 @@ fn get_payment_details_and_product(
             api_models::payments::BankRedirectData::Sofort { .. } => {
                 Ok((None, NexinetsProduct::Sofort))
             }
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment methods".to_string(),
-            ))?,
+            api_models::payments::BankRedirectData::BancontactCard { .. }
+            | api_models::payments::BankRedirectData::Blik { .. }
+            | api_models::payments::BankRedirectData::Bizum { .. }
+            | api_models::payments::BankRedirectData::Interac { .. }
+            | api_models::payments::BankRedirectData::OnlineBankingCzechRepublic { .. }
+            | api_models::payments::BankRedirectData::OnlineBankingFinland { .. }
+            | api_models::payments::BankRedirectData::OnlineBankingPoland { .. }
+            | api_models::payments::BankRedirectData::OnlineBankingSlovakia { .. }
+            | api_models::payments::BankRedirectData::OpenBankingUk { .. }
+            | api_models::payments::BankRedirectData::Przelewy24 { .. }
+            | api_models::payments::BankRedirectData::Trustly { .. }
+            | api_models::payments::BankRedirectData::OnlineBankingFpx { .. }
+            | api_models::payments::BankRedirectData::OnlineBankingThailand { .. } => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("nexinets"),
+                ))?
+            }
         },
-        _ => Err(errors::ConnectorError::NotImplemented(
-            "Payment methods".to_string(),
+        PaymentMethodData::CardRedirect(_)
+        | PaymentMethodData::PayLater(_)
+        | PaymentMethodData::BankDebit(_)
+        | PaymentMethodData::BankTransfer(_)
+        | PaymentMethodData::Crypto(_)
+        | PaymentMethodData::MandatePayment
+        | PaymentMethodData::Reward
+        | PaymentMethodData::Upi(_)
+        | PaymentMethodData::Voucher(_)
+        | PaymentMethodData::GiftCard(_)
+        | PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+            utils::get_unimplemented_payment_method_error_message("nexinets"),
         ))?,
     }
 }
@@ -608,9 +641,9 @@ fn get_card_data(
         true => {
             let card_data = match item.request.off_session {
                 Some(true) => CardDataDetails::PaymentInstrument(Box::new(PaymentInstrument {
-                    payment_instrument_id: item.request.connector_mandate_id(),
+                    payment_instrument_id: item.request.connector_mandate_id().map(Secret::new),
                 })),
-                _ => CardDataDetails::CardDetails(Box::new(get_card_details(card))),
+                _ => CardDataDetails::CardDetails(Box::new(get_card_details(card)?)),
             };
             let cof_contract = Some(CofContract {
                 recurring_type: RecurringType::Unscheduled,
@@ -618,7 +651,7 @@ fn get_card_data(
             (card_data, cof_contract)
         }
         false => (
-            CardDataDetails::CardDetails(Box::new(get_card_details(card))),
+            CardDataDetails::CardDetails(Box::new(get_card_details(card)?)),
             None,
         ),
     };
@@ -644,13 +677,15 @@ fn get_applepay_details(
     })
 }
 
-fn get_card_details(req_card: &api_models::payments::Card) -> CardDetails {
-    CardDetails {
+fn get_card_details(
+    req_card: &api_models::payments::Card,
+) -> Result<CardDetails, errors::ConnectorError> {
+    Ok(CardDetails {
         card_number: req_card.card_number.clone(),
         expiry_month: req_card.card_exp_month.clone(),
-        expiry_year: req_card.get_card_expiry_year_2_digit(),
+        expiry_year: req_card.get_card_expiry_year_2_digit()?,
         verification: req_card.card_cvc.clone(),
-    }
+    })
 }
 
 fn get_wallet_details(
@@ -670,9 +705,34 @@ fn get_wallet_details(
             ))),
             NexinetsProduct::Applepay,
         )),
-        _ => Err(errors::ConnectorError::NotImplemented(
-            "Payment methods".to_string(),
-        ))?,
+        api_models::payments::WalletData::AliPayQr(_)
+        | api_models::payments::WalletData::AliPayRedirect(_)
+        | api_models::payments::WalletData::AliPayHkRedirect(_)
+        | api_models::payments::WalletData::MomoRedirect(_)
+        | api_models::payments::WalletData::KakaoPayRedirect(_)
+        | api_models::payments::WalletData::GoPayRedirect(_)
+        | api_models::payments::WalletData::GcashRedirect(_)
+        | api_models::payments::WalletData::ApplePayRedirect(_)
+        | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
+        | api_models::payments::WalletData::DanaRedirect { .. }
+        | api_models::payments::WalletData::GooglePay(_)
+        | api_models::payments::WalletData::GooglePayRedirect(_)
+        | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
+        | api_models::payments::WalletData::MbWayRedirect(_)
+        | api_models::payments::WalletData::MobilePayRedirect(_)
+        | api_models::payments::WalletData::PaypalSdk(_)
+        | api_models::payments::WalletData::SamsungPay(_)
+        | api_models::payments::WalletData::TwintRedirect { .. }
+        | api_models::payments::WalletData::VippsRedirect { .. }
+        | api_models::payments::WalletData::TouchNGoRedirect(_)
+        | api_models::payments::WalletData::WeChatPayRedirect(_)
+        | api_models::payments::WalletData::WeChatPayQr(_)
+        | api_models::payments::WalletData::CashappQr(_)
+        | api_models::payments::WalletData::SwishQr(_) => {
+            Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("nexinets"),
+            ))?
+        }
     }
 }
 

@@ -1,18 +1,17 @@
 pub mod types;
-
 use actix_web::{web, HttpRequest, HttpResponse};
 use error_stack::report;
-use router_env::{instrument, tracing, Flow};
+use router_env::{instrument, tracing, Flow, Tag};
 
 use crate::{
     compatibility::{stripe::errors, wrap},
-    core::refunds,
-    routes,
+    core::{api_locking, refunds},
+    logger, routes,
     services::{api, authentication as auth},
     types::api::refunds as refund_types,
 };
 
-#[instrument(skip_all, fields(flow = ?Flow::RefundsCreate))]
+#[instrument(skip_all, fields(flow = ?Flow::RefundsCreate, payment_id))]
 pub async fn refund_create(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -27,6 +26,10 @@ pub async fn refund_create(
         Err(err) => return api::log_and_return_error_response(err),
     };
 
+    tracing::Span::current().record("payment_id", &payload.payment_intent.clone());
+
+    logger::info!(tag = ?Tag::CompatibilityLayerRequest, payload = ?payload);
+
     let create_refund_req: refund_types::RefundRequest = payload.into();
 
     let flow = Flow::RefundsCreate;
@@ -40,27 +43,28 @@ pub async fn refund_create(
         _,
         types::StripeRefundResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
-        state.get_ref(),
+        state.into_inner(),
         &req,
         create_refund_req,
         |state, auth, req| {
             refunds::refund_create_core(state, auth.merchant_account, auth.key_store, req)
         },
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     ))
     .await
 }
-
-#[instrument(skip_all, fields(flow = ?Flow::RefundsRetrieve))]
+#[instrument(skip_all, fields(flow))]
 pub async fn refund_retrieve_with_gateway_creds(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
     req: HttpRequest,
     form_payload: web::Bytes,
 ) -> HttpResponse {
-    let refund_request = match qs_config
+    let refund_request: refund_types::RefundsRetrieveRequest = match qs_config
         .deserialize_bytes(&form_payload)
         .map_err(|err| report!(errors::StripeErrorCode::from(err)))
     {
@@ -68,7 +72,12 @@ pub async fn refund_retrieve_with_gateway_creds(
         Err(err) => return api::log_and_return_error_response(err),
     };
 
-    let flow = Flow::RefundsRetrieve;
+    let flow = match refund_request.force_sync {
+        Some(true) => Flow::RefundsRetrieveForceSync,
+        _ => Flow::RefundsRetrieve,
+    };
+
+    tracing::Span::current().record("flow", &flow.to_string());
 
     Box::pin(wrap::compatibility_api_wrap::<
         _,
@@ -79,9 +88,10 @@ pub async fn refund_retrieve_with_gateway_creds(
         _,
         types::StripeRefundResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
-        state.get_ref(),
+        state.into_inner(),
         &req,
         refund_request,
         |state, auth, refund_request| {
@@ -94,11 +104,11 @@ pub async fn refund_retrieve_with_gateway_creds(
             )
         },
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     ))
     .await
 }
-
-#[instrument(skip_all, fields(flow = ?Flow::RefundsRetrieve))]
+#[instrument(skip_all, fields(flow = ?Flow::RefundsRetrieveForceSync))]
 pub async fn refund_retrieve(
     state: web::Data<routes::AppState>,
     req: HttpRequest,
@@ -110,7 +120,7 @@ pub async fn refund_retrieve(
         merchant_connector_details: None,
     };
 
-    let flow = Flow::RefundsRetrieve;
+    let flow = Flow::RefundsRetrieveForceSync;
 
     Box::pin(wrap::compatibility_api_wrap::<
         _,
@@ -121,9 +131,10 @@ pub async fn refund_retrieve(
         _,
         types::StripeRefundResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
-        state.get_ref(),
+        state.into_inner(),
         &req,
         refund_request,
         |state, auth, refund_request| {
@@ -136,10 +147,10 @@ pub async fn refund_retrieve(
             )
         },
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     ))
     .await
 }
-
 #[instrument(skip_all, fields(flow = ?Flow::RefundsUpdate))]
 pub async fn refund_update(
     state: web::Data<routes::AppState>,
@@ -147,8 +158,8 @@ pub async fn refund_update(
     path: web::Path<String>,
     form_payload: web::Form<types::StripeUpdateRefundRequest>,
 ) -> HttpResponse {
-    let refund_id = path.into_inner();
-    let payload = form_payload.into_inner();
+    let mut payload = form_payload.into_inner();
+    payload.refund_id = path.into_inner();
     let create_refund_update_req: refund_types::RefundUpdateRequest = payload.into();
     let flow = Flow::RefundsUpdate;
 
@@ -161,15 +172,15 @@ pub async fn refund_update(
         _,
         types::StripeRefundResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
-        state.get_ref(),
+        state.into_inner(),
         &req,
         create_refund_update_req,
-        |state, auth, req| {
-            refunds::refund_update_core(&*state.store, auth.merchant_account, &refund_id, req)
-        },
+        |state, auth, req| refunds::refund_update_core(state, auth.merchant_account, req),
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     ))
     .await
 }

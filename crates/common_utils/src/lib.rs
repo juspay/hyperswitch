@@ -6,11 +6,19 @@ pub mod consts;
 pub mod crypto;
 pub mod custom_serde;
 pub mod errors;
+#[allow(missing_docs)] // Todo: add docs
+pub mod events;
 pub mod ext_traits;
 pub mod fp_utils;
+pub mod macros;
 pub mod pii;
+#[allow(missing_docs)] // Todo: add docs
+pub mod request;
 #[cfg(feature = "signals")]
 pub mod signals;
+#[allow(missing_docs)] // Todo: add docs
+pub mod static_cache;
+pub mod types;
 pub mod validation;
 
 /// Date-time utilities.
@@ -27,9 +35,6 @@ pub mod date_time {
         },
         OffsetDateTime, PrimitiveDateTime,
     };
-    /// Struct to represent milliseconds in time sensitive data fields
-    #[derive(Debug)]
-    pub struct Milliseconds(i32);
 
     /// Enum to represent date formats
     #[derive(Debug)]
@@ -189,4 +194,10 @@ pub fn generate_id(length: usize, prefix: &str) -> String {
 pub fn generate_id_with_default_len(prefix: &str) -> String {
     let len = consts::ID_LENGTH;
     format!("{}_{}", prefix, nanoid::nanoid!(len, &consts::ALPHABETS))
+}
+
+/// Generate a time-ordered (time-sortable) unique identifier using the current time
+#[inline]
+pub fn generate_time_ordered_id(prefix: &str) -> String {
+    format!("{prefix}_{}", uuid::Uuid::now_v7().as_simple())
 }

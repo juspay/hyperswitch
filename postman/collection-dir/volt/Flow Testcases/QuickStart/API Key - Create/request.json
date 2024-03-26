@@ -1,0 +1,52 @@
+{
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "value",
+        "value": "{{admin_api_key}}",
+        "type": "string"
+      },
+      {
+        "key": "key",
+        "value": "api-key",
+        "type": "string"
+      }
+    ]
+  },
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json"
+    },
+    {
+      "key": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "body": {
+    "mode": "raw",
+    "raw_json_formatted": {
+      "name": "API Key 1",
+      "description": null,
+      "expiration": "2099-09-23T01:02:03.000Z"
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/api_keys/:merchant_id",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "api_keys",
+      ":merchant_id"
+    ],
+    "variable": [
+      {
+        "key": "merchant_id",
+        "value": "{{merchant_id}}"
+      }
+    ]
+  }
+}

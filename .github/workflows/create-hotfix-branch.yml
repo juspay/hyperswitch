@@ -1,0 +1,46 @@
+name: Create hotfix branch
+
+on:
+  workflow_dispatch:
+
+jobs:
+  create_branch:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Generate a token
+        if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
+        id: generate_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
+          private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ steps.generate_token.outputs.token }}
+
+      - name: Check if the input is valid tag
+        shell: bash
+        run: |
+          if [[ ${{github.ref}} =~ ^refs/tags/[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[0-9]+$ ]]; then
+            echo "::notice::${{github.ref}} is a CalVer tag."
+          else
+            echo "::error::${{github.ref}} is not a CalVer tag."
+            exit 1
+          fi
+
+      - name: Create hotfix branch
+        shell: bash
+        run: |
+          HOTFIX_BRANCH="hotfix-${GITHUB_REF#refs/tags/}"
+
+          if git switch --create "$HOTFIX_BRANCH"; then
+            git push origin "$HOTFIX_BRANCH"
+            echo "::notice::Created hotfix branch: $HOTFIX_BRANCH"
+          else
+            echo "::error::Failed to create hotfix branch"
+            exit 1
+          fi

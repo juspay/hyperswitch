@@ -1,15 +1,16 @@
-use common_utils::crypto::{Encryptable, GcmAes256};
-use error_stack::ResultExt;
+use common_utils::{
+    crypto::{Encryptable, GcmAes256},
+    errors::ReportSwitchExt,
+};
+use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 use router_env::{instrument, tracing};
 
 use crate::{
-    consts,
     core::{
-        errors::{self, RouterResponse, StorageErrorExt},
+        errors::{self, StorageErrorExt},
         payment_methods::cards,
     },
-    db::StorageInterface,
     pii::PeekInterface,
     routes::{metrics, AppState},
     services,
@@ -21,81 +22,67 @@ use crate::{
         },
         storage::{self, enums},
     },
-    utils::generate_id,
+    utils::CustomerAddress,
 };
 
 pub const REDACTED: &str = "Redacted";
 
-#[instrument(skip(db))]
+#[instrument(skip(state))]
 pub async fn create_customer(
-    db: &dyn StorageInterface,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     mut customer_data: customers::CustomerRequest,
-) -> RouterResponse<customers::CustomerResponse> {
+) -> errors::CustomerResponse<customers::CustomerResponse> {
+    let db = state.store.as_ref();
     let customer_id = &customer_data.customer_id;
     let merchant_id = &merchant_account.merchant_id;
     customer_data.merchant_id = merchant_id.to_owned();
 
+    // We first need to validate whether the customer with the given customer id already exists
+    // this may seem like a redundant db call, as the insert_customer will anyway return this error
+    //
+    // Consider a scenerio where the address is inserted and then when inserting the customer,
+    // it errors out, now the address that was inserted is not deleted
+    match db
+        .find_customer_by_customer_id_merchant_id(customer_id, merchant_id, &key_store)
+        .await
+    {
+        Err(err) => {
+            if !err.current_context().is_db_not_found() {
+                Err(err).switch()
+            } else {
+                Ok(())
+            }
+        }
+        Ok(_) => Err(errors::CustomersErrorResponse::CustomerAlreadyExists).into_report(),
+    }?;
+
     let key = key_store.key.get_inner().peek();
-    if let Some(addr) = &customer_data.address {
+    let address = if let Some(addr) = &customer_data.address {
         let customer_address: api_models::payments::AddressDetails = addr.clone();
 
-        let address = async {
-            Ok(domain::Address {
-                city: customer_address.city,
-                country: customer_address.country,
-                line1: customer_address
-                    .line1
-                    .async_lift(|inner| types::encrypt_optional(inner, key))
-                    .await?,
-                line2: customer_address
-                    .line2
-                    .async_lift(|inner| types::encrypt_optional(inner, key))
-                    .await?,
-                line3: customer_address
-                    .line3
-                    .async_lift(|inner| types::encrypt_optional(inner, key))
-                    .await?,
-                zip: customer_address
-                    .zip
-                    .async_lift(|inner| types::encrypt_optional(inner, key))
-                    .await?,
-                state: customer_address
-                    .state
-                    .async_lift(|inner| types::encrypt_optional(inner, key))
-                    .await?,
-                first_name: customer_address
-                    .first_name
-                    .async_lift(|inner| types::encrypt_optional(inner, key))
-                    .await?,
-                last_name: customer_address
-                    .last_name
-                    .async_lift(|inner| types::encrypt_optional(inner, key))
-                    .await?,
-                phone_number: customer_data
-                    .phone
-                    .clone()
-                    .async_lift(|inner| types::encrypt_optional(inner, key))
-                    .await?,
-                country_code: customer_data.phone_country_code.clone(),
-                customer_id: customer_id.to_string(),
-                merchant_id: merchant_id.to_string(),
-                id: None,
-                address_id: generate_id(consts::ID_LENGTH, "add"),
-                created_at: common_utils::date_time::now(),
-                modified_at: common_utils::date_time::now(),
-            })
-        }
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed while encrypting address")?;
-
-        db.insert_address(address, &key_store)
+        let address = customer_data
+            .get_domain_address(
+                customer_address,
+                merchant_id,
+                customer_id,
+                key,
+                merchant_account.storage_scheme,
+            )
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed while inserting new address")?;
-    }
+            .switch()
+            .attach_printable("Failed while encrypting address")?;
+
+        Some(
+            db.insert_address_for_customers(address, &key_store)
+                .await
+                .switch()
+                .attach_printable("Failed while inserting new address")?,
+        )
+    } else {
+        None
+    };
 
     let new_customer = async {
         Ok(domain::Customer {
@@ -118,44 +105,36 @@ pub async fn create_customer(
             metadata: customer_data.metadata,
             id: None,
             connector_customer: None,
+            address_id: address.clone().map(|addr| addr.address_id),
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
+            default_payment_method_id: None,
         })
     }
     .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .switch()
     .attach_printable("Failed while encrypting Customer")?;
 
-    let customer = match db.insert_customer(new_customer, &key_store).await {
-        Ok(customer) => customer,
-        Err(error) => {
-            if error.current_context().is_db_unique_violation() {
-                db.find_customer_by_customer_id_merchant_id(customer_id, merchant_id, &key_store)
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(format!(
-                        "Failed while fetching Customer, customer_id: {customer_id}",
-                    ))?
-            } else {
-                Err(error
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed while inserting new customer"))?
-            }
-        }
-    };
-    let mut customer_response: customers::CustomerResponse = customer.into();
-    customer_response.address = customer_data.address;
+    let customer = db
+        .insert_customer(new_customer, &key_store)
+        .await
+        .to_duplicate_response(errors::CustomersErrorResponse::CustomerAlreadyExists)?;
 
-    Ok(services::ApplicationResponse::Json(customer_response))
+    let address_details = address.map(api_models::payments::AddressDetails::from);
+
+    Ok(services::ApplicationResponse::Json(
+        customers::CustomerResponse::from((customer, address_details)),
+    ))
 }
 
-#[instrument(skip(db))]
+#[instrument(skip(state))]
 pub async fn retrieve_customer(
-    db: &dyn StorageInterface,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: customers::CustomerId,
-) -> RouterResponse<customers::CustomerResponse> {
+) -> errors::CustomerResponse<customers::CustomerResponse> {
+    let db = state.store.as_ref();
     let response = db
         .find_customer_by_customer_id_merchant_id(
             &req.customer_id,
@@ -163,18 +142,48 @@ pub async fn retrieve_customer(
             &key_store,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+        .switch()?;
+    let address = match &response.address_id {
+        Some(address_id) => Some(api_models::payments::AddressDetails::from(
+            db.find_address_by_address_id(address_id, &key_store)
+                .await
+                .switch()?,
+        )),
+        None => None,
+    };
+    Ok(services::ApplicationResponse::Json(
+        customers::CustomerResponse::from((response, address)),
+    ))
+}
 
-    Ok(services::ApplicationResponse::Json(response.into()))
+#[instrument(skip(state))]
+pub async fn list_customers(
+    state: AppState,
+    merchant_id: String,
+    key_store: domain::MerchantKeyStore,
+) -> errors::CustomerResponse<Vec<customers::CustomerResponse>> {
+    let db = state.store.as_ref();
+
+    let domain_customers = db
+        .list_customers_by_merchant_id(&merchant_id, &key_store)
+        .await
+        .switch()?;
+
+    let customers = domain_customers
+        .into_iter()
+        .map(|domain_customer| customers::CustomerResponse::from((domain_customer, None)))
+        .collect();
+
+    Ok(services::ApplicationResponse::Json(customers))
 }
 
 #[instrument(skip_all)]
 pub async fn delete_customer(
-    state: &AppState,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     req: customers::CustomerId,
     key_store: domain::MerchantKeyStore,
-) -> RouterResponse<customers::CustomerDeleteResponse> {
+) -> errors::CustomerResponse<customers::CustomerDeleteResponse> {
     let db = &state.store;
 
     db.find_customer_by_customer_id_merchant_id(
@@ -183,16 +192,16 @@ pub async fn delete_customer(
         &key_store,
     )
     .await
-    .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+    .switch()?;
 
     let customer_mandates = db
         .find_mandate_by_merchant_id_customer_id(&merchant_account.merchant_id, &req.customer_id)
         .await
-        .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
+        .switch()?;
 
     for mandate in customer_mandates.into_iter() {
         if mandate.mandate_status == enums::MandateStatus::Active {
-            Err(errors::ApiErrorResponse::MandateActive)?
+            Err(errors::CustomersErrorResponse::MandateActive)?
         }
     }
 
@@ -200,6 +209,7 @@ pub async fn delete_customer(
         .find_payment_method_by_customer_id_merchant_id_list(
             &req.customer_id,
             &merchant_account.merchant_id,
+            None,
         )
         .await
     {
@@ -207,19 +217,20 @@ pub async fn delete_customer(
             for pm in customer_payment_methods.into_iter() {
                 if pm.payment_method == enums::PaymentMethod::Card {
                     cards::delete_card_from_locker(
-                        state,
+                        &state,
                         &req.customer_id,
                         &merchant_account.merchant_id,
-                        &pm.payment_method_id,
+                        pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
                     )
-                    .await?;
+                    .await
+                    .switch()?;
                 }
                 db.delete_payment_method_by_merchant_id_payment_method_id(
                     &merchant_account.merchant_id,
                     &pm.payment_method_id,
                 )
                 .await
-                .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+                .switch()?;
             }
         }
         Err(error) => {
@@ -227,7 +238,7 @@ pub async fn delete_customer(
                 Ok(())
             } else {
                 Err(error)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .change_context(errors::CustomersErrorResponse::InternalServerError)
                     .attach_printable("failed find_payment_method_by_customer_id_merchant_id_list")
             }?
         }
@@ -238,7 +249,13 @@ pub async fn delete_customer(
     let redacted_encrypted_value: Encryptable<masking::Secret<_>> =
         Encryptable::encrypt(REDACTED.to_string().into(), key, GcmAes256)
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            .switch()?;
+
+    let redacted_encrypted_email: Encryptable<
+        masking::Secret<_, common_utils::pii::EmailStrategy>,
+    > = Encryptable::encrypt(REDACTED.to_string().into(), key, GcmAes256)
+        .await
+        .switch()?;
 
     let update_address = storage::AddressUpdate::Update {
         city: Some(REDACTED.to_string()),
@@ -252,6 +269,8 @@ pub async fn delete_customer(
         last_name: Some(redacted_encrypted_value.clone()),
         phone_number: Some(redacted_encrypted_value.clone()),
         country_code: Some(REDACTED.to_string()),
+        updated_by: merchant_account.storage_scheme.to_string(),
+        email: Some(redacted_encrypted_email),
     };
 
     match db
@@ -269,7 +288,7 @@ pub async fn delete_customer(
                 Ok(())
             } else {
                 Err(error)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .change_context(errors::CustomersErrorResponse::InternalServerError)
                     .attach_printable("failed update_address_by_merchant_id_customer_id")
             }
         }
@@ -280,13 +299,14 @@ pub async fn delete_customer(
         email: Some(
             Encryptable::encrypt(REDACTED.to_string().into(), key, GcmAes256)
                 .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                .switch()?,
         ),
-        phone: Some(redacted_encrypted_value.clone()),
+        phone: Box::new(Some(redacted_encrypted_value.clone())),
         description: Some(REDACTED.to_string()),
         phone_country_code: Some(REDACTED.to_string()),
         metadata: None,
         connector_customer: None,
+        address_id: None,
     };
     db.update_customer_by_customer_id_merchant_id(
         req.customer_id.clone(),
@@ -295,7 +315,7 @@ pub async fn delete_customer(
         &key_store,
     )
     .await
-    .change_context(errors::ApiErrorResponse::CustomerNotFound)?;
+    .switch()?;
 
     let response = customers::CustomerDeleteResponse {
         customer_id: req.customer_id,
@@ -307,81 +327,76 @@ pub async fn delete_customer(
     Ok(services::ApplicationResponse::Json(response))
 }
 
-#[instrument(skip(db))]
+#[instrument(skip(state))]
 pub async fn update_customer(
-    db: &dyn StorageInterface,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     update_customer: customers::CustomerRequest,
     key_store: domain::MerchantKeyStore,
-) -> RouterResponse<customers::CustomerResponse> {
+) -> errors::CustomerResponse<customers::CustomerResponse> {
+    let db = state.store.as_ref();
     //Add this in update call if customer can be updated anywhere else
-    db.find_customer_by_customer_id_merchant_id(
-        &update_customer.customer_id,
-        &merchant_account.merchant_id,
-        &key_store,
-    )
-    .await
-    .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
-
-    let key = key_store.key.get_inner().peek();
-
-    if let Some(addr) = &update_customer.address {
-        let customer_address: api_models::payments::AddressDetails = addr.clone();
-        let update_address = async {
-            Ok(storage::AddressUpdate::Update {
-                city: customer_address.city,
-                country: customer_address.country,
-                line1: customer_address
-                    .line1
-                    .async_lift(|inner| types::encrypt_optional(inner, key))
-                    .await?,
-                line2: customer_address
-                    .line2
-                    .async_lift(|inner| types::encrypt_optional(inner, key))
-                    .await?,
-                line3: customer_address
-                    .line3
-                    .async_lift(|inner| types::encrypt_optional(inner, key))
-                    .await?,
-                zip: customer_address
-                    .zip
-                    .async_lift(|inner| types::encrypt_optional(inner, key))
-                    .await?,
-                state: customer_address
-                    .state
-                    .async_lift(|inner| types::encrypt_optional(inner, key))
-                    .await?,
-                first_name: customer_address
-                    .first_name
-                    .async_lift(|inner| types::encrypt_optional(inner, key))
-                    .await?,
-                last_name: customer_address
-                    .last_name
-                    .async_lift(|inner| types::encrypt_optional(inner, key))
-                    .await?,
-                phone_number: update_customer
-                    .phone
-                    .clone()
-                    .async_lift(|inner| types::encrypt_optional(inner, key))
-                    .await?,
-                country_code: update_customer.phone_country_code.clone(),
-            })
-        }
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed while encrypting Address while Update")?;
-        db.update_address_by_merchant_id_customer_id(
+    let customer = db
+        .find_customer_by_customer_id_merchant_id(
             &update_customer.customer_id,
             &merchant_account.merchant_id,
-            update_address,
             &key_store,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable(format!(
-            "Failed while updating address: merchant_id: {}, customer_id: {}",
-            merchant_account.merchant_id, update_customer.customer_id
-        ))?;
+        .switch()?;
+
+    let key = key_store.key.get_inner().peek();
+
+    let address = if let Some(addr) = &update_customer.address {
+        match customer.address_id {
+            Some(address_id) => {
+                let customer_address: api_models::payments::AddressDetails = addr.clone();
+                let update_address = update_customer
+                    .get_address_update(customer_address, key, merchant_account.storage_scheme)
+                    .await
+                    .switch()
+                    .attach_printable("Failed while encrypting Address while Update")?;
+                Some(
+                    db.update_address(address_id.clone(), update_address, &key_store)
+                        .await
+                        .switch()
+                        .attach_printable(format!(
+                            "Failed while updating address: merchant_id: {}, customer_id: {}",
+                            merchant_account.merchant_id, update_customer.customer_id
+                        ))?,
+                )
+            }
+            None => {
+                let customer_address: api_models::payments::AddressDetails = addr.clone();
+
+                let address = update_customer
+                    .get_domain_address(
+                        customer_address,
+                        &merchant_account.merchant_id,
+                        &customer.customer_id,
+                        key,
+                        merchant_account.storage_scheme,
+                    )
+                    .await
+                    .switch()
+                    .attach_printable("Failed while encrypting address")?;
+                Some(
+                    db.insert_address_for_customers(address, &key_store)
+                        .await
+                        .switch()
+                        .attach_printable("Failed while inserting new address")?,
+                )
+            }
+        }
+    } else {
+        match &customer.address_id {
+            Some(address_id) => Some(
+                db.find_address_by_address_id(address_id, &key_store)
+                    .await
+                    .switch()?,
+            ),
+            None => None,
+        }
     };
 
     let response = db
@@ -400,27 +415,28 @@ pub async fn update_customer(
                             types::encrypt_optional(inner.map(|inner| inner.expose()), key)
                         })
                         .await?,
-                    phone: update_customer
-                        .phone
-                        .async_lift(|inner| types::encrypt_optional(inner, key))
-                        .await?,
+                    phone: Box::new(
+                        update_customer
+                            .phone
+                            .async_lift(|inner| types::encrypt_optional(inner, key))
+                            .await?,
+                    ),
                     phone_country_code: update_customer.phone_country_code,
                     metadata: update_customer.metadata,
                     description: update_customer.description,
                     connector_customer: None,
+                    address_id: address.clone().map(|addr| addr.address_id),
                 })
             }
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .switch()
             .attach_printable("Failed while encrypting while updating customer")?,
             &key_store,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+        .switch()?;
 
-    let mut customer_update_response: customers::CustomerResponse = response.into();
-    customer_update_response.address = update_customer.address;
     Ok(services::ApplicationResponse::Json(
-        customer_update_response,
+        customers::CustomerResponse::from((response, update_customer.address)),
     ))
 }
