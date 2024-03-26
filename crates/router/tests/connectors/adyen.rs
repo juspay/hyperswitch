@@ -134,7 +134,7 @@ impl AdyenTest {
         Some(types::PaymentsAuthorizeData {
             amount: 3500,
             currency: enums::Currency::USD,
-            payment_method_data: types::api::PaymentMethodData::Card(types::api::Card {
+            payment_method_data: types::domain::PaymentMethodData::Card(types::domain::Card {
                 card_number: cards::CardNumber::from_str(card_number).unwrap(),
                 card_exp_month: Secret::new(card_exp_month.to_string()),
                 card_exp_year: Secret::new(card_exp_year.to_string()),
@@ -445,7 +445,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 router_return_url: Some(String::from("http://localhost:8080")),
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+                payment_method_data: types::domain::PaymentMethodData::Card(types::domain::Card {
                     card_number: cards::CardNumber::from_str("4024007134364842").unwrap(),
                     ..utils::CCardType::default().0
                 }),
@@ -465,7 +465,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 router_return_url: Some(String::from("http://localhost:8080")),
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+                payment_method_data: types::domain::PaymentMethodData::Card(types::domain::Card {
                     card_cvc: Secret::new("12345".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -488,7 +488,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 router_return_url: Some(String::from("http://localhost:8080")),
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+                payment_method_data: types::domain::PaymentMethodData::Card(types::domain::Card {
                     card_exp_month: Secret::new("20".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -509,7 +509,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 router_return_url: Some(String::from("http://localhost:8080")),
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+                payment_method_data: types::domain::PaymentMethodData::Card(types::domain::Card {
                     card_exp_year: Secret::new("2000".to_string()),
                     ..utils::CCardType::default().0
                 }),

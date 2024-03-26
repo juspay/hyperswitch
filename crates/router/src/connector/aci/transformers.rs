@@ -12,7 +12,7 @@ use crate::{
     connector::utils::{self, RouterData},
     core::errors,
     services,
-    types::{self, api, storage::enums},
+    types::{self, domain, storage::enums},
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -107,46 +107,42 @@ pub enum PaymentDetails {
     Mandate,
 }
 
-impl TryFrom<&api_models::payments::WalletData> for PaymentDetails {
+impl TryFrom<&domain::WalletData> for PaymentDetails {
     type Error = Error;
-    fn try_from(wallet_data: &api_models::payments::WalletData) -> Result<Self, Self::Error> {
+    fn try_from(wallet_data: &domain::WalletData) -> Result<Self, Self::Error> {
         let payment_data = match wallet_data {
-            api_models::payments::WalletData::MbWayRedirect(data) => {
-                Self::Wallet(Box::new(WalletPMData {
-                    payment_brand: PaymentBrand::Mbway,
-                    account_id: Some(data.telephone_number.clone()),
-                }))
-            }
-            api_models::payments::WalletData::AliPayRedirect { .. } => {
-                Self::Wallet(Box::new(WalletPMData {
-                    payment_brand: PaymentBrand::AliPay,
-                    account_id: None,
-                }))
-            }
-            api_models::payments::WalletData::AliPayHkRedirect(_)
-            | api_models::payments::WalletData::MomoRedirect(_)
-            | api_models::payments::WalletData::KakaoPayRedirect(_)
-            | api_models::payments::WalletData::GoPayRedirect(_)
-            | api_models::payments::WalletData::GcashRedirect(_)
-            | api_models::payments::WalletData::ApplePay(_)
-            | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
-            | api_models::payments::WalletData::DanaRedirect { .. }
-            | api_models::payments::WalletData::GooglePay(_)
-            | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
-            | api_models::payments::WalletData::MobilePayRedirect(_)
-            | api_models::payments::WalletData::PaypalRedirect(_)
-            | api_models::payments::WalletData::PaypalSdk(_)
-            | api_models::payments::WalletData::SamsungPay(_)
-            | api_models::payments::WalletData::TwintRedirect { .. }
-            | api_models::payments::WalletData::VippsRedirect { .. }
-            | api_models::payments::WalletData::TouchNGoRedirect(_)
-            | api_models::payments::WalletData::WeChatPayRedirect(_)
-            | api_models::payments::WalletData::WeChatPayQr(_)
-            | api_models::payments::WalletData::CashappQr(_)
-            | api_models::payments::WalletData::SwishQr(_)
-            | api_models::payments::WalletData::AliPayQr(_)
-            | api_models::payments::WalletData::ApplePayRedirect(_)
-            | api_models::payments::WalletData::GooglePayRedirect(_) => Err(
+            domain::WalletData::MbWayRedirect(data) => Self::Wallet(Box::new(WalletPMData {
+                payment_brand: PaymentBrand::Mbway,
+                account_id: Some(data.telephone_number.clone()),
+            })),
+            domain::WalletData::AliPayRedirect { .. } => Self::Wallet(Box::new(WalletPMData {
+                payment_brand: PaymentBrand::AliPay,
+                account_id: None,
+            })),
+            domain::WalletData::AliPayHkRedirect(_)
+            | domain::WalletData::MomoRedirect(_)
+            | domain::WalletData::KakaoPayRedirect(_)
+            | domain::WalletData::GoPayRedirect(_)
+            | domain::WalletData::GcashRedirect(_)
+            | domain::WalletData::ApplePay(_)
+            | domain::WalletData::ApplePayThirdPartySdk(_)
+            | domain::WalletData::DanaRedirect { .. }
+            | domain::WalletData::GooglePay(_)
+            | domain::WalletData::GooglePayThirdPartySdk(_)
+            | domain::WalletData::MobilePayRedirect(_)
+            | domain::WalletData::PaypalRedirect(_)
+            | domain::WalletData::PaypalSdk(_)
+            | domain::WalletData::SamsungPay(_)
+            | domain::WalletData::TwintRedirect { .. }
+            | domain::WalletData::VippsRedirect { .. }
+            | domain::WalletData::TouchNGoRedirect(_)
+            | domain::WalletData::WeChatPayRedirect(_)
+            | domain::WalletData::WeChatPayQr(_)
+            | domain::WalletData::CashappQr(_)
+            | domain::WalletData::SwishQr(_)
+            | domain::WalletData::AliPayQr(_)
+            | domain::WalletData::ApplePayRedirect(_)
+            | domain::WalletData::GooglePayRedirect(_) => Err(
                 errors::ConnectorError::NotImplemented("Payment method".to_string()),
             )?,
         };
@@ -302,9 +298,9 @@ impl
     }
 }
 
-impl TryFrom<api_models::payments::Card> for PaymentDetails {
+impl TryFrom<domain::payments::Card> for PaymentDetails {
     type Error = Error;
-    fn try_from(card_data: api_models::payments::Card) -> Result<Self, Self::Error> {
+    fn try_from(card_data: domain::payments::Card) -> Result<Self, Self::Error> {
         Ok(Self::AciCard(Box::new(CardDetails {
             card_number: card_data.card_number,
             card_holder: card_data
@@ -441,15 +437,17 @@ impl TryFrom<&AciRouterData<&types::PaymentsAuthorizeRouterData>> for AciPayment
         item: &AciRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(ref card_data) => Self::try_from((item, card_data)),
-            api::PaymentMethodData::Wallet(ref wallet_data) => Self::try_from((item, wallet_data)),
-            api::PaymentMethodData::PayLater(ref pay_later_data) => {
+            domain::PaymentMethodData::Card(ref card_data) => Self::try_from((item, card_data)),
+            domain::PaymentMethodData::Wallet(ref wallet_data) => {
+                Self::try_from((item, wallet_data))
+            }
+            domain::PaymentMethodData::PayLater(ref pay_later_data) => {
                 Self::try_from((item, pay_later_data))
             }
-            api::PaymentMethodData::BankRedirect(ref bank_redirect_data) => {
+            domain::PaymentMethodData::BankRedirect(ref bank_redirect_data) => {
                 Self::try_from((item, bank_redirect_data))
             }
-            api::PaymentMethodData::MandatePayment => {
+            domain::PaymentMethodData::MandatePayment => {
                 let mandate_id = item.router_data.request.mandate_id.clone().ok_or(
                     errors::ConnectorError::MissingRequiredField {
                         field_name: "mandate_id",
@@ -457,17 +455,19 @@ impl TryFrom<&AciRouterData<&types::PaymentsAuthorizeRouterData>> for AciPayment
                 )?;
                 Self::try_from((item, mandate_id))
             }
-            api::PaymentMethodData::Crypto(_)
-            | api::PaymentMethodData::BankDebit(_)
-            | api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::Reward
-            | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Aci"),
-            ))?,
+            domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Aci"),
+                ))?
+            }
         }
     }
 }
@@ -475,14 +475,14 @@ impl TryFrom<&AciRouterData<&types::PaymentsAuthorizeRouterData>> for AciPayment
 impl
     TryFrom<(
         &AciRouterData<&types::PaymentsAuthorizeRouterData>,
-        &api_models::payments::WalletData,
+        &domain::WalletData,
     )> for AciPaymentsRequest
 {
     type Error = Error;
     fn try_from(
         value: (
             &AciRouterData<&types::PaymentsAuthorizeRouterData>,
-            &api_models::payments::WalletData,
+            &domain::WalletData,
         ),
     ) -> Result<Self, Self::Error> {
         let (item, wallet_data) = value;
@@ -553,14 +553,14 @@ impl
 impl
     TryFrom<(
         &AciRouterData<&types::PaymentsAuthorizeRouterData>,
-        &api::Card,
+        &domain::Card,
     )> for AciPaymentsRequest
 {
     type Error = Error;
     fn try_from(
         value: (
             &AciRouterData<&types::PaymentsAuthorizeRouterData>,
-            &api::Card,
+            &domain::Card,
         ),
     ) -> Result<Self, Self::Error> {
         let (item, card_data) = value;

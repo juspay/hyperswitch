@@ -8,7 +8,7 @@ use crate::{
     consts,
     core::errors,
     services,
-    types::{self, api, storage::enums as storage_enums},
+    types::{self, api, domain, storage::enums as storage_enums},
 };
 
 const PASSWORD: &str = "password";
@@ -87,7 +87,7 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
         item: &VoltRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
-            api::PaymentMethodData::BankRedirect(ref bank_redirect) => match bank_redirect {
+            domain::PaymentMethodData::BankRedirect(ref bank_redirect) => match bank_redirect {
                 api_models::payments::BankRedirectData::OpenBankingUk { .. } => {
                     let amount = item.amount;
                     let currency_code = item.router_data.request.currency;
@@ -140,19 +140,19 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
                     .into())
                 }
             },
-            api_models::payments::PaymentMethodData::Card(_)
-            | api_models::payments::PaymentMethodData::CardRedirect(_)
-            | api_models::payments::PaymentMethodData::Wallet(_)
-            | api_models::payments::PaymentMethodData::PayLater(_)
-            | api_models::payments::PaymentMethodData::BankDebit(_)
-            | api_models::payments::PaymentMethodData::BankTransfer(_)
-            | api_models::payments::PaymentMethodData::Crypto(_)
-            | api_models::payments::PaymentMethodData::MandatePayment
-            | api_models::payments::PaymentMethodData::Reward
-            | api_models::payments::PaymentMethodData::Upi(_)
-            | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_)
-            | api_models::payments::PaymentMethodData::CardToken(_) => {
+            domain::PaymentMethodData::Card(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Volt"),
                 )

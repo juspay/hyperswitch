@@ -11,6 +11,7 @@ use crate::{
     types::{
         self,
         api::{self, enums as api_enums},
+        domain,
         storage::enums,
         transformers::ForeignFrom,
         PaymentsAuthorizeData, PaymentsResponseData,
@@ -236,31 +237,33 @@ impl
         >,
     ) -> Result<Self, Self::Error> {
         let payment_data = match &item.router_data.request.payment_method_data {
-            api::PaymentMethodData::Card(card) => {
+            domain::PaymentMethodData::Card(card) => {
                 WorldlinePaymentMethod::CardPaymentMethodSpecificInput(Box::new(make_card_request(
                     &item.router_data.request,
                     card,
                 )?))
             }
-            api::PaymentMethodData::BankRedirect(bank_redirect) => {
+            domain::PaymentMethodData::BankRedirect(bank_redirect) => {
                 WorldlinePaymentMethod::RedirectPaymentMethodSpecificInput(Box::new(
                     make_bank_redirect_request(&item.router_data.request, bank_redirect)?,
                 ))
             }
-            api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::Wallet(_)
-            | api::PaymentMethodData::PayLater(_)
-            | api::PaymentMethodData::BankDebit(_)
-            | api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::Crypto(_)
-            | api::PaymentMethodData::MandatePayment
-            | api::PaymentMethodData::Reward
-            | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("worldline"),
-            ))?,
+            domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("worldline"),
+                ))?
+            }
         };
 
         let billing_address = item.router_data.get_billing()?;
@@ -339,7 +342,7 @@ impl TryFrom<&api_models::enums::BankNames> for WorldlineBic {
 
 fn make_card_request(
     req: &PaymentsAuthorizeData,
-    ccard: &payments::Card,
+    ccard: &domain::Card,
 ) -> Result<CardPaymentMethod, error_stack::Report<errors::ConnectorError>> {
     let expiry_year = ccard.card_exp_year.peek();
     let secret_value = format!(

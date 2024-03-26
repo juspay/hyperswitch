@@ -9,7 +9,7 @@ use crate::{
     connector::utils,
     consts,
     core::errors,
-    types::{self, api, PaymentsAuthorizeData, PaymentsResponseData},
+    types::{self, domain, PaymentsAuthorizeData, PaymentsResponseData},
 };
 
 #[derive(Debug, Serialize)]
@@ -41,10 +41,10 @@ impl<T>
     }
 }
 fn fetch_payment_instrument(
-    payment_method: api::PaymentMethodData,
+    payment_method: domain::PaymentMethodData,
 ) -> CustomResult<PaymentInstrument, errors::ConnectorError> {
     match payment_method {
-        api::PaymentMethodData::Card(card) => Ok(PaymentInstrument::Card(CardPayment {
+        domain::PaymentMethodData::Card(card) => Ok(PaymentInstrument::Card(CardPayment {
             card_expiry_date: CardExpiryDate {
                 month: utils::CardData::get_expiry_month_as_i8(&card)?,
                 year: utils::CardData::get_expiry_year_as_i32(&card)?,
@@ -52,68 +52,62 @@ fn fetch_payment_instrument(
             card_number: card.card_number,
             ..CardPayment::default()
         })),
-        api::PaymentMethodData::Wallet(wallet) => match wallet {
-            api_models::payments::WalletData::GooglePay(data) => {
+        domain::PaymentMethodData::Wallet(wallet) => match wallet {
+            domain::WalletData::GooglePay(data) => {
                 Ok(PaymentInstrument::Googlepay(WalletPayment {
                     payment_type: PaymentType::Googlepay,
                     wallet_token: Secret::new(data.tokenization_data.token),
                     ..WalletPayment::default()
                 }))
             }
-            api_models::payments::WalletData::ApplePay(data) => {
-                Ok(PaymentInstrument::Applepay(WalletPayment {
-                    payment_type: PaymentType::Applepay,
-                    wallet_token: Secret::new(data.payment_data),
-                    ..WalletPayment::default()
-                }))
-            }
-            api_models::payments::WalletData::AliPayQr(_)
-            | api_models::payments::WalletData::AliPayRedirect(_)
-            | api_models::payments::WalletData::AliPayHkRedirect(_)
-            | api_models::payments::WalletData::MomoRedirect(_)
-            | api_models::payments::WalletData::KakaoPayRedirect(_)
-            | api_models::payments::WalletData::GoPayRedirect(_)
-            | api_models::payments::WalletData::GcashRedirect(_)
-            | api_models::payments::WalletData::ApplePayRedirect(_)
-            | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
-            | api_models::payments::WalletData::DanaRedirect {}
-            | api_models::payments::WalletData::GooglePayRedirect(_)
-            | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
-            | api_models::payments::WalletData::MbWayRedirect(_)
-            | api_models::payments::WalletData::MobilePayRedirect(_)
-            | api_models::payments::WalletData::PaypalRedirect(_)
-            | api_models::payments::WalletData::PaypalSdk(_)
-            | api_models::payments::WalletData::SamsungPay(_)
-            | api_models::payments::WalletData::TwintRedirect {}
-            | api_models::payments::WalletData::VippsRedirect {}
-            | api_models::payments::WalletData::TouchNGoRedirect(_)
-            | api_models::payments::WalletData::WeChatPayRedirect(_)
-            | api_models::payments::WalletData::CashappQr(_)
-            | api_models::payments::WalletData::SwishQr(_)
-            | api_models::payments::WalletData::WeChatPayQr(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("worldpay"),
-                )
-                .into())
-            }
-        },
-        api_models::payments::PaymentMethodData::PayLater(_)
-        | api_models::payments::PaymentMethodData::BankRedirect(_)
-        | api_models::payments::PaymentMethodData::BankDebit(_)
-        | api_models::payments::PaymentMethodData::BankTransfer(_)
-        | api_models::payments::PaymentMethodData::Crypto(_)
-        | api_models::payments::PaymentMethodData::MandatePayment
-        | api_models::payments::PaymentMethodData::Reward
-        | api_models::payments::PaymentMethodData::Upi(_)
-        | api_models::payments::PaymentMethodData::Voucher(_)
-        | api_models::payments::PaymentMethodData::CardRedirect(_)
-        | api_models::payments::PaymentMethodData::GiftCard(_)
-        | api_models::payments::PaymentMethodData::CardToken(_) => {
-            Err(errors::ConnectorError::NotImplemented(
+            domain::WalletData::ApplePay(data) => Ok(PaymentInstrument::Applepay(WalletPayment {
+                payment_type: PaymentType::Applepay,
+                wallet_token: Secret::new(data.payment_data),
+                ..WalletPayment::default()
+            })),
+            domain::WalletData::AliPayQr(_)
+            | domain::WalletData::AliPayRedirect(_)
+            | domain::WalletData::AliPayHkRedirect(_)
+            | domain::WalletData::MomoRedirect(_)
+            | domain::WalletData::KakaoPayRedirect(_)
+            | domain::WalletData::GoPayRedirect(_)
+            | domain::WalletData::GcashRedirect(_)
+            | domain::WalletData::ApplePayRedirect(_)
+            | domain::WalletData::ApplePayThirdPartySdk(_)
+            | domain::WalletData::DanaRedirect {}
+            | domain::WalletData::GooglePayRedirect(_)
+            | domain::WalletData::GooglePayThirdPartySdk(_)
+            | domain::WalletData::MbWayRedirect(_)
+            | domain::WalletData::MobilePayRedirect(_)
+            | domain::WalletData::PaypalRedirect(_)
+            | domain::WalletData::PaypalSdk(_)
+            | domain::WalletData::SamsungPay(_)
+            | domain::WalletData::TwintRedirect {}
+            | domain::WalletData::VippsRedirect {}
+            | domain::WalletData::TouchNGoRedirect(_)
+            | domain::WalletData::WeChatPayRedirect(_)
+            | domain::WalletData::CashappQr(_)
+            | domain::WalletData::SwishQr(_)
+            | domain::WalletData::WeChatPayQr(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("worldpay"),
             )
-            .into())
-        }
+            .into()),
+        },
+        domain::PaymentMethodData::PayLater(_)
+        | domain::PaymentMethodData::BankRedirect(_)
+        | domain::PaymentMethodData::BankDebit(_)
+        | domain::PaymentMethodData::BankTransfer(_)
+        | domain::PaymentMethodData::Crypto(_)
+        | domain::PaymentMethodData::MandatePayment
+        | domain::PaymentMethodData::Reward
+        | domain::PaymentMethodData::Upi(_)
+        | domain::PaymentMethodData::Voucher(_)
+        | domain::PaymentMethodData::CardRedirect(_)
+        | domain::PaymentMethodData::GiftCard(_)
+        | domain::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+            utils::get_unimplemented_payment_method_error_message("worldpay"),
+        )
+        .into()),
     }
 }
 

@@ -10,7 +10,7 @@ use crate::{
     core::errors,
     pii::Secret,
     services,
-    types::{self, api, storage::enums},
+    types::{self, api, domain, storage::enums},
 };
 
 #[derive(Debug, Serialize)]
@@ -278,96 +278,98 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
         item: &MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let payment_type = match item.router_data.request.payment_method_data {
-            api::PaymentMethodData::Card(ref _ccard) => Type::Direct,
-            api::PaymentMethodData::MandatePayment => Type::Direct,
-            api::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
-                api::WalletData::GooglePay(_) => Type::Direct,
-                api::WalletData::PaypalRedirect(_) => Type::Redirect,
-                api::WalletData::AliPayQr(_)
-                | api::WalletData::AliPayRedirect(_)
-                | api::WalletData::AliPayHkRedirect(_)
-                | api::WalletData::MomoRedirect(_)
-                | api::WalletData::KakaoPayRedirect(_)
-                | api::WalletData::GoPayRedirect(_)
-                | api::WalletData::GcashRedirect(_)
-                | api::WalletData::ApplePay(_)
-                | api::WalletData::ApplePayRedirect(_)
-                | api::WalletData::ApplePayThirdPartySdk(_)
-                | api::WalletData::DanaRedirect {}
-                | api::WalletData::GooglePayRedirect(_)
-                | api::WalletData::GooglePayThirdPartySdk(_)
-                | api::WalletData::MbWayRedirect(_)
-                | api::WalletData::MobilePayRedirect(_)
-                | api::WalletData::PaypalSdk(_)
-                | api::WalletData::SamsungPay(_)
-                | api::WalletData::TwintRedirect {}
-                | api::WalletData::VippsRedirect {}
-                | api::WalletData::TouchNGoRedirect(_)
-                | api::WalletData::WeChatPayRedirect(_)
-                | api::WalletData::WeChatPayQr(_)
-                | api::WalletData::CashappQr(_)
-                | api::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
+            domain::PaymentMethodData::Card(ref _ccard) => Type::Direct,
+            domain::PaymentMethodData::MandatePayment => Type::Direct,
+            domain::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
+                domain::WalletData::GooglePay(_) => Type::Direct,
+                domain::WalletData::PaypalRedirect(_) => Type::Redirect,
+                domain::WalletData::AliPayQr(_)
+                | domain::WalletData::AliPayRedirect(_)
+                | domain::WalletData::AliPayHkRedirect(_)
+                | domain::WalletData::MomoRedirect(_)
+                | domain::WalletData::KakaoPayRedirect(_)
+                | domain::WalletData::GoPayRedirect(_)
+                | domain::WalletData::GcashRedirect(_)
+                | domain::WalletData::ApplePay(_)
+                | domain::WalletData::ApplePayRedirect(_)
+                | domain::WalletData::ApplePayThirdPartySdk(_)
+                | domain::WalletData::DanaRedirect {}
+                | domain::WalletData::GooglePayRedirect(_)
+                | domain::WalletData::GooglePayThirdPartySdk(_)
+                | domain::WalletData::MbWayRedirect(_)
+                | domain::WalletData::MobilePayRedirect(_)
+                | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::SamsungPay(_)
+                | domain::WalletData::TwintRedirect {}
+                | domain::WalletData::VippsRedirect {}
+                | domain::WalletData::TouchNGoRedirect(_)
+                | domain::WalletData::WeChatPayRedirect(_)
+                | domain::WalletData::WeChatPayQr(_)
+                | domain::WalletData::CashappQr(_)
+                | domain::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("multisafepay"),
                 ))?,
             },
-            api::PaymentMethodData::PayLater(ref _paylater) => Type::Redirect,
+            domain::PaymentMethodData::PayLater(ref _paylater) => Type::Redirect,
             _ => Type::Redirect,
         };
 
         let gateway = match item.router_data.request.payment_method_data {
-            api::PaymentMethodData::Card(ref ccard) => {
+            domain::PaymentMethodData::Card(ref ccard) => {
                 Some(Gateway::try_from(ccard.get_card_issuer()?)?)
             }
-            api::PaymentMethodData::Wallet(ref wallet_data) => Some(match wallet_data {
-                api::WalletData::GooglePay(_) => Gateway::Googlepay,
-                api::WalletData::PaypalRedirect(_) => Gateway::Paypal,
-                api::WalletData::AliPayQr(_)
-                | api::WalletData::AliPayRedirect(_)
-                | api::WalletData::AliPayHkRedirect(_)
-                | api::WalletData::MomoRedirect(_)
-                | api::WalletData::KakaoPayRedirect(_)
-                | api::WalletData::GoPayRedirect(_)
-                | api::WalletData::GcashRedirect(_)
-                | api::WalletData::ApplePay(_)
-                | api::WalletData::ApplePayRedirect(_)
-                | api::WalletData::ApplePayThirdPartySdk(_)
-                | api::WalletData::DanaRedirect {}
-                | api::WalletData::GooglePayRedirect(_)
-                | api::WalletData::GooglePayThirdPartySdk(_)
-                | api::WalletData::MbWayRedirect(_)
-                | api::WalletData::MobilePayRedirect(_)
-                | api::WalletData::PaypalSdk(_)
-                | api::WalletData::SamsungPay(_)
-                | api::WalletData::TwintRedirect {}
-                | api::WalletData::VippsRedirect {}
-                | api::WalletData::TouchNGoRedirect(_)
-                | api::WalletData::WeChatPayRedirect(_)
-                | api::WalletData::WeChatPayQr(_)
-                | api::WalletData::CashappQr(_)
-                | api::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
+            domain::PaymentMethodData::Wallet(ref wallet_data) => Some(match wallet_data {
+                domain::WalletData::GooglePay(_) => Gateway::Googlepay,
+                domain::WalletData::PaypalRedirect(_) => Gateway::Paypal,
+                domain::WalletData::AliPayQr(_)
+                | domain::WalletData::AliPayRedirect(_)
+                | domain::WalletData::AliPayHkRedirect(_)
+                | domain::WalletData::MomoRedirect(_)
+                | domain::WalletData::KakaoPayRedirect(_)
+                | domain::WalletData::GoPayRedirect(_)
+                | domain::WalletData::GcashRedirect(_)
+                | domain::WalletData::ApplePay(_)
+                | domain::WalletData::ApplePayRedirect(_)
+                | domain::WalletData::ApplePayThirdPartySdk(_)
+                | domain::WalletData::DanaRedirect {}
+                | domain::WalletData::GooglePayRedirect(_)
+                | domain::WalletData::GooglePayThirdPartySdk(_)
+                | domain::WalletData::MbWayRedirect(_)
+                | domain::WalletData::MobilePayRedirect(_)
+                | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::SamsungPay(_)
+                | domain::WalletData::TwintRedirect {}
+                | domain::WalletData::VippsRedirect {}
+                | domain::WalletData::TouchNGoRedirect(_)
+                | domain::WalletData::WeChatPayRedirect(_)
+                | domain::WalletData::WeChatPayQr(_)
+                | domain::WalletData::CashappQr(_)
+                | domain::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("multisafepay"),
                 ))?,
             }),
-            api::PaymentMethodData::PayLater(
+            domain::PaymentMethodData::PayLater(
                 api_models::payments::PayLaterData::KlarnaRedirect {
                     billing_email: _,
                     billing_country: _,
                 },
             ) => Some(Gateway::Klarna),
-            api::PaymentMethodData::MandatePayment => None,
-            api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::PayLater(_)
-            | api::PaymentMethodData::BankRedirect(_)
-            | api::PaymentMethodData::BankDebit(_)
-            | api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::Crypto(_)
-            | api::PaymentMethodData::Reward
-            | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("multisafepay"),
-            ))?,
+            domain::PaymentMethodData::MandatePayment => None,
+            domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("multisafepay"),
+                ))?
+            }
         };
         let description = item.router_data.get_description()?;
         let payment_options = PaymentOptions {
@@ -421,7 +423,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
         };
 
         let gateway_info = match item.router_data.request.payment_method_data {
-            api::PaymentMethodData::Card(ref ccard) => Some(GatewayInfo::Card(CardInfo {
+            domain::PaymentMethodData::Card(ref ccard) => Some(GatewayInfo::Card(CardInfo {
                 card_number: Some(ccard.card_number.clone()),
                 card_expiry_date: Some(Secret::new(
                     (format!(
@@ -438,8 +440,8 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 moto: None,
                 term_url: None,
             })),
-            api::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
-                api::WalletData::GooglePay(ref google_pay) => {
+            domain::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
+                domain::WalletData::GooglePay(ref google_pay) => {
                     Some(GatewayInfo::Wallet(WalletInfo::GooglePay({
                         GpayInfo {
                             payment_token: Some(Secret::new(
@@ -448,35 +450,35 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                         }
                     })))
                 }
-                api::WalletData::PaypalRedirect(_) => None,
-                api::WalletData::AliPayQr(_)
-                | api::WalletData::AliPayRedirect(_)
-                | api::WalletData::AliPayHkRedirect(_)
-                | api::WalletData::MomoRedirect(_)
-                | api::WalletData::KakaoPayRedirect(_)
-                | api::WalletData::GoPayRedirect(_)
-                | api::WalletData::GcashRedirect(_)
-                | api::WalletData::ApplePay(_)
-                | api::WalletData::ApplePayRedirect(_)
-                | api::WalletData::ApplePayThirdPartySdk(_)
-                | api::WalletData::DanaRedirect {}
-                | api::WalletData::GooglePayRedirect(_)
-                | api::WalletData::GooglePayThirdPartySdk(_)
-                | api::WalletData::MbWayRedirect(_)
-                | api::WalletData::MobilePayRedirect(_)
-                | api::WalletData::PaypalSdk(_)
-                | api::WalletData::SamsungPay(_)
-                | api::WalletData::TwintRedirect {}
-                | api::WalletData::VippsRedirect {}
-                | api::WalletData::TouchNGoRedirect(_)
-                | api::WalletData::WeChatPayRedirect(_)
-                | api::WalletData::WeChatPayQr(_)
-                | api::WalletData::CashappQr(_)
-                | api::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
+                domain::WalletData::PaypalRedirect(_) => None,
+                domain::WalletData::AliPayQr(_)
+                | domain::WalletData::AliPayRedirect(_)
+                | domain::WalletData::AliPayHkRedirect(_)
+                | domain::WalletData::MomoRedirect(_)
+                | domain::WalletData::KakaoPayRedirect(_)
+                | domain::WalletData::GoPayRedirect(_)
+                | domain::WalletData::GcashRedirect(_)
+                | domain::WalletData::ApplePay(_)
+                | domain::WalletData::ApplePayRedirect(_)
+                | domain::WalletData::ApplePayThirdPartySdk(_)
+                | domain::WalletData::DanaRedirect {}
+                | domain::WalletData::GooglePayRedirect(_)
+                | domain::WalletData::GooglePayThirdPartySdk(_)
+                | domain::WalletData::MbWayRedirect(_)
+                | domain::WalletData::MobilePayRedirect(_)
+                | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::SamsungPay(_)
+                | domain::WalletData::TwintRedirect {}
+                | domain::WalletData::VippsRedirect {}
+                | domain::WalletData::TouchNGoRedirect(_)
+                | domain::WalletData::WeChatPayRedirect(_)
+                | domain::WalletData::WeChatPayQr(_)
+                | domain::WalletData::CashappQr(_)
+                | domain::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("multisafepay"),
                 ))?,
             },
-            api::PaymentMethodData::PayLater(ref paylater) => {
+            domain::PaymentMethodData::PayLater(ref paylater) => {
                 Some(GatewayInfo::PayLater(PayLaterInfo {
                     email: Some(match paylater {
                         api_models::payments::PayLaterData::KlarnaRedirect {
@@ -502,19 +504,21 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                     }),
                 }))
             }
-            api::PaymentMethodData::MandatePayment => None,
-            api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::BankRedirect(_)
-            | api::PaymentMethodData::BankDebit(_)
-            | api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::Crypto(_)
-            | api::PaymentMethodData::Reward
-            | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("multisafepay"),
-            ))?,
+            domain::PaymentMethodData::MandatePayment => None,
+            domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("multisafepay"),
+                ))?
+            }
         };
 
         Ok(Self {
