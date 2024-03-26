@@ -1,0 +1,12 @@
+{
+  "childrenOrder": [
+    "Create Customer",
+    "Create Payment Method - Card",
+    "Create Payment Method - SEPA",
+    "Create Payment Method - Bacs",
+    "List payment methods for a Customer",
+    "[CARD] Create and fulfill Payout using tokens",
+    "[SEPA] Create and fulfill payout using tokens",
+    "[BACS] Create and fulfill payout using tokens"
+  ]
+}

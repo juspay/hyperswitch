@@ -1,0 +1,6 @@
+{
+  "childrenOrder": [
+    "Onboard customers and payment methods prior to making transactions",
+    "Persist PM post successful txns and use them in subsequent txns"
+  ]
+}

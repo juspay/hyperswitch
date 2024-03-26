@@ -1,0 +1,12 @@
+{
+  "childrenOrder": [
+    "Create Customer",
+    "[CARD] Create and fulfill Payout using raw PMD",
+    "[SEPA] Create and fulfill Payout using raw PMD",
+    "[BACS] Create and fulfill Payout using raw PMD",
+    "List payment methods for a Customer",
+    "[CARD] Create and fulfill Payout using tokens",
+    "[SEPA] Create and fulfill payout using tokens",
+    "[BACS] Create and fulfill payout using tokens"
+  ]
+}

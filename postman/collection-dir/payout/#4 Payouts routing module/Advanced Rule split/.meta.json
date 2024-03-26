@@ -1,0 +1,10 @@
+{
+  "childrenOrder": [
+    "Add advanced rule",
+    "Activate this rule for payouts",
+    "[CARD] Create payout using raw PMD",
+    "[SEPA] Create payout using raw PMD",
+    "[BACS] Create payout using raw PMD",
+    "Deactivate this rule for payouts"
+  ]
+}

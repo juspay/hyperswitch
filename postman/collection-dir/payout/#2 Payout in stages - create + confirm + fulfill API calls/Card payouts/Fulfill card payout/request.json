@@ -1,0 +1,32 @@
+{
+  "method": "POST",
+  "header": [],
+  "body": {
+    "mode": "raw",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "payout_id": ""
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/payouts/:id/fulfill",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "payouts",
+      ":id",
+      "fulfill"
+    ],
+    "variable": [
+      {
+        "key": "id",
+        "value": "{{payout_id}}"
+      }
+    ]
+  }
+}

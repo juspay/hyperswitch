@@ -1,0 +1,7 @@
+{
+  "childrenOrder": [
+    "Create SEPA Payout",
+    "Confirm payout",
+    "Fulfill SEPA payout"
+  ]
+}

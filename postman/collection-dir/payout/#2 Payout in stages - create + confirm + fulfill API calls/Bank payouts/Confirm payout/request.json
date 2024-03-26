@@ -1,0 +1,31 @@
+{
+  "method": "PUT",
+  "header": [],
+  "body": {
+    "mode": "raw",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "confirm": true
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/payouts/:id",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "payouts",
+      ":id"
+    ],
+    "variable": [
+      {
+        "key": "id",
+        "value": "{{payout_id}}"
+      }
+    ]
+  }
+}

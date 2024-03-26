@@ -1,0 +1,16 @@
+{
+  "method": "POST",
+  "header": [],
+  "url": {
+    "raw": "{{baseUrl}}/routing/payouts/{{volume_algorithm_id}}/activate",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "routing",
+      "payouts",
+      "{{volume_algorithm_id}}",
+      "activate"
+    ]
+  }
+}
