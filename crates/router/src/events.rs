@@ -26,6 +26,7 @@ pub enum EventType {
     OutgoingWebhookLogs,
     Dispute,
     AuditEvent,
+    Payout,
 }
 
 #[derive(Debug, Default, Deserialize, Clone)]
