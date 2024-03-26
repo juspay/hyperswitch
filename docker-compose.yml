@@ -134,7 +134,7 @@ services:
     networks:
       - router_net
     environment:
-      - HYPERSWITCH_SERVER_URL=http://localhost:8080
+      - HYPERSWITCH_SERVER_URL=http://hyperswitch-server:8080
     depends_on:
       hyperswitch-server:
         condition: service_started
@@ -147,8 +147,8 @@ services:
     networks:
       - router_net
     environment:
-      - apiBaseUrl=http://localhost:8080
-      - sdkBaseUrl=http://localhost:9050
+      - apiBaseUrl=http://hyperswitch-server:8080
+      - sdkBaseUrl=http://hyperswitch-web:9050
     depends_on:
       hyperswitch-server:
         condition: service_started
