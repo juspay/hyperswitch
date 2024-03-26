@@ -21,6 +21,7 @@ bytes = "1.4.0"
 error-stack = "0.3.1"
 http = "0.2.9"
 mime = "0.3.17"
+reqwest = "0.12.2"
 serde = "1.0.193"
 serde_json = "1.0.108"
 strum = { version = "0.24.1", features = ["derive"] }

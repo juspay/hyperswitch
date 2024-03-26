@@ -1188,20 +1188,20 @@ impl MandateReferenceData for api_models::payments::ConnectorMandateReferenceId 
 
 pub fn get_header_key_value<'a>(
     key: &str,
-    headers: &'a actix_web::http::header::HeaderMap,
+    headers: &'a reqwest::header::HeaderMap,
 ) -> CustomResult<&'a str, errors::ConnectorError> {
     get_header_field(headers.get(key))
 }
 
 pub fn get_http_header<'a>(
     key: &str,
-    headers: &'a http::HeaderMap,
+    headers: &'a reqwest::header::HeaderMap,
 ) -> CustomResult<&'a str, errors::ConnectorError> {
     get_header_field(headers.get(key))
 }
 
 fn get_header_field(
-    field: Option<&http::HeaderValue>,
+    field: Option<&reqwest::header::HeaderValue>,
 ) -> CustomResult<&str, errors::ConnectorError> {
     field
         .map(|header_value| {

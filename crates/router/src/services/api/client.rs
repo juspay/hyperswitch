@@ -1,10 +1,11 @@
 use std::time::Duration;
 
 use error_stack::{IntoReport, ResultExt};
-use http::{HeaderValue, Method};
+use http::HeaderValue;
 use masking::PeekInterface;
 use once_cell::sync::OnceCell;
 use reqwest::multipart::Form;
+use reqwest::Method;
 use router_env::tracing_actix_web::RequestId;
 
 use super::{request::Maskable, Request};

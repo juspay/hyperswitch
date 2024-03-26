@@ -5016,6 +5016,7 @@ dependencies = [
  "http 0.2.9",
  "masking",
  "mime",
+ "reqwest 0.12.2",
  "router_derive",
  "router_env",
  "serde",
