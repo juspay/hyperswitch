@@ -1,6 +1,7 @@
 use crate::common_config::{
-    CardProvider, ConnectorApiIntegrationPayload, DashboardMetaData, DashboardPaymentMethodPayload,
-    DashboardRequestPayload, GoogleApiModelData, GooglePayData, GpayDashboardPayLoad, Provider,
+    ApiModelMetaData, CardProvider, ConnectorApiIntegrationPayload, DashboardMetaData,
+    DashboardPaymentMethodPayload, DashboardRequestPayload, GoogleApiModelData, GooglePayData,
+    GpayDashboardPayLoad, Provider,
 };
 
 impl ConnectorApiIntegrationPayload {
@@ -276,58 +277,59 @@ impl ConnectorApiIntegrationPayload {
         };
 
         let google_pay = Self::get_google_pay_metadata_response(response.clone());
-        let account_name = match response.metadata.clone() {
-            Some(meta_data) => meta_data.account_name,
-            _ => None,
-        };
+        let metadata = response.metadata;
 
-        let merchant_account_id = match response.metadata.clone() {
-            Some(meta_data) => meta_data.merchant_account_id,
-            _ => None,
-        };
-        let merchant_id = match response.metadata.clone() {
-            Some(meta_data) => meta_data.merchant_id,
-            _ => None,
-        };
-        let terminal_id = match response.metadata.clone() {
-            Some(meta_data) => meta_data.terminal_id,
-            _ => None,
-        };
-        let endpoint_prefix = match response.metadata.clone() {
-            Some(meta_data) => meta_data.endpoint_prefix,
-            _ => None,
-        };
-        let apple_pay = match response.metadata.clone() {
-            Some(meta_data) => meta_data.apple_pay,
-            _ => None,
-        };
-        let apple_pay_combined = match response.metadata.clone() {
-            Some(meta_data) => meta_data.apple_pay_combined,
-            _ => None,
-        };
-        let merchant_config_currency = match response.metadata.clone() {
-            Some(meta_data) => meta_data.merchant_config_currency,
-            _ => None,
-        };
-        let mcc = match response.metadata.clone() {
-            Some(meta_data) => meta_data.mcc,
-            _ => None,
-        };
-        let merchant_country_code = match response.metadata.clone() {
-            Some(meta_data) => meta_data.merchant_country_code,
-            _ => None,
-        };
-        let merchant_name = match response.metadata.clone() {
-            Some(meta_data) => meta_data.merchant_name,
-            _ => None,
-        };
-        let acquirer_bin = match response.metadata.clone() {
-            Some(meta_data) => meta_data.acquirer_bin,
-            _ => None,
-        };
-        let acquirer_merchant_id = match response.metadata.clone() {
-            Some(meta_data) => meta_data.acquirer_merchant_id,
-            _ => None,
+        let (
+            account_name,
+            merchant_account_id,
+            merchant_id,
+            terminal_id,
+            endpoint_prefix,
+            apple_pay,
+            apple_pay_combined,
+            merchant_config_currency,
+            mcc,
+            merchant_country_code,
+            merchant_name,
+            acquirer_bin,
+            acquirer_merchant_id,
+        ) = match metadata {
+            Some(meta_data) => {
+                let ApiModelMetaData {
+                    account_name,
+                    merchant_account_id,
+                    merchant_id,
+                    terminal_id,
+                    endpoint_prefix,
+                    apple_pay,
+                    apple_pay_combined,
+                    merchant_config_currency,
+                    mcc,
+                    merchant_country_code,
+                    merchant_name,
+                    acquirer_bin,
+                    acquirer_merchant_id,
+                    google_pay: _,
+                } = meta_data;
+                (
+                    account_name.clone(),
+                    merchant_account_id.clone(),
+                    merchant_id.clone(),
+                    terminal_id.clone(),
+                    endpoint_prefix.clone(),
+                    apple_pay.clone(),
+                    apple_pay_combined.clone(),
+                    merchant_config_currency.clone(),
+                    mcc.clone(),
+                    merchant_country_code.clone(),
+                    merchant_name.clone(),
+                    acquirer_bin.clone(),
+                    acquirer_merchant_id.clone(),
+                )
+            }
+            None => (
+                None, None, None, None, None, None, None, None, None, None, None, None, None,
+            ),
         };
 
         let meta_data = DashboardMetaData {
