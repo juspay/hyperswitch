@@ -1,5 +1,8 @@
 use actix_web::http::header::HeaderMap;
-use api_models::{payment_methods::PaymentMethodListRequest, payments};
+use api_models::{
+    payment_methods::{PaymentMethodCreate, PaymentMethodListRequest},
+    payments,
+};
 use async_trait::async_trait;
 use common_utils::date_time;
 use error_stack::{report, IntoReport, ResultExt};
@@ -808,6 +811,12 @@ impl ClientSecretFetch for payments::PaymentsRequest {
 }
 
 impl ClientSecretFetch for PaymentMethodListRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref()
+    }
+}
+
+impl ClientSecretFetch for PaymentMethodCreate {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
     }

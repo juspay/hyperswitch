@@ -330,6 +330,7 @@ pub fn mk_add_bank_response_hs(
         installment_payment_enabled: false, // #[#256]
         payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
         last_used_at: Some(common_utils::date_time::now()),
+        client_secret: None,
     }
 }
 
@@ -375,6 +376,7 @@ pub fn mk_add_card_response_hs(
         installment_payment_enabled: false, // #[#256]
         payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
         last_used_at: Some(common_utils::date_time::now()), // [#256]
+        client_secret: None,
     }
 }
 

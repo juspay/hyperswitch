@@ -543,7 +543,7 @@ pub async fn get_token_for_recurring_mandate(
         merchant_connector_id: mandate.merchant_connector_id,
     };
 
-    if let diesel_models::enums::PaymentMethod::Card = payment_method.payment_method {
+    if let Some(diesel_models::enums::PaymentMethod::Card) = payment_method.payment_method {
         if state.conf.locker.locker_enabled {
             let _ = cards::get_lookup_key_from_locker(
                 state,
@@ -556,19 +556,21 @@ pub async fn get_token_for_recurring_mandate(
 
         if let Some(payment_method_from_request) = req.payment_method {
             let pm: storage_enums::PaymentMethod = payment_method_from_request;
-            if pm != payment_method.payment_method {
-                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                    message:
-                        "payment method in request does not match previously provided payment \
-                        method information"
-                            .into()
-                }))?
+            if let Some(p_method) = payment_method.payment_method {
+                if pm != p_method {
+                    Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                        message:
+                            "payment method in request does not match previously provided payment \
+                            method information"
+                                .into()
+                    }))?
+                }
             }
         };
 
         Ok((
             Some(token),
-            Some(payment_method.payment_method),
+            payment_method.payment_method,
             Some(payments::RecurringMandatePaymentData {
                 payment_method_type,
                 original_payment_authorized_amount,
@@ -580,7 +582,7 @@ pub async fn get_token_for_recurring_mandate(
     } else {
         Ok((
             None,
-            Some(payment_method.payment_method),
+            payment_method.payment_method,
             Some(payments::RecurringMandatePaymentData {
                 payment_method_type,
                 original_payment_authorized_amount,
@@ -1115,7 +1117,7 @@ pub(crate) async fn get_payment_method_create_request(
                     };
                     let customer_id = customer.customer_id.clone();
                     let payment_method_request = api::PaymentMethodCreate {
-                        payment_method,
+                        payment_method: Some(payment_method),
                         payment_method_type,
                         payment_method_issuer: card.card_issuer.clone(),
                         payment_method_issuer_code: None,
@@ -1130,12 +1132,14 @@ pub(crate) async fn get_payment_method_create_request(
                             .card_network
                             .as_ref()
                             .map(|card_network| card_network.to_string()),
+                        client_secret: None,
+                        payment_method_data: None,
                     };
                     Ok(payment_method_request)
                 }
                 _ => {
                     let payment_method_request = api::PaymentMethodCreate {
-                        payment_method,
+                        payment_method: Some(payment_method),
                         payment_method_type,
                         payment_method_issuer: None,
                         payment_method_issuer_code: None,
@@ -1147,6 +1151,8 @@ pub(crate) async fn get_payment_method_create_request(
                         metadata: None,
                         customer_id: Some(customer.customer_id.to_owned()),
                         card_network: None,
+                        client_secret: None,
+                        payment_method_data: None,
                     };
 
                     Ok(payment_method_request)
