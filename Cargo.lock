@@ -2667,7 +2667,7 @@ dependencies = [
  "mime",
  "once_cell",
  "redis_interface",
- "reqwest 0.11.22",
+ "reqwest 0.12.2",
  "router_env",
  "serde",
  "serde_json",
