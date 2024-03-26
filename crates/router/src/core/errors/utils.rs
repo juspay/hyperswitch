@@ -347,6 +347,11 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                         config: field_name.to_string(),
                     }
                 }
+                errors::ConnectorError::InvalidWalletToken { wallet_name } => {
+                    errors::ApiErrorResponse::InvalidWalletToken {
+                        wallet_name: wallet_name.to_string(),
+                    }
+                }
                 errors::ConnectorError::RequestEncodingFailed
                 | errors::ConnectorError::RequestEncodingFailedWithReason(_)
                 | errors::ConnectorError::ParsingFailed
@@ -384,7 +389,6 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 | errors::ConnectorError::DateFormattingFailed
                 | errors::ConnectorError::InvalidDataFormat { .. }
                 | errors::ConnectorError::MismatchedPaymentData
-                | errors::ConnectorError::InvalidWalletToken { .. }
                 | errors::ConnectorError::MissingConnectorRelatedTransactionID { .. }
                 | errors::ConnectorError::FileValidationFailed { .. }
                 | errors::ConnectorError::MissingConnectorRedirectionPayload { .. }
