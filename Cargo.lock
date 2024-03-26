@@ -31,7 +31,7 @@ dependencies = [
  "futures-util",
  "log",
  "once_cell",
- "smallvec 1.11.1",
+ "smallvec 1.13.2",
 ]
 
 [[package]]
@@ -54,7 +54,7 @@ dependencies = [
  "encoding_rs",
  "flate2",
  "futures-core",
- "h2",
+ "h2 0.3.24",
  "http 0.2.9",
  "httparse",
  "httpdate",
@@ -66,7 +66,7 @@ dependencies = [
  "pin-project-lite",
  "rand 0.8.5",
  "sha1",
- "smallvec 1.11.1",
+ "smallvec 1.13.2",
  "tokio 1.36.0",
  "tokio-util",
  "tracing",
@@ -240,7 +240,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_urlencoded",
- "smallvec 1.11.1",
+ "smallvec 1.13.2",
  "socket2 0.4.9",
  "time",
  "url",
@@ -353,7 +353,7 @@ dependencies = [
  "masking",
  "once_cell",
  "opensearch",
- "reqwest",
+ "reqwest 0.11.22",
  "router_env",
  "serde",
  "serde_json",
@@ -412,7 +412,7 @@ dependencies = [
  "frunk_core",
  "masking",
  "mime",
- "reqwest",
+ "reqwest 0.11.22",
  "router_derive",
  "serde",
  "serde_json",
@@ -621,7 +621,7 @@ dependencies = [
  "derive_more",
  "futures-core",
  "futures-util",
- "h2",
+ "h2 0.3.24",
  "http 0.2.9",
  "itoa",
  "log",
@@ -657,7 +657,7 @@ dependencies = [
  "fastrand 1.9.0",
  "hex",
  "http 0.2.9",
- "hyper",
+ "hyper 0.14.27",
  "ring 0.16.20",
  "time",
  "tokio 1.36.0",
@@ -688,7 +688,7 @@ dependencies = [
  "fastrand 2.0.1",
  "hex",
  "http 0.2.9",
- "hyper",
+ "hyper 0.14.27",
  "ring 0.17.8",
  "time",
  "tokio 1.36.0",
@@ -748,7 +748,7 @@ dependencies = [
  "aws-types 0.55.3",
  "bytes 1.5.0",
  "http 0.2.9",
- "http-body",
+ "http-body 0.4.5",
  "lazy_static",
  "percent-encoding",
  "pin-project-lite",
@@ -772,7 +772,7 @@ dependencies = [
  "bytes 1.5.0",
  "fastrand 2.0.1",
  "http 0.2.9",
- "http-body",
+ "http-body 0.4.5",
  "percent-encoding",
  "pin-project-lite",
  "tracing",
@@ -850,7 +850,7 @@ dependencies = [
  "aws-types 0.55.3",
  "bytes 1.5.0",
  "http 0.2.9",
- "http-body",
+ "http-body 0.4.5",
  "once_cell",
  "percent-encoding",
  "regex",
@@ -1099,7 +1099,7 @@ dependencies = [
  "crc32fast",
  "hex",
  "http 0.2.9",
- "http-body",
+ "http-body 0.4.5",
  "md-5",
  "pin-project-lite",
  "sha1",
@@ -1120,8 +1120,8 @@ dependencies = [
  "bytes 1.5.0",
  "fastrand 1.9.0",
  "http 0.2.9",
- "http-body",
- "hyper",
+ "http-body 0.4.5",
+ "hyper 0.14.27",
  "hyper-rustls 0.23.2",
  "lazy_static",
  "pin-project-lite",
@@ -1165,8 +1165,8 @@ dependencies = [
  "bytes-utils",
  "futures-core",
  "http 0.2.9",
- "http-body",
- "hyper",
+ "http-body 0.4.5",
+ "hyper 0.14.27",
  "once_cell",
  "percent-encoding",
  "pin-project-lite",
@@ -1189,7 +1189,7 @@ dependencies = [
  "bytes-utils",
  "futures-core",
  "http 0.2.9",
- "http-body",
+ "http-body 0.4.5",
  "once_cell",
  "percent-encoding",
  "pin-project-lite",
@@ -1207,7 +1207,7 @@ dependencies = [
  "aws-smithy-types 0.55.3",
  "bytes 1.5.0",
  "http 0.2.9",
- "http-body",
+ "http-body 0.4.5",
  "pin-project-lite",
  "tower",
  "tracing",
@@ -1263,10 +1263,10 @@ dependencies = [
  "aws-smithy-types 1.1.8",
  "bytes 1.5.0",
  "fastrand 2.0.1",
- "h2",
+ "h2 0.3.24",
  "http 0.2.9",
- "http-body",
- "hyper",
+ "http-body 0.4.5",
+ "hyper 0.14.27",
  "hyper-rustls 0.24.2",
  "once_cell",
  "pin-project-lite",
@@ -1317,7 +1317,7 @@ dependencies = [
  "bytes-utils",
  "futures-core",
  "http 0.2.9",
- "http-body",
+ "http-body 0.4.5",
  "itoa",
  "num-integer",
  "pin-project-lite",
@@ -1390,8 +1390,8 @@ dependencies = [
  "bytes 1.5.0",
  "futures-util",
  "http 0.2.9",
- "http-body",
- "hyper",
+ "http-body 0.4.5",
+ "hyper 0.14.27",
  "itoa",
  "matchit",
  "memchr",
@@ -1416,7 +1416,7 @@ dependencies = [
  "bytes 1.5.0",
  "futures-util",
  "http 0.2.9",
- "http-body",
+ "http-body 0.4.5",
  "mime",
  "rustversion",
  "tower-layer",
@@ -1980,7 +1980,7 @@ dependencies = [
  "quick-xml 0.28.2",
  "rand 0.8.5",
  "regex",
- "reqwest",
+ "reqwest 0.11.22",
  "ring 0.16.20",
  "router_env",
  "rustc-hash",
@@ -2667,7 +2667,7 @@ dependencies = [
  "mime",
  "once_cell",
  "redis_interface",
- "reqwest",
+ "reqwest 0.11.22",
  "router_env",
  "serde",
  "serde_json",
@@ -2814,7 +2814,7 @@ dependencies = [
  "dyn-clone",
  "error-stack",
  "hex",
- "hyper",
+ "hyper 0.14.27",
  "hyper-proxy",
  "hyperswitch_interfaces",
  "masking",
@@ -2847,7 +2847,7 @@ dependencies = [
  "futures-core",
  "futures-util",
  "http 0.2.9",
- "hyper",
+ "hyper 0.14.27",
  "hyper-rustls 0.23.2",
  "mime",
  "serde",
@@ -3280,6 +3280,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "h2"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "51ee2dd2e4f378392eeff5d51618cd9a63166a2513846bbc55f21cfacd9199d4"
+dependencies = [
+ "bytes 1.5.0",
+ "fnv",
+ "futures-core",
+ "futures-sink",
+ "futures-util",
+ "http 1.1.0",
+ "indexmap 2.1.0",
+ "slab",
+ "tokio 1.36.0",
+ "tokio-util",
+ "tracing",
+]
+
+[[package]]
 name = "half"
 version = "1.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3410,6 +3429,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "http-body"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1cac85db508abc24a2e48553ba12a996e87244a0395ce011e62b37158745d643"
+dependencies = [
+ "bytes 1.5.0",
+ "http 1.1.0",
+]
+
+[[package]]
+name = "http-body-util"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0475f8b2ac86659c21b64320d5d653f9efe42acd2a4e560073ec61a155a34f1d"
+dependencies = [
+ "bytes 1.5.0",
+ "futures-core",
+ "http 1.1.0",
+ "http-body 1.0.0",
+ "pin-project-lite",
+]
+
+[[package]]
 name = "http-types"
 version = "2.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3461,9 +3503,9 @@ dependencies = [
  "futures-channel",
  "futures-core",
  "futures-util",
- "h2",
+ "h2 0.3.24",
  "http 0.2.9",
- "http-body",
+ "http-body 0.4.5",
  "httparse",
  "httpdate",
  "itoa",
@@ -3472,6 +3514,26 @@ dependencies = [
  "tokio 1.36.0",
  "tower-service",
  "tracing",
+ "want",
+]
+
+[[package]]
+name = "hyper"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "186548d73ac615b32a73aafe38fb4f56c0d340e110e5a200bcadbaf2e199263a"
+dependencies = [
+ "bytes 1.5.0",
+ "futures-channel",
+ "futures-util",
+ "h2 0.4.3",
+ "http 1.1.0",
+ "http-body 1.0.0",
+ "httparse",
+ "itoa",
+ "pin-project-lite",
+ "smallvec 1.13.2",
+ "tokio 1.36.0",
  "want",
 ]
 
@@ -3485,8 +3547,8 @@ dependencies = [
  "futures 0.3.28",
  "headers",
  "http 0.2.9",
- "hyper",
- "hyper-tls",
+ "hyper 0.14.27",
+ "hyper-tls 0.5.0",
  "native-tls",
  "tokio 1.36.0",
  "tokio-native-tls",
@@ -3500,7 +3562,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1788965e61b367cd03a62950836d5cd41560c3577d90e40e0819373194d1661c"
 dependencies = [
  "http 0.2.9",
- "hyper",
+ "hyper 0.14.27",
  "log",
  "rustls 0.20.9",
  "rustls-native-certs",
@@ -3516,7 +3578,7 @@ checksum = "ec3efd23720e2049821a693cbc7e65ea87c72f1c58ff2f9522ff332b1491e590"
 dependencies = [
  "futures-util",
  "http 0.2.9",
- "hyper",
+ "hyper 0.14.27",
  "log",
  "rustls 0.21.10",
  "rustls-native-certs",
@@ -3530,7 +3592,7 @@ version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bbb958482e8c7be4bc3cf272a766a2b0bf1a6755e7a6ae777f017a31d11b13b1"
 dependencies = [
- "hyper",
+ "hyper 0.14.27",
  "pin-project-lite",
  "tokio 1.36.0",
  "tokio-io-timeout",
@@ -3543,10 +3605,46 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6183ddfa99b85da61a140bea0efc93fdf56ceaa041b37d553518030827f9905"
 dependencies = [
  "bytes 1.5.0",
- "hyper",
+ "hyper 0.14.27",
  "native-tls",
  "tokio 1.36.0",
  "tokio-native-tls",
+]
+
+[[package]]
+name = "hyper-tls"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "70206fc6890eaca9fde8a0bf71caa2ddfc9fe045ac9e5c70df101a7dbde866e0"
+dependencies = [
+ "bytes 1.5.0",
+ "http-body-util",
+ "hyper 1.2.0",
+ "hyper-util",
+ "native-tls",
+ "tokio 1.36.0",
+ "tokio-native-tls",
+ "tower-service",
+]
+
+[[package]]
+name = "hyper-util"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ca38ef113da30126bbff9cd1705f9273e15d45498615d138b0c20279ac7a76aa"
+dependencies = [
+ "bytes 1.5.0",
+ "futures-channel",
+ "futures-util",
+ "http 1.1.0",
+ "http-body 1.0.0",
+ "hyper 1.2.0",
+ "pin-project-lite",
+ "socket2 0.5.5",
+ "tokio 1.36.0",
+ "tower",
+ "tower-service",
+ "tracing",
 ]
 
 [[package]]
@@ -4227,7 +4325,7 @@ dependencies = [
  "quanta",
  "rustc_version 0.4.0",
  "skeptic",
- "smallvec 1.11.1",
+ "smallvec 1.13.2",
  "tagptr",
  "thiserror",
  "triomphe",
@@ -4448,7 +4546,7 @@ dependencies = [
  "dyn-clone",
  "lazy_static",
  "percent-encoding",
- "reqwest",
+ "reqwest 0.11.22",
  "rustc_version 0.4.0",
  "serde",
  "serde_json",
@@ -4665,7 +4763,7 @@ dependencies = [
  "instant",
  "libc",
  "redox_syscall 0.2.16",
- "smallvec 1.11.1",
+ "smallvec 1.13.2",
  "winapi 0.3.9",
 ]
 
@@ -4678,7 +4776,7 @@ dependencies = [
  "cfg-if 1.0.0",
  "libc",
  "redox_syscall 0.3.5",
- "smallvec 1.11.1",
+ "smallvec 1.13.2",
  "windows-targets 0.48.5",
 ]
 
@@ -5449,12 +5547,12 @@ dependencies = [
  "encoding_rs",
  "futures-core",
  "futures-util",
- "h2",
+ "h2 0.3.24",
  "http 0.2.9",
- "http-body",
- "hyper",
+ "http-body 0.4.5",
+ "hyper 0.14.27",
  "hyper-rustls 0.24.2",
- "hyper-tls",
+ "hyper-tls 0.5.0",
  "ipnet",
  "js-sys",
  "log",
@@ -5480,6 +5578,48 @@ dependencies = [
  "wasm-bindgen-futures",
  "web-sys",
  "webpki-roots 0.25.3",
+ "winreg",
+]
+
+[[package]]
+name = "reqwest"
+version = "0.12.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d66674f2b6fb864665eea7a3c1ac4e3dfacd2fda83cf6f935a612e01b0e3338"
+dependencies = [
+ "base64 0.21.5",
+ "bytes 1.5.0",
+ "encoding_rs",
+ "futures-core",
+ "futures-util",
+ "h2 0.4.3",
+ "http 1.1.0",
+ "http-body 1.0.0",
+ "http-body-util",
+ "hyper 1.2.0",
+ "hyper-tls 0.6.0",
+ "hyper-util",
+ "ipnet",
+ "js-sys",
+ "log",
+ "mime",
+ "native-tls",
+ "once_cell",
+ "percent-encoding",
+ "pin-project-lite",
+ "rustls-pemfile",
+ "serde",
+ "serde_json",
+ "serde_urlencoded",
+ "sync_wrapper",
+ "system-configuration",
+ "tokio 1.36.0",
+ "tokio-native-tls",
+ "tower-service",
+ "url",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
  "winreg",
 ]
 
@@ -5612,7 +5752,7 @@ dependencies = [
  "futures 0.3.28",
  "hex",
  "http 0.2.9",
- "hyper",
+ "hyper 0.14.27",
  "hyperswitch_interfaces",
  "image",
  "infer 0.13.0",
@@ -5638,7 +5778,7 @@ dependencies = [
  "rdkafka",
  "redis_interface",
  "regex",
- "reqwest",
+ "reqwest 0.11.22",
  "ring 0.16.20",
  "router_derive",
  "router_env",
@@ -5797,7 +5937,7 @@ dependencies = [
  "async-trait",
  "bytes 1.5.0",
  "http 0.2.9",
- "reqwest",
+ "reqwest 0.11.22",
  "rustify_derive",
  "serde",
  "serde_json",
@@ -6362,9 +6502,9 @@ dependencies = [
 
 [[package]]
 name = "smallvec"
-version = "1.11.1"
+version = "1.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "942b4a808e05215192e39f4ab80813e599068285906cc91aa64f923db842bd5a"
+checksum = "3c5e1a9a646d36c3599cd173a41282daf47c44583ad367b8e6837255952e5c67"
 
 [[package]]
 name = "socket2"
@@ -6461,7 +6601,7 @@ dependencies = [
  "serde_json",
  "sha1",
  "sha2",
- "smallvec 1.11.1",
+ "smallvec 1.13.2",
  "sqlformat",
  "sqlx-rt",
  "stringprep",
@@ -6778,7 +6918,7 @@ dependencies = [
  "masking",
  "rand 0.8.5",
  "regex",
- "reqwest",
+ "reqwest 0.12.2",
  "serde",
  "serde_json",
  "serde_urlencoded",
@@ -7267,10 +7407,10 @@ dependencies = [
  "bytes 1.5.0",
  "futures-core",
  "futures-util",
- "h2",
+ "h2 0.3.24",
  "http 0.2.9",
- "http-body",
- "hyper",
+ "http-body 0.4.5",
+ "hyper 0.14.27",
  "hyper-timeout",
  "percent-encoding",
  "pin-project",
@@ -7436,7 +7576,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sharded-slab",
- "smallvec 1.11.1",
+ "smallvec 1.13.2",
  "thread_local",
  "tracing",
  "tracing-core",
@@ -7679,7 +7819,7 @@ dependencies = [
  "bytes 1.5.0",
  "derive_builder",
  "http 0.2.9",
- "reqwest",
+ "reqwest 0.11.22",
  "rustify",
  "rustify_derive",
  "serde",
@@ -8124,7 +8264,7 @@ dependencies = [
  "futures 0.3.28",
  "futures-timer",
  "http-types",
- "hyper",
+ "hyper 0.14.27",
  "log",
  "once_cell",
  "regex",
