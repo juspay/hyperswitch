@@ -295,6 +295,7 @@ pub struct CybersourceAuthorizationOptions {
 #[serde(rename_all = "camelCase")]
 pub struct MerchantInitiatedTransaction {
     reason: Option<String>,
+    previous_transaction_id: Option<Secret<String>>,
     //Required for recurring mandates payment
     original_authorized_amount: Option<String>,
 }
@@ -312,6 +313,7 @@ pub struct CybersourcePaymentInitiator {
 #[serde(rename_all = "camelCase")]
 pub enum CybersourcePaymentInitiatorTypes {
     Customer,
+    Merchant,
 }
 
 #[derive(Debug, Serialize)]
@@ -529,34 +531,115 @@ impl
                     merchant_intitiated_transaction: None,
                 }),
             )
-        } else if item.router_data.request.connector_mandate_id().is_some() {
-            let original_amount = item
+        } else if item.router_data.request.mandate_id.is_some() {
+            match item
                 .router_data
-                .get_recurring_mandate_payment_data()?
-                .get_original_payment_amount()?;
-            let original_currency = item
-                .router_data
-                .get_recurring_mandate_payment_data()?
-                .get_original_payment_currency()?;
-            (
-                None,
-                None,
-                Some(CybersourceAuthorizationOptions {
-                    initiator: None,
-                    merchant_intitiated_transaction: Some(MerchantInitiatedTransaction {
-                        reason: None,
-                        original_authorized_amount: Some(utils::get_amount_as_string(
-                            &types::api::CurrencyUnit::Base,
-                            original_amount,
-                            original_currency,
-                        )?),
-                    }),
-                }),
-            )
+                .request
+                .mandate_id
+                .clone()
+                .and_then(|mandate_id| mandate_id.mandate_reference_id)
+            {
+                Some(api_models::payments::MandateReferenceId::ConnectorMandateId(_)) => {
+                    let original_amount = item
+                        .router_data
+                        .get_recurring_mandate_payment_data()?
+                        .get_original_payment_amount()?;
+                    let original_currency = item
+                        .router_data
+                        .get_recurring_mandate_payment_data()?
+                        .get_original_payment_currency()?;
+                    (
+                        None,
+                        None,
+                        Some(CybersourceAuthorizationOptions {
+                            initiator: None,
+                            merchant_intitiated_transaction: Some(MerchantInitiatedTransaction {
+                                reason: None,
+                                original_authorized_amount: Some(utils::get_amount_as_string(
+                                    &types::api::CurrencyUnit::Base,
+                                    original_amount,
+                                    original_currency,
+                                )?),
+                                previous_transaction_id: None,
+                            }),
+                        }),
+                    )
+                }
+                Some(api_models::payments::MandateReferenceId::NetworkMandateId(
+                    network_transaction_id,
+                )) => {
+                    let (original_amount, original_currency) = match network
+                        .clone()
+                        .map(|network| network.to_lowercase())
+                        .as_deref()
+                    {
+                        Some("amex") => {
+                            let original_amount = Some(
+                                item.router_data
+                                    .get_recurring_mandate_payment_data()?
+                                    .get_original_payment_amount()?,
+                            );
+                            let original_currency = Some(
+                                item.router_data
+                                    .get_recurring_mandate_payment_data()?
+                                    .get_original_payment_currency()?,
+                            );
+                            (original_amount, original_currency)
+                        }
+                        _ => {
+                            let original_amount = item
+                                .router_data
+                                .recurring_mandate_payment_data
+                                .as_ref()
+                                .and_then(|recurring_mandate_payment_data| {
+                                    recurring_mandate_payment_data
+                                        .original_payment_authorized_amount
+                                });
+
+                            let original_currency = item
+                                .router_data
+                                .recurring_mandate_payment_data
+                                .as_ref()
+                                .and_then(|recurring_mandate_payment_data| {
+                                    recurring_mandate_payment_data
+                                        .original_payment_authorized_currency
+                                });
+
+                            (original_amount, original_currency)
+                        }
+                    };
+
+                    let amount = match (original_amount, original_currency) {
+                        (Some(original_amount), Some(original_currency)) => Some(
+                            utils::to_currency_base_unit(original_amount, original_currency)?,
+                        ),
+                        _ => None,
+                    };
+
+                    (
+                        None,
+                        None,
+                        Some(CybersourceAuthorizationOptions {
+                            initiator: Some(CybersourcePaymentInitiator {
+                                initiator_type: Some(CybersourcePaymentInitiatorTypes::Merchant),
+                                credential_stored_on_file: None,
+                                stored_credential_used: Some(true),
+                            }),
+                            merchant_intitiated_transaction: Some(MerchantInitiatedTransaction {
+                                reason: None, // should it be 7 (Subscription)
+                                original_authorized_amount: amount,
+                                previous_transaction_id: Some(Secret::new(network_transaction_id)),
+                            }),
+                        }),
+                    )
+                }
+                None => (None, None, None),
+            }
         } else {
             (None, None, None)
         };
         let commerce_indicator = match network {
+            //this should be made as recurring for mit
             Some(card_network) => match card_network.to_lowercase().as_str() {
                 "amex" => "aesk",
                 "discover" => "dipb",
@@ -752,11 +835,11 @@ impl
                 expiration_month: ccard.card_exp_month,
                 expiration_year: ccard.card_exp_year,
                 security_code: ccard.card_cvc,
-                card_type,
+                card_type: card_type.clone(),
             },
         });
 
-        let processing_information = ProcessingInformation::try_from((item, None, None))?;
+        let processing_information = ProcessingInformation::try_from((item, None, card_type))?;
         let client_reference_information = ClientReferenceInformation::from(item);
         let merchant_defined_information =
             item.router_data.request.metadata.clone().map(|metadata| {
@@ -1281,6 +1364,7 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsIncrementalAuthorizationRout
                     }),
                     merchant_intitiated_transaction: Some(MerchantInitiatedTransaction {
                         reason: Some("5".to_owned()),
+                        previous_transaction_id: None,
                         original_authorized_amount: None,
                     }),
                 }),
@@ -1527,6 +1611,7 @@ pub struct ClientReferenceInformation {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientProcessorInformation {
+    network_transaction_id: Option<String>,
     avs: Option<Avs>,
 }
 
@@ -1657,7 +1742,7 @@ fn get_payment_response(
                     .processor_information
                     .as_ref()
                     .map(|processor_information| serde_json::json!({"avs_response": processor_information.avs})),
-                network_txn_id: None,
+                network_txn_id: info_response.processor_information.as_ref().and_then(|processor_information| processor_information.network_transaction_id.clone()),
                 connector_response_reference_id: Some(
                     info_response
                         .client_reference_information
@@ -2272,6 +2357,7 @@ impl<F>
     }
 }
 
+// zero dollar response
 impl<F, T>
     TryFrom<
         types::ResponseRouterData<
@@ -2319,7 +2405,13 @@ impl<F, T>
                             redirection_data: None,
                             mandate_reference,
                             connector_metadata: None,
-                            network_txn_id: None,
+                            network_txn_id: info_response.processor_information.as_ref().and_then(
+                                |processor_information| {
+                                    processor_information
+                                        .network_transaction_id
+                                        .clone()
+                                },
+                            ),
                             connector_response_reference_id: Some(
                                 info_response
                                     .client_reference_information
