@@ -20,7 +20,7 @@ use api_models::{
 use common_utils::{
     consts,
     ext_traits::{AsyncExt, Encode, StringExt, ValueExt},
-    generate_id,
+    fp_utils, generate_id,
 };
 use diesel_models::{
     business_profile::BusinessProfile, encryption::Encryption, enums as storage_enums,
@@ -278,6 +278,47 @@ pub async fn generate_client_secret_or_add_payment_method(
 }
 
 #[instrument(skip_all)]
+pub async fn authenticate_pm_client_secret(
+    req_client_secret: &String,
+    db: &dyn db::StorageInterface,
+) -> errors::CustomResult<diesel_models::PaymentMethod, errors::ApiErrorResponse> {
+    let pm_vec = req_client_secret.split("_secret").collect::<Vec<&str>>();
+    let pm_id = pm_vec
+        .first()
+        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "client_secret",
+        })?;
+
+    let payment_method = db
+        .find_payment_method(pm_id)
+        .await
+        .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
+        .attach_printable("Unable to find payment method")?;
+
+    let stored_client_secret = payment_method
+        .client_secret
+        .clone()
+        .get_required_value("client_secret")
+        .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
+        .attach_printable("Unable to find payment method")?;
+
+    if req_client_secret != &stored_client_secret {
+        Err((errors::ApiErrorResponse::ClientSecretInvalid).into())
+    } else {
+        let current_timestamp = common_utils::date_time::now();
+        let session_expiry = payment_method
+            .created_at
+            .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY));
+
+        let _ = fp_utils::when(current_timestamp > session_expiry, || {
+            Err::<(), errors::ApiErrorResponse>(errors::ApiErrorResponse::ClientSecretExpired)
+        });
+
+        Ok(payment_method)
+    }
+}
+
+#[instrument(skip_all)]
 pub async fn add_payment_method_data(
     state: routes::AppState,
     req: api::PaymentMethodCreate,
@@ -295,18 +336,8 @@ pub async fn add_payment_method_data(
         .client_secret
         .clone()
         .get_required_value("client_secret")?;
-    let pm_vec = client_secret.split("_secret").collect::<Vec<&str>>();
-    let pm_id = pm_vec
-        .first()
-        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "client_secret",
-        })?;
-
-    let payment_method = db
-        .find_payment_method(pm_id)
-        .await
-        .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
-        .attach_printable("Unable to find payment method")?;
+    let payment_method = authenticate_pm_client_secret(&client_secret, db).await?;
+    let pm_id = payment_method.id;
 
     match pmd {
         api_models::payment_methods::PaymentMethodData::Card(card) => {
