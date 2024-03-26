@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.03.01.0-hotfix10
+
+### Build System / Dependencies
+
+- Build(router_env): obtain workspace member package names from cargo_metadata more deterministically ([#4215](https://github.com/juspay/hyperswitch/pull/4215)) ([`e07f9a4`](https://github.com/juspay/hyperswitch/commit/e07f9a4008f84618793ed40a07ecfee95d8034b2))
+
+- - -
+
 ## 2024.03.01.0-hotfix9
 
 ### Bug Fixes
