@@ -1,14 +1,14 @@
 /// Events - List
 ///
-/// List all Events associated with a Merchant Account.
+/// List all Events associated with a Merchant Account or Business Profile.
 #[utoipa::path(
     get,
-    path = "/events/{merchant_id}",
+    path = "/events/{merchant_id_or_profile_id}",
     params(
         (
-            "merchant_id" = String,
+            "merchant_id_or_profile_id" = String,
             Path,
-            description = "The unique identifier for the Merchant Account"
+            description = "The unique identifier for the Merchant Account or Business Profile"
         ),
         (
             "created_after" = Option<PrimitiveDateTime>,
@@ -45,7 +45,7 @@
         (status = 200, description = "List of Events retrieved successfully", body = Vec<EventListItemResponse>),
     ),
     tag = "Event",
-    operation_id = "List all Events associated with a Merchant Account",
+    operation_id = "List all Events associated with a Merchant Account or Business Profile",
     security(("admin_api_key" = []))
 )]
 pub fn list_initial_webhook_delivery_attempts() {}
@@ -55,9 +55,9 @@ pub fn list_initial_webhook_delivery_attempts() {}
 /// List all delivery attempts for the specified Event.
 #[utoipa::path(
     get,
-    path = "/events/{merchant_id}/{event_id}/attempts",
+    path = "/events/{merchant_id_or_profile_id}/{event_id}/attempts",
     params(
-        ("merchant_id" = String, Path, description = "The unique identifier for the Merchant Account"),
+        ("merchant_id_or_profile_id" = String, Path, description = "The unique identifier for the Merchant Account or Business Profile"),
         ("event_id" = String, Path, description = "The unique identifier for the Event"),
     ),
     responses(

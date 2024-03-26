@@ -3866,64 +3866,6 @@
         ]
       }
     },
-    "/payouts/list": {
-      "get": {
-        "tags": [
-          "Payouts"
-        ],
-        "summary": "Payouts - List",
-        "description": "Payouts - List",
-        "operationId": "List payouts",
-        "responses": {
-          "200": {
-            "description": "Payouts listed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PayoutListResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Payout not found"
-          }
-        },
-        "security": [
-          {
-            "api_key": []
-          }
-        ]
-      },
-      "post": {
-        "tags": [
-          "Payouts"
-        ],
-        "summary": "Payouts - Filter",
-        "description": "Payouts - Filter",
-        "operationId": "Filter payouts",
-        "responses": {
-          "200": {
-            "description": "Payouts filtered",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PayoutListResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Payout not found"
-          }
-        },
-        "security": [
-          {
-            "api_key": []
-          }
-        ]
-      }
-    },
     "/payouts/{payout_id}": {
       "get": {
         "tags": [
@@ -4107,6 +4049,64 @@
           },
           "400": {
             "description": "Missing Mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/payouts/list": {
+      "get": {
+        "tags": [
+          "Payouts"
+        ],
+        "summary": "Payouts - List",
+        "description": "Payouts - List",
+        "operationId": "List payouts",
+        "responses": {
+          "200": {
+            "description": "Payouts listed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PayoutListResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payout not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Payouts"
+        ],
+        "summary": "Payouts - Filter",
+        "description": "Payouts - Filter",
+        "operationId": "Filter payouts",
+        "responses": {
+          "200": {
+            "description": "Payouts filtered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PayoutListResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payout not found"
           }
         },
         "security": [
@@ -4325,19 +4325,19 @@
         ]
       }
     },
-    "/events/{merchant_id}": {
+    "/events/{merchant_id_or_profile_id}": {
       "get": {
         "tags": [
           "Event"
         ],
         "summary": "Events - List",
-        "description": "Events - List\n\nList all Events associated with a Merchant Account.",
-        "operationId": "List all Events associated with a Merchant Account",
+        "description": "Events - List\n\nList all Events associated with a Merchant Account or Business Profile.",
+        "operationId": "List all Events associated with a Merchant Account or Business Profile",
         "parameters": [
           {
-            "name": "merchant_id",
+            "name": "merchant_id_or_profile_id",
             "in": "path",
-            "description": "The unique identifier for the Merchant Account",
+            "description": "The unique identifier for the Merchant Account or Business Profile",
             "required": true,
             "schema": {
               "type": "string"
@@ -4420,7 +4420,7 @@
         ]
       }
     },
-    "/events/{merchant_id}/{event_id}/attempts": {
+    "/events/{merchant_id_or_profile_id}/{event_id}/attempts": {
       "get": {
         "tags": [
           "Event"
@@ -4430,9 +4430,9 @@
         "operationId": "List all delivery attempts for an Event",
         "parameters": [
           {
-            "name": "merchant_id",
+            "name": "merchant_id_or_profile_id",
             "in": "path",
-            "description": "The unique identifier for the Merchant Account",
+            "description": "The unique identifier for the Merchant Account or Business Profile",
             "required": true,
             "schema": {
               "type": "string"
