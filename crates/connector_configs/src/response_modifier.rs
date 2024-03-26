@@ -276,9 +276,7 @@ impl ConnectorApiIntegrationPayload {
             card_provider: Some(credit_details),
         };
 
-        let meta_data = response
-            .metadata
-            .map(|metadata| DashboardMetaData::from(metadata));
+        let meta_data = response.metadata.map(DashboardMetaData::from);
 
         DashboardRequestPayload {
             connector: response.connector_name,
