@@ -309,6 +309,26 @@ impl ConnectorApiIntegrationPayload {
             Some(meta_data) => meta_data.merchant_config_currency,
             _ => None,
         };
+        let mcc = match response.metadata.clone() {
+            Some(meta_data) => meta_data.mcc,
+            _ => None,
+        };
+        let merchant_country_code = match response.metadata.clone() {
+            Some(meta_data) => meta_data.merchant_country_code,
+            _ => None,
+        };
+        let merchant_name = match response.metadata.clone() {
+            Some(meta_data) => meta_data.merchant_name,
+            _ => None,
+        };
+        let acquirer_bin = match response.metadata.clone() {
+            Some(meta_data) => meta_data.acquirer_bin,
+            _ => None,
+        };
+        let acquirer_merchant_id = match response.metadata.clone() {
+            Some(meta_data) => meta_data.acquirer_merchant_id,
+            _ => None,
+        };
 
         let meta_data = DashboardMetaData {
             merchant_config_currency,
@@ -320,6 +340,11 @@ impl ConnectorApiIntegrationPayload {
             terminal_id,
             merchant_id,
             endpoint_prefix,
+            mcc,
+            merchant_country_code,
+            merchant_name,
+            acquirer_bin,
+            acquirer_merchant_id,
         };
 
         DashboardRequestPayload {
