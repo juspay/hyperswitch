@@ -215,7 +215,7 @@ pub struct Address {
 }
 
 #[derive(Debug, Serialize)]
-struct Shipping {
+pub struct Shipping {
     address: Address,
 }
 
@@ -282,7 +282,7 @@ pub struct PaymentsRequest {
     pub capture: bool,
     pub reference: String,
     pub metadata: Option<Secret<serde_json::Value>>,
-    shipping: Shipping,
+    pub shipping: Shipping,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
