@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.03.01.0-hotfix9
+
+### Bug Fixes
+
+- **connector:**
+  - [Trustpay] fix deserialization error for incoming webhook response for trustpay and add error code mapping '800.100.203' ([#4201](https://github.com/juspay/hyperswitch/pull/4201)) ([`0338481`](https://github.com/juspay/hyperswitch/commit/03384819c8509607f0ab5f3d89daddd129062820))
+  - [CRYPTOPAY] Skip metadata serialization if none ([#4207](https://github.com/juspay/hyperswitch/pull/4207)) ([`7eaf488`](https://github.com/juspay/hyperswitch/commit/7eaf4889ac3156ad7b7563deac6609966abf1734))
+
+- - -
+
 ## 2024.03.01.0-hotfix8
 
 ### Bug Fixes
