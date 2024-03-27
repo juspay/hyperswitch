@@ -2,6 +2,7 @@ use common_utils::{
     crypto::{DecodeMessage, EncodeMessage, GcmAes256},
     ext_traits::{BytesExt, Encode},
     generate_id_with_default_len,
+    pii::Email,
 };
 use error_stack::{report, IntoReport, ResultExt};
 use masking::PeekInterface;
@@ -421,55 +422,57 @@ impl Vaultable for api::CardPayout {
     }
 }
 
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedWalletSensitiveValues {
+    pub email: Option<Email>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedWalletInsensitiveValues {
+    pub customer_id: Option<String>,
+}
+
 #[cfg(feature = "payouts")]
 impl Vaultable for api::WalletPayout {
     fn get_value1(&self, _customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
         let value1 = match self {
-            Self::Paypal(paypal_data) => api::TokenizedWalletValue1 {
-                data: api::WalletData::PaypalRedirect(api_models::payments::PaypalRedirection {
-                    email: paypal_data.email.clone(),
-                }),
+            Self::Paypal(paypal_data) => TokenizedWalletSensitiveValues {
+                email: paypal_data.email.clone(),
             },
         };
 
         value1
             .encode_to_string_of_json()
             .change_context(errors::VaultError::RequestEncodingFailed)
-            .attach_printable("Failed to encode wallet value1")
+            .attach_printable("Failed to encode wallet data wallet_sensitive_data")
     }
 
     fn get_value2(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
-        let value2 = api::TokenizedWalletValue2 { customer_id };
+        let value2 = TokenizedWalletInsensitiveValues { customer_id };
 
         value2
             .encode_to_string_of_json()
             .change_context(errors::VaultError::RequestEncodingFailed)
-            .attach_printable("Failed to encode wallet value2")
+            .attach_printable("Failed to encode wallet wallet_insensitive_data")
     }
 
     fn from_values(
         value1: String,
         value2: String,
     ) -> CustomResult<(Self, SupplementaryVaultData), errors::VaultError> {
-        let value1: api::TokenizedWalletValue1 = value1
-            .parse_struct("TokenizedWalletValue1")
+        let value1: TokenizedWalletSensitiveValues = value1
+            .parse_struct("TokenizedWalletSensitiveValues")
             .change_context(errors::VaultError::ResponseDeserializationFailed)
-            .attach_printable("Could not deserialize into wallet value1")?;
+            .attach_printable("Could not deserialize into wallet data wallet_sensitive_data")?;
 
-        let value2: api::TokenizedWalletValue2 = value2
-            .parse_struct("TokenizedWalletValue2")
+        let value2: TokenizedWalletInsensitiveValues = value2
+            .parse_struct("TokenizedWalletInsensitiveValues")
             .change_context(errors::VaultError::ResponseDeserializationFailed)
-            .attach_printable("Could not deserialize into wallet value2")?;
+            .attach_printable("Could not deserialize into wallet data wallet_insensitive_data")?;
 
-        let wallet = match value1.data {
-            api::WalletData::PaypalRedirect(paypal_data) => {
-                Self::Paypal(api_models::payouts::Paypal {
-                    email: paypal_data.email,
-                })
-            }
-            _ => Err(errors::VaultError::ResponseDeserializationFailed)?,
-        };
-
+        let wallet = Self::Paypal(api_models::payouts::Paypal {
+            email: value1.email,
+        });
         let supp_data = SupplementaryVaultData {
             customer_id: value2.customer_id,
             payment_method_id: None,
