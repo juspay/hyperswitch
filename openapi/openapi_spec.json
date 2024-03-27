@@ -17292,7 +17292,8 @@
           "merchant_identifier",
           "display_name",
           "initiative",
-          "initiative_context"
+          "initiative_context",
+          "merchant_business_country"
         ],
         "properties": {
           "certificate": {
@@ -17314,12 +17315,7 @@
             "type": "string"
           },
           "merchant_business_country": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/api_enums.CountryAlpha2"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/CountryAlpha2"
           }
         }
       },
