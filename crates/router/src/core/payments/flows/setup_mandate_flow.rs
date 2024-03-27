@@ -63,6 +63,21 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         connector_request: Option<services::Request>,
         key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<Self> {
+        if self
+            .request
+            .customer_acceptance
+            .clone()
+            .or(self
+                .request
+                .setup_mandate_details
+                .as_ref()
+                .and_then(|mandate_data| mandate_data.customer_acceptance.clone()))
+            .is_none()
+        {
+            Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: "`customer_acceptance` is mandatory for zero dollar payments".to_string(),
+            })?
+        }
         if let Some(mandate_id) = self
             .request
             .setup_mandate_details

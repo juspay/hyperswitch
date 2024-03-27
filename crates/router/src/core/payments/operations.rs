@@ -92,6 +92,15 @@ pub trait ValidateRequest<F, R, Ctx: PaymentMethodRetrieve> {
         merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(BoxedOperation<'b, F, R, Ctx>, ValidateResult<'a>)>;
 }
+pub trait ValidateRequestFlow<F, R, Ctx: PaymentMethodRetrieve> {
+    fn validate_request_for_flow<'a, 'b>(
+        &'b self,
+        request: &R,
+        merchant_account: &'a domain::MerchantAccount,
+    ) -> RouterResult<()> {
+        Ok(())
+    }
+}
 
 pub struct GetTrackerResponse<'a, F: Clone, R, Ctx> {
     pub operation: BoxedOperation<'a, F, R, Ctx>,
