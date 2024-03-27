@@ -34,6 +34,12 @@ collect_variants!(CaptureMethod);
 collect_variants!(Currency);
 collect_variants!(Country);
 collect_variants!(SetupFutureUsage);
+#[cfg(feature = "payouts")]
+collect_variants!(PayoutType);
+#[cfg(feature = "payouts")]
+collect_variants!(PayoutBankTransferType);
+#[cfg(feature = "payouts")]
+collect_variants!(PayoutWalletType);
 
 #[derive(
     Clone,
@@ -93,4 +99,68 @@ pub enum PaymentType {
 pub enum MandateType {
     SingleUse,
     MultiUse,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(
+    Clone,
+    Debug,
+    Hash,
+    PartialEq,
+    Eq,
+    strum::Display,
+    strum::EnumVariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    serde::Serialize,
+    serde::Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PayoutBankTransferType {
+    Ach,
+    Bacs,
+    Sepa,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(
+    Clone,
+    Debug,
+    Hash,
+    PartialEq,
+    Eq,
+    strum::Display,
+    strum::EnumVariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    serde::Serialize,
+    serde::Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PayoutWalletType {
+    Paypal,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(
+    Clone,
+    Debug,
+    Hash,
+    PartialEq,
+    Eq,
+    strum::Display,
+    strum::EnumVariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    serde::Serialize,
+    serde::Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PayoutType {
+    Card,
+    BankTransfer,
+    Wallet,
 }

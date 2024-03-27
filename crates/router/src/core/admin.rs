@@ -206,7 +206,10 @@ pub async fn create_merchant_account(
             modified_at: date_time::now(),
             intent_fulfillment_time: None,
             frm_routing_algorithm: req.frm_routing_algorithm,
+            #[cfg(feature = "payouts")]
             payout_routing_algorithm: req.payout_routing_algorithm,
+            #[cfg(not(feature = "payouts"))]
+            payout_routing_algorithm: None,
             id: None,
             organization_id,
             is_recon_enabled: false,
@@ -432,6 +435,7 @@ pub async fn update_business_profile_cascade(
             routing_algorithm: None,
             intent_fulfillment_time: None,
             frm_routing_algorithm: None,
+            #[cfg(feature = "payouts")]
             payout_routing_algorithm: None,
             applepay_verified_domains: None,
             payment_link_config: None,
@@ -589,7 +593,10 @@ pub async fn merchant_account_update(
         primary_business_details,
         frm_routing_algorithm: req.frm_routing_algorithm,
         intent_fulfillment_time: None,
+        #[cfg(feature = "payouts")]
         payout_routing_algorithm: req.payout_routing_algorithm,
+        #[cfg(not(feature = "payouts"))]
+        payout_routing_algorithm: None,
         default_profile: business_profile_id_update,
         payment_link_config: None,
     };
@@ -1661,7 +1668,10 @@ pub async fn update_business_profile(
         routing_algorithm: request.routing_algorithm,
         intent_fulfillment_time: request.intent_fulfillment_time.map(i64::from),
         frm_routing_algorithm: request.frm_routing_algorithm,
+        #[cfg(feature = "payouts")]
         payout_routing_algorithm: request.payout_routing_algorithm,
+        #[cfg(not(feature = "payouts"))]
+        payout_routing_algorithm: None,
         is_recon_enabled: None,
         applepay_verified_domains: request.applepay_verified_domains,
         payment_link_config,
@@ -1729,6 +1739,10 @@ pub(crate) fn validate_auth_and_metadata_type(
             bankofamerica::transformers::BankOfAmericaAuthType::try_from(val)?;
             Ok(())
         }
+        // api_enums::Connector::Billwerk => {
+        //     billwerk::transformers::BillwerkAuthType::try_from(val)?;
+        //     Ok(())
+        // } Added as template code for future usage
         api_enums::Connector::Bitpay => {
             bitpay::transformers::BitpayAuthType::try_from(val)?;
             Ok(())

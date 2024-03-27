@@ -8,8 +8,9 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["olap"]
+default = ["olap", "payouts"]
 olap = []
+payouts = ["api_models/payouts"]
 
 [dependencies]
 # First party deps

@@ -6,6 +6,8 @@ use crate::{
     errors,
     payment_attempt::{PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate},
     payment_intent::{PaymentIntentNew, PaymentIntentUpdate},
+    payout_attempt::{PayoutAttempt, PayoutAttemptNew, PayoutAttemptUpdate},
+    payouts::{Payouts, PayoutsNew, PayoutsUpdate},
     refund::{Refund, RefundNew, RefundUpdate},
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
     PaymentIntent, PgPooledConn,
@@ -32,6 +34,8 @@ impl DBOperation {
                 Insertable::PaymentAttempt(_) => "payment_attempt",
                 Insertable::Refund(_) => "refund",
                 Insertable::Address(_) => "address",
+                Insertable::Payouts(_) => "payouts",
+                Insertable::PayoutAttempt(_) => "payout_attempt",
                 Insertable::ReverseLookUp(_) => "reverse_lookup",
             },
             Self::Update { updatable } => match updatable {
@@ -39,6 +43,8 @@ impl DBOperation {
                 Updateable::PaymentAttemptUpdate(_) => "payment_attempt",
                 Updateable::RefundUpdate(_) => "refund",
                 Updateable::AddressUpdate(_) => "address",
+                Updateable::PayoutsUpdate(_) => "payouts",
+                Updateable::PayoutAttemptUpdate(_) => "payout_attempt",
             },
         }
     }
@@ -51,6 +57,8 @@ pub enum DBResult {
     Refund(Box<Refund>),
     Address(Box<Address>),
     ReverseLookUp(Box<ReverseLookup>),
+    Payouts(Box<Payouts>),
+    PayoutAttempt(Box<PayoutAttempt>),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -74,6 +82,10 @@ impl DBOperation {
                 Insertable::ReverseLookUp(rev) => {
                     DBResult::ReverseLookUp(Box::new(rev.insert(conn).await?))
                 }
+                Insertable::Payouts(rev) => DBResult::Payouts(Box::new(rev.insert(conn).await?)),
+                Insertable::PayoutAttempt(rev) => {
+                    DBResult::PayoutAttempt(Box::new(rev.insert(conn).await?))
+                }
             },
             Self::Update { updatable } => match updatable {
                 Updateable::PaymentIntentUpdate(a) => {
@@ -88,6 +100,12 @@ impl DBOperation {
                 Updateable::AddressUpdate(a) => {
                     DBResult::Address(Box::new(a.orig.update(conn, a.update_data).await?))
                 }
+                Updateable::PayoutsUpdate(a) => {
+                    DBResult::Payouts(Box::new(a.orig.update(conn, a.update_data).await?))
+                }
+                Updateable::PayoutAttemptUpdate(a) => DBResult::PayoutAttempt(Box::new(
+                    a.orig.update_with_attempt_id(conn, a.update_data).await?,
+                )),
             },
         })
     }
@@ -123,6 +141,8 @@ pub enum Insertable {
     Refund(RefundNew),
     Address(Box<AddressNew>),
     ReverseLookUp(ReverseLookupNew),
+    Payouts(PayoutsNew),
+    PayoutAttempt(PayoutAttemptNew),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -132,6 +152,8 @@ pub enum Updateable {
     PaymentAttemptUpdate(PaymentAttemptUpdateMems),
     RefundUpdate(RefundUpdateMems),
     AddressUpdate(Box<AddressUpdateMems>),
+    PayoutsUpdate(PayoutsUpdateMems),
+    PayoutAttemptUpdate(PayoutAttemptUpdateMems),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -156,4 +178,16 @@ pub struct PaymentAttemptUpdateMems {
 pub struct RefundUpdateMems {
     pub orig: Refund,
     pub update_data: RefundUpdate,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PayoutsUpdateMems {
+    pub orig: Payouts,
+    pub update_data: PayoutsUpdate,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PayoutAttemptUpdateMems {
+    pub orig: PayoutAttempt,
+    pub update_data: PayoutAttemptUpdate,
 }

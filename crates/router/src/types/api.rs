@@ -15,11 +15,14 @@ pub mod mandates;
 pub mod payment_link;
 pub mod payment_methods;
 pub mod payments;
+#[cfg(feature = "payouts")]
 pub mod payouts;
 pub mod refunds;
 pub mod routing;
 #[cfg(feature = "olap")]
 pub mod verify_connector;
+#[cfg(feature = "olap")]
+pub mod webhook_events;
 pub mod webhooks;
 
 use std::{fmt::Debug, str::FromStr};
@@ -28,9 +31,11 @@ use error_stack::{report, IntoReport, ResultExt};
 
 #[cfg(feature = "frm")]
 pub use self::fraud_check::*;
+#[cfg(feature = "payouts")]
+pub use self::payouts::*;
 pub use self::{
     admin::*, api_keys::*, authentication::*, configs::*, customers::*, disputes::*, files::*,
-    payment_link::*, payment_methods::*, payments::*, payouts::*, refunds::*, webhooks::*,
+    payment_link::*, payment_methods::*, payments::*, refunds::*, webhooks::*,
 };
 use super::ErrorResponse;
 use crate::{
@@ -287,6 +292,7 @@ impl ConnectorData {
         })
     }
 
+    #[cfg(feature = "payouts")]
     pub fn get_payout_connector_by_name(
         connectors: &Connectors,
         name: &str,
@@ -322,6 +328,7 @@ impl ConnectorData {
                 enums::Connector::Authorizedotnet => Ok(Box::new(&connector::Authorizedotnet)),
                 enums::Connector::Bambora => Ok(Box::new(&connector::Bambora)),
                 enums::Connector::Bankofamerica => Ok(Box::new(&connector::Bankofamerica)),
+                // enums::Connector::Billwerk => Ok(Box::new(&connector::Billwerk)), Added as template code for future usage
                 enums::Connector::Bitpay => Ok(Box::new(&connector::Bitpay)),
                 enums::Connector::Bluesnap => Ok(Box::new(&connector::Bluesnap)),
                 enums::Connector::Boku => Ok(Box::new(&connector::Boku)),
@@ -410,6 +417,20 @@ pub trait FraudCheck:
 
 #[cfg(not(feature = "frm"))]
 pub trait FraudCheck {}
+
+#[cfg(feature = "payouts")]
+pub trait Payouts:
+    ConnectorCommon
+    + PayoutCancel
+    + PayoutCreate
+    + PayoutEligibility
+    + PayoutFulfill
+    + PayoutQuote
+    + PayoutRecipient
+{
+}
+#[cfg(not(feature = "payouts"))]
+pub trait Payouts {}
 
 #[cfg(test)]
 mod test {
