@@ -20,7 +20,7 @@ What I did:
 
 <ol>
   <li>Clone the Hyperswitch repository:</li>
-  <pre><code>git clone https://github.com/juspay/hyperswitch</code></pre>
+  <pre><code>git clone https://github.com/adityak-21/hyperswitch.git</code></pre>
 
   <li>Clone the Hyperswitch Web repository:</li>
   <pre><code>git clone https://github.com/adityak-21/hyperswitch-web.git</code></pre>
