@@ -10,7 +10,7 @@ use crate::{
     core::errors,
     pii::Secret,
     services,
-    types::{self, api, storage::enums},
+    types::{self, api, domain, storage::enums},
 };
 
 #[derive(Debug, Serialize)]
@@ -278,9 +278,9 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
         item: &MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let payment_type = match item.router_data.request.payment_method_data {
-            api::PaymentMethodData::Card(ref _ccard) => Type::Direct,
-            api::PaymentMethodData::MandatePayment => Type::Direct,
-            api::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
+            domain::PaymentMethodData::Card(ref _ccard) => Type::Direct,
+            domain::PaymentMethodData::MandatePayment => Type::Direct,
+            domain::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
                 api::WalletData::GooglePay(_) => Type::Direct,
                 api::WalletData::PaypalRedirect(_) => Type::Redirect,
                 api::WalletData::AliPayQr(_)
@@ -310,15 +310,15 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                     utils::get_unimplemented_payment_method_error_message("multisafepay"),
                 ))?,
             },
-            api::PaymentMethodData::PayLater(ref _paylater) => Type::Redirect,
+            domain::PaymentMethodData::PayLater(ref _paylater) => Type::Redirect,
             _ => Type::Redirect,
         };
 
         let gateway = match item.router_data.request.payment_method_data {
-            api::PaymentMethodData::Card(ref ccard) => {
+            domain::PaymentMethodData::Card(ref ccard) => {
                 Some(Gateway::try_from(ccard.get_card_issuer()?)?)
             }
-            api::PaymentMethodData::Wallet(ref wallet_data) => Some(match wallet_data {
+            domain::PaymentMethodData::Wallet(ref wallet_data) => Some(match wallet_data {
                 api::WalletData::GooglePay(_) => Gateway::Googlepay,
                 api::WalletData::PaypalRedirect(_) => Gateway::Paypal,
                 api::WalletData::AliPayQr(_)
@@ -348,26 +348,28 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                     utils::get_unimplemented_payment_method_error_message("multisafepay"),
                 ))?,
             }),
-            api::PaymentMethodData::PayLater(
+            domain::PaymentMethodData::PayLater(
                 api_models::payments::PayLaterData::KlarnaRedirect {
                     billing_email: _,
                     billing_country: _,
                 },
             ) => Some(Gateway::Klarna),
-            api::PaymentMethodData::MandatePayment => None,
-            api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::PayLater(_)
-            | api::PaymentMethodData::BankRedirect(_)
-            | api::PaymentMethodData::BankDebit(_)
-            | api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::Crypto(_)
-            | api::PaymentMethodData::Reward
-            | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("multisafepay"),
-            ))?,
+            domain::PaymentMethodData::MandatePayment => None,
+            domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("multisafepay"),
+                ))?
+            }
         };
         let description = item.router_data.get_description()?;
         let payment_options = PaymentOptions {
@@ -421,7 +423,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
         };
 
         let gateway_info = match item.router_data.request.payment_method_data {
-            api::PaymentMethodData::Card(ref ccard) => Some(GatewayInfo::Card(CardInfo {
+            domain::PaymentMethodData::Card(ref ccard) => Some(GatewayInfo::Card(CardInfo {
                 card_number: Some(ccard.card_number.clone()),
                 card_expiry_date: Some(Secret::new(
                     (format!(
@@ -438,7 +440,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 moto: None,
                 term_url: None,
             })),
-            api::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
+            domain::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
                 api::WalletData::GooglePay(ref google_pay) => {
                     Some(GatewayInfo::Wallet(WalletInfo::GooglePay({
                         GpayInfo {
@@ -476,7 +478,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                     utils::get_unimplemented_payment_method_error_message("multisafepay"),
                 ))?,
             },
-            api::PaymentMethodData::PayLater(ref paylater) => {
+            domain::PaymentMethodData::PayLater(ref paylater) => {
                 Some(GatewayInfo::PayLater(PayLaterInfo {
                     email: Some(match paylater {
                         api_models::payments::PayLaterData::KlarnaRedirect {
@@ -502,19 +504,21 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                     }),
                 }))
             }
-            api::PaymentMethodData::MandatePayment => None,
-            api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::BankRedirect(_)
-            | api::PaymentMethodData::BankDebit(_)
-            | api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::Crypto(_)
-            | api::PaymentMethodData::Reward
-            | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("multisafepay"),
-            ))?,
+            domain::PaymentMethodData::MandatePayment => None,
+            domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("multisafepay"),
+                ))?
+            }
         };
 
         Ok(Self {

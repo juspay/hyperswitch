@@ -7,7 +7,7 @@ use crate::{
     connector::utils::{self, CardData, PaymentsAuthorizeRequestData, RouterData},
     core::errors,
     types::{
-        self, api,
+        self, api, domain,
         storage::{self, enums},
     },
 };
@@ -29,10 +29,10 @@ impl TryFrom<(&types::TokenizationRouterData, BankDebitData)> for SquareTokenReq
     }
 }
 
-impl TryFrom<(&types::TokenizationRouterData, api_models::payments::Card)> for SquareTokenRequest {
+impl TryFrom<(&types::TokenizationRouterData, domain::Card)> for SquareTokenRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        value: (&types::TokenizationRouterData, api_models::payments::Card),
+        value: (&types::TokenizationRouterData, domain::Card),
     ) -> Result<Self, Self::Error> {
         let (item, card_data) = value;
         let auth = SquareAuthType::try_from(&item.connector_auth_type)
@@ -154,26 +154,28 @@ impl TryFrom<&types::TokenizationRouterData> for SquareTokenRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::TokenizationRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::BankDebit(bank_debit_data) => {
+            domain::PaymentMethodData::BankDebit(bank_debit_data) => {
                 Self::try_from((item, bank_debit_data))
             }
-            api::PaymentMethodData::Card(card_data) => Self::try_from((item, card_data)),
-            api::PaymentMethodData::Wallet(wallet_data) => Self::try_from((item, wallet_data)),
-            api::PaymentMethodData::PayLater(pay_later_data) => {
+            domain::PaymentMethodData::Card(card_data) => Self::try_from((item, card_data)),
+            domain::PaymentMethodData::Wallet(wallet_data) => Self::try_from((item, wallet_data)),
+            domain::PaymentMethodData::PayLater(pay_later_data) => {
                 Self::try_from((item, pay_later_data))
             }
-            api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::BankRedirect(_)
-            | api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::Crypto(_)
-            | api::PaymentMethodData::MandatePayment
-            | api::PaymentMethodData::Reward
-            | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Square"),
-            ))?,
+            domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Square"),
+                ))?
+            }
         }
     }
 }
@@ -251,7 +253,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let autocomplete = item.request.is_auto_capture()?;
         match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(_) => {
+            domain::PaymentMethodData::Card(_) => {
                 let pm_token = item.get_payment_method_token()?;
                 Ok(Self {
                     idempotency_key: Secret::new(item.attempt_id.clone()),
@@ -272,21 +274,23 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
                     },
                 })
             }
-            api::PaymentMethodData::BankDebit(_)
-            | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::PayLater(_)
-            | api::PaymentMethodData::Wallet(_)
-            | api::PaymentMethodData::BankRedirect(_)
-            | api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::Crypto(_)
-            | api::PaymentMethodData::MandatePayment
-            | api::PaymentMethodData::Reward
-            | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Square"),
-            ))?,
+            domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Square"),
+                ))?
+            }
         }
     }
 }
