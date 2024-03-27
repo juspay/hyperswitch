@@ -147,14 +147,18 @@ where
 
 /// Strategy for Encryption
 #[derive(Debug)]
-pub enum EncryptionStratergy {}
+pub enum EncryptionStrategy {}
 
-impl<T> Strategy<T> for EncryptionStratergy
+impl<T> Strategy<T> for EncryptionStrategy
 where
     T: AsRef<[u8]>,
 {
     fn fmt(value: &T, fmt: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(fmt, "*** Encrypted {} of bytes ***", value.as_ref().len())
+        write!(
+            fmt,
+            "*** Encrypted data of length {} bytes ***",
+            value.as_ref().len()
+        )
     }
 }
 

@@ -28,6 +28,7 @@ pub fn search_index_to_opensearch_index(index: SearchIndex, config: &OpenSearchI
         SearchIndex::PaymentAttempts => config.payment_attempts.clone(),
         SearchIndex::PaymentIntents => config.payment_intents.clone(),
         SearchIndex::Refunds => config.refunds.clone(),
+        SearchIndex::Disputes => config.disputes.clone(),
     }
 }
 
@@ -40,7 +41,7 @@ pub async fn msearch_results(
     for index in SearchIndex::iter() {
         msearch_vector
             .push(json!({"index": search_index_to_opensearch_index(index,&client.indexes)}).into());
-        msearch_vector.push(json!({"query": {"bool": {"must": {"query_string": {"query": req.query}}, "filter": {"match_phrase": {"merchant_id": merchant_id}}}}}).into());
+        msearch_vector.push(json!({"query": {"bool": {"filter": [{"multi_match": {"type": "phrase", "query": req.query, "lenient": true}},{"match_phrase": {"merchant_id": merchant_id}}]}}}).into());
     }
 
     let response = client
@@ -84,7 +85,7 @@ pub async fn search_results(
         .search(SearchParts::Index(&[&search_index_to_opensearch_index(req.index.clone(),&client.indexes)]))
         .from(search_req.offset)
         .size(search_req.count)
-        .body(json!({"query": {"bool": {"must": {"query_string": {"query": search_req.query}}, "filter": {"match_phrase": {"merchant_id": merchant_id}}}}}))
+        .body(json!({"query": {"bool": {"filter": [{"multi_match": {"type": "phrase", "query": search_req.query, "lenient": true}},{"match_phrase": {"merchant_id": merchant_id}}]}}}))
         .send()
         .await
         .map_err(|_| AnalyticsError::UnknownError)?;

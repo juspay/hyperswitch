@@ -361,6 +361,7 @@ pub enum PaymentAttemptUpdate {
         encoded_data: Option<String>,
         unified_code: Option<Option<String>>,
         unified_message: Option<Option<String>>,
+        payment_method_data: Option<serde_json::Value>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -388,6 +389,7 @@ pub enum PaymentAttemptUpdate {
         unified_code: Option<Option<String>>,
         unified_message: Option<Option<String>>,
         connector_transaction_id: Option<String>,
+        payment_method_data: Option<serde_json::Value>,
     },
     CaptureUpdate {
         amount_to_capture: Option<i64>,

@@ -392,7 +392,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                 enabled: true,
                 force_3ds: true,
                 eci: authentication_data.and_then(|auth| auth.eci.clone()),
-                cryptogram: authentication_data.and_then(|auth| auth.cavv.clone()),
+                cryptogram: authentication_data.map(|auth| auth.cavv.clone()),
                 xid: authentication_data.map(|auth| auth.threeds_server_transaction_id.clone()),
                 version: authentication_data.map(|auth| auth.message_version.clone()),
             },
@@ -1345,7 +1345,7 @@ pub fn construct_file_upload_request(
             request.file_key,
             request
                 .file_type
-                .to_string()
+                .as_ref()
                 .split('/')
                 .last()
                 .unwrap_or_default()

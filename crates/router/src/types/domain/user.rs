@@ -343,6 +343,7 @@ impl NewUserMerchant {
                 parent_merchant_id: None,
                 sub_merchants_enabled: None,
                 frm_routing_algorithm: None,
+                #[cfg(feature = "payouts")]
                 payout_routing_algorithm: None,
                 primary_business_details: None,
                 payment_response_hash_key: None,
@@ -807,6 +808,7 @@ impl From<info::PermissionModule> for user_role_api::PermissionModule {
             info::PermissionModule::ThreeDsDecisionManager => Self::ThreeDsDecisionManager,
             info::PermissionModule::SurchargeDecisionManager => Self::SurchargeDecisionManager,
             info::PermissionModule::AccountCreate => Self::AccountCreate,
+            info::PermissionModule::Payouts => Self::Payouts,
         }
     }
 }

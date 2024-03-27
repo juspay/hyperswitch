@@ -33,6 +33,7 @@ pub struct OpenSearchIndexes {
     pub payment_attempts: String,
     pub payment_intents: String,
     pub refunds: String,
+    pub disputes: String,
 }
 
 #[derive(Clone, Debug, serde::Deserialize)]
@@ -64,6 +65,7 @@ impl Default for OpenSearchConfig {
                 payment_attempts: "hyperswitch-payment-attempt-events".to_string(),
                 payment_intents: "hyperswitch-payment-intent-events".to_string(),
                 refunds: "hyperswitch-refund-events".to_string(),
+                disputes: "hyperswitch-dispute-events".to_string(),
             },
         }
     }
@@ -116,6 +118,7 @@ impl OpenSearchClient {
             SearchIndex::PaymentAttempts => self.indexes.payment_attempts.clone(),
             SearchIndex::PaymentIntents => self.indexes.payment_intents.clone(),
             SearchIndex::Refunds => self.indexes.refunds.clone(),
+            SearchIndex::Disputes => self.indexes.disputes.clone(),
         }
     }
 
@@ -210,6 +213,12 @@ impl OpenSearchIndexes {
         common_utils::fp_utils::when(self.refunds.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "Opensearch Refunds index must not be empty".into(),
+            ))
+        })?;
+
+        common_utils::fp_utils::when(self.disputes.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "Opensearch Disputes index must not be empty".into(),
             ))
         })?;
 

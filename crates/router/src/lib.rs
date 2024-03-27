@@ -140,11 +140,8 @@ pub fn mk_app(
             .service(routes::PaymentLink::server(state.clone()))
             .service(routes::User::server(state.clone()))
             .service(routes::ConnectorOnboarding::server(state.clone()))
-    }
-
-    #[cfg(feature = "olap")]
-    {
-        server_app = server_app.service(routes::Verify::server(state.clone()));
+            .service(routes::Verify::server(state.clone()))
+            .service(routes::WebhookEvents::server(state.clone()));
     }
 
     #[cfg(feature = "payouts")]
