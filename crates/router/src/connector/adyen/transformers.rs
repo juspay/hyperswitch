@@ -734,9 +734,9 @@ pub enum OnlineBankingCzechRepublicBanks {
     C,
 }
 
-impl TryFrom<&Box<payments::JCSVoucherData>> for JCSVoucherData {
+impl TryFrom<&Box<domain::JCSVoucherData>> for JCSVoucherData {
     type Error = Error;
-    fn try_from(jcs_data: &Box<payments::JCSVoucherData>) -> Result<Self, Self::Error> {
+    fn try_from(jcs_data: &Box<domain::JCSVoucherData>) -> Result<Self, Self::Error> {
         Ok(Self {
             first_name: jcs_data.first_name.clone(),
             last_name: jcs_data.last_name.clone(),
@@ -1601,7 +1601,7 @@ impl<'a> TryFrom<&types::PaymentsPreProcessingRouterData> for AdyenBalanceReques
         let payment_method = match &item.request.payment_method_data {
             Some(domain::PaymentMethodData::GiftCard(gift_card_data)) => {
                 match gift_card_data.as_ref() {
-                    payments::GiftCardData::Givex(gift_card_data) => {
+                    domain::GiftCardData::Givex(gift_card_data) => {
                         let balance_pm = BalancePmData {
                             payment_type: GiftCardBrand::Givex,
                             number: gift_card_data.number.clone(),
@@ -1611,7 +1611,7 @@ impl<'a> TryFrom<&types::PaymentsPreProcessingRouterData> for AdyenBalanceReques
                             balance_pm,
                         )))
                     }
-                    payments::GiftCardData::PaySafeCard {} => {
+                    domain::GiftCardData::PaySafeCard {} => {
                         Err(errors::ConnectorError::FlowNotSupported {
                             flow: "Balance".to_string(),
                             connector: "adyen".to_string(),
@@ -1805,24 +1805,22 @@ fn get_country_code(
     address.and_then(|billing| billing.address.as_ref().and_then(|address| address.country))
 }
 
-fn get_social_security_number(
-    voucher_data: &api_models::payments::VoucherData,
-) -> Option<Secret<String>> {
+fn get_social_security_number(voucher_data: &domain::VoucherData) -> Option<Secret<String>> {
     match voucher_data {
-        payments::VoucherData::Boleto(boleto_data) => boleto_data.social_security_number.clone(),
-        payments::VoucherData::Alfamart { .. }
-        | payments::VoucherData::Indomaret { .. }
-        | payments::VoucherData::Efecty
-        | payments::VoucherData::PagoEfectivo
-        | payments::VoucherData::RedCompra
-        | payments::VoucherData::Oxxo
-        | payments::VoucherData::RedPagos
-        | payments::VoucherData::SevenEleven { .. }
-        | payments::VoucherData::Lawson { .. }
-        | payments::VoucherData::MiniStop { .. }
-        | payments::VoucherData::FamilyMart { .. }
-        | payments::VoucherData::Seicomart { .. }
-        | payments::VoucherData::PayEasy { .. } => None,
+        domain::VoucherData::Boleto(boleto_data) => boleto_data.social_security_number.clone(),
+        domain::VoucherData::Alfamart { .. }
+        | domain::VoucherData::Indomaret { .. }
+        | domain::VoucherData::Efecty
+        | domain::VoucherData::PagoEfectivo
+        | domain::VoucherData::RedCompra
+        | domain::VoucherData::Oxxo
+        | domain::VoucherData::RedPagos
+        | domain::VoucherData::SevenEleven { .. }
+        | domain::VoucherData::Lawson { .. }
+        | domain::VoucherData::MiniStop { .. }
+        | domain::VoucherData::FamilyMart { .. }
+        | domain::VoucherData::Seicomart { .. }
+        | domain::VoucherData::PayEasy { .. } => None,
     }
 }
 
@@ -1896,48 +1894,48 @@ impl<'a> TryFrom<&api_models::payments::BankDebitData> for AdyenPaymentMethod<'a
     }
 }
 
-impl<'a> TryFrom<&api_models::payments::VoucherData> for AdyenPaymentMethod<'a> {
+impl<'a> TryFrom<&domain::VoucherData> for AdyenPaymentMethod<'a> {
     type Error = Error;
-    fn try_from(voucher_data: &api_models::payments::VoucherData) -> Result<Self, Self::Error> {
+    fn try_from(voucher_data: &domain::VoucherData) -> Result<Self, Self::Error> {
         match voucher_data {
-            payments::VoucherData::Boleto { .. } => Ok(AdyenPaymentMethod::BoletoBancario),
-            payments::VoucherData::Alfamart(alfarmart_data) => {
+            domain::VoucherData::Boleto { .. } => Ok(AdyenPaymentMethod::BoletoBancario),
+            domain::VoucherData::Alfamart(alfarmart_data) => {
                 Ok(AdyenPaymentMethod::Alfamart(Box::new(DokuBankData {
                     first_name: alfarmart_data.first_name.clone(),
                     last_name: alfarmart_data.last_name.clone(),
                     shopper_email: alfarmart_data.email.clone(),
                 })))
             }
-            payments::VoucherData::Indomaret(indomaret_data) => {
+            domain::VoucherData::Indomaret(indomaret_data) => {
                 Ok(AdyenPaymentMethod::Indomaret(Box::new(DokuBankData {
                     first_name: indomaret_data.first_name.clone(),
                     last_name: indomaret_data.last_name.clone(),
                     shopper_email: indomaret_data.email.clone(),
                 })))
             }
-            payments::VoucherData::Oxxo => Ok(AdyenPaymentMethod::Oxxo),
-            payments::VoucherData::SevenEleven(jcs_data) => Ok(AdyenPaymentMethod::SevenEleven(
+            domain::VoucherData::Oxxo => Ok(AdyenPaymentMethod::Oxxo),
+            domain::VoucherData::SevenEleven(jcs_data) => Ok(AdyenPaymentMethod::SevenEleven(
                 Box::new(JCSVoucherData::try_from(jcs_data)?),
             )),
-            payments::VoucherData::Lawson(jcs_data) => Ok(AdyenPaymentMethod::Lawson(Box::new(
+            domain::VoucherData::Lawson(jcs_data) => Ok(AdyenPaymentMethod::Lawson(Box::new(
                 JCSVoucherData::try_from(jcs_data)?,
             ))),
-            payments::VoucherData::MiniStop(jcs_data) => Ok(AdyenPaymentMethod::MiniStop(
-                Box::new(JCSVoucherData::try_from(jcs_data)?),
-            )),
-            payments::VoucherData::FamilyMart(jcs_data) => Ok(AdyenPaymentMethod::FamilyMart(
-                Box::new(JCSVoucherData::try_from(jcs_data)?),
-            )),
-            payments::VoucherData::Seicomart(jcs_data) => Ok(AdyenPaymentMethod::Seicomart(
-                Box::new(JCSVoucherData::try_from(jcs_data)?),
-            )),
-            payments::VoucherData::PayEasy(jcs_data) => Ok(AdyenPaymentMethod::PayEasy(Box::new(
+            domain::VoucherData::MiniStop(jcs_data) => Ok(AdyenPaymentMethod::MiniStop(Box::new(
                 JCSVoucherData::try_from(jcs_data)?,
             ))),
-            payments::VoucherData::Efecty
-            | payments::VoucherData::PagoEfectivo
-            | payments::VoucherData::RedCompra
-            | payments::VoucherData::RedPagos => Err(errors::ConnectorError::NotImplemented(
+            domain::VoucherData::FamilyMart(jcs_data) => Ok(AdyenPaymentMethod::FamilyMart(
+                Box::new(JCSVoucherData::try_from(jcs_data)?),
+            )),
+            domain::VoucherData::Seicomart(jcs_data) => Ok(AdyenPaymentMethod::Seicomart(
+                Box::new(JCSVoucherData::try_from(jcs_data)?),
+            )),
+            domain::VoucherData::PayEasy(jcs_data) => Ok(AdyenPaymentMethod::PayEasy(Box::new(
+                JCSVoucherData::try_from(jcs_data)?,
+            ))),
+            domain::VoucherData::Efecty
+            | domain::VoucherData::PagoEfectivo
+            | domain::VoucherData::RedCompra
+            | domain::VoucherData::RedPagos => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             )
             .into()),
@@ -1945,12 +1943,12 @@ impl<'a> TryFrom<&api_models::payments::VoucherData> for AdyenPaymentMethod<'a> 
     }
 }
 
-impl<'a> TryFrom<&api_models::payments::GiftCardData> for AdyenPaymentMethod<'a> {
+impl<'a> TryFrom<&domain::GiftCardData> for AdyenPaymentMethod<'a> {
     type Error = Error;
-    fn try_from(gift_card_data: &api_models::payments::GiftCardData) -> Result<Self, Self::Error> {
+    fn try_from(gift_card_data: &domain::GiftCardData) -> Result<Self, Self::Error> {
         match gift_card_data {
-            payments::GiftCardData::PaySafeCard {} => Ok(AdyenPaymentMethod::PaySafeCard),
-            payments::GiftCardData::Givex(givex_data) => {
+            domain::GiftCardData::PaySafeCard {} => Ok(AdyenPaymentMethod::PaySafeCard),
+            domain::GiftCardData::Givex(givex_data) => {
                 let gift_card_pm = GiftCardData {
                     payment_type: PaymentType::Giftcard,
                     brand: GiftCardBrand::Givex,
@@ -2750,7 +2748,7 @@ impl<'a>
 impl<'a>
     TryFrom<(
         &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
-        &api_models::payments::VoucherData,
+        &domain::VoucherData,
     )> for AdyenPaymentRequest<'a>
 {
     type Error = Error;
@@ -2758,7 +2756,7 @@ impl<'a>
     fn try_from(
         value: (
             &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
-            &api_models::payments::VoucherData,
+            &domain::VoucherData,
         ),
     ) -> Result<Self, Self::Error> {
         let (item, voucher_data) = value;
@@ -2854,7 +2852,7 @@ impl<'a>
 impl<'a>
     TryFrom<(
         &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
-        &api_models::payments::GiftCardData,
+        &domain::GiftCardData,
     )> for AdyenPaymentRequest<'a>
 {
     type Error = Error;
@@ -2862,7 +2860,7 @@ impl<'a>
     fn try_from(
         value: (
             &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
-            &api_models::payments::GiftCardData,
+            &domain::GiftCardData,
         ),
     ) -> Result<Self, Self::Error> {
         let (item, gift_card_data) = value;
