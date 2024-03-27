@@ -23,6 +23,7 @@ use crate::{
         transformers::ForeignFrom,
         ApplePayPredecryptData,
     },
+    unimplemented_payment_method,
 };
 
 #[derive(Debug, Serialize)]
@@ -139,9 +140,9 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
                                     Some(PaymentSolution::ApplePay),
                                 )
                             }
-                            types::PaymentMethodToken::Token(_) => {
-                                Err(errors::ConnectorError::InvalidWalletToken)?
-                            }
+                            types::PaymentMethodToken::Token(_) => Err(
+                                unimplemented_payment_method!("Apple Pay", "Manual", "Cybersource"),
+                            )?,
                         },
                         None => (
                             PaymentInformation::ApplePayToken(ApplePayTokenPaymentInformation {
@@ -980,7 +981,11 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                                         Self::try_from((item, decrypt_data, apple_pay_data))
                                     }
                                     types::PaymentMethodToken::Token(_) => {
-                                        Err(errors::ConnectorError::InvalidWalletToken)?
+                                        Err(unimplemented_payment_method!(
+                                            "Apple Pay",
+                                            "Manual",
+                                            "Cybersource"
+                                        ))?
                                     }
                                 },
                                 None => {

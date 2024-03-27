@@ -3527,13 +3527,11 @@ pub async fn get_additional_payment_data(
         }
         api_models::payments::PaymentMethodData::Wallet(wallet) => match wallet {
             api_models::payments::WalletData::ApplePay(apple_pay_wallet_data) => {
-                api_models::payments::AdditionalPaymentData::Wallet(Some(
-                    api_models::payments::Wallets::ApplePay(
-                        apple_pay_wallet_data.payment_method.to_owned(),
-                    ),
-                ))
+                api_models::payments::AdditionalPaymentData::Wallet {
+                    apple_pay: Some(apple_pay_wallet_data.payment_method.to_owned()),
+                }
             }
-            _ => api_models::payments::AdditionalPaymentData::Wallet(None),
+            _ => api_models::payments::AdditionalPaymentData::Wallet { apple_pay: None },
         },
         api_models::payments::PaymentMethodData::PayLater(_) => {
             api_models::payments::AdditionalPaymentData::PayLater {}
@@ -3607,8 +3605,10 @@ impl ApplePayData {
     pub fn token_json(
         wallet_data: api_models::payments::WalletData,
     ) -> CustomResult<Self, errors::ConnectorError> {
-        let json_wallet_data: Self =
-            connector::utils::WalletData::get_wallet_token_as_json(&wallet_data)?;
+        let json_wallet_data: Self = connector::utils::WalletData::get_wallet_token_as_json(
+            &wallet_data,
+            "Apple Pay".to_string(),
+        )?;
         Ok(json_wallet_data)
     }
 

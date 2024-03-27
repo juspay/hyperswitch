@@ -21,6 +21,8 @@ pub mod refunds;
 pub mod routing;
 #[cfg(feature = "olap")]
 pub mod verify_connector;
+#[cfg(feature = "olap")]
+pub mod webhook_events;
 pub mod webhooks;
 
 use std::{fmt::Debug, str::FromStr};
@@ -326,6 +328,7 @@ impl ConnectorData {
                 enums::Connector::Authorizedotnet => Ok(Box::new(&connector::Authorizedotnet)),
                 enums::Connector::Bambora => Ok(Box::new(&connector::Bambora)),
                 enums::Connector::Bankofamerica => Ok(Box::new(&connector::Bankofamerica)),
+                // enums::Connector::Billwerk => Ok(Box::new(&connector::Billwerk)), Added as template code for future usage
                 enums::Connector::Bitpay => Ok(Box::new(&connector::Bitpay)),
                 enums::Connector::Bluesnap => Ok(Box::new(&connector::Bluesnap)),
                 enums::Connector::Boku => Ok(Box::new(&connector::Boku)),
