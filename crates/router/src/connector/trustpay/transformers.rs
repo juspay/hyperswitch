@@ -491,6 +491,7 @@ fn is_payment_failed(payment_status: &str) -> (bool, &'static str) {
         ),
         "700.500.001" => (true, "Referenced session contains too many transactions"),
         "700.500.003" => (true, "Test accounts not allowed in production"),
+        "800.100.100" => (true, "Transaction declined for unknown reason"),
         "800.100.151" => (true, "Transaction declined (invalid card)"),
         "800.100.152" => (true, "Transaction declined by authorization system"),
         "800.100.153" => (true, "Transaction declined (invalid CVV)"),
