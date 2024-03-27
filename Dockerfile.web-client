@@ -1,5 +1,5 @@
 # Use official Node.js image as the base image for web client
-FROM node:14 as web-client-builder
+FROM node:18.14.03 as web-client-builder
 
 # Set the working directory in the container
 WORKDIR /app
