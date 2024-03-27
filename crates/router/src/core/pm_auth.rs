@@ -699,7 +699,7 @@ pub async fn retrieve_payment_method_from_auth_service(
 
     let mut bank_type = None;
     if let Some(account_type) = bank_account.account_type.clone() {
-        bank_type = api_models::enums::BankType::from_str(account_type.as_str())
+        bank_type = common_enums::BankType::from_str(account_type.as_str())
             .map_err(|error| logger::error!(%error,"unable to parse account_type {account_type:?}"))
             .ok();
     }

@@ -1013,13 +1013,13 @@ pub enum BankDebitData {
         bank_account_holder_name: Option<Secret<String>>,
 
         #[schema(value_type = String, example = "ACH")]
-        bank_name: Option<enums::BankNames>,
+        bank_name: Option<common_enums::BankNames>,
 
         #[schema(value_type = String, example = "Checking")]
-        bank_type: Option<enums::BankType>,
+        bank_type: Option<common_enums::BankType>,
 
         #[schema(value_type = String, example = "Personal")]
-        bank_holder_type: Option<enums::BankHolderType>,
+        bank_holder_type: Option<common_enums::BankHolderType>,
     },
     SepaBankDebit {
         /// Billing details for bank debit

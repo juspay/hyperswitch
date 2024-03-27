@@ -1,6 +1,7 @@
 use common_utils::pii::Email;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 // We need to derive Serialize and Deserialize because some parts of payment method data are being
 // stored in the database as serde_json::Value
@@ -11,7 +12,7 @@ pub enum PaymentMethodData {
     Wallet(api_models::payments::WalletData),
     PayLater(api_models::payments::PayLaterData),
     BankRedirect(api_models::payments::BankRedirectData),
-    BankDebit(api_models::payments::BankDebitData),
+    BankDebit(BankDebitData),
     BankTransfer(Box<api_models::payments::BankTransferData>),
     Crypto(api_models::payments::CryptoData),
     MandatePayment,
@@ -318,6 +319,62 @@ pub struct BankRedirectBilling {
     pub email: Option<Email>,
 }
 
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum BankDebitData {
+    AchBankDebit {
+        billing_details: BankDebitBilling,
+        #[schema(value_type = String, example = "000123456789")]
+        account_number: Secret<String>,
+        #[schema(value_type = String, example = "110000000")]
+        routing_number: Secret<String>,
+        #[schema(value_type = String, example = "John Test")]
+        card_holder_name: Option<Secret<String>>,
+        #[schema(value_type = String, example = "John Doe")]
+        bank_account_holder_name: Option<Secret<String>>,
+        #[schema(value_type = String, example = "ACH")]
+        bank_name: Option<common_enums::BankNames>,
+        #[schema(value_type = String, example = "Checking")]
+        bank_type: Option<common_enums::BankType>,
+        #[schema(value_type = String, example = "Personal")]
+        bank_holder_type: Option<common_enums::BankHolderType>,
+    },
+    SepaBankDebit {
+        billing_details: BankDebitBilling,
+        #[schema(value_type = String, example = "DE89370400440532013000")]
+        iban: Secret<String>,
+        #[schema(value_type = String, example = "A. Schneider")]
+        bank_account_holder_name: Option<Secret<String>>,
+    },
+    BecsBankDebit {
+        billing_details: BankDebitBilling,
+        #[schema(value_type = String, example = "000123456")]
+        account_number: Secret<String>,
+        #[schema(value_type = String, example = "000000")]
+        bsb_number: Secret<String>,
+        #[schema(value_type = Option<String>, example = "A. Schneider")]
+        bank_account_holder_name: Option<Secret<String>>,
+    },
+    BacsBankDebit {
+        billing_details: BankDebitBilling,
+        #[schema(value_type = String, example = "00012345")]
+        account_number: Secret<String>,
+        #[schema(value_type = String, example = "108800")]
+        sort_code: Secret<String>,
+        #[schema(value_type = String, example = "A. Schneider")]
+        bank_account_holder_name: Option<Secret<String>>,
+    },
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
+pub struct BankDebitBilling {
+    #[schema(value_type = String, example = "John Doe")]
+    pub name: Secret<String>,
+    #[schema(value_type = String, example = "example@example.com")]
+    pub email: Email,
+    pub address: Option<api_models::payments::AddressDetails>,
+}
+
 impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
     fn from(api_model_payment_method_data: api_models::payments::PaymentMethodData) -> Self {
         match api_model_payment_method_data {
@@ -337,7 +394,7 @@ impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
                 Self::BankRedirect(bank_redirect_data)
             }
             api_models::payments::PaymentMethodData::BankDebit(bank_debit_data) => {
-                Self::BankDebit(bank_debit_data)
+                Self::BankDebit(From::from(bank_debit_data))
             }
             api_models::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
                 Self::BankTransfer(bank_transfer_data)
@@ -400,6 +457,79 @@ impl From<api_models::payments::CardRedirectData> for CardRedirectData {
             api_models::payments::CardRedirectData::Benefit {} => Self::Benefit {},
             api_models::payments::CardRedirectData::MomoAtm {} => Self::MomoAtm {},
             api_models::payments::CardRedirectData::CardRedirect {} => Self::CardRedirect {},
+        }
+    }
+}
+
+impl From<api_models::payments::BankDebitData> for BankDebitData {
+    fn from(value: api_models::payments::BankDebitData) -> Self {
+        match value {
+            api_models::payments::BankDebitData::AchBankDebit {
+                billing_details,
+                account_number,
+                routing_number,
+                card_holder_name,
+                bank_account_holder_name,
+                bank_name,
+                bank_type,
+                bank_holder_type,
+            } => Self::AchBankDebit {
+                billing_details: BankDebitBilling {
+                    name: billing_details.name,
+                    email: billing_details.email,
+                    address: billing_details.address,
+                },
+                account_number,
+                routing_number,
+                card_holder_name,
+                bank_account_holder_name,
+                bank_name,
+                bank_type,
+                bank_holder_type,
+            },
+            api_models::payments::BankDebitData::SepaBankDebit {
+                billing_details,
+                iban,
+                bank_account_holder_name,
+            } => Self::SepaBankDebit {
+                billing_details: BankDebitBilling {
+                    name: billing_details.name,
+                    email: billing_details.email,
+                    address: billing_details.address,
+                },
+                iban,
+                bank_account_holder_name,
+            },
+            api_models::payments::BankDebitData::BecsBankDebit {
+                billing_details,
+                account_number,
+                bsb_number,
+                bank_account_holder_name,
+            } => Self::BecsBankDebit {
+                billing_details: BankDebitBilling {
+                    name: billing_details.name,
+                    email: billing_details.email,
+                    address: billing_details.address,
+                },
+                account_number,
+                bsb_number,
+                bank_account_holder_name,
+            },
+            api_models::payments::BankDebitData::BacsBankDebit {
+                billing_details,
+                account_number,
+                sort_code,
+                bank_account_holder_name,
+            } => Self::BacsBankDebit {
+                billing_details: BankDebitBilling {
+                    name: billing_details.name,
+                    email: billing_details.email,
+                    address: billing_details.address,
+                },
+                account_number,
+                sort_code,
+                bank_account_holder_name,
+            },
         }
     }
 }

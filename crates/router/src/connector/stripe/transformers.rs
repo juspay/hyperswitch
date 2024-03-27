@@ -1012,13 +1012,13 @@ impl ForeignTryFrom<&payments::WalletData> for Option<StripePaymentMethodType> {
     }
 }
 
-impl From<&payments::BankDebitData> for StripePaymentMethodType {
-    fn from(bank_debit_data: &payments::BankDebitData) -> Self {
+impl From<&domain::BankDebitData> for StripePaymentMethodType {
+    fn from(bank_debit_data: &domain::BankDebitData) -> Self {
         match bank_debit_data {
-            payments::BankDebitData::AchBankDebit { .. } => Self::Ach,
-            payments::BankDebitData::SepaBankDebit { .. } => Self::Sepa,
-            payments::BankDebitData::BecsBankDebit { .. } => Self::Becs,
-            payments::BankDebitData::BacsBankDebit { .. } => Self::Bacs,
+            domain::BankDebitData::AchBankDebit { .. } => Self::Ach,
+            domain::BankDebitData::SepaBankDebit { .. } => Self::Sepa,
+            domain::BankDebitData::BecsBankDebit { .. } => Self::Becs,
+            domain::BankDebitData::BacsBankDebit { .. } => Self::Bacs,
         }
     }
 }
@@ -1062,8 +1062,8 @@ impl TryFrom<(&api_models::payments::PayLaterData, StripePaymentMethodType)>
     }
 }
 
-impl From<&payments::BankDebitBilling> for StripeBillingAddress {
-    fn from(item: &payments::BankDebitBilling) -> Self {
+impl From<&domain::BankDebitBilling> for StripeBillingAddress {
+    fn from(item: &domain::BankDebitBilling) -> Self {
         Self {
             email: Some(item.email.to_owned()),
             country: item
@@ -1196,10 +1196,10 @@ impl TryFrom<(&payments::BankRedirectData, Option<bool>)> for StripeBillingAddre
 }
 
 fn get_bank_debit_data(
-    bank_debit_data: &payments::BankDebitData,
+    bank_debit_data: &domain::BankDebitData,
 ) -> (StripePaymentMethodType, BankDebitData, StripeBillingAddress) {
     match bank_debit_data {
-        payments::BankDebitData::AchBankDebit {
+        domain::BankDebitData::AchBankDebit {
             billing_details,
             account_number,
             routing_number,
@@ -1214,7 +1214,7 @@ fn get_bank_debit_data(
             let billing_data = StripeBillingAddress::from(billing_details);
             (StripePaymentMethodType::Ach, ach_data, billing_data)
         }
-        payments::BankDebitData::SepaBankDebit {
+        domain::BankDebitData::SepaBankDebit {
             billing_details,
             iban,
             ..
@@ -1226,7 +1226,7 @@ fn get_bank_debit_data(
             let billing_data = StripeBillingAddress::from(billing_details);
             (StripePaymentMethodType::Sepa, sepa_data, billing_data)
         }
-        payments::BankDebitData::BecsBankDebit {
+        domain::BankDebitData::BecsBankDebit {
             billing_details,
             account_number,
             bsb_number,
@@ -1240,7 +1240,7 @@ fn get_bank_debit_data(
             let billing_data = StripeBillingAddress::from(billing_details);
             (StripePaymentMethodType::Becs, becs_data, billing_data)
         }
-        payments::BankDebitData::BacsBankDebit {
+        domain::BankDebitData::BacsBankDebit {
             billing_details,
             account_number,
             sort_code,
