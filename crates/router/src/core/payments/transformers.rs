@@ -1,6 +1,6 @@
 use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
-use api_models::payments::{FrmMessage, RequestSurchargeDetails};
+use api_models::payments::{FrmMessage, GetAddressFromPaymentMethodData, RequestSurchargeDetails};
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutAttemptResponse;
 use common_enums::RequestIncrementalAuthorization;
@@ -125,6 +125,11 @@ where
         Some(merchant_connector_account),
     );
 
+    let payment_method_data_billing = payment_data
+        .payment_method_data
+        .as_ref()
+        .and_then(|payment_method_data| payment_method_data.get_billing_address());
+
     router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
@@ -138,7 +143,9 @@ where
         description: payment_data.payment_intent.description.clone(),
         return_url: payment_data.payment_intent.return_url.clone(),
         payment_method_id: payment_data.payment_attempt.payment_method_id.clone(),
-        address: payment_data.address.clone(),
+        address: payment_data
+            .address
+            .unify_with_payment_method_data_billing(payment_method_data_billing),
         auth_type: payment_data
             .payment_attempt
             .authentication_type
