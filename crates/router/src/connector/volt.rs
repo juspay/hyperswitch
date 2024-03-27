@@ -149,8 +149,7 @@ impl ConnectorValidation for Volt {
         pm_type: Option<types::storage::enums::PaymentMethodType>,
         pm_data: api_models::payments::PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd =
-            std::collections::HashSet::<PaymentMethodDataType>::new();
+        let mandate_supported_pmd = std::collections::HashSet::<PaymentMethodDataType>::new();
         is_mandate_supported!(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }

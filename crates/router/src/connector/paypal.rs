@@ -9,7 +9,9 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use transformers as paypal;
 
 use self::transformers::{auth_headers, PaypalAuthResponse, PaypalMeta, PaypalWebhookEventType};
-use super::utils::{ConnectorErrorType, PaymentsCompleteAuthorizeRequestData, PaymentMethodDataType};
+use super::utils::{
+    ConnectorErrorType, PaymentMethodDataType, PaymentsCompleteAuthorizeRequestData,
+};
 use crate::{
     configs::settings,
     connector::{
