@@ -7,6 +7,7 @@ use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
+use stripe::auth_headers;
 
 use self::transformers as stripe;
 use super::utils::{self as connector_utils, PaymentMethodDataType, RefundsRequestData};
@@ -55,10 +56,16 @@ impl ConnectorCommon for Stripe {
         let auth: stripe::StripeAuthType = auth_type
             .try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", auth.api_key.peek()).into_masked(),
-        )])
+        Ok(vec![
+            (
+                headers::AUTHORIZATION.to_string(),
+                format!("Bearer {}", auth.api_key.peek()).into_masked(),
+            ),
+            (
+                auth_headers::STRIPE_API_VERSION.to_string(),
+                auth_headers::STRIPE_VERSION.to_string().into_masked(),
+            ),
+        ])
     }
 }
 
@@ -267,7 +274,6 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = stripe::StripeCreditTransferSourceRequest::try_from(req)?;
-
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
@@ -784,10 +790,10 @@ impl
 
         match id.get_connector_transaction_id() {
             Ok(x) if x.starts_with("set") => Ok(format!(
-                "{}{}/{}",
+                "{}{}/{}?expand[0]=latest_attempt", // expand latest attempt to extract payment checks and three_d_secure data
                 self.base_url(connectors),
                 "v1/setup_intents",
-                x
+                x,
             )),
             Ok(x) => Ok(format!(
                 "{}{}/{}{}",
@@ -822,7 +828,6 @@ impl
         res: types::Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError>
     where
-        types::PaymentsAuthorizeData: Clone,
         types::PaymentsResponseData: Clone,
     {
         let id = data.request.connector_transaction_id.clone();
@@ -967,6 +972,7 @@ impl
             }
             _ => {
                 let connector_req = stripe::PaymentIntentRequest::try_from(req)?;
+
                 Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
             }
         }

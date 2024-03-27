@@ -156,14 +156,12 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             setup_mandate: None,
             customer_acceptance: None,
             token: payment_attempt.payment_token.clone(),
+            address: PaymentAddress::new(
+                shipping_address.as_ref().map(From::from),
+                billing_address.as_ref().map(From::from),
+                payment_method_billing.as_ref().map(From::from),
+            ),
             token_data,
-            address: PaymentAddress {
-                shipping: shipping_address.as_ref().map(|a| a.into()),
-                billing: billing_address.as_ref().map(|a| a.into()),
-                payment_method_billing: payment_method_billing
-                    .as_ref()
-                    .map(|address| address.into()),
-            },
             confirm: Some(payment_attempt.confirm),
             payment_attempt,
             payment_method_data: None,
@@ -183,7 +181,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             redirect_response: None,
             surcharge_details: None,
             frm_message: None,
-            payment_method_status: None,
             payment_link_data: None,
             incremental_authorization_details: None,
             authorizations: vec![],

@@ -1,5 +1,5 @@
 use masking::Secret;
-use router::types::{self, api, storage::enums, AccessToken, PaymentAddress};
+use router::types::{self, api, storage::enums, AccessToken};
 
 use crate::{
     connector_auth,
@@ -55,8 +55,9 @@ static CONNECTOR: IatapayTest = IatapayTest {};
 
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     Some(utils::PaymentInfo {
-        address: Some(PaymentAddress {
-            billing: Some(api::Address {
+        address: Some(types::PaymentAddress::new(
+            None,
+            Some(api::Address {
                 address: Some(api::AddressDetails {
                     first_name: Some(Secret::new("first".to_string())),
                     last_name: Some(Secret::new("last".to_string())),
@@ -73,8 +74,8 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                 }),
                 email: None,
             }),
-            ..Default::default()
-        }),
+            None,
+        )),
         access_token: get_access_token(),
         return_url: Some(String::from("https://hyperswitch.io")),
         ..Default::default()

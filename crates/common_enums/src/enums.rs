@@ -14,6 +14,7 @@ pub mod diesel_exports {
         DbPaymentMethodIssuerCode as PaymentMethodIssuerCode, DbPaymentType as PaymentType,
         DbRefundStatus as RefundStatus,
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
+        DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
     };
 }
 
@@ -1047,6 +1048,28 @@ impl Currency {
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+pub enum EventClass {
+    Payments,
+    Refunds,
+    Disputes,
+    Mandates,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum EventType {
     /// Authorize + Capture success
     PaymentSucceeded,
@@ -1068,6 +1091,27 @@ pub enum EventType {
     DisputeLost,
     MandateActive,
     MandateRevoked,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum WebhookDeliveryAttempt {
+    InitialAttempt,
+    AutomaticRetry,
+    ManualRetry,
 }
 
 // TODO: This decision about using KV mode or not,
@@ -2028,6 +2072,7 @@ pub enum CanadaStatesAbbreviation {
     Debug,
     Default,
     Eq,
+    Hash,
     PartialEq,
     ToSchema,
     serde::Deserialize,
@@ -2056,12 +2101,15 @@ pub enum PayoutStatus {
     Debug,
     Default,
     Eq,
+    Hash,
     PartialEq,
-    ToSchema,
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
+    strum::EnumVariantNames,
+    strum::EnumIter,
     strum::EnumString,
+    ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
@@ -2131,6 +2179,15 @@ pub enum PaymentSource {
     Sdk,
     Webhook,
     ExternalAuthenticator,
+}
+
+impl PaymentSource {
+    pub fn is_for_internal_use_only(&self) -> bool {
+        match self {
+            Self::Dashboard | Self::Sdk | Self::MerchantServer | Self::Postman => false,
+            Self::Webhook | Self::ExternalAuthenticator => true,
+        }
+    }
 }
 
 #[derive(
@@ -2352,6 +2409,47 @@ pub enum TransactionType {
 pub enum RoleScope {
     Merchant,
     Organization,
+}
+
+#[derive(
+    Clone,
+    Default,
+    Debug,
+    serde::Serialize,
+    serde::Deserialize,
+    Eq,
+    PartialEq,
+    ToSchema,
+    strum::Display,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+pub enum TransactionStatus {
+    /// Authentication/ Account Verification Successful
+    #[serde(rename = "Y")]
+    Success,
+    /// Not Authenticated /Account Not Verified; Transaction denied
+    #[default]
+    #[serde(rename = "N")]
+    Failure,
+    /// Authentication/ Account Verification Could Not Be Performed; Technical or other problem, as indicated in Authentication Response(ARes) or Result Request (RReq)
+    #[serde(rename = "U")]
+    VerificationNotPerformed,
+    /// Attempts Processing Performed; Not Authenticated/Verified , but a proof of attempted authentication/verification is provided
+    #[serde(rename = "A")]
+    NotVerified,
+    /// Authentication/ Account Verification Rejected; Issuer is rejecting authentication/verification and request that authorisation not be attempted.
+    #[serde(rename = "R")]
+    Rejected,
+    /// Challenge Required; Additional authentication is required using the Challenge Request (CReq) / Challenge Response (CRes)
+    #[serde(rename = "C")]
+    ChallengeRequired,
+    /// Challenge Required; Decoupled Authentication confirmed.
+    #[serde(rename = "D")]
+    ChallengeRequiredDecoupledAuthentication,
+    /// Informational Only; 3DS Requestor challenge preference acknowledged.
+    #[serde(rename = "I")]
+    InformationOnly,
 }
 
 #[derive(

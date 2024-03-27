@@ -17,11 +17,11 @@ payout_connector_list = "wise"
 
 [connectors]
 aci.base_url = "https://eu-test.oppwa.com/"
-adyen.base_url = "https://{{merchant_endpoint_prefix}}-checkout-live.adyenpayments.com/checkout"
+adyen.base_url = "https://{{merchant_endpoint_prefix}}-checkout-live.adyenpayments.com/checkout/"
 adyen.secondary_base_url = "https://{{merchant_endpoint_prefix}}-pal-live.adyenpayments.com/"
 airwallex.base_url = "https://api-demo.airwallex.com/"
 applepay.base_url = "https://apple-pay-gateway.apple.com/"
-authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
+authorizedotnet.base_url = "https://api.authorize.net/xml/v1/request.api"
 bambora.base_url = "https://api.na.bambora.com"
 bankofamerica.base_url = "https://api.merchant-services.bankofamerica.com/"
 bitpay.base_url = "https://bitpay.com"
@@ -80,7 +80,7 @@ worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
 zen.base_url = "https://api.zen.com/"
 zen.secondary_base_url = "https://secure.zen.com/"
-threedsecureio.base_url = "https://service.sandbox.3dsecure.io"
+threedsecureio.base_url = "https://service.3dsecure.io"
 
 [delayed_session_response]
 connectors_with_delayed_session_response = "trustpay,payme"
@@ -103,7 +103,7 @@ refund_retrieve_duration = 500
 refund_retrieve_tolerance = 100
 refund_tolerance = 100
 refund_ttl = 172800
-slack_invite_url = "https://join.slack.com/t/hyperswitch-io/shared_invite/zt-1k6cz4lee-SAJzhz6bjmpp4jZCDOtOIg"
+slack_invite_url = "https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2awm23agh-p_G5xNpziv6yAiedTkkqLg"
 
 [frm]
 enabled = false

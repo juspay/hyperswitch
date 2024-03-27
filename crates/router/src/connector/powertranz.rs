@@ -318,7 +318,7 @@ impl
             .get_redirect_response_payload()?
             .parse_value("PowerTranz RedirectResponsePayload")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let spi_token = format!(r#""{}""#, redirect_payload.spi_token);
+        let spi_token = format!(r#""{}""#, redirect_payload.spi_token.expose());
         Ok(RequestContent::Json(Box::new(spi_token)))
     }
 

@@ -83,3 +83,31 @@ pub async fn payouts_cancel() {}
     security(("api_key" = []))
 )]
 pub async fn payouts_fulfill() {}
+
+/// Payouts - List
+#[utoipa::path(
+    get,
+    path = "/payouts/list",
+    responses(
+        (status = 200, description = "Payouts listed", body = PayoutListResponse),
+        (status = 404, description = "Payout not found")
+    ),
+    tag = "Payouts",
+    operation_id = "List payouts",
+    security(("api_key" = []))
+)]
+pub async fn payouts_list() {}
+
+/// Payouts - Filter
+#[utoipa::path(
+    post,
+    path = "/payouts/list",
+    responses(
+        (status = 200, description = "Payouts filtered", body = PayoutListResponse),
+        (status = 404, description = "Payout not found")
+    ),
+    tag = "Payouts",
+    operation_id = "Filter payouts",
+    security(("api_key" = []))
+)]
+pub async fn payouts_filter() {}

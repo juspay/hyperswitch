@@ -117,7 +117,7 @@ pub struct Card {
 #[serde(untagged)]
 pub enum CardPayment {
     RawCard(Box<Card>),
-    CardToken(String),
+    CardToken(Secret<String>),
 }
 
 impl<T> TryFrom<&types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>>
@@ -441,8 +441,7 @@ impl<T> TryFrom<&types::RouterData<T, types::PaymentsAuthorizeData, types::Payme
         item: &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let billing_address = item
-            .address
-            .billing
+            .get_optional_billing()
             .as_ref()
             .and_then(|billing| billing.address.as_ref());
         let address = get_address_details(billing_address);
@@ -577,7 +576,7 @@ pub struct Shift4ThreeDsResponse {
 
 #[derive(Default, Debug, Deserialize, Serialize)]
 pub struct Token {
-    pub id: String,
+    pub id: Secret<String>,
     pub created: i64,
     #[serde(rename = "objectType")]
     pub object_type: String,
@@ -629,7 +628,7 @@ pub enum NextAction {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Shift4CardToken {
-    pub id: String,
+    pub id: Secret<String>,
 }
 
 impl<F>

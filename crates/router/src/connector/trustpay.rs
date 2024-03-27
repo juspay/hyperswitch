@@ -993,7 +993,7 @@ impl api::IncomingWebhook for Trustpay {
             dispute_stage: api_models::enums::DisputeStage::Dispute,
             connector_dispute_id,
             connector_reason: reason.reason.reject_reason,
-            connector_reason_code: Some(reason.reason.code),
+            connector_reason_code: reason.reason.code,
             challenge_required_by: None,
             connector_status: payment_info.status.to_string(),
             created_at: None,

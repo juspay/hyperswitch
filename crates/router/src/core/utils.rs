@@ -86,33 +86,31 @@ pub async fn construct_payout_router_data<'a, F>(
 
     let billing = payout_data.billing_address.to_owned();
 
-    let address = PaymentAddress {
-        shipping: None,
-        billing: billing.map(|a| {
-            let phone_details = api_models::payments::PhoneDetails {
-                number: a.phone_number.clone().map(Encryptable::into_inner),
-                country_code: a.country_code.to_owned(),
-            };
-            let address_details = api_models::payments::AddressDetails {
-                city: a.city.to_owned(),
-                country: a.country.to_owned(),
-                line1: a.line1.clone().map(Encryptable::into_inner),
-                line2: a.line2.clone().map(Encryptable::into_inner),
-                line3: a.line3.clone().map(Encryptable::into_inner),
-                zip: a.zip.clone().map(Encryptable::into_inner),
-                first_name: a.first_name.clone().map(Encryptable::into_inner),
-                last_name: a.last_name.clone().map(Encryptable::into_inner),
-                state: a.state.map(Encryptable::into_inner),
-            };
+    let billing_address = billing.map(|a| {
+        let phone_details = api_models::payments::PhoneDetails {
+            number: a.phone_number.clone().map(Encryptable::into_inner),
+            country_code: a.country_code.to_owned(),
+        };
+        let address_details = api_models::payments::AddressDetails {
+            city: a.city.to_owned(),
+            country: a.country.to_owned(),
+            line1: a.line1.clone().map(Encryptable::into_inner),
+            line2: a.line2.clone().map(Encryptable::into_inner),
+            line3: a.line3.clone().map(Encryptable::into_inner),
+            zip: a.zip.clone().map(Encryptable::into_inner),
+            first_name: a.first_name.clone().map(Encryptable::into_inner),
+            last_name: a.last_name.clone().map(Encryptable::into_inner),
+            state: a.state.map(Encryptable::into_inner),
+        };
 
-            api_models::payments::Address {
-                phone: Some(phone_details),
-                address: Some(address_details),
-                email: a.email.to_owned().map(Email::from),
-            }
-        }),
-        payment_method_billing: None,
-    };
+        api_models::payments::Address {
+            phone: Some(phone_details),
+            address: Some(address_details),
+            email: a.email.to_owned().map(Email::from),
+        }
+    });
+
+    let address = PaymentAddress::new(None, billing_address, None);
 
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let payouts = &payout_data.payouts;
@@ -188,6 +186,7 @@ pub async fn construct_payout_router_data<'a, F>(
         frm_metadata: None,
         refund_id: None,
         dispute_id: None,
+        connector_response: None,
     };
 
     Ok(router_data)
@@ -343,6 +342,7 @@ pub async fn construct_refund_router_data<'a, F>(
         frm_metadata: None,
         refund_id: Some(refund.refund_id.clone()),
         dispute_id: None,
+        connector_response: None,
     };
 
     Ok(router_data)
@@ -576,6 +576,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         frm_metadata: None,
         dispute_id: Some(dispute.dispute_id.clone()),
         refund_id: None,
+        connector_response: None,
     };
     Ok(router_data)
 }
@@ -667,6 +668,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         frm_metadata: None,
         refund_id: None,
         dispute_id: Some(dispute.dispute_id.clone()),
+        connector_response: None,
     };
     Ok(router_data)
 }
@@ -764,6 +766,7 @@ pub async fn construct_upload_file_router_data<'a>(
         frm_metadata: None,
         refund_id: None,
         dispute_id: None,
+        connector_response: None,
     };
     Ok(router_data)
 }
@@ -858,6 +861,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         frm_metadata: None,
         refund_id: None,
         dispute_id: Some(dispute.dispute_id.clone()),
+        connector_response: None,
     };
     Ok(router_data)
 }
@@ -945,6 +949,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         frm_metadata: None,
         refund_id: None,
         dispute_id: None,
+        connector_response: None,
     };
     Ok(router_data)
 }

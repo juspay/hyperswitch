@@ -101,6 +101,7 @@ pub async fn revoke_mandate(
         ("created_time.gt" = Option<PrimitiveDateTime>, Query, description = "Time greater than the mandate created time"),
         ("created_time.lte" = Option<PrimitiveDateTime>, Query, description = "Time less than or equals to the mandate created time"),
         ("created_time.gte" = Option<PrimitiveDateTime>, Query, description = "Time greater than or equals to the mandate created time"),
+        ("offset" = Option<i64>, Query, description = "The number of Mandate Objects to skip when retrieving the list Mandates."),
     ),
     responses(
         (status = 200, description = "The mandate list was retrieved successfully", body = Vec<MandateResponse>),

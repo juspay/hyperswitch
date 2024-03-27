@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use api_models::payments::{CardToken, GetPaymentMethodType, RequestSurchargeDetails};
 use base64::Engine;
 use common_utils::{
-    ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
+    ext_traits::{AsyncExt, ByteSliceExt, Encode, ValueExt},
     fp_utils, generate_id, pii,
 };
 use data_models::{
@@ -42,6 +42,7 @@ use crate::{
     routes::{metrics, payment_methods, AppState},
     services,
     types::{
+        self as core_types,
         api::{self, admin, enums as api_enums, MandateValidationFieldsExt},
         domain::{
             self,
@@ -896,6 +897,16 @@ pub fn create_redirect_url(
     ) + creds_identifier_path.as_ref()
 }
 
+pub fn create_authentication_url(
+    router_base_url: &String,
+    payment_attempt: &PaymentAttempt,
+) -> String {
+    format!(
+        "{router_base_url}/payments/{}/3ds/authentication",
+        payment_attempt.payment_id
+    )
+}
+
 pub fn create_authorize_url(
     router_base_url: &String,
     payment_attempt: &PaymentAttempt,
@@ -1108,7 +1119,9 @@ pub(crate) async fn get_payment_method_create_request(
                         payment_method_type,
                         payment_method_issuer: card.card_issuer.clone(),
                         payment_method_issuer_code: None,
+                        #[cfg(feature = "payouts")]
                         bank_transfer: None,
+                        #[cfg(feature = "payouts")]
                         wallet: None,
                         card: Some(card_detail),
                         metadata: None,
@@ -1126,7 +1139,9 @@ pub(crate) async fn get_payment_method_create_request(
                         payment_method_type,
                         payment_method_issuer: None,
                         payment_method_issuer_code: None,
+                        #[cfg(feature = "payouts")]
                         bank_transfer: None,
+                        #[cfg(feature = "payouts")]
                         wallet: None,
                         card: None,
                         metadata: None,
@@ -1811,7 +1826,8 @@ pub async fn store_payment_method_data_in_vault(
         &state.conf.temp_locker_enable_config,
         payment_attempt.connector.clone(),
         payment_method,
-    ) {
+    ) || payment_intent.request_external_three_ds_authentication == Some(true)
+    {
         let parent_payment_method_token = store_in_vault_and_generate_ppmt(
             state,
             payment_method_data,
@@ -2196,12 +2212,12 @@ pub(super) fn validate_payment_list_request_for_joins(
 pub fn get_handle_response_url(
     payment_id: String,
     business_profile: &diesel_models::business_profile::BusinessProfile,
-    response: api::PaymentsResponse,
+    response: &api::PaymentsResponse,
     connector: String,
 ) -> RouterResult<api::RedirectionResponse> {
     let payments_return_url = response.return_url.as_ref();
 
-    let redirection_response = make_pg_redirect_response(payment_id, &response, connector);
+    let redirection_response = make_pg_redirect_response(payment_id, response, connector);
 
     let return_url = make_merchant_url_with_response(
         business_profile,
@@ -2913,6 +2929,13 @@ impl MerchantConnectorAccountType {
             Self::CacheVal(_) => None,
         }
     }
+
+    pub fn get_connector_name(&self) -> Option<String> {
+        match self {
+            Self::DbVal(db_val) => Some(db_val.connector_name.to_string()),
+            Self::CacheVal(_) => None,
+        }
+    }
 }
 
 /// Query for merchant connector account either by business label or profile id
@@ -3048,6 +3071,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         frm_metadata: router_data.frm_metadata,
         refund_id: router_data.refund_id,
         dispute_id: router_data.dispute_id,
+        connector_response: router_data.connector_response,
     }
 }
 
@@ -3428,6 +3452,9 @@ pub async fn get_additional_payment_data(
                         last4: last4.clone(),
                         card_isin: card_isin.clone(),
                         card_extended_bin: card_extended_bin.clone(),
+                        // These are filled after calling the processor / connector
+                        payment_checks: None,
+                        authentication_data: None,
                     },
                 ))
             } else {
@@ -3455,6 +3482,9 @@ pub async fn get_additional_payment_data(
                                 card_exp_month: Some(card_data.card_exp_month.clone()),
                                 card_exp_year: Some(card_data.card_exp_year.clone()),
                                 card_holder_name: card_data.card_holder_name.clone(),
+                                // These are filled after calling the processor / connector
+                                payment_checks: None,
+                                authentication_data: None,
                             },
                         ))
                     });
@@ -3472,6 +3502,9 @@ pub async fn get_additional_payment_data(
                             card_exp_month: Some(card_data.card_exp_month.clone()),
                             card_exp_year: Some(card_data.card_exp_year.clone()),
                             card_holder_name: card_data.card_holder_name.clone(),
+                            // These are filled after calling the processor / connector
+                            payment_checks: None,
+                            authentication_data: None,
                         },
                     ))
                 })
@@ -3494,13 +3527,11 @@ pub async fn get_additional_payment_data(
         }
         api_models::payments::PaymentMethodData::Wallet(wallet) => match wallet {
             api_models::payments::WalletData::ApplePay(apple_pay_wallet_data) => {
-                api_models::payments::AdditionalPaymentData::Wallet(Some(
-                    api_models::payments::Wallets::ApplePay(
-                        apple_pay_wallet_data.payment_method.to_owned(),
-                    ),
-                ))
+                api_models::payments::AdditionalPaymentData::Wallet {
+                    apple_pay: Some(apple_pay_wallet_data.payment_method.to_owned()),
+                }
             }
-            _ => api_models::payments::AdditionalPaymentData::Wallet(None),
+            _ => api_models::payments::AdditionalPaymentData::Wallet { apple_pay: None },
         },
         api_models::payments::PaymentMethodData::PayLater(_) => {
             api_models::payments::AdditionalPaymentData::PayLater {}
@@ -3902,6 +3933,65 @@ pub fn validate_session_expiry(session_expiry: u32) -> Result<(), errors::ApiErr
     } else {
         Ok(())
     }
+}
+
+pub fn add_connector_response_to_additional_payment_data(
+    additional_payment_data: api_models::payments::AdditionalPaymentData,
+    connector_response_payment_method_data: core_types::AdditionalPaymentMethodConnectorResponse,
+) -> api_models::payments::AdditionalPaymentData {
+    match (
+        &additional_payment_data,
+        connector_response_payment_method_data,
+    ) {
+        (
+            api_models::payments::AdditionalPaymentData::Card(additional_card_data),
+            core_types::AdditionalPaymentMethodConnectorResponse::Card {
+                authentication_data,
+                payment_checks,
+            },
+        ) => api_models::payments::AdditionalPaymentData::Card(Box::new(
+            api_models::payments::AdditionalCardInfo {
+                payment_checks,
+                authentication_data,
+                ..*additional_card_data.clone()
+            },
+        )),
+        _ => additional_payment_data,
+    }
+}
+
+pub fn update_additional_payment_data_with_connector_response_pm_data(
+    additional_payment_data: Option<serde_json::Value>,
+    connector_response_pm_data: Option<core_types::AdditionalPaymentMethodConnectorResponse>,
+) -> RouterResult<Option<serde_json::Value>> {
+    let parsed_additional_payment_method_data = additional_payment_data
+        .as_ref()
+        .map(|payment_method_data| {
+            payment_method_data
+                .clone()
+                .parse_value::<api_models::payments::AdditionalPaymentData>(
+                    "additional_payment_method_data",
+                )
+        })
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("unable to parse value into additional_payment_method_data")?;
+
+    let additional_payment_method_data = parsed_additional_payment_method_data
+        .zip(connector_response_pm_data)
+        .map(|(additional_pm_data, connector_response_pm_data)| {
+            add_connector_response_to_additional_payment_data(
+                additional_pm_data,
+                connector_response_pm_data,
+            )
+        });
+
+    additional_payment_method_data
+        .as_ref()
+        .map(Encode::encode_to_value)
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to encode additional pm data")
 }
 
 pub async fn get_payment_method_details_from_payment_token(

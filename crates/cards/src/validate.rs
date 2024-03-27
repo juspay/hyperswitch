@@ -2,7 +2,7 @@ use std::{fmt, ops::Deref, str::FromStr};
 
 use masking::{PeekInterface, Strategy, StrongSecret, WithType};
 #[cfg(not(target_arch = "wasm32"))]
-use router_env::logger;
+use router_env::{logger, which as router_env_which, Env};
 use serde::{Deserialize, Deserializer, Serialize};
 use thiserror::Error;
 
@@ -52,14 +52,16 @@ impl FromStr for CardNumber {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         // Valid test cards for threedsecureio
-        let valid_test_cards = match router_env::which() {
-            router_env::Env::Development | router_env::Env::Sandbox => vec![
-                "4000100511112003",
-                "6000100611111203",
-                "3000100811111072",
-                "9000100111111111",
-            ],
-            router_env::Env::Production => vec![],
+        let valid_test_cards = vec![
+            "4000100511112003",
+            "6000100611111203",
+            "3000100811111072",
+            "9000100111111111",
+        ];
+        #[cfg(not(target_arch = "wasm32"))]
+        let valid_test_cards = match router_env_which() {
+            Env::Development | Env::Sandbox => valid_test_cards,
+            Env::Production => vec![],
         };
         if luhn::valid(s) || valid_test_cards.contains(&s) {
             let cc_no_whitespace: String = s.split_whitespace().collect();

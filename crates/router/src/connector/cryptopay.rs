@@ -77,10 +77,11 @@ where
             | common_utils::request::Method::Put
             | common_utils::request::Method::Delete
             | common_utils::request::Method::Patch => {
-                let body =
-                    types::RequestBody::get_inner_value(self.get_request_body(req, connectors)?)
-                        .peek()
-                        .to_owned();
+                let body = self
+                    .get_request_body(req, connectors)?
+                    .get_inner_value()
+                    .peek()
+                    .to_owned();
                 let md5_payload = crypto::Md5
                     .generate_digest(body.as_bytes())
                     .change_context(errors::ConnectorError::RequestEncodingFailed)?;

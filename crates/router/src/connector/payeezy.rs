@@ -44,8 +44,10 @@ where
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth = payeezy::PayeezyAuthType::try_from(&req.connector_auth_type)?;
-        let request_payload =
-            types::RequestBody::get_inner_value(self.get_request_body(req, connectors)?).expose();
+        let request_payload = self
+            .get_request_body(req, connectors)?
+            .get_inner_value()
+            .expose();
         let timestamp = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .ok()

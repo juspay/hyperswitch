@@ -294,6 +294,8 @@ pub enum WebhooksFlowError {
     OutgoingWebhookProcessTrackerTaskUpdateFailed,
     #[error("Failed to schedule retry attempt for outgoing webhook")]
     OutgoingWebhookRetrySchedulingFailed,
+    #[error("Outgoing webhook response encoding failed")]
+    OutgoingWebhookResponseEncodingFailed,
 }
 
 impl WebhooksFlowError {
@@ -301,7 +303,8 @@ impl WebhooksFlowError {
         match self {
             Self::MerchantConfigNotFound
             | Self::MerchantWebhookDetailsNotFound
-            | Self::MerchantWebhookUrlNotConfigured => false,
+            | Self::MerchantWebhookUrlNotConfigured
+            | Self::OutgoingWebhookResponseEncodingFailed => false,
 
             Self::WebhookEventUpdationFailed
             | Self::OutgoingWebhookSigningFailed

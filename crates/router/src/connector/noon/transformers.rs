@@ -351,19 +351,17 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
         let channel = NoonChannels::Web;
 
         let billing = item
-            .address
-            .billing
-            .clone()
-            .and_then(|billing_address| billing_address.address)
+            .get_optional_billing()
+            .and_then(|billing_address| billing_address.address.as_ref())
             .map(|address| NoonBilling {
                 address: NoonBillingAddress {
-                    street: address.line1,
-                    street2: address.line2,
-                    city: address.city,
+                    street: address.line1.clone(),
+                    street2: address.line2.clone(),
+                    city: address.city.clone(),
                     // If state is passed in request, country becomes mandatory, keep a check while debugging failed payments
-                    state_province: address.state,
+                    state_province: address.state.clone(),
                     country: address.country,
-                    postal_code: address.zip,
+                    postal_code: address.zip.clone(),
                 },
             });
 

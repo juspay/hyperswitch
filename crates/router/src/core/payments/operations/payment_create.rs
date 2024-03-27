@@ -301,14 +301,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                         mandate_obj.network_transaction_id,
                         mandate_obj.connector_mandate_ids,
                     ) {
-                        (Some(network_tx_id), _) => Ok(api_models::payments::MandateIds {
-                            mandate_id: Some(mandate_obj.mandate_id),
-                            mandate_reference_id: Some(
-                                api_models::payments::MandateReferenceId::NetworkMandateId(
-                                    network_tx_id,
-                                ),
-                            ),
-                        }),
                         (_, Some(connector_mandate_id)) => connector_mandate_id
                         .parse_value("ConnectorMandateId")
                         .change_context(errors::ApiErrorResponse::MandateNotFound)
@@ -324,6 +316,14 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                                 ))
                             }
                          }),
+                        (Some(network_tx_id), _) => Ok(api_models::payments::MandateIds {
+                            mandate_id: Some(mandate_obj.mandate_id),
+                            mandate_reference_id: Some(
+                                api_models::payments::MandateReferenceId::NetworkMandateId(
+                                    network_tx_id,
+                                ),
+                            ),
+                        }),
                         (_, _) => Ok(api_models::payments::MandateIds {
                             mandate_id: Some(mandate_obj.mandate_id),
                             mandate_reference_id: None,
@@ -390,14 +390,12 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             setup_mandate,
             customer_acceptance,
             token,
+            address: PaymentAddress::new(
+                shipping_address.as_ref().map(From::from),
+                billing_address.as_ref().map(From::from),
+                payment_method_billing_address.as_ref().map(From::from),
+            ),
             token_data: None,
-            address: PaymentAddress {
-                shipping: shipping_address.as_ref().map(|a| a.into()),
-                billing: billing_address.as_ref().map(|a| a.into()),
-                payment_method_billing: payment_method_billing_address
-                    .as_ref()
-                    .map(|address| address.into()),
-            },
             confirm: request.confirm,
             payment_method_data: payment_method_data_after_card_bin_call,
             payment_method_info: None,
@@ -412,7 +410,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             connector_customer_id: None,
             recurring_mandate_payment_data,
             ephemeral_key,
-            payment_method_status: None,
             multiple_capture_data: None,
             redirect_response: None,
             surcharge_details,
@@ -823,7 +820,30 @@ impl PaymentCreate {
                 external_three_ds_authentication_attempted: None,
                 mandate_data,
                 payment_method_billing_address_id,
-                ..storage::PaymentAttemptNew::default()
+                net_amount: i64::default(),
+                save_to_locker: None,
+                connector: None,
+                error_message: None,
+                offer_amount: None,
+                payment_method_id: None,
+                cancellation_reason: None,
+                error_code: None,
+                connector_metadata: None,
+                straight_through_algorithm: None,
+                preprocessing_step_id: None,
+                error_reason: None,
+                connector_response_reference_id: None,
+                multiple_capture_count: None,
+                amount_capturable: i64::default(),
+                updated_by: String::default(),
+                authentication_data: None,
+                encoded_data: None,
+                merchant_connector_id: None,
+                unified_code: None,
+                unified_message: None,
+                fingerprint_id: None,
+                authentication_connector: None,
+                authentication_id: None,
             },
             additional_pm_data,
         ))
@@ -919,7 +939,8 @@ impl PaymentCreate {
             authorization_count: None,
             fingerprint_id: None,
             session_expiry: Some(session_expiry),
-            request_external_three_ds_authentication: None,
+            request_external_three_ds_authentication: request
+                .request_external_three_ds_authentication,
         })
     }
 
