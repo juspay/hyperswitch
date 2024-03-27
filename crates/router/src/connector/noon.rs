@@ -12,14 +12,14 @@ use transformers as noon;
 
 use crate::{
     configs::settings,
-    connector::utils as connector_utils,
+    connector::utils::{self as connector_utils, PaymentMethodDataType},
     consts,
     core::{
         errors::{self, CustomResult},
         payments,
     },
     events::connector_api_logs::ConnectorEvent,
-    headers,
+    headers, is_mandate_supported, mandate_not_supported_error,
     services::{
         self,
         request::{self, Mask},
@@ -174,6 +174,20 @@ impl ConnectorValidation for Noon {
                 connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
             ),
         }
+    }
+
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<types::storage::enums::PaymentMethodType>,
+        pm_data: api_models::payments::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd = std::collections::HashSet::from([
+            PaymentMethodDataType::Card,
+            PaymentMethodDataType::ApplePay,
+            PaymentMethodDataType::GooglePay,
+            PaymentMethodDataType::MandatePayment,
+        ]);
+        is_mandate_supported!(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 
     fn validate_psync_reference_id(

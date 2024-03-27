@@ -10,13 +10,12 @@ use error_stack::{IntoReport, ResultExt};
 use transformers as worldpay;
 
 use self::{requests::*, response::*};
-use super::utils::{self, RefundsRequestData};
+use super::utils::{self as connector_utils, PaymentMethodDataType, RefundsRequestData};
 use crate::{
     configs::settings,
-    connector::utils as connector_utils,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
-    headers,
+    headers, is_mandate_supported, mandate_not_supported_error,
     services::{
         self,
         request::{self, Mask},
@@ -119,6 +118,14 @@ impl ConnectorValidation for Worldpay {
                 connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
             ),
         }
+    }
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<types::storage::enums::PaymentMethodType>,
+        pm_data: api_models::payments::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd = std::collections::HashSet::<PaymentMethodDataType>::new();
+        is_mandate_supported!(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 
@@ -714,7 +721,7 @@ impl api::IncomingWebhook for Worldpay {
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let event_signature =
-            utils::get_header_key_value("Event-Signature", request.headers)?.split(',');
+            connector_utils::get_header_key_value("Event-Signature", request.headers)?.split(',');
         let sign_header = event_signature
             .last()
             .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;

@@ -12,7 +12,7 @@ use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 use transformers as nuvei;
 
-use super::utils::{self, RouterData};
+use super::utils::{self, PaymentMethodDataType, RouterData};
 use crate::{
     configs::settings,
     core::{
@@ -20,7 +20,7 @@ use crate::{
         payments,
     },
     events::connector_api_logs::ConnectorEvent,
-    headers,
+    headers, is_mandate_supported, mandate_not_supported_error,
     services::{self, request, ConnectorIntegration, ConnectorValidation},
     types::{
         self,
@@ -85,6 +85,18 @@ impl ConnectorValidation for Nuvei {
                 utils::construct_not_supported_error_report(capture_method, self.id()),
             ),
         }
+    }
+
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<types::storage::enums::PaymentMethodType>,
+        pm_data: api_models::payments::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd = std::collections::HashSet::from([
+            PaymentMethodDataType::Card,
+            PaymentMethodDataType::MandatePayment,
+        ]);
+        is_mandate_supported!(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 

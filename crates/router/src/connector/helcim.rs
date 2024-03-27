@@ -8,13 +8,13 @@ use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 use transformers as helcim;
 
-use super::utils::{to_connector_meta, PaymentsAuthorizeRequestData};
+use super::utils::{to_connector_meta, PaymentMethodDataType, PaymentsAuthorizeRequestData};
 use crate::{
     configs::settings,
     consts::NO_ERROR_CODE,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
-    headers,
+    headers, is_mandate_supported, mandate_not_supported_error,
     services::{
         self,
         request::{self, Mask},
@@ -167,6 +167,14 @@ impl ConnectorValidation for Helcim {
             ),
         }
     }
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<types::storage::enums::PaymentMethodType>,
+        pm_data: api_models::payments::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd = std::collections::HashSet::<PaymentMethodDataType>::new();
+        is_mandate_supported!(pm_data, pm_type, mandate_supported_pmd, self.id())
+    }
 }
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
@@ -220,7 +228,6 @@ impl
             errors::ConnectorError::NotImplemented("Setup Mandate flow for Helcim".to_string())
                 .into(),
         )
-
         // Ok(Some(
         //     services::RequestBuilder::new()
         //         .method(services::Method::Post)

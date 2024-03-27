@@ -9,13 +9,13 @@ use masking::PeekInterface;
 use transformers as iatapay;
 
 use self::iatapay::IatapayPaymentsResponse;
-use super::utils::{self, base64_decode};
+use super::utils::{self as connector_utils, base64_decode, PaymentMethodDataType};
 use crate::{
     configs::settings,
     consts,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
-    headers,
+    headers, is_mandate_supported, mandate_not_supported_error,
     services::{
         self,
         request::{self, Mask},
@@ -135,7 +135,16 @@ impl ConnectorCommon for Iatapay {
     }
 }
 
-impl ConnectorValidation for Iatapay {}
+impl ConnectorValidation for Iatapay {
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<types::storage::enums::PaymentMethodType>,
+        pm_data: api_models::payments::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd = std::collections::HashSet::<PaymentMethodDataType>::new();
+        is_mandate_supported!(pm_data, pm_type, mandate_supported_pmd, self.id())
+    }
+}
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Iatapay
@@ -640,7 +649,8 @@ impl api::IncomingWebhook for Iatapay {
         request: &api::IncomingWebhookRequestDetails<'_>,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let base64_signature = utils::get_header_key_value("Authorization", request.headers)?;
+        let base64_signature =
+            connector_utils::get_header_key_value("Authorization", request.headers)?;
         let base64_signature = base64_signature.replace("IATAPAY-HMAC-SHA256 ", "");
         base64_decode(base64_signature)
     }

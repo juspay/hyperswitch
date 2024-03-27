@@ -15,10 +15,11 @@ use self::transformers as adyen;
 use crate::{
     capture_method_not_supported,
     configs::settings,
+    connector::utils::PaymentMethodDataType,
     consts,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
-    headers, logger,
+    headers, is_mandate_supported, logger, mandate_not_supported_error,
     services::{
         self,
         request::{self, Mask},
@@ -224,6 +225,38 @@ impl ConnectorValidation for Adyen {
             },
         }
     }
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<PaymentMethodType>,
+        pm_data: api_models::payments::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd = std::collections::HashSet::from([
+            PaymentMethodDataType::Card,
+            PaymentMethodDataType::ApplePay,
+            PaymentMethodDataType::GooglePay,
+            PaymentMethodDataType::PaypalRedirect,
+            PaymentMethodDataType::MomoRedirect,
+            PaymentMethodDataType::KakaoPayRedirect,
+            PaymentMethodDataType::GoPayRedirect,
+            PaymentMethodDataType::GcashRedirect,
+            PaymentMethodDataType::DanaRedirect,
+            PaymentMethodDataType::TwintRedirect,
+            PaymentMethodDataType::VippsRedirect,
+            PaymentMethodDataType::KlarnaRedirect,
+            PaymentMethodDataType::Ideal,
+            PaymentMethodDataType::Sofort,
+            PaymentMethodDataType::OpenBankingUk,
+            PaymentMethodDataType::Giropay,
+            PaymentMethodDataType::Trustly,
+            PaymentMethodDataType::BancontactCard,
+            PaymentMethodDataType::AchBankDebit,
+            PaymentMethodDataType::SepaBankDebit,
+            PaymentMethodDataType::BecsBankDebit,
+            PaymentMethodDataType::MandatePayment,
+        ]);
+        is_mandate_supported!(pm_data, pm_type, mandate_supported_pmd, self.id())
+    }
+
     fn validate_psync_reference_id(
         &self,
         data: &types::PaymentsSyncRouterData,

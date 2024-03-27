@@ -43,7 +43,7 @@ use crate::{
         api_logs::{ApiEvent, ApiEventMetric, ApiEventsType},
         connector_api_logs::ConnectorEvent,
     },
-    logger,
+    logger, mandate_not_supported_error,
     routes::{
         app::AppStateInfo,
         metrics::{self, request as metrics_request},
@@ -89,6 +89,14 @@ pub trait ConnectorValidation: ConnectorCommon {
                 .into())
             }
         }
+    }
+
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<PaymentMethodType>,
+        _pm_data: api_models::payments::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        mandate_not_supported_error!(pm_type, self.id())
     }
 
     fn validate_psync_reference_id(

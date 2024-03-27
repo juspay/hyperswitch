@@ -15,13 +15,13 @@ use masking::PeekInterface;
 use transformers as cryptopay;
 
 use self::cryptopay::CryptopayWebhookDetails;
-use super::utils;
 use crate::{
     configs::settings,
+    connector::utils::{self as connector_utils, PaymentMethodDataType},
     consts,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
-    headers,
+    headers, is_mandate_supported, mandate_not_supported_error,
     services::{
         self,
         request::{self, Mask},
@@ -312,6 +312,15 @@ impl ConnectorValidation for Cryptopay {
         // since we can make psync call with our reference_id, having connector_transaction_id is not an mandatory criteria
         Ok(())
     }
+
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<types::storage::enums::PaymentMethodType>,
+        pm_data: api_models::payments::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd = std::collections::HashSet::<PaymentMethodDataType>::new();
+        is_mandate_supported!(pm_data, pm_type, mandate_supported_pmd, self.id())
+    }
 }
 
 impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
@@ -423,7 +432,7 @@ impl api::IncomingWebhook for Cryptopay {
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let base64_signature =
-            utils::get_header_key_value("X-Cryptopay-Signature", request.headers)?;
+            connector_utils::get_header_key_value("X-Cryptopay-Signature", request.headers)?;
         hex::decode(base64_signature)
             .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
