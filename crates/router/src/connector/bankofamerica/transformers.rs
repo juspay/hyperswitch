@@ -11,7 +11,8 @@ use crate::{
     connector::utils::{
         self, AddressDetailsData, ApplePayDecrypt, CardData, CardIssuer,
         PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
-        PaymentsPreProcessingData, PaymentsSyncRequestData, RecurringMandateData, RouterData,
+        PaymentsPreProcessingData, PaymentsSetupMandateRequestData, PaymentsSyncRequestData,
+        RecurringMandateData, RouterData,
     },
     consts,
     core::errors,
@@ -278,6 +279,273 @@ pub struct BillTo {
     postal_code: Secret<String>,
     country: api_enums::CountryAlpha2,
     email: pii::Email,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BankOfAmericaZeroMandateRequest {
+    processing_information: ProcessingInformation,
+    payment_information: PaymentInformation,
+    order_information: OrderInformationWithBill,
+    client_reference_information: ClientReferenceInformation,
+}
+
+impl TryFrom<&types::SetupMandateRouterData> for BankOfAmericaZeroMandateRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
+        let email = item.request.get_email()?;
+        let bill_to = build_bill_to(item.get_billing()?, email)?;
+
+        let order_information = OrderInformationWithBill {
+            amount_details: Amount {
+                total_amount: "0".to_string(),
+                currency: item.request.currency,
+            },
+            bill_to,
+        };
+        let (action_list, action_token_types, authorization_options) = (
+            Some(vec![BankOfAmericaActionsList::TokenCreate]),
+            Some(vec![BankOfAmericaActionsTokenType::PaymentInstrument]),
+            Some(BankOfAmericaAuthorizationOptions {
+                initiator: Some(BankOfAmericaPaymentInitiator {
+                    initiator_type: Some(BankOfAmericaPaymentInitiatorTypes::Customer),
+                    credential_stored_on_file: Some(true),
+                    stored_credential_used: None,
+                }),
+                merchant_intitiated_transaction: None,
+            }),
+        );
+
+        let client_reference_information = ClientReferenceInformation {
+            code: Some(item.connector_request_reference_id.clone()),
+        };
+
+        let (payment_information, solution) = match item.request.payment_method_data.clone() {
+            api::PaymentMethodData::Card(ccard) => {
+                let card_issuer = ccard.get_card_issuer();
+                let card_type = match card_issuer {
+                    Ok(issuer) => Some(String::from(issuer)),
+                    Err(_) => None,
+                };
+                (
+                    PaymentInformation::Cards(CardPaymentInformation {
+                        card: Card {
+                            number: ccard.card_number,
+                            expiration_month: ccard.card_exp_month,
+                            expiration_year: ccard.card_exp_year,
+                            security_code: ccard.card_cvc,
+                            card_type,
+                        },
+                    }),
+                    None,
+                )
+            }
+
+            api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                payments::WalletData::ApplePay(apple_pay_data) => {
+                    match item.payment_method_token.clone() {
+                        Some(payment_method_token) => match payment_method_token {
+                            types::PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
+                                let expiration_month = decrypt_data.get_expiry_month()?;
+                                let expiration_year = decrypt_data.get_four_digit_expiry_year()?;
+                                (
+                                    PaymentInformation::ApplePay(ApplePayPaymentInformation {
+                                        tokenized_card: TokenizedCard {
+                                            number: decrypt_data.application_primary_account_number,
+                                            cryptogram: decrypt_data
+                                                .payment_data
+                                                .online_payment_cryptogram,
+                                            transaction_type: TransactionType::ApplePay,
+                                            expiration_year,
+                                            expiration_month,
+                                        },
+                                    }),
+                                    Some(PaymentSolution::ApplePay),
+                                )
+                            }
+                            types::PaymentMethodToken::Token(_) => {
+                                Err(unimplemented_payment_method!(
+                                    "Apple Pay",
+                                    "Manual",
+                                    "Bank Of America"
+                                ))?
+                            }
+                        },
+                        None => (
+                            PaymentInformation::ApplePayToken(ApplePayTokenPaymentInformation {
+                                fluid_data: FluidData {
+                                    value: Secret::from(apple_pay_data.payment_data),
+                                },
+                                tokenized_card: ApplePayTokenizedCard {
+                                    transaction_type: TransactionType::ApplePay,
+                                },
+                            }),
+                            Some(PaymentSolution::ApplePay),
+                        ),
+                    }
+                }
+                payments::WalletData::GooglePay(google_pay_data) => (
+                    PaymentInformation::GooglePay(GooglePayPaymentInformation {
+                        fluid_data: FluidData {
+                            value: Secret::from(
+                                consts::BASE64_ENGINE
+                                    .encode(google_pay_data.tokenization_data.token),
+                            ),
+                        },
+                    }),
+                    Some(PaymentSolution::GooglePay),
+                ),
+                payments::WalletData::AliPayQr(_)
+                | payments::WalletData::AliPayRedirect(_)
+                | payments::WalletData::AliPayHkRedirect(_)
+                | payments::WalletData::MomoRedirect(_)
+                | payments::WalletData::KakaoPayRedirect(_)
+                | payments::WalletData::GoPayRedirect(_)
+                | payments::WalletData::GcashRedirect(_)
+                | payments::WalletData::ApplePayRedirect(_)
+                | payments::WalletData::ApplePayThirdPartySdk(_)
+                | payments::WalletData::DanaRedirect {}
+                | payments::WalletData::GooglePayRedirect(_)
+                | payments::WalletData::GooglePayThirdPartySdk(_)
+                | payments::WalletData::MbWayRedirect(_)
+                | payments::WalletData::MobilePayRedirect(_)
+                | payments::WalletData::PaypalRedirect(_)
+                | payments::WalletData::PaypalSdk(_)
+                | payments::WalletData::SamsungPay(_)
+                | payments::WalletData::TwintRedirect {}
+                | payments::WalletData::VippsRedirect {}
+                | payments::WalletData::TouchNGoRedirect(_)
+                | payments::WalletData::WeChatPayRedirect(_)
+                | payments::WalletData::WeChatPayQr(_)
+                | payments::WalletData::CashappQr(_)
+                | payments::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("BankOfAmerica"),
+                ))?,
+            },
+            payments::PaymentMethodData::CardRedirect(_)
+            | payments::PaymentMethodData::PayLater(_)
+            | payments::PaymentMethodData::BankRedirect(_)
+            | payments::PaymentMethodData::BankDebit(_)
+            | payments::PaymentMethodData::BankTransfer(_)
+            | payments::PaymentMethodData::Crypto(_)
+            | payments::PaymentMethodData::MandatePayment
+            | payments::PaymentMethodData::Reward
+            | payments::PaymentMethodData::Upi(_)
+            | payments::PaymentMethodData::Voucher(_)
+            | payments::PaymentMethodData::GiftCard(_)
+            | payments::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("BankOfAmerica"),
+                ))?
+            }
+        };
+
+        let processing_information = ProcessingInformation {
+            capture: Some(false),
+            capture_options: None,
+            action_list,
+            action_token_types,
+            authorization_options,
+            commerce_indicator: String::from("internet"),
+            payment_solution: solution.map(String::from),
+        };
+        Ok(Self {
+            processing_information,
+            payment_information,
+            order_information,
+            client_reference_information,
+        })
+    }
+}
+
+impl<F, T>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            BankOfAmericaSetupMandatesResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            BankOfAmericaSetupMandatesResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        match item.response {
+            BankOfAmericaSetupMandatesResponse::ClientReferenceInformation(info_response) => {
+                let mandate_reference = info_response.token_information.clone().map(|token_info| {
+                    types::MandateReference {
+                        connector_mandate_id: Some(token_info.payment_instrument.id.expose()),
+                        payment_method_id: None,
+                    }
+                });
+                let mut mandate_status =
+                    enums::AttemptStatus::foreign_from((info_response.status.clone(), false));
+                if matches!(mandate_status, enums::AttemptStatus::Authorized) {
+                    //In case of zero auth mandates we want to make the payment reach the terminal status so we are converting the authorized status to charged as well.
+                    mandate_status = enums::AttemptStatus::Charged
+                }
+                let error_response =
+                    get_error_response_if_failure((&info_response, mandate_status, item.http_code));
+
+                Ok(Self {
+                    status: mandate_status,
+                    response: match error_response {
+                        Some(error) => Err(error),
+                        None => Ok(types::PaymentsResponseData::TransactionResponse {
+                            resource_id: types::ResponseId::ConnectorTransactionId(
+                                info_response.id.clone(),
+                            ),
+                            redirection_data: None,
+                            mandate_reference,
+                            connector_metadata: None,
+                            network_txn_id: None,
+                            connector_response_reference_id: Some(
+                                info_response
+                                    .client_reference_information
+                                    .code
+                                    .clone()
+                                    .unwrap_or(info_response.id),
+                            ),
+                            incremental_authorization_allowed: Some(
+                                mandate_status == enums::AttemptStatus::Authorized,
+                            ),
+                        }),
+                    },
+                    ..item.data
+                })
+            }
+            BankOfAmericaSetupMandatesResponse::ErrorInformation(ref error_response) => {
+                let error_reason = error_response
+                    .error_information
+                    .message
+                    .to_owned()
+                    .unwrap_or(consts::NO_ERROR_MESSAGE.to_string());
+                let error_message = error_response.error_information.reason.to_owned();
+                let response = Err(types::ErrorResponse {
+                    code: error_message
+                        .clone()
+                        .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                    message: error_message.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                    reason: Some(error_reason),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: Some(error_response.id.clone()),
+                });
+                Ok(Self {
+                    response,
+                    status: enums::AttemptStatus::Failure,
+                    ..item.data
+                })
+            }
+        }
+    }
 }
 
 // for bankofamerica each item in Billing is mandatory
@@ -1045,7 +1313,7 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
             | payments::PaymentMethodData::GiftCard(_)
             | payments::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("BankOfAmerica"),
+                    utils::get_unimplemented_payment_method_error_message("Bank Of America"),
                 )
                 .into())
             }
@@ -1180,6 +1448,13 @@ pub enum BankOfAmericaAuthSetupResponse {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum BankOfAmericaPaymentsResponse {
+    ClientReferenceInformation(BankOfAmericaClientReferenceResponse),
+    ErrorInformation(BankOfAmericaErrorInformationResponse),
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum BankOfAmericaSetupMandatesResponse {
     ClientReferenceInformation(BankOfAmericaClientReferenceResponse),
     ErrorInformation(BankOfAmericaErrorInformationResponse),
 }
