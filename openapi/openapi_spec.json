@@ -17312,6 +17312,14 @@
           },
           "initiative_context": {
             "type": "string"
+          },
+          "merchant_business_country": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/api_enums.CountryAlpha2"
+              }
+            ],
+            "nullable": true
           }
         }
       },
