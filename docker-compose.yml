@@ -336,15 +336,15 @@ services:
 
 # Web-client configuration
   web-client:
-    image: your-docker-registry/hyperswitch-web:latest # Need to enter hyperswitch-web-image 
+    image: gokulr03/hyperswitch-web:latest # Need to enter hyperswitch-web-image 
     ports:
-      - "3000:3000"
+      - "3000:3000" # Configre the ports accordingly , i have added the required ports in dockerfile itself 
     networks:
       - router_net
     depends_on:
       - hyperswitch-server
     environment:
-      - REACT_APP_API_URL=http://hyperswitch-server:8080
+      - REACT_APP_API_URL=http://hyperswitch-server:8080 # add the env variable like api key , required ones.
 
 # control-center config
   control-center:
