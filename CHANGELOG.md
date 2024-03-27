@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.03.15.0-hotfix2
+
+### Bug Fixes
+
+- **connector:** [CRYPTOPAY] Skip metadata serialization if none ([#4223](https://github.com/juspay/hyperswitch/pull/4223)) ([`d7e57d4`](https://github.com/juspay/hyperswitch/commit/d7e57d4ffb108e1950dec34320739bc469f68daf))
+- **trustpay:** [Trustpay] Add error code mapping '800.100.100' ([#4226](https://github.com/juspay/hyperswitch/pull/4226)) ([`a3152fb`](https://github.com/juspay/hyperswitch/commit/a3152fbb1ca2b19bca53964a113013210182fd90))
+- Fix(connector): [Trustpay] fix deserialization error for incoming webhook response for trustpay and add error code mapping '800.100.203' ([#4225](https://github.com/juspay/hyperswitch/pull/4225)) ([`e6dd608`](https://github.com/juspay/hyperswitch/commit/e6dd608a4eb8eaf52b206caba6a47a63d433fd92))
+
+### Build System / Dependencies
+
+- Build(router_env): obtain workspace member package names from `cargo_metadata` more deterministically ([#4227](https://github.com/juspay/hyperswitch/pull/4227)) ([`325b11d`](https://github.com/juspay/hyperswitch/commit/325b11dbe430f1f2422d05b342378efed518eae6))
+
+- - -
+
 ## 2024.03.15.0-hotfix1
 
 ### Bug Fixes
