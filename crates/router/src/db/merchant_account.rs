@@ -2,7 +2,7 @@
 use std::collections::HashMap;
 
 use common_utils::ext_traits::AsyncExt;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 #[cfg(feature = "accounts_cache")]
 use storage_impl::redis::cache::{CacheKind, ACCOUNTS_CACHE};
@@ -92,8 +92,7 @@ impl MerchantAccountInterface for Store {
             .change_context(errors::StorageError::EncryptionError)?
             .insert(&conn)
             .await
-            .map_err(Into::into)
-            .into_report()?
+            .map_err(|error| report!(errors::StorageError::from(error)))?
             .convert(merchant_key_store.key.get_inner())
             .await
             .change_context(errors::StorageError::DecryptionError)
@@ -109,8 +108,7 @@ impl MerchantAccountInterface for Store {
             let conn = connection::pg_connection_read(self).await?;
             storage::MerchantAccount::find_by_merchant_id(&conn, merchant_id)
                 .await
-                .map_err(Into::into)
-                .into_report()
+                .map_err(|error| report!(errors::StorageError::from(error)))
         };
 
         #[cfg(not(feature = "accounts_cache"))]
@@ -146,8 +144,7 @@ impl MerchantAccountInterface for Store {
             .change_context(errors::StorageError::EncryptionError)?
             .update(&conn, merchant_account.into())
             .await
-            .map_err(Into::into)
-            .into_report()?;
+            .map_err(|error| report!(errors::StorageError::from(error)))?;
 
         #[cfg(feature = "accounts_cache")]
         {
@@ -173,8 +170,7 @@ impl MerchantAccountInterface for Store {
             merchant_account.into(),
         )
         .await
-        .map_err(Into::into)
-        .into_report()?;
+        .map_err(|error| report!(errors::StorageError::from(error)))?;
 
         #[cfg(feature = "accounts_cache")]
         {
@@ -196,8 +192,7 @@ impl MerchantAccountInterface for Store {
 
             storage::MerchantAccount::find_by_publishable_key(&conn, publishable_key)
                 .await
-                .map_err(Into::into)
-                .into_report()
+                .map_err(|error| report!(errors::StorageError::from(error)))
         };
 
         let merchant_account;
@@ -245,8 +240,7 @@ impl MerchantAccountInterface for Store {
         let encrypted_merchant_accounts =
             storage::MerchantAccount::list_by_organization_id(&conn, organization_id)
                 .await
-                .map_err(Into::into)
-                .into_report()?;
+                .map_err(|error| report!(errors::StorageError::from(error)))?;
 
         let db_master_key = self.get_master_key().to_vec().into();
 
@@ -285,8 +279,7 @@ impl MerchantAccountInterface for Store {
         let is_deleted_func = || async {
             storage::MerchantAccount::delete_by_merchant_id(&conn, merchant_id)
                 .await
-                .map_err(Into::into)
-                .into_report()
+                .map_err(|error| report!(errors::StorageError::from(error)))
         };
 
         let is_deleted;
@@ -301,8 +294,7 @@ impl MerchantAccountInterface for Store {
             let merchant_account =
                 storage::MerchantAccount::find_by_merchant_id(&conn, merchant_id)
                     .await
-                    .map_err(Into::into)
-                    .into_report()?;
+                    .map_err(|error| report!(errors::StorageError::from(error)))?;
 
             is_deleted = is_deleted_func().await?;
 
@@ -323,8 +315,7 @@ impl MerchantAccountInterface for Store {
         let encrypted_merchant_accounts =
             storage::MerchantAccount::list_multiple_merchant_accounts(&conn, merchant_ids)
                 .await
-                .map_err(Into::into)
-                .into_report()?;
+                .map_err(|error| report!(errors::StorageError::from(error)))?;
 
         let db_master_key = self.get_master_key().to_vec().into();
 
@@ -375,11 +366,7 @@ impl MerchantAccountInterface for MockDb {
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
         let mut accounts = self.merchant_accounts.lock().await;
         merchant_account.id.get_or_insert(
-            accounts
-                .len()
-                .try_into()
-                .into_report()
-                .change_context(errors::StorageError::MockDbError)?,
+            i32::try_from(accounts.len()).change_context(errors::StorageError::MockDbError)?,
         );
         let account = Conversion::convert(merchant_account)
             .await

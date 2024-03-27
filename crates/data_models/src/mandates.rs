@@ -5,7 +5,7 @@ use api_models::payments::{
 };
 use common_enums::Currency;
 use common_utils::{date_time, errors::ParsingError, pii};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use time::PrimitiveDateTime;
 
@@ -182,7 +182,6 @@ impl MandateAmountData {
         self.end_date
             .map(|date| {
                 date_time::format_date(date, format)
-                    .into_report()
                     .change_context(ParsingError::DateTimeParsingError)
             })
             .transpose()

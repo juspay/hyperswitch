@@ -3,7 +3,7 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use common_utils::{crypto, request::RequestContent};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use transformers as opennode;
 
 use self::opennode::OpennodeWebhookDetails;
@@ -389,11 +389,9 @@ impl api::IncomingWebhook for Opennode {
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let notif = serde_urlencoded::from_bytes::<OpennodeWebhookDetails>(request.body)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let base64_signature = notif.hashed_order;
         hex::decode(base64_signature)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
     }
 
@@ -404,7 +402,6 @@ impl api::IncomingWebhook for Opennode {
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let message = std::str::from_utf8(request.body)
-            .into_report()
             .change_context(errors::ConnectorError::ParsingFailed)?;
         Ok(message.to_string().into_bytes())
     }
@@ -414,7 +411,6 @@ impl api::IncomingWebhook for Opennode {
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         let notif = serde_urlencoded::from_bytes::<OpennodeWebhookDetails>(request.body)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
             api_models::payments::PaymentIdType::ConnectorTransactionId(notif.id),
@@ -426,7 +422,6 @@ impl api::IncomingWebhook for Opennode {
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
         let notif = serde_urlencoded::from_bytes::<OpennodeWebhookDetails>(request.body)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
         match notif.status {
@@ -449,7 +444,6 @@ impl api::IncomingWebhook for Opennode {
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let notif = serde_urlencoded::from_bytes::<OpennodeWebhookDetails>(request.body)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
         Ok(Box::new(notif.status))

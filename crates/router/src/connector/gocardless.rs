@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use api_models::enums::enums;
 use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::PeekInterface;
 use transformers as gocardless;
 
@@ -738,14 +738,10 @@ impl api::IncomingWebhook for Gocardless {
                     .to_str()
                     .map(String::from)
                     .map_err(|_| errors::ConnectorError::WebhookSignatureNotFound)
-                    .into_report()
             })
-            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)
-            .into_report()??;
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)??;
 
-        hex::decode(signature)
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookSignatureNotFound)
+        hex::decode(signature).change_context(errors::ConnectorError::WebhookSignatureNotFound)
     }
 
     fn get_webhook_source_verification_message(

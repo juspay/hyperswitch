@@ -1,6 +1,6 @@
 use base64::Engine;
 use common_utils::{ext_traits::ValueExt, pii::IpAddress};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -239,7 +239,6 @@ impl<F, T>
                             serde_json::to_value(BamboraMeta {
                                 three_d_session_data: response.three_d_session_data.expose(),
                             })
-                            .into_report()
                             .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
                         ),
                         network_txn_id: None,

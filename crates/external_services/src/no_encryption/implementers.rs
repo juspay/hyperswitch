@@ -1,7 +1,7 @@
 //! Trait implementations for No encryption client
 
 use common_utils::errors::CustomResult;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use hyperswitch_interfaces::{
     encryption_interface::{EncryptionError, EncryptionManagementInterface},
     secrets_interface::{SecretManagementInterface, SecretsManagementError},
@@ -29,7 +29,6 @@ impl SecretManagementInterface for NoEncryption {
     ) -> CustomResult<Secret<String>, SecretsManagementError> {
         String::from_utf8(self.decrypt(input.expose()))
             .map(Into::into)
-            .into_report()
             .change_context(SecretsManagementError::FetchSecretFailed)
             .attach_printable("Failed to convert decrypted value to UTF-8")
     }

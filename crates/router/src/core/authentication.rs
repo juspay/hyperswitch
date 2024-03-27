@@ -6,7 +6,7 @@ pub mod types;
 use api_models::payments;
 use common_enums::Currency;
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use masking::PeekInterface;
 
 use super::errors;
@@ -99,7 +99,7 @@ pub async fn perform_authentication(
                 }
             }
         }),
-        _ => Err(errors::ApiErrorResponse::InternalServerError.into())
+        _ => Err(report!(errors::ApiErrorResponse::InternalServerError))
             .attach_printable("unexpected response in authentication flow")?,
     }
 }

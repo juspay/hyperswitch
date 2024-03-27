@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 pub use common_utils::request::ContentType;
 use common_utils::request::Headers;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 pub use masking::{Mask, Maskable};
 use router_env::{instrument, tracing};
 
@@ -24,11 +24,9 @@ impl HeaderExt for Headers {
             HeaderMap::new(),
             |mut header_map, (header_name, header_value)| {
                 let header_name = HeaderName::from_str(&header_name)
-                    .into_report()
                     .change_context(errors::ApiClientError::HeaderMapConstructionFailed)?;
                 let header_value = header_value.into_inner();
                 let header_value = HeaderValue::from_str(&header_value)
-                    .into_report()
                     .change_context(errors::ApiClientError::HeaderMapConstructionFailed)?;
                 header_map.append(header_name, header_value);
                 Ok(header_map)

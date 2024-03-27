@@ -1,5 +1,5 @@
 use common_utils::ext_traits::AsyncExt;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use futures::future::try_join_all;
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
@@ -83,8 +83,7 @@ impl CustomerInterface for Store {
                 merchant_id,
             )
             .await
-            .map_err(Into::into)
-            .into_report()?
+            .map_err(|error| report!(errors::StorageError::from(error)))?
             .async_map(|c| async {
                 c.convert(key_store.key.get_inner())
                     .await
@@ -120,8 +119,7 @@ impl CustomerInterface for Store {
             customer.into(),
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
         .async_and_then(|c| async {
             c.convert(key_store.key.get_inner())
                 .await
@@ -141,8 +139,7 @@ impl CustomerInterface for Store {
         let customer: domain::Customer =
             storage::Customer::find_by_customer_id_merchant_id(&conn, customer_id, merchant_id)
                 .await
-                .map_err(Into::into)
-                .into_report()
+                .map_err(|error| report!(errors::StorageError::from(error)))
                 .async_and_then(|c| async {
                     c.convert(key_store.key.get_inner())
                         .await
@@ -167,8 +164,7 @@ impl CustomerInterface for Store {
 
         let encrypted_customers = storage::Customer::list_by_merchant_id(&conn, merchant_id)
             .await
-            .map_err(Into::into)
-            .into_report()?;
+            .map_err(|error| report!(errors::StorageError::from(error)))?;
 
         let customers = try_join_all(encrypted_customers.into_iter().map(
             |encrypted_customer| async {
@@ -196,8 +192,7 @@ impl CustomerInterface for Store {
             .change_context(errors::StorageError::EncryptionError)?
             .insert(&conn)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
             .async_and_then(|c| async {
                 c.convert(key_store.key.get_inner())
                     .await
@@ -215,8 +210,7 @@ impl CustomerInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::Customer::delete_by_customer_id_merchant_id(&conn, customer_id, merchant_id)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
 

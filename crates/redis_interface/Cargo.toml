@@ -8,7 +8,7 @@ readme = "README.md"
 license.workspace = true
 
 [dependencies]
-error-stack = "0.3.1"
+error-stack = "0.4.1"
 fred = { version = "7.1.2", features = ["metrics", "partial-tracing", "subscriber-client", "check-unresponsive"] }
 futures = "0.3"
 serde = { version = "1.0.193", features = ["derive"] }

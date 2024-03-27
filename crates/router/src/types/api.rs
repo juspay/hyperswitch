@@ -27,7 +27,7 @@ pub mod webhooks;
 
 use std::{fmt::Debug, str::FromStr};
 
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 
 #[cfg(feature = "frm")]
 pub use self::fraud_check::*;
@@ -280,7 +280,6 @@ impl ConnectorData {
     ) -> CustomResult<Self, errors::ApiErrorResponse> {
         let connector = Self::convert_connector(connectors, name)?;
         let connector_name = api_enums::Connector::from_str(name)
-            .into_report()
             .change_context(errors::ConnectorError::InvalidConnectorName)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable_lazy(|| format!("unable to parse connector name {connector:?}"))?;
@@ -301,7 +300,6 @@ impl ConnectorData {
     ) -> CustomResult<Self, errors::ApiErrorResponse> {
         let connector = Self::convert_connector(connectors, name)?;
         let payout_connector_name = api_enums::PayoutConnectors::from_str(name)
-            .into_report()
             .change_context(errors::ConnectorError::InvalidConnectorName)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable_lazy(|| {

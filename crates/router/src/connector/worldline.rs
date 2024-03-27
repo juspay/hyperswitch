@@ -5,7 +5,7 @@ use std::fmt::Debug;
 use base64::Engine;
 use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
 use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface};
 use ring::hmac;
 use time::{format_description, OffsetDateTime};
@@ -65,11 +65,9 @@ impl Worldline {
         let format = format_description::parse(
             "[weekday repr:short], [day] [month repr:short] [year] [hour]:[minute]:[second] GMT",
         )
-        .into_report()
         .change_context(errors::ConnectorError::InvalidDateFormat)?;
         OffsetDateTime::now_utc()
             .format(&format)
-            .into_report()
             .change_context(errors::ConnectorError::InvalidDateFormat)
     }
 }
@@ -575,12 +573,11 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         response.payment.capture_method = data.request.capture_method.unwrap_or_default();
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -663,12 +660,11 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -743,12 +739,11 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -785,7 +780,6 @@ impl api::IncomingWebhook for Worldline {
             connector_utils::get_header_key_value("X-GCS-Signature", request.headers)?;
         let signature = consts::BASE64_ENGINE
             .decode(header_value.as_bytes())
-            .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         Ok(signature)
     }
@@ -804,16 +798,18 @@ impl api::IncomingWebhook for Worldline {
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         || -> _ {
-            Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                api_models::payments::PaymentIdType::ConnectorTransactionId(
-                    request
-                        .body
-                        .parse_struct::<worldline::WebhookBody>("WorldlineWebhookEvent")?
-                        .payment
-                        .parse_value::<worldline::Payment>("WorldlineWebhookObjectId")?
-                        .id,
+            Ok::<_, error_stack::Report<common_utils::errors::ParsingError>>(
+                api_models::webhooks::ObjectReferenceId::PaymentId(
+                    api_models::payments::PaymentIdType::ConnectorTransactionId(
+                        request
+                            .body
+                            .parse_struct::<worldline::WebhookBody>("WorldlineWebhookEvent")?
+                            .payment
+                            .parse_value::<worldline::Payment>("WorldlineWebhookObjectId")?
+                            .id,
+                    ),
                 ),
-            ))
+            )
         }()
         .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)
     }
@@ -866,7 +862,6 @@ impl api::IncomingWebhook for Worldline {
             Some(header_value) => {
                 let verification_signature_value = header_value
                     .to_str()
-                    .into_report()
                     .change_context(errors::ConnectorError::WebhookResponseEncodingFailed)?
                     .to_string();
                 services::api::ApplicationResponse::TextPlain(verification_signature_value)

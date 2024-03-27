@@ -2,7 +2,7 @@ use actix_web::http::header::HeaderMap;
 use api_models::{payment_methods::PaymentMethodListRequest, payments};
 use async_trait::async_trait;
 use common_utils::date_time;
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use masking::PeekInterface;
 use serde::Serialize;
@@ -214,7 +214,6 @@ where
             .trim();
         if api_key.is_empty() {
             return Err(errors::ApiErrorResponse::Unauthorized)
-                .into_report()
                 .attach_printable("API key is empty");
         }
 
@@ -927,7 +926,6 @@ where
     let key = DecodingKey::from_secret(secret);
     decode::<T>(token, &key, &Validation::new(Algorithm::HS256))
         .map(|decoded| decoded.claims)
-        .into_report()
         .change_context(errors::ApiErrorResponse::InvalidJwtToken)
 }
 
@@ -941,7 +939,6 @@ pub fn get_header_value_by_key(key: String, headers: &HeaderMap) -> RouterResult
         .map(|source_str| {
             source_str
                 .to_str()
-                .into_report()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(format!(
                     "Failed to convert header value to string for header key: {}",
@@ -956,7 +953,6 @@ pub fn get_jwt_from_authorization_header(headers: &HeaderMap) -> RouterResult<&s
         .get(crate::headers::AUTHORIZATION)
         .get_required_value(crate::headers::AUTHORIZATION)?
         .to_str()
-        .into_report()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to convert JWT token to string")?
         .strip_prefix("Bearer ")

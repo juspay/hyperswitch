@@ -1,4 +1,4 @@
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
 use super::{MockDb, Store};
@@ -58,8 +58,7 @@ impl DisputeInterface for Store {
         dispute
             .insert(&conn)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -77,8 +76,7 @@ impl DisputeInterface for Store {
             connector_dispute_id,
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -90,8 +88,7 @@ impl DisputeInterface for Store {
         let conn = connection::pg_connection_read(self).await?;
         storage::Dispute::find_by_merchant_id_dispute_id(&conn, merchant_id, dispute_id)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -103,8 +100,7 @@ impl DisputeInterface for Store {
         let conn = connection::pg_connection_read(self).await?;
         storage::Dispute::filter_by_constraints(&conn, merchant_id, dispute_constraints)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -116,8 +112,7 @@ impl DisputeInterface for Store {
         let conn = connection::pg_connection_read(self).await?;
         storage::Dispute::find_by_merchant_id_payment_id(&conn, merchant_id, payment_id)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -129,8 +124,7 @@ impl DisputeInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         this.update(&conn, dispute)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
 
@@ -154,10 +148,7 @@ impl DisputeInterface for MockDb {
         let now = common_utils::date_time::now();
 
         let new_dispute = storage::Dispute {
-            id: locked_disputes
-                .len()
-                .try_into()
-                .into_report()
+            id: i32::try_from(locked_disputes.len())
                 .change_context(errors::StorageError::MockDbError)?,
             dispute_id: dispute.dispute_id,
             amount: dispute.amount,

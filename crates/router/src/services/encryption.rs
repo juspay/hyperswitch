@@ -1,6 +1,6 @@
 use std::str;
 
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use josekit::{jwe, jws};
 use serde::{Deserialize, Serialize};
 
@@ -37,12 +37,10 @@ pub async fn encrypt_jwe(
     src_header.set_token_type("JWT");
     let encrypter = alg
         .encrypter_from_pem(public_key)
-        .into_report()
         .change_context(errors::EncryptionError)
         .attach_printable("Error getting JweEncryptor")?;
 
     jwe::serialize_compact(payload, &src_header, &encrypter)
-        .into_report()
         .change_context(errors::EncryptionError)
         .attach_printable("Error getting jwt string")
 }
@@ -67,17 +65,14 @@ pub async fn decrypt_jwe(
 
     let decrypter = alg
         .decrypter_from_pem(private_key)
-        .into_report()
         .change_context(errors::EncryptionError)
         .attach_printable("Error getting JweDecryptor")?;
 
     let (dst_payload, _dst_header) = jwe::deserialize_compact(jwt, &decrypter)
-        .into_report()
         .change_context(errors::EncryptionError)
         .attach_printable("Error getting Decrypted jwe")?;
 
     String::from_utf8(dst_payload)
-        .into_report()
         .change_context(errors::EncryptionError)
         .attach_printable("Could not decode JWE payload from UTF-8")
 }
@@ -92,11 +87,9 @@ pub async fn jws_sign_payload(
     src_header.set_key_id(kid);
     let signer = alg
         .signer_from_pem(private_key)
-        .into_report()
         .change_context(errors::EncryptionError)
         .attach_printable("Error getting signer")?;
     let jwt = jws::serialize_compact(payload, &src_header, &signer)
-        .into_report()
         .change_context(errors::EncryptionError)
         .attach_printable("Error getting signed jwt string")?;
     Ok(jwt)
@@ -110,15 +103,12 @@ pub fn verify_sign(
     let input = jws_body.as_bytes();
     let verifier = alg
         .verifier_from_pem(key)
-        .into_report()
         .change_context(errors::EncryptionError)
         .attach_printable("Error getting verifier")?;
     let (dst_payload, _dst_header) = jws::deserialize_compact(input, &verifier)
-        .into_report()
         .change_context(errors::EncryptionError)
         .attach_printable("Error getting Decrypted jws")?;
     let resp = String::from_utf8(dst_payload)
-        .into_report()
         .change_context(errors::EncryptionError)
         .attach_printable("Could not convert to UTF-8")?;
     Ok(resp)

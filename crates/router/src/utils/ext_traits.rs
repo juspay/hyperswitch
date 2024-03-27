@@ -1,5 +1,5 @@
 use common_utils::ext_traits::ValueExt;
-use error_stack::{IntoReport, Report, ResultExt};
+use error_stack::{Report, ResultExt};
 
 use crate::{
     core::errors::{self, ApiErrorResponse, CustomResult, RouterResult},
@@ -62,7 +62,6 @@ where
             .change_context(errors::ParsingError::UnknownError)?;
 
         E::from_str(value.as_ref())
-            .into_report()
             .change_context(errors::ParsingError::UnknownError)
             .attach_printable_lazy(|| format!("Invalid {{ {enum_name}: {value:?} }} "))
     }

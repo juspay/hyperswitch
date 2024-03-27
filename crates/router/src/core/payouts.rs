@@ -10,7 +10,7 @@ use common_utils::{crypto::Encryptable, ext_traits::ValueExt, pii};
 #[cfg(feature = "olap")]
 use data_models::errors::StorageError;
 use diesel_models::enums as storage_enums;
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 #[cfg(feature = "olap")]
 use futures::future::join_all;
 #[cfg(feature = "olap")]
@@ -58,7 +58,6 @@ pub fn get_next_connector(
     connectors
         .next()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .into_report()
         .attach_printable("Connector not found in connectors iterator")
 }
 
@@ -82,7 +81,6 @@ pub async fn get_connector_choice(
     match connector_choice {
         api::ConnectorChoice::SessionMultiple(_) => {
             Err(errors::ApiErrorResponse::InternalServerError)
-                .into_report()
                 .attach_printable("Invalid connector choice - SessionMultiple")?
         }
 
@@ -539,7 +537,6 @@ pub async fn payouts_cancel_core(
             _ => Err(errors::ApplicationError::InvalidConfigurationValueError(
                 "Connector not found in payout_attempt - should not reach here".to_string(),
             ))
-            .into_report()
             .change_context(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "connector",
             })
@@ -610,7 +607,6 @@ pub async fn payouts_fulfill_core(
         _ => Err(errors::ApplicationError::InvalidConfigurationValueError(
             "Connector not found in payout_attempt - should not reach here.".to_string(),
         ))
-        .into_report()
         .change_context(errors::ApiErrorResponse::MissingRequiredField {
             field_name: "connector",
         })

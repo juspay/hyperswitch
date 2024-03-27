@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use common_utils::ext_traits::AsyncExt;
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use masking::PeekInterface;
 use maud::html;
 use rand::{distributions::Uniform, prelude::Distribution};
@@ -222,7 +222,7 @@ impl ProcessPaymentAttempt for types::DummyConnectorCard {
         match self.get_flow_from_card_number()? {
             types::DummyConnectorCardFlow::NoThreeDS(status, error) => {
                 if let Some(error) = error {
-                    Err(error).into_report()?;
+                    Err(error)?;
                 }
                 Ok(payment_attempt.build_payment_data(status, None, None))
             }

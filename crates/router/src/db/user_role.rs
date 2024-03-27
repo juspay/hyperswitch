@@ -2,7 +2,7 @@ use std::{collections::HashSet, ops::Not};
 
 use async_bb8_diesel::AsyncConnection;
 use diesel_models::{enums, user_role as storage};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
 use super::MockDb;
@@ -74,8 +74,7 @@ impl UserRoleInterface for Store {
         user_role
             .insert(&conn)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -86,8 +85,7 @@ impl UserRoleInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::UserRole::find_by_user_id(&conn, user_id.to_owned())
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -103,8 +101,7 @@ impl UserRoleInterface for Store {
             merchant_id.to_owned(),
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -122,8 +119,7 @@ impl UserRoleInterface for Store {
             update,
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -141,8 +137,7 @@ impl UserRoleInterface for Store {
             update,
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -158,8 +153,7 @@ impl UserRoleInterface for Store {
             merchant_id.to_owned(),
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -170,8 +164,7 @@ impl UserRoleInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::UserRole::list_by_user_id(&conn, user_id.to_owned())
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -248,9 +241,7 @@ impl UserRoleInterface for Store {
             Ok::<_, errors::DatabaseError>(())
         })
         .await
-        .into_report()
-        .map_err(Into::into)
-        .into_report()?;
+        .map_err(|error| report!(errors::StorageError::from(report!(error))))?;
 
         Ok(())
     }
@@ -273,10 +264,7 @@ impl UserRoleInterface for MockDb {
             })?
         }
         let user_role = storage::UserRole {
-            id: user_roles
-                .len()
-                .try_into()
-                .into_report()
+            id: i32::try_from(user_roles.len())
                 .change_context(errors::StorageError::MockDbError)?,
             user_id: user_role.user_id,
             merchant_id: user_role.merchant_id,

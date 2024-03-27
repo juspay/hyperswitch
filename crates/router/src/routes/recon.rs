@@ -209,11 +209,11 @@ pub async fn recon_merchant_account_update(
     }
 
     Ok(service_api::ApplicationResponse::Json(
-        response
-            .try_into()
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+        api_types::MerchantAccountResponse::try_from(response).change_context(
+            errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "merchant_account",
-            })?,
+            },
+        )?,
     ))
 }
 

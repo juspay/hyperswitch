@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use common_utils::ext_traits::AsyncExt;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 
 use crate::{
     consts,
@@ -77,7 +77,6 @@ pub async fn add_access_token<
                 let refresh_token_request_data = types::AccessTokenRequestData::try_from(
                     router_data.connector_auth_type.clone(),
                 )
-                .into_report()
                 .attach_printable(
                     "Could not create access token request, invalid connector account credentials",
                 )?;

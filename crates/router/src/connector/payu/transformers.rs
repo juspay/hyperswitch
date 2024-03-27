@@ -1,6 +1,6 @@
 use base64::Engine;
 use common_utils::pii::{Email, IpAddress};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -489,7 +489,6 @@ impl<F, T>
                 order
                     .total_amount
                     .parse::<i64>()
-                    .into_report()
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
             ),
             ..item.data

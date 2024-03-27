@@ -13,7 +13,7 @@ pub use api_models::payments::{
     PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, TimeRange, UrlDetails,
     VerifyRequest, VerifyResponse, WalletData,
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 
 use crate::{
     core::errors,
@@ -99,7 +99,6 @@ impl PaymentIdTypeExt for PaymentIdType {
             | Self::PreprocessingId(_) => Err(errors::ValidationError::IncorrectValueProvided {
                 field_name: "payment_id",
             })
-            .into_report()
             .attach_printable("Expected payment intent ID but got connector transaction ID"),
         }
     }
@@ -119,8 +118,8 @@ impl MandateValidationFieldsExt for MandateValidationFields {
             (None, None) => Ok(None),
             (Some(_), Some(_)) => Err(errors::ValidationError::InvalidValue {
                 message: "Expected one out of mandate_id and mandate_data but got both".to_string(),
-            })
-            .into_report(),
+            }
+            .into()),
             (_, Some(_)) => Ok(Some(MandateTransactionType::RecurringMandateTransaction)),
             (Some(_), _) => Ok(Some(MandateTransactionType::NewMandateTransaction)),
         }

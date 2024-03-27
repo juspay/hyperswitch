@@ -9,7 +9,7 @@ use std::{
 };
 
 use common_utils::errors::CustomResult;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 
 use crate::file_storage::{FileStorageError, FileStorageInterface};
 
@@ -45,18 +45,14 @@ impl FileSystem {
             file_path
                 .parent()
                 .ok_or(FileSystemStorageError::CreateDirFailed)
-                .into_report()
                 .attach_printable("Failed to obtain parent directory")?,
         )
-        .into_report()
         .change_context(FileSystemStorageError::CreateDirFailed)?;
 
-        let mut file_handler = File::create(file_path)
-            .into_report()
-            .change_context(FileSystemStorageError::CreateFailure)?;
+        let mut file_handler =
+            File::create(file_path).change_context(FileSystemStorageError::CreateFailure)?;
         file_handler
             .write_all(&file)
-            .into_report()
             .change_context(FileSystemStorageError::WriteFailure)?;
         Ok(())
     }
@@ -64,9 +60,7 @@ impl FileSystem {
     /// Deletes the file associated with the specified file key from the file system.
     async fn delete_file(&self, file_key: &str) -> CustomResult<(), FileSystemStorageError> {
         let file_path = get_file_path(file_key);
-        remove_file(file_path)
-            .into_report()
-            .change_context(FileSystemStorageError::DeleteFailure)?;
+        remove_file(file_path).change_context(FileSystemStorageError::DeleteFailure)?;
         Ok(())
     }
 
@@ -74,11 +68,9 @@ impl FileSystem {
     async fn retrieve_file(&self, file_key: &str) -> CustomResult<Vec<u8>, FileSystemStorageError> {
         let mut received_data: Vec<u8> = Vec::new();
         let file_path = get_file_path(file_key);
-        let mut file = File::open(file_path)
-            .into_report()
-            .change_context(FileSystemStorageError::FileOpenFailure)?;
+        let mut file =
+            File::open(file_path).change_context(FileSystemStorageError::FileOpenFailure)?;
         file.read_to_end(&mut received_data)
-            .into_report()
             .change_context(FileSystemStorageError::ReadFailure)?;
         Ok(received_data)
     }

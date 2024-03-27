@@ -1,7 +1,7 @@
 use bb8::PooledConnection;
 use common_utils::errors;
 use diesel::PgConnection;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 
 pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<PgConnection>>;
 
@@ -43,7 +43,6 @@ pub async fn pg_connection_read<T: crate::DatabaseStore>(
 
     pool.get()
         .await
-        .into_report()
         .change_context(crate::errors::StorageError::DatabaseConnectionError)
 }
 
@@ -58,6 +57,5 @@ pub async fn pg_connection_write<T: crate::DatabaseStore>(
 
     pool.get()
         .await
-        .into_report()
         .change_context(crate::errors::StorageError::DatabaseConnectionError)
 }

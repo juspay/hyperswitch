@@ -1,5 +1,5 @@
 use common_utils::request::{Method, Request, RequestBuilder, RequestContent};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use http::header;
 
 use crate::{
@@ -28,17 +28,16 @@ pub async fn generate_access_token(state: AppState) -> RouterResult<types::Acces
         verify_connector_types::VerifyConnectorData {
             connector: *boxed_connector,
             connector_auth,
-            card_details: verify_connector_utils::get_test_card_details(connector)?
-                .ok_or(ApiErrorResponse::FlowNotSupported {
+            card_details: verify_connector_utils::get_test_card_details(connector)?.ok_or(
+                ApiErrorResponse::FlowNotSupported {
                     flow: "Connector onboarding".to_string(),
                     connector: connector.to_string(),
-                })
-                .into_report()?,
+                },
+            )?,
         },
     )
     .await?
     .ok_or(ApiErrorResponse::InternalServerError)
-    .into_report()
     .attach_printable("Error occurred while retrieving access token")
 }
 

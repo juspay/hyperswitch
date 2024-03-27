@@ -8,7 +8,7 @@ use common_utils::{
     request::RequestContent,
 };
 use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::PeekInterface;
 
 use self::transformers as checkout;
@@ -78,8 +78,7 @@ impl ConnectorCommon for Checkout {
         &self,
         auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth: checkout::CheckoutAuthType = auth_type
-            .try_into()
+        let auth = checkout::CheckoutAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
@@ -754,12 +753,11 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             response,
             status: res.status_code,
         };
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -829,12 +827,11 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .iter()
             .find(|&x| x.action_id.clone() == refund_action_id)
             .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -1222,9 +1219,7 @@ impl api::IncomingWebhook for Checkout {
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let signature = conn_utils::get_header_key_value("cko-signature", request.headers)
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
-        hex::decode(signature)
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookSignatureNotFound)
+        hex::decode(signature).change_context(errors::ConnectorError::WebhookSignatureNotFound)
     }
     fn get_webhook_source_verification_message(
         &self,

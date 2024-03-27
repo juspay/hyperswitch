@@ -1,7 +1,7 @@
 use bb8::PooledConnection;
 use data_models::errors::StorageError;
 use diesel::PgConnection;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 
 use crate::{errors::RedisErrorExt, metrics, DatabaseStore};
 
@@ -28,7 +28,6 @@ pub async fn pg_connection_read<T: DatabaseStore>(
 
     pool.get()
         .await
-        .into_report()
         .change_context(StorageError::DatabaseConnectionError)
 }
 
@@ -43,7 +42,6 @@ pub async fn pg_connection_write<T: DatabaseStore>(
 
     pool.get()
         .await
-        .into_report()
         .change_context(StorageError::DatabaseConnectionError)
 }
 

@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use pm_auth::{
     connector::plaid,
     types::{
@@ -17,7 +17,6 @@ use crate::core::{
 impl PaymentAuthConnectorDataExt for PaymentAuthConnectorData {
     fn get_connector_by_name(name: &str) -> errors::CustomResult<Self, ApiErrorResponse> {
         let connector_name = pm_auth_types::PaymentMethodAuthConnectors::from_str(name)
-            .into_report()
             .change_context(ApiErrorResponse::IncorrectConnectorNameGiven)
             .attach_printable_lazy(|| {
                 format!("unable to parse connector: {:?}", name.to_string())

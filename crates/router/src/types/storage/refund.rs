@@ -10,7 +10,7 @@ use diesel_models::{
     query::generics::db_metrics,
     schema::refund::dsl,
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 
 use crate::{connection::PgPooledConn, logger};
 
@@ -123,7 +123,6 @@ impl RefundDbExt for Refund {
             db_metrics::DatabaseOperation::Filter,
         )
         .await
-        .into_report()
         .change_context(errors::DatabaseError::NotFound)
         .attach_printable_lazy(|| "Error filtering records by predicate")
     }
@@ -152,7 +151,6 @@ impl RefundDbExt for Refund {
             .order_by(dsl::connector.asc())
             .get_results_async(conn)
             .await
-            .into_report()
             .change_context(errors::DatabaseError::Others)
             .attach_printable("Error filtering records by connector")?;
 
@@ -163,7 +161,6 @@ impl RefundDbExt for Refund {
             .order_by(dsl::currency.asc())
             .get_results_async(conn)
             .await
-            .into_report()
             .change_context(errors::DatabaseError::Others)
             .attach_printable("Error filtering records by currency")?;
 
@@ -173,7 +170,6 @@ impl RefundDbExt for Refund {
             .order_by(dsl::refund_status.asc())
             .get_results_async(conn)
             .await
-            .into_report()
             .change_context(errors::DatabaseError::Others)
             .attach_printable("Error filtering records by refund status")?;
 
@@ -248,7 +244,6 @@ impl RefundDbExt for Refund {
         filter
             .get_result_async::<i64>(conn)
             .await
-            .into_report()
             .change_context(errors::DatabaseError::NotFound)
             .attach_printable_lazy(|| "Error filtering count of refunds")
     }

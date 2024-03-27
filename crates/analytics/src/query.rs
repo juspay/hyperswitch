@@ -18,7 +18,7 @@ use api_models::{
 };
 use common_utils::errors::{CustomResult, ParsingError};
 use diesel_models::enums as storage_enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use router_env::{logger, Flow};
 
 use super::types::{AnalyticsCollection, AnalyticsDataSource, LoadRow, TableEngine};
@@ -179,7 +179,6 @@ impl SeriesBucket for Granularity {
                 time::Time::MIDNIGHT.replace_hour(clip_start(value.hour(), i))
             }
         }
-        .into_report()
         .change_context(PostProcessingError::BucketClipping)?;
 
         Ok(value.replace_time(clipped_time))
@@ -206,7 +205,6 @@ impl SeriesBucket for Granularity {
                 time::Time::MIDNIGHT.replace_hour(clip_end(value.hour(), i))
             }
         }
-        .into_report()
         .change_context(PostProcessingError::BucketClipping)
         .attach_printable_lazy(|| format!("Bucket Clip Error: {value}"))?;
 
@@ -644,8 +642,7 @@ where
         if self.columns.is_empty() {
             Err(QueryBuildingError::InvalidQuery(
                 "No select fields provided",
-            ))
-            .into_report()?;
+            ))?;
         }
         let mut query = String::from("SELECT ");
 

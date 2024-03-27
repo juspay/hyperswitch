@@ -23,7 +23,7 @@ pub mod types;
 use std::sync::{atomic, Arc};
 
 use common_utils::errors::CustomResult;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 pub use fred::interfaces::PubsubInterface;
 use fred::{interfaces::ClientLike, prelude::EventInterface};
 use router_env::logger;
@@ -61,7 +61,6 @@ impl RedisClient {
         client
             .wait_for_connect()
             .await
-            .into_report()
             .change_context(errors::RedisError::RedisConnectionError)?;
         Ok(Self { inner: client })
     }
@@ -83,7 +82,6 @@ impl SubscriberClient {
         client
             .wait_for_connect()
             .await
-            .into_report()
             .change_context(errors::RedisError::RedisConnectionError)?;
         Ok(Self { inner: client })
     }
@@ -118,7 +116,6 @@ impl RedisConnectionPool {
             ),
         };
         let mut config = fred::types::RedisConfig::from_url(&redis_connection_url)
-            .into_report()
             .change_context(errors::RedisError::RedisConnectionError)?;
 
         let perf = fred::types::PerformanceConfig {
@@ -160,13 +157,11 @@ impl RedisConnectionPool {
             Some(reconnect_policy),
             conf.pool_size,
         )
-        .into_report()
         .change_context(errors::RedisError::RedisConnectionError)?;
 
         pool.connect();
         pool.wait_for_connect()
             .await
-            .into_report()
             .change_context(errors::RedisError::RedisConnectionError)?;
 
         let config = RedisConfig::from(conf);

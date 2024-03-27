@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use api_models::enums;
 use common_utils::errors::CustomResult;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 
 use super::{BoxedConnector, ConnectorData, SessionConnectorData};
 use crate::{
@@ -69,7 +69,6 @@ pub enum ConnectorCallType {
 impl FraudCheckConnectorData {
     pub fn get_connector_by_name(name: &str) -> CustomResult<Self, errors::ApiErrorResponse> {
         let connector_name = enums::FrmConnectors::from_str(name)
-            .into_report()
             .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
             .attach_printable_lazy(|| {
                 format!("unable to parse connector: {:?}", name.to_string())

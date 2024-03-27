@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use http::{HeaderValue, Method};
 use masking::PeekInterface;
 use once_cell::sync::OnceCell;
@@ -41,7 +41,6 @@ fn get_client_builder(
     if let Some(url) = proxy_config.https_url.as_ref() {
         client_builder = client_builder.proxy(
             reqwest::Proxy::https(url)
-                .into_report()
                 .change_context(ApiClientError::InvalidProxyConfiguration)
                 .attach_printable("HTTPS proxy configuration error")?,
         );
@@ -51,7 +50,6 @@ fn get_client_builder(
     if let Some(url) = proxy_config.http_url.as_ref() {
         client_builder = client_builder.proxy(
             reqwest::Proxy::http(url)
-                .into_report()
                 .change_context(ApiClientError::InvalidProxyConfiguration)
                 .attach_printable("HTTP proxy configuration error")?,
         );
@@ -74,7 +72,6 @@ fn get_base_client(
     .get_or_try_init(|| {
         get_client_builder(proxy_config, should_bypass_proxy)?
             .build()
-            .into_report()
             .change_context(ApiClientError::ClientConstructionFailed)
             .attach_printable("Failed to construct base client")
     })?
@@ -101,7 +98,6 @@ pub(super) fn create_client(
             client_builder
                 .identity(identity)
                 .build()
-                .into_report()
                 .change_context(ApiClientError::ClientConstructionFailed)
                 .attach_printable("Failed to construct client with certificate and certificate key")
         }
@@ -194,7 +190,6 @@ impl ProxyClient {
         let non_proxy_client = reqwest::Client::builder()
             .redirect(reqwest::redirect::Policy::none())
             .build()
-            .into_report()
             .change_context(ApiClientError::ClientConstructionFailed)?;
 
         let mut proxy_builder =
@@ -203,7 +198,6 @@ impl ProxyClient {
         if let Some(url) = proxy_config.https_url.as_ref() {
             proxy_builder = proxy_builder.proxy(
                 reqwest::Proxy::https(url)
-                    .into_report()
                     .change_context(ApiClientError::InvalidProxyConfiguration)?,
             );
         }
@@ -211,14 +205,12 @@ impl ProxyClient {
         if let Some(url) = proxy_config.http_url.as_ref() {
             proxy_builder = proxy_builder.proxy(
                 reqwest::Proxy::http(url)
-                    .into_report()
                     .change_context(ApiClientError::InvalidProxyConfiguration)?,
             );
         }
 
         let proxy_client = proxy_builder
             .build()
-            .into_report()
             .change_context(ApiClientError::InvalidProxyConfiguration)?;
         Ok(Self {
             proxy_client,
@@ -245,7 +237,6 @@ impl ProxyClient {
                 Ok(client_builder
                     .identity(identity)
                     .build()
-                    .into_report()
                     .change_context(ApiClientError::ClientConstructionFailed)
                     .attach_printable(
                         "Failed to construct client with certificate and certificate key",
@@ -295,7 +286,6 @@ impl RequestBuilder for RouterRequestBuilder {
             }),
             Maskable::Normal(hvalue) => HeaderValue::from_str(&hvalue),
         }
-        .into_report()
         .change_context(ApiClientError::HeaderMapConstructionFailed)?;
 
         self.inner = self.inner.take().map(|r| r.header(key, header_value));

@@ -1,7 +1,7 @@
 use actix_multipart::{Field, Multipart};
 use actix_web::web::Bytes;
 use common_utils::{errors::CustomResult, ext_traits::StringExt, fp_utils};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use futures::{StreamExt, TryStreamExt};
 
 use crate::{
@@ -48,7 +48,6 @@ pub async fn get_attach_evidence_request(
                     match chunk {
                         Ok(bytes) => file_data.push(bytes),
                         Err(err) => Err(errors::ApiErrorResponse::InternalServerError)
-                            .into_report()
                             .attach_printable_lazy(|| format!("File parsing error: {err}"))?,
                     }
                 }
@@ -67,16 +66,12 @@ pub async fn get_attach_evidence_request(
     let evidence_type = option_evidence_type.get_required_value("evidence_type")?;
     let file = file_content.get_required_value("file")?.concat().to_vec();
     //Get and validate file size
-    let file_size: i32 = file
-        .len()
-        .try_into()
-        .into_report()
+    let file_size = i32::try_from(file.len())
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("File size error")?;
     // Check if empty file and throw error
     fp_utils::when(file_size <= 0, || {
         Err(errors::ApiErrorResponse::MissingFile)
-            .into_report()
             .attach_printable("Missing / Invalid file in the request")
     })?;
     // Get file mime type using 'infer'
@@ -84,7 +79,6 @@ pub async fn get_attach_evidence_request(
     let file_type = kind
         .mime_type()
         .parse::<mime::Mime>()
-        .into_report()
         .change_context(errors::ApiErrorResponse::MissingFileContentType)
         .attach_printable("File content type error")?;
     let create_file_request = files::CreateFileRequest {

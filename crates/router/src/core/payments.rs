@@ -20,7 +20,7 @@ use api_models::{
 use common_utils::{ext_traits::AsyncExt, pii, types::Surcharge};
 use data_models::mandates::{CustomerAcceptance, MandateData};
 use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use futures::future::join_all;
 use helpers::ApplePayData;
 use masking::Secret;
@@ -253,7 +253,6 @@ where
                             0,
                         )
                         .await
-                        .into_report()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed while getting process schedule time")?
                     } else {
@@ -309,7 +308,6 @@ where
                             0,
                         )
                         .await
-                        .into_report()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed while getting process schedule time")?
                     } else {
@@ -419,7 +417,6 @@ where
                         .ok_or(errors::ApiErrorResponse::MissingRequiredField {
                             field_name: "frm_configs",
                         })
-                        .into_report()
                         .attach_printable("Frm configs label not found")?,
                     &customer,
                     key_store.clone(),
@@ -614,7 +611,6 @@ pub fn get_connector_data(
     connectors
         .next()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .into_report()
         .attach_printable("Connector not found in connectors iterator")
 }
 
@@ -837,7 +833,6 @@ pub trait PaymentRedirectFlow<Ctx: PaymentMethodRetrieve>: Sync {
             services::ApplicationResponse::Json(response) => Ok(response),
             services::ApplicationResponse::JsonWithHeaders((response, _)) => Ok(response),
             _ => Err(errors::ApiErrorResponse::InternalServerError)
-                .into_report()
                 .attach_printable("Failed to get the response in json"),
         }?;
 
@@ -932,7 +927,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectCom
                         api_models::payments::NextActionData::ThreeDsInvoke{..} => None,
                     })
                     .ok_or(errors::ApiErrorResponse::InternalServerError)
-                    .into_report()
+
                     .attach_printable(
                         "did not receive redirect to url when status is requires customer action",
                     )?;
@@ -953,7 +948,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectCom
                 payments_response,
                 connector,
             ),
-            _ => Err(errors::ApiErrorResponse::InternalServerError).into_report().attach_printable_lazy(|| format!("Could not proceed with payment as payment status {} cannot be handled during redirection",payments_response.status))?
+            _ => Err(errors::ApiErrorResponse::InternalServerError).attach_printable_lazy(|| format!("Could not proceed with payment as payment status {} cannot be handled during redirection",payments_response.status))?
         }?;
         Ok(services::ApplicationResponse::JsonForRedirection(
             redirection_response,
@@ -2574,8 +2569,7 @@ pub async fn add_process_sync_task(
         tracking_data,
         schedule_time,
     )
-    .map_err(errors::StorageError::from)
-    .into_report()?;
+    .map_err(errors::StorageError::from)?;
 
     db.insert_process(process_tracker_entry).await?;
     Ok(())
@@ -3060,7 +3054,6 @@ pub fn decide_connector_for_token_based_mit_flow<F: Clone>(
         let first_choice = connectors
             .first()
             .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
-            .into_report()
             .attach_printable("no eligible connector found for payment")?
             .clone();
 
@@ -3268,7 +3261,6 @@ where
     let first_connector_choice = connectors
         .first()
         .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
-        .into_report()
         .attach_printable("Empty connector list returned")?
         .clone();
 
@@ -3399,7 +3391,6 @@ pub async fn payment_external_authentication(
         .authentication_connector
         .clone()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .into_report()
         .attach_printable("authentication_connector not found in payment_attempt")?;
     let merchant_connector_account = helpers::get_merchant_connector_account(
         &state,
@@ -3418,7 +3409,6 @@ pub async fn payment_external_authentication(
                 .authentication_id
                 .clone()
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .into_report()
                 .attach_printable("missing authentication_id in payment_attempt")?,
         )
         .await
@@ -3432,7 +3422,6 @@ pub async fn payment_external_authentication(
     )
     .await?
     .ok_or(errors::ApiErrorResponse::InternalServerError)
-    .into_report()
     .attach_printable("missing payment_method_details")?;
     let browser_info: Option<BrowserInformation> = payment_attempt
         .browser_info
@@ -3446,7 +3435,6 @@ pub async fn payment_external_authentication(
         .connector
         .as_ref()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .into_report()
         .attach_printable("missing connector in payment_attempt")?;
     let return_url = Some(helpers::create_authorize_url(
         &state.conf.server.base_url,

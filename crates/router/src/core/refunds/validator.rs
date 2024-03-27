@@ -1,4 +1,4 @@
-use error_stack::{report, IntoReport};
+use error_stack::report;
 use router_env::{instrument, tracing};
 use time::PrimitiveDateTime;
 
@@ -136,10 +136,10 @@ pub fn validate_for_valid_refunds(
                 || {
                     Err(errors::ApiErrorResponse::RefundNotPossible {
                         connector: connector.to_string(),
-                    })
+                    }
+                    .into())
                 },
             )
-            .into_report()
         }
         _ => Ok(()),
     }

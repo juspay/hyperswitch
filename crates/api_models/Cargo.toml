@@ -24,7 +24,7 @@ recon = []
 
 [dependencies]
 actix-web = { version = "4.3.1", optional = true }
-error-stack = "0.3.1"
+error-stack = "0.4.1"
 mime = "0.3.17"
 reqwest = { version = "0.11.18", optional = true }
 serde = { version = "1.0.193", features = ["derive"] }

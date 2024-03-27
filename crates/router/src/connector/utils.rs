@@ -12,7 +12,7 @@ use common_utils::{
 };
 use data_models::payments::payment_attempt::PaymentAttempt;
 use diesel_models::enums;
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, Secret};
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -657,7 +657,6 @@ impl PaymentsSyncRequestData for types::PaymentsSyncData {
             _ => Err(errors::ValidationError::IncorrectValueProvided {
                 field_name: "connector_transaction_id",
             })
-            .into_report()
             .attach_printable("Expected connector transaction ID not found")
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?,
         }
@@ -868,7 +867,6 @@ impl CardData for api::Card {
             .peek()
             .clone()
             .parse::<i8>()
-            .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)
             .map(Secret::new)
     }
@@ -877,7 +875,6 @@ impl CardData for api::Card {
             .peek()
             .clone()
             .parse::<i32>()
-            .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)
             .map(Secret::new)
     }
@@ -888,7 +885,6 @@ fn get_card_issuer(card_number: &str) -> Result<CardIssuer, Error> {
     for (k, v) in CARD_REGEX.iter() {
         let regex: Regex = v
             .clone()
-            .into_report()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         if regex.is_match(card_number) {
             return Ok(*k);
@@ -920,7 +916,6 @@ impl WalletData for api::WalletData {
         T: serde::de::DeserializeOwned,
     {
         serde_json::from_str::<T>(self.get_wallet_token()?.peek())
-            .into_report()
             .change_context(errors::ConnectorError::InvalidWalletToken)
     }
 
@@ -929,7 +924,6 @@ impl WalletData for api::WalletData {
             Self::GooglePay(_) => {
                 let json_token: serde_json::Value = self.get_wallet_token_as_json()?;
                 let token_as_vec = serde_json::to_vec(&json_token)
-                    .into_report()
                     .change_context(errors::ConnectorError::InvalidWalletToken)?;
                 let encoded_token = consts::BASE64_ENGINE.encode(token_as_vec);
                 Ok(encoded_token)
@@ -949,10 +943,8 @@ impl ApplePay for payments::ApplePayWalletData {
             String::from_utf8(
                 consts::BASE64_ENGINE
                     .decode(&self.payment_data)
-                    .into_report()
                     .change_context(errors::ConnectorError::InvalidWalletToken)?,
             )
-            .into_report()
             .change_context(errors::ConnectorError::InvalidWalletToken)?,
         );
         Ok(token)
@@ -1148,7 +1140,6 @@ impl MandateData for payments::MandateAmountData {
             "mandate_data.mandate_type.{multi_use|single_use}.end_date",
         ))?;
         date_time::format_date(date, format)
-            .into_report()
             .change_context(errors::ConnectorError::DateFormattingFailed)
     }
     fn get_metadata(&self) -> Result<pii::SecretSerdeValue, Error> {
@@ -1207,7 +1198,6 @@ fn get_header_field(
         .map(|header_value| {
             header_value
                 .to_str()
-                .into_report()
                 .change_context(errors::ConnectorError::WebhookSignatureNotFound)
         })
         .ok_or(report!(
@@ -1261,7 +1251,6 @@ impl common_utils::errors::ErrorSwitch<errors::ConnectorError> for errors::Parsi
 pub fn base64_decode(data: String) -> Result<Vec<u8>, Error> {
     consts::BASE64_ENGINE
         .decode(data)
-        .into_report()
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)
 }
 
@@ -1298,7 +1287,6 @@ pub fn get_amount_as_f64(
     let amount = match currency_unit {
         types::api::CurrencyUnit::Base => to_currency_base_unit_asf64(amount, currency)?,
         types::api::CurrencyUnit::Minor => u32::try_from(amount)
-            .into_report()
             .change_context(errors::ConnectorError::ParsingFailed)?
             .into(),
     };
@@ -1311,7 +1299,6 @@ pub fn to_currency_base_unit(
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     currency
         .to_currency_base_unit(amount)
-        .into_report()
         .change_context(errors::ConnectorError::ParsingFailed)
 }
 
@@ -1321,7 +1308,6 @@ pub fn to_currency_lower_unit(
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     currency
         .to_currency_lower_unit(amount)
-        .into_report()
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
 }
 
@@ -1350,7 +1336,6 @@ pub fn to_currency_base_unit_with_zero_decimal_check(
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     currency
         .to_currency_base_unit_with_zero_decimal_check(amount)
-        .into_report()
         .change_context(errors::ConnectorError::RequestEncodingFailed)
 }
 
@@ -1360,7 +1345,6 @@ pub fn to_currency_base_unit_asf64(
 ) -> Result<f64, error_stack::Report<errors::ConnectorError>> {
     currency
         .to_currency_base_unit_asf64(amount)
-        .into_report()
         .change_context(errors::ConnectorError::ParsingFailed)
 }
 

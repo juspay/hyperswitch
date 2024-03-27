@@ -9,7 +9,7 @@ use common_utils::{
 };
 use data_models::payments::payment_attempt::PaymentAttempt;
 use diesel_models::business_profile::BusinessProfile;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use redis_interface::errors::RedisError;
 use router_env::{instrument, tracing};
 
@@ -42,7 +42,6 @@ impl MultipleCaptureData {
         let latest_capture = captures
             .last()
             .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .into_report()
             .attach_printable("Cannot create MultipleCaptureData with empty captures list")?
             .clone();
         let multiple_capture_data = Self {
@@ -105,7 +104,6 @@ impl MultipleCaptureData {
     }
     pub fn get_captures_count(&self) -> RouterResult<i16> {
         i16::try_from(self.all_captures.len())
-            .into_report()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error while converting from usize to i16")
     }

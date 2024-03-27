@@ -7,7 +7,7 @@ use api_models::{
 };
 use common_utils::ext_traits::{Encode, StringExt, ValueExt};
 use diesel_models::configs;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use euclid::frontend::ast;
 
 use super::routing::helpers::{
@@ -53,7 +53,6 @@ pub async fn upsert_surcharge_decision_config(
     let read_config_key = db.find_config_by_key(&key).await;
 
     ast::lowering::lower_program(program.clone())
-        .into_report()
         .change_context(errors::ApiErrorResponse::InvalidRequestData {
             message: "Invalid Request Data".to_string(),
         })

@@ -6,7 +6,7 @@ use diesel::{
     query_dsl::methods::{DistinctDsl, FilterDsl, SelectDsl},
     BoolExpressionMethods, ExpressionMethods,
 };
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 
 use super::generics;
 use crate::{
@@ -161,7 +161,6 @@ impl PayoutAttempt {
             .distinct()
             .get_results_async::<Option<String>>(conn)
             .await
-            .into_report()
             .change_context(errors::DatabaseError::Others)
             .attach_printable("Error filtering records by connector")?
             .into_iter()
@@ -173,7 +172,6 @@ impl PayoutAttempt {
             .distinct()
             .get_results_async::<enums::Currency>(conn)
             .await
-            .into_report()
             .change_context(DatabaseError::Others)
             .attach_printable("Error filtering records by currency")?
             .into_iter()
@@ -184,7 +182,6 @@ impl PayoutAttempt {
             .distinct()
             .get_results_async::<enums::PayoutType>(conn)
             .await
-            .into_report()
             .change_context(DatabaseError::Others)
             .attach_printable("Error filtering records by payout type")?
             .into_iter()

@@ -5,7 +5,7 @@ use api_models::{
     routing,
 };
 use common_utils::{ext_traits::StringExt, static_cache::StaticCache};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use euclid::backend::{self, inputs as dsl_inputs, EuclidBackend};
 use router_env::{instrument, tracing};
 
@@ -41,7 +41,6 @@ pub async fn perform_decision_management<F: Clone>(
     .await?;
     let cached_algo = CONF_CACHE
         .retrieve(&key)
-        .into_report()
         .change_context(ConfigError::CacheMiss)
         .attach_printable("Unable to retrieve cached routing algorithm even after refresh")?;
     let backend_input =
@@ -60,12 +59,10 @@ pub async fn ensure_algorithm_cached(
     let key = format!("dsl_{merchant_id}");
     let present = CONF_CACHE
         .present(&key)
-        .into_report()
         .change_context(ConfigError::DslCachePoisoned)
         .attach_printable("Error checking presece of DSL")?;
     let expired = CONF_CACHE
         .expired(&key, timestamp)
-        .into_report()
         .change_context(ConfigError::DslCachePoisoned)
         .attach_printable("Error checking presence of DSL")?;
     if !present || expired {
@@ -94,12 +91,10 @@ pub async fn refresh_routing_cache(
         .attach_printable("Error parsing routing algorithm from configs")?;
     let interpreter: backend::VirInterpreterBackend<ConditionalConfigs> =
         backend::VirInterpreterBackend::with_program(rec.program)
-            .into_report()
             .change_context(ConfigError::DslBackendInitError)
             .attach_printable("Error initializing DSL interpreter backend")?;
     CONF_CACHE
         .save(key, interpreter, timestamp)
-        .into_report()
         .change_context(ConfigError::DslCachePoisoned)
         .attach_printable("Error saving DSL to cache")?;
     Ok(())
@@ -112,7 +107,6 @@ pub async fn execute_dsl_and_get_conditional_config(
     let routing_output = interpreter
         .execute(backend_input)
         .map(|out| out.connector_selection)
-        .into_report()
         .change_context(ConfigError::DslExecutionError)?;
     Ok(routing_output)
 }

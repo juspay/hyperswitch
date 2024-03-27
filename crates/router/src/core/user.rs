@@ -2,9 +2,7 @@ use api_models::user::{self as user_api, InviteMultipleUserResponse};
 #[cfg(feature = "email")]
 use diesel_models::user_role::UserRoleUpdate;
 use diesel_models::{enums::UserStatus, user as storage_user, user_role::UserRoleNew};
-#[cfg(feature = "email")]
-use error_stack::IntoReport;
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
 #[cfg(feature = "email")]
 use router_env::env;
@@ -219,7 +217,7 @@ pub async fn connect_account(
         .unwrap_or(false)
     {
         if matches!(env::which(), env::Env::Production) {
-            return Err(UserErrors::InvalidCredentials).into_report();
+            return Err(report!(UserErrors::InvalidCredentials));
         }
 
         let new_user = domain::NewUser::try_from(request)?;
@@ -455,7 +453,7 @@ pub async fn invite_user(
     .to_not_found_response(UserErrors::InvalidRoleId)?;
 
     if !role_info.is_invitable() {
-        return Err(UserErrors::InvalidRoleId.into())
+        return Err(report!(UserErrors::InvalidRoleId))
             .attach_printable(format!("role_id = {} is not invitable", request.role_id));
     }
 
@@ -618,7 +616,7 @@ pub async fn invite_user(
             },
         }))
     } else {
-        Err(UserErrors::InternalServerError.into())
+        Err(report!(UserErrors::InternalServerError))
     }
 }
 
@@ -628,7 +626,7 @@ pub async fn invite_multiple_user(
     requests: Vec<user_api::InviteUserRequest>,
 ) -> UserResponse<Vec<InviteMultipleUserResponse>> {
     if requests.len() > 10 {
-        return Err(UserErrors::MaxInvitationsError.into())
+        return Err(report!(UserErrors::MaxInvitationsError))
             .attach_printable("Number of invite requests must not exceed 10");
     }
 
@@ -672,7 +670,7 @@ async fn handle_invitation(
     .to_not_found_response(UserErrors::InvalidRoleId)?;
 
     if !role_info.is_invitable() {
-        return Err(UserErrors::InvalidRoleId.into())
+        return Err(report!(UserErrors::InvalidRoleId))
             .attach_printable(format!("role_id = {} is not invitable", request.role_id));
     }
 
@@ -896,7 +894,7 @@ pub async fn resend_invite(
         })?;
 
     if !matches!(user_role.status, UserStatus::InvitationSent) {
-        return Err(UserErrors::InvalidRoleOperation.into())
+        return Err(report!(UserErrors::InvalidRoleOperation))
             .attach_printable("User status is not InvitationSent".to_string());
     }
 
@@ -1122,7 +1120,7 @@ pub async fn switch_merchant_id(
         let user_role = active_user_roles
             .iter()
             .find(|role| role.merchant_id == request.merchant_id)
-            .ok_or(UserErrors::InvalidRoleOperation.into())
+            .ok_or(report!(UserErrors::InvalidRoleOperation))
             .attach_printable("User doesn't have access to switch")?;
 
         let token = utils::user::generate_jwt_auth_token(&state, &user, user_role).await?;

@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
 use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use transformers as coinbase;
 
 use self::coinbase::CoinbaseWebhookDetails;
@@ -394,7 +394,6 @@ impl api::IncomingWebhook for Coinbase {
         let base64_signature =
             utils::get_header_key_value("X-CC-Webhook-Signature", request.headers)?;
         hex::decode(base64_signature)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
     }
 
@@ -405,7 +404,6 @@ impl api::IncomingWebhook for Coinbase {
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let message = std::str::from_utf8(request.body)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         Ok(message.to_string().into_bytes())
     }

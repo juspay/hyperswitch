@@ -1,5 +1,5 @@
 use diesel_models::authentication::AuthenticationUpdateInternal;
-use error_stack::IntoReport;
+use error_stack::report;
 use router_env::{instrument, tracing};
 
 use super::{MockDb, Store};
@@ -40,8 +40,7 @@ impl AuthenticationInterface for Store {
         authentication
             .insert(&conn)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -57,8 +56,7 @@ impl AuthenticationInterface for Store {
             &authentication_id,
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -75,8 +73,7 @@ impl AuthenticationInterface for Store {
             authentication_update,
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
 

@@ -79,7 +79,7 @@ impl behaviour::Conversion for Address {
         async {
             let inner_decrypt = |inner| types::decrypt(inner, key.peek());
             let inner_decrypt_email = |inner| types::decrypt(inner, key.peek());
-            Ok(Self {
+            Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 id: other.id,
                 address_id: other.address_id,
                 city: other.city,

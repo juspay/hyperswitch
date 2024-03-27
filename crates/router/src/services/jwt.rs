@@ -1,5 +1,5 @@
 use common_utils::errors::CustomResult;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use jsonwebtoken::{encode, EncodingKey, Header};
 use masking::PeekInterface;
 
@@ -12,7 +12,6 @@ pub fn generate_exp(
         .checked_add(exp_duration)
         .ok_or(UserErrors::InternalServerError)?
         .duration_since(std::time::UNIX_EPOCH)
-        .into_report()
         .change_context(UserErrors::InternalServerError)
 }
 
@@ -29,6 +28,5 @@ where
         claims_data,
         &EncodingKey::from_secret(jwt_secret.peek().as_bytes()),
     )
-    .into_report()
     .change_context(UserErrors::InternalServerError)
 }

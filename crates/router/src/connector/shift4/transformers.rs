@@ -1,7 +1,7 @@
 use api_models::payments;
 use cards::CardNumber;
 use common_utils::pii::SecretSerdeValue;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -672,7 +672,6 @@ impl<F>
                     serde_json::to_value(Shift4CardToken {
                         id: item.response.token.id,
                     })
-                    .into_report()
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
                 ),
                 network_txn_id: None,

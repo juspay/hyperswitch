@@ -4,7 +4,7 @@ pub use diesel_models::{
     payment_link::{PaymentLink, PaymentLinkNew},
     schema::payment_link::dsl,
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 
 use crate::{
     connection::PgPooledConn,
@@ -57,7 +57,6 @@ impl PaymentLinkDbExt for PaymentLink {
         filter
             .get_results_async(conn)
             .await
-            .into_report()
             // The query built here returns an empty Vec when no records are found, and if any error does occur,
             // it would be an internal database error, due to which we are raising a DatabaseError::Unknown error
             .change_context(errors::DatabaseError::Others)

@@ -1,6 +1,6 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
 use diesel::{associations::HasTable, debug_query, ExpressionMethods, TextExpressionMethods};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use router_env::logger;
 
 use crate::{
@@ -25,7 +25,6 @@ pub async fn insert_payment_intents(
     query
         .get_results_async(conn)
         .await
-        .into_report()
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Error while inserting payment intents")
 }
@@ -40,7 +39,6 @@ pub async fn insert_payment_attempts(
     query
         .get_results_async(conn)
         .await
-        .into_report()
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Error while inserting payment attempts")
 }
@@ -56,7 +54,6 @@ pub async fn insert_refunds(
     query
         .get_results_async(conn)
         .await
-        .into_report()
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Error while inserting refunds")
 }
@@ -74,7 +71,6 @@ pub async fn delete_payment_intents(
     query
         .get_results_async(conn)
         .await
-        .into_report()
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Error while deleting payment intents")
         .and_then(|result| match result.len() {
@@ -100,7 +96,6 @@ pub async fn delete_payment_attempts(
     query
         .get_results_async(conn)
         .await
-        .into_report()
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Error while deleting payment attempts")
         .and_then(|result| match result.len() {
@@ -124,7 +119,6 @@ pub async fn delete_refunds(conn: &PgPooledConn, merchant_id: &str) -> StorageRe
     query
         .get_results_async(conn)
         .await
-        .into_report()
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Error while deleting refunds")
         .and_then(|result| match result.len() {

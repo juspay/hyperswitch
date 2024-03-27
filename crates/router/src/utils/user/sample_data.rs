@@ -4,7 +4,7 @@ use api_models::{
 };
 use data_models::payments::payment_intent::PaymentIntentNew;
 use diesel_models::{user::sample_data::PaymentAttemptBatchNew, RefundNew};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use rand::{prelude::SliceRandom, thread_rng, Rng};
 use time::OffsetDateTime;
 
@@ -44,7 +44,6 @@ pub async fn generate_sample_data(
 
     let merchant_parsed_details: Vec<api_models::admin::PrimaryBusinessDetails> =
         serde_json::from_value(merchant_from_db.primary_business_details.clone())
-            .into_report()
             .change_context(SampleDataError::InternalServerError)
             .attach_printable("Error while parsing primary business details")?;
 
@@ -84,7 +83,6 @@ pub async fn generate_sample_data(
     // 10 percent payments should be failed
     #[allow(clippy::as_conversions)]
     let failure_attempts = usize::try_from((sample_data_size as f32 / 10.0).round() as i64)
-        .into_report()
         .change_context(SampleDataError::InvalidParameters)?;
 
     let failure_after_attempts = sample_data_size / failure_attempts;
@@ -92,7 +90,6 @@ pub async fn generate_sample_data(
     // 20 percent refunds for payments
     #[allow(clippy::as_conversions)]
     let number_of_refunds = usize::try_from((sample_data_size as f32 / 5.0).round() as i64)
-        .into_report()
         .change_context(SampleDataError::InvalidParameters)?;
 
     let mut refunds_count = 0;

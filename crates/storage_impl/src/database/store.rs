@@ -2,7 +2,7 @@ use async_bb8_diesel::{AsyncConnection, ConnectionError};
 use bb8::CustomizeConnection;
 use data_models::errors::{StorageError, StorageResult};
 use diesel::PgConnection;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::PeekInterface;
 
 use crate::config::Database;
@@ -99,7 +99,6 @@ pub async fn diesel_make_pg_pool(
 
     pool.build(manager)
         .await
-        .into_report()
         .change_context(StorageError::InitializationError)
         .attach_printable("Failed to create PostgreSQL connection pool")
 }

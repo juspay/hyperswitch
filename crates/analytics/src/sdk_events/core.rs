@@ -8,7 +8,7 @@ use api_models::analytics::{
     SdkEventFiltersResponse,
 };
 use common_utils::errors::ReportSwitchExt;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use router_env::{instrument, logger, tracing};
 
 use super::{
@@ -32,7 +32,6 @@ pub async fn sdk_events_core(
         AnalyticsProvider::Sqlx(_) => Err(FiltersError::NotImplemented(
             "SDK Events not implemented for SQLX",
         ))
-        .into_report()
         .attach_printable("SQL Analytics is not implemented for Sdk Events"),
         AnalyticsProvider::Clickhouse(pool) => get_sdk_event(&publishable_key, req, pool).await,
         AnalyticsProvider::CombinedSqlx(_sqlx_pool, ckh_pool)
@@ -80,7 +79,6 @@ pub async fn get_metrics(
             .join_next()
             .await
             .transpose()
-            .into_report()
             .change_context(AnalyticsError::UnknownError)?
         {
             logger::info!("Logging Result {:?}", data);
@@ -165,7 +163,6 @@ pub async fn get_filters(
                 AnalyticsProvider::Sqlx(_pool) => Err(FiltersError::NotImplemented(
                     "SDK Events not implemented for SQLX",
                 ))
-                .into_report()
                 .attach_printable("SQL Analytics is not implemented for SDK Events"),
                 AnalyticsProvider::Clickhouse(pool) => {
                     get_sdk_event_filter_for_dimension(dim, publishable_key, &req.time_range, pool)

@@ -85,7 +85,7 @@ impl super::behaviour::Conversion for Event {
         Self: Sized,
     {
         async {
-            Ok(Self {
+            Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 event_id: item.event_id,
                 event_type: item.event_type,
                 event_class: item.event_class,

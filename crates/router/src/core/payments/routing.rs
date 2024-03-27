@@ -14,7 +14,7 @@ use api_models::{
 };
 use common_utils::static_cache::StaticCache;
 use diesel_models::enums as storage_enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use euclid::{
     backend::{self, inputs as dsl_inputs, EuclidBackend},
     dssa::graph::{self as euclid_graph, Memoization},
@@ -310,7 +310,6 @@ pub async fn perform_static_routing_v1<F: Clone>(
     .await?;
     let cached_algorithm: Arc<CachedAlgorithm> = ROUTING_CACHE
         .retrieve(&key)
-        .into_report()
         .change_context(errors::RoutingError::CacheMiss)
         .attach_printable("Unable to retrieve cached routing algorithm even after refresh")?;
 
@@ -375,13 +374,11 @@ async fn ensure_algorithm_cached_v1(
 
     let present = ROUTING_CACHE
         .present(&key)
-        .into_report()
         .change_context(errors::RoutingError::DslCachePoisoned)
         .attach_printable("Error checking presence of DSL")?;
 
     let expired = ROUTING_CACHE
         .expired(&key, timestamp)
-        .into_report()
         .change_context(errors::RoutingError::DslCachePoisoned)
         .attach_printable("Error checking expiry of DSL in cache")?;
 
@@ -429,7 +426,6 @@ fn execute_dsl_and_get_connector_v1(
     let routing_output: routing_types::RoutingAlgorithm = interpreter
         .execute(backend_input)
         .map(|out| out.connector_selection.foreign_into())
-        .into_report()
         .change_context(errors::RoutingError::DslExecutionError)?;
 
     Ok(match routing_output {
@@ -439,7 +435,6 @@ fn execute_dsl_and_get_connector_v1(
             .change_context(errors::RoutingError::DslFinalConnectorSelectionFailed)?,
 
         _ => Err(errors::RoutingError::DslIncorrectSelectionAlgorithm)
-            .into_report()
             .attach_printable("Unsupported algorithm received as a result of static routing")?,
     })
 }
@@ -492,7 +487,6 @@ pub async fn refresh_routing_cache_v1(
         }
         routing_types::RoutingAlgorithm::Advanced(program) => {
             let interpreter = backend::VirInterpreterBackend::with_program(program)
-                .into_report()
                 .change_context(errors::RoutingError::DslBackendInitError)
                 .attach_printable("Error initializing DSL interpreter backend")?;
 
@@ -502,7 +496,6 @@ pub async fn refresh_routing_cache_v1(
 
     ROUTING_CACHE
         .save(key, cached_algorithm, timestamp)
-        .into_report()
         .change_context(errors::RoutingError::DslCachePoisoned)
         .attach_printable("Error saving DSL to cache")?;
 
@@ -515,7 +508,6 @@ pub fn perform_volume_split(
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     let weights: Vec<u8> = splits.iter().map(|sp| sp.split).collect();
     let weighted_index = distributions::WeightedIndex::new(weights)
-        .into_report()
         .change_context(errors::RoutingError::VolumeSplitFailed)
         .attach_printable("Error creating weighted distribution for volume split")?;
 
@@ -534,7 +526,6 @@ pub fn perform_volume_split(
     splits
         .get(idx)
         .ok_or(errors::RoutingError::VolumeSplitFailed)
-        .into_report()
         .attach_printable("Volume split index lookup failed")?;
 
     // Panic Safety: We have performed a `get(idx)` operation just above which will
@@ -578,13 +569,11 @@ pub async fn get_merchant_kgraph<'a>(
 
     let kgraph_present = KGRAPH_CACHE
         .present(&key)
-        .into_report()
         .change_context(errors::RoutingError::KgraphCacheFailure)
         .attach_printable("when checking kgraph presence")?;
 
     let kgraph_expired = KGRAPH_CACHE
         .expired(&key, merchant_last_modified)
-        .into_report()
         .change_context(errors::RoutingError::KgraphCacheFailure)
         .attach_printable("when checking kgraph expiry")?;
 
@@ -603,7 +592,6 @@ pub async fn get_merchant_kgraph<'a>(
 
     let cached_kgraph = KGRAPH_CACHE
         .retrieve(&key)
-        .into_report()
         .change_context(errors::RoutingError::CacheMiss)
         .attach_printable("when retrieving kgraph")?;
 
@@ -650,20 +638,18 @@ pub async fn refresh_kgraph_cache(
         profile_id,
     );
 
-    let api_mcas: Vec<admin_api::MerchantConnectorResponse> = merchant_connector_accounts
+    let api_mcas = merchant_connector_accounts
         .into_iter()
-        .map(|acct| acct.try_into())
-        .collect::<Result<_, _>>()
+        .map(admin_api::MerchantConnectorResponse::try_from)
+        .collect::<Result<Vec<_>, _>>()
         .change_context(errors::RoutingError::KgraphCacheRefreshFailed)?;
 
     let kgraph = mca_graph::make_mca_graph(api_mcas)
-        .into_report()
         .change_context(errors::RoutingError::KgraphCacheRefreshFailed)
         .attach_printable("when construction kgraph")?;
 
     KGRAPH_CACHE
         .save(key, kgraph, timestamp)
-        .into_report()
         .change_context(errors::RoutingError::KgraphCacheRefreshFailed)
         .attach_printable("when saving kgraph to cache")?;
 
@@ -684,7 +670,6 @@ async fn perform_kgraph_filtering(
     let context = euclid_graph::AnalysisContext::from_dir_values(
         backend_input
             .into_context()
-            .into_report()
             .change_context(errors::RoutingError::KgraphAnalysisError)?,
     );
     let cached_kgraph = get_merchant_kgraph(
@@ -703,11 +688,9 @@ async fn perform_kgraph_filtering(
         let euclid_choice: ast::ConnectorChoice = choice.clone().foreign_into();
         let dir_val = euclid_choice
             .into_dir_value()
-            .into_report()
             .change_context(errors::RoutingError::KgraphAnalysisError)?;
         let kgraph_eligible = cached_kgraph
             .check_value_validity(dir_val, &context, &mut Memoization::new())
-            .into_report()
             .change_context(errors::RoutingError::KgraphAnalysisError)?;
 
         let filter_eligible =
@@ -1031,7 +1014,6 @@ async fn perform_session_routing_for_pm_type(
 
                 let cached_algorithm = ROUTING_CACHE
                     .retrieve(&key)
-                    .into_report()
                     .change_context(errors::RoutingError::CacheMiss)
                     .attach_printable("unable to retrieve cached routing algorithm")?;
 

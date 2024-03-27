@@ -1,5 +1,5 @@
 use diesel_models::{enums, user::dashboard_metadata as storage};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 use storage_impl::MockDb;
 
@@ -65,8 +65,7 @@ impl DashboardMetadataInterface for Store {
         metadata
             .insert(&conn)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -88,8 +87,7 @@ impl DashboardMetadataInterface for Store {
             dashboard_metadata_update,
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -109,8 +107,7 @@ impl DashboardMetadataInterface for Store {
             data_keys,
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -128,8 +125,7 @@ impl DashboardMetadataInterface for Store {
             data_keys,
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -145,8 +141,7 @@ impl DashboardMetadataInterface for Store {
             merchant_id.to_owned(),
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -164,8 +159,7 @@ impl DashboardMetadataInterface for Store {
             data_key,
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
 
@@ -188,10 +182,7 @@ impl DashboardMetadataInterface for MockDb {
             })?
         }
         let metadata_new = storage::DashboardMetadata {
-            id: dashboard_metadata
-                .len()
-                .try_into()
-                .into_report()
+            id: i32::try_from(dashboard_metadata.len())
                 .change_context(errors::StorageError::MockDbError)?,
             user_id: metadata.user_id,
             merchant_id: metadata.merchant_id,
