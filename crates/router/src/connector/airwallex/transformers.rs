@@ -251,7 +251,7 @@ pub struct AirwallexCardPaymentOptions {
     auto_capture: bool,
 }
 
-impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AirwallexPaymentMethod {
+impl TryFrom<&api_models::payments::BankRedirectData> for AirwallexPaymentMethod {
     type Error = Error;
     fn try_from(
         bank_redirect_data: &api_models::payments::BankRedirectData,
@@ -322,7 +322,7 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AirwallexPaymentMe
     }
 }
 
-impl<'a> TryFrom<&api_models::payments::BankDebitData> for AirwallexPaymentMethod {
+impl TryFrom<&api_models::payments::BankDebitData> for AirwallexPaymentMethod {
     type Error = Error;
     fn try_from(
         bank_debit_data: &api_models::payments::BankDebitData,
