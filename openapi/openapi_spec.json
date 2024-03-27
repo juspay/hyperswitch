@@ -14314,6 +14314,14 @@
             "nullable": true,
             "maxLength": 255
           },
+          "customer": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDetails"
+              }
+            ],
+            "nullable": true
+          },
           "description": {
             "type": "string",
             "description": "A description of the payment",
