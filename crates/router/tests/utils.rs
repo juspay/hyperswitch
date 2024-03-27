@@ -12,6 +12,7 @@ use actix_web::{
 };
 use derive_deref::Deref;
 use router::{configs::settings::Settings, routes::AppState, services};
+use router_env::tracing::Instrument;
 use serde::{de::DeserializeOwned, Deserialize};
 use serde_json::{json, Value};
 use tokio::sync::{oneshot, OnceCell};
@@ -24,7 +25,7 @@ async fn spawn_server() -> bool {
         .await
         .expect("failed to create server");
 
-    let _server = tokio::spawn(server);
+    let _server = tokio::spawn(server.in_current_span());
     true
 }
 
@@ -49,12 +50,12 @@ pub async fn mk_service(
     }
     let tx: oneshot::Sender<()> = oneshot::channel().0;
 
-    let app_state = AppState::with_storage(
+    let app_state = Box::pin(AppState::with_storage(
         conf,
         router::db::StorageImpl::Mock,
         tx,
         Box::new(services::MockApiClient),
-    )
+    ))
     .await;
     actix_web::test::init_service(router::mk_app(app_state, request_body_limit)).await
 }

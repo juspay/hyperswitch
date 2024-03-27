@@ -433,14 +433,7 @@ where
                                         });
                                     match handle_response_result {
                                         Ok(mut data) => {
-                                            match connector_event.try_into() {
-                                                Ok(event) => {
-                                                    state.event_handler().log_event(event);
-                                                }
-                                                Err(err) => {
-                                                    logger::error!(error=?err, "Error Logging Connector Event");
-                                                }
-                                            };
+                                            state.event_handler().log_event(&connector_event);
                                             data.connector_http_status_code =
                                                 connector_http_status_code;
                                             // Add up multiple external latencies in case of multiple external calls within the same request.
@@ -456,14 +449,7 @@ where
                                             connector_event
                                                 .set_error(json!({"error": err.to_string()}));
 
-                                            match connector_event.try_into() {
-                                                Ok(event) => {
-                                                    state.event_handler().log_event(event);
-                                                }
-                                                Err(err) => {
-                                                    logger::error!(error=?err, "Error Logging Connector Event");
-                                                }
-                                            }
+                                            state.event_handler().log_event(&connector_event);
                                             Err(err)
                                         }
                                     }?
@@ -491,14 +477,7 @@ where
                                                     body,
                                                     Some(&mut connector_event),
                                                 )?;
-                                            match connector_event.try_into() {
-                                                Ok(event) => {
-                                                    state.event_handler().log_event(event);
-                                                }
-                                                Err(err) => {
-                                                    logger::error!(error=?err, "Error Logging Connector Event");
-                                                }
-                                            };
+                                            state.event_handler().log_event(&connector_event);
                                             error_res
                                         }
                                         _ => {
@@ -523,14 +502,7 @@ where
                         }
                         Err(error) => {
                             connector_event.set_error(json!({"error": error.to_string()}));
-                            match connector_event.try_into() {
-                                Ok(event) => {
-                                    state.event_handler().log_event(event);
-                                }
-                                Err(err) => {
-                                    logger::error!(error=?err, "Error Logging Connector Event");
-                                }
-                            };
+                            state.event_handler().log_event(&connector_event);
                             if error.current_context().is_upstream_timeout() {
                                 let error_response = ErrorResponse {
                                     code: consts::REQUEST_TIMEOUT_ERROR_CODE.to_string(),
@@ -1110,14 +1082,7 @@ where
         request,
         request.method(),
     );
-    match api_event.clone().try_into() {
-        Ok(event) => {
-            state.event_handler().log_event(event);
-        }
-        Err(err) => {
-            logger::error!(error=?err, event=?api_event, "Error Logging API Event");
-        }
-    }
+    state.event_handler().log_event(&api_event);
 
     metrics::request::status_code_metrics(status_code, flow.to_string(), merchant_id.to_string());
 
@@ -1484,7 +1449,8 @@ pub fn build_redirection_form(
     config: Settings,
 ) -> maud::Markup {
     use maud::PreEscaped;
-
+    let logging_template =
+        include_str!("redirection/assets/redirect_error_logs_push.js").to_string();
     match form {
         RedirectForm::Form {
             endpoint,
@@ -1541,11 +1507,15 @@ pub fn build_redirection_form(
                     }
                 }
 
-                (PreEscaped(r#"<script type="text/javascript"> var frm = document.getElementById("payment_form"); window.setTimeout(function () { frm.submit(); }, 300); </script>"#))
+                (PreEscaped(format!("<script type=\"text/javascript\"> {logging_template} var frm = document.getElementById(\"payment_form\"); window.setTimeout(function () {{ frm.submit(); }}, 300); </script>")))
+
             }
         }
         },
-        RedirectForm::Html { html_data } => PreEscaped(html_data.to_string()),
+        RedirectForm::Html { html_data } => PreEscaped(format!(
+            "{} <script>{}</script>",
+            html_data, logging_template
+        )),
         RedirectForm::BlueSnap {
             payment_fields_token,
         } => {
@@ -1592,6 +1562,7 @@ pub fn build_redirection_form(
                     }
 
                 (PreEscaped(format!("<script>
+                    {logging_template}
                     bluesnap.threeDsPaymentsSetup(\"{payment_fields_token}\",
                     function(sdkResponse) {{
                         // console.log(sdkResponse);
@@ -1656,6 +1627,7 @@ pub fn build_redirection_form(
               }
               </script>"#))
               (PreEscaped(format!("<script>
+                {logging_template}
                 window.addEventListener(\"message\", function(event) {{
                     if (event.origin === \"https://centinelapistag.cardinalcommerce.com\" || event.origin === \"https://centinelapi.cardinalcommerce.com\") {{
                       window.location.href = window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/cybersource?referenceId={reference_id}\");
@@ -1704,11 +1676,12 @@ pub fn build_redirection_form(
                 (PreEscaped(format!("<form id=\"step-up-form\" method=\"POST\" action=\"{step_up_url}\">
                 <input type=\"hidden\" name=\"JWT\" value=\"{access_token}\">
               </form>")))
-              (PreEscaped(r#"<script>
-              window.onload = function() {
+              (PreEscaped(format!("<script>
+              {logging_template}
+              window.onload = function() {{
               var stepUpForm = document.querySelector('#step-up-form'); if(stepUpForm) stepUpForm.submit();
-              }
-              </script>"#))
+              }}
+              </script>")))
             }}
         }
         RedirectForm::Payme => {
@@ -1717,7 +1690,8 @@ pub fn build_redirection_form(
                 head {
                     (PreEscaped(r#"<script src="https://cdn.paymeservice.com/hf/v1/hostedfields.js"></script>"#))
                 }
-                (PreEscaped("<script>
+                (PreEscaped(format!("<script>
+                    {logging_template}
                     var f = document.createElement('form');
                     f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/payme\");
                     f.method='POST';
@@ -1735,7 +1709,7 @@ pub fn build_redirection_form(
                         f.submit();
                     }});
             </script>
-                ".to_string()))
+                ")))
             }
         }
         RedirectForm::Braintree {
@@ -1776,6 +1750,7 @@ pub fn build_redirection_form(
                     }
 
                     (PreEscaped(format!("<script>
+                                {logging_template}
                                 var my3DSContainer;
                                 var clientToken = \"{client_token}\";
                                 braintree.threeDSecure.create({{
@@ -1873,6 +1848,7 @@ pub fn build_redirection_form(
                         div id="threeds-wrapper" style="display: flex; width: 100%; height: 100vh; align-items: center; justify-content: center;" {""}
                     }
                     (PreEscaped(format!("<script>
+                    {logging_template}
                     const gateway = Gateway.create('{public_key_val}');
 
                     // Initialize the ThreeDSService
@@ -1999,6 +1975,7 @@ pub fn build_payment_link_html(
     // Add modification to js template with dynamic data
     let js_template =
         include_str!("../core/payment_link/payment_link_initiate/payment_link.js").to_string();
+
     let _ = tera.add_raw_template("payment_link_js", &js_template);
 
     context.insert("payment_details_js_script", &payment_link_data.js_script);
@@ -2018,6 +1995,11 @@ pub fn build_payment_link_html(
     let _ = tera.add_raw_template("payment_link", &html_template);
 
     context.insert(
+        "preload_link_tags",
+        &get_preload_link_html_template(&payment_link_data.sdk_url),
+    );
+
+    context.insert(
         "hyperloader_sdk_link",
         &get_hyper_loader_sdk(&payment_link_data.sdk_url),
     );
@@ -2035,6 +2017,14 @@ pub fn build_payment_link_html(
 
 fn get_hyper_loader_sdk(sdk_url: &str) -> String {
     format!("<script src=\"{sdk_url}\" onload=\"initializeSDK()\"></script>")
+}
+
+fn get_preload_link_html_template(sdk_url: &str) -> String {
+    format!(
+        r#"<link rel="preload" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800" as="style">
+            <link rel="preload" href="{sdk_url}" as="script">"#,
+        sdk_url = sdk_url
+    )
 }
 
 pub fn get_payment_link_status(

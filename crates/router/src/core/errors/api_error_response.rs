@@ -96,6 +96,11 @@ pub enum ApiErrorResponse {
     FileProviderNotSupported { message: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_23", message = "{message}")]
     UnprocessableEntity { message: String },
+    #[error(
+        error_type = ErrorType::ProcessingError, code = "IR_24",
+        message = "Invalid {wallet_name} wallet token"
+    )]
+    InvalidWalletToken { wallet_name: String },
     #[error(error_type = ErrorType::ConnectorError, code = "CE_00", message = "{code}: {message}", ignore = "status_code")]
     ExternalConnectorError {
         code: String,
@@ -122,7 +127,6 @@ pub enum ApiErrorResponse {
     VerificationFailed { data: Option<serde_json::Value> },
     #[error(error_type = ErrorType::ProcessingError, code = "CE_08", message = "Dispute operation failed while processing with connector. Retry operation")]
     DisputeFailed { data: Option<serde_json::Value> },
-
     #[error(error_type = ErrorType::ServerNotAvailable, code = "HE_00", message = "Something went wrong")]
     InternalServerError,
     #[error(error_type = ErrorType::LockTimeout, code = "HE_00", message = "Resource is busy. Please try again later.")]
@@ -172,6 +176,8 @@ pub enum ApiErrorResponse {
     ApiKeyNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Payout does not exist in our records")]
     PayoutNotFound,
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Event does not exist in our records")]
+    EventNotFound,
     #[error(error_type = ErrorType::ValidationError, code = "HE_03", message = "Invalid mandate id passed from connector")]
     MandateSerializationFailed,
     #[error(error_type = ErrorType::ValidationError, code = "HE_03", message = "Unable to parse the mandate identifier passed from connector")]
