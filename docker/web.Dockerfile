@@ -15,4 +15,4 @@ EXPOSE 9050
 EXPOSE 5252
 EXPOSE 9060
 
-CMD concurrently "npm run start:dev" "npm run start:playground"
+CMD concurrently "npm run re:start" "npm run start" "npm run start:playground"

@@ -139,8 +139,8 @@ services:
       - HYPERSWITCH_PUBLISHABLE_KEY=$HYPERSWITCH_PUBLISHABLE_KEY
       - HYPERSWITCH_SECRET_KEY=$HYPERSWITCH_SECRET_KEY
       - HYPERSWITCH_SERVER_URL=${HYPERSWITCH_SERVER_URL:-http://hyperswitch-server:8080}
-      - HYPERSWITCH_CLIENT_URL=${HYPERSWITCH_CLIENT_URL:-http://hyperswitch-web:9050}
-      - SELF_SERVER_URL=${SELF_SERVER_URL:-http://hyperswitch-web:5252}
+      - HYPERSWITCH_CLIENT_URL=${HYPERSWITCH_CLIENT_URL:-http://localhost:9050}
+      - SELF_SERVER_URL=${SELF_SERVER_URL:-http://localhost:5252}
     depends_on:
       hyperswitch-server:
         condition: service_started
