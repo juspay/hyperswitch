@@ -14,6 +14,7 @@ use crate::{
     core::errors,
     services,
     types::{self, api, storage::enums, transformers::ForeignFrom},
+    unimplemented_payment_method,
 };
 
 #[derive(Debug, Serialize)]
@@ -92,12 +93,12 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
             api::PaymentMethodData::Wallet(wallet_data) => match wallet_data.clone() {
                 api_models::payments::WalletData::GooglePay(_data) => {
                     let json_wallet_data: CheckoutGooglePayData =
-                        wallet_data.get_wallet_token_as_json()?;
+                        wallet_data.get_wallet_token_as_json("Google Pay".to_string())?;
                     Ok(Self::Googlepay(json_wallet_data))
                 }
                 api_models::payments::WalletData::ApplePay(_data) => {
                     let json_wallet_data: CheckoutApplePayData =
-                        wallet_data.get_wallet_token_as_json()?;
+                        wallet_data.get_wallet_token_as_json("Apple Pay".to_string())?;
                     Ok(Self::Applepay(json_wallet_data))
                 }
                 api_models::payments::WalletData::AliPayQr(_)
@@ -308,7 +309,11 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                         token: match item.router_data.get_payment_method_token()? {
                             types::PaymentMethodToken::Token(token) => token.into(),
                             types::PaymentMethodToken::ApplePayDecrypt(_) => {
-                                Err(errors::ConnectorError::InvalidWalletToken)?
+                                Err(unimplemented_payment_method!(
+                                    "Apple Pay",
+                                    "Simplified",
+                                    "Checkout"
+                                ))?
                             }
                         },
                     }))
@@ -391,7 +396,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
             enums::AuthenticationType::ThreeDs => CheckoutThreeDS {
                 enabled: true,
                 force_3ds: true,
-                eci: authentication_data.map(|auth| auth.eci.clone()),
+                eci: authentication_data.and_then(|auth| auth.eci.clone()),
                 cryptogram: authentication_data.map(|auth| auth.cavv.clone()),
                 xid: authentication_data.map(|auth| auth.threeds_server_transaction_id.clone()),
                 version: authentication_data.map(|auth| auth.message_version.clone()),
