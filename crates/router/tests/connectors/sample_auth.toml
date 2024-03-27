@@ -199,10 +199,9 @@ key1= "Trankey"
 api_key="API Key"
 
 
-
-[billwerk]
+[ebanx]
 api_key="API Key"
 
 
-[ebanx]
+[billwerk]
 api_key="API Key"
