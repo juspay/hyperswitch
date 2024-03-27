@@ -18,7 +18,10 @@ use common_utils::signals::get_allowed_signals;
 use diesel_models::kv;
 use error_stack::{IntoReport, ResultExt};
 use hyperswitch_interfaces::secrets_interface::secret_state::RawSecret;
-use router_env::{instrument, tracing};
+use router_env::{
+    instrument,
+    tracing::{self, Instrument},
+};
 use tokio::sync::mpsc;
 
 pub(crate) type Settings = crate::settings::Settings<RawSecret>;
@@ -39,7 +42,8 @@ pub async fn start_drainer(store: Arc<Store>, conf: DrainerSettings) -> errors::
                 "Failed while getting allowed signals".to_string(),
             ))?;
     let handle = signal.handle();
-    let task_handle = tokio::spawn(common_utils::signals::signal_handler(signal, tx.clone()));
+    let task_handle =
+        tokio::spawn(common_utils::signals::signal_handler(signal, tx.clone()).in_current_span());
 
     let handler_clone = drainer_handler.clone();
 

@@ -115,6 +115,7 @@ pub enum RoutableConnectors {
     Airwallex,
     Authorizedotnet,
     Bankofamerica,
+    // Billwerk, Added as template code for future usage
     Bitpay,
     Bambora,
     Bluesnap,
