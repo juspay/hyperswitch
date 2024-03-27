@@ -3752,11 +3752,15 @@ pub struct SessionTokenInfo {
     pub display_name: String,
     pub initiative: String,
     pub initiative_context: String,
+    #[schema(value_type = CountryAlpha2)]
+    pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct SessionTokenForSimplifiedApplePay {
     pub initiative_context: String,
+    #[schema(value_type = CountryAlpha2)]
+    pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
