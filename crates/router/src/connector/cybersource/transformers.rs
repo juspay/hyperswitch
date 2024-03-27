@@ -573,7 +573,7 @@ impl
                         .map(|network| network.to_lowercase())
                         .as_deref()
                     {
-                        Some("amex") => {
+                        Some("discover") => {
                             let original_amount = Some(
                                 item.router_data
                                     .get_recurring_mandate_payment_data()?
@@ -626,7 +626,7 @@ impl
                                 stored_credential_used: Some(true),
                             }),
                             merchant_intitiated_transaction: Some(MerchantInitiatedTransaction {
-                                reason: None, // should it be 7 (Subscription)
+                                reason: Some("7".to_string()),
                                 original_authorized_amount: amount,
                                 previous_transaction_id: Some(Secret::new(network_transaction_id)),
                             }),
