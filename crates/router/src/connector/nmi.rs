@@ -8,7 +8,7 @@ use error_stack::{IntoReport, ResultExt};
 use regex::Regex;
 use transformers as nmi;
 
-use super::utils::{self as connector_utils};
+use super::utils::{self as connector_utils, PaymentMethodDataType};
 use crate::{
     configs::settings,
     core::{
@@ -16,7 +16,7 @@ use crate::{
         payments,
     },
     events::connector_api_logs::ConnectorEvent,
-    mandate_not_supported_error,
+    is_mandate_supported, mandate_not_supported_error,
     services::{self, request, ConnectorIntegration, ConnectorValidation},
     types::{
         self,
@@ -115,24 +115,8 @@ impl ConnectorValidation for Nmi {
         pm_type: Option<types::storage::enums::PaymentMethodType>,
         pm_data: api_models::payments::PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
-        match pm_data {
-            api_models::payments::PaymentMethodData::Card(_)
-            | api_models::payments::PaymentMethodData::Wallet(_)
-            | api_models::payments::PaymentMethodData::CardRedirect(_)
-            | api_models::payments::PaymentMethodData::PayLater(_)
-            | api_models::payments::PaymentMethodData::BankRedirect(_)
-            | api_models::payments::PaymentMethodData::BankDebit(_)
-            | api_models::payments::PaymentMethodData::BankTransfer(_)
-            | api_models::payments::PaymentMethodData::MandatePayment
-            | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_)
-            | api_models::payments::PaymentMethodData::Crypto(_)
-            | api_models::payments::PaymentMethodData::Reward
-            | api_models::payments::PaymentMethodData::Upi(_)
-            | api_models::payments::PaymentMethodData::CardToken(_) => {
-                mandate_not_supported_error!(pm_type, self.id())
-            }
-        }
+        let mandate_supported_pmd = std::collections::HashSet::<PaymentMethodDataType>::new();
+        is_mandate_supported!(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 
     fn validate_psync_reference_id(

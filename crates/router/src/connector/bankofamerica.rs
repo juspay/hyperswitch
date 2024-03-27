@@ -15,11 +15,14 @@ use url::Url;
 use super::utils::{PaymentsAuthorizeRequestData, RouterData};
 use crate::{
     configs::settings,
-    connector::{utils as connector_utils, utils::RefundsRequestData},
+    connector::{
+        utils as connector_utils,
+        utils::{PaymentMethodDataType, RefundsRequestData},
+    },
     consts,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
-    headers, mandate_not_supported_error,
+    headers, is_mandate_supported, mandate_not_supported_error,
     services::{
         self,
         request::{self, Mask},
@@ -280,24 +283,8 @@ impl ConnectorValidation for Bankofamerica {
         pm_type: Option<types::storage::enums::PaymentMethodType>,
         pm_data: api_models::payments::PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
-        match pm_data {
-            api_models::payments::PaymentMethodData::Card(_)
-            | api_models::payments::PaymentMethodData::Wallet(_)
-            | api_models::payments::PaymentMethodData::CardRedirect(_)
-            | api_models::payments::PaymentMethodData::PayLater(_)
-            | api_models::payments::PaymentMethodData::BankRedirect(_)
-            | api_models::payments::PaymentMethodData::BankDebit(_)
-            | api_models::payments::PaymentMethodData::BankTransfer(_)
-            | api_models::payments::PaymentMethodData::MandatePayment
-            | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_)
-            | api_models::payments::PaymentMethodData::Reward
-            | api_models::payments::PaymentMethodData::Crypto(_)
-            | api_models::payments::PaymentMethodData::Upi(_)
-            | api_models::payments::PaymentMethodData::CardToken(_) => {
-                mandate_not_supported_error!(pm_type, self.id())
-            }
-        }
+        let mandate_supported_pmd = std::collections::HashSet::<PaymentMethodDataType>::new();
+        is_mandate_supported!(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 

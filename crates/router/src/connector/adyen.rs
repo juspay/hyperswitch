@@ -15,10 +15,11 @@ use self::transformers as adyen;
 use crate::{
     capture_method_not_supported,
     configs::settings,
+    connector::utils::PaymentMethodDataType,
     consts,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
-    headers, logger, mandate_not_supported_error,
+    headers, is_mandate_supported, logger, mandate_not_supported_error,
     services::{
         self,
         request::{self, Mask},
@@ -229,96 +230,33 @@ impl ConnectorValidation for Adyen {
         pm_type: Option<PaymentMethodType>,
         pm_data: api_models::payments::PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
-        match pm_data {
-            api_models::payments::PaymentMethodData::Card(_) => Ok(()),
-            api_models::payments::PaymentMethodData::Wallet(wallet) => match wallet {
-                api_models::payments::WalletData::ApplePay(_)
-                | api_models::payments::WalletData::GooglePay(_)
-                | api_models::payments::WalletData::PaypalRedirect(_)
-                | api_models::payments::WalletData::MomoRedirect(_)
-                | api_models::payments::WalletData::KakaoPayRedirect(_)
-                | api_models::payments::WalletData::GoPayRedirect(_)
-                | api_models::payments::WalletData::GcashRedirect(_)
-                | api_models::payments::WalletData::DanaRedirect {}
-                | api_models::payments::WalletData::TwintRedirect { .. }
-                | api_models::payments::WalletData::VippsRedirect { .. } => Ok(()),
-                api_models::payments::WalletData::CashappQr(_)
-                | api_models::payments::WalletData::MobilePayRedirect(_)
-                | api_models::payments::WalletData::TouchNGoRedirect(_)
-                | api_models::payments::WalletData::AliPayRedirect(_)
-                | api_models::payments::WalletData::MbWayRedirect(_)
-                | api_models::payments::WalletData::PaypalSdk(_)
-                | api_models::payments::WalletData::SwishQr(_)
-                | api_models::payments::WalletData::WeChatPayQr(_)
-                | api_models::payments::WalletData::AliPayQr(_)
-                | api_models::payments::WalletData::AliPayHkRedirect(_)
-                | api_models::payments::WalletData::ApplePayRedirect(_)
-                | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
-                | api_models::payments::WalletData::GooglePayRedirect(_)
-                | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
-                | api_models::payments::WalletData::WeChatPayRedirect(_)
-                | api_models::payments::WalletData::SamsungPay(_) => {
-                    mandate_not_supported_error!(pm_type, self.id())
-                }
-            },
-            api_models::payments::PaymentMethodData::PayLater(pay_later) => match pay_later {
-                api_models::payments::PayLaterData::KlarnaRedirect { .. } => Ok(()),
-                api_models::payments::PayLaterData::AlmaRedirect {}
-                | api_models::payments::PayLaterData::AtomeRedirect {}
-                | api_models::payments::PayLaterData::KlarnaSdk { .. }
-                | api_models::payments::PayLaterData::AffirmRedirect {}
-                | api_models::payments::PayLaterData::PayBrightRedirect {}
-                | api_models::payments::PayLaterData::WalleyRedirect {}
-                | api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
-                    mandate_not_supported_error!(pm_type, self.id())
-                }
-            },
-
-            api_models::payments::PaymentMethodData::BankRedirect(bank_redirect) => {
-                match bank_redirect {
-                    api_models::payments::BankRedirectData::Ideal { .. }
-                    | api_models::payments::BankRedirectData::Sofort { .. }
-                    | api_models::payments::BankRedirectData::OpenBankingUk { .. }
-                    | api_models::payments::BankRedirectData::Giropay { .. }
-                    | api_models::payments::BankRedirectData::Trustly { .. }
-                    | api_models::payments::BankRedirectData::BancontactCard { .. } => Ok(()),
-                    api_models::payments::BankRedirectData::OnlineBankingFinland { .. }
-                    | api_models::payments::BankRedirectData::OnlineBankingPoland { .. }
-                    | api_models::payments::BankRedirectData::OnlineBankingSlovakia { .. }
-                    | api_models::payments::BankRedirectData::OnlineBankingFpx { .. }
-                    | api_models::payments::BankRedirectData::OnlineBankingThailand { .. }
-                    | api_models::payments::BankRedirectData::Bizum {}
-                    | api_models::payments::BankRedirectData::Blik { .. }
-                    | api_models::payments::BankRedirectData::Eps { .. }
-                    | api_models::payments::BankRedirectData::Interac { .. }
-                    | api_models::payments::BankRedirectData::Przelewy24 { .. }
-                    | api_models::payments::BankRedirectData::OnlineBankingCzechRepublic {
-                        ..
-                    } => mandate_not_supported_error!(pm_type, self.id()),
-                }
-            }
-
-            api_models::payments::PaymentMethodData::BankDebit(bank_debit) => match bank_debit {
-                api_models::payments::BankDebitData::AchBankDebit { .. }
-                | api_models::payments::BankDebitData::SepaBankDebit { .. }
-                | api_models::payments::BankDebitData::BecsBankDebit { .. } => Ok(()),
-                api_models::payments::BankDebitData::BacsBankDebit { .. } => {
-                    mandate_not_supported_error!(pm_type, self.id())
-                }
-            },
-            api_models::payments::PaymentMethodData::MandatePayment => Ok(()),
-            api_models::payments::PaymentMethodData::CardRedirect(_)
-            | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_)
-            | api_models::payments::PaymentMethodData::BankTransfer(_)
-            | api_models::payments::PaymentMethodData::Crypto(_)
-            | api_models::payments::PaymentMethodData::Upi(_)
-            | api_models::payments::PaymentMethodData::Reward
-            | api_models::payments::PaymentMethodData::CardToken(_) => {
-                mandate_not_supported_error!(pm_type, self.id())
-            }
-        }
+        let mandate_supported_pmd = std::collections::HashSet::from([
+            PaymentMethodDataType::Card,
+            PaymentMethodDataType::ApplePay,
+            PaymentMethodDataType::GooglePay,
+            PaymentMethodDataType::PaypalRedirect,
+            PaymentMethodDataType::MomoRedirect,
+            PaymentMethodDataType::KakaoPayRedirect,
+            PaymentMethodDataType::GoPayRedirect,
+            PaymentMethodDataType::GcashRedirect,
+            PaymentMethodDataType::DanaRedirect,
+            PaymentMethodDataType::TwintRedirect,
+            PaymentMethodDataType::VippsRedirect,
+            PaymentMethodDataType::KlarnaRedirect,
+            PaymentMethodDataType::Ideal,
+            PaymentMethodDataType::Sofort,
+            PaymentMethodDataType::OpenBankingUk,
+            PaymentMethodDataType::Giropay,
+            PaymentMethodDataType::Trustly,
+            PaymentMethodDataType::BancontactCard,
+            PaymentMethodDataType::AchBankDebit,
+            PaymentMethodDataType::SepaBankDebit,
+            PaymentMethodDataType::BecsBankDebit,
+            PaymentMethodDataType::MandatePayment,
+        ]);
+        is_mandate_supported!(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
+
     fn validate_psync_reference_id(
         &self,
         data: &types::PaymentsSyncRouterData,

@@ -11,13 +11,13 @@ use transformers as payme;
 
 use crate::{
     configs::settings,
-    connector::utils::{self as connector_utils, PaymentsPreProcessingData},
+    connector::utils::{self as connector_utils, PaymentMethodDataType, PaymentsPreProcessingData},
     core::{
         errors::{self, CustomResult},
         payments,
     },
     events::connector_api_logs::ConnectorEvent,
-    headers, mandate_not_supported_error,
+    headers, is_mandate_supported, mandate_not_supported_error,
     services::{self, request, ConnectorIntegration, ConnectorValidation},
     types::{
         self,
@@ -137,54 +137,12 @@ impl ConnectorValidation for Payme {
         pm_type: Option<types::storage::enums::PaymentMethodType>,
         pm_data: api_models::payments::PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
-        match pm_data {
-            api_models::payments::PaymentMethodData::MandatePayment
-            | api_models::payments::PaymentMethodData::Card(_) => Ok(()),
-            api_models::payments::PaymentMethodData::Wallet(wallet) => match wallet {
-                api_models::payments::WalletData::ApplePayThirdPartySdk(_) => Ok(()),
-                api_models::payments::WalletData::ApplePay(_)
-                | api_models::payments::WalletData::GooglePay(_)
-                | api_models::payments::WalletData::PaypalRedirect(_)
-                | api_models::payments::WalletData::SamsungPay(_)
-                | api_models::payments::WalletData::AliPayRedirect(_)
-                | api_models::payments::WalletData::WeChatPayRedirect(_)
-                | api_models::payments::WalletData::DanaRedirect {}
-                | api_models::payments::WalletData::KakaoPayRedirect(_)
-                | api_models::payments::WalletData::GcashRedirect(_)
-                | api_models::payments::WalletData::TouchNGoRedirect(_)
-                | api_models::payments::WalletData::MbWayRedirect(_)
-                | api_models::payments::WalletData::AliPayHkRedirect(_)
-                | api_models::payments::WalletData::WeChatPayQr(_)
-                | api_models::payments::WalletData::MomoRedirect(_)
-                | api_models::payments::WalletData::GoPayRedirect(_)
-                | api_models::payments::WalletData::MobilePayRedirect(_)
-                | api_models::payments::WalletData::TwintRedirect { .. }
-                | api_models::payments::WalletData::VippsRedirect { .. }
-                | api_models::payments::WalletData::CashappQr(_)
-                | api_models::payments::WalletData::SwishQr(_)
-                | api_models::payments::WalletData::ApplePayRedirect(_)
-                | api_models::payments::WalletData::GooglePayRedirect(_)
-                | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
-                | api_models::payments::WalletData::AliPayQr(_)
-                | api_models::payments::WalletData::PaypalSdk(_) => {
-                    mandate_not_supported_error!(pm_type, self.id())
-                }
-            },
-
-            api_models::payments::PaymentMethodData::CardRedirect(_)
-            | api_models::payments::PaymentMethodData::PayLater(_)
-            | api_models::payments::PaymentMethodData::BankRedirect(_)
-            | api_models::payments::PaymentMethodData::BankDebit(_)
-            | api_models::payments::PaymentMethodData::BankTransfer(_)
-            | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_)
-            | api_models::payments::PaymentMethodData::Crypto(_)
-            | api_models::payments::PaymentMethodData::Reward
-            | api_models::payments::PaymentMethodData::Upi(_)
-            | api_models::payments::PaymentMethodData::CardToken(_) => {
-                mandate_not_supported_error!(pm_type, self.id())
-            }
-        }
+        let mandate_supported_pmd = std::collections::HashSet::from([
+            PaymentMethodDataType::Card,
+            PaymentMethodDataType::ApplePayThirdPartySdk,
+            PaymentMethodDataType::MandatePayment,
+        ]);
+        is_mandate_supported!(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 

@@ -13,6 +13,7 @@ use serde::{
     ser::Serializer,
     Deserialize, Deserializer, Serialize,
 };
+use strum::Display;
 use time::PrimitiveDateTime;
 use url::Url;
 use utoipa::ToSchema;
@@ -945,7 +946,7 @@ pub struct CardToken {
     pub card_cvc: Option<Secret<String>>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, Display)]
 #[serde(rename_all = "snake_case")]
 pub enum CardRedirectData {
     Knet {},
@@ -954,7 +955,7 @@ pub enum CardRedirectData {
     CardRedirect {},
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, Display)]
 #[serde(rename_all = "snake_case")]
 pub enum PayLaterData {
     /// For KlarnaRedirect as PayLater Option
@@ -991,7 +992,7 @@ pub enum PayLaterData {
     AtomeRedirect {},
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq, Display)]
 #[serde(rename_all = "snake_case")]
 pub enum BankDebitData {
     /// Payment Method data for Ach bank debit
@@ -1421,7 +1422,7 @@ impl GetPaymentMethodType for GiftCardData {
     }
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq, Display)]
 #[serde(rename_all = "snake_case")]
 pub enum GiftCardData {
     Givex(GiftCardDetails),
@@ -1482,7 +1483,7 @@ pub enum AdditionalPaymentData {
     CardToken {},
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, Display)]
 #[serde(rename_all = "snake_case")]
 pub enum BankRedirectData {
     BancontactCard {
@@ -1730,7 +1731,7 @@ pub struct BankRedirectBilling {
     pub email: Option<Email>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, Display)]
 #[serde(rename_all = "snake_case")]
 pub enum BankTransferData {
     AchBankTransfer {
@@ -1797,7 +1798,7 @@ pub struct BankDebitBilling {
     pub address: Option<AddressDetails>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, Display)]
 #[serde(rename_all = "snake_case")]
 pub enum WalletData {
     /// The wallet data for Ali Pay QrCode
@@ -2016,7 +2017,7 @@ pub struct BoletoVoucherData {
     pub social_security_number: Option<Secret<String>>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, Display)]
 #[serde(rename_all = "snake_case")]
 pub enum VoucherData {
     Boleto(Box<BoletoVoucherData>),

@@ -11,13 +11,13 @@ use ring::hmac;
 use time::{format_description, OffsetDateTime};
 use transformers as worldline;
 
-use super::utils::{self as connector_utils, RefundsRequestData};
+use super::utils::{self as connector_utils, PaymentMethodDataType, RefundsRequestData};
 use crate::{
     configs::settings::Connectors,
     consts,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
-    headers, logger, mandate_not_supported_error,
+    headers, is_mandate_supported, logger, mandate_not_supported_error,
     services::{
         self,
         request::{self, Mask},
@@ -167,24 +167,8 @@ impl ConnectorValidation for Worldline {
         pm_type: Option<types::storage::enums::PaymentMethodType>,
         pm_data: api_models::payments::PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
-        match pm_data {
-            api_models::payments::PaymentMethodData::Card(_)
-            | api_models::payments::PaymentMethodData::Wallet(_)
-            | api_models::payments::PaymentMethodData::CardRedirect(_)
-            | api_models::payments::PaymentMethodData::PayLater(_)
-            | api_models::payments::PaymentMethodData::BankRedirect(_)
-            | api_models::payments::PaymentMethodData::BankDebit(_)
-            | api_models::payments::PaymentMethodData::BankTransfer(_)
-            | api_models::payments::PaymentMethodData::MandatePayment
-            | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_)
-            | api_models::payments::PaymentMethodData::Crypto(_)
-            | api_models::payments::PaymentMethodData::Reward
-            | api_models::payments::PaymentMethodData::Upi(_)
-            | api_models::payments::PaymentMethodData::CardToken(_) => {
-                mandate_not_supported_error!(pm_type, self.id())
-            }
-        }
+        let mandate_supported_pmd = std::collections::HashSet::<PaymentMethodDataType>::new();
+        is_mandate_supported!(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 

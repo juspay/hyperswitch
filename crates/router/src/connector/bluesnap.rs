@@ -15,7 +15,8 @@ use transformers as bluesnap;
 
 use super::utils::{
     self as connector_utils, get_error_code_error_message_based_on_priority, ConnectorErrorType,
-    ConnectorErrorTypeMapping, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData,
+    ConnectorErrorTypeMapping, PaymentMethodDataType, PaymentsAuthorizeRequestData,
+    RefundsRequestData, RouterData,
 };
 use crate::{
     configs::settings,
@@ -25,7 +26,7 @@ use crate::{
         payments,
     },
     events::connector_api_logs::ConnectorEvent,
-    headers, logger, mandate_not_supported_error,
+    headers, is_mandate_supported, logger, mandate_not_supported_error,
     services::{
         self,
         request::{self, Mask},
@@ -220,24 +221,8 @@ impl ConnectorValidation for Bluesnap {
         pm_type: Option<types::storage::enums::PaymentMethodType>,
         pm_data: api_models::payments::PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
-        match pm_data {
-            api_models::payments::PaymentMethodData::Card(_)
-            | api_models::payments::PaymentMethodData::Wallet(_)
-            | api_models::payments::PaymentMethodData::CardRedirect(_)
-            | api_models::payments::PaymentMethodData::PayLater(_)
-            | api_models::payments::PaymentMethodData::BankRedirect(_)
-            | api_models::payments::PaymentMethodData::BankDebit(_)
-            | api_models::payments::PaymentMethodData::BankTransfer(_)
-            | api_models::payments::PaymentMethodData::MandatePayment
-            | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_)
-            | api_models::payments::PaymentMethodData::Crypto(_)
-            | api_models::payments::PaymentMethodData::Reward
-            | api_models::payments::PaymentMethodData::Upi(_)
-            | api_models::payments::PaymentMethodData::CardToken(_) => {
-                mandate_not_supported_error!(pm_type, self.id())
-            }
-        }
+        let mandate_supported_pmd = std::collections::HashSet::<PaymentMethodDataType>::new();
+        is_mandate_supported!(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 
