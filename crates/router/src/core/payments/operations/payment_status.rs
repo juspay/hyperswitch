@@ -432,7 +432,6 @@ async fn get_tracker_for_sync<
             shipping_address.as_ref().map(From::from),
             billing_address.as_ref().map(From::from),
             payment_method_billing.as_ref().map(From::from),
-            None,
         ),
         token_data: None,
         confirm: Some(request.force_sync),

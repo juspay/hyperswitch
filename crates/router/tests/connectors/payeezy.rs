@@ -66,7 +66,6 @@ impl PayeezyTest {
                     email: None,
                 }),
                 None,
-                None,
             )),
             ..Default::default()
         })

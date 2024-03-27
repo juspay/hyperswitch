@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::{enums::FrmSuggestion, payments::GetAddressFromPaymentMethodData};
+use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
 use data_models::{
@@ -379,16 +379,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         let amount = payment_attempt.get_total_amount().into();
 
-        let payment_method_data_billing =
-            request
-                .payment_method_data
-                .as_ref()
-                .and_then(|payment_method_data_request| {
-                    payment_method_data_request
-                        .payment_method_data
-                        .get_billing_address()
-                });
-
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -405,7 +395,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 shipping_address.as_ref().map(From::from),
                 billing_address.as_ref().map(From::from),
                 payment_method_billing_address.as_ref().map(From::from),
-                payment_method_data_billing,
             ),
             token_data: None,
             confirm: request.confirm,

@@ -58,7 +58,6 @@ fn get_payment_info() -> Option<PaymentInfo> {
                 email: None,
             }),
             None,
-            None,
         )),
         ..Default::default()
     })

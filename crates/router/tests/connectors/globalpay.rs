@@ -68,7 +68,6 @@ impl Globalpay {
                     ..Default::default()
                 }),
                 None,
-                None,
             )),
             access_token: get_access_token(),
             connector_meta_data: CONNECTOR.get_connector_meta(),

@@ -2173,7 +2173,6 @@ pub mod payment_address {
             shipping: Option<api::Address>,
             billing: Option<api::Address>,
             payment_method_billing: Option<api::Address>,
-            payment_method_data_billing: Option<api::Address>,
         ) -> Self {
             // Merge the billing details field from both `payment.billing` and `payment.payment_method_data.billing`
             // The unified payment_method_billing will be used as billing address and passed to the connector module
@@ -2191,12 +2190,6 @@ pub mod payment_address {
                     (None, None) => None,
                 };
 
-            // Unify the billing details with `payment_method_data.billing_details`
-            let unified_payment_method_billing = Self::merge_with_payment_method_data_billing(
-                payment_method_data_billing,
-                unified_payment_method_billing,
-            );
-
             Self {
                 shipping,
                 billing,
@@ -2211,6 +2204,24 @@ pub mod payment_address {
 
         pub fn get_payment_method_billing(&self) -> Option<&api::Address> {
             self.unified_payment_method_billing.as_ref()
+        }
+
+        pub fn unify_with_payment_method_data_billing(
+            self,
+            payment_method_data_billing: Option<api::Address>,
+        ) -> Self {
+            // Unify the billing details with `payment_method_data.billing_details`
+            let unified_payment_method_billing = Self::merge_with_payment_method_data_billing(
+                payment_method_data_billing,
+                self.unified_payment_method_billing,
+            );
+
+            Self {
+                shipping: self.shipping,
+                billing: self.billing,
+                unified_payment_method_billing,
+                payment_method_billing: self.payment_method_billing,
+            }
         }
 
         /// Merge / Unify details from `payment.payment_method_data.[payment_method_data]` with the billig address.
