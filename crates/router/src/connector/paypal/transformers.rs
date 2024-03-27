@@ -461,9 +461,9 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                 let payment_source = Some(PaymentSourceItem::Card(CardRequest {
                     billing_address: get_address_info(item.router_data.get_optional_billing())?,
                     expiry,
-                    name: ccard
-                        .card_holder_name
-                        .clone()
+                    name: item
+                        .router_data
+                        .get_optional_billing_name()
                         .unwrap_or(Secret::new("".to_string())),
                     number: Some(ccard.card_number.clone()),
                     security_code: Some(ccard.card_cvc.clone()),

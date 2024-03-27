@@ -5,7 +5,7 @@ use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, CardData},
+    connector::utils::{self, CardData, RouterData},
     core::errors,
     types::{self, api, domain, storage::enums, transformers::ForeignFrom},
 };
@@ -241,9 +241,9 @@ fn get_payment_method_data(
             let card_type = PayeezyCardType::try_from(card.get_card_issuer()?)?;
             let payeezy_card = PayeezyCard {
                 card_type,
-                cardholder_name: card
-                    .card_holder_name
-                    .clone()
+                cardholder_name: item
+                    .router_data
+                    .get_optional_billing_name()
                     .unwrap_or(Secret::new("".to_string())),
                 card_number: card.card_number.clone(),
                 exp_date: card.get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?,

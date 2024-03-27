@@ -428,6 +428,7 @@ impl<F, T>
 pub struct NuveiCardDetails {
     card: domain::Card,
     three_d: Option<ThreeD>,
+    card_holder_name: Option<Secret<String>>,
 }
 
 impl TryFrom<payments::GooglePayWalletData> for NuveiPaymentsRequest {
@@ -995,6 +996,7 @@ fn get_card_info<F>(
         payment_option: PaymentOption::from(NuveiCardDetails {
             card: card_details.clone(),
             three_d,
+            card_holder_name: item.get_optional_billing_name(),
         }),
         billing_address,
         ..Default::default()
@@ -1006,7 +1008,7 @@ impl From<NuveiCardDetails> for PaymentOption {
         Self {
             card: Some(Card {
                 card_number: Some(card.card_number),
-                card_holder_name: card.card_holder_name,
+                card_holder_name: card_details.card_holder_name,
                 expiration_month: Some(card.card_exp_month),
                 expiration_year: Some(card.card_exp_year),
                 three_d: card_details.three_d,
@@ -1031,6 +1033,7 @@ impl TryFrom<(&types::PaymentsCompleteAuthorizeRouterData, Secret<String>)>
                 payment_option: PaymentOption::from(NuveiCardDetails {
                     card,
                     three_d: None,
+                    card_holder_name: item.get_optional_billing_name(),
                 }),
                 ..Default::default()
             }),

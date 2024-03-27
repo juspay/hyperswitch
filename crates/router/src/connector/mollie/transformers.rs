@@ -286,9 +286,8 @@ impl TryFrom<&types::TokenizationRouterData> for MollieCardTokenRequest {
         match item.request.payment_method_data.clone() {
             domain::PaymentMethodData::Card(ccard) => {
                 let auth = MollieAuthType::try_from(&item.connector_auth_type)?;
-                let card_holder = ccard
-                    .card_holder_name
-                    .clone()
+                let card_holder = item
+                    .get_optional_billing_name()
                     .unwrap_or(Secret::new("".to_string()));
                 let card_number = ccard.card_number.clone();
                 let card_expiry_date =

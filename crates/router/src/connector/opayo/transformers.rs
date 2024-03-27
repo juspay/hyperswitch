@@ -2,7 +2,7 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, PaymentsAuthorizeRequestData},
+    connector::utils::{self, PaymentsAuthorizeRequestData, RouterData},
     core::errors,
     types::{self, api, domain, storage::enums},
 };
@@ -29,8 +29,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for OpayoPaymentsRequest {
         match item.request.payment_method_data.clone() {
             domain::PaymentMethodData::Card(req_card) => {
                 let card = OpayoCard {
-                    name: req_card
-                        .card_holder_name
+                    name: item
+                        .get_optional_billing_name()
                         .unwrap_or(Secret::new("".to_string())),
                     number: req_card.card_number,
                     expiry_month: req_card.card_exp_month,
