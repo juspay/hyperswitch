@@ -132,8 +132,14 @@ services:
       dockerfile: web.Dockerfile
     networks:
       - router_net
+    env_file:
+      - ./.env
     environment:
-      - HYPERSWITCH_SERVER_URL=http://localhost:8080
+      - HYPERSWITCH_PUBLISHABLE_KEY=$HYPERSWITCH_PUBLISHABLE_KEY
+      - HYPERSWITCH_SECRET_KEY=$HYPERSWITCH_SECRET_KEY
+      - HYPERSWITCH_SERVER_URL=${HYPERSWITCH_SERVER_URL:-http://hyperswitch-server:8080}
+      - HYPERSWITCH_CLIENT_URL=${HYPERSWITCH_CLIENT_URL:-http://hyperswitch-web:9050}
+      - SELF_SERVER_URL=${SELF_SERVER_URL:-http://hyperswitch-web:5252}
     depends_on:
       hyperswitch-server:
         condition: service_started
@@ -145,8 +151,8 @@ services:
     networks:
       - router_net
     environment:
-      - apiBaseUrl=http://localhost:8080
-      - sdkBaseUrl=http://localhost:9050
+      - apiBaseUrl=http://hyperswitch-server:8080
+      - sdkBaseUrl=http://hyperswitch-web:9050
     depends_on:
       hyperswitch-server:
         condition: service_started
