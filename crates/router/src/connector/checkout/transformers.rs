@@ -321,6 +321,7 @@ pub struct CheckoutThreeDS {
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum BankNames {
+    // Got this list of all the test bank names from a retrieve API
     AbnAmro,
     AsnBank,
     Bunq,
@@ -343,6 +344,7 @@ impl<'a> TryFrom<&api::enums::BankNames> for CheckoutTestBankNames<'a> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(bank: &api::enums::BankNames) -> Result<Self, Self::Error> {
         Ok(match bank {
+            // Mapped the bank names to corresponding bank codes
             api_models::enums::BankNames::AbnAmro => Self("SBXINL2G"),
             api_models::enums::BankNames::AsnBank => Self("SBXINL2G"),
             api_models::enums::BankNames::Bunq => Self("SBXINL2G"),
@@ -472,7 +474,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                         billing_details, ..
                     } => {
                         let parts = billing_details
-                            .unwrap()
+                            .unwrap() // TODO: Handle unwraps and replace with proper error handling
                             .billing_name
                             .unwrap()
                             .clone()
@@ -501,7 +503,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                         );
                         let a = PaymentSource::Ideal(IdealSource {
                             source_type: CheckoutSourceTypes::Ideal,
-                            description: item.router_data.description.as_ref().unwrap().clone(),
+                            description: item.router_data.description.as_ref().unwrap().clone(), // TODO: Handle unwraps and replace with proper error handling
                             bic: issuer.unwrap().to_string(),
                         });
                         Ok(a)
@@ -547,7 +549,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
 
         let shipping_address = item.router_data.get_shipping_address()?;
         let address = Address {
-            address_line1: shipping_address.clone().line1.unwrap().expose().clone(),
+            address_line1: shipping_address.clone().line1.unwrap().expose().clone(), // TODO: Handle unwraps and replace with proper error handling
             address_line2: shipping_address.clone().line2.unwrap().expose().clone(),
             city: shipping_address.clone().city.unwrap().clone(),
             state: shipping_address.clone().state.unwrap().expose().clone(),
