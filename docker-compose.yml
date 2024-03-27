@@ -64,6 +64,44 @@ services:
       start_period: 5s
       timeout: 10s
 
+  # Web service and react demo app
+  hyperswitch-web:
+    build:
+      context: ../hyperswitch-web
+      dockerfile: Dockerfile
+    ports:
+      - "9050:9050"
+      - "9060:9060"
+      - "5252:5252"
+      - "4242:4242"
+    networks:
+      - router_net
+    depends_on:
+      hyperswitch-server:
+        condition: service_healthy
+    environment:
+      - HYPERSWITCH_PUBLISHABLE_KEY=""
+      - HYPERSWITCH_SECRET_KEY=""
+      - HYPERSWITCH_SERVER_URL="http://localhost:8080"
+      - HYPERSWITCH_CLIENT_URL="http://localhost:9050"
+      - SELF_SERVER_URL="http://localhost:5252"
+
+  hyperswitch-control-center:
+    image: juspaydotin/hyperswitch-control-center:latest
+    ports:
+      - "9000:9000"
+    networks:
+      - router_net
+    depends_on:
+      hyperswitch-server:
+        condition: service_healthy
+      hyperswitch-web:
+        condition: service_started
+    environment:
+      - apiBaseUrl=http://localhost:8080 # URL on which the hyperswitch-server is hosted
+      - sdkBaseUrl=http://localhost:9050 # URL on which the hyperswitch-web is hosted
+
+
   hyperswitch-producer:
     image: juspaydotin/hyperswitch-producer:standalone
     command: /local/bin/scheduler -f /local/config/docker_compose.toml
