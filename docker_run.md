@@ -33,6 +33,7 @@ What I did:
 </ol>
 
 <p>By following these steps, you should have Hyperswitch, Hyperswitch Web, Hyperswitch React Demo App, and Hyperswitch Control Center all up and running.</p>
+<p>You could see the Demo App running at port 5252 and Control Center at port 9000.</p>
 
 <h1>What I changed:</h1>
 
