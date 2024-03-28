@@ -15,10 +15,10 @@ use crate::{
 };
 
 #[derive(Default)]
-pub(super) struct SdkInitiatedCount;
+pub(super) struct ThreeDsChallengeFlowCount;
 
 #[async_trait::async_trait]
-impl<T> super::SdkEventMetric<T> for SdkInitiatedCount
+impl<T> super::SdkEventMetric<T> for ThreeDsChallengeFlowCount
 where
     T: AnalyticsDataSource + super::SdkEventMetricAnalytics,
     PrimitiveDateTime: ToSql<T>,
@@ -63,12 +63,18 @@ where
             .switch()?;
 
         query_builder
-            .add_bool_filter_clause("first_event", 1)
+            .add_filter_clause("event_name", SdkEventNames::DisplayThreeDsSdk)
             .switch()?;
 
         query_builder
-            .add_filter_clause("event_name", SdkEventNames::OrcaElementsCalled)
+            .add_filter_clause("log_type", "INFO")
             .switch()?;
+
+        query_builder
+            .add_filter_clause("category", "USER_EVENT")
+            .switch()?;
+
+        query_builder.add_filter_clause("value", "C").switch()?;
 
         time_range
             .set_filter_clause(&mut query_builder)

@@ -10,15 +10,15 @@ use time::PrimitiveDateTime;
 
 use super::SdkEventMetricRow;
 use crate::{
-    query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, ToSql, Window},
+    query::{Aggregate, FilterTypes, GroupByClause, QueryBuilder, QueryFilter, ToSql, Window},
     types::{AnalyticsCollection, AnalyticsDataSource, MetricsError, MetricsResult},
 };
 
 #[derive(Default)]
-pub(super) struct SdkInitiatedCount;
+pub(super) struct ThreeDsFrictionlessFlowCount;
 
 #[async_trait::async_trait]
-impl<T> super::SdkEventMetric<T> for SdkInitiatedCount
+impl<T> super::SdkEventMetric<T> for ThreeDsFrictionlessFlowCount
 where
     T: AnalyticsDataSource + super::SdkEventMetricAnalytics,
     PrimitiveDateTime: ToSql<T>,
@@ -63,11 +63,19 @@ where
             .switch()?;
 
         query_builder
-            .add_bool_filter_clause("first_event", 1)
+            .add_filter_clause("event_name", SdkEventNames::DisplayThreeDsSdk)
             .switch()?;
 
         query_builder
-            .add_filter_clause("event_name", SdkEventNames::OrcaElementsCalled)
+            .add_filter_clause("log_type", "INFO")
+            .switch()?;
+
+        query_builder
+            .add_filter_clause("category", "USER_EVENT")
+            .switch()?;
+
+        query_builder
+            .add_custom_filter_clause("value", "C", FilterTypes::NotEqual)
             .switch()?;
 
         time_range

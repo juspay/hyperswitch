@@ -71,8 +71,14 @@ pub enum SdkEventDimensions {
 #[serde(rename_all = "snake_case")]
 pub enum SdkEventMetrics {
     PaymentAttempts,
-    PaymentSuccessCount,
     PaymentMethodsCallCount,
+    ThreeDsMethodInvokedCount,
+    ThreeDsMethodSkippedCount,
+    ThreeDsMethodSuccessfulCount,
+    ThreeDsMethodUnsuccessfulCount,
+    AuthenticationUnsuccessfulCount,
+    ThreeDsChallengeFlowCount,
+    ThreeDsFrictionlessFlowCount,
     SdkRenderedCount,
     SdkInitiatedCount,
     PaymentMethodSelectedCount,
@@ -95,12 +101,11 @@ pub enum SdkEventMetrics {
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum SdkEventNames {
-    StripeElementsCalled,
+    OrcaElementsCalled,
     AppRendered,
     PaymentMethodChanged,
     PaymentDataFilled,
     PaymentAttempt,
-    PaymentSuccess,
     PaymentMethodsCall,
     ConfirmCall,
     SessionsCall,
@@ -108,12 +113,24 @@ pub enum SdkEventNames {
     RedirectingUser,
     DisplayBankTransferInfoPage,
     DisplayQrCodeInfoPage,
+    AuthenticationCall,
+    ThreeDsMethodCall,
+    ThreeDsMethodResult,
+    ThreeDsMethod,
+    LoaderChanged,
+    DisplayThreeDsSdk,
 }
 
 pub mod metric_behaviour {
     pub struct PaymentAttempts;
-    pub struct PaymentSuccessCount;
     pub struct PaymentMethodsCallCount;
+    pub struct ThreeDsMethodInvokedCount;
+    pub struct ThreeDsMethodSkippedCount;
+    pub struct ThreeDsMethodSuccessfulCount;
+    pub struct ThreeDsMethodUnsuccessfulCount;
+    pub struct AuthenticationUnsuccessfulCount;
+    pub struct ThreeDsChallengeFlowCount;
+    pub struct ThreeDsFrictionlessFlowCount;
     pub struct SdkRenderedCount;
     pub struct SdkInitiatedCount;
     pub struct PaymentMethodSelectedCount;
@@ -197,13 +214,19 @@ impl PartialEq for SdkEventMetricsBucketIdentifier {
 #[derive(Debug, serde::Serialize)]
 pub struct SdkEventMetricsBucketValue {
     pub payment_attempts: Option<u64>,
-    pub payment_success_count: Option<u64>,
     pub payment_methods_call_count: Option<u64>,
     pub average_payment_time: Option<f64>,
     pub sdk_rendered_count: Option<u64>,
     pub sdk_initiated_count: Option<u64>,
     pub payment_method_selected_count: Option<u64>,
     pub payment_data_filled_count: Option<u64>,
+    pub three_ds_method_invoked_count: Option<u64>,
+    pub three_ds_method_skipped_count: Option<u64>,
+    pub three_ds_method_successful_count: Option<u64>,
+    pub three_ds_method_unsuccessful_count: Option<u64>,
+    pub authentication_unsuccessful_count: Option<u64>,
+    pub three_ds_challenge_flow_count: Option<u64>,
+    pub three_ds_frictionless_flow_count: Option<u64>,
 }
 
 #[derive(Debug, serde::Serialize)]
