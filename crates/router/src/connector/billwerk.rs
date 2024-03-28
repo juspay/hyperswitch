@@ -7,6 +7,7 @@ use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as billwerk;
 
+use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
     consts,
@@ -25,8 +26,6 @@ use crate::{
     },
     utils::BytesExt,
 };
-
-use super::utils::RefundsRequestData;
 
 #[derive(Debug, Clone)]
 pub struct Billwerk;
@@ -325,7 +324,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: billwerk::BillwerkPaymentsResponse = res
             .response
-            .parse_struct("Billwerk PaymentsAuthorizeResponse")
+            .parse_struct("Billwerk BillwerkPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -403,7 +402,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
         let response: billwerk::BillwerkPaymentsResponse = res
             .response
-            .parse_struct("billwerk PaymentsSyncResponse")
+            .parse_struct("billwerk BillwerkPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -502,7 +501,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
         let response: billwerk::BillwerkPaymentsResponse = res
             .response
-            .parse_struct("Billwerk PaymentsCaptureResponse")
+            .parse_struct("Billwerk BillwerkPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -581,7 +580,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
         let response: billwerk::BillwerkPaymentsResponse = res
             .response
-            .parse_struct("Billwerk PaymentsCaptureResponse")
+            .parse_struct("Billwerk BillwerkPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);

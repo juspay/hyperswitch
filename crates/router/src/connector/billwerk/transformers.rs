@@ -88,7 +88,7 @@ impl TryFrom<&types::TokenizationRouterData> for BillwerkTokenRequest {
             api::PaymentMethodData::Card(ccard) => {
                 let connector_auth = &item.connector_auth_type;
                 let auth_type = BillwerkAuthType::try_from(connector_auth)?;
-                Ok(BillwerkTokenRequest {
+                Ok(Self {
                     number: ccard.card_number.clone(),
                     month: ccard.card_exp_month.clone(),
                     year: ccard.get_card_expiry_year_2_digit()?,
@@ -189,7 +189,7 @@ impl TryFrom<&BillwerkRouterData<&types::PaymentsAuthorizeRouterData>> for Billw
                 field_name: "payment_method_token",
             }),
         }?;
-        Ok(BillwerkPaymentsRequest {
+        Ok(Self {
             handle: item.router_data.connector_request_reference_id.clone(),
             amount: item.amount,
             source,
@@ -225,13 +225,11 @@ pub enum BillwerkPaymentState {
 impl From<BillwerkPaymentState> for enums::AttemptStatus {
     fn from(item: BillwerkPaymentState) -> Self {
         match item {
-            BillwerkPaymentState::Created | BillwerkPaymentState::Pending => {
-                enums::AttemptStatus::Pending
-            }
-            BillwerkPaymentState::Authorized => enums::AttemptStatus::Authorized,
-            BillwerkPaymentState::Settled => enums::AttemptStatus::Charged,
-            BillwerkPaymentState::Failed => enums::AttemptStatus::Failure,
-            BillwerkPaymentState::Cancelled => enums::AttemptStatus::Voided,
+            BillwerkPaymentState::Created | BillwerkPaymentState::Pending => Self::Pending,
+            BillwerkPaymentState::Authorized => Self::Authorized,
+            BillwerkPaymentState::Settled => Self::Charged,
+            BillwerkPaymentState::Failed => Self::Failure,
+            BillwerkPaymentState::Cancelled => Self::Voided,
         }
     }
 }
@@ -308,7 +306,7 @@ impl TryFrom<&BillwerkRouterData<&types::PaymentsCaptureRouterData>> for Billwer
     fn try_from(
         item: &BillwerkRouterData<&types::PaymentsCaptureRouterData>,
     ) -> Result<Self, Self::Error> {
-        Ok(BillwerkCaptureRequest {
+        Ok(Self {
             amount: item.amount,
         })
     }
