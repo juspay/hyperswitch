@@ -1,15 +1,15 @@
-use masking::Secret;
+use common_utils::pii::{Email, SecretSerdeValue};
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::PaymentsAuthorizeRequestData,
+    connector::utils::{self, CardData, PaymentsAuthorizeRequestData, RouterData},
     core::errors,
     types::{self, api, storage::enums},
 };
 
-//TODO: Fill the struct with respective fields
 pub struct BillwerkRouterData<T> {
-    pub amount: i64, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: i64,
     pub router_data: T,
 }
 
@@ -30,7 +30,6 @@ impl<T>
             T,
         ),
     ) -> Result<Self, Self::Error> {
-        //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Ok(Self {
             amount,
             router_data: item,
@@ -38,20 +37,144 @@ impl<T>
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct BillwerkPaymentsRequest {
-    amount: i64,
-    card: BillwerkCard,
+pub struct BillwerkAuthType {
+    pub(super) api_key: Secret<String>,
+    pub(super) public_api_key: Secret<String>,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct BillwerkCard {
+impl TryFrom<&types::ConnectorAuthType> for BillwerkAuthType {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+        match auth_type {
+            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+                api_key: api_key.to_owned(),
+                public_api_key: key1.to_owned(),
+            }),
+            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum BillwerkTokenRequestIntent {
+    ChargeAndStore,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum BillwerkStrongAuthRule {
+    UseScaIfAvailableAuth,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BillwerkTokenRequest {
     number: cards::CardNumber,
-    expiry_month: Secret<String>,
-    expiry_year: Secret<String>,
-    cvc: Secret<String>,
-    complete: bool,
+    month: Secret<String>,
+    year: Secret<String>,
+    cvv: Secret<String>,
+    pkey: Secret<String>,
+    recurring: Option<bool>,
+    intent: Option<BillwerkTokenRequestIntent>,
+    strong_authentication_rule: Option<BillwerkStrongAuthRule>,
+}
+
+impl TryFrom<&types::TokenizationRouterData> for BillwerkTokenRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::TokenizationRouterData) -> Result<Self, Self::Error> {
+        match item.request.payment_method_data.clone() {
+            api::PaymentMethodData::Card(ccard) => {
+                let connector_auth = &item.connector_auth_type;
+                let auth_type = BillwerkAuthType::try_from(connector_auth)?;
+                Ok(BillwerkTokenRequest {
+                    number: ccard.card_number.clone(),
+                    month: ccard.card_exp_month.clone(),
+                    year: ccard.get_card_expiry_year_2_digit()?,
+                    cvv: ccard.card_cvc,
+                    pkey: auth_type.public_api_key,
+                    recurring: None,
+                    intent: None,
+                    strong_authentication_rule: None,
+                })
+            }
+            api_models::payments::PaymentMethodData::Wallet(_)
+            | api_models::payments::PaymentMethodData::CardRedirect(_)
+            | api_models::payments::PaymentMethodData::PayLater(_)
+            | api_models::payments::PaymentMethodData::BankRedirect(_)
+            | api_models::payments::PaymentMethodData::BankDebit(_)
+            | api_models::payments::PaymentMethodData::BankTransfer(_)
+            | api_models::payments::PaymentMethodData::Crypto(_)
+            | api_models::payments::PaymentMethodData::MandatePayment
+            | api_models::payments::PaymentMethodData::Reward
+            | api_models::payments::PaymentMethodData::Upi(_)
+            | api_models::payments::PaymentMethodData::Voucher(_)
+            | api_models::payments::PaymentMethodData::GiftCard(_)
+            | api_models::payments::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("billwerk"),
+                )
+                .into())
+            }
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct BillwerkTokenResponse {
+    id: Secret<String>,
+    recurring: Option<bool>,
+}
+
+impl<T>
+    TryFrom<
+        types::ResponseRouterData<
+            api::PaymentMethodToken,
+            BillwerkTokenResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<api::PaymentMethodToken, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            api::PaymentMethodToken,
+            BillwerkTokenResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(types::PaymentsResponseData::TokenizationResponse {
+                token: item.response.id.expose(),
+            }),
+            ..item.data
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct BillwerkCustomerObject {
+    handle: Option<String>,
+    email: Option<Email>,
+    address: Option<Secret<String>>,
+    address2: Option<Secret<String>>,
+    city: Option<String>,
+    country: Option<common_enums::CountryAlpha2>,
+    first_name: Option<Secret<String>>,
+    last_name: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct BillwerkPaymentsRequest {
+    handle: String,
+    amount: i64,
+    source: Secret<String>,
+    currency: common_enums::Currency,
+    customer: BillwerkCustomerObject,
+    metadata: Option<SecretSerdeValue>,
+    settle: bool,
 }
 
 impl TryFrom<&BillwerkRouterData<&types::PaymentsAuthorizeRouterData>> for BillwerkPaymentsRequest {
@@ -59,68 +182,64 @@ impl TryFrom<&BillwerkRouterData<&types::PaymentsAuthorizeRouterData>> for Billw
     fn try_from(
         item: &BillwerkRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        match item.router_data.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(req_card) => {
-                let card = BillwerkCard {
-                    number: req_card.card_number,
-                    expiry_month: req_card.card_exp_month,
-                    expiry_year: req_card.card_exp_year,
-                    cvc: req_card.card_cvc,
-                    complete: item.router_data.request.is_auto_capture()?,
-                };
-                Ok(Self {
-                    amount: item.amount.to_owned(),
-                    card,
-                })
-            }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
-        }
-    }
-}
-
-//TODO: Fill the struct with respective fields
-// Auth Struct
-pub struct BillwerkAuthType {
-    pub(super) api_key: Secret<String>,
-}
-
-impl TryFrom<&types::ConnectorAuthType> for BillwerkAuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        match auth_type {
-            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_owned(),
+        let source = match item.router_data.get_payment_method_token()? {
+            types::PaymentMethodToken::Token(pm_token) => Ok(Secret::new(pm_token)),
+            _ => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "payment_method_token",
             }),
-            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
-        }
+        }?;
+        Ok(BillwerkPaymentsRequest {
+            handle: item.router_data.connector_request_reference_id.clone(),
+            amount: item.amount,
+            source,
+            currency: item.router_data.request.currency,
+            customer: BillwerkCustomerObject {
+                handle: item.router_data.customer_id.clone(),
+                email: item.router_data.request.email.clone(),
+                address: item.router_data.get_optional_billing_line1(),
+                address2: item.router_data.get_optional_billing_line2(),
+                city: item.router_data.get_optional_billing_city(),
+                country: item.router_data.get_optional_billing_country(),
+                first_name: item.router_data.get_optional_billing_first_name(),
+                last_name: item.router_data.get_optional_billing_last_name(),
+            },
+            metadata: item.router_data.request.metadata.clone(),
+            settle: item.router_data.request.is_auto_capture()?,
+        })
     }
 }
-// PaymentsResponse
-//TODO: Append the remaining status flags
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
-pub enum BillwerkPaymentStatus {
-    Succeeded,
-    Failed,
+pub enum BillwerkPaymentState {
+    Created,
+    Authorized,
     #[default]
-    Processing,
+    Pending,
+    Settled,
+    Failed,
+    Cancelled,
 }
 
-impl From<BillwerkPaymentStatus> for enums::AttemptStatus {
-    fn from(item: BillwerkPaymentStatus) -> Self {
+impl From<BillwerkPaymentState> for enums::AttemptStatus {
+    fn from(item: BillwerkPaymentState) -> Self {
         match item {
-            BillwerkPaymentStatus::Succeeded => Self::Charged,
-            BillwerkPaymentStatus::Failed => Self::Failure,
-            BillwerkPaymentStatus::Processing => Self::Authorizing,
+            BillwerkPaymentState::Created | BillwerkPaymentState::Pending => {
+                enums::AttemptStatus::Pending
+            }
+            BillwerkPaymentState::Authorized => enums::AttemptStatus::Authorized,
+            BillwerkPaymentState::Settled => enums::AttemptStatus::Charged,
+            BillwerkPaymentState::Failed => enums::AttemptStatus::Failure,
+            BillwerkPaymentState::Cancelled => enums::AttemptStatus::Voided,
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct BillwerkPaymentsResponse {
-    status: BillwerkPaymentStatus,
-    id: String,
+    state: BillwerkPaymentState,
+    handle: String,
+    transaction: Option<String>,
 }
 
 impl<F, T>
@@ -137,14 +256,19 @@ impl<F, T>
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
+            status: enums::AttemptStatus::from(item.response.state),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.response.handle.clone(),
+                ),
                 redirection_data: None,
                 mandate_reference: None,
-                connector_metadata: None,
+                connector_metadata: Some(serde_json::json!({
+                    //This is the unique id associated with each request in the connector's system
+                    "transaction_id": item.response.transaction
+                })),
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.handle),
                 incremental_authorization_allowed: None,
             }),
             ..item.data
@@ -152,12 +276,28 @@ impl<F, T>
     }
 }
 
-//TODO: Fill the struct with respective fields
-// REFUND :
+#[derive(Debug, Serialize)]
+pub struct BillwerkCaptureRequest {
+    amount: i64,
+}
+
+impl TryFrom<&BillwerkRouterData<&types::PaymentsCaptureRouterData>> for BillwerkCaptureRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &BillwerkRouterData<&types::PaymentsCaptureRouterData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(BillwerkCaptureRequest {
+            amount: item.amount,
+        })
+    }
+}
+
 // Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
+#[derive(Debug, Serialize)]
 pub struct BillwerkRefundRequest {
+    pub invoice: String,
     pub amount: i64,
+    pub text: Option<String>,
 }
 
 impl<F> TryFrom<&BillwerkRouterData<&types::RefundsRouterData<F>>> for BillwerkRefundRequest {
@@ -166,38 +306,37 @@ impl<F> TryFrom<&BillwerkRouterData<&types::RefundsRouterData<F>>> for BillwerkR
         item: &BillwerkRouterData<&types::RefundsRouterData<F>>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.amount.to_owned(),
+            amount: item.amount,
+            invoice: item.router_data.request.connector_transaction_id.clone(),
+            text: item.router_data.request.reason.clone(),
         })
     }
 }
 
 // Type definition for Refund Response
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
-pub enum RefundStatus {
-    Succeeded,
+#[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum RefundState {
+    Refunded,
     Failed,
     #[default]
     Processing,
 }
 
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
+impl From<RefundState> for enums::RefundStatus {
+    fn from(item: RefundState) -> Self {
         match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
+            RefundState::Refunded => Self::Success,
+            RefundState::Failed => Self::Failure,
+            RefundState::Processing => Self::Pending,
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RefundResponse {
     id: String,
-    status: RefundStatus,
+    state: RefundState,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
@@ -210,7 +349,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
         Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                refund_status: enums::RefundStatus::from(item.response.state),
             }),
             ..item.data
         })
@@ -227,7 +366,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
         Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                refund_status: enums::RefundStatus::from(item.response.state),
             }),
             ..item.data
         })

@@ -328,7 +328,7 @@ impl ConnectorData {
                 enums::Connector::Authorizedotnet => Ok(Box::new(&connector::Authorizedotnet)),
                 enums::Connector::Bambora => Ok(Box::new(&connector::Bambora)),
                 enums::Connector::Bankofamerica => Ok(Box::new(&connector::Bankofamerica)),
-                // enums::Connector::Billwerk => Ok(Box::new(&connector::Billwerk)), Added as template code for future usage
+                enums::Connector::Billwerk => Ok(Box::new(&connector::Billwerk)),
                 enums::Connector::Bitpay => Ok(Box::new(&connector::Bitpay)),
                 enums::Connector::Bluesnap => Ok(Box::new(&connector::Bluesnap)),
                 enums::Connector::Boku => Ok(Box::new(&connector::Boku)),
