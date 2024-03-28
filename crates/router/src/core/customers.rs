@@ -2,7 +2,7 @@ use common_utils::{
     crypto::{Encryptable, GcmAes256},
     errors::ReportSwitchExt,
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, IntoReport, ResultExt};
 use masking::ExposeInterface;
 use router_env::{instrument, tracing};
 
@@ -216,11 +216,15 @@ pub async fn delete_customer(
         Ok(customer_payment_methods) => {
             for pm in customer_payment_methods.into_iter() {
                 if pm.payment_method == enums::PaymentMethod::Card {
+                    let locker_id = pm
+                        .locker_id
+                        .ok_or(report!(errors::CustomersErrorResponse::InternalServerError))
+                        .attach_printable("locker_id not found in db")?;
                     cards::delete_card_from_locker(
                         &state,
                         &req.customer_id,
                         &merchant_account.merchant_id,
-                        pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
+                        &locker_id,
                     )
                     .await
                     .switch()?;
