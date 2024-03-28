@@ -1336,9 +1336,9 @@ impl
                 input: PaymentInput {
                     payment_method_id: match item.router_data.get_payment_method_token()? {
                         types::PaymentMethodToken::Token(token) => token.into(),
-                        types::PaymentMethodToken::ApplePayDecrypt(_) => {
-                            Err(errors::ConnectorError::InvalidWalletToken)?
-                        }
+                        types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
+                            unimplemented_payment_method!("Apple Pay", "Simplified", "Braintree"),
+                        )?,
                     },
                     transaction: TransactionBody {
                         amount: item.amount.to_owned(),
@@ -1418,9 +1418,11 @@ fn get_braintree_redirect_form(
             .expose(),
         card_token: match payment_method_token {
             types::PaymentMethodToken::Token(token) => token,
-            types::PaymentMethodToken::ApplePayDecrypt(_) => {
-                Err(errors::ConnectorError::InvalidWalletToken)?
-            }
+            types::PaymentMethodToken::ApplePayDecrypt(_) => Err(unimplemented_payment_method!(
+                "Apple Pay",
+                "Simplified",
+                "Braintree"
+            ))?,
         },
         bin: match card_details {
             domain::PaymentMethodData::Card(card_details) => {

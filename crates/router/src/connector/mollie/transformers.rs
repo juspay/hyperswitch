@@ -15,6 +15,7 @@ use crate::{
     core::errors,
     services, types,
     types::{domain, storage::enums as storage_enums},
+    unimplemented_payment_method,
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -178,7 +179,11 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
                                 card_token: Some(Secret::new(match pm_token {
                                     types::PaymentMethodToken::Token(token) => token,
                                     types::PaymentMethodToken::ApplePayDecrypt(_) => {
-                                        Err(errors::ConnectorError::InvalidWalletToken)?
+                                        Err(unimplemented_payment_method!(
+                                            "Apple Pay",
+                                            "Simplified",
+                                            "Mollie"
+                                        ))?
                                     }
                                 })),
                             },
