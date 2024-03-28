@@ -333,3 +333,28 @@ services:
       nofile:
         soft: 262144
         hard: 262144
+
+
+# Web-client configuration
+  web-client:
+    image: gokulr03/hyperswitch-web:latest # Need to enter hyperswitch-web-image 
+    ports:
+      - "3000:3000" # Configre the ports accordingly , i have added the required ports in dockerfile itself 
+    networks:
+      - router_net
+    depends_on:
+      - hyperswitch-server
+    environment:
+      - REACT_APP_API_URL=http://hyperswitch-server:8080 # add the env variable like api key , required ones.
+
+# control-center config
+  control-center:
+    image: juspaydotin/hyperswitch-control-center:latest
+    ports:
+      - "8080:8080"
+    networks:
+      - router_net
+    depends_on:
+      - web-client
+    environment:
+      - WEB_CLIENT_URL=http://web-client:3000
