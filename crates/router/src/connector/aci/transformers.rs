@@ -12,7 +12,7 @@ use crate::{
     connector::utils::{self, RouterData},
     core::errors,
     services,
-    types::{self, api, storage::enums},
+    types::{self, domain, storage::enums},
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -302,9 +302,9 @@ impl
     }
 }
 
-impl TryFrom<api_models::payments::Card> for PaymentDetails {
+impl TryFrom<domain::payments::Card> for PaymentDetails {
     type Error = Error;
-    fn try_from(card_data: api_models::payments::Card) -> Result<Self, Self::Error> {
+    fn try_from(card_data: domain::payments::Card) -> Result<Self, Self::Error> {
         Ok(Self::AciCard(Box::new(CardDetails {
             card_number: card_data.card_number,
             card_holder: card_data
@@ -441,15 +441,17 @@ impl TryFrom<&AciRouterData<&types::PaymentsAuthorizeRouterData>> for AciPayment
         item: &AciRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(ref card_data) => Self::try_from((item, card_data)),
-            api::PaymentMethodData::Wallet(ref wallet_data) => Self::try_from((item, wallet_data)),
-            api::PaymentMethodData::PayLater(ref pay_later_data) => {
+            domain::PaymentMethodData::Card(ref card_data) => Self::try_from((item, card_data)),
+            domain::PaymentMethodData::Wallet(ref wallet_data) => {
+                Self::try_from((item, wallet_data))
+            }
+            domain::PaymentMethodData::PayLater(ref pay_later_data) => {
                 Self::try_from((item, pay_later_data))
             }
-            api::PaymentMethodData::BankRedirect(ref bank_redirect_data) => {
+            domain::PaymentMethodData::BankRedirect(ref bank_redirect_data) => {
                 Self::try_from((item, bank_redirect_data))
             }
-            api::PaymentMethodData::MandatePayment => {
+            domain::PaymentMethodData::MandatePayment => {
                 let mandate_id = item.router_data.request.mandate_id.clone().ok_or(
                     errors::ConnectorError::MissingRequiredField {
                         field_name: "mandate_id",
@@ -457,17 +459,19 @@ impl TryFrom<&AciRouterData<&types::PaymentsAuthorizeRouterData>> for AciPayment
                 )?;
                 Self::try_from((item, mandate_id))
             }
-            api::PaymentMethodData::Crypto(_)
-            | api::PaymentMethodData::BankDebit(_)
-            | api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::Reward
-            | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Aci"),
-            ))?,
+            domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Aci"),
+                ))?
+            }
         }
     }
 }
@@ -553,14 +557,14 @@ impl
 impl
     TryFrom<(
         &AciRouterData<&types::PaymentsAuthorizeRouterData>,
-        &api::Card,
+        &domain::Card,
     )> for AciPaymentsRequest
 {
     type Error = Error;
     fn try_from(
         value: (
             &AciRouterData<&types::PaymentsAuthorizeRouterData>,
-            &api::Card,
+            &domain::Card,
         ),
     ) -> Result<Self, Self::Error> {
         let (item, card_data) = value;

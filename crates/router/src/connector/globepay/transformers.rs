@@ -7,7 +7,7 @@ use crate::{
     connector::utils::{self, RouterData},
     consts,
     core::errors,
-    types::{self, api, storage::enums},
+    types::{self, api, domain, storage::enums},
 };
 type Error = error_stack::Report<errors::ConnectorError>;
 
@@ -29,7 +29,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobepayPaymentsRequest {
     type Error = Error;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let channel: GlobepayChannel = match &item.request.payment_method_data {
-            api::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
+            domain::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
                 api::WalletData::AliPayQr(_) => GlobepayChannel::Alipay,
                 api::WalletData::WeChatPayQr(_) => GlobepayChannel::Wechat,
                 api::WalletData::AliPayRedirect(_)
@@ -59,21 +59,23 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobepayPaymentsRequest {
                     utils::get_unimplemented_payment_method_error_message("globepay"),
                 ))?,
             },
-            api::PaymentMethodData::Card(_)
-            | api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::PayLater(_)
-            | api::PaymentMethodData::BankRedirect(_)
-            | api::PaymentMethodData::BankDebit(_)
-            | api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::Crypto(_)
-            | api::PaymentMethodData::MandatePayment
-            | api::PaymentMethodData::Reward
-            | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("globepay"),
-            ))?,
+            domain::PaymentMethodData::Card(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("globepay"),
+                ))?
+            }
         };
         let description = item.get_description()?;
         Ok(Self {

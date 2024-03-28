@@ -20,7 +20,7 @@ use crate::{
     consts,
     core::errors,
     services,
-    types::{self, api, storage::enums, transformers::ForeignTryFrom, BrowserInformation},
+    types::{self, api, domain, storage::enums, transformers::ForeignTryFrom, BrowserInformation},
     utils::OptionExt,
 };
 
@@ -424,11 +424,12 @@ impl<F, T>
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct NuveiCardDetails {
-    card: payments::Card,
+    card: domain::Card,
     three_d: Option<ThreeD>,
 }
+
 impl TryFrom<payments::GooglePayWalletData> for NuveiPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(gpay_data: payments::GooglePayWalletData) -> Result<Self, Self::Error> {
@@ -748,9 +749,9 @@ impl<F>
     ) -> Result<Self, Self::Error> {
         let item = data.0;
         let request_data = match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(card) => get_card_info(item, &card),
-            api::PaymentMethodData::MandatePayment => Self::try_from(item),
-            api::PaymentMethodData::Wallet(wallet) => match wallet {
+            domain::PaymentMethodData::Card(card) => get_card_info(item, &card),
+            domain::PaymentMethodData::MandatePayment => Self::try_from(item),
+            domain::PaymentMethodData::Wallet(wallet) => match wallet {
                 payments::WalletData::GooglePay(gpay_data) => Self::try_from(gpay_data),
                 payments::WalletData::ApplePay(apple_pay_data) => Ok(Self::from(apple_pay_data)),
                 payments::WalletData::PaypalRedirect(_) => Self::foreign_try_from((
@@ -787,7 +788,7 @@ impl<F>
                     .into())
                 }
             },
-            api::PaymentMethodData::BankRedirect(redirect) => match redirect {
+            domain::PaymentMethodData::BankRedirect(redirect) => match redirect {
                 payments::BankRedirectData::Eps { .. } => Self::foreign_try_from((
                     AlternativePaymentMethodType::Eps,
                     Some(redirect),
@@ -827,7 +828,7 @@ impl<F>
                     .into())
                 }
             },
-            api::PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
+            domain::PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
                 payments::PayLaterData::KlarnaRedirect { .. } => {
                     get_pay_later_info(AlternativePaymentMethodType::Klarna, item)
                 }
@@ -846,15 +847,15 @@ impl<F>
                     .into())
                 }
             },
-            payments::PaymentMethodData::BankDebit(_)
-            | payments::PaymentMethodData::BankTransfer(_)
-            | payments::PaymentMethodData::Crypto(_)
-            | payments::PaymentMethodData::Reward
-            | payments::PaymentMethodData::Upi(_)
-            | payments::PaymentMethodData::Voucher(_)
-            | payments::PaymentMethodData::CardRedirect(_)
-            | payments::PaymentMethodData::GiftCard(_)
-            | payments::PaymentMethodData::CardToken(_) => {
+            domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("nuvei"),
                 )
@@ -890,7 +891,7 @@ impl<F>
 
 fn get_card_info<F>(
     item: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
-    card_details: &payments::Card,
+    card_details: &domain::Card,
 ) -> Result<NuveiPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
     let browser_information = item.request.browser_info.clone();
     let related_transaction_id = if item.is_three_ds() {
@@ -1026,26 +1027,26 @@ impl TryFrom<(&types::PaymentsCompleteAuthorizeRouterData, Secret<String>)>
     ) -> Result<Self, Self::Error> {
         let item = data.0;
         let request_data = match item.request.payment_method_data.clone() {
-            Some(api::PaymentMethodData::Card(card)) => Ok(Self {
+            Some(domain::PaymentMethodData::Card(card)) => Ok(Self {
                 payment_option: PaymentOption::from(NuveiCardDetails {
                     card,
                     three_d: None,
                 }),
                 ..Default::default()
             }),
-            Some(api::PaymentMethodData::Wallet(..))
-            | Some(api::PaymentMethodData::PayLater(..))
-            | Some(api::PaymentMethodData::BankDebit(..))
-            | Some(api::PaymentMethodData::BankRedirect(..))
-            | Some(api::PaymentMethodData::BankTransfer(..))
-            | Some(api::PaymentMethodData::Crypto(..))
-            | Some(api::PaymentMethodData::MandatePayment)
-            | Some(api::PaymentMethodData::GiftCard(..))
-            | Some(api::PaymentMethodData::Voucher(..))
-            | Some(api::PaymentMethodData::CardRedirect(..))
-            | Some(api::PaymentMethodData::Reward)
-            | Some(api::PaymentMethodData::Upi(..))
-            | Some(api::PaymentMethodData::CardToken(..))
+            Some(domain::PaymentMethodData::Wallet(..))
+            | Some(domain::PaymentMethodData::PayLater(..))
+            | Some(domain::PaymentMethodData::BankDebit(..))
+            | Some(domain::PaymentMethodData::BankRedirect(..))
+            | Some(domain::PaymentMethodData::BankTransfer(..))
+            | Some(domain::PaymentMethodData::Crypto(..))
+            | Some(domain::PaymentMethodData::MandatePayment)
+            | Some(domain::PaymentMethodData::GiftCard(..))
+            | Some(domain::PaymentMethodData::Voucher(..))
+            | Some(domain::PaymentMethodData::CardRedirect(..))
+            | Some(domain::PaymentMethodData::Reward)
+            | Some(domain::PaymentMethodData::Upi(..))
+            | Some(domain::PaymentMethodData::CardToken(..))
             | None => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("nuvei"),
             )),
