@@ -1,7 +1,6 @@
 use std::time::Duration;
 
 use error_stack::{IntoReport, ResultExt};
-use http::HeaderValue;
 use masking::PeekInterface;
 use once_cell::sync::OnceCell;
 use reqwest::multipart::Form;
@@ -290,11 +289,13 @@ impl RequestBuilder for RouterRequestBuilder {
 
     fn header(&mut self, key: String, value: Maskable<String>) -> CustomResult<(), ApiClientError> {
         let header_value = match value {
-            Maskable::Masked(hvalue) => HeaderValue::from_str(hvalue.peek()).map(|mut h| {
-                h.set_sensitive(true);
-                h
-            }),
-            Maskable::Normal(hvalue) => HeaderValue::from_str(&hvalue),
+            Maskable::Masked(hvalue) => {
+                reqwest::header::HeaderValue::from_str(hvalue.peek()).map(|mut h| {
+                    h.set_sensitive(true);
+                    h
+                })
+            }
+            Maskable::Normal(hvalue) => reqwest::header::HeaderValue::from_str(&hvalue),
         }
         .into_report()
         .change_context(ApiClientError::HeaderMapConstructionFailed)?;
