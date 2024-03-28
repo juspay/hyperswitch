@@ -1466,6 +1466,9 @@ impl PaymentMethodInterface for KafkaStore {
     }
 }
 
+#[cfg(not(feature = "payouts"))]
+impl PayoutAttemptInterface for KafkaStore {}
+
 #[cfg(feature = "payouts")]
 #[async_trait::async_trait]
 impl PayoutAttemptInterface for KafkaStore {
@@ -1519,6 +1522,9 @@ impl PayoutAttemptInterface for KafkaStore {
             .await
     }
 }
+
+#[cfg(not(feature = "payouts"))]
+impl PayoutsInterface for KafkaStore {}
 
 #[cfg(feature = "payouts")]
 #[async_trait::async_trait]
