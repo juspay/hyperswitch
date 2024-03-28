@@ -1506,7 +1506,7 @@ impl<'a> TryFrom<&api_enums::BankNames> for AdyenBankNames<'a> {
             api_models::enums::BankNames::TriodosBank => Self("0511"),
             api_models::enums::BankNames::VanLanschot => Self("0161"),
             api_models::enums::BankNames::Yoursafe => Self("0806"),
-            _ => Err(errors::ConnectorError::NotSupported {
+            _ => Err(errors::ConnectorError::NotImplemented {
                 message: String::from("BankRedirect"),
                 connector: "Adyen",
             })?,
@@ -2594,7 +2594,7 @@ impl<'a>
                     | payments::PaymentMethodData::Voucher(_)
                     | payments::PaymentMethodData::GiftCard(_)
                     | api::PaymentMethodData::CardToken(_) => {
-                        Err(errors::ConnectorError::NotSupported {
+                        Err(errors::ConnectorError::NotImplemented {
                             message: "Network tokenization for payment method".to_string(),
                             connector: "Adyen",
                         })?
@@ -4611,7 +4611,7 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
         )?;
 
         match item.router_data.get_payout_method_data()? {
-            PayoutMethodData::Card(_) => Err(errors::ConnectorError::NotSupported {
+            PayoutMethodData::Card(_) => Err(errors::ConnectorError::NotImplemented {
                 message: "Card payout creation is not supported".to_string(),
                 connector: "Adyen",
             })?,
@@ -4626,11 +4626,11 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
                         iban: b.iban,
                         tax_id: None,
                     },
-                    payouts::BankPayout::Ach(..) => Err(errors::ConnectorError::NotSupported {
+                    payouts::BankPayout::Ach(..) => Err(errors::ConnectorError::NotImplemented {
                         message: "Bank transfer via ACH is not supported".to_string(),
                         connector: "Adyen",
                     })?,
-                    payouts::BankPayout::Bacs(..) => Err(errors::ConnectorError::NotSupported {
+                    payouts::BankPayout::Bacs(..) => Err(errors::ConnectorError::NotImplemented {
                         message: "Bank transfer via Bacs is not supported".to_string(),
                         connector: "Adyen",
                     })?,
