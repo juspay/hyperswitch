@@ -22,6 +22,7 @@ pub struct EventNew {
     pub initial_attempt_id: Option<String>,
     pub request: Option<Encryption>,
     pub response: Option<Encryption>,
+    pub delivery_attempt: Option<storage_enums::WebhookDeliveryAttempt>,
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -51,4 +52,5 @@ pub struct Event {
     pub initial_attempt_id: Option<String>,
     pub request: Option<Encryption>,
     pub response: Option<Encryption>,
+    pub delivery_attempt: Option<storage_enums::WebhookDeliveryAttempt>,
 }

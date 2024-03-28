@@ -161,18 +161,21 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         let store = state.store.clone();
 
-        let business_profile_fut = tokio::spawn(async move {
-            store
-                .find_business_profile_by_profile_id(&profile_id)
-                .map(|business_profile_result| {
-                    business_profile_result.to_not_found_response(
-                        errors::ApiErrorResponse::BusinessProfileNotFound {
-                            id: profile_id.to_string(),
-                        },
-                    )
-                })
-                .await
-        });
+        let business_profile_fut = tokio::spawn(
+            async move {
+                store
+                    .find_business_profile_by_profile_id(&profile_id)
+                    .map(|business_profile_result| {
+                        business_profile_result.to_not_found_response(
+                            errors::ApiErrorResponse::BusinessProfileNotFound {
+                                id: profile_id.to_string(),
+                            },
+                        )
+                    })
+                    .await
+            }
+            .in_current_span(),
+        );
 
         let store = state.store.clone();
 
@@ -500,13 +503,17 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         let store = state.clone().store;
 
-        let additional_pm_data_fut = tokio::spawn(async move {
-            Ok(n_request_payment_method_data
-                .async_map(|payment_method_data| async move {
-                    helpers::get_additional_payment_data(&payment_method_data, store.as_ref()).await
-                })
-                .await)
-        });
+        let additional_pm_data_fut = tokio::spawn(
+            async move {
+                Ok(n_request_payment_method_data
+                    .async_map(|payment_method_data| async move {
+                        helpers::get_additional_payment_data(&payment_method_data, store.as_ref())
+                            .await
+                    })
+                    .await)
+            }
+            .in_current_span(),
+        );
 
         let store = state.clone().store;
 

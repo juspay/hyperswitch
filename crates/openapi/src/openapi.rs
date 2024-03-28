@@ -53,6 +53,7 @@ Never share your secret api keys. Keep them guarded and secure.
     ),
     tags(
         (name = "Merchant Account", description = "Create and manage merchant accounts"),
+        (name = "Business Profile", description = "Create and manage business profiles"),
         (name = "Merchant Connector Account", description = "Create and manage merchant connector accounts"),
         (name = "Payments", description = "Create and manage one-time payments, recurring payments and mandates"),
         (name = "Refunds", description = "Create and manage refunds for successful payments"),
@@ -64,6 +65,7 @@ Never share your secret api keys. Keep them guarded and secure.
         (name = "Payouts", description = "Create and manage payouts"),
         (name = "payment link", description = "Create payment link"),
         (name = "Routing", description = "Create and manage routing configurations"),
+        (name = "Event", description = "Manage events"),
     ),
     // The paths will be displayed in the same order as they are registered here
     paths(
@@ -109,6 +111,7 @@ Never share your secret api keys. Keep them guarded and secure.
         // Routes for mandates
         routes::mandates::get_mandate,
         routes::mandates::revoke_mandate,
+        routes::mandates::customers_mandates_list,
 
         //Routes for customers
         routes::customers::customers_create,
@@ -116,14 +119,13 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::customers::customers_list,
         routes::customers::customers_update,
         routes::customers::customers_delete,
-        routes::customers::customers_mandates_list,
-        routes::customers::default_payment_method_set_api,
 
         //Routes for payment methods
         routes::payment_method::create_payment_method_api,
         routes::payment_method::list_payment_method_api,
         routes::payment_method::list_customer_payment_method_api,
         routes::payment_method::list_customer_payment_method_api_client,
+        routes::payment_method::default_payment_method_set_api,
         routes::payment_method::payment_method_retrieve_api,
         routes::payment_method::payment_method_update_api,
         routes::payment_method::payment_method_delete_api,
@@ -131,9 +133,9 @@ Never share your secret api keys. Keep them guarded and secure.
         // Routes for Business Profile
         routes::business_profile::business_profile_create,
         routes::business_profile::business_profiles_list,
+        routes::business_profile::business_profiles_retrieve,
         routes::business_profile::business_profiles_update,
         routes::business_profile::business_profiles_delete,
-        routes::business_profile::business_profiles_retrieve,
 
         // Routes for disputes
         routes::disputes::retrieve_dispute,
@@ -163,12 +165,18 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payouts::payouts_update,
         routes::payouts::payouts_cancel,
         routes::payouts::payouts_fulfill,
+        routes::payouts::payouts_list,
+        routes::payouts::payouts_filter,
 
         // Routes for api keys
         routes::api_keys::api_key_create,
         routes::api_keys::api_key_retrieve,
         routes::api_keys::api_key_update,
-        routes::api_keys::api_key_revoke
+        routes::api_keys::api_key_revoke,
+
+        // Routes for events
+        routes::webhook_events::list_initial_webhook_delivery_attempts,
+        routes::webhook_events::list_webhook_delivery_attempts,
     ),
     components(schemas(
         api_models::refunds::RefundRequest,
@@ -407,7 +415,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::CustomerDetails,
         api_models::payments::GiftCardData,
         api_models::payments::GiftCardDetails,
-        api_models::payouts::PayoutCreateRequest,
         api_models::payments::Address,
         api_models::payouts::Card,
         api_models::payouts::Wallet,
@@ -415,11 +422,16 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payouts::AchBankTransfer,
         api_models::payouts::BacsBankTransfer,
         api_models::payouts::SepaBankTransfer,
+        api_models::payouts::PayoutRequest,
+        api_models::payouts::PayoutAttemptResponse,
+        api_models::payouts::PayoutActionRequest,
+        api_models::payouts::PayoutCreateRequest,
         api_models::payouts::PayoutCreateResponse,
+        api_models::payouts::PayoutListConstraints,
+        api_models::payouts::PayoutListFilterConstraints,
+        api_models::payouts::PayoutListResponse,
         api_models::payouts::PayoutRetrieveBody,
         api_models::payouts::PayoutRetrieveRequest,
-        api_models::payouts::PayoutActionRequest,
-        api_models::payouts::PayoutRequest,
         api_models::payouts::PayoutMethodData,
         api_models::payouts::Bank,
         api_models::enums::PayoutEntityType,
@@ -429,6 +441,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::FrmMessage,
         api_models::webhooks::OutgoingWebhook,
         api_models::webhooks::OutgoingWebhookContent,
+        api_models::enums::EventClass,
         api_models::enums::EventType,
         api_models::enums::DecoupledAuthenticationType,
         api_models::enums::AuthenticationStatus,
@@ -478,7 +491,12 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::blocklist::BlocklistResponse,
         api_models::blocklist::ToggleBlocklistResponse,
         api_models::blocklist::ListBlocklistQuery,
-        api_models::enums::BlocklistDataKind
+        api_models::enums::BlocklistDataKind,
+        api_models::webhook_events::EventListItemResponse,
+        api_models::webhook_events::EventRetrieveResponse,
+        api_models::webhook_events::OutgoingWebhookRequestContent,
+        api_models::webhook_events::OutgoingWebhookResponseContent,
+        api_models::enums::WebhookDeliveryAttempt,
     )),
     modifiers(&SecurityAddon)
 )]

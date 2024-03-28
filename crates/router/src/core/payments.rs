@@ -195,7 +195,7 @@ where
         let mut should_continue_capture: bool = true;
         #[cfg(feature = "frm")]
         let frm_configs = if state.conf.frm.enabled {
-            frm_core::call_frm_before_connector_call(
+            Box::pin(frm_core::call_frm_before_connector_call(
                 db,
                 &operation,
                 &merchant_account,
@@ -206,7 +206,7 @@ where
                 &mut should_continue_transaction,
                 &mut should_continue_capture,
                 key_store.clone(),
-            )
+            ))
             .await?
         } else {
             None
@@ -1101,7 +1101,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
                             try {{
                                 // if inside iframe, send post message to parent for redirection
                                 if (window.self !== window.parent) {{
-                                    window.parent.postMessage({{openurl: return_url}}, '*')
+                                    window.top.postMessage({{openurl: return_url}}, '*')
                                 // if parent, redirect self to return_url
                                 }} else {{
                                     window.location.href = return_url
