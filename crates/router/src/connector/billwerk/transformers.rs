@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{self, CardData, PaymentsAuthorizeRequestData, RouterData},
+    consts,
     core::errors,
     types::{self, api, storage::enums},
 };
@@ -240,6 +241,8 @@ pub struct BillwerkPaymentsResponse {
     state: BillwerkPaymentState,
     handle: String,
     transaction: Option<String>,
+    error: Option<String>,
+    error_state: Option<String>,
 }
 
 impl<F, T>
@@ -255,22 +258,41 @@ impl<F, T>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
+        let error_response = if item.response.error.is_some() || item.response.error_state.is_some()
+        {
+            Some(types::ErrorResponse {
+                code: item
+                    .response
+                    .error_state
+                    .clone()
+                    .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                message: item
+                    .response
+                    .error_state
+                    .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                reason: item.response.error,
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: Some(item.response.handle.clone()),
+            })
+        } else {
+            None
+        };
+        let payments_response = types::PaymentsResponseData::TransactionResponse {
+            resource_id: types::ResponseId::ConnectorTransactionId(item.response.handle.clone()),
+            redirection_data: None,
+            mandate_reference: None,
+            connector_metadata: Some(serde_json::json!({
+                //This is the unique id associated with each request in the connector's system
+                "transaction_id": item.response.transaction
+            })),
+            network_txn_id: None,
+            connector_response_reference_id: Some(item.response.handle),
+            incremental_authorization_allowed: None,
+        };
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.state),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.response.handle.clone(),
-                ),
-                redirection_data: None,
-                mandate_reference: None,
-                connector_metadata: Some(serde_json::json!({
-                    //This is the unique id associated with each request in the connector's system
-                    "transaction_id": item.response.transaction
-                })),
-                network_txn_id: None,
-                connector_response_reference_id: Some(item.response.handle),
-                incremental_authorization_allowed: None,
-            }),
+            response: error_response.map_or_else(|| Ok(payments_response), Err),
             ..item.data
         })
     }
@@ -373,11 +395,9 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct BillwerkErrorResponse {
-    pub status_code: u16,
-    pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
+    pub code: Option<i32>,
+    pub error: String,
+    pub message: Option<String>,
 }
