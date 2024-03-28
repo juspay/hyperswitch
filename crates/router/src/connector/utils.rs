@@ -88,6 +88,14 @@ pub trait RouterData {
 
     fn get_optional_billing(&self) -> Option<&api::Address>;
     fn get_optional_shipping(&self) -> Option<&api::Address>;
+    fn get_optional_billing_line1(&self) -> Option<Secret<String>>;
+    fn get_optional_billing_line2(&self) -> Option<Secret<String>>;
+    fn get_optional_billing_city(&self) -> Option<String>;
+    fn get_optional_billing_country(&self) -> Option<enums::CountryAlpha2>;
+    fn get_optional_billing_zip(&self) -> Option<Secret<String>>;
+    fn get_optional_billing_state(&self) -> Option<Secret<String>>;
+    fn get_optional_billing_first_name(&self) -> Option<Secret<String>>;
+    fn get_optional_billing_last_name(&self) -> Option<Secret<String>>;
 }
 
 pub trait PaymentResponseRouterData {
@@ -200,6 +208,94 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
         self.session_token
             .clone()
             .ok_or_else(missing_field_err("session_token"))
+    }
+
+    fn get_optional_billing_line1(&self) -> Option<Secret<String>> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_address_details| billing_address_details.line1)
+            })
+    }
+
+    fn get_optional_billing_line2(&self) -> Option<Secret<String>> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_address_details| billing_address_details.line2)
+            })
+    }
+
+    fn get_optional_billing_city(&self) -> Option<String> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_address_details| billing_address_details.city)
+            })
+    }
+
+    fn get_optional_billing_country(&self) -> Option<enums::CountryAlpha2> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_address_details| billing_address_details.country)
+            })
+    }
+
+    fn get_optional_billing_zip(&self) -> Option<Secret<String>> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_address_details| billing_address_details.zip)
+            })
+    }
+
+    fn get_optional_billing_state(&self) -> Option<Secret<String>> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_address_details| billing_address_details.state)
+            })
+    }
+
+    fn get_optional_billing_first_name(&self) -> Option<Secret<String>> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_address_details| billing_address_details.first_name)
+            })
+    }
+
+    fn get_optional_billing_last_name(&self) -> Option<Secret<String>> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_address_details| billing_address_details.last_name)
+            })
     }
 
     fn to_connector_meta<T>(&self) -> Result<T, Error>
