@@ -187,6 +187,11 @@ impl DashboardRequestPayload {
             merchant_id: None,
             merchant_config_currency: None,
             endpoint_prefix: None,
+            mcc: None,
+            merchant_country_code: None,
+            merchant_name: None,
+            acquirer_bin: None,
+            acquirer_merchant_id: None,
         };
         let meta_data = match request.metadata {
             Some(data) => data,
@@ -201,6 +206,12 @@ impl DashboardRequestPayload {
         let apple_pay = meta_data.apple_pay;
         let apple_pay_combined = meta_data.apple_pay_combined;
         let merchant_config_currency = meta_data.merchant_config_currency;
+        let mcc = meta_data.mcc;
+        let merchant_country_code = meta_data.merchant_country_code;
+        let merchant_name = meta_data.merchant_name;
+        let acquirer_bin = meta_data.acquirer_bin;
+        let acquirer_merchant_id = meta_data.acquirer_merchant_id;
+
         Some(ApiModelMetaData {
             google_pay,
             apple_pay,
@@ -211,6 +222,11 @@ impl DashboardRequestPayload {
             merchant_config_currency,
             apple_pay_combined,
             endpoint_prefix,
+            mcc,
+            merchant_country_code,
+            merchant_name,
+            acquirer_bin,
+            acquirer_merchant_id,
         })
     }
 

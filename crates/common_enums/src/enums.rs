@@ -115,6 +115,7 @@ pub enum RoutableConnectors {
     Airwallex,
     Authorizedotnet,
     Bankofamerica,
+    // Billwerk, Added as template code for future usage
     Bitpay,
     Bambora,
     Bluesnap,
@@ -1627,6 +1628,7 @@ pub enum DisputeStatus {
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
+    strum::EnumIter,
     strum::EnumString,
     utoipa::ToSchema,
     Copy
