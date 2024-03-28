@@ -12313,6 +12313,19 @@
               }
             ],
             "nullable": true
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "For Client based calls",
+            "nullable": true
+          },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodData"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -12701,6 +12714,11 @@
             "format": "date-time",
             "example": "2024-02-24T11:04:09.922Z",
             "nullable": true
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "For Client based calls",
+            "nullable": true
           }
         }
       },
@@ -12709,7 +12727,8 @@
         "enum": [
           "active",
           "inactive",
-          "processing"
+          "processing",
+          "awaiting_data"
         ]
       },
       "PaymentMethodType": {
