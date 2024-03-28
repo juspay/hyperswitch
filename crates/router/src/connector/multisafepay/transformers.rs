@@ -63,6 +63,8 @@ pub enum Gateway {
     Klarna,
     Googlepay,
     Paypal,
+    Giropay,
+    Ideal,
 }
 
 #[serde_with::skip_serializing_none]
@@ -310,6 +312,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                     utils::get_unimplemented_payment_method_error_message("multisafepay"),
                 ))?,
             },
+            api::PaymentMethodData::BankRedirect(ref _bankredirect) => Type::Redirect,
             api::PaymentMethodData::PayLater(ref _paylater) => Type::Redirect,
             _ => Type::Redirect,
         };
@@ -354,6 +357,21 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                     billing_country: _,
                 },
             ) => Some(Gateway::Klarna),
+            api::PaymentMethodData::BankRedirect(
+                api_models::payments::BankRedirectData::Giropay {
+                    billing_details: _,
+                    bank_account_bic: _,
+                    bank_account_iban: _,
+                    country: _,
+                },
+            ) => Some(Gateway::Giropay),
+            api::PaymentMethodData::BankRedirect(
+                api_models::payments::BankRedirectData::Ideal {
+                    billing_details: _,
+                    bank_name: _,
+                    country: _,
+                },
+            ) => Some(Gateway::Ideal),
             api::PaymentMethodData::MandatePayment => None,
             api::PaymentMethodData::CardRedirect(_)
             | api::PaymentMethodData::PayLater(_)
@@ -503,8 +521,8 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 }))
             }
             api::PaymentMethodData::MandatePayment => None,
+            api::PaymentMethodData::BankRedirect(..) => None,
             api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::BankRedirect(_)
             | api::PaymentMethodData::BankDebit(_)
             | api::PaymentMethodData::BankTransfer(_)
             | api::PaymentMethodData::Crypto(_)
