@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     connector::utils::PaymentsAuthorizeRequestData,
     core::errors,
-    types::{self, api, storage::enums, domain},
+    types::{self, api, domain, storage::enums},
 };
 
 //TODO: Fill the struct with respective fields
