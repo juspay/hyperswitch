@@ -10,6 +10,7 @@ use crate::{
     core::errors,
     services,
     types::{self, api, domain, storage::enums},
+    unimplemented_payment_method,
 };
 
 pub const CLIENT_TOKEN_MUTATION: &str = "mutation createClientToken($input: CreateClientTokenInput!) { createClientToken(input: $input) { clientToken}}";
