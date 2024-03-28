@@ -390,6 +390,7 @@ impl_to_sql_for_to_string!(&DisputeDimensions, DisputeDimensions, DisputeStage);
 #[derive(Debug)]
 pub enum FilterTypes {
     Equal,
+    NotEqual,
     EqualBool,
     In,
     Gte,
@@ -404,6 +405,7 @@ pub fn filter_type_to_sql(l: &String, op: &FilterTypes, r: &String) -> String {
     match op {
         FilterTypes::EqualBool => format!("{l} = {r}"),
         FilterTypes::Equal => format!("{l} = '{r}'"),
+        FilterTypes::NotEqual => format!("{l} != '{r}'"),
         FilterTypes::In => format!("{l} IN ({r})"),
         FilterTypes::Gte => format!("{l} >= '{r}'"),
         FilterTypes::Gt => format!("{l} > {r}"),
