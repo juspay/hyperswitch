@@ -788,11 +788,19 @@ impl
         } else {
             (None, None, None)
         };
-        Self {
-            capture: Some(matches!(
+
+        // To distinguish between SetupMandate and Authorization flows.
+        let capture = if item.router_data.request.amount == 0 && authorization_options.is_some() {
+            Some(false)
+        } else {
+            Some(matches!(
                 item.router_data.request.capture_method,
                 Some(enums::CaptureMethod::Automatic) | None
-            )),
+            ))
+        };
+
+        Self {
+            capture,
             payment_solution: solution.map(String::from),
             action_list,
             action_token_types,
@@ -1270,14 +1278,15 @@ pub struct BankOfAmericaAuthSetupRequest {
     client_reference_information: ClientReferenceInformation,
 }
 
-impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
-    for BankOfAmericaAuthSetupRequest
-{
+impl TryFrom<(&payments::PaymentMethodData, String)> for BankOfAmericaAuthSetupRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>,
+        (payment_method_data, connector_request_reference_id): (
+            &payments::PaymentMethodData,
+            String,
+        ),
     ) -> Result<Self, Self::Error> {
-        match item.router_data.request.payment_method_data.clone() {
+        match payment_method_data.clone() {
             payments::PaymentMethodData::Card(ccard) => {
                 let card_issuer = ccard.get_card_issuer();
                 let card_type = match card_issuer {
@@ -1293,7 +1302,10 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                         card_type,
                     },
                 });
-                let client_reference_information = ClientReferenceInformation::from(item);
+                let client_reference_information = ClientReferenceInformation {
+                    code: Some(connector_request_reference_id),
+                };
+
                 Ok(Self {
                     payment_information,
                     client_reference_information,
@@ -1599,22 +1611,22 @@ fn get_payment_response(
     }
 }
 
-impl<F>
+impl<F, T>
     TryFrom<
         types::ResponseRouterData<
             F,
             BankOfAmericaAuthSetupResponse,
-            types::PaymentsAuthorizeData,
+            T,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+    > for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::ResponseRouterData<
             F,
             BankOfAmericaAuthSetupResponse,
-            types::PaymentsAuthorizeData,
+            T,
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
