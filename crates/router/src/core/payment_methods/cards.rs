@@ -7,8 +7,9 @@ use api_models::{
     admin::{self, PaymentMethodsEnabled},
     enums::{self as api_enums},
     payment_methods::{
-        BankAccountTokenData, CardDetailsPaymentMethod, CardNetworkTypes,
-        CustomerDefaultPaymentMethodResponse, MaskedBankDetails, PaymentExperienceTypes,
+        BankAccountTokenData, CardDetailsPaymentMethod, CardNetworkTypes, CountryCodeWithName,
+        CustomerDefaultPaymentMethodResponse, ListCountriesCurrenciesRequest,
+        ListCountriesCurrenciesResponse, MaskedBankDetails, PaymentExperienceTypes,
         PaymentMethodsData, RequestPaymentMethodTypes, RequiredFieldInfo,
         ResponsePaymentMethodIntermediate, ResponsePaymentMethodTypes,
         ResponsePaymentMethodsEnabled,
@@ -30,6 +31,7 @@ use domain::CustomerUpdate;
 use error_stack::{report, IntoReport, ResultExt};
 use masking::Secret;
 use router_env::{instrument, tracing};
+use strum::IntoEnumIterator;
 
 use super::surcharge_decision_configs::{
     perform_surcharge_decision_management_for_payment_method_list,
@@ -65,7 +67,7 @@ use crate::{
             self,
             types::{decrypt, encrypt_optional, AsyncLift},
         },
-        storage::{self, enums, PaymentTokenData},
+        storage::{self, enums, PaymentMethodListContext, PaymentTokenData},
         transformers::ForeignFrom,
     },
     utils::{self, ConnectorResponseExt, OptionExt},
@@ -148,6 +150,7 @@ pub fn store_default_payment_method(
         payment_method_id: pm_id,
         payment_method: req.payment_method,
         payment_method_type: req.payment_method_type,
+        #[cfg(feature = "payouts")]
         bank_transfer: None,
         card: None,
         metadata: req.metadata.clone(),
@@ -681,8 +684,10 @@ pub async fn update_customer_payment_method(
         payment_method_type: pm.payment_method_type,
         payment_method_issuer: pm.payment_method_issuer,
         payment_method_issuer_code: pm.payment_method_issuer_code,
+        #[cfg(feature = "payouts")]
         bank_transfer: req.bank_transfer,
         card: req.card,
+        #[cfg(feature = "payouts")]
         wallet: req.wallet,
         metadata: req.metadata,
         customer_id: Some(pm.customer_id),
@@ -704,6 +709,7 @@ pub async fn update_customer_payment_method(
 
 // Wrapper function to switch lockers
 
+#[cfg(feature = "payouts")]
 pub async fn add_bank_to_locker(
     state: &routes::AppState,
     req: api::PaymentMethodCreate,
@@ -3024,39 +3030,19 @@ pub async fn list_customer_payment_method(
                 let card_details = get_card_details_with_locker_fallback(&pm, key, state).await?;
 
                 if card_details.is_some() {
-                    (
+                    PaymentMethodListContext {
                         card_details,
-                        None,
-                        PaymentTokenData::permanent_card(
+                        #[cfg(feature = "payouts")]
+                        bank_transfer_details: None,
+                        hyperswitch_token_data: PaymentTokenData::permanent_card(
                             Some(pm.payment_method_id.clone()),
                             pm.locker_id.clone().or(Some(pm.payment_method_id.clone())),
                             pm.locker_id.clone().unwrap_or(pm.payment_method_id.clone()),
                         ),
-                    )
+                    }
                 } else {
                     continue;
                 }
-            }
-
-            #[cfg(feature = "payouts")]
-            enums::PaymentMethod::BankTransfer => {
-                let token = generate_id(consts::ID_LENGTH, "token");
-                let token_data = PaymentTokenData::temporary_generic(token.clone());
-                (
-                    None,
-                    Some(
-                        get_bank_from_hs_locker(
-                            state,
-                            &key_store,
-                            &token,
-                            &pm.customer_id,
-                            &pm.merchant_id,
-                            pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
-                        )
-                        .await?,
-                    ),
-                    token_data,
-                )
             }
 
             enums::PaymentMethod::BankDebit => {
@@ -3069,23 +3055,55 @@ pub async fn list_customer_payment_method(
                     });
                 if let Some(data) = bank_account_token_data {
                     let token_data = PaymentTokenData::AuthBankDebit(data);
-                    (None, None, token_data)
+
+                    PaymentMethodListContext {
+                        card_details: None,
+                        #[cfg(feature = "payouts")]
+                        bank_transfer_details: None,
+                        hyperswitch_token_data: token_data,
+                    }
                 } else {
                     continue;
                 }
             }
 
-            enums::PaymentMethod::Wallet => (
-                None,
-                None,
-                PaymentTokenData::wallet_token(pm.payment_method_id.clone()),
-            ),
+            enums::PaymentMethod::Wallet => PaymentMethodListContext {
+                card_details: None,
+                #[cfg(feature = "payouts")]
+                bank_transfer_details: None,
+                hyperswitch_token_data: PaymentTokenData::wallet_token(
+                    pm.payment_method_id.clone(),
+                ),
+            },
 
-            _ => (
-                None,
-                None,
-                PaymentTokenData::temporary_generic(generate_id(consts::ID_LENGTH, "token")),
-            ),
+            #[cfg(feature = "payouts")]
+            enums::PaymentMethod::BankTransfer => PaymentMethodListContext {
+                card_details: None,
+                bank_transfer_details: Some(
+                    get_bank_from_hs_locker(
+                        state,
+                        &key_store,
+                        &parent_payment_method_token,
+                        &pm.customer_id,
+                        &pm.merchant_id,
+                        pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
+                    )
+                    .await?,
+                ),
+                hyperswitch_token_data: PaymentTokenData::temporary_generic(
+                    parent_payment_method_token.clone(),
+                ),
+            },
+
+            _ => PaymentMethodListContext {
+                card_details: None,
+                #[cfg(feature = "payouts")]
+                bank_transfer_details: None,
+                hyperswitch_token_data: PaymentTokenData::temporary_generic(generate_id(
+                    consts::ID_LENGTH,
+                    "token",
+                )),
+            },
         };
 
         // Retrieve the masked bank details to be sent as a response
@@ -3109,14 +3127,15 @@ pub async fn list_customer_payment_method(
             payment_method,
             payment_method_type: pm.payment_method_type,
             payment_method_issuer: pm.payment_method_issuer,
-            card,
+            card: payment_method_retrieval_context.card_details,
             metadata: pm.metadata,
             payment_method_issuer_code: pm.payment_method_issuer_code,
             recurring_enabled: false,
             installment_payment_enabled: false,
             payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
             created: Some(pm.created_at),
-            bank_transfer: pmd,
+            #[cfg(feature = "payouts")]
+            bank_transfer: payment_method_retrieval_context.bank_transfer_details,
             bank: bank_details,
             surcharge_details: None,
             requires_cvv: requires_cvv
@@ -3138,7 +3157,11 @@ pub async fn list_customer_payment_method(
             &parent_payment_method_token,
             pma.payment_method,
         ))
-        .insert(intent_created, hyperswitch_token_data, state)
+        .insert(
+            intent_created,
+            payment_method_retrieval_context.hyperswitch_token_data,
+            state,
+        )
         .await?;
 
         if let Some(metadata) = pma.metadata {
@@ -3690,6 +3713,7 @@ pub async fn retrieve_payment_method(
             payment_method_id: pm.payment_method_id,
             payment_method: pm.payment_method,
             payment_method_type: pm.payment_method_type,
+            #[cfg(feature = "payouts")]
             bank_transfer: None,
             card,
             metadata: pm.metadata,
@@ -3818,4 +3842,60 @@ pub async fn create_encrypted_payment_method_data(
         .map(|details| details.into());
 
     pm_data_encrypted
+}
+
+pub async fn list_countries_currencies_for_connector_payment_method(
+    state: routes::AppState,
+    req: ListCountriesCurrenciesRequest,
+) -> errors::RouterResponse<ListCountriesCurrenciesResponse> {
+    Ok(services::ApplicationResponse::Json(
+        list_countries_currencies_for_connector_payment_method_util(
+            state.conf.pm_filters.clone(),
+            req.connector,
+            req.payment_method_type,
+        )
+        .await,
+    ))
+}
+
+// This feature will be more efficient as a WASM function rather than as an API.
+// So extracting this logic to a separate function so that it can be used in WASM as well.
+pub async fn list_countries_currencies_for_connector_payment_method_util(
+    connector_filters: settings::ConnectorFilters,
+    connector: api_enums::Connector,
+    payment_method_type: api_enums::PaymentMethodType,
+) -> ListCountriesCurrenciesResponse {
+    let payment_method_type =
+        settings::PaymentMethodFilterKey::PaymentMethodType(payment_method_type);
+
+    let (currencies, country_codes) = connector_filters
+        .0
+        .get(&connector.to_string())
+        .and_then(|filter| filter.0.get(&payment_method_type))
+        .map(|filter| (filter.currency.clone(), filter.country.clone()))
+        .unwrap_or_else(|| {
+            connector_filters
+                .0
+                .get("default")
+                .and_then(|filter| filter.0.get(&payment_method_type))
+                .map_or((None, None), |filter| {
+                    (filter.currency.clone(), filter.country.clone())
+                })
+        });
+
+    let currencies =
+        currencies.unwrap_or_else(|| api_enums::Currency::iter().collect::<HashSet<_>>());
+    let country_codes =
+        country_codes.unwrap_or_else(|| api_enums::CountryAlpha2::iter().collect::<HashSet<_>>());
+
+    ListCountriesCurrenciesResponse {
+        currencies,
+        countries: country_codes
+            .into_iter()
+            .map(|country_code| CountryCodeWithName {
+                code: country_code,
+                name: common_enums::Country::from_alpha2(country_code),
+            })
+            .collect(),
+    }
 }

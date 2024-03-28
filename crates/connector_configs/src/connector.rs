@@ -81,6 +81,8 @@ pub struct ConfigMetadata {
     pub mcc: Option<String>,
     pub merchant_country_code: Option<String>,
     pub merchant_name: Option<String>,
+    pub acquirer_bin: Option<String>,
+    pub acquirer_merchant_id: Option<String>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -114,6 +116,7 @@ pub struct ConnectorConfig {
     pub airwallex: Option<ConnectorTomlConfig>,
     pub authorizedotnet: Option<ConnectorTomlConfig>,
     pub bankofamerica: Option<ConnectorTomlConfig>,
+    pub billwerk: Option<ConnectorTomlConfig>,
     pub bitpay: Option<ConnectorTomlConfig>,
     pub bluesnap: Option<ConnectorTomlConfig>,
     pub boku: Option<ConnectorTomlConfig>,
@@ -225,6 +228,7 @@ impl ConnectorConfig {
             Connector::Airwallex => Ok(connector_data.airwallex),
             Connector::Authorizedotnet => Ok(connector_data.authorizedotnet),
             Connector::Bankofamerica => Ok(connector_data.bankofamerica),
+            // Connector::Billwerk => Ok(connector_data.billwerk), Added as template code for future usage
             Connector::Bitpay => Ok(connector_data.bitpay),
             Connector::Bluesnap => Ok(connector_data.bluesnap),
             Connector::Boku => Ok(connector_data.boku),

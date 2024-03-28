@@ -3,8 +3,9 @@ use common_utils::events::{ApiEventMetric, ApiEventsType};
 use crate::{
     payment_methods::{
         CustomerDefaultPaymentMethodResponse, CustomerPaymentMethodsListResponse,
-        DefaultPaymentMethod, PaymentMethodDeleteResponse, PaymentMethodListRequest,
-        PaymentMethodListResponse, PaymentMethodResponse, PaymentMethodUpdate,
+        DefaultPaymentMethod, ListCountriesCurrenciesRequest, ListCountriesCurrenciesResponse,
+        PaymentMethodDeleteResponse, PaymentMethodListRequest, PaymentMethodListResponse,
+        PaymentMethodResponse, PaymentMethodUpdate,
     },
     payments::{
         PaymentIdType, PaymentListConstraints, PaymentListFilterConstraints, PaymentListFilters,
@@ -131,6 +132,9 @@ impl ApiEventMetric for PaymentMethodListRequest {
     }
 }
 
+impl ApiEventMetric for ListCountriesCurrenciesRequest {}
+
+impl ApiEventMetric for ListCountriesCurrenciesResponse {}
 impl ApiEventMetric for PaymentMethodListResponse {}
 
 impl ApiEventMetric for CustomerDefaultPaymentMethodResponse {

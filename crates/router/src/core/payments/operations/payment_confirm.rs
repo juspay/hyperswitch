@@ -12,7 +12,7 @@ use tracing_futures::Instrument;
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
-        authentication::{self, types},
+        authentication,
         blocklist::utils as blocklist_utils,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::PaymentMethodRetrieve,
@@ -160,18 +160,21 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         let store = state.store.clone();
 
-        let business_profile_fut = tokio::spawn(async move {
-            store
-                .find_business_profile_by_profile_id(&profile_id)
-                .map(|business_profile_result| {
-                    business_profile_result.to_not_found_response(
-                        errors::ApiErrorResponse::BusinessProfileNotFound {
-                            id: profile_id.to_string(),
-                        },
-                    )
-                })
-                .await
-        });
+        let business_profile_fut = tokio::spawn(
+            async move {
+                store
+                    .find_business_profile_by_profile_id(&profile_id)
+                    .map(|business_profile_result| {
+                        business_profile_result.to_not_found_response(
+                            errors::ApiErrorResponse::BusinessProfileNotFound {
+                                id: profile_id.to_string(),
+                            },
+                        )
+                    })
+                    .await
+            }
+            .in_current_span(),
+        );
 
         let store = state.store.clone();
 
@@ -498,13 +501,17 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         let store = state.clone().store;
 
-        let additional_pm_data_fut = tokio::spawn(async move {
-            Ok(n_request_payment_method_data
-                .async_map(|payment_method_data| async move {
-                    helpers::get_additional_payment_data(&payment_method_data, store.as_ref()).await
-                })
-                .await)
-        });
+        let additional_pm_data_fut = tokio::spawn(
+            async move {
+                Ok(n_request_payment_method_data
+                    .async_map(|payment_method_data| async move {
+                        helpers::get_additional_payment_data(&payment_method_data, store.as_ref())
+                            .await
+                    })
+                    .await)
+            }
+            .in_current_span(),
+        );
 
         let store = state.clone().store;
 
@@ -554,27 +561,18 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                     .payment_method_data
                     .apply_additional_payment_data(additional_payment_data)
             });
-        let authentication = match payment_attempt.authentication_id.clone() {
-            Some(authentication_id) => {
-                let authentication = state
-                    .store
-                    .find_authentication_by_merchant_id_authentication_id(
-                        merchant_id.to_string(),
-                        authentication_id.clone(),
-                    )
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable_lazy(|| format!("Error while fetching authentication record with authentication_id {authentication_id}"))?;
-                let authentication_data: authentication::types::AuthenticationData = authentication
-                    .authentication_data
-                    .clone()
-                    .parse_value("authentication data")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Error while parsing authentication_data")?;
-                Some((authentication, authentication_data))
-            }
-            None => None,
-        };
+        let authentication = payment_attempt.authentication_id.as_ref().async_map(|authentication_id| async move {
+            state
+                .store
+                .find_authentication_by_merchant_id_authentication_id(
+                    merchant_id.to_string(),
+                    authentication_id.clone(),
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable_lazy(|| format!("Error while fetching authentication record with authentication_id {authentication_id}"))
+        }).await
+        .transpose()?;
 
         payment_attempt.payment_method_billing_address_id = payment_method_billing
             .as_ref()
@@ -806,7 +804,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                 None,
             )
             .await?;
-            if let Some(authentication_data) = authentication {
+            if let Some(authentication) = authentication {
                 // call post authn service
                 authentication::perform_post_authentication(
                     state,
@@ -815,7 +813,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                     authentication_connector_mca,
                     authentication::types::PostAuthenthenticationFlowInput::PaymentAuthNFlow {
                         payment_data,
-                        authentication_data,
+                        authentication,
                         should_continue_confirm_transaction,
                     },
                 )
@@ -924,10 +922,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         };
 
         let status_handler_for_authentication_results =
-            |(authentication, authentication_data): &(
-                storage::Authentication,
-                types::AuthenticationData,
-            )| {
+            |authentication: &storage::Authentication| {
                 if authentication.authentication_status.is_failed() {
                     (
                         storage_enums::IntentStatus::Failed,
@@ -937,7 +932,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                             Some(Some("external authentication failure".to_string())),
                         ),
                     )
-                } else if authentication_data.is_separate_authn_required() {
+                } else if authentication.is_separate_authn_required() {
                     (
                         storage_enums::IntentStatus::RequiresCustomerAction,
                         storage_enums::AttemptStatus::AuthenticationPending,
@@ -1038,8 +1033,8 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             authentication_connector,
             authentication_id,
         ) = match payment_data.authentication.as_ref() {
-            Some((authentication, authentication_data)) => (
-                Some(authentication_data.is_separate_authn_required()),
+            Some(authentication) => (
+                Some(authentication.is_separate_authn_required()),
                 Some(authentication.authentication_connector.clone()),
                 Some(authentication.authentication_id.clone()),
             ),

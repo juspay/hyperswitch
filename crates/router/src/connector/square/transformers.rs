@@ -10,6 +10,7 @@ use crate::{
         self, api,
         storage::{self, enums},
     },
+    unimplemented_payment_method,
 };
 
 impl TryFrom<(&types::TokenizationRouterData, BankDebitData)> for SquareTokenRequest {
@@ -181,7 +182,7 @@ impl TryFrom<&types::TokenizationRouterData> for SquareTokenRequest {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SquareSessionResponse {
-    session_id: String,
+    session_id: Secret<String>,
 }
 
 impl<F, T>
@@ -194,9 +195,9 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: storage::enums::AttemptStatus::Pending,
-            session_token: Some(item.response.session_id.clone()),
+            session_token: Some(item.response.session_id.clone().expose()),
             response: Ok(types::PaymentsResponseData::SessionTokenResponse {
-                session_token: item.response.session_id,
+                session_token: item.response.session_id.expose(),
             }),
             ..item.data
         })
@@ -257,9 +258,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
                     idempotency_key: Secret::new(item.attempt_id.clone()),
                     source_id: Secret::new(match pm_token {
                         types::PaymentMethodToken::Token(token) => token,
-                        types::PaymentMethodToken::ApplePayDecrypt(_) => {
-                            Err(errors::ConnectorError::InvalidWalletToken)?
-                        }
+                        types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
+                            unimplemented_payment_method!("Apple Pay", "Simplified", "Square"),
+                        )?,
                     }),
                     amount_money: SquarePaymentsAmountData {
                         amount: item.request.amount,

@@ -28,8 +28,6 @@ pub mod merchant_key_store;
 pub mod organization;
 pub mod payment_link;
 pub mod payment_method;
-pub mod payout_attempt;
-pub mod payouts;
 pub mod refund;
 pub mod reverse_lookup;
 pub mod role;
@@ -40,6 +38,10 @@ pub mod user_role;
 use data_models::payments::{
     payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface,
 };
+#[cfg(feature = "payouts")]
+use data_models::payouts::{payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface};
+#[cfg(not(feature = "payouts"))]
+use data_models::{PayoutAttemptInterface, PayoutsInterface};
 use diesel_models::{
     fraud_check::{FraudCheck, FraudCheckNew, FraudCheckUpdate},
     organization::{Organization, OrganizationNew, OrganizationUpdate},
@@ -94,8 +96,8 @@ pub trait StorageInterface:
     + blocklist::BlocklistInterface
     + blocklist_fingerprint::BlocklistFingerprintInterface
     + scheduler::SchedulerInterface
-    + payout_attempt::PayoutAttemptInterface
-    + payouts::PayoutsInterface
+    + PayoutAttemptInterface
+    + PayoutsInterface
     + refund::RefundInterface
     + reverse_lookup::ReverseLookupInterface
     + cards_info::CardsInfoInterface

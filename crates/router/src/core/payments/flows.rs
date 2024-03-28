@@ -145,9 +145,9 @@ impl<const T: u8>
 }
 
 default_imp_for_complete_authorize!(
-    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Boku,
     connector::Cashtocode,
@@ -176,6 +176,7 @@ default_imp_for_complete_authorize!(
     connector::Square,
     connector::Stax,
     connector::Stripe,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
@@ -211,13 +212,13 @@ impl<const T: u8>
 {
 }
 default_imp_for_webhook_source_verification!(
-    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Braintree,
@@ -257,6 +258,7 @@ default_imp_for_webhook_source_verification!(
     connector::Square,
     connector::Stax,
     connector::Stripe,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
@@ -294,13 +296,13 @@ impl<const T: u8>
 }
 
 default_imp_for_create_customer!(
-    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -338,6 +340,7 @@ default_imp_for_create_customer!(
     connector::Shift4,
     connector::Signifyd,
     connector::Square,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
@@ -377,11 +380,11 @@ impl<const T: u8> services::ConnectorRedirectResponse for connector::DummyConnec
 }
 
 default_imp_for_connector_redirect_response!(
-    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Bitpay,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Boku,
     connector::Cashtocode,
     connector::Coinbase,
@@ -410,6 +413,7 @@ default_imp_for_connector_redirect_response!(
     connector::Signifyd,
     connector::Square,
     connector::Stax,
+    connector::Threedsecureio,
     connector::Tsys,
     connector::Volt,
     connector::Wise,
@@ -429,13 +433,13 @@ macro_rules! default_imp_for_connector_request_id {
 impl<const T: u8> api::ConnectorTransactionId for connector::DummyConnector<T> {}
 
 default_imp_for_connector_request_id!(
-    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -474,6 +478,7 @@ default_imp_for_connector_request_id!(
     connector::Square,
     connector::Stax,
     connector::Stripe,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
@@ -514,13 +519,13 @@ impl<const T: u8>
 }
 
 default_imp_for_accept_dispute!(
-    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -560,6 +565,7 @@ default_imp_for_accept_dispute!(
     connector::Square,
     connector::Stax,
     connector::Stripe,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
@@ -619,13 +625,13 @@ impl<const T: u8>
 }
 
 default_imp_for_file_upload!(
-    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -663,6 +669,7 @@ default_imp_for_file_upload!(
     connector::Signifyd,
     connector::Square,
     connector::Stax,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
@@ -701,13 +708,13 @@ impl<const T: u8>
 }
 
 default_imp_for_submit_evidence!(
-    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -745,6 +752,7 @@ default_imp_for_submit_evidence!(
     connector::Signifyd,
     connector::Square,
     connector::Stax,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
@@ -783,13 +791,13 @@ impl<const T: u8>
 }
 
 default_imp_for_defend_dispute!(
-    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -828,6 +836,7 @@ default_imp_for_defend_dispute!(
     connector::Square,
     connector::Stax,
     connector::Stripe,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
@@ -866,11 +875,11 @@ impl<const T: u8>
 }
 
 default_imp_for_pre_processing_steps!(
-    connector::Threedsecureio,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -905,6 +914,7 @@ default_imp_for_pre_processing_steps!(
     connector::Signifyd,
     connector::Square,
     connector::Stax,
+    connector::Threedsecureio,
     connector::Tsys,
     connector::Volt,
     connector::Wise,
@@ -925,12 +935,12 @@ macro_rules! default_imp_for_payouts {
 impl<const T: u8> api::Payouts for connector::DummyConnector<T> {}
 
 default_imp_for_payouts!(
-    connector::Threedsecureio,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -971,6 +981,7 @@ default_imp_for_payouts!(
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
@@ -1008,12 +1019,12 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_create!(
-    connector::Threedsecureio,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -1054,6 +1065,7 @@ default_imp_for_payouts_create!(
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
@@ -1094,12 +1106,12 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_eligibility!(
-    connector::Threedsecureio,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -1140,6 +1152,7 @@ default_imp_for_payouts_eligibility!(
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
@@ -1177,12 +1190,12 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_fulfill!(
-    connector::Threedsecureio,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -1223,6 +1236,7 @@ default_imp_for_payouts_fulfill!(
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
@@ -1260,12 +1274,12 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_cancel!(
-    connector::Threedsecureio,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -1306,6 +1320,7 @@ default_imp_for_payouts_cancel!(
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
@@ -1343,13 +1358,13 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_quote!(
-    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -1390,6 +1405,7 @@ default_imp_for_payouts_quote!(
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
@@ -1427,13 +1443,13 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient!(
-    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -1474,6 +1490,7 @@ default_imp_for_payouts_recipient!(
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
@@ -1510,13 +1527,13 @@ impl<const T: u8>
 }
 
 default_imp_for_approve!(
-    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -1557,6 +1574,7 @@ default_imp_for_approve!(
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
@@ -1594,13 +1612,13 @@ impl<const T: u8>
 }
 
 default_imp_for_reject!(
-    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -1641,6 +1659,7 @@ default_imp_for_reject!(
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
@@ -1662,13 +1681,13 @@ macro_rules! default_imp_for_fraud_check {
 impl<const T: u8> api::FraudCheck for connector::DummyConnector<T> {}
 
 default_imp_for_fraud_check!(
-    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -1707,6 +1726,7 @@ default_imp_for_fraud_check!(
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
@@ -1746,13 +1766,13 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_sale!(
-    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -1791,6 +1811,7 @@ default_imp_for_frm_sale!(
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
@@ -1830,13 +1851,13 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_checkout!(
-    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -1875,6 +1896,7 @@ default_imp_for_frm_checkout!(
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
@@ -1914,13 +1936,13 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_transaction!(
-    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -1959,6 +1981,7 @@ default_imp_for_frm_transaction!(
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
@@ -1998,13 +2021,13 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_fulfillment!(
-    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -2043,6 +2066,7 @@ default_imp_for_frm_fulfillment!(
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
@@ -2082,13 +2106,13 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_record_return!(
-    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -2127,6 +2151,7 @@ default_imp_for_frm_record_return!(
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
@@ -2164,13 +2189,13 @@ impl<const T: u8>
 }
 
 default_imp_for_incremental_authorization!(
-    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -2210,6 +2235,7 @@ default_imp_for_incremental_authorization!(
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
@@ -2245,13 +2271,13 @@ impl<const T: u8>
 {
 }
 default_imp_for_revoking_mandates!(
-    connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -2290,6 +2316,7 @@ default_imp_for_revoking_mandates!(
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
+    connector::Threedsecureio,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
@@ -2373,6 +2400,7 @@ default_imp_for_connector_authentication!(
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bankofamerica,
+    connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
