@@ -3025,7 +3025,7 @@ pub async fn list_customer_payment_method(
 
         let payment_method = pm.payment_method.get_required_value("payment_method")?;
 
-        let (card, pmd, hyperswitch_token_data) = match payment_method {
+        let payment_method_retrieval_context = match payment_method {
             enums::PaymentMethod::Card => {
                 let card_details = get_card_details_with_locker_fallback(&pm, key, state).await?;
 
