@@ -486,6 +486,7 @@ pub struct TokenizedBankSensitiveValues {
     pub bic: Option<masking::Secret<String>>,
     pub bank_sort_code: Option<masking::Secret<String>>,
     pub iban: Option<masking::Secret<String>>,
+    pub pix_key: Option<masking::Secret<String>>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -494,6 +495,7 @@ pub struct TokenizedBankInsensitiveValues {
     pub bank_name: Option<String>,
     pub bank_country_code: Option<api::enums::CountryAlpha2>,
     pub bank_city: Option<String>,
+    pub bank_branch: Option<String>,
 }
 
 #[cfg(feature = "payouts")]
@@ -506,6 +508,7 @@ impl Vaultable for api::BankPayout {
                 bic: None,
                 bank_sort_code: None,
                 iban: None,
+                pix_key: None,
             },
             Self::Bacs(b) => TokenizedBankSensitiveValues {
                 bank_account_number: Some(b.bank_account_number.to_owned()),
@@ -513,6 +516,7 @@ impl Vaultable for api::BankPayout {
                 bic: None,
                 bank_sort_code: Some(b.bank_sort_code.to_owned()),
                 iban: None,
+                pix_key: None,
             },
             Self::Sepa(b) => TokenizedBankSensitiveValues {
                 bank_account_number: None,
@@ -520,6 +524,15 @@ impl Vaultable for api::BankPayout {
                 bic: b.bic.to_owned(),
                 bank_sort_code: None,
                 iban: Some(b.iban.to_owned()),
+                pix_key: None,
+            },
+            Self::Pix(b) => TokenizedBankSensitiveValues {
+                bank_account_number: Some(b.bank_account_number.to_owned()),
+                bank_routing_number: None,
+                bic: None,
+                bank_sort_code: None,
+                iban: None,
+                pix_key: Some(b.pix_key.to_owned()),
             },
         };
 
@@ -536,18 +549,28 @@ impl Vaultable for api::BankPayout {
                 bank_name: b.bank_name.to_owned(),
                 bank_country_code: b.bank_country_code.to_owned(),
                 bank_city: b.bank_city.to_owned(),
+                bank_branch: None,
             },
             Self::Bacs(b) => TokenizedBankInsensitiveValues {
                 customer_id,
                 bank_name: b.bank_name.to_owned(),
                 bank_country_code: b.bank_country_code.to_owned(),
                 bank_city: b.bank_city.to_owned(),
+                bank_branch: None,
             },
             Self::Sepa(b) => TokenizedBankInsensitiveValues {
                 customer_id,
                 bank_name: b.bank_name.to_owned(),
                 bank_country_code: b.bank_country_code.to_owned(),
                 bank_city: b.bank_city.to_owned(),
+                bank_branch: None,
+            },
+            Self::Pix(b) => TokenizedBankInsensitiveValues {
+                customer_id,
+                bank_name: b.bank_name.to_owned(),
+                bank_country_code: None,
+                bank_city: None,
+                bank_branch: b.bank_branch.to_owned(),
             },
         };
 
@@ -572,35 +595,47 @@ impl Vaultable for api::BankPayout {
             .attach_printable("Could not deserialize into wallet data bank_insensitive_data")?;
 
         let bank = match (
-            // ACH + BACS
+            // ACH + BACS + PIX
             bank_sensitive_data.bank_account_number.to_owned(),
             bank_sensitive_data.bank_routing_number.to_owned(), // ACH
             bank_sensitive_data.bank_sort_code.to_owned(),      // BACS
             // SEPA
             bank_sensitive_data.iban.to_owned(),
             bank_sensitive_data.bic,
+            // PIX
+            bank_sensitive_data.pix_key,
         ) {
-            (Some(ban), Some(brn), None, None, None) => Self::Ach(payouts::AchBankTransfer {
+            (Some(ban), Some(brn), None, None, None, None) => Self::Ach(payouts::AchBankTransfer {
                 bank_account_number: ban,
                 bank_routing_number: brn,
                 bank_name: bank_insensitive_data.bank_name,
                 bank_country_code: bank_insensitive_data.bank_country_code,
                 bank_city: bank_insensitive_data.bank_city,
             }),
-            (Some(ban), None, Some(bsc), None, None) => Self::Bacs(payouts::BacsBankTransfer {
-                bank_account_number: ban,
-                bank_sort_code: bsc,
-                bank_name: bank_insensitive_data.bank_name,
-                bank_country_code: bank_insensitive_data.bank_country_code,
-                bank_city: bank_insensitive_data.bank_city,
-            }),
-            (None, None, None, Some(iban), bic) => Self::Sepa(payouts::SepaBankTransfer {
+            (Some(ban), None, Some(bsc), None, None, None) => {
+                Self::Bacs(payouts::BacsBankTransfer {
+                    bank_account_number: ban,
+                    bank_sort_code: bsc,
+                    bank_name: bank_insensitive_data.bank_name,
+                    bank_country_code: bank_insensitive_data.bank_country_code,
+                    bank_city: bank_insensitive_data.bank_city,
+                })
+            }
+            (None, None, None, Some(iban), bic, None) => Self::Sepa(payouts::SepaBankTransfer {
                 iban,
                 bic,
                 bank_name: bank_insensitive_data.bank_name,
                 bank_country_code: bank_insensitive_data.bank_country_code,
                 bank_city: bank_insensitive_data.bank_city,
             }),
+            (Some(ban), None, None, None, None, Some(pix_key)) => {
+                Self::Pix(payouts::PixBankTransfer {
+                    bank_account_number: ban,
+                    bank_branch: bank_insensitive_data.bank_branch,
+                    bank_name: bank_insensitive_data.bank_name,
+                    pix_key,
+                })
+            }
             _ => Err(errors::VaultError::ResponseDeserializationFailed)?,
         };
 
