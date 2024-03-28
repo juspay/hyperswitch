@@ -776,6 +776,7 @@ pub async fn retrieve_payment_method_from_auth_service(
                 account_number: bacs.account_number.clone(),
                 sort_code: bacs.sort_code.clone(),
                 bank_account_holder_name: None,
+                bank_account_holder_email: None,
             })
         }
         pm_auth_types::PaymentMethodTypeDetails::Sepa(sepa) => {
@@ -783,6 +784,7 @@ pub async fn retrieve_payment_method_from_auth_service(
                 billing_details,
                 iban: sepa.iban.clone(),
                 bank_account_holder_name: None,
+                bank_account_holder_email: None,
             })
         }
     };
