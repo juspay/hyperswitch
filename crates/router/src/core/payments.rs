@@ -2275,7 +2275,7 @@ pub struct IncrementalAuthorizationDetails {
 
 #[derive(Debug, Default, Clone)]
 pub struct RecurringMandatePaymentData {
-    pub payment_method_type: Option<storage_enums::PaymentMethodType>, //required for making recurring payment using saved payment method through stripe
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>, //required for making recurring payment using saved payment method through stripe and paypal
     pub original_payment_authorized_amount: Option<i64>,
     pub original_payment_authorized_currency: Option<storage_enums::Currency>,
 }
