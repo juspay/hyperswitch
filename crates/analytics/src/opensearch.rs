@@ -332,7 +332,9 @@ impl OpenSearchQueryBuilder {
     }
 
     pub fn construct_payload(&self, indexes: Vec<SearchIndex>) -> QueryResult<Vec<Value>> {
-        let filters = self
+        let mut query = vec![json!({"multi_match": {"type": "phrase", "query": self.query, "lenient": true}})];
+
+        let mut filters = self
             .filters
             .iter()
             .map(|(k, v)| json!({"match_phrase" : {k : v}}))
@@ -340,7 +342,7 @@ impl OpenSearchQueryBuilder {
 
         // TODO add index specific filters
         Ok(indexes.iter().map(|_| {
-            json!({"query": {"bool": {"must": {"query_string": {"query": self.query}}, "filter": filters}}})
+            json!({"query": {"bool": {"filter": query.append(&mut filters)}}})
         }).collect::<Vec<Value>>())
     }
 }
