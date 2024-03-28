@@ -12,7 +12,7 @@ impl utils::Connector for EbanxTest {
         use router::connector::Ebanx;
         types::api::ConnectorData {
             connector: Box::new(&Ebanx),
-            connector_name: types::Connector::DummyConnector3,
+            connector_name: types::Connector::DummyConnector1,
             get_token: types::api::GetToken::Connector,
             merchant_connector_id: None,
         }
