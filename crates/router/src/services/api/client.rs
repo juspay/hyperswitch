@@ -3,8 +3,7 @@ use std::time::Duration;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use once_cell::sync::OnceCell;
-use reqwest::multipart::Form;
-use reqwest::Method;
+use reqwest::{multipart::Form, Method};
 use router_env::tracing_actix_web::RequestId;
 
 use super::{request::Maskable, Request};

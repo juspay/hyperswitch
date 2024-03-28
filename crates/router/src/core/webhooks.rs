@@ -1217,7 +1217,7 @@ pub async fn webhooks_wrapper<W: types::OutgoingWebhookType, Ctx: PaymentMethodR
 This is a temporary fix for converting http::HeaderMap from actix_web to reqwest
 Once actix_web upgrades the http version from v0.2.9 to 1.x, this can be removed
 */
- fn convert_headers(
+fn convert_headers(
     actix_headers: &actix_web::http::header::HeaderMap,
 ) -> reqwest::header::HeaderMap {
     let mut reqwest_headers = reqwest::header::HeaderMap::new();
@@ -1255,7 +1255,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
     let mut request_details = api::IncomingWebhookRequestDetails {
         method: req.method().clone(),
         uri: req.uri().clone(),
-        headers: &convert_headers(&req.headers()),
+        headers: &convert_headers(req.headers()),
         query_params: req.query_string().to_string(),
         body: &body,
     };
