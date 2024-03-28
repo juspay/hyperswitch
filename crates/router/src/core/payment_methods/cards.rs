@@ -1422,12 +1422,21 @@ pub async fn list_payment_methods(
     let db = &*state.store;
     let pm_config_mapping = &state.conf.pm_filters;
 
-    let payment_intent = helpers::verify_payment_intent_time_and_client_secret(
-        db,
-        &merchant_account,
-        req.client_secret.clone(),
-    )
-    .await?;
+    let payment_intent = if let Some(cs) = &req.client_secret {
+        if cs.starts_with("pm_") {
+            let _ = authenticate_pm_client_secret(cs, db).await?;
+            None
+        } else {
+            helpers::verify_payment_intent_time_and_client_secret(
+                db,
+                &merchant_account,
+                req.client_secret.clone(),
+            )
+            .await?
+        }
+    } else {
+        None
+    };
 
     let shipping_address = payment_intent
         .as_ref()
@@ -1569,9 +1578,12 @@ pub async fn list_payment_methods(
             pm_config_mapping,
             &state.conf.mandates.supported_payment_methods,
             &state.conf.mandates.update_mandate_supported,
+            &state.conf.allowed_payment_methods_for_pm_client_secret,
         )
         .await?;
     }
+
+    println!("vec is {:?}", response);
 
     // Filter out wallet payment method from mca if customer has already saved it
     customer
@@ -2378,6 +2390,7 @@ pub async fn filter_payment_methods(
     config: &settings::ConnectorFilters,
     supported_payment_methods_for_mandate: &settings::SupportedPaymentMethodsForMandate,
     supported_payment_methods_for_update_mandate: &settings::SupportedPaymentMethodsForMandate,
+    allowed_payment_methods_for_pm_client_secret: &settings::AllowedPaymentMethodsPMClientSecret,
 ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
     for payment_method in payment_methods.into_iter() {
         let parse_result = serde_json::from_value::<PaymentMethodsEnabled>(payment_method);
@@ -2496,6 +2509,20 @@ pub async fn filter_payment_methods(
                         })
                         .unwrap_or(true);
 
+                    let filter9 = req
+                        .client_secret
+                        .as_ref()
+                        .map(|cs| {
+                            if cs.starts_with("pm_") {
+                                allowed_payment_methods_for_pm_client_secret
+                                    .allowed_pms
+                                    .contains(payment_method.to_string().as_str())
+                            } else {
+                                true
+                            }
+                        })
+                        .unwrap_or(true);
+
                     let connector = connector.clone();
 
                     let response_pm_type = ResponsePaymentMethodIntermediate::new(
@@ -2512,6 +2539,7 @@ pub async fn filter_payment_methods(
                         && filter6
                         && filter7
                         && filter8
+                        && filter9
                     {
                         resp.push(response_pm_type);
                     }
