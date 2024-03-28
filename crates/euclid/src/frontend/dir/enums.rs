@@ -6,6 +6,8 @@ pub use crate::enums::{
     Country as BillingCountry, Currency as PaymentCurrency, MandateAcceptanceType, MandateType,
     PaymentMethod, PaymentType, RoutableConnectors, SetupFutureUsage,
 };
+#[cfg(feature = "payouts")]
+pub use crate::enums::{PayoutBankTransferType, PayoutType, PayoutWalletType};
 
 #[derive(
     Clone,

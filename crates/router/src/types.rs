@@ -22,7 +22,7 @@ pub use api_models::{enums::Connector, mandates};
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 use common_enums::MandateStatus;
-pub use common_utils::request::{RequestBody, RequestContent};
+pub use common_utils::request::RequestContent;
 use common_utils::{pii, pii::Email};
 use data_models::mandates::{CustomerAcceptance, MandateData};
 use error_stack::{IntoReport, ResultExt};
@@ -723,9 +723,9 @@ impl Capturable for PaymentsCaptureData {
         let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
         match intent_status {
             common_enums::IntentStatus::Succeeded
-            | common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::Processing => Some(0),
-            common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::PartiallyCaptured => Some(0),
+            common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction

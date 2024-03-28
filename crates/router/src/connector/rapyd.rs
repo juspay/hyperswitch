@@ -222,7 +222,7 @@ impl
 
         let auth: rapyd::RapydAuthType = rapyd::RapydAuthType::try_from(&req.connector_auth_type)?;
         let body = types::PaymentsAuthorizeType::get_request_body(self, req, connectors)?;
-        let req_body = types::RequestBody::get_inner_value(body).expose();
+        let req_body = body.get_inner_value().expose();
         let signature =
             self.generate_signature(&auth, "post", "/v1/payments", &req_body, &timestamp, &salt)?;
         let headers = vec![
@@ -555,7 +555,7 @@ impl
             req.request.connector_transaction_id
         );
         let body = types::PaymentsCaptureType::get_request_body(self, req, connectors)?;
-        let req_body = types::RequestBody::get_inner_value(body).expose();
+        let req_body = body.get_inner_value().expose();
         let signature =
             self.generate_signature(&auth, "post", &url_path, &req_body, &timestamp, &salt)?;
         let headers = vec![
@@ -691,7 +691,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         let salt = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
 
         let body = types::RefundExecuteType::get_request_body(self, req, connectors)?;
-        let req_body = types::RequestBody::get_inner_value(body).expose();
+        let req_body = body.get_inner_value().expose();
         let auth: rapyd::RapydAuthType = rapyd::RapydAuthType::try_from(&req.connector_auth_type)?;
         let signature =
             self.generate_signature(&auth, "post", "/v1/refunds", &req_body, &timestamp, &salt)?;

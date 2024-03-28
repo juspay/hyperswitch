@@ -241,11 +241,7 @@ where
             .chars()
             .skip(base_url.len() - 1)
             .collect();
-        let sha256 = self.generate_digest(
-            types::RequestBody::get_inner_value(cybersource_req)
-                .expose()
-                .as_bytes(),
-        );
+        let sha256 = self.generate_digest(cybersource_req.get_inner_value().expose().as_bytes());
         let http_method = self.get_http_method();
         let signature = self.generate_signature(
             auth,
