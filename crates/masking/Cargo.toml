@@ -22,7 +22,7 @@ diesel = { version = "2.1.0", features = ["postgres", "serde_json", "time"], opt
 erased-serde = "0.3.31"
 serde = { version = "1", features = ["derive"], optional = true }
 serde_json = { version = "1.0.108", optional = true }
-subtle = "=2.4.1"
+subtle = "=2.5.0"
 zeroize = { version = "1.6", default-features = false }
 
 [dev-dependencies]

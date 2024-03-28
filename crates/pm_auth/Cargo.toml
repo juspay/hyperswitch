@@ -12,8 +12,6 @@ api_models = { version = "0.1.0", path = "../api_models" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
 masking = { version = "0.1.0", path = "../masking" }
-router_derive = { version = "0.1.0", path = "../router_derive" }
-router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
 
 # Third party crates
 async-trait = "0.1.66"
