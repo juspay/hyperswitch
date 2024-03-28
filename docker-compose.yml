@@ -122,6 +122,40 @@ services:
     labels:
       logs: "promtail"
 
+  # New services web client and React demo app
+
+  web-client:
+    build:
+      context: ../hyperswitch-web
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    networks:
+      - router_net  
+    depends_on:
+      - hyperswitch-server
+
+  hyperswitch-react-demo-app:
+    build:
+      context: ../hyperswitch-web/Hyperswitch-React-Demo-App
+      dockerfile: Dockerfile
+    ports:
+      - "3002:3002"    
+    networks:
+      - router_net  
+    depends_on:
+      - web-client  
+     
+
+  control-center:
+    image: juspaydotin/hyperswitch-control-center:latest
+    depends_on:
+      - web-client
+    environment:
+      - sdkBaseUrl=http://localhost:3001   
+    networks:
+      - router_net      
+
   ### Clustered Redis setup
   redis-cluster:
     image: redis:7
