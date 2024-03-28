@@ -758,7 +758,7 @@ where
                 .set_authorization_count(payment_intent.authorization_count)
                 .set_incremental_authorizations(incremental_authorizations_response)
                 .set_expires_on(payment_intent.session_expiry)
-                .set_browser_information(payment_attempt.browser_info)
+                .set_browser_info(payment_attempt.browser_info)
                 .set_external_3ds_authentication_attempted(
                     payment_attempt.external_three_ds_authentication_attempted,
                 )

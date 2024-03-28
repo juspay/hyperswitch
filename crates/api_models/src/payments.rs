@@ -3155,7 +3155,8 @@ pub struct PaymentsResponse {
 
     #[schema(value_type = Option<BrowserInformation>)]
     /// The browser information used for this payment
-    pub browser_information: Option<serde_json::Value>,
+    pub browser_info: Option<serde_json::Value>,
+
     /// Payment Method Id
     pub payment_method_id: Option<String>,
 
