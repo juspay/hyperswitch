@@ -56,12 +56,6 @@ impl OutgoingWebhookType for webhooks::OutgoingWebhook {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub(crate) enum WebhookDeliveryAttempt {
-    InitialAttempt,
-    AutomaticRetry,
-}
-
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub(crate) struct OutgoingWebhookTrackingData {
     pub(crate) merchant_id: String,
@@ -71,17 +65,4 @@ pub(crate) struct OutgoingWebhookTrackingData {
     pub(crate) primary_object_id: String,
     pub(crate) primary_object_type: enums::EventObjectType,
     pub(crate) initial_attempt_id: Option<String>,
-}
-
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub(crate) struct OutgoingWebhookRequestContent {
-    pub(crate) payload: Secret<String>,
-    pub(crate) headers: Vec<(String, Secret<String>)>,
-}
-
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub(crate) struct OutgoingWebhookResponseContent {
-    pub(crate) payload: Secret<String>,
-    pub(crate) headers: Vec<(String, Secret<String>)>,
-    pub(crate) status_code: u16,
 }

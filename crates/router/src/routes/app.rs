@@ -34,7 +34,7 @@ use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_ve
 #[cfg(feature = "olap")]
 use super::{
     admin::*, api_keys::*, connector_onboarding::*, disputes::*, files::*, gsm::*, payment_link::*,
-    user::*, user_role::*,
+    user::*, user_role::*, webhook_events::*,
 };
 use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
@@ -1226,5 +1226,21 @@ impl ConnectorOnboarding {
             .service(web::resource("/action_url").route(web::post().to(get_action_url)))
             .service(web::resource("/sync").route(web::post().to(sync_onboarding_status)))
             .service(web::resource("/reset_tracking_id").route(web::post().to(reset_tracking_id)))
+    }
+}
+
+#[cfg(feature = "olap")]
+pub struct WebhookEvents;
+
+#[cfg(feature = "olap")]
+impl WebhookEvents {
+    pub fn server(config: AppState) -> Scope {
+        web::scope("/events/{merchant_id_or_profile_id}")
+            .app_data(web::Data::new(config))
+            .service(web::resource("").route(web::get().to(list_initial_webhook_delivery_attempts)))
+            .service(
+                web::resource("/{event_id}/attempts")
+                    .route(web::get().to(list_webhook_delivery_attempts)),
+            )
     }
 }

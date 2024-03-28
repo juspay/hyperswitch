@@ -18,7 +18,7 @@ You can also get help with contributing on our [Discord server][discord],
 Please join us!
 
 [discord]: https://discord.gg/wJZ7DVW8mm
-[slack]: https://join.slack.com/t/hyperswitch-io/shared_invite/zt-1k6cz4lee-SAJzhz6bjmpp4jZCDOtOIg
+[slack]: https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2awm23agh-p_G5xNpziv6yAiedTkkqLg
 [discussions]: https://github.com/juspay/hyperswitch/discussions
 
 ## Table of Contents

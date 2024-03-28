@@ -9,7 +9,7 @@ use super::app::AppState;
 use crate::types::api::payments as payment_types;
 use crate::{
     core::{api_locking, payouts::*},
-    services::{api, authentication as auth},
+    services::{api, authentication as auth, authorization::permissions::Permission},
     types::api::payouts as payout_types,
 };
 
@@ -81,7 +81,11 @@ pub async fn payouts_retrieve(
         |state, auth, req, _| {
             payouts_retrieve_core(state, auth.merchant_account, auth.key_store, req)
         },
-        &auth::ApiKeyAuth,
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::PayoutRead),
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -235,7 +239,11 @@ pub async fn payouts_list(
         &req,
         payload,
         |state, auth, req, _| payouts_list_core(state, auth.merchant_account, req),
-        &auth::ApiKeyAuth,
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::PayoutRead),
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -269,7 +277,11 @@ pub async fn payouts_list_by_filter(
         &req,
         payload,
         |state, auth, req, _| payouts_filtered_list_core(state, auth.merchant_account, req),
-        &auth::ApiKeyAuth,
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::PayoutRead),
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -305,7 +317,11 @@ pub async fn payouts_list_available_filters(
         |state, auth, req, _| {
             payouts_list_available_filters_core(state, auth.merchant_account, req)
         },
-        &auth::ApiKeyAuth,
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::PayoutRead),
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await
