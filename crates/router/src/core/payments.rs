@@ -2206,6 +2206,7 @@ pub mod payment_address {
             self.unified_payment_method_billing.as_ref()
         }
 
+        /// Unify the billing details from `payment_method_data.[payment_method_data].billing details`.
         pub fn unify_with_payment_method_data_billing(
             self,
             payment_method_data_billing: Option<api::Address>,

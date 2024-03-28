@@ -20,7 +20,6 @@ pub fn generate_card_from_details(
         card_network: None,
         card_exp_year: masking::Secret::new(card_exp_year),
         card_exp_month: masking::Secret::new(card_exp_month),
-        card_holder_name: Some(masking::Secret::new("HyperSwitch".to_string())),
         nick_name: None,
         card_type: None,
         card_issuing_country: None,

@@ -88,6 +88,8 @@ pub trait RouterData {
 
     fn get_optional_billing(&self) -> Option<&api::Address>;
     fn get_optional_shipping(&self) -> Option<&api::Address>;
+
+    fn get_optional_billing_name(&self) -> Option<Secret<String>>;
 }
 
 pub trait PaymentResponseRouterData {
@@ -255,6 +257,12 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
         self.recurring_mandate_payment_data
             .to_owned()
             .ok_or_else(missing_field_err("recurring_mandate_payment_data"))
+    }
+
+    fn get_optional_billing_name(&self) -> Option<Secret<String>> {
+        self.get_optional_billing()
+            .and_then(|billing_details| billing_details.address.as_ref())
+            .and_then(|billing_address| billing_address.get_combined_name())
     }
 
     #[cfg(feature = "payouts")]

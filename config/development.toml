@@ -239,9 +239,9 @@ workers = 1
 
 [cors]
 max_age = 30
-# origins = "http://localhost:8080,http://localhost:9000"
+origins = "http://localhost:8080,http://localhost:9000"
 allowed_methods = "GET,POST,PUT,DELETE"
-wildcard_origin = true
+wildcard_origin = false
 
 [email]
 sender_email = "example@example.com"

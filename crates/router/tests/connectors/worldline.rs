@@ -48,6 +48,8 @@ impl WorldlineTest {
                 Some(Address {
                     address: Some(AddressDetails {
                         country: Some(api_models::enums::CountryAlpha2::US),
+                        first_name: Some(Secret::new(String::from("John"))),
+                        last_name: Some(Secret::new(String::from("Dough"))),
                         ..Default::default()
                     }),
                     phone: None,
@@ -73,7 +75,6 @@ impl WorldlineTest {
                 card_number: cards::CardNumber::from_str(card_number).unwrap(),
                 card_exp_month: Secret::new(card_exp_month.to_string()),
                 card_exp_year: Secret::new(card_exp_year.to_string()),
-                card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
                 card_cvc: Secret::new(card_cvc.to_string()),
                 card_issuer: None,
                 card_network: None,

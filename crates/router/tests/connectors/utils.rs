@@ -54,6 +54,27 @@ pub struct PaymentInfo {
     pub country: Option<enums::CountryAlpha2>,
 }
 
+impl PaymentInfo {
+    pub fn with_default_billing_name() -> Self {
+        Self {
+            address: Some(types::PaymentAddress::new(
+                None,
+                None,
+                Some(types::api::Address {
+                    address: Some(types::api::AddressDetails {
+                        first_name: Some(Secret::new("John".to_string())),
+                        last_name: Some(Secret::new("Doe".to_string())),
+                        ..Default::default()
+                    }),
+                    phone: None,
+                    email: None,
+                }),
+            )),
+            ..Default::default()
+        }
+    }
+}
+
 #[async_trait]
 pub trait ConnectorActions: Connector {
     /// For initiating payments when `CaptureMethod` is set to `Manual`
@@ -875,7 +896,6 @@ impl Default for CCardType {
             card_number: cards::CardNumber::from_str("4200000000000000").unwrap(),
             card_exp_month: Secret::new("10".to_string()),
             card_exp_year: Secret::new("2025".to_string()),
-            card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
             card_cvc: Secret::new("999".to_string()),
             card_issuer: None,
             card_network: None,

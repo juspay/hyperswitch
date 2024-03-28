@@ -5,7 +5,7 @@ use router::types::{self, domain, storage::enums};
 
 use crate::{
     connector_auth,
-    utils::{self, ConnectorActions},
+    utils::{self, ConnectorActions, PaymentInfo},
 };
 
 #[derive(Clone, Copy)]
@@ -42,7 +42,6 @@ fn get_payment_method_data() -> domain::Card {
         card_number: cards::CardNumber::from_str("5424000000000015").unwrap(),
         card_exp_month: Secret::new("02".to_string()),
         card_exp_year: Secret::new("2035".to_string()),
-        card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
         card_cvc: Secret::new("123".to_string()),
         ..Default::default()
     }
@@ -62,7 +61,7 @@ async fn should_only_authorize_payment() {
                 capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
                 ..utils::PaymentAuthorizeType::default().0
             }),
-            None,
+            Some(PaymentInfo::with_default_billing_name()),
         )
         .await
         .expect("Authorize payment response");
@@ -99,7 +98,7 @@ async fn should_capture_authorized_payment() {
                 capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
                 ..utils::PaymentAuthorizeType::default().0
             }),
-            None,
+            Some(PaymentInfo::with_default_billing_name()),
         )
         .await
         .expect("Authorize payment response");
@@ -163,7 +162,7 @@ async fn should_partially_capture_authorized_payment() {
                 capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
                 ..utils::PaymentAuthorizeType::default().0
             }),
-            None,
+            Some(PaymentInfo::with_default_billing_name()),
         )
         .await
         .expect("Authorize payment response");
@@ -227,7 +226,7 @@ async fn should_sync_authorized_payment() {
                 capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
                 ..utils::PaymentAuthorizeType::default().0
             }),
-            None,
+            Some(PaymentInfo::with_default_billing_name()),
         )
         .await
         .expect("Authorize payment response");
@@ -263,7 +262,7 @@ async fn should_void_authorized_payment() {
                 capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
                 ..utils::PaymentAuthorizeType::default().0
             }),
-            None,
+            Some(PaymentInfo::with_default_billing_name()),
         )
         .await
         .expect("Authorize payment response");

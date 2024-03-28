@@ -4,10 +4,10 @@ use cards::CardNumber;
 use common_utils::{
     consts::default_payments_list_limit,
     crypto,
-    ext_traits::Encode,
+    ext_traits::{ConfigExt, Encode},
     pii::{self, Email},
 };
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 use router_derive::Setter;
 use serde::{
     de::{self, Unexpected, Visitor},
@@ -908,6 +908,34 @@ pub struct Card {
     pub nick_name: Option<Secret<String>>,
 }
 
+impl GetAddressFromPaymentMethodData for Card {
+    fn get_billing_address(&self) -> Option<Address> {
+        // Create billing address if first_name is some or if it is not ""
+        self.card_holder_name
+            .as_ref()
+            .and_then(|card_holder_name| {
+                if card_holder_name.is_empty_after_trim() {
+                    None
+                } else {
+                    Some(card_holder_name)
+                }
+            })
+            .and_then(|card_holder_name| card_holder_name.peek().split_once(' '))
+            .map(|(first_name, last_name)| AddressDetails {
+                first_name: Some(Secret::new(first_name.to_string())),
+                last_name: (!last_name.is_empty()) // split_once will return "" if no last name
+                    .then_some(last_name.to_string())
+                    .map(Secret::new),
+                ..Default::default()
+            })
+            .map(|address_details| Address {
+                address: Some(address_details),
+                phone: None,
+                email: None,
+            })
+    }
+}
+
 impl Card {
     fn apply_additional_card_info(&self, additional_card_info: AdditionalCardInfo) -> Self {
         Self {
@@ -1291,7 +1319,7 @@ pub trait GetAddressFromPaymentMethodData {
 impl GetAddressFromPaymentMethodData for PaymentMethodData {
     fn get_billing_address(&self) -> Option<Address> {
         match self {
-            Self::Card(_) => None,
+            Self::Card(card_data) => card_data.get_billing_address(),
             Self::CardRedirect(_) => None,
             Self::Wallet(_) => None,
             Self::PayLater(_) => None,
@@ -2624,6 +2652,20 @@ pub struct AddressDetails {
     /// The last name for the address
     #[schema(value_type = Option<String>, max_length = 255, example = "Doe")]
     pub last_name: Option<Secret<String>>,
+}
+
+impl AddressDetails {
+    pub fn get_combined_name(&self) -> Option<Secret<String>> {
+        match (self.first_name.as_ref(), self.last_name.as_ref()) {
+            (Some(first_name), Some(last_name)) => Some(Secret::new(format!(
+                "{} {}",
+                first_name.peek(),
+                last_name.peek()
+            ))),
+            (Some(name), None) | (None, Some(name)) => Some(Secret::new(name.peek().to_string())),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, ToSchema, serde::Deserialize, serde::Serialize)]
@@ -4532,11 +4574,14 @@ mod payments_request_api_contract {
 mod billing_from_payment_method_data {
     #![allow(clippy::unwrap_used)]
     use common_enums::CountryAlpha2;
+    use masking::ExposeOptionInterface;
 
     use super::*;
 
     const TEST_COUNTRY: CountryAlpha2 = CountryAlpha2::US;
     const TEST_FIRST_NAME: &str = "John";
+    const TEST_LAST_NAME: &str = "Dough";
+    const TEST_FULL_NAME: &str = "John Dough";
 
     #[test]
     fn test_wallet_payment_method_data_paypal() {
@@ -4664,5 +4709,38 @@ mod billing_from_payment_method_data {
         let billing_address = card_payment_method_data.get_billing_address();
 
         assert!(billing_address.is_none());
+    }
+
+    #[test]
+    fn test_card_payment_method_data_full_name() {
+        let card_payment_method_data = PaymentMethodData::Card(Card {
+            card_holder_name: Some(Secret::new(TEST_FULL_NAME.into())),
+            ..Default::default()
+        });
+
+        let billing_details = card_payment_method_data.get_billing_address().unwrap();
+        let billing_address = billing_details.address.unwrap();
+
+        assert_eq!(
+            billing_address.first_name.expose_option(),
+            Some(TEST_FIRST_NAME.into())
+        );
+
+        assert_eq!(
+            billing_address.last_name,
+            Some(Secret::new(TEST_LAST_NAME.into()))
+        );
+    }
+
+    #[test]
+    fn test_card_payment_method_data_empty_string() {
+        let card_payment_method_data = PaymentMethodData::Card(Card {
+            card_holder_name: Some(Secret::new("".to_string())),
+            ..Default::default()
+        });
+
+        let billing_details = card_payment_method_data.get_billing_address();
+
+        assert!(billing_details.is_none());
     }
 }

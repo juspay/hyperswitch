@@ -302,14 +302,14 @@ impl
     }
 }
 
-impl TryFrom<domain::payments::Card> for PaymentDetails {
+impl TryFrom<(domain::payments::Card, Option<Secret<String>>)> for PaymentDetails {
     type Error = Error;
-    fn try_from(card_data: domain::payments::Card) -> Result<Self, Self::Error> {
+    fn try_from(
+        (card_data, card_holder_name): (domain::payments::Card, Option<Secret<String>>),
+    ) -> Result<Self, Self::Error> {
         Ok(Self::AciCard(Box::new(CardDetails {
             card_number: card_data.card_number,
-            card_holder: card_data
-                .card_holder_name
-                .unwrap_or(Secret::new("".to_string())),
+            card_holder: card_holder_name.unwrap_or(Secret::new("".to_string())),
             card_expiry_month: card_data.card_exp_month,
             card_expiry_year: card_data.card_exp_year,
             card_cvv: card_data.card_cvc,
@@ -568,8 +568,9 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let (item, card_data) = value;
+        let card_holder_name = item.router_data.get_optional_billing_name();
         let txn_details = get_transaction_details(item)?;
-        let payment_method = PaymentDetails::try_from(card_data.clone())?;
+        let payment_method = PaymentDetails::try_from((card_data.clone(), card_holder_name))?;
         let instruction = get_instruction_details(item);
 
         Ok(Self {

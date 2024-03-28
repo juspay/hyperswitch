@@ -1963,16 +1963,18 @@ impl<'a> TryFrom<&api_models::payments::GiftCardData> for AdyenPaymentMethod<'a>
     }
 }
 
-impl<'a> TryFrom<&domain::Card> for AdyenPaymentMethod<'a> {
+impl<'a> TryFrom<(&domain::Card, Option<Secret<String>>)> for AdyenPaymentMethod<'a> {
     type Error = Error;
-    fn try_from(card: &domain::Card) -> Result<Self, Self::Error> {
+    fn try_from(
+        (card, card_holder_name): (&domain::Card, Option<Secret<String>>),
+    ) -> Result<Self, Self::Error> {
         let adyen_card = AdyenCard {
             payment_type: PaymentType::Scheme,
             number: card.card_number.clone(),
             expiry_month: card.card_exp_month.clone(),
             expiry_year: card.get_expiry_year_4_digit(),
             cvc: Some(card.card_cvc.clone()),
-            holder_name: card.card_holder_name.clone(),
+            holder_name: card_holder_name,
             brand: None,
             network_payment_reference: None,
         };
@@ -2570,13 +2572,14 @@ impl<'a>
                     domain::PaymentMethodData::Card(ref card) => {
                         let card_issuer = card.get_card_issuer()?;
                         let brand = CardBrand::try_from(&card_issuer)?;
+                        let card_holder_name = item.router_data.get_optional_billing_name();
                         let adyen_card = AdyenCard {
                             payment_type: PaymentType::Scheme,
                             number: card.card_number.clone(),
                             expiry_month: card.card_exp_month.clone(),
                             expiry_year: card.card_exp_year.clone(),
                             cvc: None,
-                            holder_name: card.card_holder_name.clone(),
+                            holder_name: card_holder_name,
                             brand: Some(brand),
                             network_payment_reference: Some(Secret::new(network_mandate_id)),
                         };
@@ -2660,7 +2663,8 @@ impl<'a>
         let country_code = get_country_code(item.router_data.get_optional_billing());
         let additional_data = get_additional_data(item.router_data);
         let return_url = item.router_data.request.get_return_url()?;
-        let payment_method = AdyenPaymentMethod::try_from(card_data)?;
+        let card_holder_name = item.router_data.get_optional_billing_name();
+        let payment_method = AdyenPaymentMethod::try_from((card_data, card_holder_name))?;
         let shopper_email = item.router_data.request.email.clone();
         let shopper_name = get_shopper_name(item.router_data.get_optional_billing());
 

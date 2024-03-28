@@ -5,7 +5,7 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
-    connector::utils::{BrowserInformationData, PaymentsAuthorizeRequestData},
+    connector::utils::{BrowserInformationData, PaymentsAuthorizeRequestData, RouterData},
     consts,
     core::errors,
     services,
@@ -117,8 +117,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest {
                     enums::AuthenticationType::NoThreeDs => None,
                 };
                 let bambora_card = BamboraCard {
-                    name: req_card
-                        .card_holder_name
+                    name: item
+                        .get_optional_billing_name()
                         .unwrap_or(Secret::new("".to_string())),
                     number: req_card.card_number,
                     expiry_month: req_card.card_exp_month,
