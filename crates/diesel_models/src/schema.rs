@@ -898,7 +898,7 @@ diesel::table! {
         direct_debit_token -> Nullable<Varchar>,
         created_at -> Timestamp,
         last_modified -> Timestamp,
-        payment_method -> Varchar,
+        payment_method -> Nullable<Varchar>,
         #[max_length = 64]
         payment_method_type -> Nullable<Varchar>,
         #[max_length = 128]
@@ -913,6 +913,8 @@ diesel::table! {
         customer_acceptance -> Nullable<Jsonb>,
         #[max_length = 64]
         status -> Varchar,
+        #[max_length = 128]
+        client_secret -> Nullable<Varchar>,
     }
 }
 

@@ -1,5 +1,6 @@
 use api_models::mandates;
 pub use api_models::mandates::{MandateId, MandateResponse, MandateRevokedResponse};
+use common_utils::ext_traits::OptionExt;
 use error_stack::ResultExt;
 use masking::PeekInterface;
 use serde::{Deserialize, Serialize};
@@ -44,7 +45,13 @@ impl MandateResponseExt for MandateResponse {
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
-        let card = if payment_method.payment_method == storage_enums::PaymentMethod::Card {
+        let pm = payment_method
+            .payment_method
+            .get_required_value("payment_method")
+            .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
+            .attach_printable("payment_method not found")?;
+
+        let card = if pm == storage_enums::PaymentMethod::Card {
             // if locker is disabled , decrypt the payment method data
             let card_details = if state.conf.locker.locker_enabled {
                 let card = payment_methods::cards::get_card_from_locker(
@@ -93,7 +100,7 @@ impl MandateResponseExt for MandateResponse {
             }),
             card,
             status: mandate.mandate_status,
-            payment_method: payment_method.payment_method.to_string(),
+            payment_method: pm.to_string(),
             payment_method_type,
             payment_method_id: mandate.payment_method_id,
         })
