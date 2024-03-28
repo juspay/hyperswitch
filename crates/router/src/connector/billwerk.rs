@@ -7,6 +7,7 @@ use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as billwerk;
 
+use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
     consts,
@@ -25,8 +26,6 @@ use crate::{
     },
     utils::BytesExt,
 };
-
-use super::utils::RefundsRequestData;
 
 #[derive(Debug, Clone)]
 pub struct Billwerk;
