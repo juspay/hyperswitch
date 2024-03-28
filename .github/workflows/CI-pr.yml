@@ -136,7 +136,11 @@ jobs:
           # Obtain a list of workspace members
           workspace_members="$(
             cargo metadata --format-version 1 --no-deps \
-              | jq --compact-output --monochrome-output --raw-output '.workspace_members | sort | .[] | split(" ")[0]'
+              | jq \
+                --compact-output \
+                --monochrome-output \
+                --raw-output \
+                '(.workspace_members | sort) as $package_ids | .packages[] | select(IN(.id; $package_ids[])) | .name'
           )"
 
           PACKAGES_CHECKED=()
@@ -293,7 +297,11 @@ jobs:
           # Obtain a list of workspace members
           workspace_members="$(
             cargo metadata --format-version 1 --no-deps \
-              | jq --compact-output --monochrome-output --raw-output '.workspace_members | sort | .[] | split(" ")[0]'
+              | jq \
+                --compact-output \
+                --monochrome-output \
+                --raw-output \
+                '(.workspace_members | sort) as $package_ids | .packages[] | select(IN(.id; $package_ids[])) | .name'
           )"
 
           PACKAGES_CHECKED=()
