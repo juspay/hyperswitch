@@ -2,16 +2,15 @@ use api_models::analytics::search::{
     GetGlobalSearchRequest, GetSearchRequestWithIndex, GetSearchResponse, OpenMsearchOutput,
     OpensearchOutput, SearchIndex,
 };
-
 use common_utils::errors::CustomResult;
-// use common_utils::errors::ReportSwitchExt;
-use serde_json::{Value};
-use strum::IntoEnumIterator;
 use error_stack::ResultExt;
+// use common_utils::errors::ReportSwitchExt;
+use serde_json::Value;
+use strum::IntoEnumIterator;
 
 use crate::{
     errors::AnalyticsError,
-    opensearch::{OpenSearchQueryBuilder, OpenSearchQuery, OpenSearchClient},
+    opensearch::{OpenSearchClient, OpenSearchQuery, OpenSearchQueryBuilder},
 };
 
 pub async fn msearch_results(
@@ -19,14 +18,16 @@ pub async fn msearch_results(
     req: GetGlobalSearchRequest,
     merchant_id: &String,
 ) -> CustomResult<Vec<GetSearchResponse>, AnalyticsError> {
-
     let mut query_builder = OpenSearchQueryBuilder::new(OpenSearchQuery::Msearch, req.query);
 
-    query_builder.add_filter_clause("merchant_id".to_string(), merchant_id.to_string()).change_context(AnalyticsError::UnknownError)?;
+    query_builder
+        .add_filter_clause("merchant_id".to_string(), merchant_id.to_string())
+        .change_context(AnalyticsError::UnknownError)?;
 
-    let response_body = client.execute(query_builder)
+    let response_body = client
+        .execute(query_builder)
         .await
-        .change_context(AnalyticsError::UnknownError)?  
+        .change_context(AnalyticsError::UnknownError)?
         .json::<OpenMsearchOutput<Value>>()
         .await
         .map_err(|_| AnalyticsError::UnknownError)?;
@@ -55,13 +56,19 @@ pub async fn search_results(
 ) -> CustomResult<GetSearchResponse, AnalyticsError> {
     let search_req = req.search_req;
 
-    let mut query_builder = OpenSearchQueryBuilder::new(OpenSearchQuery::Search(req.index), search_req.query);
+    let mut query_builder =
+        OpenSearchQueryBuilder::new(OpenSearchQuery::Search(req.index), search_req.query);
 
-    query_builder.add_filter_clause("merchant_id".to_string(), merchant_id.to_string()).change_context(AnalyticsError::UnknownError)?;
+    query_builder
+        .add_filter_clause("merchant_id".to_string(), merchant_id.to_string())
+        .change_context(AnalyticsError::UnknownError)?;
 
-    query_builder.set_offset_n_count(search_req.offset, search_req.count).change_context(AnalyticsError::UnknownError)?;
+    query_builder
+        .set_offset_n_count(search_req.offset, search_req.count)
+        .change_context(AnalyticsError::UnknownError)?;
 
-    let response_body = client.execute(query_builder)
+    let response_body = client
+        .execute(query_builder)
         .await
         .change_context(AnalyticsError::UnknownError)?
         .json::<OpensearchOutput<Value>>()

@@ -1,4 +1,3 @@
-use super::{health_check::HealthCheck, query::QueryResult, types::QueryExecutionError};
 use api_models::analytics::search::SearchIndex;
 use aws_config::{self, meta::region::RegionProviderChain, Region};
 use common_utils::errors::CustomResult;
@@ -19,6 +18,8 @@ use opensearch::{
 use serde_json::{json, Value};
 use storage_impl::errors::ApplicationError;
 use strum::IntoEnumIterator;
+
+use super::{health_check::HealthCheck, query::QueryResult, types::QueryExecutionError};
 
 #[derive(Clone, Debug, serde::Deserialize)]
 #[serde(tag = "auth")]
@@ -332,7 +333,8 @@ impl OpenSearchQueryBuilder {
     }
 
     pub fn construct_payload(&self, indexes: Vec<SearchIndex>) -> QueryResult<Vec<Value>> {
-        let mut query = vec![json!({"multi_match": {"type": "phrase", "query": self.query, "lenient": true}})];
+        let mut query =
+            vec![json!({"multi_match": {"type": "phrase", "query": self.query, "lenient": true}})];
 
         let mut filters = self
             .filters
@@ -341,8 +343,9 @@ impl OpenSearchQueryBuilder {
             .collect::<Vec<Value>>();
 
         // TODO add index specific filters
-        Ok(indexes.iter().map(|_| {
-            json!({"query": {"bool": {"filter": query.append(&mut filters)}}})
-        }).collect::<Vec<Value>>())
+        Ok(indexes
+            .iter()
+            .map(|_| json!({"query": {"bool": {"filter": query.append(&mut filters)}}}))
+            .collect::<Vec<Value>>())
     }
 }
