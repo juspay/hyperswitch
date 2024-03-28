@@ -723,9 +723,9 @@ impl Capturable for PaymentsCaptureData {
         let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
         match intent_status {
             common_enums::IntentStatus::Succeeded
-            | common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::Processing => Some(0),
-            common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::PartiallyCaptured => Some(0),
+            common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
