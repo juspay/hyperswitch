@@ -7,6 +7,7 @@ use crate::{
     services::{api, authentication as auth, authorization::permissions::Permission},
     types::api::webhook_events::{
         EventListConstraints, EventListRequestInternal, WebhookDeliveryAttemptListRequestInternal,
+        WebhookDeliveryRetryRequestInternal,
     },
 };
 
@@ -82,6 +83,45 @@ pub async fn list_webhook_delivery_attempts(
             &auth::JWTAuthMerchantOrProfileFromRoute {
                 merchant_id_or_profile_id,
                 required_permission: Permission::WebhookEventRead,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::WebhookEventDeliveryRetry))]
+pub async fn retry_webhook_delivery_attempt(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<(String, String)>,
+) -> impl Responder {
+    let flow = Flow::WebhookEventDeliveryRetry;
+    let (merchant_id_or_profile_id, event_id) = path.into_inner();
+
+    let request_internal = WebhookDeliveryRetryRequestInternal {
+        merchant_id_or_profile_id: merchant_id_or_profile_id.clone(),
+        event_id,
+    };
+
+    api::server_wrap(
+        flow,
+        state,
+        &req,
+        request_internal,
+        |state, _, request_internal| {
+            webhook_events::retry_delivery_attempt(
+                state,
+                request_internal.merchant_id_or_profile_id,
+                request_internal.event_id,
+            )
+        },
+        auth::auth_type(
+            &auth::AdminApiAuth,
+            &auth::JWTAuthMerchantOrProfileFromRoute {
+                merchant_id_or_profile_id,
+                required_permission: Permission::WebhookEventWrite,
             },
             req.headers(),
         ),

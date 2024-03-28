@@ -1228,8 +1228,15 @@ impl WebhookEvents {
             .app_data(web::Data::new(config))
             .service(web::resource("").route(web::get().to(list_initial_webhook_delivery_attempts)))
             .service(
-                web::resource("/{event_id}/attempts")
-                    .route(web::get().to(list_webhook_delivery_attempts)),
+                web::scope("/{event_id}")
+                    .service(
+                        web::resource("attempts")
+                            .route(web::get().to(list_webhook_delivery_attempts)),
+                    )
+                    .service(
+                        web::resource("retry")
+                            .route(web::post().to(retry_webhook_delivery_attempt)),
+                    ),
             )
     }
 }

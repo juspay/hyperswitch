@@ -394,6 +394,8 @@ pub enum Flow {
     WebhookEventInitialDeliveryAttemptList,
     /// List delivery attempts for a webhook event
     WebhookEventDeliveryAttemptList,
+    /// Manually retry the delivery for a webhook event
+    WebhookEventDeliveryRetry,
 }
 
 ///
