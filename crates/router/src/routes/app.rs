@@ -49,6 +49,7 @@ use crate::routes::recon as recon_routes;
 #[cfg(feature = "olap")]
 use crate::routes::verify_connector::payment_connector_verify;
 pub use crate::{
+    analytics::opensearch::OpenSearchClient,
     configs::settings,
     core::routing,
     db::{StorageImpl, StorageInterface},
@@ -68,6 +69,8 @@ pub struct AppState {
     pub api_client: Box<dyn crate::services::ApiClient>,
     #[cfg(feature = "olap")]
     pub pool: crate::analytics::AnalyticsProvider,
+    #[cfg(feature = "olap")]
+    pub opensearch_client: OpenSearchClient,
     pub request_id: Option<RequestId>,
     pub file_storage_client: Box<dyn FileStorageInterface>,
     pub encryption_client: Box<dyn EncryptionManagementInterface>,
@@ -172,6 +175,13 @@ impl AppState {
                 .await
                 .expect("Failed to create event handler");
 
+            #[allow(clippy::expect_used)]
+            let opensearch_client = conf
+                .opensearch
+                .get_opensearch_client()
+                .await
+                .expect("Failed to create opensearch client");
+
             let store: Box<dyn StorageInterface> = match storage_impl {
                 StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match &event_handler {
                     EventsHandler::Kafka(kafka_client) => Box::new(
@@ -218,6 +228,8 @@ impl AppState {
                 event_handler,
                 #[cfg(feature = "olap")]
                 pool,
+                #[cfg(feature = "olap")]
+                opensearch_client,
                 request_id: None,
                 file_storage_client,
                 encryption_client,
