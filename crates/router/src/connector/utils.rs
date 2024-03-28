@@ -996,7 +996,7 @@ fn get_card_issuer(card_number: &str) -> Result<CardIssuer, Error> {
 }
 pub trait WalletData {
     fn get_wallet_token(&self) -> Result<Secret<String>, Error>;
-    fn get_wallet_token_as_json<T>(&self) -> Result<T, Error>
+    fn get_wallet_token_as_json<T>(&self, wallet_name: String) -> Result<T, Error>
     where
         T: serde::de::DeserializeOwned;
     fn get_encoded_wallet_token(&self) -> Result<String, Error>;
@@ -1011,26 +1011,31 @@ impl WalletData for api::WalletData {
             _ => Err(errors::ConnectorError::InvalidWallet.into()),
         }
     }
-    fn get_wallet_token_as_json<T>(&self) -> Result<T, Error>
+    fn get_wallet_token_as_json<T>(&self, wallet_name: String) -> Result<T, Error>
     where
         T: serde::de::DeserializeOwned,
     {
         serde_json::from_str::<T>(self.get_wallet_token()?.peek())
             .into_report()
-            .change_context(errors::ConnectorError::InvalidWalletToken)
+            .change_context(errors::ConnectorError::InvalidWalletToken { wallet_name })
     }
 
     fn get_encoded_wallet_token(&self) -> Result<String, Error> {
         match self {
             Self::GooglePay(_) => {
-                let json_token: serde_json::Value = self.get_wallet_token_as_json()?;
+                let json_token: serde_json::Value =
+                    self.get_wallet_token_as_json("Google Pay".to_owned())?;
                 let token_as_vec = serde_json::to_vec(&json_token)
                     .into_report()
-                    .change_context(errors::ConnectorError::InvalidWalletToken)?;
+                    .change_context(errors::ConnectorError::InvalidWalletToken {
+                        wallet_name: "Google Pay".to_string(),
+                    })?;
                 let encoded_token = consts::BASE64_ENGINE.encode(token_as_vec);
                 Ok(encoded_token)
             }
-            _ => Err(errors::ConnectorError::InvalidWalletToken.into()),
+            _ => Err(
+                errors::ConnectorError::NotImplemented("SELECTED PAYMENT METHOD".to_owned()).into(),
+            ),
         }
     }
 }
@@ -1046,10 +1051,14 @@ impl ApplePay for payments::ApplePayWalletData {
                 consts::BASE64_ENGINE
                     .decode(&self.payment_data)
                     .into_report()
-                    .change_context(errors::ConnectorError::InvalidWalletToken)?,
+                    .change_context(errors::ConnectorError::InvalidWalletToken {
+                        wallet_name: "Apple Pay".to_string(),
+                    })?,
             )
             .into_report()
-            .change_context(errors::ConnectorError::InvalidWalletToken)?,
+            .change_context(errors::ConnectorError::InvalidWalletToken {
+                wallet_name: "Apple Pay".to_string(),
+            })?,
         );
         Ok(token)
     }
