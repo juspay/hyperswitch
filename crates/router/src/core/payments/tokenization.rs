@@ -109,7 +109,6 @@ where
                     .get_setup_future_usage()
                     .map(|future_usage| future_usage == storage_enums::FutureUsage::OffSession)
                     .unwrap_or(false);
-            println!("ENTER");
             // insert in PaymentMethods if its a off-session mit payment
             let connector_mandate_details = if check_for_mit_mandates {
                 add_connector_mandate_details_in_payment_method(
@@ -128,7 +127,6 @@ where
             .attach_printable("Unable to serialize customer acceptance to value")?;
 
             let pm_id = if customer_acceptance.is_some() {
-                println!("ENTER HERE");
                 let customer = maybe_customer.to_owned().get_required_value("customer")?;
                 let payment_method_create_request = helpers::get_payment_method_create_request(
                     Some(&resp.request.get_payment_method_data()),
@@ -752,7 +750,7 @@ pub async fn update_connector_mandate_details_in_payment_method(
     merchant_connector_id: Option<String>,
     connector_mandate_id: Option<String>,
 ) -> RouterResult<Option<serde_json::Value>> {
-    let connector_mandate_details = match payment_method.connector_mandate_details {
+    let mandate_reference = match payment_method.connector_mandate_details {
         Some(_) => {
             let mandate_details = payment_method
                 .connector_mandate_details
@@ -763,7 +761,7 @@ pub async fn update_connector_mandate_details_in_payment_method(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to deserialize to Payment Mandate Reference ")?;
 
-            let mandate_reference = if let Some((mca_id, connector_mandate_id)) =
+            if let Some((mca_id, connector_mandate_id)) =
                 merchant_connector_id.clone().zip(connector_mandate_id)
             {
                 let updated_record = storage::PaymentsMandateReferenceRecord {
@@ -786,28 +784,20 @@ pub async fn update_connector_mandate_details_in_payment_method(
                 })
             } else {
                 None
-            };
-
-            mandate_reference
-                .map(|pmr| pmr.encode_to_value())
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unable to serialize customer acceptance to value")?
+            }
         }
-        None => {
-            let mandate_reference = add_connector_mandate_details_in_payment_method(
-                payment_method_type,
-                authorized_amount,
-                authorized_currency,
-                merchant_connector_id,
-                connector_mandate_id,
-            );
-            mandate_reference
-                .map(|mand| mand.encode_to_value())
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unable to serialize customer acceptance to value")?
-        }
+        None => add_connector_mandate_details_in_payment_method(
+            payment_method_type,
+            authorized_amount,
+            authorized_currency,
+            merchant_connector_id,
+            connector_mandate_id,
+        ),
     };
+    let connector_mandate_details = mandate_reference
+        .map(|mand| mand.encode_to_value())
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to serialize customer acceptance to value")?;
     Ok(connector_mandate_details)
 }
