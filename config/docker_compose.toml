@@ -252,6 +252,7 @@ stax = { long_lived_token = true, payment_method = "card,bank_debit" }
 square = { long_lived_token = false, payment_method = "card" }
 braintree = { long_lived_token = false, payment_method = "card" }
 gocardless = { long_lived_token = true, payment_method = "bank_debit" }
+billwerk = {long_lived_token = false, payment_method = "card"}
 
 [temp_locker_enable_config]
 stripe = { payment_method = "bank_transfer" }

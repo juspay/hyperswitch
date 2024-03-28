@@ -309,6 +309,7 @@ payme = { long_lived_token = false, payment_method = "card" }
 square = { long_lived_token = false, payment_method = "card" }
 stax = { long_lived_token = true, payment_method = "card,bank_debit" }
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { list = "google_pay", type = "disable_only" } }
+billwerk = {long_lived_token = false, payment_method = "card"}
 
 [webhooks]
 outgoing_enabled = true
