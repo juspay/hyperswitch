@@ -63,6 +63,8 @@ pub enum Gateway {
     Klarna,
     Googlepay,
     Paypal,
+    Giropay,
+    Ideal,
 }
 
 #[serde_with::skip_serializing_none]
@@ -354,10 +356,32 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                     billing_country: _,
                 },
             ) => Some(Gateway::Klarna),
+            api::PaymentMethodData::BankRedirect(ref redirect_data) => Some(match redirect_data {
+                api_models::payments::BankRedirectData::Giropay { .. } => Gateway::Giropay,
+                api_models::payments::BankRedirectData::Ideal { .. } => Gateway::Ideal,
+                api_models::payments::BankRedirectData::BancontactCard { .. }
+                | api_models::payments::BankRedirectData::Bizum { .. }
+                | api_models::payments::BankRedirectData::Blik { .. }
+                | api_models::payments::BankRedirectData::Eps { .. }
+                | api_models::payments::BankRedirectData::Interac { .. }
+                | api_models::payments::BankRedirectData::OnlineBankingCzechRepublic { .. }
+                | api_models::payments::BankRedirectData::OnlineBankingFinland { .. }
+                | api_models::payments::BankRedirectData::OnlineBankingPoland { .. }
+                | api_models::payments::BankRedirectData::OnlineBankingSlovakia { .. }
+                | api_models::payments::BankRedirectData::OpenBankingUk { .. }
+                | api_models::payments::BankRedirectData::Przelewy24 { .. }
+                | api_models::payments::BankRedirectData::Sofort { .. }
+                | api_models::payments::BankRedirectData::Trustly { .. }
+                | api_models::payments::BankRedirectData::OnlineBankingFpx { .. }
+                | api_models::payments::BankRedirectData::OnlineBankingThailand { .. } => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("multisafepay"),
+                    ))?
+                }
+            }),
             api::PaymentMethodData::MandatePayment => None,
             api::PaymentMethodData::CardRedirect(_)
             | api::PaymentMethodData::PayLater(_)
-            | api::PaymentMethodData::BankRedirect(_)
             | api::PaymentMethodData::BankDebit(_)
             | api::PaymentMethodData::BankTransfer(_)
             | api::PaymentMethodData::Crypto(_)
@@ -502,9 +526,31 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                     }),
                 }))
             }
+            api::PaymentMethodData::BankRedirect(ref redirect_data) => match redirect_data {
+                api_models::payments::BankRedirectData::Giropay { .. } => None,
+                api_models::payments::BankRedirectData::Ideal { .. } => None,
+                api_models::payments::BankRedirectData::BancontactCard { .. }
+                | api_models::payments::BankRedirectData::Bizum { .. }
+                | api_models::payments::BankRedirectData::Blik { .. }
+                | api_models::payments::BankRedirectData::Eps { .. }
+                | api_models::payments::BankRedirectData::Interac { .. }
+                | api_models::payments::BankRedirectData::OnlineBankingCzechRepublic { .. }
+                | api_models::payments::BankRedirectData::OnlineBankingFinland { .. }
+                | api_models::payments::BankRedirectData::OnlineBankingPoland { .. }
+                | api_models::payments::BankRedirectData::OnlineBankingSlovakia { .. }
+                | api_models::payments::BankRedirectData::OpenBankingUk { .. }
+                | api_models::payments::BankRedirectData::Przelewy24 { .. }
+                | api_models::payments::BankRedirectData::Sofort { .. }
+                | api_models::payments::BankRedirectData::Trustly { .. }
+                | api_models::payments::BankRedirectData::OnlineBankingFpx { .. }
+                | api_models::payments::BankRedirectData::OnlineBankingThailand { .. } => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("multisafepay"),
+                    ))?
+                }
+            },
             api::PaymentMethodData::MandatePayment => None,
             api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::BankRedirect(_)
             | api::PaymentMethodData::BankDebit(_)
             | api::PaymentMethodData::BankTransfer(_)
             | api::PaymentMethodData::Crypto(_)
