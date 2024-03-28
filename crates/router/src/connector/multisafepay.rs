@@ -2,6 +2,7 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
+use common_enums::AttemptStatus;
 use common_utils::request::RequestContent;
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
@@ -85,12 +86,14 @@ impl ConnectorCommon for Multisafepay {
         event_builder.map(|i| i.set_error_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
+        let attempt_status = Option::<AttemptStatus>::from(response.clone());
+
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.error_code.to_string(),
             message: response.error_info,
             reason: None,
-            attempt_status: None,
+            attempt_status,
             connector_transaction_id: None,
         })
     }

@@ -1814,6 +1814,26 @@ pub fn is_refund_failure(status: enums::RefundStatus) -> bool {
     }
 }
 
+pub fn get_connector_error_response(
+    code: Option<String>,
+    message: Option<String>,
+    reason: Option<String>,
+    http_code: u16,
+    attempt_status: Option<enums::AttemptStatus>,
+    connector_transaction_id: Option<String>,
+) -> types::ErrorResponse {
+    types::ErrorResponse {
+        code: code.unwrap_or(consts::NO_ERROR_CODE.to_string()),
+        message: message
+            .clone()
+            .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+        reason,
+        status_code: http_code,
+        attempt_status,
+        connector_transaction_id,
+    }
+}
+
 #[cfg(test)]
 mod error_code_error_message_tests {
     #![allow(clippy::unwrap_used)]
