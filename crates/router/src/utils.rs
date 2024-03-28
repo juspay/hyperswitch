@@ -744,12 +744,11 @@ pub fn add_apple_pay_payment_status_metrics(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn trigger_payments_webhook<F, Req, Op>(
+pub async fn trigger_payments_webhook<F, Op>(
     merchant_account: domain::MerchantAccount,
     business_profile: diesel_models::business_profile::BusinessProfile,
     key_store: &domain::MerchantKeyStore,
     payment_data: crate::core::payments::PaymentData<F>,
-    req: Option<Req>,
     customer: Option<domain::Customer>,
     state: &crate::routes::AppState,
     operation: Op,
@@ -778,7 +777,6 @@ where
             | enums::IntentStatus::PartiallyCaptured
     ) {
         let payments_response = crate::core::payments::transformers::payments_to_payments_response(
-            req,
             payment_data,
             captures,
             customer,

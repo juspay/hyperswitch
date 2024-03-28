@@ -477,14 +477,12 @@ where
 
     let cloned_payment_data = payment_data.clone();
     let cloned_customer = customer.clone();
-    let cloned_request = req.clone();
 
     crate::utils::trigger_payments_webhook(
         merchant_account,
         business_profile,
         &key_store,
         cloned_payment_data,
-        Some(cloned_request),
         cloned_customer,
         state,
         operation,
@@ -690,7 +688,7 @@ where
     FData: Send + Sync,
     Op: Operation<F, Req, Ctx> + Send + Sync + Clone,
     Req: Debug + Authenticate + Clone,
-    Res: transformers::ToResponse<Req, PaymentData<F>, Op>,
+    Res: transformers::ToResponse<PaymentData<F>, Op>,
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
     router_types::RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
@@ -709,7 +707,7 @@ where
             .flat_map(|c| c.foreign_try_into())
             .collect()
     });
-    let (payment_data, req, customer, connector_http_status_code, external_latency) =
+    let (payment_data, _req, customer, connector_http_status_code, external_latency) =
         payments_operation_core::<_, _, _, _, Ctx>(
             &state,
             merchant_account,
@@ -724,7 +722,6 @@ where
         .await?;
 
     Res::generate_response(
-        Some(req),
         payment_data,
         customer,
         auth_flow,
