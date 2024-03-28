@@ -4,55 +4,29 @@ use api_models::analytics::search::{
 };
 
 use common_utils::errors::CustomResult;
-use opensearch::{http::request::JsonBody, MsearchParts, SearchParts};
-use serde_json::{json, Value};
+// use common_utils::errors::ReportSwitchExt;
+use serde_json::{Value};
 use strum::IntoEnumIterator;
+use error_stack::ResultExt;
 
 use crate::{
     errors::AnalyticsError,
-    opensearch::{OpenSearchClient, OpenSearchIndexes},
+    opensearch::{OpenSearchQueryBuilder, OpenSearchQuery, OpenSearchClient},
 };
-
-#[derive(Debug, thiserror::Error)]
-pub enum OpensearchError {
-    #[error("Opensearch connection error")]
-    ConnectionError,
-    #[error("Opensearch NON-200 response content: '{0}'")]
-    ResponseNotOK(String),
-    #[error("Opensearch response error")]
-    ResponseError,
-}
-
-pub fn search_index_to_opensearch_index(index: SearchIndex, config: &OpenSearchIndexes) -> String {
-    match index {
-        SearchIndex::PaymentAttempts => config.payment_attempts.clone(),
-        SearchIndex::PaymentIntents => config.payment_intents.clone(),
-        SearchIndex::Refunds => config.refunds.clone(),
-        SearchIndex::Disputes => config.disputes.clone(),
-    }
-}
 
 pub async fn msearch_results(
     client: &OpenSearchClient,
     req: GetGlobalSearchRequest,
     merchant_id: &String,
 ) -> CustomResult<Vec<GetSearchResponse>, AnalyticsError> {
-    let mut msearch_vector: Vec<JsonBody<Value>> = vec![];
-    for index in SearchIndex::iter() {
-        msearch_vector
-            .push(json!({"index": search_index_to_opensearch_index(index,&client.indexes)}).into());
-        msearch_vector.push(json!({"query": {"bool": {"filter": [{"multi_match": {"type": "phrase", "query": req.query, "lenient": true}},{"match_phrase": {"merchant_id": merchant_id}}]}}}).into());
-    }
 
-    let response = client
-        .client
-        .msearch(MsearchParts::None)
-        .body(msearch_vector)
-        .send()
+    let mut query_builder = OpenSearchQueryBuilder::new(OpenSearchQuery::Msearch, req.query);
+
+    query_builder.add_filter_clause("merchant_id".to_string(), merchant_id.to_string()).change_context(AnalyticsError::UnknownError)?;
+
+    let response_body = client.execute(query_builder)
         .await
-        .map_err(|_| AnalyticsError::UnknownError)?;
-
-    let response_body = response
+        .change_context(AnalyticsError::UnknownError)?  
         .json::<OpenMsearchOutput<Value>>()
         .await
         .map_err(|_| AnalyticsError::UnknownError)?;
@@ -81,16 +55,15 @@ pub async fn search_results(
 ) -> CustomResult<GetSearchResponse, AnalyticsError> {
     let search_req = req.search_req;
 
-    let response = client.client
-        .search(SearchParts::Index(&[&search_index_to_opensearch_index(req.index.clone(),&client.indexes)]))
-        .from(search_req.offset)
-        .size(search_req.count)
-        .body(json!({"query": {"bool": {"filter": [{"multi_match": {"type": "phrase", "query": search_req.query, "lenient": true}},{"match_phrase": {"merchant_id": merchant_id}}]}}}))
-        .send()
-        .await
-        .map_err(|_| AnalyticsError::UnknownError)?;
+    let mut query_builder = OpenSearchQueryBuilder::new(OpenSearchQuery::Search(req.index), search_req.query);
 
-    let response_body = response
+    query_builder.add_filter_clause("merchant_id".to_string(), merchant_id.to_string()).change_context(AnalyticsError::UnknownError)?;
+
+    query_builder.set_offset_n_count(search_req.offset, search_req.count).change_context(AnalyticsError::UnknownError)?;
+
+    let response_body = client.execute(query_builder)
+        .await
+        .change_context(AnalyticsError::UnknownError)?
         .json::<OpensearchOutput<Value>>()
         .await
         .map_err(|_| AnalyticsError::UnknownError)?;
