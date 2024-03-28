@@ -761,7 +761,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     }
 }
 
-fn is_endpoint_verification(headers: &actix_web::http::header::HeaderMap) -> bool {
+fn is_endpoint_verification(headers: &reqwest::header::HeaderMap) -> bool {
     headers
         .get("x-gcs-webhooks-endpoint-verification")
         .is_some()

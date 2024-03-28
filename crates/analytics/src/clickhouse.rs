@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use actix_web::http::StatusCode;
 use common_utils::errors::ParsingError;
 use error_stack::{IntoReport, Report, ResultExt};
+use reqwest::StatusCode;
 use router_env::logger;
 use time::PrimitiveDateTime;
 
@@ -85,12 +85,14 @@ impl ClickhouseClient {
                 |t| Err(ClickhouseError::ResponseNotOK(t)).into_report(),
             )
         } else {
-            Ok(response
-                .json::<CkhOutput<serde_json::Value>>()
-                .await
-                .into_report()
-                .change_context(ClickhouseError::ResponseError)?
-                .data)
+            let ckh_output: CkhOutput<serde_json::Value> =
+                match serde_json::from_str(response.text().await.unwrap_or_default().as_str()) {
+                    Ok(output) => output,
+                    Err(_) => {
+                        return Err(ClickhouseError::ResponseError.into());
+                    }
+                };
+            Ok(ckh_output.data)
         }
     }
 }

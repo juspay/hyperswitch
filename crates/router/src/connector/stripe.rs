@@ -1908,7 +1908,7 @@ impl
 }
 
 fn get_signature_elements_from_header(
-    headers: &actix_web::http::header::HeaderMap,
+    headers: &reqwest::header::HeaderMap,
 ) -> CustomResult<HashMap<String, Vec<u8>>, errors::ConnectorError> {
     let security_header = headers
         .get("Stripe-Signature")

@@ -27,7 +27,7 @@ phonenumber = "0.3.3"
 quick-xml = { version = "0.28.2", features = ["serialize"] }
 rand = "0.8.5"
 regex = "1.8.4"
-reqwest = { version = "0.11.18", features = ["json", "native-tls", "gzip", "multipart"] }
+reqwest = { version = "0.12.2", features = ["json", "native-tls", "gzip", "multipart"] }
 ring = { version = "0.16.20", features = ["std"] }
 rustc-hash = "1.1.0"
 serde = { version = "1.0.193", features = ["derive"] }

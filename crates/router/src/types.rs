@@ -1035,7 +1035,7 @@ pub enum Redirection {
 
 #[derive(Debug, Clone)]
 pub struct VerifyWebhookSourceRequestData {
-    pub webhook_headers: actix_web::http::header::HeaderMap,
+    pub webhook_headers: reqwest::header::HeaderMap,
     pub webhook_body: Vec<u8>,
     pub merchant_secret: api_models::webhooks::ConnectorWebhookSecrets,
 }
@@ -1285,7 +1285,7 @@ pub struct ConnectorsList {
 
 #[derive(Clone, Debug)]
 pub struct Response {
-    pub headers: Option<http::HeaderMap>,
+    pub headers: Option<reqwest::header::HeaderMap>,
     pub response: bytes::Bytes,
     pub status_code: u16,
 }

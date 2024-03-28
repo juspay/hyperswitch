@@ -76,7 +76,7 @@ qrcode = "0.12.0"
 rand = "0.8.5"
 rand_chacha = "0.3.1"
 regex = "1.8.4"
-reqwest = { version = "0.11.18", features = ["json", "native-tls", "gzip", "multipart"] }
+reqwest = { version = "0.12.2", features = ["json", "native-tls", "gzip", "multipart"] }
 ring = "0.16.20"
 roxmltree = "0.18.0"
 rust_decimal = { version = "1.30.0", features = ["serde-with-float", "serde-with-str"] }

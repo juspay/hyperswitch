@@ -2161,7 +2161,7 @@ impl TryFrom<&types::VerifyWebhookSourceRequestData> for PaypalSourceVerificatio
 }
 
 fn get_headers(
-    header: &actix_web::http::header::HeaderMap,
+    header: &reqwest::header::HeaderMap,
     key: &'static str,
 ) -> CustomResult<String, errors::ConnectorError> {
     let header_value = header

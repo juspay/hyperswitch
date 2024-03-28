@@ -911,7 +911,7 @@ impl api::IncomingWebhook for Square {
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let header_value = request
             .headers
-            .get(actix_web::http::header::HOST)
+            .get(reqwest::header::HOST)
             .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let authority = header_value
             .to_str()
