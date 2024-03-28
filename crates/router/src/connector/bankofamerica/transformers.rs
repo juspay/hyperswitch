@@ -23,6 +23,7 @@ use crate::{
         transformers::ForeignFrom,
         ApplePayPredecryptData,
     },
+    unimplemented_payment_method,
 };
 
 pub struct BankOfAmericaAuthType {
@@ -709,7 +710,11 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                                 Self::try_from((item, decrypt_data, apple_pay_data))
                             }
                             types::PaymentMethodToken::Token(_) => {
-                                Err(errors::ConnectorError::InvalidWalletToken)?
+                                Err(unimplemented_payment_method!(
+                                    "Apple Pay",
+                                    "Manual",
+                                    "Bank Of America"
+                                ))?
                             }
                         },
                         None => {

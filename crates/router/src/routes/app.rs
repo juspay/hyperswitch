@@ -1224,7 +1224,7 @@ pub struct WebhookEvents;
 #[cfg(feature = "olap")]
 impl WebhookEvents {
     pub fn server(config: AppState) -> Scope {
-        web::scope("/events/{merchant_id}")
+        web::scope("/events/{merchant_id_or_profile_id}")
             .app_data(web::Data::new(config))
             .service(web::resource("").route(web::get().to(list_initial_webhook_delivery_attempts)))
             .service(

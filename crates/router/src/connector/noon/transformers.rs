@@ -261,7 +261,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                         api_models::payments::WalletData::ApplePay(apple_pay_data) => {
                             let payment_token_data = NoonApplePayTokenData {
                                 token: NoonApplePayData {
-                                    payment_data: wallet_data.get_wallet_token_as_json()?,
+                                    payment_data: wallet_data
+                                        .get_wallet_token_as_json("Apple Pay".to_string())?,
                                     payment_method: NoonApplePayPaymentMethod {
                                         display_name: apple_pay_data.payment_method.display_name,
                                         network: apple_pay_data.payment_method.network,
