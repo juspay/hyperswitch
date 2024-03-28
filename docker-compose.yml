@@ -51,7 +51,7 @@ services:
     ports:
       - "8080:8080"
     networks:
-      - router_net
+      - hyperswitch_net
     volumes:
       - ./config:/local/config
       - ./files:/local/bin/files
@@ -63,6 +63,21 @@ services:
       retries: 3
       start_period: 5s
       timeout: 10s
+
+  hyperswitch-web:
+    ports:
+      - "9050:9050"
+      - "9060:9060"
+      - "5252:5252"
+    build:
+      context: ./docker
+      dockerfile: web.Dockerfile
+    networks:
+      - hyperswitch_net
+    environment:
+      - HYPERSWITCH_SERVER_URL=http://hyperswitch-server:8080
+    depends_on:
+      - hyperswitch-server
 
   hyperswitch-producer:
     image: juspaydotin/hyperswitch-producer:standalone
@@ -80,6 +95,23 @@ services:
         condition: service_healthy
     labels:
       logs: "promtail"
+
+  hyperswitch-control-center:
+    image: juspaydotin/hyperswitch-control-center
+    ports:
+      - "9000:9000"
+    networks:
+      - hyperswitch_net
+    environment:
+      - apiBaseUrl=http://hyperswitch-server:8080
+      - sdkBaseUrl=http://hyperswitch-web:9050
+    depends_on:
+      - hyperswitch-server
+      - hyperswitch-web
+
+  networks:
+    hyperswitch_net:
+    #network configurations here if required
 
   hyperswitch-consumer:
     image: juspaydotin/hyperswitch-consumer:standalone
