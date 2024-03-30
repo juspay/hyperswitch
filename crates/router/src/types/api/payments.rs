@@ -115,10 +115,11 @@ impl MandateValidationFieldsExt for MandateValidationFields {
     fn validate_and_get_mandate_type(
         &self,
     ) -> errors::CustomResult<Option<MandateTransactionType>, errors::ValidationError> {
-        match (&self.mandate_data, &self.mandate_id) {
+        match (&self.mandate_data, &self.recurring_details) {
             (None, None) => Ok(None),
             (Some(_), Some(_)) => Err(errors::ValidationError::InvalidValue {
-                message: "Expected one out of mandate_id and mandate_data but got both".to_string(),
+                message: "Expected one out of recurring_details and mandate_data but got both"
+                    .to_string(),
             })
             .into_report(),
             (_, Some(_)) => Ok(Some(MandateTransactionType::RecurringMandateTransaction)),
