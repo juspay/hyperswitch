@@ -1378,6 +1378,7 @@ impl GetPaymentMethodType for WalletData {
             Self::AliPayQr(_) | Self::AliPayRedirect(_) => api_enums::PaymentMethodType::AliPay,
             Self::AliPayHkRedirect(_) => api_enums::PaymentMethodType::AliPayHk,
             Self::MomoRedirect(_) => api_enums::PaymentMethodType::Momo,
+            Self::IdealPayRedirect(_) => api_enums::PaymentMethodType::IdealPay,
             Self::KakaoPayRedirect(_) => api_enums::PaymentMethodType::KakaoPay,
             Self::GoPayRedirect(_) => api_enums::PaymentMethodType::GoPay,
             Self::GcashRedirect(_) => api_enums::PaymentMethodType::Gcash,
@@ -2144,6 +2145,8 @@ pub enum WalletData {
     MomoRedirect(MomoRedirection),
     /// The wallet data for KakaoPay redirect
     KakaoPayRedirect(KakaoPayRedirection),
+    /// The wallet data for IdealPay redirect
+    IdealPayRedirect(IdealPayRedirection),
     /// The wallet data for GoPay redirect
     GoPayRedirect(GoPayRedirection),
     /// The wallet data for Gcash redirect
@@ -2216,6 +2219,7 @@ impl GetAddressFromPaymentMethodData for WalletData {
             | Self::AliPayHkRedirect(_)
             | Self::MomoRedirect(_)
             | Self::KakaoPayRedirect(_)
+            | Self::IdealPayRedirect(_)
             | Self::GoPayRedirect(_)
             | Self::GcashRedirect(_)
             | Self::ApplePay(_)
@@ -2305,6 +2309,9 @@ pub struct MomoRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct KakaoPayRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct IdealPayRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct GoPayRedirection {}
