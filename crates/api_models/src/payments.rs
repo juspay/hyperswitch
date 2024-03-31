@@ -2612,6 +2612,21 @@ pub struct Address {
     pub email: Option<Email>,
 }
 
+impl Address {
+    /// Unify the address, giving prority to `self`
+    pub fn unify_address(self, other: Option<&Self>) -> Self {
+        let other_address_details = other.and_then(|address| address.address.as_ref());
+        Self {
+            address: self
+                .address
+                .map(|address| address.unify_address_details(other_address_details))
+                .or(other_address_details.cloned()),
+            email: self.email.or(other.and_then(|other| other.email.clone())),
+            phone: self.phone.or(other.and_then(|other| other.phone.clone())),
+        }
+    }
+}
+
 // used by customers also, could be moved outside
 /// Address details
 #[derive(Clone, Default, Debug, Eq, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
@@ -2664,6 +2679,31 @@ impl AddressDetails {
             ))),
             (Some(name), None) | (None, Some(name)) => Some(Secret::new(name.peek().to_string())),
             _ => None,
+        }
+    }
+
+    pub fn unify_address_details(self, other: Option<&Self>) -> Self {
+        match (self, other) {
+            (address, Some(other)) => {
+                let (first_name, last_name) = if address.first_name.is_some() {
+                    (address.first_name, address.last_name)
+                } else {
+                    (other.first_name.clone(), other.last_name.clone())
+                };
+
+                Self {
+                    first_name,
+                    last_name,
+                    city: address.city.or(other.city.clone()),
+                    country: address.country.or(other.country),
+                    line1: address.line1.or(other.line1.clone()),
+                    line2: address.line2.or(other.line2.clone()),
+                    line3: address.line3.or(other.line3.clone()),
+                    zip: address.zip.or(other.zip.clone()),
+                    state: address.state.or(other.state.clone()),
+                }
+            }
+            (address, None) => address,
         }
     }
 }
