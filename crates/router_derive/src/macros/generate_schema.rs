@@ -204,7 +204,7 @@ pub fn polymorphic_macro_derive_inner(
                         // If the field is required for this schema, then add
                         // #[schema(value_type = type)] for this field
                         if let Some(required_field_type) =
-                            required_fields.get(&(field_ident.clone(), schema.to_owned()))
+                            required_fields.get(&(field_ident, schema.to_owned()))
                         {
                             // This is a required field in the Schema
                             // Add the value type and remove original value type ( if present )

@@ -6,6 +6,7 @@ rustflags = [
     "-Wclippy::expect_used",
     "-Wclippy::index_refutable_slice",
     "-Wclippy::indexing_slicing",
+    "-Wclippy::large_futures",
     "-Wclippy::match_on_vec_items",
     "-Wclippy::missing_panics_doc",
     "-Wclippy::out_of_bounds_indexing",

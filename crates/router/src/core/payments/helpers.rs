@@ -899,10 +899,7 @@ fn validate_new_mandate_request(
         }))
     })?;
 
-    let mandate_data = req
-        .mandate_data
-        .clone()
-        .get_required_value("mandate_data")?;
+    let mandate_data = req.mandate_data.get_required_value("mandate_data")?;
 
     // Only use this validation if the customer_acceptance is present
     if mandate_data
@@ -1758,7 +1755,6 @@ pub async fn retrieve_payment_token_data(
         ))?;
 
     let token_data_result = token_data_string
-        .clone()
         .parse_struct("PaymentTokenData")
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("failed to deserialize hyperswitch token data");
@@ -4106,7 +4102,6 @@ pub async fn get_payment_method_details_from_payment_token(
                 },
             ))?;
         let token_data_result = token_data_string
-            .clone()
             .parse_struct("PaymentTokenData")
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("failed to deserialize hyperswitch token data");

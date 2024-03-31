@@ -384,7 +384,7 @@ impl Forex {
     pub fn server(state: AppState) -> Scope {
         web::scope("/forex")
             .app_data(web::Data::new(state.clone()))
-            .app_data(web::Data::new(state.clone()))
+            .app_data(web::Data::new(state))
             .service(web::resource("/rates").route(web::get().to(currency::retrieve_forex)))
             .service(
                 web::resource("/convert_from_minor").route(web::get().to(currency::convert_forex)),
@@ -400,7 +400,7 @@ impl Routing {
     pub fn server(state: AppState) -> Scope {
         #[allow(unused_mut)]
         let mut route = web::scope("/routing")
-            .app_data(web::Data::new(state.clone()))
+            .app_data(web::Data::new(state))
             .service(web::resource("/active").route(web::get().to(
                 |state, req, #[cfg(feature = "business_profile_routing")] query_params| {
                     cloud_routing::routing_retrieve_linked_config(

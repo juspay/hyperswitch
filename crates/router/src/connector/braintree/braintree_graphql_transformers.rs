@@ -970,8 +970,7 @@ impl<F, T>
                             .tokenize_credit_card
                             .payment_method
                             .id
-                            .expose()
-                            .clone(),
+                            .expose(),
                     })
                 }
             },

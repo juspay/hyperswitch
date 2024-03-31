@@ -734,7 +734,7 @@ fn handle_cards_response(
         None
     };
     let payment_response_data = types::PaymentsResponseData::TransactionResponse {
-        resource_id: types::ResponseId::ConnectorTransactionId(response.instance_id.clone()),
+        resource_id: types::ResponseId::ConnectorTransactionId(response.instance_id),
         redirection_data,
         mandate_reference: None,
         connector_metadata: None,
@@ -851,11 +851,7 @@ fn handle_bank_redirects_sync_response(
     };
     let payment_response_data = types::PaymentsResponseData::TransactionResponse {
         resource_id: types::ResponseId::ConnectorTransactionId(
-            response
-                .payment_information
-                .references
-                .payment_request_id
-                .clone(),
+            response.payment_information.references.payment_request_id,
         ),
         redirection_data: None,
         mandate_reference: None,
@@ -897,7 +893,7 @@ pub fn handle_webhook_response(
             reason: reason_info.reason.reject_reason,
             status_code,
             attempt_status: None,
-            connector_transaction_id: payment_information.references.payment_request_id.clone(),
+            connector_transaction_id: payment_information.references.payment_request_id,
         })
     } else {
         None

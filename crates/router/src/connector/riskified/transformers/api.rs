@@ -577,7 +577,7 @@ impl TryFrom<&api_models::payments::Address> for OrderAddress {
             country_code: address.country,
             city: address.city.clone(),
             province: address.state.clone(),
-            zip: address.zip.clone(),
+            zip: address.zip,
             phone: address_info
                 .phone
                 .clone()
