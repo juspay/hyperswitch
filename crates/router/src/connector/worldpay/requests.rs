@@ -27,6 +27,7 @@ pub struct WorldpayPaymentsRequest {
     pub customer: Option<Customer>,
     pub merchant: Merchant,
     pub transaction_reference: String,
+    pub merchant_transaction_id: Option<String>,
 }
 
 #[derive(
@@ -64,6 +65,11 @@ pub struct ThreeDS {
     pub eci: String,
     #[serde(rename = "type")]
     pub auth_type: CustomerAuthType,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct WorldpayMetaData {
+    pub merchant_id: String,
 }
 
 #[derive(

@@ -6,7 +6,7 @@ use std::fmt::Debug;
 
 use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
 use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{IntoReport, Report, ResultExt};
 use transformers as worldpay;
 
 use self::{requests::*, response::*};
@@ -279,16 +279,29 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_payment_id = req
-            .request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
-        Ok(format!(
-            "{}payments/events/{}",
-            self.base_url(connectors),
-            connector_payment_id
-        ))
+        match req.connector_meta_data.clone().expose_option() {
+            Some(value) => {
+                let meta_data: Result<worldpay::WorldpayMetaData, Report<errors::ConnectorError>> =
+                    serde_json::from_value(value)
+                        .into_report()
+                        .change_context(errors::ConnectorError::ResponseDeserializationFailed);
+
+                match meta_data {
+                    Ok(data) => get_url_with_merchant_transaction_id(
+                        self.base_url(connectors).to_string(),
+                        data.merchant_id,
+                        req.attempt_id.to_owned(),
+                    ),
+                    Err(_) => get_url_with_connector_transaction_id(
+                        req,
+                        self.base_url(connectors).to_string(),
+                    ),
+                }
+            }
+            None => {
+                get_url_with_connector_transaction_id(req, self.base_url(connectors).to_string())
+            }
+        }
     }
 
     fn build_request(
@@ -647,11 +660,29 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}payments/events/{}",
-            self.base_url(connectors),
-            req.request.get_connector_refund_id()?
-        ))
+        match req.connector_meta_data.clone().expose_option() {
+            Some(value) => {
+                let meta_data: Result<worldpay::WorldpayMetaData, Report<errors::ConnectorError>> =
+                    serde_json::from_value(value)
+                        .into_report()
+                        .change_context(errors::ConnectorError::ResponseDeserializationFailed);
+
+                match meta_data {
+                    Ok(data) => get_url_with_merchant_transaction_id(
+                        self.base_url(connectors).to_string(),
+                        data.merchant_id,
+                        req.attempt_id.to_owned(),
+                    ),
+                    Err(_) => get_rsync_url_with_conn_transaction_id(
+                        req,
+                        self.base_url(connectors).to_string(),
+                    ),
+                }
+            }
+            None => {
+                get_rsync_url_with_conn_transaction_id(req, self.base_url(connectors).to_string())
+            }
+        }
     }
 
     fn build_request(
@@ -798,4 +829,43 @@ impl api::IncomingWebhook for Worldpay {
         let psync_body = WorldpayEventResponse::try_from(body)?;
         Ok(Box::new(psync_body))
     }
+}
+
+
+fn get_url_with_merchant_transaction_id(
+    base_url: String,
+    merchant_id: String,
+    merchant_transaction_id: String,
+) -> CustomResult<String, errors::ConnectorError> {
+    Ok(format!(
+        "{}{}{},{}",
+        base_url, "payments/events/", merchant_transaction_id, merchant_id
+    ))
+}
+
+fn get_url_with_connector_transaction_id(
+    req: &types::PaymentsSyncRouterData,
+    base_url: String,
+) -> CustomResult<String, errors::ConnectorError> {
+    let connector_transaction_id = req
+        .request
+        .connector_transaction_id
+        .get_connector_transaction_id()
+        .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+    Ok(format!(
+        "{}{}{}",
+        base_url, "payments/events/", connector_transaction_id
+    ))
+}
+
+fn get_rsync_url_with_conn_transaction_id(
+    req: &types::RefundSyncRouterData,
+    base_url: String,
+) -> CustomResult<String, errors::ConnectorError> {
+    Ok(format!(
+        "{}{}{}",
+        base_url,
+        "payments/events/",
+        req.request.get_connector_refund_id()?
+    ))
 }
