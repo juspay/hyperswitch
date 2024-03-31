@@ -146,7 +146,8 @@ pub struct KVRouterStore<T: DatabaseStore> {
     router_store: RouterStore<T>,
     drainer_stream_name: String,
     drainer_num_partitions: u8,
-    ttl_for_kv: u32,
+    pub ttl_for_kv: u32,
+    pub reverse_lookup_offset: u32,
     pub request_id: Option<String>,
 }
 
@@ -156,14 +157,21 @@ where
     RouterStore<T>: DatabaseStore,
     T: DatabaseStore,
 {
-    type Config = (RouterStore<T>, String, u8, u32);
+    type Config = (RouterStore<T>, String, u8, u32, u32);
     async fn new(config: Self::Config, _test_transaction: bool) -> StorageResult<Self> {
-        let (router_store, drainer_stream_name, drainer_num_partitions, ttl_for_kv) = config;
+        let (
+            router_store,
+            drainer_stream_name,
+            drainer_num_partitions,
+            ttl_for_kv,
+            reverse_lookup_offset,
+        ) = config;
         Ok(Self::from_store(
             router_store,
             drainer_stream_name,
             drainer_num_partitions,
             ttl_for_kv,
+            reverse_lookup_offset,
         ))
     }
     fn get_master_pool(&self) -> &PgPool {
@@ -188,6 +196,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         drainer_stream_name: String,
         drainer_num_partitions: u8,
         ttl_for_kv: u32,
+        reverse_lookup_offset: u32,
     ) -> Self {
         let request_id = store.request_id.clone();
 
@@ -196,6 +205,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             drainer_stream_name,
             drainer_num_partitions,
             ttl_for_kv,
+            reverse_lookup_offset,
             request_id,
         }
     }
@@ -326,15 +336,6 @@ impl UniqueConstraints for diesel_models::Refund {
     }
     fn table_name(&self) -> &str {
         "Refund"
-    }
-}
-
-impl UniqueConstraints for diesel_models::ReverseLookup {
-    fn unique_constraints(&self) -> Vec<String> {
-        vec![format!("reverselookup_{}", self.lookup_id)]
-    }
-    fn table_name(&self) -> &str {
-        "ReverseLookup"
     }
 }
 

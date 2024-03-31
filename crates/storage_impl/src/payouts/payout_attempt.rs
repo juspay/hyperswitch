@@ -199,8 +199,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
             MerchantStorageScheme::RedisKv => {
                 let lookup_id = format!("poa_{merchant_id}_{payout_attempt_id}");
                 let lookup = fallback_reverse_lookup_not_found!(
-                    self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
-                        .await,
+                    self.get_lookup_by_lookup_id(&lookup_id).await,
                     self.router_store
                         .find_payout_attempt_by_merchant_id_payout_attempt_id(
                             merchant_id,
