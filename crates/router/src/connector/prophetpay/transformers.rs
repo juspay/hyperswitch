@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use common_utils::{consts, errors::CustomResult};
-use error_stack::{IntoReport, ResultExt};
-use masking::{PeekInterface, Secret};
+use error_stack::ResultExt;
+use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -172,7 +172,7 @@ impl TryFrom<&ProphetpayRouterData<&types::PaymentsAuthorizeRouterData>>
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProphetpayTokenResponse {
-    hosted_tokenize_id: String,
+    hosted_tokenize_id: Secret<String>,
 }
 
 impl<F>
@@ -197,11 +197,10 @@ impl<F>
         let url_data = format!(
             "{}{}",
             consts::PROPHETPAY_REDIRECT_URL,
-            item.response.hosted_tokenize_id
+            item.response.hosted_tokenize_id.expose()
         );
 
         let redirect_url = Url::parse(url_data.as_str())
-            .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         let redirection_data = get_redirect_url_form(
@@ -257,7 +256,7 @@ pub struct ProphetpayCompleteRequest {
     inquiry_reference: String,
     profile: Secret<String>,
     action_type: i8,
-    card_token: String,
+    card_token: Secret<String>,
 }
 
 impl TryFrom<&ProphetpayRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
@@ -268,7 +267,9 @@ impl TryFrom<&ProphetpayRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
         item: &ProphetpayRouterData<&types::PaymentsCompleteAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let auth_data = ProphetpayAuthType::try_from(&item.router_data.connector_auth_type)?;
-        let card_token = get_card_token(item.router_data.request.redirect_response.clone())?;
+        let card_token = Secret::new(get_card_token(
+            item.router_data.request.redirect_response.clone(),
+        )?);
         Ok(Self {
             amount: item.amount.to_owned(),
             ref_info: item.router_data.connector_request_reference_id.to_owned(),
@@ -302,10 +303,9 @@ fn get_card_token(
                         .to_string(),
                 );
             }
-            Ok(queries)
+            Ok::<_, errors::ConnectorError>(queries)
         })
-        .transpose()
-        .into_report()?
+        .transpose()?
         .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
 
     for (key, val) in queries_params {
