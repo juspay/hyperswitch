@@ -1,5 +1,6 @@
 use api_models::{
     enums::EventType,
+    webhook_events::OutgoingWebhookRequestContent,
     webhooks::{OutgoingWebhook, OutgoingWebhookContent},
 };
 use common_utils::ext_traits::{StringExt, ValueExt};
@@ -13,10 +14,7 @@ use scheduler::{
 };
 
 use crate::{
-    core::webhooks::{
-        self as webhooks_core,
-        types::{OutgoingWebhookRequestContent, OutgoingWebhookTrackingData},
-    },
+    core::webhooks::{self as webhooks_core, types::OutgoingWebhookTrackingData},
     db::StorageInterface,
     errors, logger,
     routes::{app::ReqState, AppState},
@@ -33,7 +31,7 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
         state: &'a AppState,
         process: storage::ProcessTracker,
     ) -> Result<(), errors::ProcessTrackerError> {
-        let delivery_attempt = webhooks_core::types::WebhookDeliveryAttempt::AutomaticRetry;
+        let delivery_attempt = storage::enums::WebhookDeliveryAttempt::AutomaticRetry;
         let tracking_data: OutgoingWebhookTrackingData = process
             .tracking_data
             .clone()
@@ -59,8 +57,12 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
 
         let initial_event = match &tracking_data.initial_attempt_id {
             Some(initial_attempt_id) => {
-                db.find_event_by_event_id(initial_attempt_id, &key_store)
-                    .await?
+                db.find_event_by_merchant_id_event_id(
+                    &business_profile.merchant_id,
+                    initial_attempt_id,
+                    &key_store,
+                )
+                .await?
             }
             // Tracking data inserted by old version of application, fetch event using old event ID
             // format
@@ -69,7 +71,12 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
                     "{}_{}",
                     tracking_data.primary_object_id, tracking_data.event_type
                 );
-                db.find_event_by_event_id(&old_event_id, &key_store).await?
+                db.find_event_by_merchant_id_event_id(
+                    &business_profile.merchant_id,
+                    &old_event_id,
+                    &key_store,
+                )
+                .await?
             }
         };
 
@@ -89,6 +96,7 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
             initial_attempt_id: Some(initial_event.event_id.clone()),
             request: initial_event.request,
             response: None,
+            delivery_attempt: Some(delivery_attempt),
         };
 
         let event = db
@@ -112,7 +120,7 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
                     &key_store,
                     event,
                     request_content,
-                    webhooks_core::types::WebhookDeliveryAttempt::AutomaticRetry,
+                    storage::enums::WebhookDeliveryAttempt::AutomaticRetry,
                     None,
                     Some(process),
                 )
@@ -166,7 +174,7 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
                             &key_store,
                             event,
                             request_content,
-                            webhooks_core::types::WebhookDeliveryAttempt::AutomaticRetry,
+                            storage::enums::WebhookDeliveryAttempt::AutomaticRetry,
                             Some(content),
                             Some(process),
                         )

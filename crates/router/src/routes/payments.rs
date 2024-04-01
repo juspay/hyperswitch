@@ -6,7 +6,7 @@ pub mod helpers;
 
 use actix_web::{web, Responder};
 use api_models::payments::HeaderPayload;
-use error_stack::{report, IntoReport};
+use error_stack::report;
 use router_env::{env, instrument, tracing, types, Flow};
 
 use super::app::ReqState;
@@ -1355,8 +1355,7 @@ pub fn get_or_generate_payment_id(
         })
         .transpose()?;
 
-    let payment_id =
-        core_utils::get_or_generate_id("payment_id", &given_payment_id, "pay").into_report()?;
+    let payment_id = core_utils::get_or_generate_id("payment_id", &given_payment_id, "pay")?;
 
     payload.payment_id = Some(api_models::payments::PaymentIdType::PaymentIntentId(
         payment_id,

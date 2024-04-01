@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
+use bigdecimal::ToPrimitive;
 use common_utils::errors::CustomResult;
-use error_stack::{report, IntoReport, ResultExt};
-use events::{EventSink, EventsError};
+use error_stack::{report, ResultExt};
+use events::{EventsError, Message, MessagingInterface};
 use rdkafka::{
     config::FromClientConfig,
     producer::{BaseRecord, DefaultProducerContext, Producer, ThreadedProducer},
@@ -32,9 +33,7 @@ where
 {
     fn value(&self) -> MQResult<Vec<u8>> {
         // Add better error logging here
-        serde_json::to_vec(&self)
-            .into_report()
-            .change_context(KafkaError::GenericError)
+        serde_json::to_vec(&self).change_context(KafkaError::GenericError)
     }
 
     fn key(&self) -> String;
@@ -202,7 +201,6 @@ impl KafkaProducer {
                 ThreadedProducer::from_config(
                     rdkafka::ClientConfig::new().set("bootstrap.servers", conf.brokers.join(",")),
                 )
-                .into_report()
                 .change_context(KafkaError::InitializationError)?,
             )),
 
@@ -370,23 +368,39 @@ impl Drop for RdKafkaProducer {
     }
 }
 
-impl EventSink<EventType> for KafkaProducer {
-    fn publish_event(
+impl MessagingInterface for KafkaProducer {
+    type MessageClass = EventType;
+
+    fn send_message<T>(
         &self,
-        data: serde_json::Value,
-        identifier: String,
-        topic: EventType,
+        data: T,
         timestamp: PrimitiveDateTime,
-    ) -> error_stack::Result<(), EventsError> {
+    ) -> error_stack::Result<(), EventsError>
+    where
+        T: Message<Class = Self::MessageClass> + Serialize,
+    {
+        let topic = self.get_topic(data.get_message_class());
+        let json_data = masking::masked_serialize(&data)
+            .and_then(|i| serde_json::to_vec(&i))
+            .change_context(EventsError::SerializationError)?;
         self.producer
             .0
             .send(
-                BaseRecord::to(self.get_topic(topic))
-                    .key(&identifier)
-                    .payload(&data.to_string())
-                    .timestamp(timestamp.assume_utc().unix_timestamp()),
+                BaseRecord::to(topic)
+                    .key(&data.identifier())
+                    .payload(&json_data)
+                    .timestamp(
+                        (timestamp.assume_utc().unix_timestamp_nanos() / 1_000)
+                            .to_i64()
+                            .unwrap_or_else(|| {
+                                // kafka producer accepts milliseconds
+                                // try converting nanos to millis if that fails convert seconds to millis
+                                timestamp.assume_utc().unix_timestamp() * 1_000
+                            }),
+                    ),
             )
             .map_err(|(error, record)| report!(error).attach_printable(format!("{record:?}")))
-            .change_context(EventsError::GenericError)
+            .change_context(KafkaError::GenericError)
+            .change_context(EventsError::PublishError)
     }
 }

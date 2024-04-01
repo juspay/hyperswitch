@@ -464,6 +464,7 @@ async fn get_tracker_for_sync<
         authorizations,
         authentication,
         frm_metadata: None,
+        recurring_details: None,
     };
 
     let get_trackers_response = operations::GetTrackerResponse {

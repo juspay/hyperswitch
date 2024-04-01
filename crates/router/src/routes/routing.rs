@@ -509,6 +509,7 @@ pub async fn routing_retrieve_linked_config(
     state: web::Data<AppState>,
     req: HttpRequest,
     #[cfg(feature = "business_profile_routing")] query: web::Query<RoutingRetrieveLinkQuery>,
+    #[cfg(feature = "business_profile_routing")] transaction_type: &enums::TransactionType,
 ) -> impl Responder {
     #[cfg(feature = "business_profile_routing")]
     {
@@ -520,7 +521,12 @@ pub async fn routing_retrieve_linked_config(
             &req,
             query.into_inner(),
             |state, auth: AuthenticationData, query_params, _| {
-                routing::retrieve_linked_routing_config(state, auth.merchant_account, query_params)
+                routing::retrieve_linked_routing_config(
+                    state,
+                    auth.merchant_account,
+                    query_params,
+                    transaction_type,
+                )
             },
             #[cfg(not(feature = "release"))]
             auth::auth_type(

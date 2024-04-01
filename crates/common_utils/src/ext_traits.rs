@@ -3,7 +3,7 @@
 //! & inbuilt datatypes.
 //!
 
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret, Strategy};
 use quick_xml::de;
 use serde::{Deserialize, Serialize};
@@ -101,7 +101,6 @@ where
         serde_json::to_string(
             &P::try_from(self).change_context(errors::ParsingError::UnknownError)?,
         )
-        .into_report()
         .change_context(errors::ParsingError::EncodeError("string"))
         .attach_printable_lazy(|| format!("Unable to convert {self:?} to a request"))
     }
@@ -115,7 +114,6 @@ where
         serde_urlencoded::to_string(
             &P::try_from(self).change_context(errors::ParsingError::UnknownError)?,
         )
-        .into_report()
         .change_context(errors::ParsingError::EncodeError("url-encoded"))
         .attach_printable_lazy(|| format!("Unable to convert {self:?} to a request"))
     }
@@ -126,7 +124,6 @@ where
         Self: Serialize,
     {
         serde_urlencoded::to_string(self)
-            .into_report()
             .change_context(errors::ParsingError::EncodeError("url-encoded"))
             .attach_printable_lazy(|| format!("Unable to convert {self:?} to a request"))
     }
@@ -136,7 +133,6 @@ where
         Self: Serialize,
     {
         serde_json::to_string(self)
-            .into_report()
             .change_context(errors::ParsingError::EncodeError("json"))
             .attach_printable_lazy(|| format!("Unable to convert {self:?} to a request"))
     }
@@ -146,7 +142,6 @@ where
         Self: Serialize,
     {
         quick_xml::se::to_string(self)
-            .into_report()
             .change_context(errors::ParsingError::EncodeError("xml"))
             .attach_printable_lazy(|| format!("Unable to convert {self:?} to a request"))
     }
@@ -156,7 +151,6 @@ where
         Self: Serialize,
     {
         serde_json::to_value(self)
-            .into_report()
             .change_context(errors::ParsingError::EncodeError("json-value"))
             .attach_printable_lazy(|| format!("Unable to convert {self:?} to a value"))
     }
@@ -166,7 +160,6 @@ where
         Self: Serialize,
     {
         serde_json::to_vec(self)
-            .into_report()
             .change_context(errors::ParsingError::EncodeError("byte-vec"))
             .attach_printable_lazy(|| format!("Unable to convert {self:?} to a value"))
     }
@@ -198,7 +191,6 @@ impl BytesExt for bytes::Bytes {
         use bytes::Buf;
 
         serde_json::from_slice::<T>(self.chunk())
-            .into_report()
             .change_context(errors::ParsingError::StructParseFailure(type_name))
             .attach_printable_lazy(|| {
                 let variable_type = std::any::type_name::<T>();
@@ -232,7 +224,6 @@ impl ByteSliceExt for [u8] {
         T: Deserialize<'de>,
     {
         serde_json::from_slice(self)
-            .into_report()
             .change_context(errors::ParsingError::StructParseFailure(type_name))
             .attach_printable_lazy(|| format!("Unable to parse {type_name} from &[u8] {:?}", &self))
     }
@@ -260,7 +251,6 @@ impl ValueExt for serde_json::Value {
             &self
         );
         serde_json::from_value::<T>(self)
-            .into_report()
             .change_context(errors::ParsingError::StructParseFailure(type_name))
             .attach_printable_lazy(|| debug)
     }
@@ -318,7 +308,6 @@ impl<T> StringExt<T> for String {
         <T as std::str::FromStr>::Err: std::error::Error + Send + Sync + 'static,
     {
         T::from_str(&self)
-            .into_report()
             .change_context(errors::ParsingError::EnumParseFailure(enum_name))
             .attach_printable_lazy(|| format!("Invalid enum variant {self:?} for enum {enum_name}"))
     }
@@ -331,7 +320,6 @@ impl<T> StringExt<T> for String {
         T: Deserialize<'de>,
     {
         serde_json::from_str::<T>(self)
-            .into_report()
             .change_context(errors::ParsingError::StructParseFailure(type_name))
             .attach_printable_lazy(|| {
                 format!("Unable to parse {type_name} from string {:?}", &self)
@@ -543,7 +531,6 @@ where
             Err(errors::ValidationError::MissingRequiredField {
                 field_name: field_name.to_string(),
             })
-            .into_report()
             .attach_printable(format!("Missing required field {field_name} in {self:?}"))
         })
     }
@@ -559,7 +546,6 @@ where
             None => Err(errors::ValidationError::MissingRequiredField {
                 field_name: field_name.to_string(),
             })
-            .into_report()
             .attach_printable(format!("Missing required field {field_name} in {self:?}")),
         }
     }
@@ -576,7 +562,6 @@ where
             .change_context(errors::ParsingError::UnknownError)?;
 
         E::from_str(value.as_ref())
-            .into_report()
             .change_context(errors::ParsingError::UnknownError)
             .attach_printable_lazy(|| format!("Invalid {{ {enum_name}: {value:?} }} "))
     }

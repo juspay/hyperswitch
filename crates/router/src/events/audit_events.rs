@@ -1,9 +1,9 @@
-use error_stack::{IntoReport, ResultExt};
 use events::{Event, EventInfo};
 use serde::Serialize;
 use time::PrimitiveDateTime;
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(tag = "event_type")]
 pub enum AuditEventType {
     Error { error_message: String },
     PaymentCreated,
@@ -17,6 +17,7 @@ pub enum AuditEventType {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct AuditEvent {
+    #[serde(flatten)]
     event_type: AuditEventType,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     created_at: PrimitiveDateTime,
@@ -61,10 +62,11 @@ impl Event for AuditEvent {
 }
 
 impl EventInfo for AuditEvent {
-    fn data(&self) -> error_stack::Result<serde_json::Value, events::EventsError> {
-        serde_json::to_value(self)
-            .into_report()
-            .change_context(events::EventsError::SerializationError)
+    fn data(
+        &self,
+    ) -> error_stack::Result<Box<dyn masking::ErasedMaskSerialize + Sync + Send>, events::EventsError>
+    {
+        Ok(Box::new(self.clone()))
     }
 
     fn key(&self) -> String {

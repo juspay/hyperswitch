@@ -1,4 +1,6 @@
 use common_utils::errors::CustomResult;
+#[cfg(all(feature = "olap", feature = "payouts"))]
+use data_models::payouts::payout_attempt::PayoutAttempt;
 use data_models::{
     errors::StorageError,
     payouts::payouts::{Payouts, PayoutsInterface, PayoutsNew, PayoutsUpdate},
@@ -44,6 +46,39 @@ impl PayoutsInterface for MockDb {
         _payout_id: &str,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<Option<Payouts>, StorageError> {
+        // TODO: Implement function for `MockDb`
+        Err(StorageError::MockDbError)?
+    }
+
+    #[cfg(feature = "olap")]
+    async fn filter_payouts_by_constraints(
+        &self,
+        _merchant_id: &str,
+        _filters: &data_models::payouts::PayoutFetchConstraints,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> CustomResult<Vec<Payouts>, StorageError> {
+        // TODO: Implement function for `MockDb`
+        Err(StorageError::MockDbError)?
+    }
+
+    #[cfg(feature = "olap")]
+    async fn filter_payouts_and_attempts(
+        &self,
+        _merchant_id: &str,
+        _filters: &data_models::payouts::PayoutFetchConstraints,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> CustomResult<Vec<(Payouts, PayoutAttempt)>, StorageError> {
+        // TODO: Implement function for `MockDb`
+        Err(StorageError::MockDbError)?
+    }
+
+    #[cfg(feature = "olap")]
+    async fn filter_payouts_by_time_range_constraints(
+        &self,
+        _merchant_id: &str,
+        _time_range: &api_models::payments::TimeRange,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> CustomResult<Vec<Payouts>, StorageError> {
         // TODO: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
     }

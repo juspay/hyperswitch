@@ -24,7 +24,7 @@ recon = []
 
 [dependencies]
 actix-web = { version = "4.3.1", optional = true }
-error-stack = "0.3.1"
+error-stack = "0.4.1"
 mime = "0.3.17"
 reqwest = { version = "0.11.18", optional = true }
 serde = { version = "1.0.193", features = ["derive"] }
@@ -32,7 +32,7 @@ serde_json = "1.0.108"
 strum = { version = "0.25", features = ["derive"] }
 time = { version = "0.3.21", features = ["serde", "serde-well-known", "std"] }
 url = { version = "2.4.0", features = ["serde"] }
-utoipa = { version = "3.3.0", features = ["preserve_order"] }
+utoipa = { version = "3.5.0", features = ["preserve_order", "preserve_path_order"] }
 frunk = "0.4.1"
 frunk_core = "0.4.1"
 

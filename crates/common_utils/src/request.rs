@@ -1,9 +1,5 @@
 use masking::{Maskable, Secret};
-#[cfg(feature = "logs")]
-use router_env::logger;
 use serde::{Deserialize, Serialize};
-
-use crate::errors;
 
 pub type Headers = std::collections::HashSet<(String, Maskable<String>)>;
 
@@ -62,6 +58,18 @@ pub enum RequestContent {
     FormData(reqwest::multipart::Form),
     Xml(Box<dyn masking::ErasedMaskSerialize + Send>),
     RawBytes(Vec<u8>),
+}
+
+impl RequestContent {
+    pub fn get_inner_value(&self) -> Secret<String> {
+        match self {
+            Self::Json(i) => serde_json::to_string(&i).unwrap_or_default().into(),
+            Self::FormUrlEncoded(i) => serde_urlencoded::to_string(i).unwrap_or_default().into(),
+            Self::Xml(i) => quick_xml::se::to_string(&i).unwrap_or_default().into(),
+            Self::FormData(_) => String::new().into(),
+            Self::RawBytes(_) => String::new().into(),
+        }
+    }
 }
 
 impl Request {
@@ -174,35 +182,5 @@ impl RequestBuilder {
 impl Default for RequestBuilder {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct RequestBody(Secret<String>);
-
-impl RequestBody {
-    pub fn log_and_get_request_body<T, F>(
-        body: T,
-        encoder: F,
-    ) -> errors::CustomResult<Self, errors::ParsingError>
-    where
-        F: FnOnce(T) -> errors::CustomResult<String, errors::ParsingError>,
-        T: std::fmt::Debug,
-    {
-        #[cfg(feature = "logs")]
-        logger::info!(connector_request_body=?body);
-        Ok(Self(Secret::new(encoder(body)?)))
-    }
-
-    pub fn get_inner_value(request_body: RequestContent) -> Secret<String> {
-        match request_body {
-            RequestContent::Json(i) => serde_json::to_string(&i).unwrap_or_default().into(),
-            RequestContent::FormUrlEncoded(i) => {
-                serde_urlencoded::to_string(&i).unwrap_or_default().into()
-            }
-            RequestContent::Xml(i) => quick_xml::se::to_string(&i).unwrap_or_default().into(),
-            RequestContent::FormData(_) => String::new().into(),
-            RequestContent::RawBytes(_) => String::new().into(),
-        }
     }
 }

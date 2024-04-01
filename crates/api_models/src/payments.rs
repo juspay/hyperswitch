@@ -2,6 +2,7 @@ use std::{collections::HashMap, fmt, num::NonZeroI64};
 
 use cards::CardNumber;
 use common_utils::{
+    consts::default_payments_list_limit,
     crypto,
     ext_traits::Encode,
     pii::{self, Email},
@@ -18,10 +19,8 @@ use url::Url;
 use utoipa::ToSchema;
 
 use crate::{
-    admin, disputes,
-    enums::{self as api_enums},
-    ephemeral_key::EphemeralKeyCreateResponse,
-    refunds,
+    admin, disputes, enums as api_enums, ephemeral_key::EphemeralKeyCreateResponse,
+    mandates::RecurringDetails, refunds,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -458,6 +457,9 @@ pub struct PaymentsRequest {
     /// Whether to perform external authentication (if applicable)
     #[schema(example = true)]
     pub request_external_three_ds_authentication: Option<bool>,
+
+    /// Details required for recurring payment
+    pub recurring_details: Option<RecurringDetails>,
 }
 
 impl PaymentsRequest {
@@ -3197,7 +3199,7 @@ pub struct PaymentListConstraints {
 
     /// limit on the number of objects to return
     #[schema(default = 10, maximum = 100)]
-    #[serde(default = "default_limit")]
+    #[serde(default = "default_payments_list_limit")]
     pub limit: u32,
 
     /// The time at which payment is created
@@ -3283,7 +3285,7 @@ pub struct PaymentListFilterConstraints {
     /// The identifier for customer
     pub customer_id: Option<String>,
     /// The limit on the number of objects. The default limit is 10 and max limit is 20
-    #[serde(default = "default_limit")]
+    #[serde(default = "default_payments_list_limit")]
     pub limit: u32,
     /// The starting point within a list of objects
     pub offset: Option<u32>,
@@ -3353,17 +3355,13 @@ pub struct VerifyResponse {
     pub error_message: Option<String>,
 }
 
-fn default_limit() -> u32 {
-    10
-}
-
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
 pub struct PaymentsRedirectionResponse {
     pub redirect_url: String,
 }
 
 pub struct MandateValidationFields {
-    pub mandate_id: Option<String>,
+    pub recurring_details: Option<RecurringDetails>,
     pub confirm: Option<bool>,
     pub customer_id: Option<String>,
     pub mandate_data: Option<MandateData>,
@@ -3373,8 +3371,14 @@ pub struct MandateValidationFields {
 
 impl From<&PaymentsRequest> for MandateValidationFields {
     fn from(req: &PaymentsRequest) -> Self {
+        let recurring_details = req
+            .mandate_id
+            .clone()
+            .map(RecurringDetails::MandateId)
+            .or(req.recurring_details.clone());
+
         Self {
-            mandate_id: req.mandate_id.clone(),
+            recurring_details,
             confirm: req.confirm,
             customer_id: req
                 .customer
@@ -3392,7 +3396,7 @@ impl From<&PaymentsRequest> for MandateValidationFields {
 impl From<&VerifyRequest> for MandateValidationFields {
     fn from(req: &VerifyRequest) -> Self {
         Self {
-            mandate_id: None,
+            recurring_details: None,
             confirm: Some(true),
             customer_id: req.customer_id.clone(),
             mandate_data: req.mandate_data.clone(),

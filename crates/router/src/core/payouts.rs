@@ -7,12 +7,20 @@ use std::vec::IntoIter;
 
 use api_models::enums as api_enums;
 use common_utils::{crypto::Encryptable, ext_traits::ValueExt, pii};
+#[cfg(feature = "olap")]
+use data_models::errors::StorageError;
 use diesel_models::enums as storage_enums;
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
+#[cfg(feature = "olap")]
+use futures::future::join_all;
+#[cfg(feature = "olap")]
+use router_env::logger;
 use router_env::{instrument, tracing};
 use serde_json;
 
 use super::errors::{ConnectorErrorExt, StorageErrorExt};
+#[cfg(feature = "olap")]
+use crate::types::transformers::ForeignFrom;
 use crate::{
     core::{
         errors::{self, RouterResponse, RouterResult},
@@ -50,7 +58,6 @@ pub fn get_next_connector(
     connectors
         .next()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .into_report()
         .attach_printable("Connector not found in connectors iterator")
 }
 
@@ -74,7 +81,6 @@ pub async fn get_connector_choice(
     match connector_choice {
         api::ConnectorChoice::SessionMultiple(_) => {
             Err(errors::ApiErrorResponse::InternalServerError)
-                .into_report()
                 .attach_printable("Invalid connector choice - SessionMultiple")?
         }
 
@@ -531,7 +537,6 @@ pub async fn payouts_cancel_core(
             _ => Err(errors::ApplicationError::InvalidConfigurationValueError(
                 "Connector not found in payout_attempt - should not reach here".to_string(),
             ))
-            .into_report()
             .change_context(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "connector",
             })
@@ -602,7 +607,6 @@ pub async fn payouts_fulfill_core(
         _ => Err(errors::ApplicationError::InvalidConfigurationValueError(
             "Connector not found in payout_attempt - should not reach here.".to_string(),
         ))
-        .into_report()
         .change_context(errors::ApiErrorResponse::MissingRequiredField {
             field_name: "connector",
         })
@@ -651,6 +655,133 @@ pub async fn payouts_fulfill_core(
         &payout_data,
     )
     .await
+}
+
+#[cfg(feature = "olap")]
+pub async fn payouts_list_core(
+    state: AppState,
+    merchant_account: domain::MerchantAccount,
+    constraints: payouts::PayoutListConstraints,
+) -> RouterResponse<payouts::PayoutListResponse> {
+    validator::validate_payout_list_request(&constraints)?;
+    let merchant_id = &merchant_account.merchant_id;
+    let db = state.store.as_ref();
+    let payouts = helpers::filter_by_constraints(
+        db,
+        &constraints,
+        merchant_id,
+        merchant_account.storage_scheme,
+    )
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
+
+    let collected_futures = payouts.into_iter().map(|payouts| async {
+        match db
+            .find_payout_attempt_by_merchant_id_payout_attempt_id(
+                merchant_id,
+                &utils::get_payment_attempt_id(payouts.payout_id.clone(), payouts.attempt_count),
+                storage_enums::MerchantStorageScheme::PostgresOnly,
+            )
+            .await
+        {
+            Ok(payout_attempt) => Some(Ok((payouts, payout_attempt))),
+            Err(error) => {
+                if matches!(error.current_context(), StorageError::ValueNotFound(_)) {
+                    logger::warn!(
+                        ?error,
+                        "payout_attempt missing for payout_id : {}",
+                        payouts.payout_id,
+                    );
+                    return None;
+                }
+                Some(Err(error))
+            }
+        }
+    });
+
+    let pi_pa_tuple_vec: Result<Vec<(storage::Payouts, storage::PayoutAttempt)>, _> =
+        join_all(collected_futures)
+            .await
+            .into_iter()
+            .flatten()
+            .collect::<Result<Vec<(storage::Payouts, storage::PayoutAttempt)>, _>>();
+
+    let data: Vec<api::PayoutCreateResponse> = pi_pa_tuple_vec
+        .change_context(errors::ApiErrorResponse::InternalServerError)?
+        .into_iter()
+        .map(ForeignFrom::foreign_from)
+        .collect();
+
+    Ok(services::ApplicationResponse::Json(
+        api::PayoutListResponse {
+            size: data.len(),
+            data,
+        },
+    ))
+}
+
+#[cfg(feature = "olap")]
+pub async fn payouts_filtered_list_core(
+    state: AppState,
+    merchant_account: domain::MerchantAccount,
+    filters: payouts::PayoutListFilterConstraints,
+) -> RouterResponse<payouts::PayoutListResponse> {
+    let limit = &filters.limit;
+    validator::validate_payout_list_request_for_joins(*limit)?;
+    let db = state.store.as_ref();
+    let list: Vec<(storage::Payouts, storage::PayoutAttempt)> = db
+        .filter_payouts_and_attempts(
+            &merchant_account.merchant_id,
+            &filters.clone().into(),
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
+
+    let data: Vec<api::PayoutCreateResponse> =
+        list.into_iter().map(ForeignFrom::foreign_from).collect();
+
+    Ok(services::ApplicationResponse::Json(
+        api::PayoutListResponse {
+            size: data.len(),
+            data,
+        },
+    ))
+}
+
+#[cfg(feature = "olap")]
+pub async fn payouts_list_available_filters_core(
+    state: AppState,
+    merchant_account: domain::MerchantAccount,
+    time_range: api::TimeRange,
+) -> RouterResponse<api::PayoutListFilters> {
+    let db = state.store.as_ref();
+    let payout = db
+        .filter_payouts_by_time_range_constraints(
+            &merchant_account.merchant_id,
+            &time_range,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    let filters = db
+        .get_filters_for_payouts(
+            payout.as_slice(),
+            &merchant_account.merchant_id,
+            storage_enums::MerchantStorageScheme::PostgresOnly,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    Ok(services::ApplicationResponse::Json(
+        api::PayoutListFilters {
+            connector: filters.connector,
+            currency: filters.currency,
+            status: filters.status,
+            payout_method: filters.payout_method,
+        },
+    ))
 }
 
 // ********************************************** HELPERS **********************************************
@@ -1332,6 +1463,8 @@ pub async fn response_handler(
         error_message: payout_attempt.error_message.to_owned(),
         error_code: payout_attempt.error_code,
         profile_id: payout_attempt.profile_id,
+        created: Some(payouts.created_at),
+        attempts: None,
     };
     Ok(services::ApplicationResponse::Json(response))
 }

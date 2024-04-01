@@ -10,7 +10,7 @@ use diesel::{
     serialize::{Output, ToSql},
     sql_types, AsExpression,
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret, Strategy, WithType};
 #[cfg(feature = "logs")]
 use router_env::logger;
@@ -147,14 +147,18 @@ where
 
 /// Strategy for Encryption
 #[derive(Debug)]
-pub enum EncryptionStratergy {}
+pub enum EncryptionStrategy {}
 
-impl<T> Strategy<T> for EncryptionStratergy
+impl<T> Strategy<T> for EncryptionStrategy
 where
     T: AsRef<[u8]>,
 {
     fn fmt(value: &T, fmt: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(fmt, "*** Encrypted {} of bytes ***", value.as_ref().len())
+        write!(
+            fmt,
+            "*** Encrypted data of length {} bytes ***",
+            value.as_ref().len()
+        )
     }
 }
 
@@ -304,8 +308,8 @@ impl FromStr for Email {
             }
             Err(_) => Err(ValidationError::InvalidValue {
                 message: "Invalid email address format".into(),
-            })
-            .into_report(),
+            }
+            .into()),
         }
     }
 }
