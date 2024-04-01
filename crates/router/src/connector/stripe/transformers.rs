@@ -1836,7 +1836,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                         | api::PaymentMethodData::CardToken(_) => {
                             Err(errors::ConnectorError::NotSupported {
                                 message: "Network tokenization for payment method".to_string(),
-                                connector: "Adyen",
+                                connector: "Stripe",
                             })?
                         }
                     };
