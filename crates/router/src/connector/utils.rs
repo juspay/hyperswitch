@@ -12,7 +12,7 @@ use common_utils::{
 };
 use data_models::payments::payment_attempt::PaymentAttempt;
 use diesel_models::enums;
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, Secret};
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -657,7 +657,6 @@ impl PaymentsSyncRequestData for types::PaymentsSyncData {
             _ => Err(errors::ValidationError::IncorrectValueProvided {
                 field_name: "connector_transaction_id",
             })
-            .into_report()
             .attach_printable("Expected connector transaction ID not found")
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?,
         }
@@ -804,6 +803,8 @@ pub trait CardData {
     fn get_expiry_date_as_mmyyyy(&self, delimiter: &str) -> Secret<String>;
     fn get_expiry_year_4_digit(&self) -> Secret<String>;
     fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, errors::ConnectorError>;
+    fn get_expiry_month_as_i8(&self) -> Result<Secret<i8>, Error>;
+    fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error>;
 }
 
 impl CardData for api::Card {
@@ -861,6 +862,22 @@ impl CardData for api::Card {
         let month = self.card_exp_month.clone().expose();
         Ok(Secret::new(format!("{year}{month}")))
     }
+    fn get_expiry_month_as_i8(&self) -> Result<Secret<i8>, Error> {
+        self.card_exp_month
+            .peek()
+            .clone()
+            .parse::<i8>()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .map(Secret::new)
+    }
+    fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error> {
+        self.card_exp_year
+            .peek()
+            .clone()
+            .parse::<i32>()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .map(Secret::new)
+    }
 }
 
 #[track_caller]
@@ -868,7 +885,6 @@ fn get_card_issuer(card_number: &str) -> Result<CardIssuer, Error> {
     for (k, v) in CARD_REGEX.iter() {
         let regex: Regex = v
             .clone()
-            .into_report()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         if regex.is_match(card_number) {
             return Ok(*k);
@@ -880,7 +896,7 @@ fn get_card_issuer(card_number: &str) -> Result<CardIssuer, Error> {
 }
 pub trait WalletData {
     fn get_wallet_token(&self) -> Result<Secret<String>, Error>;
-    fn get_wallet_token_as_json<T>(&self) -> Result<T, Error>
+    fn get_wallet_token_as_json<T>(&self, wallet_name: String) -> Result<T, Error>
     where
         T: serde::de::DeserializeOwned;
     fn get_encoded_wallet_token(&self) -> Result<String, Error>;
@@ -895,26 +911,30 @@ impl WalletData for api::WalletData {
             _ => Err(errors::ConnectorError::InvalidWallet.into()),
         }
     }
-    fn get_wallet_token_as_json<T>(&self) -> Result<T, Error>
+    fn get_wallet_token_as_json<T>(&self, wallet_name: String) -> Result<T, Error>
     where
         T: serde::de::DeserializeOwned,
     {
         serde_json::from_str::<T>(self.get_wallet_token()?.peek())
-            .into_report()
-            .change_context(errors::ConnectorError::InvalidWalletToken)
+            .change_context(errors::ConnectorError::InvalidWalletToken { wallet_name })
     }
 
     fn get_encoded_wallet_token(&self) -> Result<String, Error> {
         match self {
             Self::GooglePay(_) => {
-                let json_token: serde_json::Value = self.get_wallet_token_as_json()?;
-                let token_as_vec = serde_json::to_vec(&json_token)
-                    .into_report()
-                    .change_context(errors::ConnectorError::InvalidWalletToken)?;
+                let json_token: serde_json::Value =
+                    self.get_wallet_token_as_json("Google Pay".to_owned())?;
+                let token_as_vec = serde_json::to_vec(&json_token).change_context(
+                    errors::ConnectorError::InvalidWalletToken {
+                        wallet_name: "Google Pay".to_string(),
+                    },
+                )?;
                 let encoded_token = consts::BASE64_ENGINE.encode(token_as_vec);
                 Ok(encoded_token)
             }
-            _ => Err(errors::ConnectorError::InvalidWalletToken.into()),
+            _ => Err(
+                errors::ConnectorError::NotImplemented("SELECTED PAYMENT METHOD".to_owned()).into(),
+            ),
         }
     }
 }
@@ -929,11 +949,13 @@ impl ApplePay for payments::ApplePayWalletData {
             String::from_utf8(
                 consts::BASE64_ENGINE
                     .decode(&self.payment_data)
-                    .into_report()
-                    .change_context(errors::ConnectorError::InvalidWalletToken)?,
+                    .change_context(errors::ConnectorError::InvalidWalletToken {
+                        wallet_name: "Apple Pay".to_string(),
+                    })?,
             )
-            .into_report()
-            .change_context(errors::ConnectorError::InvalidWalletToken)?,
+            .change_context(errors::ConnectorError::InvalidWalletToken {
+                wallet_name: "Apple Pay".to_string(),
+            })?,
         );
         Ok(token)
     }
@@ -1128,7 +1150,6 @@ impl MandateData for payments::MandateAmountData {
             "mandate_data.mandate_type.{multi_use|single_use}.end_date",
         ))?;
         date_time::format_date(date, format)
-            .into_report()
             .change_context(errors::ConnectorError::DateFormattingFailed)
     }
     fn get_metadata(&self) -> Result<pii::SecretSerdeValue, Error> {
@@ -1187,7 +1208,6 @@ fn get_header_field(
         .map(|header_value| {
             header_value
                 .to_str()
-                .into_report()
                 .change_context(errors::ConnectorError::WebhookSignatureNotFound)
         })
         .ok_or(report!(
@@ -1241,7 +1261,6 @@ impl common_utils::errors::ErrorSwitch<errors::ConnectorError> for errors::Parsi
 pub fn base64_decode(data: String) -> Result<Vec<u8>, Error> {
     consts::BASE64_ENGINE
         .decode(data)
-        .into_report()
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)
 }
 
@@ -1278,7 +1297,6 @@ pub fn get_amount_as_f64(
     let amount = match currency_unit {
         types::api::CurrencyUnit::Base => to_currency_base_unit_asf64(amount, currency)?,
         types::api::CurrencyUnit::Minor => u32::try_from(amount)
-            .into_report()
             .change_context(errors::ConnectorError::ParsingFailed)?
             .into(),
     };
@@ -1291,7 +1309,6 @@ pub fn to_currency_base_unit(
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     currency
         .to_currency_base_unit(amount)
-        .into_report()
         .change_context(errors::ConnectorError::ParsingFailed)
 }
 
@@ -1301,7 +1318,6 @@ pub fn to_currency_lower_unit(
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     currency
         .to_currency_lower_unit(amount)
-        .into_report()
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
 }
 
@@ -1330,7 +1346,6 @@ pub fn to_currency_base_unit_with_zero_decimal_check(
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     currency
         .to_currency_base_unit_with_zero_decimal_check(amount)
-        .into_report()
         .change_context(errors::ConnectorError::RequestEncodingFailed)
 }
 
@@ -1340,7 +1355,6 @@ pub fn to_currency_base_unit_asf64(
 ) -> Result<f64, error_stack::Report<errors::ConnectorError>> {
     currency
         .to_currency_base_unit_asf64(amount)
-        .into_report()
         .change_context(errors::ConnectorError::ParsingFailed)
 }
 

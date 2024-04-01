@@ -4,7 +4,7 @@ use api_models::{enums::FrmSuggestion, payments::PaymentsIncrementalAuthorizatio
 use async_trait::async_trait;
 use common_utils::errors::CustomResult;
 use diesel_models::authorization::AuthorizationNew;
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
@@ -134,7 +134,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             sessions_token: vec![],
             card_cvc: None,
             creds_identifier: None,
-            payment_method_status: None,
             pm_token: None,
             connector_customer_id: None,
             recurring_mandate_payment_data: None,
@@ -153,6 +152,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             authorizations: vec![],
             authentication: None,
             frm_metadata: None,
+            recurring_details: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -251,7 +251,6 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     });
             }
             None => Err(errors::ApiErrorResponse::InternalServerError)
-                .into_report()
                 .attach_printable("missing incremental_authorization_details in payment_data")?,
         }
         Ok((Box::new(self), payment_data))

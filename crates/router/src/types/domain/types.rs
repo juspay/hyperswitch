@@ -5,7 +5,7 @@ use common_utils::{
     ext_traits::AsyncExt,
 };
 use diesel_models::encryption::Encryption;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use router_env::{instrument, tracing};
 
@@ -58,7 +58,6 @@ impl<
         let data = crypt_algo.decode_message(key, encrypted.clone())?;
 
         let value: String = std::str::from_utf8(&data)
-            .into_report()
             .change_context(errors::CryptoError::DecodingFailed)?
             .to_string();
 
@@ -80,7 +79,6 @@ impl<
         crypt_algo: V,
     ) -> CustomResult<Self, errors::CryptoError> {
         let data = serde_json::to_vec(&masked_data.peek())
-            .into_report()
             .change_context(errors::CryptoError::DecodingFailed)?;
         let encrypted_data = crypt_algo.encode_message(key, &data)?;
 
@@ -96,9 +94,8 @@ impl<
         let encrypted = encrypted_data.into_inner();
         let data = crypt_algo.decode_message(key, encrypted.clone())?;
 
-        let value: serde_json::Value = serde_json::from_slice(&data)
-            .into_report()
-            .change_context(errors::CryptoError::DecodingFailed)?;
+        let value: serde_json::Value =
+            serde_json::from_slice(&data).change_context(errors::CryptoError::DecodingFailed)?;
 
         Ok(Self::new(value.into(), encrypted))
     }

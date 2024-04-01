@@ -5,7 +5,7 @@ use router_env::{tracing_actix_web::RequestId, types::FlowMetric};
 use serde::Serialize;
 use time::OffsetDateTime;
 
-use super::{EventType, RawEvent};
+use super::EventType;
 #[cfg(feature = "dummy_connector")]
 use crate::routes::dummy_connector::types::{
     DummyConnectorPaymentCompleteRequest, DummyConnectorPaymentConfirmRequest,
@@ -15,7 +15,10 @@ use crate::routes::dummy_connector::types::{
 };
 use crate::{
     core::payments::PaymentsRedirectResponseData,
-    services::{authentication::AuthenticationType, ApplicationResponse, PaymentLinkFormData},
+    services::{
+        authentication::AuthenticationType, kafka::KafkaMessage, ApplicationResponse,
+        PaymentLinkFormData,
+    },
     types::api::{
         AttachEvidenceRequest, Config, ConfigUpdate, CreateFileRequest, DisputeId, FileId,
     },
@@ -88,15 +91,13 @@ impl ApiEvent {
     }
 }
 
-impl TryFrom<ApiEvent> for RawEvent {
-    type Error = serde_json::Error;
+impl KafkaMessage for ApiEvent {
+    fn event_type(&self) -> EventType {
+        EventType::ApiLogs
+    }
 
-    fn try_from(value: ApiEvent) -> Result<Self, Self::Error> {
-        Ok(Self {
-            event_type: EventType::ApiLogs,
-            key: value.request_id.clone(),
-            payload: serde_json::to_value(value)?,
-        })
+    fn key(&self) -> String {
+        self.request_id.clone()
     }
 }
 

@@ -6,15 +6,15 @@ pub struct BillingAddress {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub city: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub address2: Option<String>,
-    pub postal_code: String,
+    pub address2: Option<Secret<String>>,
+    pub postal_code: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub state: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub address3: Option<String>,
-    pub country_code: String,
+    pub address3: Option<Secret<String>>,
+    pub country_code: common_enums::CountryAlpha2,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub address1: Option<String>,
+    pub address1: Option<Secret<String>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -57,7 +57,7 @@ pub enum CustomerAuthentication {
 #[serde(rename_all = "camelCase")]
 pub struct ThreeDS {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub authentication_value: Option<String>,
+    pub authentication_value: Option<Secret<String>>,
     pub version: ThreeDSVersion,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub transaction_id: Option<String>,
@@ -93,7 +93,7 @@ pub enum CustomerAuthType {
 pub struct NetworkToken {
     #[serde(rename = "type")]
     pub auth_type: CustomerAuthType,
-    pub authentication_value: String,
+    pub authentication_value: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub eci: Option<String>,
 }
@@ -146,7 +146,7 @@ pub struct CardPayment {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub billing_address: Option<BillingAddress>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub card_holder_name: Option<String>,
+    pub card_holder_name: Option<Secret<String>>,
     pub card_expiry_date: CardExpiryDate,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cvc: Option<Secret<String>>,
@@ -168,15 +168,15 @@ pub struct CardToken {
 pub struct WalletPayment {
     #[serde(rename = "type")]
     pub payment_type: PaymentType,
-    pub wallet_token: String,
+    pub wallet_token: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub billing_address: Option<BillingAddress>,
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 pub struct CardExpiryDate {
-    pub month: i8,
-    pub year: i32,
+    pub month: Secret<i8>,
+    pub year: Secret<i32>,
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
@@ -198,9 +198,9 @@ pub struct Merchant {
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentFacilitator {
-    pub pf_id: String,
+    pub pf_id: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub iso_id: Option<String>,
+    pub iso_id: Option<Secret<String>>,
     pub sub_merchant: SubMerchant,
 }
 
@@ -208,13 +208,13 @@ pub struct PaymentFacilitator {
 #[serde(rename_all = "camelCase")]
 pub struct SubMerchant {
     pub city: String,
-    pub name: String,
+    pub name: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub state: Option<String>,
-    pub postal_code: String,
-    pub merchant_id: String,
+    pub postal_code: Secret<String>,
+    pub merchant_id: Secret<String>,
     pub country_code: String,
-    pub street: String,
+    pub street: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tax_id: Option<String>,
 }

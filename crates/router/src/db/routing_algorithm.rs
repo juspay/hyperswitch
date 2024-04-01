@@ -1,5 +1,5 @@
 use diesel_models::routing_algorithm as routing_storage;
-use error_stack::IntoReport;
+use error_stack::report;
 use router_env::{instrument, tracing};
 use storage_impl::mock_db::MockDb;
 
@@ -70,8 +70,7 @@ impl RoutingAlgorithmInterface for Store {
         routing_algorithm
             .insert(&conn)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -87,8 +86,7 @@ impl RoutingAlgorithmInterface for Store {
             profile_id,
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -104,8 +102,7 @@ impl RoutingAlgorithmInterface for Store {
             merchant_id,
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -121,8 +118,7 @@ impl RoutingAlgorithmInterface for Store {
             profile_id,
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -137,8 +133,7 @@ impl RoutingAlgorithmInterface for Store {
             &conn, profile_id, limit, offset,
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -156,8 +151,7 @@ impl RoutingAlgorithmInterface for Store {
             offset,
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     async fn list_routing_algorithm_metadata_by_merchant_id_transaction_type(
@@ -176,8 +170,7 @@ impl RoutingAlgorithmInterface for Store {
             offset,
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
 

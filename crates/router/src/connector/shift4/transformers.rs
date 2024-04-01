@@ -1,7 +1,7 @@
 use api_models::payments;
 use cards::CardNumber;
 use common_utils::pii::SecretSerdeValue;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -117,7 +117,7 @@ pub struct Card {
 #[serde(untagged)]
 pub enum CardPayment {
     RawCard(Box<Card>),
-    CardToken(String),
+    CardToken(Secret<String>),
 }
 
 impl<T> TryFrom<&types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>>
@@ -576,7 +576,7 @@ pub struct Shift4ThreeDsResponse {
 
 #[derive(Default, Debug, Deserialize, Serialize)]
 pub struct Token {
-    pub id: String,
+    pub id: Secret<String>,
     pub created: i64,
     #[serde(rename = "objectType")]
     pub object_type: String,
@@ -628,7 +628,7 @@ pub enum NextAction {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Shift4CardToken {
-    pub id: String,
+    pub id: Secret<String>,
 }
 
 impl<F>
@@ -672,7 +672,6 @@ impl<F>
                     serde_json::to_value(Shift4CardToken {
                         id: item.response.token.id,
                     })
-                    .into_report()
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
                 ),
                 network_txn_id: None,

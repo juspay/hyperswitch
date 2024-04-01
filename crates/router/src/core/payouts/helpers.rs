@@ -4,7 +4,7 @@ use common_utils::{
     ext_traits::{AsyncExt, StringExt},
 };
 use diesel_models::encryption::Encryption;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::logger;
 
@@ -46,9 +46,10 @@ pub async fn make_payout_method_data<'a>(
     payout_token: Option<&str>,
     customer_id: &str,
     merchant_id: &str,
-    payout_id: &str,
     payout_type: Option<&api_enums::PayoutType>,
     merchant_key_store: &domain::MerchantKeyStore,
+    payout_data: Option<&PayoutData>,
+    storage_scheme: storage::enums::MerchantStorageScheme,
 ) -> RouterResult<Option<api::PayoutMethodData>> {
     let db = &*state.store;
     let certain_payout_type = payout_type.get_required_value("payout_type")?.to_owned();
@@ -101,9 +102,13 @@ pub async fn make_payout_method_data<'a>(
         None
     };
 
-    match (payout_method_data.to_owned(), hyperswitch_token) {
+    match (
+        payout_method_data.to_owned(),
+        hyperswitch_token,
+        payout_data,
+    ) {
         // Get operation
-        (None, Some(payout_token)) => {
+        (None, Some(payout_token), _) => {
             if payout_token.starts_with("temporary_token_")
                 || certain_payout_type == api_enums::PayoutType::Bank
             {
@@ -146,7 +151,7 @@ pub async fn make_payout_method_data<'a>(
         }
 
         // Create / Update operation
-        (Some(payout_method), payout_token) => {
+        (Some(payout_method), payout_token, Some(payout_data)) => {
             let lookup_key = vault::Vault::store_payout_method_data_in_locker(
                 state,
                 payout_token.to_owned(),
@@ -158,14 +163,13 @@ pub async fn make_payout_method_data<'a>(
 
             // Update payout_token in payout_attempt table
             if payout_token.is_none() {
-                let payout_update = storage::PayoutAttemptUpdate::PayoutTokenUpdate {
+                let updated_payout_attempt = storage::PayoutAttemptUpdate::PayoutTokenUpdate {
                     payout_token: lookup_key,
-                    last_modified_at: Some(common_utils::date_time::now()),
                 };
-                db.update_payout_attempt_by_merchant_id_payout_id(
-                    merchant_id,
-                    payout_id,
-                    payout_update,
+                db.update_payout_attempt(
+                    &payout_data.payout_attempt,
+                    updated_payout_attempt,
+                    storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -181,11 +185,12 @@ pub async fn make_payout_method_data<'a>(
 
 pub async fn save_payout_data_to_locker(
     state: &AppState,
-    payout_attempt: &storage::payout_attempt::PayoutAttempt,
+    payout_data: &PayoutData,
     payout_method_data: &api::PayoutMethodData,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<()> {
+    let payout_attempt = &payout_data.payout_attempt;
     let (locker_req, card_details, bank_details, wallet_details, payment_method_type) =
         match payout_method_data {
             api_models::payouts::PayoutMethodData::Card(card) => {
@@ -226,7 +231,6 @@ pub async fn save_payout_data_to_locker(
                 let key = key_store.key.get_inner().peek();
                 let enc_data = async {
                     serde_json::to_value(payout_method_data.to_owned())
-                        .into_report()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Unable to encode payout method data")
                         .ok()
@@ -285,12 +289,11 @@ pub async fn save_payout_data_to_locker(
     let db = &*state.store;
     let updated_payout = storage::PayoutsUpdate::PayoutMethodIdUpdate {
         payout_method_id: Some(stored_resp.card_reference.to_owned()),
-        last_modified_at: Some(common_utils::date_time::now()),
     };
-    db.update_payout_by_merchant_id_payout_id(
-        &merchant_account.merchant_id,
-        &payout_attempt.payout_id,
+    db.update_payout(
+        &payout_data.payouts,
         updated_payout,
+        merchant_account.storage_scheme,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -500,7 +503,6 @@ pub async fn decide_payout_connector(
         let first_connector_choice = connectors
             .first()
             .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
-            .into_report()
             .attach_printable("Empty connector list returned")?
             .clone();
 
@@ -560,7 +562,6 @@ pub async fn decide_payout_connector(
         let first_connector_choice = connectors
             .first()
             .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
-            .into_report()
             .attach_printable("Empty connector list returned")?
             .clone();
 
@@ -722,4 +723,17 @@ pub fn is_eligible_for_local_payout_cancellation(status: api_enums::PayoutStatus
         api_enums::PayoutStatus::RequiresCreation
             | api_enums::PayoutStatus::RequiresPayoutMethodData,
     )
+}
+
+#[cfg(feature = "olap")]
+pub(super) async fn filter_by_constraints(
+    db: &dyn StorageInterface,
+    constraints: &api::PayoutListConstraints,
+    merchant_id: &str,
+    storage_scheme: storage::enums::MerchantStorageScheme,
+) -> CustomResult<Vec<storage::Payouts>, errors::DataStorageError> {
+    let result = db
+        .filter_payouts_by_constraints(merchant_id, &constraints.clone().into(), storage_scheme)
+        .await?;
+    Ok(result)
 }
