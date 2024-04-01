@@ -21,9 +21,9 @@ bytes = { version = "1", optional = true }
 diesel = { version = "2.1.5", features = ["postgres", "serde_json", "time"], optional = true }
 erased-serde = "0.4.4"
 serde = { version = "1", features = ["derive"], optional = true }
-serde_json = { version = "1.0.114", optional = true }
+serde_json = { version = "1.0.115", optional = true }
 subtle = "2.5.0"
 zeroize = { version = "1.7", default-features = false }
 
 [dev-dependencies]
-serde_json = "1.0.114"
+serde_json = "1.0.115"

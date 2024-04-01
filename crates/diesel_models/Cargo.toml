@@ -18,7 +18,7 @@ error-stack = "0.4.1"
 frunk = "0.4.2"
 frunk_core = "0.4.2"
 serde = { version = "1.0.197", features = ["derive"] }
-serde_json = "1.0.114"
+serde_json = "1.0.115"
 strum = { version = "0.26.2", features = ["derive"] }
 thiserror = "1.0.58"
 time = { version = "0.3.34", features = ["serde", "serde-well-known", "std"] }

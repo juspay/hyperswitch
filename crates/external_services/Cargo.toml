@@ -27,7 +27,7 @@ error-stack = "0.4.1"
 once_cell = "1.19.0"
 serde = { version = "1.0.197", features = ["derive"] }
 thiserror = "1.0.58"
-tokio = "1.36.0"
+tokio = "1.37.0"
 hyper-proxy = "0.9.1"
 hyper = "0.14.28"
 vaultrs = { version = "0.7.2", optional = true }

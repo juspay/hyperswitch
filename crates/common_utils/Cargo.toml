@@ -31,13 +31,13 @@ reqwest = { version = "0.11.27", features = ["json", "native-tls", "gzip", "mult
 ring = { version = "0.17.8", features = ["std", "wasm32_unknown_unknown_js"] }
 rustc-hash = "1.1.0"
 serde = { version = "1.0.197", features = ["derive"] }
-serde_json = "1.0.114"
+serde_json = "1.0.115"
 serde_urlencoded = "0.7.1"
 signal-hook = { version = "0.3.17", optional = true }
 strum = { version = "0.26.2", features = ["derive"] }
 thiserror = "1.0.58"
 time = { version = "0.3.34", features = ["serde", "serde-well-known", "std"] }
-tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread"], optional = true }
+tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"], optional = true }
 semver = { version = "1.0.22", features = ["serde"] }
 uuid = { version = "1.8.0", features = ["v7"] }
 
