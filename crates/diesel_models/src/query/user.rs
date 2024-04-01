@@ -3,7 +3,7 @@ use diesel::{
     associations::HasTable, debug_query, result::Error as DieselError, ExpressionMethods,
     JoinOnDsl, QueryDsl,
 };
-use error_stack::IntoReport;
+use error_stack::report;
 use router_env::logger;
 pub mod sample_data;
 
@@ -99,10 +99,11 @@ impl User {
         query
             .get_results_async::<(Self, UserRole)>(conn)
             .await
-            .into_report()
-            .map_err(|err| match err.current_context() {
-                DieselError::NotFound => err.change_context(errors::DatabaseError::NotFound),
-                _ => err.change_context(errors::DatabaseError::Others),
+            .map_err(|err| match err {
+                DieselError::NotFound => {
+                    report!(err).change_context(errors::DatabaseError::NotFound)
+                }
+                _ => report!(err).change_context(errors::DatabaseError::Others),
             })
     }
 }

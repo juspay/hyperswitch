@@ -51,6 +51,12 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::CardError, code = "invalid_card_type", message = "Card data is invalid")]
     InvalidCardType,
 
+    #[error(
+        error_type = StripeErrorType::ConnectorError, code = "invalid_wallet_token",
+        message = "Invalid {wallet_name} wallet token"
+    )]
+    InvalidWalletToken { wallet_name: String },
+
     #[error(error_type = StripeErrorType::ApiError, code = "refund_failed", message = "refund has failed")]
     RefundFailed, // stripe error code
 
@@ -625,6 +631,9 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             }
             errors::ApiErrorResponse::CurrencyConversionFailed => Self::CurrencyConversionFailed,
             errors::ApiErrorResponse::PaymentMethodDeleteFailed => Self::PaymentMethodDeleteFailed,
+            errors::ApiErrorResponse::InvalidWalletToken { wallet_name } => {
+                Self::InvalidWalletToken { wallet_name }
+            }
         }
     }
 }
@@ -671,6 +680,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::PaymentIntentInvalidParameter { .. }
             | Self::SerdeQsError { .. }
             | Self::InvalidRequestData { .. }
+            | Self::InvalidWalletToken { .. }
             | Self::PreconditionFailed { .. }
             | Self::DuplicateMandate
             | Self::SuccessfulPaymentNotFound
