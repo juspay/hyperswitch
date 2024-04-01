@@ -368,7 +368,11 @@ fn get_apple_pay_payment_request(
     merchant_business_country: Option<api_models::enums::CountryAlpha2>,
 ) -> RouterResult<payment_types::ApplePayPaymentRequest> {
     let applepay_payment_request = payment_types::ApplePayPaymentRequest {
-        country_code: merchant_business_country.or(session_data.country),
+        country_code: merchant_business_country.or(session_data.country).ok_or(
+            errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "country_code",
+            },
+        )?,
         currency_code: session_data.currency,
         total: amount_info,
         merchant_capabilities: Some(payment_request_data.merchant_capabilities),
