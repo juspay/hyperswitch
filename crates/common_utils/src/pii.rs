@@ -10,7 +10,7 @@ use diesel::{
     serialize::{Output, ToSql},
     sql_types, AsExpression,
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret, Strategy, WithType};
 #[cfg(feature = "logs")]
 use router_env::logger;
@@ -308,8 +308,8 @@ impl FromStr for Email {
             }
             Err(_) => Err(ValidationError::InvalidValue {
                 message: "Invalid email address format".into(),
-            })
-            .into_report(),
+            }
+            .into()),
         }
     }
 }

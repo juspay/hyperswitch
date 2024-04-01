@@ -5,7 +5,7 @@ use api_models::{
     payments::PaymentMethodData,
 };
 use common_utils::pii;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -691,7 +691,6 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
                 let payload_data = item.request.get_redirect_response_payload()?.expose();
 
                 let jwt_data: PaymeRedirectResponseData = serde_json::from_value(payload_data)
-                    .into_report()
                     .change_context(errors::ConnectorError::MissingConnectorRedirectionPayload {
                         field_name: "meta_data_jwt",
                     })?;

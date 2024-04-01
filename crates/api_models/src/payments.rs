@@ -19,10 +19,8 @@ use url::Url;
 use utoipa::ToSchema;
 
 use crate::{
-    admin, disputes,
-    enums::{self as api_enums},
-    ephemeral_key::EphemeralKeyCreateResponse,
-    refunds,
+    admin, disputes, enums as api_enums, ephemeral_key::EphemeralKeyCreateResponse,
+    mandates::RecurringDetails, refunds,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -171,7 +169,7 @@ mod client_secret_tests {
     }
 }
 
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, PartialEq)]
 pub struct CustomerDetails {
     /// The identifier for the customer.
     pub id: String,
@@ -459,6 +457,9 @@ pub struct PaymentsRequest {
     /// Whether to perform external authentication (if applicable)
     #[schema(example = true)]
     pub request_external_three_ds_authentication: Option<bool>,
+
+    /// Details required for recurring payment
+    pub recurring_details: Option<RecurringDetails>,
 }
 
 impl PaymentsRequest {
@@ -2934,6 +2935,9 @@ pub struct PaymentsResponse {
     #[schema(max_length = 255, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub customer_id: Option<String>,
 
+    /// Details of customer attached to this payment
+    pub customer: Option<CustomerDetails>,
+
     /// A description of the payment
     #[schema(example = "It's my first payment request")]
     pub description: Option<String>,
@@ -3360,7 +3364,7 @@ pub struct PaymentsRedirectionResponse {
 }
 
 pub struct MandateValidationFields {
-    pub mandate_id: Option<String>,
+    pub recurring_details: Option<RecurringDetails>,
     pub confirm: Option<bool>,
     pub customer_id: Option<String>,
     pub mandate_data: Option<MandateData>,
@@ -3370,8 +3374,14 @@ pub struct MandateValidationFields {
 
 impl From<&PaymentsRequest> for MandateValidationFields {
     fn from(req: &PaymentsRequest) -> Self {
+        let recurring_details = req
+            .mandate_id
+            .clone()
+            .map(RecurringDetails::MandateId)
+            .or(req.recurring_details.clone());
+
         Self {
-            mandate_id: req.mandate_id.clone(),
+            recurring_details,
             confirm: req.confirm,
             customer_id: req
                 .customer
@@ -3389,7 +3399,7 @@ impl From<&PaymentsRequest> for MandateValidationFields {
 impl From<&VerifyRequest> for MandateValidationFields {
     fn from(req: &VerifyRequest) -> Self {
         Self {
-            mandate_id: None,
+            recurring_details: None,
             confirm: Some(true),
             customer_id: req.customer_id.clone(),
             mandate_data: req.mandate_data.clone(),
