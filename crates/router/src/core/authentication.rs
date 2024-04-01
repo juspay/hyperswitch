@@ -6,7 +6,7 @@ pub mod types;
 use api_models::payments;
 use common_enums::Currency;
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use masking::PeekInterface;
 
 use super::errors;
@@ -32,7 +32,7 @@ pub async fn perform_authentication(
     currency: Option<Currency>,
     message_category: api::authentication::MessageCategory,
     device_channel: payments::DeviceChannel,
-    authentication_data: (types::AuthenticationData, storage::Authentication),
+    authentication_data: storage::Authentication,
     return_url: Option<String>,
     sdk_information: Option<payments::SdkInformation>,
     threeds_method_comp_ind: api_models::payments::ThreeDsCompletionIndicator,
@@ -59,8 +59,7 @@ pub async fn perform_authentication(
     )?;
     let response =
         utils::do_auth_connector_call(state, authentication_connector.clone(), router_data).await?;
-    let (_authentication, _authentication_data) =
-        utils::update_trackers(state, response.clone(), authentication_data.1, None, None).await?;
+    utils::update_trackers(state, response.clone(), authentication_data, None, None).await?;
     let authentication_response =
         response
             .response
@@ -100,7 +99,7 @@ pub async fn perform_authentication(
                 }
             }
         }),
-        _ => Err(errors::ApiErrorResponse::InternalServerError.into())
+        _ => Err(report!(errors::ApiErrorResponse::InternalServerError))
             .attach_printable("unexpected response in authentication flow")?,
     }
 }
@@ -115,42 +114,37 @@ pub async fn perform_post_authentication<F: Clone + Send>(
     match authentication_flow_input {
         types::PostAuthenthenticationFlowInput::PaymentAuthNFlow {
             payment_data,
-            authentication_data: (authentication, authentication_data),
+            authentication,
             should_continue_confirm_transaction,
         } => {
             // let (auth, authentication_data) = authentication;
-            let updated_authentication =
+            let authentication_status =
                 if !authentication.authentication_status.is_terminal_status() {
                     let router_data = transformers::construct_post_authentication_router_data(
                         authentication_connector.clone(),
                         business_profile,
                         merchant_connector_account,
-                        authentication_data,
+                        &authentication,
                     )?;
                     let router_data =
                         utils::do_auth_connector_call(state, authentication_connector, router_data)
                             .await?;
-                    let (updated_authentication, updated_authentication_data) =
-                        utils::update_trackers(
-                            state,
-                            router_data,
-                            authentication,
-                            payment_data.token.clone(),
-                            None,
-                        )
-                        .await?;
-                    payment_data.authentication = Some((
-                        updated_authentication.clone(),
-                        updated_authentication_data.unwrap_or_default(),
-                    ));
-                    updated_authentication
+                    let updated_authentication = utils::update_trackers(
+                        state,
+                        router_data,
+                        authentication,
+                        payment_data.token.clone(),
+                        None,
+                    )
+                    .await?;
+                    let authentication_status = updated_authentication.authentication_status;
+                    payment_data.authentication = Some(updated_authentication);
+                    authentication_status
                 } else {
-                    authentication
+                    authentication.authentication_status
                 };
             //If authentication is not successful, skip the payment connector flows and mark the payment as failure
-            if !(updated_authentication.authentication_status
-                == api_models::enums::AuthenticationStatus::Success)
-            {
+            if !(authentication_status == api_models::enums::AuthenticationStatus::Success) {
                 *should_continue_confirm_transaction = false;
             }
         }
@@ -198,7 +192,7 @@ pub async fn perform_pre_authentication<F: Clone + Send>(
                 .parse_value("AcquirerDetails")
                 .change_context(ApiErrorResponse::PreconditionFailed { message: "acquirer_bin and acquirer_merchant_id not found in Payment Connector's Metadata".to_string()})?;
 
-            let (authentication, authentication_data) = utils::update_trackers(
+            let authentication = utils::update_trackers(
                 state,
                 router_data,
                 authentication,
@@ -206,15 +200,12 @@ pub async fn perform_pre_authentication<F: Clone + Send>(
                 Some(acquirer_details),
             )
             .await?;
-            if authentication_data
-                .as_ref()
-                .is_some_and(|authentication_data| authentication_data.is_separate_authn_required())
+            if authentication.is_separate_authn_required()
                 || authentication.authentication_status.is_failed()
             {
                 *should_continue_confirm_transaction = false;
             }
-            payment_data.authentication =
-                Some((authentication, authentication_data.unwrap_or_default()));
+            payment_data.authentication = Some(authentication);
         }
         types::PreAuthenthenticationFlowInput::PaymentMethodAuthNFlow {
             card_number: _,

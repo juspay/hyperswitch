@@ -1,7 +1,7 @@
 use api_models::payments;
 use base64::Engine;
 use common_utils::{ext_traits::ValueExt, pii};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -22,6 +22,7 @@ use crate::{
         transformers::ForeignFrom,
         ApplePayPredecryptData,
     },
+    unimplemented_payment_method,
 };
 
 pub struct BankOfAmericaAuthType {
@@ -708,7 +709,11 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                                 Self::try_from((item, decrypt_data, apple_pay_data))
                             }
                             types::PaymentMethodToken::Token(_) => {
-                                Err(errors::ConnectorError::InvalidWalletToken)?
+                                Err(unimplemented_payment_method!(
+                                    "Apple Pay",
+                                    "Manual",
+                                    "Bank Of America"
+                                ))?
                             }
                         },
                         None => {
@@ -896,6 +901,8 @@ pub enum BankofamericaPaymentStatus {
     ServerError,
     PendingAuthentication,
     PendingReview,
+    Accepted,
+    Cancelled,
     //PartialAuthorized, not being consumed yet.
 }
 
@@ -921,9 +928,9 @@ impl ForeignFrom<(BankofamericaPaymentStatus, bool)> for enums::AttemptStatus {
             BankofamericaPaymentStatus::Succeeded | BankofamericaPaymentStatus::Transmitted => {
                 Self::Charged
             }
-            BankofamericaPaymentStatus::Voided | BankofamericaPaymentStatus::Reversed => {
-                Self::Voided
-            }
+            BankofamericaPaymentStatus::Voided
+            | BankofamericaPaymentStatus::Reversed
+            | BankofamericaPaymentStatus::Cancelled => Self::Voided,
             BankofamericaPaymentStatus::Failed
             | BankofamericaPaymentStatus::Declined
             | BankofamericaPaymentStatus::AuthorizedRiskDeclined
@@ -931,9 +938,9 @@ impl ForeignFrom<(BankofamericaPaymentStatus, bool)> for enums::AttemptStatus {
             | BankofamericaPaymentStatus::Rejected
             | BankofamericaPaymentStatus::ServerError => Self::Failure,
             BankofamericaPaymentStatus::PendingAuthentication => Self::AuthenticationPending,
-            BankofamericaPaymentStatus::PendingReview | BankofamericaPaymentStatus::Challenge => {
-                Self::Pending
-            }
+            BankofamericaPaymentStatus::PendingReview
+            | BankofamericaPaymentStatus::Challenge
+            | BankofamericaPaymentStatus::Accepted => Self::Pending,
         }
     }
 }
@@ -1493,7 +1500,6 @@ impl<F>
                             .consumer_authentication_information
                             .validate_response,
                     )
-                    .into_report()
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
                     Ok(Self {
                         status,

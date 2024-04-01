@@ -1,6 +1,6 @@
 use common_utils::crypto::OptionalEncryptableSecretString;
 use diesel_models::{
-    enums::{EventClass, EventObjectType, EventType},
+    enums::{EventClass, EventObjectType, EventType, WebhookDeliveryAttempt},
     events::EventUpdateInternal,
 };
 use error_stack::ResultExt;
@@ -27,6 +27,7 @@ pub struct Event {
     pub initial_attempt_id: Option<String>,
     pub request: OptionalEncryptableSecretString,
     pub response: OptionalEncryptableSecretString,
+    pub delivery_attempt: Option<WebhookDeliveryAttempt>,
 }
 
 #[derive(Debug)]
@@ -72,6 +73,7 @@ impl super::behaviour::Conversion for Event {
             initial_attempt_id: self.initial_attempt_id,
             request: self.request.map(Into::into),
             response: self.response.map(Into::into),
+            delivery_attempt: self.delivery_attempt,
         })
     }
 
@@ -83,7 +85,7 @@ impl super::behaviour::Conversion for Event {
         Self: Sized,
     {
         async {
-            Ok(Self {
+            Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 event_id: item.event_id,
                 event_type: item.event_type,
                 event_class: item.event_class,
@@ -104,6 +106,7 @@ impl super::behaviour::Conversion for Event {
                     .response
                     .async_lift(|inner| types::decrypt(inner, key.peek()))
                     .await?,
+                delivery_attempt: item.delivery_attempt,
             })
         }
         .await
@@ -128,6 +131,7 @@ impl super::behaviour::Conversion for Event {
             initial_attempt_id: self.initial_attempt_id,
             request: self.request.map(Into::into),
             response: self.response.map(Into::into),
+            delivery_attempt: self.delivery_attempt,
         })
     }
 }

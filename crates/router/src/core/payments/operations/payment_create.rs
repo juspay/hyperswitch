@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::enums::FrmSuggestion;
+use api_models::{enums::FrmSuggestion, mandates::RecurringDetails};
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
 use data_models::{
@@ -19,6 +19,7 @@ use crate::{
     consts,
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
+        mandate::helpers::MandateGenericData,
         payment_link,
         payment_methods::PaymentMethodRetrieve,
         payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
@@ -104,14 +105,15 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 })?
         };
 
-        let (
+        let MandateGenericData {
             token,
             payment_method,
             payment_method_type,
-            setup_mandate,
+            mandate_data,
             recurring_mandate_payment_data,
             mandate_connector,
-        ) = helpers::get_token_pm_type_mandate_details(
+            payment_method_info,
+        } = helpers::get_token_pm_type_mandate_details(
             state,
             request,
             mandate_type,
@@ -291,6 +293,14 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         let mandate_id = request
             .mandate_id
             .as_ref()
+            .or_else(|| {
+            request.recurring_details
+                .as_ref()
+                .and_then(|recurring_details| match recurring_details {
+                    RecurringDetails::MandateId(id) => Some(id),
+                    _ => None,
+                })
+        })
             .async_and_then(|mandate_id| async {
                 let mandate = db
                     .find_mandate_by_merchant_id_mandate_id(merchant_id, mandate_id)
@@ -359,7 +369,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .transpose()?;
 
         // The operation merges mandate data from both request and payment_attempt
-        let setup_mandate = setup_mandate.map(MandateData::from);
+        let setup_mandate = mandate_data.map(MandateData::from);
 
         let customer_acceptance = request.customer_acceptance.clone().map(From::from);
 
@@ -398,7 +408,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             token_data: None,
             confirm: request.confirm,
             payment_method_data: payment_method_data_after_card_bin_call,
-            payment_method_info: None,
+            payment_method_info,
             refunds: vec![],
             disputes: vec![],
             attempts: None,
@@ -410,7 +420,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             connector_customer_id: None,
             recurring_mandate_payment_data,
             ephemeral_key,
-            payment_method_status: None,
             multiple_capture_data: None,
             redirect_response: None,
             surcharge_details,
@@ -420,6 +429,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             authorizations: vec![],
             authentication: None,
             frm_metadata: request.frm_metadata.clone(),
+            recurring_details: request.recurring_details.clone(),
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -677,6 +687,11 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
         let mandate_type =
             helpers::validate_mandate(request, payments::is_operation_confirm(self))?;
 
+        helpers::validate_recurring_details_and_token(
+            &request.recurring_details,
+            &request.payment_token,
+        )?;
+
         if request.confirm.unwrap_or(false) {
             helpers::validate_pm_or_token_given(
                 &request.payment_method,
@@ -821,7 +836,30 @@ impl PaymentCreate {
                 external_three_ds_authentication_attempted: None,
                 mandate_data,
                 payment_method_billing_address_id,
-                ..storage::PaymentAttemptNew::default()
+                net_amount: i64::default(),
+                save_to_locker: None,
+                connector: None,
+                error_message: None,
+                offer_amount: None,
+                payment_method_id: None,
+                cancellation_reason: None,
+                error_code: None,
+                connector_metadata: None,
+                straight_through_algorithm: None,
+                preprocessing_step_id: None,
+                error_reason: None,
+                connector_response_reference_id: None,
+                multiple_capture_count: None,
+                amount_capturable: i64::default(),
+                updated_by: String::default(),
+                authentication_data: None,
+                encoded_data: None,
+                merchant_connector_id: None,
+                unified_code: None,
+                unified_message: None,
+                fingerprint_id: None,
+                authentication_connector: None,
+                authentication_id: None,
             },
             additional_pm_data,
         ))

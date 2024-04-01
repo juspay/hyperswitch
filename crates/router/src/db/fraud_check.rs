@@ -1,5 +1,5 @@
 use diesel_models::fraud_check::{self as storage, FraudCheck, FraudCheckUpdate};
-use error_stack::IntoReport;
+use error_stack::report;
 use router_env::{instrument, tracing};
 
 use super::MockDb;
@@ -43,7 +43,9 @@ impl FraudCheckInterface for Store {
         new: storage::FraudCheckNew,
     ) -> CustomResult<FraudCheck, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        new.insert(&conn).await.map_err(Into::into).into_report()
+        new.insert(&conn)
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -55,8 +57,7 @@ impl FraudCheckInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         this.update_with_attempt_id(&conn, fraud_check)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -68,8 +69,7 @@ impl FraudCheckInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         FraudCheck::get_with_payment_id(&conn, payment_id, merchant_id)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -81,8 +81,7 @@ impl FraudCheckInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         FraudCheck::get_with_payment_id_if_present(&conn, payment_id, merchant_id)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
 

@@ -11,7 +11,7 @@ license.workspace = true
 [features]
 default = ["kv_store", "stripe", "oltp", "olap", "backwards_compatibility", "accounts_cache", "dummy_connector", "payouts", "payout_retry", "business_profile_routing", "connector_choice_mca_id", "profile_specific_fallback_routing", "retry", "frm"]
 email = ["external_services/email", "scheduler/email", "olap"]
-frm = []
+frm = ["api_models/frm"]
 stripe = ["dep:serde_qs"]
 release = ["stripe", "email", "backwards_compatibility", "business_profile_routing", "accounts_cache", "kv_store", "connector_choice_mca_id", "profile_specific_fallback_routing", "vergen", "recon", "external_services/aws_kms", "external_services/aws_s3"]
 olap = ["data_models/olap", "storage_impl/olap", "scheduler/olap", "api_models/olap", "dep:analytics"]
@@ -26,7 +26,12 @@ dummy_connector = ["api_models/dummy_connector", "euclid/dummy_connector", "kgra
 connector_choice_mca_id = ["api_models/connector_choice_mca_id", "euclid/connector_choice_mca_id", "kgraph_utils/connector_choice_mca_id"]
 external_access_dc = ["dummy_connector"]
 detailed_errors = ["api_models/detailed_errors", "error-stack/serde"]
-payouts = ["common_enums/payouts"]
+payouts = [
+  "api_models/payouts",
+  "common_enums/payouts",
+  "data_models/payouts",
+  "storage_impl/payouts"
+]
 payout_retry = ["payouts"]
 recon = ["email", "api_models/recon"]
 retry = []
@@ -51,7 +56,7 @@ diesel = { version = "2.1.0", features = ["postgres"] }
 digest = "0.9"
 dyn-clone = "1.0.11"
 encoding_rs = "0.8.32"
-error-stack = "0.3.1"
+error-stack = "0.4.1"
 futures = "0.3.28"
 hex = "0.4.3"
 http = "0.2.9"
@@ -91,7 +96,7 @@ time = { version = "0.3.21", features = ["serde", "serde-well-known", "std"] }
 tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread"] }
 unicode-segmentation = "1.10.1"
 url = { version = "2.4.0", features = ["serde"] }
-utoipa = { version = "3.3.0", features = ["preserve_order", "time"] }
+utoipa = { version = "3.5.0", features = ["preserve_order", "preserve_path_order", "time"] }
 uuid = { version = "1.7.0", features = ["v4"] }
 validator = "0.16.0"
 x509-parser = "0.15.0"

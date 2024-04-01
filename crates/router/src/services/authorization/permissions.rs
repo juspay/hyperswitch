@@ -30,6 +30,9 @@ pub enum Permission {
     UsersRead,
     UsersWrite,
     MerchantAccountCreate,
+    WebhookEventRead,
+    PayoutRead,
+    PayoutWrite,
 }
 
 impl Permission {
@@ -39,7 +42,7 @@ impl Permission {
             Self::PaymentWrite => "Create payment, download payments data",
             Self::RefundRead => "View all refunds",
             Self::RefundWrite => "Create refund, download refunds data",
-            Self::ApiKeyRead => "View API keys (masked generated for the system",
+            Self::ApiKeyRead => "View API keys",
             Self::ApiKeyWrite => "Create and update API keys",
             Self::MerchantAccountRead => "View merchant account details",
             Self::MerchantAccountWrite => {
@@ -67,6 +70,9 @@ impl Permission {
             Self::UsersRead => "View all the users for a merchant",
             Self::UsersWrite => "Invite users, assign and update roles",
             Self::MerchantAccountCreate => "Create merchant account",
+            Self::WebhookEventRead => "View webhook events",
+            Self::PayoutRead => "View all payouts",
+            Self::PayoutWrite => "Create payout, download payout data",
         }
     }
 }
