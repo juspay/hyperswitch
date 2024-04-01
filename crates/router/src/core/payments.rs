@@ -2208,10 +2208,11 @@ pub mod payment_address {
             payment_method_data_billing: Option<api::Address>,
         ) -> Self {
             // Unify the billing details with `payment_method_data.billing_details`
-            let unified_payment_method_billing =
-                payment_method_data_billing.map(|payment_method_data_billing| {
+            let unified_payment_method_billing = payment_method_data_billing
+                .map(|payment_method_data_billing| {
                     payment_method_data_billing.unify_address(self.get_payment_method_billing())
-                });
+                })
+                .or(self.get_payment_method_billing().cloned());
 
             Self {
                 shipping: self.shipping,
