@@ -19,7 +19,7 @@ use diesel::{
     result::Error as DieselError,
     Expression, Insertable, QueryDsl, QuerySource, Table,
 };
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use router_env::logger;
 
 use crate::{errors, PgPooledConn, StorageResult};
@@ -86,14 +86,13 @@ where
 
     match track_database_call::<T, _, _>(query.get_result_async(conn), DatabaseOperation::Insert)
         .await
-        .into_report()
     {
         Ok(value) => Ok(value),
-        Err(err) => match err.current_context() {
+        Err(err) => match err {
             DieselError::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _) => {
-                Err(err).change_context(errors::DatabaseError::UniqueViolation)
+                Err(report!(err)).change_context(errors::DatabaseError::UniqueViolation)
             }
-            _ => Err(err).change_context(errors::DatabaseError::Others),
+            _ => Err(report!(err)).change_context(errors::DatabaseError::Others),
         },
     }
     .attach_printable_lazy(|| format!("Error while inserting {debug_values}"))
@@ -121,7 +120,6 @@ where
 
     track_database_call::<T, _, _>(query.execute_async(conn), DatabaseOperation::Update)
         .await
-        .into_report()
         .change_context(errors::DatabaseError::Others)
         .attach_printable_lazy(|| format!("Error while updating {debug_values}"))
 }
@@ -205,7 +203,6 @@ where
             } else {
                 vec_r.pop().ok_or(errors::DatabaseError::Others)
             }
-            .into_report()
             .attach_printable("Maybe not queried using a unique key")
         })?
 }
@@ -274,7 +271,6 @@ where
 
     track_database_call::<T, _, _>(query.execute_async(conn), DatabaseOperation::Delete)
         .await
-        .into_report()
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Error while deleting")
         .and_then(|result| match result {
@@ -310,7 +306,6 @@ where
         DatabaseOperation::DeleteWithResult,
     )
     .await
-    .into_report()
     .change_context(errors::DatabaseError::Others)
     .attach_printable("Error while deleting")
     .and_then(|result| {
@@ -332,14 +327,14 @@ where
     let query = <T as HasTable>::table().find(id.to_owned());
     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-    match track_database_call::<T, _, _>(query.first_async(conn), DatabaseOperation::FindOne)
-        .await
-        .into_report()
+    match track_database_call::<T, _, _>(query.first_async(conn), DatabaseOperation::FindOne).await
     {
         Ok(value) => Ok(value),
-        Err(err) => match err.current_context() {
-            DieselError::NotFound => Err(err).change_context(errors::DatabaseError::NotFound),
-            _ => Err(err).change_context(errors::DatabaseError::Others),
+        Err(err) => match err {
+            DieselError::NotFound => {
+                Err(report!(err)).change_context(errors::DatabaseError::NotFound)
+            }
+            _ => Err(report!(err)).change_context(errors::DatabaseError::Others),
         },
     }
     .attach_printable_lazy(|| format!("Error finding record by primary key: {id:?}"))
@@ -382,10 +377,9 @@ where
 
     track_database_call::<T, _, _>(query.get_result_async(conn), DatabaseOperation::FindOne)
         .await
-        .into_report()
-        .map_err(|err| match err.current_context() {
-            DieselError::NotFound => err.change_context(errors::DatabaseError::NotFound),
-            _ => err.change_context(errors::DatabaseError::Others),
+        .map_err(|err| match err {
+            DieselError::NotFound => report!(err).change_context(errors::DatabaseError::NotFound),
+            _ => report!(err).change_context(errors::DatabaseError::Others),
         })
         .attach_printable("Error finding record by predicate")
 }
@@ -449,7 +443,6 @@ where
 
     track_database_call::<T, _, _>(query.get_results_async(conn), DatabaseOperation::Filter)
         .await
-        .into_report()
         .change_context(errors::DatabaseError::NotFound)
         .attach_printable("Error filtering records by predicate")
 }

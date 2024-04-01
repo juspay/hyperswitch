@@ -14,7 +14,7 @@ pub mod recon;
 pub mod email;
 
 use data_models::errors::StorageResult;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, StrongSecret};
 #[cfg(feature = "kv_store")]
 use storage_impl::KVRouterStore;
@@ -91,7 +91,6 @@ pub fn generate_aes256_key() -> errors::CustomResult<[u8; 32], common_utils::err
     let rng = ring::rand::SystemRandom::new();
     let mut key: [u8; 256 / 8] = [0_u8; 256 / 8];
     rng.fill(&mut key)
-        .into_report()
         .change_context(common_utils::errors::CryptoError::EncodingFailed)?;
     Ok(key)
 }

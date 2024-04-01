@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use bigdecimal::ToPrimitive;
 use common_utils::errors::CustomResult;
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use events::{EventsError, Message, MessagingInterface};
 use rdkafka::{
     config::FromClientConfig,
@@ -33,9 +33,7 @@ where
 {
     fn value(&self) -> MQResult<Vec<u8>> {
         // Add better error logging here
-        serde_json::to_vec(&self)
-            .into_report()
-            .change_context(KafkaError::GenericError)
+        serde_json::to_vec(&self).change_context(KafkaError::GenericError)
     }
 
     fn key(&self) -> String;
@@ -203,7 +201,6 @@ impl KafkaProducer {
                 ThreadedProducer::from_config(
                     rdkafka::ClientConfig::new().set("bootstrap.servers", conf.brokers.join(",")),
                 )
-                .into_report()
                 .change_context(KafkaError::InitializationError)?,
             )),
 
@@ -385,7 +382,6 @@ impl MessagingInterface for KafkaProducer {
         let topic = self.get_topic(data.get_message_class());
         let json_data = masking::masked_serialize(&data)
             .and_then(|i| serde_json::to_vec(&i))
-            .into_report()
             .change_context(EventsError::SerializationError)?;
         self.producer
             .0
