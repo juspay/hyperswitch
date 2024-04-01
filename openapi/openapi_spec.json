@@ -13073,14 +13073,16 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer object. This field will be deprecated soon, use the customer object instead",
+            "description": "The identifier for the customer object.\nThis field will be deprecated soon, use the customer object instead",
+            "deprecated": true,
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
             "maxLength": 255
           },
           "email": {
             "type": "string",
-            "description": "The customer's email address This field will be deprecated soon, use the customer object instead",
+            "description": "The customer's email address.\nThis field will be deprecated soon, use the customer object instead",
+            "deprecated": true,
             "example": "johntest@test.com",
             "nullable": true,
             "maxLength": 255
@@ -13088,6 +13090,7 @@
           "name": {
             "type": "string",
             "description": "The customer's name.\nThis field will be deprecated soon, use the customer object instead.",
+            "deprecated": true,
             "example": "John Test",
             "nullable": true,
             "maxLength": 255
@@ -13095,6 +13098,7 @@
           "phone": {
             "type": "string",
             "description": "The customer's phone number\nThis field will be deprecated soon, use the customer object instead",
+            "deprecated": true,
             "example": "3141592653",
             "nullable": true,
             "maxLength": 255
@@ -13102,6 +13106,7 @@
           "phone_country_code": {
             "type": "string",
             "description": "The country code for the customer phone number\nThis field will be deprecated soon, use the customer object instead",
+            "deprecated": true,
             "example": "+1",
             "nullable": true,
             "maxLength": 255
@@ -13444,14 +13449,16 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer object. This field will be deprecated soon, use the customer object instead",
+            "description": "The identifier for the customer object.\nThis field will be deprecated soon, use the customer object instead",
+            "deprecated": true,
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
             "maxLength": 255
           },
           "email": {
             "type": "string",
-            "description": "The customer's email address This field will be deprecated soon, use the customer object instead",
+            "description": "The customer's email address.\nThis field will be deprecated soon, use the customer object instead",
+            "deprecated": true,
             "example": "johntest@test.com",
             "nullable": true,
             "maxLength": 255
@@ -13459,6 +13466,7 @@
           "name": {
             "type": "string",
             "description": "The customer's name.\nThis field will be deprecated soon, use the customer object instead.",
+            "deprecated": true,
             "example": "John Test",
             "nullable": true,
             "maxLength": 255
@@ -13466,6 +13474,7 @@
           "phone": {
             "type": "string",
             "description": "The customer's phone number\nThis field will be deprecated soon, use the customer object instead",
+            "deprecated": true,
             "example": "3141592653",
             "nullable": true,
             "maxLength": 255
@@ -13473,6 +13482,7 @@
           "phone_country_code": {
             "type": "string",
             "description": "The country code for the customer phone number\nThis field will be deprecated soon, use the customer object instead",
+            "deprecated": true,
             "example": "+1",
             "nullable": true,
             "maxLength": 255
@@ -13927,14 +13937,16 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer object. This field will be deprecated soon, use the customer object instead",
+            "description": "The identifier for the customer object.\nThis field will be deprecated soon, use the customer object instead",
+            "deprecated": true,
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
             "maxLength": 255
           },
           "email": {
             "type": "string",
-            "description": "The customer's email address This field will be deprecated soon, use the customer object instead",
+            "description": "The customer's email address.\nThis field will be deprecated soon, use the customer object instead",
+            "deprecated": true,
             "example": "johntest@test.com",
             "nullable": true,
             "maxLength": 255
@@ -13942,6 +13954,7 @@
           "name": {
             "type": "string",
             "description": "The customer's name.\nThis field will be deprecated soon, use the customer object instead.",
+            "deprecated": true,
             "example": "John Test",
             "nullable": true,
             "maxLength": 255
@@ -13949,6 +13962,7 @@
           "phone": {
             "type": "string",
             "description": "The customer's phone number\nThis field will be deprecated soon, use the customer object instead",
+            "deprecated": true,
             "example": "3141592653",
             "nullable": true,
             "maxLength": 255
@@ -13956,6 +13970,7 @@
           "phone_country_code": {
             "type": "string",
             "description": "The country code for the customer phone number\nThis field will be deprecated soon, use the customer object instead",
+            "deprecated": true,
             "example": "+1",
             "nullable": true,
             "maxLength": 255
@@ -14309,7 +14324,8 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer object. If not provided the customer ID will be autogenerated.",
+            "description": "The identifier for the customer object. If not provided the customer ID will be autogenerated.\nThis field will be depricated soon. Please refer to `customer.id`",
+            "deprecated": true,
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
             "maxLength": 255
@@ -14448,21 +14464,24 @@
           },
           "email": {
             "type": "string",
-            "description": "description: The customer's email address",
+            "description": "description: The customer's email address\nThis field will be depricated soon. Please refer to `customer.email` object",
+            "deprecated": true,
             "example": "johntest@test.com",
             "nullable": true,
             "maxLength": 255
           },
           "name": {
             "type": "string",
-            "description": "description: The customer's name",
+            "description": "description: The customer's name\nThis field will be depricated soon. Please refer to `customer.name` object",
+            "deprecated": true,
             "example": "John Test",
             "nullable": true,
             "maxLength": 255
           },
           "phone": {
             "type": "string",
-            "description": "The customer's phone number",
+            "description": "The customer's phone number\nThis field will be depricated soon. Please refer to `customer.phone` object",
+            "deprecated": true,
             "example": "3141592653",
             "nullable": true,
             "maxLength": 255
@@ -14972,14 +14991,16 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer object. This field will be deprecated soon, use the customer object instead",
+            "description": "The identifier for the customer object.\nThis field will be deprecated soon, use the customer object instead",
+            "deprecated": true,
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
             "maxLength": 255
           },
           "email": {
             "type": "string",
-            "description": "The customer's email address This field will be deprecated soon, use the customer object instead",
+            "description": "The customer's email address.\nThis field will be deprecated soon, use the customer object instead",
+            "deprecated": true,
             "example": "johntest@test.com",
             "nullable": true,
             "maxLength": 255
@@ -14987,6 +15008,7 @@
           "name": {
             "type": "string",
             "description": "The customer's name.\nThis field will be deprecated soon, use the customer object instead.",
+            "deprecated": true,
             "example": "John Test",
             "nullable": true,
             "maxLength": 255
@@ -14994,6 +15016,7 @@
           "phone": {
             "type": "string",
             "description": "The customer's phone number\nThis field will be deprecated soon, use the customer object instead",
+            "deprecated": true,
             "example": "3141592653",
             "nullable": true,
             "maxLength": 255
@@ -15001,6 +15024,7 @@
           "phone_country_code": {
             "type": "string",
             "description": "The country code for the customer phone number\nThis field will be deprecated soon, use the customer object instead",
+            "deprecated": true,
             "example": "+1",
             "nullable": true,
             "maxLength": 255
