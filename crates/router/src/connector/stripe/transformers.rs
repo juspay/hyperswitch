@@ -8,7 +8,7 @@ use common_utils::{
     request::RequestContent,
 };
 use data_models::mandates::AcceptanceType;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, ExposeOptionInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -29,6 +29,7 @@ use crate::{
         storage::enums,
         transformers::{ForeignFrom, ForeignTryFrom},
     },
+    unimplemented_payment_method,
     utils::OptionExt,
 };
 
@@ -914,15 +915,15 @@ fn validate_shipping_address_against_payment_method(
                 if !missing_fields.is_empty() {
                     return Err(errors::ConnectorError::MissingRequiredFields {
                         field_names: missing_fields,
-                    })
-                    .into_report();
+                    }
+                    .into());
                 }
                 Ok(())
             }
             None => Err(errors::ConnectorError::MissingRequiredField {
                 field_name: "shipping.address",
-            })
-            .into_report(),
+            }
+            .into()),
         },
         _ => Ok(()),
     }
@@ -1541,9 +1542,7 @@ impl TryFrom<(&payments::WalletData, Option<types::PaymentMethodToken>)>
                 if apple_pay_decrypt_data.is_none() {
                     apple_pay_decrypt_data =
                         Some(Self::Wallet(StripeWallet::ApplepayToken(StripeApplePay {
-                            pk_token: applepay_data
-                                .get_applepay_decoded_payment_data()
-                                .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+                            pk_token: applepay_data.get_applepay_decoded_payment_data()?,
                             pk_token_instrument_name: applepay_data
                                 .payment_method
                                 .pm_type
@@ -1715,7 +1714,9 @@ impl TryFrom<&payments::GooglePayWalletData> for StripePaymentMethodData {
                     .token
                     .as_bytes()
                     .parse_struct::<StripeGpayToken>("StripeGpayToken")
-                    .change_context(errors::ConnectorError::RequestEncodingFailed)?
+                    .change_context(errors::ConnectorError::InvalidWalletToken {
+                        wallet_name: "Google Pay".to_string(),
+                    })?
                     .id,
             ),
             payment_type: StripePaymentMethodType::Card,
@@ -1862,12 +1863,15 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                     .payment_method_token
                     .to_owned()
                     .get_required_value("payment_token")
-                    .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+                    .change_context(errors::ConnectorError::InvalidWalletToken {
+                        wallet_name: "Apple Pay".to_string(),
+                    })?;
+
                 let payment_method_token = match payment_method_token {
                     types::PaymentMethodToken::Token(payment_method_token) => payment_method_token,
-                    types::PaymentMethodToken::ApplePayDecrypt(_) => {
-                        Err(errors::ConnectorError::InvalidWalletToken)?
-                    }
+                    types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
+                        unimplemented_payment_method!("Apple Pay", "Simplified", "Stripe"),
+                    )?,
                 };
                 Some(StripePaymentMethodData::Wallet(
                     StripeWallet::ApplepayPayment(ApplepayPayment {

@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use api_models::user_role as user_role_api;
 use common_enums::PermissionGroup;
 use diesel_models::user_role::UserRole;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use router_env::logger;
 
 use crate::{
@@ -53,19 +53,19 @@ impl From<Permission> for user_role_api::Permission {
 
 pub fn validate_role_groups(groups: &[PermissionGroup]) -> UserResult<()> {
     if groups.is_empty() {
-        return Err(UserErrors::InvalidRoleOperation.into())
+        return Err(report!(UserErrors::InvalidRoleOperation))
             .attach_printable("Role groups cannot be empty");
     }
 
     let unique_groups: HashSet<_> = groups.iter().cloned().collect();
 
     if unique_groups.contains(&PermissionGroup::OrganizationManage) {
-        return Err(UserErrors::InvalidRoleOperation.into())
+        return Err(report!(UserErrors::InvalidRoleOperation))
             .attach_printable("Organization manage group cannot be added to role");
     }
 
     if unique_groups.len() != groups.len() {
-        return Err(UserErrors::InvalidRoleOperation.into())
+        return Err(report!(UserErrors::InvalidRoleOperation))
             .attach_printable("Duplicate permission group found");
     }
 
@@ -134,9 +134,7 @@ pub async fn set_role_permissions_in_cache_if_required(
         state,
         role_id,
         &role_info.get_permissions_set().into_iter().collect(),
-        consts::JWT_TOKEN_TIME_IN_SECS
-            .try_into()
-            .into_report()
+        i64::try_from(consts::JWT_TOKEN_TIME_IN_SECS)
             .change_context(UserErrors::InternalServerError)?,
     )
     .await

@@ -13338,6 +13338,14 @@
             "description": "Whether to perform external authentication (if applicable)",
             "example": true,
             "nullable": true
+          },
+          "recurring_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecurringDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -13729,6 +13737,14 @@
             "type": "boolean",
             "description": "Whether to perform external authentication (if applicable)",
             "example": true,
+            "nullable": true
+          },
+          "recurring_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecurringDetails"
+              }
+            ],
             "nullable": true
           }
         }
@@ -14223,6 +14239,14 @@
             "type": "boolean",
             "description": "Whether to perform external authentication (if applicable)",
             "example": true,
+            "nullable": true
+          },
+          "recurring_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecurringDetails"
+              }
+            ],
             "nullable": true
           }
         }
@@ -15224,6 +15248,14 @@
             "description": "Whether to perform external authentication (if applicable)",
             "example": true,
             "nullable": true
+          },
+          "recurring_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecurringDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -16132,6 +16164,49 @@
           "active",
           "disabled"
         ]
+      },
+      "RecurringDetails": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "mandate_id"
+                ]
+              },
+              "data": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "payment_method_id"
+                ]
+              },
+              "data": {
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
+        }
       },
       "RedirectResponse": {
         "type": "object",

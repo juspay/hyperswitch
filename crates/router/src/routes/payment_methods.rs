@@ -8,7 +8,7 @@ use time::PrimitiveDateTime;
 use super::app::AppState;
 use crate::{
     core::{api_locking, errors, payment_methods::cards},
-    services::{api, authentication as auth},
+    services::{api, authentication as auth, authorization::permissions::Permission},
     types::{
         api::payment_methods::{self, PaymentMethodId},
         storage::payment_method::PaymentTokenData,
@@ -262,6 +262,35 @@ pub async fn payment_method_delete_api(
     .await
 }
 
+#[instrument(skip_all, fields(flow = ?Flow::ListCountriesCurrencies))]
+pub async fn list_countries_currencies_for_connector_payment_method(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query_payload: web::Query<payment_methods::ListCountriesCurrenciesRequest>,
+) -> HttpResponse {
+    let flow = Flow::ListCountriesCurrencies;
+    let payload = query_payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, _auth: auth::AuthenticationData, req| {
+            cards::list_countries_currencies_for_connector_payment_method(state, req)
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::MerchantConnectorAccountWrite),
+            req.headers(),
+        ),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth(Permission::MerchantConnectorAccountWrite),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[instrument(skip_all, fields(flow = ?Flow::DefaultPaymentMethodsSet))]
 pub async fn default_payment_method_set_api(
     state: web::Data<AppState>,
@@ -297,7 +326,6 @@ pub async fn default_payment_method_set_api(
     ))
     .await
 }
-
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]
