@@ -1,4 +1,4 @@
-use error_stack::{ResultExt};
+use error_stack::ResultExt;
 use events::{Event, EventInfo};
 use serde::Serialize;
 use time::PrimitiveDateTime;
@@ -62,8 +62,7 @@ impl Event for AuditEvent {
 
 impl EventInfo for AuditEvent {
     fn data(&self) -> error_stack::Result<serde_json::Value, events::EventsError> {
-        serde_json::to_value(self)
-            .change_context(events::EventsError::SerializationError)
+        serde_json::to_value(self).change_context(events::EventsError::SerializationError)
     }
 
     fn key(&self) -> String {
