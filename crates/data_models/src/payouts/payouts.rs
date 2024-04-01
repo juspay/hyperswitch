@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 use storage_enums::MerchantStorageScheme;
 use time::PrimitiveDateTime;
 
+#[cfg(feature = "olap")]
+use super::{payout_attempt::PayoutAttempt, PayoutFetchConstraints};
 use crate::errors;
 
 #[async_trait::async_trait]
@@ -34,6 +36,30 @@ pub trait PayoutsInterface {
         _payout_id: &str,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Option<Payouts>, errors::StorageError>;
+
+    #[cfg(feature = "olap")]
+    async fn filter_payouts_by_constraints(
+        &self,
+        _merchant_id: &str,
+        _filters: &PayoutFetchConstraints,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<Payouts>, errors::StorageError>;
+
+    #[cfg(feature = "olap")]
+    async fn filter_payouts_and_attempts(
+        &self,
+        _merchant_id: &str,
+        _filters: &PayoutFetchConstraints,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<(Payouts, PayoutAttempt)>, errors::StorageError>;
+
+    #[cfg(feature = "olap")]
+    async fn filter_payouts_by_time_range_constraints(
+        &self,
+        merchant_id: &str,
+        time_range: &api_models::payments::TimeRange,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<Payouts>, errors::StorageError>;
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

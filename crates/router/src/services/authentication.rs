@@ -531,6 +531,68 @@ where
     }
 }
 
+pub struct JWTAuthMerchantOrProfileFromRoute {
+    pub merchant_id_or_profile_id: String,
+    pub required_permission: Permission,
+}
+
+#[async_trait]
+impl<A> AuthenticateAndFetch<(), A> for JWTAuthMerchantOrProfileFromRoute
+where
+    A: AppStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<((), AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+        if payload.check_in_blacklist(state).await? {
+            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+        }
+
+        let permissions = authorization::get_permissions(state, &payload).await?;
+        authorization::check_authorization(&self.required_permission, &permissions)?;
+
+        // Check if token has access to MerchantId that has been requested through path or query param
+        if payload.merchant_id == self.merchant_id_or_profile_id {
+            return Ok((
+                (),
+                AuthenticationType::MerchantJwt {
+                    merchant_id: payload.merchant_id,
+                    user_id: Some(payload.user_id),
+                },
+            ));
+        }
+
+        // Route did not contain the merchant ID in present JWT, check if it corresponds to a
+        // business profile
+        let business_profile = state
+            .store()
+            .find_business_profile_by_profile_id(&self.merchant_id_or_profile_id)
+            .await
+            // Return access forbidden if business profile not found
+            .to_not_found_response(errors::ApiErrorResponse::AccessForbidden {
+                resource: self.merchant_id_or_profile_id.clone(),
+            })
+            .attach_printable("Could not find business profile specified in route")?;
+
+        // Check if merchant (from JWT) has access to business profile that has been requested
+        // through path or query param
+        if payload.merchant_id == business_profile.merchant_id {
+            Ok((
+                (),
+                AuthenticationType::MerchantJwt {
+                    merchant_id: payload.merchant_id,
+                    user_id: Some(payload.user_id),
+                },
+            ))
+        } else {
+            Err(report!(errors::ApiErrorResponse::InvalidJwtToken))
+        }
+    }
+}
+
 pub async fn parse_jwt_payload<A, T>(headers: &HeaderMap, state: &A) -> RouterResult<T>
 where
     T: serde::de::DeserializeOwned,

@@ -455,7 +455,7 @@ fn get_wallet_data(wallet_data: &domain::WalletData) -> Result<PaymentMethodData
         domain::WalletData::GooglePay(_) => {
             Ok(PaymentMethodData::DigitalWallet(requests::DigitalWallet {
                 provider: Some(requests::DigitalWalletProvider::PayByGoogle),
-                payment_token: wallet_data.get_wallet_token_as_json()?,
+                payment_token: wallet_data.get_wallet_token_as_json("Google Pay".to_string())?,
             }))
         }
         _ => Err(errors::ConnectorError::NotImplemented(

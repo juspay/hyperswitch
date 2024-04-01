@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use api_models::payments::{Address, AddressDetails};
 use masking::Secret;
-use router::types::{self, api, storage::enums, PaymentAddress};
+use router::types::{self, storage::enums, PaymentAddress};
 
 use crate::{
     connector_auth,
@@ -97,16 +97,16 @@ impl AdyenTest {
                 None,
             )),
             payout_method_data: match payout_type {
-                enums::PayoutType::Card => {
-                    Some(api::PayoutMethodData::Card(api::payouts::CardPayout {
+                enums::PayoutType::Card => Some(types::api::PayoutMethodData::Card(
+                    types::api::payouts::CardPayout {
                         card_number: cards::CardNumber::from_str("4111111111111111").unwrap(),
                         expiry_month: Secret::new("3".to_string()),
                         expiry_year: Secret::new("2030".to_string()),
                         card_holder_name: Some(Secret::new("John Doe".to_string())),
-                    }))
-                }
-                enums::PayoutType::Bank => Some(api::PayoutMethodData::Bank(
-                    api::payouts::BankPayout::Sepa(api::SepaBankTransfer {
+                    },
+                )),
+                enums::PayoutType::Bank => Some(types::api::PayoutMethodData::Bank(
+                    types::api::payouts::BankPayout::Sepa(types::api::SepaBankTransfer {
                         iban: "NL46TEST0136169112".to_string().into(),
                         bic: Some("ABNANL2A".to_string().into()),
                         bank_name: Some("Deutsche Bank".to_string()),
@@ -114,8 +114,8 @@ impl AdyenTest {
                         bank_city: Some("Amsterdam".to_string()),
                     }),
                 )),
-                enums::PayoutType::Wallet => Some(api::PayoutMethodData::Wallet(
-                    api::payouts::WalletPayout::Paypal(api_models::payouts::Paypal {
+                enums::PayoutType::Wallet => Some(types::api::PayoutMethodData::Wallet(
+                    types::api::payouts::WalletPayout::Paypal(api_models::payouts::Paypal {
                         email: Email::from_str("EmailUsedForPayPalAccount@example.com").ok(),
                     }),
                 )),

@@ -18,6 +18,7 @@ use crate::{
     core::errors,
     services,
     types::{self, api, domain, domain::PaymentMethodData, storage::enums, MandateReference},
+    unimplemented_payment_method,
 };
 
 const LANGUAGE: &str = "en";
@@ -705,9 +706,9 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
                 let pm_token = item.get_payment_method_token()?;
                 let buyer_key = match pm_token {
                     types::PaymentMethodToken::Token(token) => token,
-                    types::PaymentMethodToken::ApplePayDecrypt(_) => {
-                        Err(errors::ConnectorError::InvalidWalletToken)?
-                    }
+                    types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
+                        unimplemented_payment_method!("Apple Pay", "Simplified", "Payme"),
+                    )?,
                 };
                 Ok(Self {
                     buyer_email,

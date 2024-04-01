@@ -15,6 +15,7 @@ use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant, vec::IntoI
 
 use api_models::{
     self, enums,
+    mandates::RecurringDetails,
     payments::{self as payments_api, HeaderPayload},
 };
 use common_utils::{ext_traits::AsyncExt, pii, types::Surcharge};
@@ -1100,7 +1101,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
                             try {{
                                 // if inside iframe, send post message to parent for redirection
                                 if (window.self !== window.parent) {{
-                                    window.parent.postMessage({{openurl: return_url}}, '*')
+                                    window.top.postMessage({{openurl: return_url}}, '*')
                                 // if parent, redirect self to return_url
                                 }} else {{
                                     window.location.href = return_url
@@ -2212,6 +2213,89 @@ pub mod payment_address {
             self.unified_payment_method_billing.as_ref()
         }
 
+        pub fn unify_with_payment_method_data_billing(
+            self,
+            payment_method_data_billing: Option<api::Address>,
+        ) -> Self {
+            // Unify the billing details with `payment_method_data.billing_details`
+            let unified_payment_method_billing = Self::merge_with_payment_method_data_billing(
+                payment_method_data_billing,
+                self.unified_payment_method_billing,
+            );
+
+            Self {
+                shipping: self.shipping,
+                billing: self.billing,
+                unified_payment_method_billing,
+                payment_method_billing: self.payment_method_billing,
+            }
+        }
+
+        /// Merge / Unify details from `payment.payment_method_data.[payment_method_data]` with the billig address.
+        /// The unification here takes place on the basis of leaf node values
+        fn merge_with_payment_method_data_billing(
+            payment_method_data_billing: Option<api::Address>,
+            payment_method_billing: Option<api::Address>,
+        ) -> Option<api::Address> {
+            let merge_address_details =
+                |payment_method_data_billing_address: Option<api::AddressDetails>,
+                 payment_method_billing_address: Option<api::AddressDetails>| {
+                    match (
+                        payment_method_data_billing_address,
+                        payment_method_billing_address,
+                    ) {
+                        (
+                            Some(payment_method_data_billing_address),
+                            Some(payment_method_billing_address),
+                        ) => Some(api::AddressDetails {
+                            country: payment_method_data_billing_address
+                                .country
+                                .or(payment_method_billing_address.country),
+                            zip: payment_method_data_billing_address
+                                .zip
+                                .or(payment_method_billing_address.zip),
+                            first_name: payment_method_data_billing_address
+                                .first_name
+                                .or(payment_method_billing_address.first_name),
+                            last_name: payment_method_data_billing_address
+                                .last_name
+                                .or(payment_method_billing_address.last_name),
+                            ..Default::default()
+                        }),
+                        (Some(payment_method_data_billing_address), None) => {
+                            Some(payment_method_data_billing_address)
+                        }
+                        (None, Some(payment_method_billing_address)) => {
+                            Some(payment_method_billing_address)
+                        }
+                        (None, None) => None,
+                    }
+                };
+
+            match (
+                payment_method_data_billing.clone(),
+                payment_method_billing.clone(),
+            ) {
+                (Some(payment_method_data_billing), Some(payment_method_billing)) => {
+                    Some(api::Address {
+                        address: merge_address_details(
+                            payment_method_data_billing.address,
+                            payment_method_billing.address,
+                        ),
+                        phone: payment_method_data_billing
+                            .phone
+                            .or(payment_method_billing.phone),
+                        email: payment_method_data_billing
+                            .email
+                            .or(payment_method_billing.email),
+                    })
+                }
+                (Some(payment_method_billing), None) => Some(payment_method_billing),
+                (None, Some(order_billing)) => Some(order_billing),
+                (None, None) => None,
+            }
+        }
+
         pub fn get_request_payment_method_billing(&self) -> Option<&api::Address> {
             self.payment_method_billing.as_ref()
         }
@@ -2269,6 +2353,7 @@ where
     pub authorizations: Vec<diesel_models::authorization::Authorization>,
     pub authentication: Option<storage::Authentication>,
     pub frm_metadata: Option<serde_json::Value>,
+    pub recurring_details: Option<RecurringDetails>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -2913,7 +2998,7 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Invalid connector name received")?;
 
-        return decide_connector_for_token_based_mit_flow(
+        return decide_multiplex_connector_for_normal_or_recurring_payment(
             payment_data,
             routing_data,
             connector_data,
@@ -2967,7 +3052,7 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Invalid connector name received")?;
 
-        return decide_connector_for_token_based_mit_flow(
+        return decide_multiplex_connector_for_normal_or_recurring_payment(
             payment_data,
             routing_data,
             connector_data,
@@ -2986,24 +3071,26 @@ where
     .await
 }
 
-pub fn decide_connector_for_token_based_mit_flow<F: Clone>(
+pub fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone>(
     payment_data: &mut PaymentData<F>,
     routing_data: &mut storage::RoutingData,
     connectors: Vec<api::ConnectorData>,
 ) -> RouterResult<ConnectorCallType> {
-    if let Some((storage_enums::FutureUsage::OffSession, _)) = payment_data
-        .payment_intent
-        .setup_future_usage
-        .zip(payment_data.token_data.as_ref())
-    {
-        logger::debug!("performing routing for token-based MIT flow");
+    match (
+        payment_data.payment_intent.setup_future_usage,
+        payment_data.token_data.as_ref(),
+        payment_data.recurring_details.as_ref(),
+    ) {
+        (Some(storage_enums::FutureUsage::OffSession), Some(_), None)
+        | (None, None, Some(RecurringDetails::PaymentMethodId(_))) => {
+            logger::debug!("performing routing for token-based MIT flow");
 
-        let payment_method_info = payment_data
-            .payment_method_info
-            .as_ref()
-            .get_required_value("payment_method_info")?;
+            let payment_method_info = payment_data
+                .payment_method_info
+                .as_ref()
+                .get_required_value("payment_method_info")?;
 
-        let connector_mandate_details = payment_method_info
+            let connector_mandate_details = payment_method_info
             .connector_mandate_details
             .clone()
             .map(|details| {
@@ -3016,67 +3103,69 @@ pub fn decide_connector_for_token_based_mit_flow<F: Clone>(
             .change_context(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
             .attach_printable("no eligible connector found for token-based MIT flow since there were no connector mandate details")?;
 
-        let mut connector_choice = None;
-        for connector_data in connectors {
-            if let Some(merchant_connector_id) = connector_data.merchant_connector_id.as_ref() {
-                if let Some(mandate_reference_record) =
-                    connector_mandate_details.get(merchant_connector_id)
-                {
-                    connector_choice = Some((connector_data, mandate_reference_record.clone()));
-                    break;
+            let mut connector_choice = None;
+            for connector_data in connectors {
+                if let Some(merchant_connector_id) = connector_data.merchant_connector_id.as_ref() {
+                    if let Some(mandate_reference_record) =
+                        connector_mandate_details.get(merchant_connector_id)
+                    {
+                        connector_choice = Some((connector_data, mandate_reference_record.clone()));
+                        break;
+                    }
                 }
             }
+
+            let (chosen_connector_data, mandate_reference_record) = connector_choice
+                .get_required_value("connector_choice")
+                .change_context(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
+                .attach_printable("no eligible connector found for token-based MIT payment")?;
+
+            routing_data.routed_through = Some(chosen_connector_data.connector_name.to_string());
+            #[cfg(feature = "connector_choice_mca_id")]
+            {
+                routing_data.merchant_connector_id =
+                    chosen_connector_data.merchant_connector_id.clone();
+            }
+
+            payment_data.mandate_id = Some(payments_api::MandateIds {
+                mandate_id: None,
+                mandate_reference_id: Some(payments_api::MandateReferenceId::ConnectorMandateId(
+                    payments_api::ConnectorMandateReferenceId {
+                        connector_mandate_id: Some(
+                            mandate_reference_record.connector_mandate_id.clone(),
+                        ),
+                        payment_method_id: Some(payment_method_info.payment_method_id.clone()),
+                        update_history: None,
+                    },
+                )),
+            });
+
+            payment_data.recurring_mandate_payment_data = Some(RecurringMandatePaymentData {
+                payment_method_type: mandate_reference_record.payment_method_type,
+                original_payment_authorized_amount: mandate_reference_record
+                    .original_payment_authorized_amount,
+                original_payment_authorized_currency: mandate_reference_record
+                    .original_payment_authorized_currency,
+            });
+
+            Ok(api::ConnectorCallType::PreDetermined(chosen_connector_data))
         }
+        _ => {
+            let first_choice = connectors
+                .first()
+                .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
+                .into_report()
+                .attach_printable("no eligible connector found for payment")?
+                .clone();
 
-        let (chosen_connector_data, mandate_reference_record) = connector_choice
-            .get_required_value("connector_choice")
-            .change_context(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
-            .attach_printable("no eligible connector found for token-based MIT payment")?;
+            routing_data.routed_through = Some(first_choice.connector_name.to_string());
+            #[cfg(feature = "connector_choice_mca_id")]
+            {
+                routing_data.merchant_connector_id = first_choice.merchant_connector_id;
+            }
 
-        routing_data.routed_through = Some(chosen_connector_data.connector_name.to_string());
-        #[cfg(feature = "connector_choice_mca_id")]
-        {
-            routing_data.merchant_connector_id =
-                chosen_connector_data.merchant_connector_id.clone();
+            Ok(api::ConnectorCallType::Retryable(connectors))
         }
-
-        payment_data.mandate_id = Some(payments_api::MandateIds {
-            mandate_id: None,
-            mandate_reference_id: Some(payments_api::MandateReferenceId::ConnectorMandateId(
-                payments_api::ConnectorMandateReferenceId {
-                    connector_mandate_id: Some(
-                        mandate_reference_record.connector_mandate_id.clone(),
-                    ),
-                    payment_method_id: Some(payment_method_info.payment_method_id.clone()),
-                    update_history: None,
-                },
-            )),
-        });
-
-        payment_data.recurring_mandate_payment_data = Some(RecurringMandatePaymentData {
-            payment_method_type: mandate_reference_record.payment_method_type,
-            original_payment_authorized_amount: mandate_reference_record
-                .original_payment_authorized_amount,
-            original_payment_authorized_currency: mandate_reference_record
-                .original_payment_authorized_currency,
-        });
-
-        Ok(api::ConnectorCallType::PreDetermined(chosen_connector_data))
-    } else {
-        let first_choice = connectors
-            .first()
-            .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
-            .into_report()
-            .attach_printable("no eligible connector found for payment")?
-            .clone();
-
-        routing_data.routed_through = Some(first_choice.connector_name.to_string());
-        #[cfg(feature = "connector_choice_mca_id")]
-        {
-            routing_data.merchant_connector_id = first_choice.merchant_connector_id;
-        }
-
-        Ok(api::ConnectorCallType::Retryable(connectors))
     }
 }
 
@@ -3297,7 +3386,11 @@ where
 
     match transaction_data {
         TransactionData::Payment(payment_data) => {
-            decide_connector_for_token_based_mit_flow(payment_data, routing_data, connector_data)
+            decide_multiplex_connector_for_normal_or_recurring_payment(
+                payment_data,
+                routing_data,
+                connector_data,
+            )
         }
 
         #[cfg(feature = "payouts")]

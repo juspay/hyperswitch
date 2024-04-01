@@ -14,6 +14,7 @@ use crate::{
     core::errors,
     services,
     types::{self, api, domain, storage::enums, transformers::ForeignFrom},
+    unimplemented_payment_method,
 };
 
 #[derive(Debug, Serialize)]
@@ -92,12 +93,12 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
             domain::PaymentMethodData::Wallet(wallet_data) => match wallet_data.clone() {
                 domain::WalletData::GooglePay(_data) => {
                     let json_wallet_data: CheckoutGooglePayData =
-                        wallet_data.get_wallet_token_as_json()?;
+                        wallet_data.get_wallet_token_as_json("Google Pay".to_string())?;
                     Ok(Self::Googlepay(json_wallet_data))
                 }
                 domain::WalletData::ApplePay(_data) => {
                     let json_wallet_data: CheckoutApplePayData =
-                        wallet_data.get_wallet_token_as_json()?;
+                        wallet_data.get_wallet_token_as_json("Apple Pay".to_string())?;
                     Ok(Self::Applepay(json_wallet_data))
                 }
                 domain::WalletData::AliPayQr(_)
@@ -302,15 +303,21 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                 Ok(a)
             }
             domain::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                domain::WalletData::GooglePay(_) => Ok(PaymentSource::Wallets(WalletSource {
-                    source_type: CheckoutSourceTypes::Token,
-                    token: match item.router_data.get_payment_method_token()? {
-                        types::PaymentMethodToken::Token(token) => token.into(),
-                        types::PaymentMethodToken::ApplePayDecrypt(_) => {
-                            Err(errors::ConnectorError::InvalidWalletToken)?
-                        }
-                    },
-                })),
+                domain::WalletData::GooglePay(_) => {
+                    Ok(PaymentSource::Wallets(WalletSource {
+                        source_type: CheckoutSourceTypes::Token,
+                        token: match item.router_data.get_payment_method_token()? {
+                            types::PaymentMethodToken::Token(token) => token.into(),
+                            types::PaymentMethodToken::ApplePayDecrypt(_) => {
+                                Err(unimplemented_payment_method!(
+                                    "Apple Pay",
+                                    "Simplified",
+                                    "Checkout"
+                                ))?
+                            }
+                        },
+                    }))
+                }
                 domain::WalletData::ApplePay(_) => {
                     let payment_method_token = item.router_data.get_payment_method_token()?;
                     match payment_method_token {
@@ -391,7 +398,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
             enums::AuthenticationType::ThreeDs => CheckoutThreeDS {
                 enabled: true,
                 force_3ds: true,
-                eci: authentication_data.map(|auth| auth.eci.clone()),
+                eci: authentication_data.and_then(|auth| auth.eci.clone()),
                 cryptogram: authentication_data.map(|auth| auth.cavv.clone()),
                 xid: authentication_data.map(|auth| auth.threeds_server_transaction_id.clone()),
                 version: authentication_data.map(|auth| auth.message_version.clone()),
@@ -1345,7 +1352,7 @@ pub fn construct_file_upload_request(
             request.file_key,
             request
                 .file_type
-                .to_string()
+                .as_ref()
                 .split('/')
                 .last()
                 .unwrap_or_default()

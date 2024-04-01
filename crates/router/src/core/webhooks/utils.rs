@@ -126,16 +126,16 @@ pub async fn construct_webhook_router_data<'a>(
 pub(crate) fn get_idempotent_event_id(
     primary_object_id: &str,
     event_type: crate::types::storage::enums::EventType,
-    delivery_attempt: super::types::WebhookDeliveryAttempt,
+    delivery_attempt: crate::types::storage::enums::WebhookDeliveryAttempt,
 ) -> String {
-    use super::types::WebhookDeliveryAttempt;
+    use crate::types::storage::enums::WebhookDeliveryAttempt;
 
     const EVENT_ID_SUFFIX_LENGTH: usize = 8;
 
     let common_prefix = format!("{primary_object_id}_{event_type}");
     match delivery_attempt {
         WebhookDeliveryAttempt::InitialAttempt => common_prefix,
-        WebhookDeliveryAttempt::AutomaticRetry => {
+        WebhookDeliveryAttempt::AutomaticRetry | WebhookDeliveryAttempt::ManualRetry => {
             common_utils::generate_id(EVENT_ID_SUFFIX_LENGTH, &common_prefix)
         }
     }
