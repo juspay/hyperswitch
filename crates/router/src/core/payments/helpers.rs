@@ -471,7 +471,7 @@ pub async fn get_token_pm_type_mandate_details(
 
                         (
                             None,
-                            Some(payment_method_info.payment_method),
+                            payment_method_info.payment_method,
                             payment_method_info.payment_method_type,
                             None,
                             None,
@@ -623,7 +623,7 @@ pub async fn get_token_for_recurring_mandate(
 
         Ok(MandateGenericData {
             token: Some(token),
-            payment_method: Some(payment_method.payment_method),
+            payment_method: payment_method.payment_method,
             recurring_mandate_payment_data: Some(payments::RecurringMandatePaymentData {
                 payment_method_type,
                 original_payment_authorized_amount,
@@ -637,7 +637,7 @@ pub async fn get_token_for_recurring_mandate(
     } else {
         Ok(MandateGenericData {
             token: None,
-            payment_method: Some(payment_method.payment_method),
+            payment_method: payment_method.payment_method,
             recurring_mandate_payment_data: Some(payments::RecurringMandatePaymentData {
                 payment_method_type,
                 original_payment_authorized_amount,
