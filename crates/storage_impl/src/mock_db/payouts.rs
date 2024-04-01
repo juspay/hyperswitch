@@ -1,9 +1,10 @@
 use common_utils::errors::CustomResult;
-#[cfg(all(feature = "olap", feature = "payouts"))]
-use data_models::payouts::payout_attempt::PayoutAttempt;
 use data_models::{
     errors::StorageError,
-    payouts::payouts::{Payouts, PayoutsInterface, PayoutsNew, PayoutsUpdate},
+    payouts::{
+        payout_attempt::PayoutAttempt,
+        payouts::{Payouts, PayoutsInterface, PayoutsNew, PayoutsUpdate},
+    },
 };
 use diesel_models::enums as storage_enums;
 
@@ -25,6 +26,7 @@ impl PayoutsInterface for MockDb {
         &self,
         _this: &Payouts,
         _payout_update: PayoutsUpdate,
+        _payout_attempt: Option<&PayoutAttempt>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<Payouts, StorageError> {
         // TODO: Implement function for `MockDb`

@@ -40,12 +40,13 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
     async fn insert_payout_attempt(
         &self,
         new_payout_attempt: PayoutAttemptNew,
+        payouts: Option<&Payouts>,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PayoutAttempt, errors::StorageError> {
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
-                    .insert_payout_attempt(new_payout_attempt, storage_scheme)
+                    .insert_payout_attempt(new_payout_attempt, payouts, storage_scheme)
                     .await
             }
             MerchantStorageScheme::RedisKv => {
@@ -129,12 +130,13 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
         &self,
         this: &PayoutAttempt,
         payout_update: PayoutAttemptUpdate,
+        payouts: Option<&Payouts>,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PayoutAttempt, errors::StorageError> {
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
-                    .update_payout_attempt(this, payout_update, storage_scheme)
+                    .update_payout_attempt(this, payout_update, payouts, storage_scheme)
                     .await
             }
             MerchantStorageScheme::RedisKv => {
@@ -254,6 +256,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for crate::RouterStore<T> {
     async fn insert_payout_attempt(
         &self,
         new: PayoutAttemptNew,
+        _payouts: Option<&Payouts>,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PayoutAttempt, errors::StorageError> {
         let conn = pg_connection_write(self).await?;
@@ -272,6 +275,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for crate::RouterStore<T> {
         &self,
         this: &PayoutAttempt,
         payout: PayoutAttemptUpdate,
+        _payouts: Option<&Payouts>,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PayoutAttempt, errors::StorageError> {
         let conn = pg_connection_write(self).await?;

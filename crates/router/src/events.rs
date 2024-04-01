@@ -26,6 +26,8 @@ pub enum EventType {
     OutgoingWebhookLogs,
     Dispute,
     AuditEvent,
+    #[cfg(feature = "payouts")]
+    Payouts,
 }
 
 #[derive(Debug, Default, Deserialize, Clone)]

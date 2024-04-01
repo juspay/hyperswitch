@@ -114,12 +114,13 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         &self,
         this: &Payouts,
         payout_update: PayoutsUpdate,
+        payout_attempt: Option<&PayoutAttempt>,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Payouts, StorageError> {
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
-                    .update_payout(this, payout_update, storage_scheme)
+                    .update_payout(this, payout_update, payout_attempt, storage_scheme)
                     .await
             }
             MerchantStorageScheme::RedisKv => {
@@ -314,6 +315,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         &self,
         this: &Payouts,
         payout: PayoutsUpdate,
+        _payout_attempt: Option<&PayoutAttempt>,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Payouts, StorageError> {
         let conn = pg_connection_write(self).await?;

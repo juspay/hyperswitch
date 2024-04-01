@@ -7,6 +7,9 @@ use rdkafka::{
     producer::{BaseRecord, DefaultProducerContext, Producer, ThreadedProducer},
 };
 
+#[cfg(feature = "payouts")]
+pub mod payouts;
+
 use crate::events::EventType;
 mod dispute;
 mod payment_attempt;
@@ -17,6 +20,8 @@ use diesel_models::refund::Refund;
 use serde::Serialize;
 use time::OffsetDateTime;
 
+#[cfg(feature = "payouts")]
+use self::payouts::KafkaPayouts;
 use self::{
     dispute::KafkaDispute, payment_attempt::KafkaPaymentAttempt,
     payment_intent::KafkaPaymentIntent, refund::KafkaRefund,
@@ -93,6 +98,7 @@ pub struct KafkaSettings {
     outgoing_webhook_logs_topic: String,
     dispute_analytics_topic: String,
     audit_events_topic: String,
+    payout_events_topic: String,
 }
 
 impl KafkaSettings {
@@ -173,6 +179,7 @@ pub struct KafkaProducer {
     outgoing_webhook_logs_topic: String,
     dispute_analytics_topic: String,
     audit_events_topic: String,
+    payout_events_topic: String,
 }
 
 struct RdKafkaProducer(ThreadedProducer<DefaultProducerContext>);
@@ -213,6 +220,7 @@ impl KafkaProducer {
             outgoing_webhook_logs_topic: conf.outgoing_webhook_logs_topic.clone(),
             dispute_analytics_topic: conf.dispute_analytics_topic.clone(),
             audit_events_topic: conf.audit_events_topic.clone(),
+            payout_events_topic: conf.payout_events_topic.clone(),
         })
     }
 
@@ -227,6 +235,7 @@ impl KafkaProducer {
             EventType::OutgoingWebhookLogs => &self.outgoing_webhook_logs_topic,
             EventType::Dispute => &self.dispute_analytics_topic,
             EventType::AuditEvent => &self.audit_events_topic,
+            EventType::Payouts => &self.payout_events_topic,
         };
         self.producer
             .0
@@ -343,6 +352,21 @@ impl KafkaProducer {
             .attach_printable_lazy(|| format!("Failed to add positive dispute event {dispute:?}"))
     }
 
+    pub async fn log_payouts(
+        &self,
+        payouts: &KafkaPayouts<'_>,
+        old_payouts: Option<KafkaPayouts<'_>>,
+    ) -> MQResult<()> {
+        if let Some(negative_event) = old_payouts {
+            self.log_event(&KafkaEvent::old(&negative_event))
+                .attach_printable_lazy(|| {
+                    format!("Failed to add negative payouts event {negative_event:?}")
+                })?;
+        };
+        self.log_event(&KafkaEvent::new(payouts))
+            .attach_printable_lazy(|| format!("Failed to add positive payouts event {payouts:?}"))
+    }
+
     pub fn get_topic(&self, event: EventType) -> &str {
         match event {
             EventType::ApiLogs => &self.api_logs_topic,
@@ -353,6 +377,7 @@ impl KafkaProducer {
             EventType::OutgoingWebhookLogs => &self.outgoing_webhook_logs_topic,
             EventType::Dispute => &self.dispute_analytics_topic,
             EventType::AuditEvent => &self.audit_events_topic,
+            EventType::Payouts => &self.payout_events_topic,
         }
     }
 }

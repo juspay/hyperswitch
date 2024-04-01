@@ -4,8 +4,9 @@ use serde::{Deserialize, Serialize};
 use storage_enums::MerchantStorageScheme;
 use time::PrimitiveDateTime;
 
+use super::payout_attempt::PayoutAttempt;
 #[cfg(feature = "olap")]
-use super::{payout_attempt::PayoutAttempt, PayoutFetchConstraints};
+use super::PayoutFetchConstraints;
 use crate::errors;
 
 #[async_trait::async_trait]
@@ -27,6 +28,7 @@ pub trait PayoutsInterface {
         &self,
         _this: &Payouts,
         _payout: PayoutsUpdate,
+        _payout_attempt: Option<&PayoutAttempt>,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Payouts, errors::StorageError>;
 

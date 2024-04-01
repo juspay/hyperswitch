@@ -565,6 +565,7 @@ connector_logs_topic = "topic"        # Kafka topic to be used for connector api
 outgoing_webhook_logs_topic = "topic" # Kafka topic to be used for outgoing webhook events
 dispute_analytics_topic = "topic"     # Kafka topic to be used for Dispute events
 audit_events_topic = "topic"          # Kafka topic to be used for Payment Audit events
+payout_events_topic = "topic"         # Kafka topic to be used for Payouts and PayoutAttempt events
 
 # File storage configuration
 [file_storage]
