@@ -17377,8 +17377,7 @@
           "merchant_identifier",
           "display_name",
           "initiative",
-          "initiative_context",
-          "merchant_business_country"
+          "initiative_context"
         ],
         "properties": {
           "certificate": {
@@ -17400,7 +17399,12 @@
             "type": "string"
           },
           "merchant_business_country": {
-            "$ref": "#/components/schemas/CountryAlpha2"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
           }
         }
       },
