@@ -25,7 +25,7 @@ use common_enums::MandateStatus;
 pub use common_utils::request::RequestContent;
 use common_utils::{pii, pii::Email};
 use data_models::mandates::{CustomerAcceptance, MandateData};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::Secret;
 use serde::Serialize;
 
@@ -981,7 +981,6 @@ impl ResponseId {
             _ => Err(errors::ValidationError::IncorrectValueProvided {
                 field_name: "connector_transaction_id",
             })
-            .into_report()
             .attach_printable("Expected connector transaction ID not found"),
         }
     }

@@ -2,7 +2,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{Encode, ValueExt},
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret, StrongSecret};
 use serde::{Deserialize, Serialize};
 
@@ -1396,7 +1396,6 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsCompleteAuthorizeRouterD
             .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
         let payer_id: Secret<String> =
             serde_urlencoded::from_str::<PaypalQueryParams>(params.peek())
-                .into_report()
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
                 .payer_id;
         let transaction_type = match item.router_data.request.capture_method {

@@ -8,7 +8,7 @@ use common_utils::{
     request::RequestContent,
 };
 use data_models::mandates::AcceptanceType;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, ExposeOptionInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -915,15 +915,15 @@ fn validate_shipping_address_against_payment_method(
                 if !missing_fields.is_empty() {
                     return Err(errors::ConnectorError::MissingRequiredFields {
                         field_names: missing_fields,
-                    })
-                    .into_report();
+                    }
+                    .into());
                 }
                 Ok(())
             }
             None => Err(errors::ConnectorError::MissingRequiredField {
                 field_name: "shipping.address",
-            })
-            .into_report(),
+            }
+            .into()),
         },
         _ => Ok(()),
     }

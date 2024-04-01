@@ -398,11 +398,9 @@ impl<F: Clone + Send> UpdateTracker<FrmData, F> for FraudCheckPost {
                             last_step: frm_data.fraud_check.last_step,
                         };
                         Some(fraud_check_update)
-
                     }
                 },
             },
-
 
             FrmResponse::Checkout(_) | FrmResponse::Transaction(_) => {
                 Some(FraudCheckUpdate::ErrorUpdate {
