@@ -878,6 +878,7 @@ pub fn validate_mandate(
 pub fn validate_recurring_details_and_token(
     recurring_details: &Option<RecurringDetails>,
     payment_token: &Option<String>,
+    mandate_id: &Option<String>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     utils::when(
         recurring_details.is_some() && payment_token.is_some(),
@@ -888,6 +889,12 @@ pub fn validate_recurring_details_and_token(
             }))
         },
     )?;
+
+    utils::when(recurring_details.is_some() && mandate_id.is_some(), || {
+        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+            message: "Expected one out of recurring_details and mandate_id but got both".into()
+        }))
+    })?;
 
     Ok(())
 }
