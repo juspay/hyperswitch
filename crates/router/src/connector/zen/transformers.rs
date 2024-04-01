@@ -319,14 +319,14 @@ impl
 impl
     TryFrom<(
         &ZenRouterData<&types::PaymentsAuthorizeRouterData>,
-        &Box<api_models::payments::BankTransferData>,
+        &Box<domain::BankTransferData>,
     )> for ZenPaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         value: (
             &ZenRouterData<&types::PaymentsAuthorizeRouterData>,
-            &Box<api_models::payments::BankTransferData>,
+            &Box<domain::BankTransferData>,
         ),
     ) -> Result<Self, Self::Error> {
         let (item, bank_transfer_data) = value;
@@ -340,25 +340,21 @@ impl
                 return_url: item.router_data.request.get_router_return_url()?,
             });
         let payment_channel = match **bank_transfer_data {
-            api_models::payments::BankTransferData::MultibancoBankTransfer { .. } => {
+            domain::BankTransferData::MultibancoBankTransfer { .. } => {
                 ZenPaymentChannels::PclBoacompraMultibanco
             }
-            api_models::payments::BankTransferData::Pix { .. } => {
-                ZenPaymentChannels::PclBoacompraPix
-            }
-            api_models::payments::BankTransferData::Pse { .. } => {
-                ZenPaymentChannels::PclBoacompraPse
-            }
-            api_models::payments::BankTransferData::SepaBankTransfer { .. }
-            | api_models::payments::BankTransferData::AchBankTransfer { .. }
-            | api_models::payments::BankTransferData::BacsBankTransfer { .. }
-            | api_models::payments::BankTransferData::PermataBankTransfer { .. }
-            | api_models::payments::BankTransferData::BcaBankTransfer { .. }
-            | api_models::payments::BankTransferData::BniVaBankTransfer { .. }
-            | api_models::payments::BankTransferData::BriVaBankTransfer { .. }
-            | api_models::payments::BankTransferData::CimbVaBankTransfer { .. }
-            | api_models::payments::BankTransferData::DanamonVaBankTransfer { .. }
-            | api_models::payments::BankTransferData::MandiriVaBankTransfer { .. } => {
+            domain::BankTransferData::Pix { .. } => ZenPaymentChannels::PclBoacompraPix,
+            domain::BankTransferData::Pse { .. } => ZenPaymentChannels::PclBoacompraPse,
+            domain::BankTransferData::SepaBankTransfer { .. }
+            | domain::BankTransferData::AchBankTransfer { .. }
+            | domain::BankTransferData::BacsBankTransfer { .. }
+            | domain::BankTransferData::PermataBankTransfer { .. }
+            | domain::BankTransferData::BcaBankTransfer { .. }
+            | domain::BankTransferData::BniVaBankTransfer { .. }
+            | domain::BankTransferData::BriVaBankTransfer { .. }
+            | domain::BankTransferData::CimbVaBankTransfer { .. }
+            | domain::BankTransferData::DanamonVaBankTransfer { .. }
+            | domain::BankTransferData::MandiriVaBankTransfer { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Zen"),
                 ))?

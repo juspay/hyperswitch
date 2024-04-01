@@ -1339,7 +1339,7 @@ fn create_stripe_payment_method(
         }
         domain::PaymentMethodData::BankTransfer(bank_transfer_data) => {
             match bank_transfer_data.deref() {
-                payments::BankTransferData::AchBankTransfer { billing_details } => Ok((
+                domain::BankTransferData::AchBankTransfer { billing_details } => Ok((
                     StripePaymentMethodData::BankTransfer(StripeBankTransferData::AchBankTransfer(
                         Box::new(AchTransferData {
                             email: billing_details.email.to_owned(),
@@ -1348,7 +1348,7 @@ fn create_stripe_payment_method(
                     None,
                     StripeBillingAddress::default(),
                 )),
-                payments::BankTransferData::MultibancoBankTransfer { billing_details } => Ok((
+                domain::BankTransferData::MultibancoBankTransfer { billing_details } => Ok((
                     StripePaymentMethodData::BankTransfer(
                         StripeBankTransferData::MultibancoBankTransfers(Box::new(
                             MultibancoTransferData {
@@ -1359,7 +1359,7 @@ fn create_stripe_payment_method(
                     None,
                     StripeBillingAddress::default(),
                 )),
-                payments::BankTransferData::SepaBankTransfer {
+                domain::BankTransferData::SepaBankTransfer {
                     billing_details,
                     country,
                 } => {
@@ -1385,7 +1385,7 @@ fn create_stripe_payment_method(
                         billing_details,
                     ))
                 }
-                payments::BankTransferData::BacsBankTransfer { billing_details } => {
+                domain::BankTransferData::BacsBankTransfer { billing_details } => {
                     let billing_details = StripeBillingAddress {
                         email: Some(billing_details.email.clone()),
                         name: Some(billing_details.name.clone()),
@@ -1407,18 +1407,18 @@ fn create_stripe_payment_method(
                         billing_details,
                     ))
                 }
-                payments::BankTransferData::Pix {} => Err(errors::ConnectorError::NotImplemented(
+                domain::BankTransferData::Pix {} => Err(errors::ConnectorError::NotImplemented(
                     connector_util::get_unimplemented_payment_method_error_message("stripe"),
                 )
                 .into()),
-                payments::BankTransferData::Pse {}
-                | payments::BankTransferData::PermataBankTransfer { .. }
-                | payments::BankTransferData::BcaBankTransfer { .. }
-                | payments::BankTransferData::BniVaBankTransfer { .. }
-                | payments::BankTransferData::BriVaBankTransfer { .. }
-                | payments::BankTransferData::CimbVaBankTransfer { .. }
-                | payments::BankTransferData::DanamonVaBankTransfer { .. }
-                | payments::BankTransferData::MandiriVaBankTransfer { .. } => {
+                domain::BankTransferData::Pse {}
+                | domain::BankTransferData::PermataBankTransfer { .. }
+                | domain::BankTransferData::BcaBankTransfer { .. }
+                | domain::BankTransferData::BniVaBankTransfer { .. }
+                | domain::BankTransferData::BriVaBankTransfer { .. }
+                | domain::BankTransferData::CimbVaBankTransfer { .. }
+                | domain::BankTransferData::DanamonVaBankTransfer { .. }
+                | domain::BankTransferData::MandiriVaBankTransfer { .. } => {
                     Err(errors::ConnectorError::NotImplemented(
                         connector_util::get_unimplemented_payment_method_error_message("stripe"),
                     )
@@ -3185,7 +3185,7 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeCreditTransferSo
         match &item.request.payment_method_data {
             Some(domain::PaymentMethodData::BankTransfer(bank_transfer_data)) => {
                 match **bank_transfer_data {
-                    payments::BankTransferData::MultibancoBankTransfer { .. } => Ok(
+                    domain::BankTransferData::MultibancoBankTransfer { .. } => Ok(
                         Self::MultibancoBankTansfer(MultibancoCreditTransferSourceRequest {
                             transfer_type: StripeCreditTransferTypes::Multibanco,
                             currency,
@@ -3196,7 +3196,7 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeCreditTransferSo
                             return_url: Some(item.get_return_url()?),
                         }),
                     ),
-                    payments::BankTransferData::AchBankTransfer { .. } => {
+                    domain::BankTransferData::AchBankTransfer { .. } => {
                         Ok(Self::AchBankTansfer(AchCreditTransferSourceRequest {
                             transfer_type: StripeCreditTransferTypes::AchCreditTransfer,
                             payment_method_data: AchTransferData {
@@ -3205,17 +3205,17 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeCreditTransferSo
                             currency,
                         }))
                     }
-                    payments::BankTransferData::SepaBankTransfer { .. }
-                    | payments::BankTransferData::BacsBankTransfer { .. }
-                    | payments::BankTransferData::PermataBankTransfer { .. }
-                    | payments::BankTransferData::BcaBankTransfer { .. }
-                    | payments::BankTransferData::BniVaBankTransfer { .. }
-                    | payments::BankTransferData::BriVaBankTransfer { .. }
-                    | payments::BankTransferData::CimbVaBankTransfer { .. }
-                    | payments::BankTransferData::DanamonVaBankTransfer { .. }
-                    | payments::BankTransferData::MandiriVaBankTransfer { .. }
-                    | payments::BankTransferData::Pix { .. }
-                    | payments::BankTransferData::Pse { .. } => {
+                    domain::BankTransferData::SepaBankTransfer { .. }
+                    | domain::BankTransferData::BacsBankTransfer { .. }
+                    | domain::BankTransferData::PermataBankTransfer { .. }
+                    | domain::BankTransferData::BcaBankTransfer { .. }
+                    | domain::BankTransferData::BniVaBankTransfer { .. }
+                    | domain::BankTransferData::BriVaBankTransfer { .. }
+                    | domain::BankTransferData::CimbVaBankTransfer { .. }
+                    | domain::BankTransferData::DanamonVaBankTransfer { .. }
+                    | domain::BankTransferData::MandiriVaBankTransfer { .. }
+                    | domain::BankTransferData::Pix { .. }
+                    | domain::BankTransferData::Pse { .. } => {
                         Err(errors::ConnectorError::NotImplemented(
                             connector_util::get_unimplemented_payment_method_error_message(
                                 "stripe",
@@ -3630,21 +3630,21 @@ impl
             domain::PaymentMethodData::BankTransfer(bank_transfer_data) => match bank_transfer_data
                 .deref()
             {
-                payments::BankTransferData::AchBankTransfer { billing_details } => {
+                domain::BankTransferData::AchBankTransfer { billing_details } => {
                     Ok(Self::BankTransfer(StripeBankTransferData::AchBankTransfer(
                         Box::new(AchTransferData {
                             email: billing_details.email.to_owned(),
                         }),
                     )))
                 }
-                payments::BankTransferData::MultibancoBankTransfer { billing_details } => Ok(
+                domain::BankTransferData::MultibancoBankTransfer { billing_details } => Ok(
                     Self::BankTransfer(StripeBankTransferData::MultibancoBankTransfers(Box::new(
                         MultibancoTransferData {
                             email: billing_details.email.to_owned(),
                         },
                     ))),
                 ),
-                payments::BankTransferData::SepaBankTransfer { country, .. } => {
+                domain::BankTransferData::SepaBankTransfer { country, .. } => {
                     Ok(Self::BankTransfer(
                         StripeBankTransferData::SepaBankTransfer(Box::new(SepaBankTransferData {
                             payment_method_data_type: StripePaymentMethodType::CustomerBalance,
@@ -3655,7 +3655,7 @@ impl
                         })),
                     ))
                 }
-                payments::BankTransferData::BacsBankTransfer { .. } => Ok(Self::BankTransfer(
+                domain::BankTransferData::BacsBankTransfer { .. } => Ok(Self::BankTransfer(
                     StripeBankTransferData::BacsBankTransfers(Box::new(BacsBankTransferData {
                         payment_method_data_type: StripePaymentMethodType::CustomerBalance,
                         bank_transfer_type: BankTransferType::GbBankTransfer,
@@ -3663,15 +3663,15 @@ impl
                         payment_method_type: StripePaymentMethodType::CustomerBalance,
                     })),
                 )),
-                payments::BankTransferData::Pix {}
-                | payments::BankTransferData::Pse {}
-                | payments::BankTransferData::PermataBankTransfer { .. }
-                | payments::BankTransferData::BcaBankTransfer { .. }
-                | payments::BankTransferData::BniVaBankTransfer { .. }
-                | payments::BankTransferData::BriVaBankTransfer { .. }
-                | payments::BankTransferData::CimbVaBankTransfer { .. }
-                | payments::BankTransferData::DanamonVaBankTransfer { .. }
-                | payments::BankTransferData::MandiriVaBankTransfer { .. } => {
+                domain::BankTransferData::Pix {}
+                | domain::BankTransferData::Pse {}
+                | domain::BankTransferData::PermataBankTransfer { .. }
+                | domain::BankTransferData::BcaBankTransfer { .. }
+                | domain::BankTransferData::BniVaBankTransfer { .. }
+                | domain::BankTransferData::BriVaBankTransfer { .. }
+                | domain::BankTransferData::CimbVaBankTransfer { .. }
+                | domain::BankTransferData::DanamonVaBankTransfer { .. }
+                | domain::BankTransferData::MandiriVaBankTransfer { .. } => {
                     Err(errors::ConnectorError::NotImplemented(
                         connector_util::get_unimplemented_payment_method_error_message("stripe"),
                     )
@@ -3701,11 +3701,11 @@ pub struct StripeGpayToken {
 
 pub fn get_bank_transfer_request_data(
     req: &types::PaymentsAuthorizeRouterData,
-    bank_transfer_data: &api_models::payments::BankTransferData,
+    bank_transfer_data: &domain::BankTransferData,
 ) -> CustomResult<RequestContent, errors::ConnectorError> {
     match bank_transfer_data {
-        api_models::payments::BankTransferData::AchBankTransfer { .. }
-        | api_models::payments::BankTransferData::MultibancoBankTransfer { .. } => {
+        domain::BankTransferData::AchBankTransfer { .. }
+        | domain::BankTransferData::MultibancoBankTransfer { .. } => {
             let req = ChargesRequest::try_from(req)?;
             Ok(RequestContent::FormUrlEncoded(Box::new(req)))
         }
