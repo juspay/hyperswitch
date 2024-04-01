@@ -2,7 +2,7 @@ use api_models::payments;
 use base64::Engine;
 use common_enums::FutureUsage;
 use common_utils::{ext_traits::ValueExt, pii};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -23,6 +23,7 @@ use crate::{
         transformers::ForeignFrom,
         ApplePayPredecryptData,
     },
+    unimplemented_payment_method,
 };
 
 #[derive(Debug, Serialize)]
@@ -139,9 +140,9 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
                                     Some(PaymentSolution::ApplePay),
                                 )
                             }
-                            types::PaymentMethodToken::Token(_) => {
-                                Err(errors::ConnectorError::InvalidWalletToken)?
-                            }
+                            types::PaymentMethodToken::Token(_) => Err(
+                                unimplemented_payment_method!("Apple Pay", "Manual", "Cybersource"),
+                            )?,
                         },
                         None => (
                             PaymentInformation::ApplePayToken(ApplePayTokenPaymentInformation {
@@ -980,7 +981,11 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                                         Self::try_from((item, decrypt_data, apple_pay_data))
                                     }
                                     types::PaymentMethodToken::Token(_) => {
-                                        Err(errors::ConnectorError::InvalidWalletToken)?
+                                        Err(unimplemented_payment_method!(
+                                            "Apple Pay",
+                                            "Manual",
+                                            "Cybersource"
+                                        ))?
                                     }
                                 },
                                 None => {
@@ -1397,6 +1402,8 @@ pub enum CybersourcePaymentStatus {
     ServerError,
     PendingAuthentication,
     PendingReview,
+    Accepted,
+    Cancelled,
     //PartialAuthorized, not being consumed yet.
 }
 
@@ -1430,7 +1437,9 @@ impl ForeignFrom<(CybersourcePaymentStatus, bool)> for enums::AttemptStatus {
             CybersourcePaymentStatus::Succeeded | CybersourcePaymentStatus::Transmitted => {
                 Self::Charged
             }
-            CybersourcePaymentStatus::Voided | CybersourcePaymentStatus::Reversed => Self::Voided,
+            CybersourcePaymentStatus::Voided
+            | CybersourcePaymentStatus::Reversed
+            | CybersourcePaymentStatus::Cancelled => Self::Voided,
             CybersourcePaymentStatus::Failed
             | CybersourcePaymentStatus::Declined
             | CybersourcePaymentStatus::AuthorizedRiskDeclined
@@ -1438,9 +1447,9 @@ impl ForeignFrom<(CybersourcePaymentStatus, bool)> for enums::AttemptStatus {
             | CybersourcePaymentStatus::InvalidRequest
             | CybersourcePaymentStatus::ServerError => Self::Failure,
             CybersourcePaymentStatus::PendingAuthentication => Self::AuthenticationPending,
-            CybersourcePaymentStatus::PendingReview | CybersourcePaymentStatus::Challenge => {
-                Self::Pending
-            }
+            CybersourcePaymentStatus::PendingReview
+            | CybersourcePaymentStatus::Challenge
+            | CybersourcePaymentStatus::Accepted => Self::Pending,
         }
     }
 }
@@ -2111,7 +2120,6 @@ impl<F>
                             .consumer_authentication_information
                             .validate_response,
                     )
-                    .into_report()
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
                     Ok(Self {
                         status,

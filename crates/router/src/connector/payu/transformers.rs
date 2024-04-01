@@ -1,5 +1,6 @@
 use base64::Engine;
-use error_stack::{IntoReport, ResultExt};
+use common_utils::pii::{Email, IpAddress};
+use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -15,7 +16,7 @@ const WALLET_IDENTIFIER: &str = "PBL";
 #[derive(Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct PayuPaymentsRequest {
-    customer_ip: std::net::IpAddr,
+    customer_ip: Secret<String, IpAddress>,
     merchant_pos_id: Secret<String>,
     total_amount: i64,
     currency_code: enums::Currency,
@@ -55,7 +56,7 @@ pub struct PayuWallet {
     pub value: PayuWalletCode,
     #[serde(rename = "type")]
     pub wallet_type: String,
-    pub authorization_code: String,
+    pub authorization_code: Secret<String>,
 }
 #[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -83,8 +84,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
                         PayuWallet {
                             value: PayuWalletCode::Ap,
                             wallet_type: WALLET_IDENTIFIER.to_string(),
-                            authorization_code: consts::BASE64_ENGINE
-                                .encode(data.tokenization_data.token),
+                            authorization_code: Secret::new(
+                                consts::BASE64_ENGINE.encode(data.tokenization_data.token),
+                            ),
                         }
                     }),
                 }),
@@ -93,7 +95,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
                         PayuWallet {
                             value: PayuWalletCode::Jp,
                             wallet_type: WALLET_IDENTIFIER.to_string(),
-                            authorization_code: data.payment_data,
+                            authorization_code: Secret::new(data.payment_data),
                         }
                     }),
                 }),
@@ -111,11 +113,14 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
             },
         )?;
         Ok(Self {
-            customer_ip: browser_info.ip_address.ok_or(
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "browser_info.ip_address",
-                },
-            )?,
+            customer_ip: Secret::new(
+                browser_info
+                    .ip_address
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "browser_info.ip_address",
+                    })?
+                    .to_string(),
+            ),
             merchant_pos_id: auth_type.merchant_pos_id,
             total_amount: item.request.amount,
             currency_code: item.request.currency,
@@ -401,8 +406,8 @@ pub struct PayuOrderResponseData {
     ext_order_id: Option<String>,
     order_create_date: String,
     notify_url: Option<String>,
-    customer_ip: std::net::IpAddr,
-    merchant_pos_id: String,
+    customer_ip: Secret<String, IpAddress>,
+    merchant_pos_id: Secret<String>,
     description: String,
     validity_time: Option<String>,
     currency_code: enums::Currency,
@@ -417,12 +422,12 @@ pub struct PayuOrderResponseData {
 #[serde(rename_all = "camelCase")]
 pub struct PayuOrderResponseBuyerData {
     ext_customer_id: Option<String>,
-    email: Option<String>,
-    phone: Option<String>,
-    first_name: Option<String>,
-    last_name: Option<String>,
+    email: Option<Email>,
+    phone: Option<Secret<String>>,
+    first_name: Option<Secret<String>>,
+    last_name: Option<Secret<String>>,
     #[serde(rename = "nin")]
-    national_identification_number: Option<String>,
+    national_identification_number: Option<Secret<String>>,
     language: Option<String>,
     delivery: Option<String>,
     customer_id: Option<String>,
@@ -484,7 +489,6 @@ impl<F, T>
                 order
                     .total_amount
                     .parse::<i64>()
-                    .into_report()
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
             ),
             ..item.data

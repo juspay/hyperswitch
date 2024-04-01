@@ -1,14 +1,16 @@
 use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 use api_models::payments::{FrmMessage, RequestSurchargeDetails};
+#[cfg(feature = "payouts")]
+use api_models::payouts::PayoutAttemptResponse;
 use common_enums::RequestIncrementalAuthorization;
 use common_utils::{consts::X_HS_LATENCY, fp_utils};
 use diesel_models::ephemeral_key;
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use masking::Maskable;
 use router_env::{instrument, tracing};
 
-use super::{flows::Feature, PaymentData};
+use super::{flows::Feature, types::AuthenticationData, PaymentData};
 use crate::{
     configs::settings::{ConnectorRequestReferenceIdConfig, Server},
     connector::{Helcim, Nexinets},
@@ -100,7 +102,6 @@ where
         .multiple_api_version_supported_connectors
         .supported_connectors;
     let connector_enum = api_models::enums::Connector::from_str(connector_id)
-        .into_report()
         .change_context(errors::ConnectorError::InvalidConnectorName)
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "connector",
@@ -148,7 +149,7 @@ where
         access_token: None,
         session_token: None,
         reference_id: None,
-        payment_method_status: payment_data.payment_method_status,
+        payment_method_status: payment_data.payment_method_info.map(|info| info.status),
         payment_method_token: payment_data.pm_token.map(types::PaymentMethodToken::Token),
         connector_customer: payment_data.connector_customer_id,
         recurring_mandate_payment_data: payment_data.recurring_mandate_payment_data,
@@ -171,6 +172,7 @@ where
         frm_metadata: None,
         refund_id: None,
         dispute_id: None,
+        connector_response: None,
     };
 
     Ok(router_data)
@@ -371,7 +373,6 @@ where
         .get_required_value("currency")?;
     let amount = currency
         .to_currency_base_unit(payment_attempt.amount)
-        .into_report()
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "amount",
         })?;
@@ -467,7 +468,10 @@ where
     let payment_method_data_response = payment_method_data.map(|payment_method_data| {
         api_models::payments::PaymentMethodDataResponseWithBilling {
             payment_method_data,
-            billing: payment_data.address.get_payment_method_billing().cloned(),
+            billing: payment_data
+                .address
+                .get_request_payment_method_billing()
+                .cloned(),
         }
     });
 
@@ -485,6 +489,8 @@ where
             Maskable::new_normal(payment_confirm_source.to_string()),
         ))
     }
+
+    let customer_details_response = customer.as_ref().map(ForeignInto::foreign_into);
 
     headers.extend(
         external_latency
@@ -564,35 +570,29 @@ where
                             }
                         }))
                         .or(match payment_data.authentication.as_ref(){
-                            Some((_authentication, authentication_data)) => {
-                                if payment_intent.status == common_enums::IntentStatus::RequiresCustomerAction && authentication_data.cavv.is_none() && authentication_data.is_separate_authn_required(){
+                            Some(authentication) => {
+                                if payment_intent.status == common_enums::IntentStatus::RequiresCustomerAction && authentication.cavv.is_none() && authentication.is_separate_authn_required(){
                                     // if preAuthn and separate authentication needed.
                                     let payment_connector_name = payment_attempt.connector
                                         .as_ref()
                                         .get_required_value("connector")?;
                                     Some(api_models::payments::NextActionData::ThreeDsInvoke {
                                         three_ds_data: api_models::payments::ThreeDsData {
-                                            three_ds_authentication_url: helpers::create_authentication_url(
-                                                &server.base_url,
-                                                &payment_attempt,
-                                            ),
+                                            three_ds_authentication_url: helpers::create_authentication_url(&server.base_url, &payment_attempt),
                                             three_ds_authorize_url: helpers::create_authorize_url(
                                                 &server.base_url,
                                                 &payment_attempt,
                                                 payment_connector_name,
                                             ),
-                                            three_ds_method_details: authentication_data.three_ds_method_data.three_ds_method_url.as_ref().map(|three_ds_method_url|{
+                                            three_ds_method_details: authentication.three_ds_method_url.as_ref().zip(authentication.three_ds_method_data.as_ref()).map(|(three_ds_method_url,three_ds_method_data )|{
                                                 api_models::payments::ThreeDsMethodData::AcsThreeDsMethodData {
                                                     three_ds_method_data_submission: true,
-                                                    three_ds_method_data: authentication_data
-                                                        .three_ds_method_data
-                                                        .three_ds_method_data
-                                                        .clone(),
+                                                    three_ds_method_data: Some(three_ds_method_data.clone()),
                                                     three_ds_method_url: Some(three_ds_method_url.to_owned()),
                                                 }
                                             }).unwrap_or(api_models::payments::ThreeDsMethodData::AcsThreeDsMethodData {
                                                     three_ds_method_data_submission: false,
-                                                    three_ds_method_data: "".into(),
+                                                    three_ds_method_data: None,
                                                     three_ds_method_url: None,
                                             }),
                                         },
@@ -778,7 +778,10 @@ where
                             payment_attempt.external_three_ds_authentication_attempted,
                         )
                         .set_payment_method_id(payment_attempt.payment_method_id)
-                        .set_payment_method_status(payment_data.payment_method_status)
+                        .set_payment_method_status(
+                            payment_data.payment_method_info.map(|info| info.status),
+                        )
+                        .set_customer(customer_details_response.clone())
                         .to_owned(),
                     headers,
                 ))
@@ -849,6 +852,7 @@ where
                 expires_on: payment_intent.session_expiry,
                 external_3ds_authentication_attempted: payment_attempt
                     .external_three_ds_authentication_attempted,
+                customer: customer_details_response,
                 ..Default::default()
             },
             headers,
@@ -952,6 +956,51 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             authentication_type: pa.authentication_type,
             connector_transaction_id: pa.connector_transaction_id,
             attempt_count: pi.attempt_count,
+            profile_id: pi.profile_id,
+            merchant_connector_id: pa.merchant_connector_id,
+            ..Default::default()
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl ForeignFrom<(storage::Payouts, storage::PayoutAttempt)> for api::PayoutCreateResponse {
+    fn foreign_from(item: (storage::Payouts, storage::PayoutAttempt)) -> Self {
+        let payout = item.0;
+        let payout_attempt = item.1;
+        let attempt = PayoutAttemptResponse {
+            attempt_id: payout_attempt.payout_attempt_id,
+            status: payout_attempt.status,
+            amount: payout.amount,
+            currency: Some(payout.destination_currency),
+            connector: payout_attempt.connector.clone(),
+            error_code: payout_attempt.error_code,
+            error_message: payout_attempt.error_message,
+            payment_method: Some(payout.payout_type),
+            payout_method_type: None,
+            connector_transaction_id: Some(payout_attempt.connector_payout_id),
+            cancellation_reason: None,
+            payout_token: payout_attempt.payout_token,
+            unified_code: None,
+            unified_message: None,
+        };
+        let attempts = vec![attempt];
+        Self {
+            payout_id: payout.payout_id,
+            merchant_id: payout.merchant_id,
+            status: payout.status,
+            amount: payout.amount,
+            created: Some(payout.created_at),
+            currency: payout.destination_currency,
+            description: payout.description,
+            metadata: payout.metadata,
+            customer_id: payout.customer_id,
+            connector: payout_attempt.connector,
+            payout_type: payout.payout_type,
+            business_label: payout_attempt.business_label,
+            business_country: payout_attempt.business_country,
+            recurring: payout.recurring,
+            attempts: Some(attempts),
             ..Default::default()
         }
     }
@@ -1205,7 +1254,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                     | Some(RequestIncrementalAuthorization::Default)
             ),
             metadata: additional_data.payment_data.payment_intent.metadata,
-            authentication_data: payment_data.authentication.map(|auth| auth.1),
+            authentication_data: payment_data
+                .authentication
+                .as_ref()
+                .map(AuthenticationData::foreign_try_from)
+                .transpose()?,
             customer_acceptance: payment_data.customer_acceptance,
         })
     }

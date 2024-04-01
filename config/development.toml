@@ -97,6 +97,7 @@ cards = [
     "authorizedotnet",
     "bambora",
     "bankofamerica",
+    "billwerk",
     "bitpay",
     "bluesnap",
     "boku",
@@ -165,6 +166,7 @@ applepay.base_url = "https://apple-pay-gateway.apple.com/"
 authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 bambora.base_url = "https://api.na.bambora.com"
 bankofamerica.base_url = "https://apitest.merchant-services.bankofamerica.com/"
+billwerk.base_url = "https://api.reepay.com/"
 bitpay.base_url = "https://test.bitpay.com"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
 bluesnap.secondary_base_url = "https://sandpay.bluesnap.com/"
@@ -237,9 +239,9 @@ workers = 1
 
 [cors]
 max_age = 30
-origins = "http://localhost:8080,http://localhost:9000"
+# origins = "http://localhost:8080,http://localhost:9000"
 allowed_methods = "GET,POST,PUT,DELETE"
-wildcard_origin = false
+wildcard_origin = true
 
 [email]
 sender_email = "example@example.com"
@@ -480,7 +482,7 @@ refund_retrieve_tolerance = 100
 authorize_ttl = 36000
 assets_base_url = "https://app.hyperswitch.io/assets/TestProcessor/"
 default_return_url = "https://app.hyperswitch.io/"
-slack_invite_url = "https://join.slack.com/t/hyperswitch-io/shared_invite/zt-1k6cz4lee-SAJzhz6bjmpp4jZCDOtOIg"
+slack_invite_url = "https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2awm23agh-p_G5xNpziv6yAiedTkkqLg"
 discord_invite_url = "https://discord.gg/wJZ7DVW8mm"
 
 [delayed_session_response]
@@ -554,6 +556,7 @@ api_logs_topic = "hyperswitch-api-log-events"
 connector_logs_topic = "hyperswitch-connector-api-events"
 outgoing_webhook_logs_topic = "hyperswitch-outgoing-webhook-events"
 dispute_analytics_topic = "hyperswitch-dispute-events"
+audit_events_topic = "hyperswitch-audit-events"
 
 [analytics]
 source = "sqlx"
@@ -599,3 +602,4 @@ region = "eu-central-1"
 payment_attempts = "hyperswitch-payment-attempt-events"
 payment_intents = "hyperswitch-payment-intent-events"
 refunds = "hyperswitch-refund-events"
+disputes = "hyperswitch-dispute-events"
