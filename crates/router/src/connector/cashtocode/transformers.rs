@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 pub use common_utils::request::Method;
 use common_utils::{errors::CustomResult, ext_traits::ValueExt, pii::Email};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -57,8 +57,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CashtocodePaymentsRequest 
             &item.connector_auth_type,
             item.request.payment_method_type,
             item.request.currency,
-        )
-        .into_report()?;
+        )?;
         match item.payment_method {
             diesel_models::enums::PaymentMethod::Reward => Ok(Self {
                 amount: utils::to_currency_base_unit_asf64(

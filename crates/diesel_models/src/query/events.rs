@@ -59,7 +59,7 @@ impl Event {
     ) -> StorageResult<Vec<Self>> {
         use async_bb8_diesel::AsyncRunQueryDsl;
         use diesel::{debug_query, pg::Pg, QueryDsl};
-        use error_stack::{IntoReport, ResultExt};
+        use error_stack::ResultExt;
         use router_env::logger;
 
         use super::generics::db_metrics::{track_database_call, DatabaseOperation};
@@ -95,7 +95,6 @@ impl Event {
 
         track_database_call::<Self, _, _>(query.get_results_async(conn), DatabaseOperation::Filter)
             .await
-            .into_report()
             .change_context(DatabaseError::Others) // Query returns empty Vec when no records are found
             .attach_printable("Error filtering events by constraints")
     }
@@ -146,7 +145,7 @@ impl Event {
     ) -> StorageResult<Vec<Self>> {
         use async_bb8_diesel::AsyncRunQueryDsl;
         use diesel::{debug_query, pg::Pg, QueryDsl};
-        use error_stack::{IntoReport, ResultExt};
+        use error_stack::ResultExt;
         use router_env::logger;
 
         use super::generics::db_metrics::{track_database_call, DatabaseOperation};
@@ -182,7 +181,6 @@ impl Event {
 
         track_database_call::<Self, _, _>(query.get_results_async(conn), DatabaseOperation::Filter)
             .await
-            .into_report()
             .change_context(DatabaseError::Others) // Query returns empty Vec when no records are found
             .attach_printable("Error filtering events by constraints")
     }

@@ -5,7 +5,7 @@ use common_enums::RequestIncrementalAuthorization;
 #[cfg(feature = "payouts")]
 use common_utils::{crypto::Encryptable, pii::Email};
 use common_utils::{errors::CustomResult, ext_traits::AsyncExt};
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 use uuid::Uuid;
 
@@ -254,7 +254,6 @@ pub async fn construct_refund_router_data<'a, F>(
         .multiple_api_version_supported_connectors
         .supported_connectors;
     let connector_enum = api_models::enums::Connector::from_str(connector_id)
-        .into_report()
         .change_context(errors::ConnectorError::InvalidConnectorName)
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "connector",
@@ -880,7 +879,6 @@ pub async fn construct_retrieve_file_router_data<'a>(
         .ok_or(errors::ApiErrorResponse::MissingRequiredField {
             field_name: "profile_id",
         })
-        .into_report()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("profile_id is not set in file_metadata")?;
 
@@ -924,7 +922,6 @@ pub async fn construct_retrieve_file_router_data<'a>(
                 .provider_file_id
                 .clone()
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .into_report()
                 .attach_printable("Missing provider file id")?,
         },
         response: Err(types::ErrorResponse::default()),
@@ -1000,13 +997,13 @@ pub async fn validate_and_get_business_profile(
             if business_profile.merchant_id.ne(merchant_id) {
                 Err(errors::ApiErrorResponse::AccessForbidden {
                     resource: business_profile.profile_id,
-                })
+                }
+                .into())
             } else {
                 Ok(business_profile)
             }
         })
         .transpose()
-        .into_report()
 }
 
 fn connector_needs_business_sub_label(connector_name: &str) -> bool {
@@ -1100,7 +1097,6 @@ pub fn get_flow_name<F>() -> RouterResult<String> {
         .rsplit("::")
         .next()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .into_report()
         .attach_printable("Flow stringify failed")?
         .to_string())
 }
@@ -1113,7 +1109,7 @@ pub fn get_request_incremental_authorization_value(
         .map(|request_incremental_authorization| {
             if request_incremental_authorization {
                 if capture_method == Some(common_enums::CaptureMethod::Automatic) {
-                    Err(errors::ApiErrorResponse::NotSupported { message: "incremental authorization is not supported when capture_method is automatic".to_owned() }).into_report()?
+                    Err(errors::ApiErrorResponse::NotSupported { message: "incremental authorization is not supported when capture_method is automatic".to_owned() })?
                 }
                 Ok(RequestIncrementalAuthorization::True)
             } else {

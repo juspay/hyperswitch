@@ -17,7 +17,7 @@ use common_utils::{
     generate_id,
 };
 use data_models::payments::PaymentIntent;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use helpers::PaymentAuthConnectorDataExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use pm_auth::{
@@ -86,8 +86,7 @@ pub async fn create_link_token(
         })
         .ok_or(ApiErrorResponse::GenericNotFoundError {
             message: "payment method auth connector name not found".to_string(),
-        })
-        .into_report()?;
+        })?;
 
     let connector_name = selected_config.connector_name.as_str();
 
@@ -323,7 +322,6 @@ async fn store_bank_details_in_payment_methods(
             .map(|x| x.into_inner().expose())
             .map(|v| {
                 serde_json::from_value::<payment_methods::PaymentMethodsData>(v)
-                    .into_report()
                     .change_context(errors::StorageError::DeserializationFailed)
                     .attach_printable("Failed to deserialize Payment Method Auth config")
             })
@@ -631,8 +629,7 @@ async fn get_selected_config_from_redis(
         })
         .ok_or(ApiErrorResponse::GenericNotFoundError {
             message: "payment method auth connector name not found".to_string(),
-        })
-        .into_report()?
+        })?
         .clone();
 
     Ok(selected_config)
@@ -694,7 +691,6 @@ pub async fn retrieve_payment_method_from_auth_service(
                 && acc.payment_method == auth_token.payment_method
         })
         .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .into_report()
         .attach_printable("Bank account details not found")?;
 
     let mut bank_type = None;
@@ -720,7 +716,6 @@ pub async fn retrieve_payment_method_from_auth_service(
         .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
             message: "billing_first_name not found".to_string(),
         })
-        .into_report()
         .attach_printable("billing_first_name not found")?;
 
     let address_details = address.clone().map(|addr| {
