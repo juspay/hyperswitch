@@ -1,7 +1,7 @@
 use api_models::payments;
 use common_utils::date_time;
 use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use ring::digest;
 use serde::{Deserialize, Serialize};
@@ -73,7 +73,7 @@ pub struct PlacetopayAuthType {
 pub struct PlacetopayAuth {
     login: Secret<String>,
     tran_key: Secret<String>,
-    nonce: String,
+    nonce: Secret<String>,
     seed: String,
 }
 
@@ -171,7 +171,7 @@ impl TryFrom<&types::ConnectorAuthType> for PlacetopayAuth {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         let placetopay_auth = PlacetopayAuthType::try_from(auth_type)?;
         let nonce_bytes = utils::generate_random_bytes(16);
-        let now = error_stack::IntoReport::into_report(date_time::date_as_yyyymmddthhmmssmmmz())
+        let now = date_time::date_as_yyyymmddthhmmssmmmz()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let seed = format!("{}+00:00", now.split_at(now.len() - 5).0);
         let mut context = digest::Context::new(&digest::SHA256);
@@ -179,7 +179,7 @@ impl TryFrom<&types::ConnectorAuthType> for PlacetopayAuth {
         context.update(seed.as_bytes());
         context.update(placetopay_auth.tran_key.peek().as_bytes());
         let encoded_digest = base64::Engine::encode(&consts::BASE64_ENGINE, context.finish());
-        let nonce = base64::Engine::encode(&consts::BASE64_ENGINE, &nonce_bytes);
+        let nonce = Secret::new(base64::Engine::encode(&consts::BASE64_ENGINE, &nonce_bytes));
         Ok(Self {
             login: placetopay_auth.login,
             tran_key: encoded_digest.into(),
@@ -312,7 +312,6 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for PlacetopayRefundRequest {
                 .request
                 .connector_transaction_id
                 .parse::<u64>()
-                .into_report()
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
             let action = PlacetopayNextAction::Reverse;
             let authorization = match item.request.connector_metadata.clone() {
@@ -417,7 +416,6 @@ impl TryFrom<&types::RefundsRouterData<api::RSync>> for PlacetopayRsyncRequest {
             .request
             .connector_transaction_id
             .parse::<u64>()
-            .into_report()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Self {
             auth,
@@ -479,7 +477,6 @@ impl TryFrom<&types::PaymentsSyncRouterData> for PlacetopayPsyncRequest {
             .request
             .get_connector_transaction_id()?
             .parse::<u64>()
-            .into_report()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Self {
             auth,
@@ -515,7 +512,6 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for PlacetopayNextActionRequest 
             .request
             .connector_transaction_id
             .parse::<u64>()
-            .into_report()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let action = PlacetopayNextAction::Checkout;
         Ok(Self {
@@ -535,7 +531,6 @@ impl TryFrom<&types::PaymentsCancelRouterData> for PlacetopayNextActionRequest {
             .request
             .connector_transaction_id
             .parse::<u64>()
-            .into_report()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let action = PlacetopayNextAction::Void;
         Ok(Self {

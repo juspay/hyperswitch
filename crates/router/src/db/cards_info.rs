@@ -1,4 +1,4 @@
-use error_stack::IntoReport;
+use error_stack::report;
 use router_env::{instrument, tracing};
 
 use crate::{
@@ -27,8 +27,7 @@ impl CardsInfoInterface for Store {
         let conn = connection::pg_connection_read(self).await?;
         CardInfo::find_by_iin(&conn, card_iin)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
 

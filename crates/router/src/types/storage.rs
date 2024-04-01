@@ -44,6 +44,11 @@ pub use data_models::payments::{
     payment_intent::{PaymentIntentNew, PaymentIntentUpdate},
     PaymentIntent,
 };
+#[cfg(feature = "payouts")]
+pub use data_models::payouts::{
+    payout_attempt::{PayoutAttempt, PayoutAttemptNew, PayoutAttemptUpdate},
+    payouts::{Payouts, PayoutsNew, PayoutsUpdate},
+};
 pub use diesel_models::{
     ProcessTracker, ProcessTrackerNew, ProcessTrackerRunner, ProcessTrackerUpdate,
 };
@@ -55,8 +60,8 @@ pub use self::{
     configs::*, customers::*, dashboard_metadata::*, dispute::*, ephemeral_key::*, events::*,
     file::*, fraud_check::*, gsm::*, locker_mock_up::*, mandate::*, merchant_account::*,
     merchant_connector_account::*, merchant_key_store::*, payment_link::*, payment_method::*,
-    payout_attempt::*, payouts::*, process_tracker::*, refund::*, reverse_lookup::*, role::*,
-    routing_algorithm::*, user::*, user_role::*,
+    process_tracker::*, refund::*, reverse_lookup::*, role::*, routing_algorithm::*, user::*,
+    user_role::*,
 };
 use crate::types::api::routing;
 

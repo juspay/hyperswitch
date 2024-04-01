@@ -1,5 +1,5 @@
 use common_utils::{ext_traits::Encode, pii};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -259,7 +259,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                         api_models::payments::WalletData::ApplePay(apple_pay_data) => {
                             let payment_token_data = NoonApplePayTokenData {
                                 token: NoonApplePayData {
-                                    payment_data: wallet_data.get_wallet_token_as_json()?,
+                                    payment_data: wallet_data
+                                        .get_wallet_token_as_json("Apple Pay".to_string())?,
                                     payment_method: NoonApplePayPaymentMethod {
                                         display_name: apple_pay_data.payment_method.display_name,
                                         network: apple_pay_data.payment_method.network,
@@ -378,13 +379,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                         Err(errors::ConnectorError::MissingRequiredField {
                             field_name:
                                 "setup_future_usage.mandate_data.mandate_type.multi_use.amount",
-                        })
-                        .into_report()
+                        }
+                        .into())
                     }
                     None => Err(errors::ConnectorError::MissingRequiredField {
                         field_name: "setup_future_usage.mandate_data.mandate_type",
-                    })
-                    .into_report(),
+                    }
+                    .into()),
                 }?;
 
                 Ok::<NoonSubscriptionData, error_stack::Report<errors::ConnectorError>>(

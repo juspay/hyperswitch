@@ -780,6 +780,10 @@ supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
 label="apple"
 
+[checkout.metadata]
+acquirer_bin = "Acquirer Bin"
+acquirer_merchant_id = "Acquirer Merchant ID"
+
 [coinbase]
 [[coinbase.crypto]]
   payment_method_type = "crypto_currency"

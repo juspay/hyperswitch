@@ -1,5 +1,5 @@
 use diesel_models::authentication::AuthenticationUpdateInternal;
-use error_stack::IntoReport;
+use error_stack::report;
 use router_env::{instrument, tracing};
 
 use super::{MockDb, Store};
@@ -40,8 +40,7 @@ impl AuthenticationInterface for Store {
         authentication
             .insert(&conn)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -57,8 +56,7 @@ impl AuthenticationInterface for Store {
             &authentication_id,
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -75,8 +73,7 @@ impl AuthenticationInterface for Store {
             authentication_update,
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
 
@@ -103,13 +100,30 @@ impl AuthenticationInterface for MockDb {
             authentication_status: authentication.authentication_status,
             authentication_connector: authentication.authentication_connector,
             connector_authentication_id: authentication.connector_authentication_id,
-            authentication_data: authentication.authentication_data,
+            authentication_data: None,
             payment_method_id: authentication.payment_method_id,
             authentication_type: authentication.authentication_type,
             authentication_lifecycle_status: authentication.authentication_lifecycle_status,
             error_code: authentication.error_code,
             error_message: authentication.error_message,
             connector_metadata: authentication.connector_metadata,
+            maximum_supported_version: authentication.maximum_supported_version,
+            threeds_server_transaction_id: authentication.threeds_server_transaction_id,
+            cavv: authentication.cavv,
+            authentication_flow_type: authentication.authentication_flow_type,
+            message_version: authentication.message_version,
+            eci: authentication.eci,
+            trans_status: authentication.trans_status,
+            acquirer_bin: authentication.acquirer_bin,
+            acquirer_merchant_id: authentication.acquirer_merchant_id,
+            three_ds_method_data: authentication.three_ds_method_data,
+            three_ds_method_url: authentication.three_ds_method_url,
+            acs_url: authentication.acs_url,
+            challenge_request: authentication.challenge_request,
+            acs_reference_number: authentication.acs_reference_number,
+            acs_trans_id: authentication.acs_trans_id,
+            three_ds_server_trans_id: authentication.three_dsserver_trans_id,
+            acs_signed_content: authentication.acs_signed_content,
         };
         authentications.push(authentication.clone());
         Ok(authentication)

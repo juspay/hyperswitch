@@ -5,7 +5,7 @@ use std::fmt::Debug;
 use api_models::enums::AuthenticationType;
 use common_utils::{crypto, request::RequestContent};
 use diesel_models::enums;
-use error_stack::{IntoReport, Report, ResultExt};
+use error_stack::{Report, ResultExt};
 use masking::ExposeInterface;
 use transformers as payme;
 
@@ -1086,7 +1086,6 @@ impl api::IncomingWebhook for Payme {
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let resource =
             serde_urlencoded::from_bytes::<payme::WebhookEventDataResourceSignature>(request.body)
-                .into_report()
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(resource.payme_signature.expose().into_bytes())
     }
@@ -1099,7 +1098,6 @@ impl api::IncomingWebhook for Payme {
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let resource =
             serde_urlencoded::from_bytes::<payme::WebhookEventDataResource>(request.body)
-                .into_report()
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(format!(
             "{}{}{}",
@@ -1145,7 +1143,6 @@ impl api::IncomingWebhook for Payme {
         let mut message_to_verify = connector_webhook_secrets
             .additional_secret
             .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)
-            .into_report()
             .attach_printable("Failed to get additional secrets")?
             .expose()
             .as_bytes()
@@ -1154,7 +1151,6 @@ impl api::IncomingWebhook for Payme {
         message_to_verify.append(&mut message);
 
         let signature_to_verify = hex::decode(signature)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookResponseEncodingFailed)?;
         algorithm
             .verify_signature(
@@ -1171,7 +1167,6 @@ impl api::IncomingWebhook for Payme {
     ) -> CustomResult<api::webhooks::ObjectReferenceId, errors::ConnectorError> {
         let resource =
             serde_urlencoded::from_bytes::<payme::WebhookEventDataResource>(request.body)
-                .into_report()
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let id = match resource.notify_type {
             transformers::NotifyType::SaleComplete
@@ -1200,7 +1195,6 @@ impl api::IncomingWebhook for Payme {
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
         let resource =
             serde_urlencoded::from_bytes::<payme::WebhookEventDataResourceEvent>(request.body)
-                .into_report()
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(api::IncomingWebhookEvent::from(resource.notify_type))
     }
@@ -1211,7 +1205,6 @@ impl api::IncomingWebhook for Payme {
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let resource =
             serde_urlencoded::from_bytes::<payme::WebhookEventDataResource>(request.body)
-                .into_report()
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
         match resource.notify_type {
@@ -1234,7 +1227,6 @@ impl api::IncomingWebhook for Payme {
     ) -> CustomResult<api::disputes::DisputePayload, errors::ConnectorError> {
         let webhook_object =
             serde_urlencoded::from_bytes::<payme::WebhookEventDataResource>(request.body)
-                .into_report()
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
         Ok(api::disputes::DisputePayload {

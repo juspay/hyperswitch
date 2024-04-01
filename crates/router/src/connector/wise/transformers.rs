@@ -93,7 +93,7 @@ pub enum AccountType {
 pub struct WiseBankDetails {
     legal_type: LegalType,
     account_type: Option<AccountType>,
-    address: WiseAddressDetails,
+    address: Option<WiseAddressDetails>,
     post_code: Option<String>,
     nationality: Option<String>,
     account_holder_name: Option<Secret<String>>,
@@ -148,7 +148,7 @@ pub struct WiseRecipientCreateResponse {
     country: String,
     #[serde(rename = "type")]
     request_type: String,
-    details: WiseBankDetails,
+    details: Option<WiseBankDetails>,
 }
 
 #[cfg(feature = "payouts")]
@@ -184,12 +184,12 @@ pub struct WisePayoutQuoteResponse {
     id: String,
     status: WiseStatus,
     profile: i64,
-    rate: i8,
-    source_currency: String,
-    target_currency: String,
-    user: i64,
-    rate_type: WiseRateType,
-    pay_out: WisePayOutOption,
+    rate: Option<i8>,
+    source_currency: Option<String>,
+    target_currency: Option<String>,
+    user: Option<i64>,
+    rate_type: Option<WiseRateType>,
+    pay_out: Option<WisePayOutOption>,
 }
 
 #[cfg(feature = "payouts")]
@@ -231,16 +231,16 @@ pub struct WisePayoutResponse {
     source_account: Option<i64>,
     quote_uuid: String,
     status: WiseStatus,
-    reference: String,
-    rate: f32,
+    reference: Option<String>,
+    rate: Option<f32>,
     business: Option<i64>,
-    details: WiseTransferDetails,
-    has_active_issues: bool,
-    source_currency: String,
-    source_value: f64,
-    target_currency: String,
-    target_value: f64,
-    customer_transaction_id: String,
+    details: Option<WiseTransferDetails>,
+    has_active_issues: Option<bool>,
+    source_currency: Option<String>,
+    source_value: Option<f64>,
+    target_currency: Option<String>,
+    target_value: Option<f64>,
+    customer_transaction_id: Option<String>,
 }
 
 #[cfg(feature = "payouts")]
@@ -321,7 +321,7 @@ fn get_payout_bank_details(
     match payout_method_data {
         PayoutMethodData::Bank(payouts::BankPayout::Ach(b)) => Ok(WiseBankDetails {
             legal_type: LegalType::foreign_from(entity_type),
-            address: wise_address_details,
+            address: Some(wise_address_details),
             account_number: Some(b.bank_account_number.to_owned()),
             abartn: Some(b.bank_routing_number),
             account_type: Some(AccountType::Checking),
@@ -329,14 +329,14 @@ fn get_payout_bank_details(
         }),
         PayoutMethodData::Bank(payouts::BankPayout::Bacs(b)) => Ok(WiseBankDetails {
             legal_type: LegalType::foreign_from(entity_type),
-            address: wise_address_details,
+            address: Some(wise_address_details),
             account_number: Some(b.bank_account_number.to_owned()),
             sort_code: Some(b.bank_sort_code),
             ..WiseBankDetails::default()
         }),
         PayoutMethodData::Bank(payouts::BankPayout::Sepa(b)) => Ok(WiseBankDetails {
             legal_type: LegalType::foreign_from(entity_type),
-            address: wise_address_details,
+            address: Some(wise_address_details),
             iban: Some(b.iban.to_owned()),
             bic: b.bic,
             ..WiseBankDetails::default()
