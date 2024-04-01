@@ -12322,12 +12322,49 @@
           "payment_method_data": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentMethodData"
+                "$ref": "#/components/schemas/PaymentMethodCreateData"
               }
             ],
             "nullable": true
           }
         }
+      },
+      "PaymentMethodCreateData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "card"
+            ],
+            "properties": {
+              "card": {
+                "$ref": "#/components/schemas/CardDetail"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank"
+            ],
+            "properties": {
+              "bank": {
+                "$ref": "#/components/schemas/Bank"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "wallet"
+            ],
+            "properties": {
+              "wallet": {
+                "$ref": "#/components/schemas/Wallet"
+              }
+            }
+          }
+        ]
       },
       "PaymentMethodData": {
         "oneOf": [

@@ -110,7 +110,9 @@ pub struct PaymentMethodUpdate {
 
 pub enum PaymentMethodCreateData {
     Card(CardDetail),
+    #[schema(value_type = Bank)]
     Bank(payouts::Bank),
+    #[schema(value_type = Wallet)]
     Wallet(payouts::Wallet),
 }
 
