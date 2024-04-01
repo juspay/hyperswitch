@@ -101,7 +101,7 @@ if (jsonData?.amount_received) {
 // Response body should have value "6540" for "amount_capturable"
 if (jsonData?.amount_capturable) {
   pm.test(
-    "[post]:://payments/:id/capture - Content check if value for 'amount_capturable' matches 6540",
+    "[post]:://payments/:id/capture - Content check if value for 'amount_capturable' matches 6550",
     function () {
       pm.expect(jsonData.amount_capturable).to.eql(6550);
     },
