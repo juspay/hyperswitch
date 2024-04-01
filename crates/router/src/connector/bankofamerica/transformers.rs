@@ -542,9 +542,7 @@ impl<F, T>
                                     .clone()
                                     .unwrap_or(info_response.id),
                             ),
-                            incremental_authorization_allowed: Some(
-                                mandate_status == enums::AttemptStatus::Authorized,
-                            ),
+                            incremental_authorization_allowed: None,
                         }),
                     },
                     ..item.data
@@ -796,38 +794,34 @@ impl
             &BankOfAmericaConsumerAuthValidateResponse,
         ),
     ) -> Self {
-        let (action_list, action_token_types, authorization_options) = if item
-            .router_data
-            .request
-            .is_merchant_initiated_mandate_payment()
-        {
-            (
-                Some(vec![BankOfAmericaActionsList::TokenCreate]),
-                Some(vec![BankOfAmericaActionsTokenType::PaymentInstrument]),
-                Some(BankOfAmericaAuthorizationOptions {
-                    initiator: Some(BankOfAmericaPaymentInitiator {
-                        initiator_type: Some(BankOfAmericaPaymentInitiatorTypes::Customer),
-                        credential_stored_on_file: Some(true),
-                        stored_credential_used: None,
+        let (action_list, action_token_types, authorization_options) =
+            if is_merchant_initiated_mandate_payment(&item.router_data.request) {
+                (
+                    Some(vec![BankOfAmericaActionsList::TokenCreate]),
+                    Some(vec![BankOfAmericaActionsTokenType::PaymentInstrument]),
+                    Some(BankOfAmericaAuthorizationOptions {
+                        initiator: Some(BankOfAmericaPaymentInitiator {
+                            initiator_type: Some(BankOfAmericaPaymentInitiatorTypes::Customer),
+                            credential_stored_on_file: Some(true),
+                            stored_credential_used: None,
+                        }),
+                        merchant_intitiated_transaction: None,
                     }),
-                    merchant_intitiated_transaction: None,
-                }),
-            )
+                )
+            } else {
+                (None, None, None)
+            };
+
+        let is_setup_mandate_payment = is_setup_mandate_payment(&item.router_data.request);
+
+        let capture = if is_setup_mandate_payment {
+            Some(false)
         } else {
-            (None, None, None)
+            Some(matches!(
+                item.router_data.request.capture_method,
+                Some(enums::CaptureMethod::Automatic) | None
+            ))
         };
-
-        // To distinguish between SetupMandate and Authorization flows.
-        let is_capture_automatic = matches!(
-            item.router_data.request.capture_method,
-            Some(enums::CaptureMethod::Automatic) | None
-        );
-        let is_setup_mandate_payment = item.router_data.request.is_setup_mandate_payment();
-
-        let capture = Some(
-            !((is_setup_mandate_payment && is_capture_automatic)
-                || (!is_setup_mandate_payment && !is_capture_automatic)),
-        );
 
         Self {
             capture,
@@ -2114,7 +2108,7 @@ impl<F>
                 let status = enums::AttemptStatus::foreign_from((
                     info_response.status.clone(),
                     item.data.request.is_auto_capture()?
-                        || item.data.request.is_setup_mandate_payment(),
+                        || is_setup_mandate_payment(&item.data.request),
                 ));
                 let response = get_payment_response((&info_response, status, item.http_code));
                 Ok(Self {
@@ -2674,4 +2668,15 @@ fn get_commerce_indicator(network: Option<String>) -> String {
         None => "internet",
     }
     .to_string()
+}
+
+fn is_setup_mandate_payment(item: &types::CompleteAuthorizeData) -> bool {
+    matches!(item.amount, 0) && is_merchant_initiated_mandate_payment(item)
+}
+
+fn is_merchant_initiated_mandate_payment(item: &types::CompleteAuthorizeData) -> bool {
+    item.setup_future_usage.map_or(false, |future_usage| {
+        matches!(future_usage, common_enums::FutureUsage::OffSession)
+    })
+    // add check for customer_acceptance
 }

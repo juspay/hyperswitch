@@ -5,7 +5,6 @@ use api_models::{
     payments::{self, BankDebitBilling, OrderDetailsWithAmount},
 };
 use base64::Engine;
-use common_enums::FutureUsage;
 use common_utils::{
     date_time,
     errors::ReportSwitchExt,
@@ -612,8 +611,6 @@ pub trait PaymentsCompleteAuthorizeRequestData {
     fn get_email(&self) -> Result<Email, Error>;
     fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
-    fn is_setup_mandate_payment(&self) -> bool;
-    fn is_merchant_initiated_mandate_payment(&self) -> bool;
 }
 
 impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
@@ -642,17 +639,6 @@ impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
         self.complete_authorize_url
             .clone()
             .ok_or_else(missing_field_err("complete_authorize_url"))
-    }
-
-    fn is_setup_mandate_payment(&self) -> bool {
-        matches!(self.amount, 0) && self.is_merchant_initiated_mandate_payment()
-    }
-
-    fn is_merchant_initiated_mandate_payment(&self) -> bool {
-        self.setup_future_usage.map_or(false, |future_usage| {
-            matches!(future_usage, FutureUsage::OffSession)
-        })
-        // add check for customer_acceptance
     }
 }
 
