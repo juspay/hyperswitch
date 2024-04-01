@@ -1,3 +1,5 @@
+use api_models::payments;
+use common_enums::CountryAlpha2;
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 use serde::{Deserialize, Serialize};
@@ -13,13 +15,15 @@ use crate::{
     types::{self, api, storage::enums, PaymentsSyncData},
 };
 
+type Error = error_stack::Report<errors::ConnectorError>;
+
 pub struct AirwallexAuthType {
     pub x_api_key: Secret<String>,
     pub x_client_id: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for AirwallexAuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
 
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
@@ -32,6 +36,7 @@ impl TryFrom<&types::ConnectorAuthType> for AirwallexAuthType {
         }
     }
 }
+
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct AirwallexIntentRequest {
     // Unique ID to be sent for each transaction/operation request to the connector
@@ -40,15 +45,18 @@ pub struct AirwallexIntentRequest {
     currency: enums::Currency,
     //ID created in merchant's order system that corresponds to this PaymentIntent.
     merchant_order_id: String,
+    return_url: Option<String>,
 }
+
 impl TryFrom<&types::PaymentsInitRouterData> for AirwallexIntentRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(item: &types::PaymentsInitRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
             amount: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
             currency: item.request.currency,
             merchant_order_id: item.connector_request_reference_id.clone(),
+            return_url: item.request.router_return_url.clone(),
         })
     }
 }
@@ -67,7 +75,7 @@ impl<T>
         T,
     )> for AirwallexRouterData<T>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
 
     fn try_from(
         (currency_unit, currency, amount, router_data): (
@@ -90,8 +98,90 @@ pub struct AirwallexPaymentsRequest {
     // Unique ID to be sent for each transaction/operation request to the connector
     request_id: String,
     payment_method: AirwallexPaymentMethod,
+    #[serde(skip_serializing_if = "Option::is_none")]
     payment_method_options: Option<AirwallexPaymentOptions>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     return_url: Option<String>,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+enum SupportedSofortCountryCode {
+    NL,
+    AT,
+    BE,
+    CH,
+    DE,
+    ES,
+    GB,
+    IT,
+    PL,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct BankRedirectData {
+    #[serde(flatten)]
+    payment_method: BankRedirectPaymentMethod,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+enum BankRedirectPaymentMethod {
+    Sofort {
+        #[serde(rename = "sofort")]
+        sofort_data: SofortBankRedirectData,
+    },
+    Eps {
+        #[serde(rename = "eps")]
+        eps_data: EpsBankRedirectData,
+    },
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+struct SofortBankRedirectData {
+    shopper_name: Secret<String>,
+    country_code: SupportedSofortCountryCode,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+struct EpsBankRedirectData {
+    shopper_name: Secret<String>,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct DirectDebitData {
+    #[serde(flatten)]
+    payment_method: DirectDebitPaymentMethod,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+enum DirectDebitPaymentMethod {
+    SepaDirectDebit {
+        #[serde(rename = "sepa_direct_debit")]
+        sepa_data: SepaDirectDebitData,
+    },
+    BacsDirectDebit {
+        #[serde(rename = "bacs_direct_debit")]
+        bacs_data: BacsDirectDebitData,
+    },
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+struct SepaDirectDebitData {
+    iban: Secret<String>,
+    owner_name: Secret<String>,
+    owner_email: Secret<String>,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+struct BacsDirectDebitData {
+    account_number: Secret<String>,
+    sort_code: Secret<String>,
+    owner_name: Secret<String>,
+    owner_email: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -99,6 +189,8 @@ pub struct AirwallexPaymentsRequest {
 pub enum AirwallexPaymentMethod {
     Card(AirwallexCard),
     Wallets(WalletData),
+    DirectDebit(DirectDebitData),
+    BankRedirect(BankRedirectData),
 }
 
 #[derive(Debug, Serialize)]
@@ -107,6 +199,7 @@ pub struct AirwallexCard {
     #[serde(rename = "type")]
     payment_method_type: AirwallexPaymentType,
 }
+
 #[derive(Debug, Serialize)]
 pub struct AirwallexCardDetails {
     expiry_month: Secret<String>,
@@ -152,19 +245,152 @@ pub enum GpayPaymentDataType {
 pub enum AirwallexPaymentOptions {
     Card(AirwallexCardPaymentOptions),
 }
+
 #[derive(Debug, Serialize)]
 pub struct AirwallexCardPaymentOptions {
     auto_capture: bool,
 }
 
+impl TryFrom<&api_models::payments::BankRedirectData> for AirwallexPaymentMethod {
+    type Error = Error;
+    fn try_from(
+        bank_redirect_data: &api_models::payments::BankRedirectData,
+    ) -> Result<Self, Self::Error> {
+        match bank_redirect_data {
+            payments::BankRedirectData::Sofort {
+                billing_details,
+                country,
+                ..
+            } => Ok(Self::BankRedirect(BankRedirectData {
+                payment_method: BankRedirectPaymentMethod::Sofort {
+                    sofort_data: SofortBankRedirectData {
+                        shopper_name: billing_details
+                            .clone()
+                            .ok_or(errors::ConnectorError::MissingRequiredField {
+                                field_name: "billing_details",
+                            })?
+                            .billing_name
+                            .ok_or(errors::ConnectorError::MissingRequiredField {
+                                field_name: "billing_name",
+                            })?,
+                        country_code: {
+                            match country {
+                                Some(CountryAlpha2::NL) => Some(SupportedSofortCountryCode::NL),
+                                Some(CountryAlpha2::AT) => Some(SupportedSofortCountryCode::AT),
+                                Some(CountryAlpha2::BE) => Some(SupportedSofortCountryCode::BE),
+                                Some(CountryAlpha2::CH) => Some(SupportedSofortCountryCode::CH),
+                                Some(CountryAlpha2::DE) => Some(SupportedSofortCountryCode::DE),
+                                Some(CountryAlpha2::ES) => Some(SupportedSofortCountryCode::ES),
+                                Some(CountryAlpha2::GB) => Some(SupportedSofortCountryCode::GB),
+                                Some(CountryAlpha2::IT) => Some(SupportedSofortCountryCode::IT),
+                                Some(CountryAlpha2::PL) => Some(SupportedSofortCountryCode::PL),
+                                _ => None,
+                            }
+                            // TODO: Needs better error reporting.
+                            // Perhaps `Error: Country not supported by Airwallex for this payment method.`
+                            .ok_or(
+                                errors::ConnectorError::MissingRequiredField {
+                                    field_name: "country",
+                                },
+                            )?
+                        },
+                    },
+                },
+            })),
+            payments::BankRedirectData::Eps {
+                billing_details, ..
+            } => Ok(Self::BankRedirect(BankRedirectData {
+                payment_method: BankRedirectPaymentMethod::Eps {
+                    eps_data: EpsBankRedirectData {
+                        shopper_name: billing_details
+                            .clone()
+                            .ok_or(errors::ConnectorError::MissingRequiredField {
+                                field_name: "billing_details",
+                            })?
+                            .billing_name
+                            .ok_or(errors::ConnectorError::MissingRequiredField {
+                                field_name: "billing_name",
+                            })?,
+                    },
+                },
+            })),
+            _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Airwallex"),
+            )
+            .into()),
+        }
+    }
+}
+
+impl TryFrom<&api_models::payments::BankDebitData> for AirwallexPaymentMethod {
+    type Error = Error;
+    fn try_from(
+        bank_debit_data: &api_models::payments::BankDebitData,
+    ) -> Result<Self, Self::Error> {
+        match bank_debit_data {
+            payments::BankDebitData::SepaBankDebit {
+                iban,
+                bank_account_holder_name,
+                bank_account_holder_email,
+                ..
+            } => Ok(Self::DirectDebit(DirectDebitData {
+                payment_method: DirectDebitPaymentMethod::SepaDirectDebit {
+                    sepa_data: SepaDirectDebitData {
+                        owner_name: bank_account_holder_name.clone().ok_or(
+                            errors::ConnectorError::MissingRequiredField {
+                                field_name: "bank_account_holder_name",
+                            },
+                        )?,
+                        owner_email: bank_account_holder_email.clone().ok_or(
+                            errors::ConnectorError::MissingRequiredField {
+                                field_name: "bank_account_holder_email",
+                            },
+                        )?,
+                        iban: iban.clone(),
+                    },
+                },
+            })),
+            payments::BankDebitData::BacsBankDebit {
+                sort_code,
+                account_number,
+                bank_account_holder_name,
+                bank_account_holder_email,
+                ..
+            } => Ok(Self::DirectDebit(DirectDebitData {
+                payment_method: DirectDebitPaymentMethod::BacsDirectDebit {
+                    bacs_data: BacsDirectDebitData {
+                        owner_name: bank_account_holder_name.clone().ok_or(
+                            errors::ConnectorError::MissingRequiredField {
+                                field_name: "bank_account_holder_name",
+                            },
+                        )?,
+                        owner_email: bank_account_holder_email.clone().ok_or(
+                            errors::ConnectorError::MissingRequiredField {
+                                field_name: "bank_account_holder_email",
+                            },
+                        )?,
+                        account_number: account_number.clone(),
+                        sort_code: sort_code.clone(),
+                    },
+                },
+            })),
+            _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Airwallex"),
+            )
+            .into()),
+        }
+    }
+}
+
 impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
     for AirwallexPaymentsRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(
         item: &AirwallexRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let mut payment_method_options = None;
+
         let request = &item.router_data.request;
         let payment_method = match request.payment_method_data.clone() {
             api::PaymentMethodData::Card(ccard) => {
@@ -186,9 +412,13 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
                 }))
             }
             api::PaymentMethodData::Wallet(ref wallet_data) => get_wallet_details(wallet_data),
+            api::PaymentMethodData::BankDebit(ref bank_debit_data) => {
+                Ok(AirwallexPaymentMethod::try_from(bank_debit_data)?)
+            }
+            api::PaymentMethodData::BankRedirect(ref bank_redirect_data) => {
+                Ok(AirwallexPaymentMethod::try_from(bank_redirect_data)?)
+            }
             api::PaymentMethodData::PayLater(_)
-            | api::PaymentMethodData::BankRedirect(_)
-            | api::PaymentMethodData::BankDebit(_)
             | api::PaymentMethodData::BankTransfer(_)
             | api::PaymentMethodData::CardRedirect(_)
             | api::PaymentMethodData::Crypto(_)
@@ -269,7 +499,7 @@ pub struct AirwallexAuthUpdateResponse {
 impl<F, T> TryFrom<types::ResponseRouterData<F, AirwallexAuthUpdateResponse, T, types::AccessToken>>
     for types::RouterData<F, T, types::AccessToken>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(
         item: types::ResponseRouterData<F, AirwallexAuthUpdateResponse, T, types::AccessToken>,
     ) -> Result<Self, Self::Error> {
@@ -305,7 +535,7 @@ pub enum AirwallexThreeDsType {
 }
 
 impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for AirwallexCompleteRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(item: &types::PaymentsCompleteAuthorizeRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
@@ -338,7 +568,7 @@ pub struct AirwallexPaymentsCaptureRequest {
 }
 
 impl TryFrom<&types::PaymentsCaptureRouterData> for AirwallexPaymentsCaptureRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
@@ -358,7 +588,7 @@ pub struct AirwallexPaymentsCancelRequest {
 }
 
 impl TryFrom<&types::PaymentsCancelRouterData> for AirwallexPaymentsCancelRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
@@ -502,7 +732,8 @@ impl<F, T>
     TryFrom<types::ResponseRouterData<F, AirwallexPaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
+
     fn try_from(
         item: types::ResponseRouterData<
             F,
@@ -554,6 +785,7 @@ impl<F, T>
                 }
             },
         );
+
         Ok(Self {
             status,
             reference_id: Some(item.response.id.clone()),
@@ -581,7 +813,7 @@ impl
         >,
     > for types::PaymentsSyncRouterData
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(
         item: types::ResponseRouterData<
             api::PSync,
@@ -624,7 +856,7 @@ pub struct AirwallexRefundRequest {
 }
 
 impl<F> TryFrom<&AirwallexRouterData<&types::RefundsRouterData<F>>> for AirwallexRefundRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(
         item: &AirwallexRouterData<&types::RefundsRouterData<F>>,
     ) -> Result<Self, Self::Error> {
