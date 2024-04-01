@@ -18,6 +18,17 @@ impl utils::Connector for EbanxTest {
         }
     }
 
+    #[cfg(feature = "payouts")]
+    fn get_payout_data(&self) -> Option<types::api::ConnectorData> {
+        use router::connector::Ebanx;
+        Some(types::api::ConnectorData {
+            connector: Box::new(&Ebanx),
+            connector_name: types::Connector::DummyConnector1,
+            get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
+        })
+    }
+
     fn get_auth_token(&self) -> types::ConnectorAuthType {
         utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
