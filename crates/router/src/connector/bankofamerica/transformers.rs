@@ -795,7 +795,7 @@ impl
         ),
     ) -> Self {
         let (action_list, action_token_types, authorization_options) =
-            if is_merchant_initiated_mandate_payment(&item.router_data.request) {
+            if is_customer_initiated_mandate_payment(&item.router_data.request) {
                 (
                     Some(vec![BankOfAmericaActionsList::TokenCreate]),
                     Some(vec![BankOfAmericaActionsTokenType::PaymentInstrument]),
@@ -2674,7 +2674,7 @@ fn is_setup_mandate_payment(item: &types::CompleteAuthorizeData) -> bool {
     matches!(item.amount, 0) && is_merchant_initiated_mandate_payment(item)
 }
 
-fn is_merchant_initiated_mandate_payment(item: &types::CompleteAuthorizeData) -> bool {
+fn is_customer_initiated_mandate_payment(item: &types::CompleteAuthorizeData) -> bool {
     item.setup_future_usage.map_or(false, |future_usage| {
         matches!(future_usage, common_enums::FutureUsage::OffSession)
     })
