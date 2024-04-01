@@ -1208,15 +1208,10 @@ fn convert_headers(
 ) -> Result<reqwest::header::HeaderMap, errors::ApiErrorResponse> {
     let mut reqwest_headers = reqwest::header::HeaderMap::new();
     for (name, value) in actix_headers.iter() {
-        let name_result = reqwest::header::HeaderName::from_str(name.as_str()).map_err(|err| {
-            logger::error!("Invalid Header Name: {}", err.as_str());
-            errors::ApiErrorResponse::InternalServerError
-        })?;
-        let value_result =
-            reqwest::header::HeaderValue::from_bytes(value.as_bytes()).map_err(|err| {
-                logger::error!("Invalid Header Value: {}", err.as_str());
-                errors::ApiErrorResponse::InternalServerError
-            })?;
+        let name_result = reqwest::header::HeaderName::from_str(name.as_str())
+            .map_err(|_err| errors::ApiErrorResponse::InternalServerError)?;
+        let value_result = reqwest::header::HeaderValue::from_bytes(value.as_bytes())
+            .map_err(|_err| errors::ApiErrorResponse::InternalServerError)?;
 
         reqwest_headers.insert(name_result, value_result);
     }
