@@ -1130,6 +1130,24 @@ impl ForeignFrom<storage::GatewayStatusMap> for gsm_api_types::GsmResponse {
     }
 }
 
+impl ForeignFrom<&domain::Customer> for api_models::payments::CustomerDetails {
+    fn foreign_from(customer: &domain::Customer) -> Self {
+        Self {
+            id: customer.customer_id.clone(),
+            name: customer
+                .name
+                .as_ref()
+                .map(|name| name.get_inner().to_owned()),
+            email: customer.email.clone().map(Into::into),
+            phone: customer
+                .phone
+                .as_ref()
+                .map(|phone| phone.get_inner().to_owned()),
+            phone_country_code: customer.phone_country_code.clone(),
+        }
+    }
+}
+
 #[cfg(feature = "olap")]
 impl ForeignTryFrom<api_types::webhook_events::EventListConstraints>
     for api_types::webhook_events::EventListConstraintsInternal
