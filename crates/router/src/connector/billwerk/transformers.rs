@@ -183,6 +183,12 @@ impl TryFrom<&BillwerkRouterData<&types::PaymentsAuthorizeRouterData>> for Billw
     fn try_from(
         item: &BillwerkRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
+        if item.router_data.is_three_ds() {
+            return Err(errors::ConnectorError::NotImplemented(format!(
+                "Three_ds payments through Billwerk"
+            ))
+            .into());
+        };
         let source = match item.router_data.get_payment_method_token()? {
             types::PaymentMethodToken::Token(pm_token) => Ok(Secret::new(pm_token)),
             _ => Err(errors::ConnectorError::MissingRequiredField {
@@ -210,12 +216,11 @@ impl TryFrom<&BillwerkRouterData<&types::PaymentsAuthorizeRouterData>> for Billw
     }
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum BillwerkPaymentState {
     Created,
     Authorized,
-    #[default]
     Pending,
     Settled,
     Failed,
@@ -234,11 +239,10 @@ impl From<BillwerkPaymentState> for enums::AttemptStatus {
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct BillwerkPaymentsResponse {
     state: BillwerkPaymentState,
     handle: String,
-    transaction: Option<String>,
     error: Option<String>,
     error_state: Option<String>,
 }
@@ -280,10 +284,7 @@ impl<F, T>
             resource_id: types::ResponseId::ConnectorTransactionId(item.response.handle.clone()),
             redirection_data: None,
             mandate_reference: None,
-            connector_metadata: Some(serde_json::json!({
-                //This is the unique id associated with each request in the connector's system
-                "transaction_id": item.response.transaction
-            })),
+            connector_metadata: None,
             network_txn_id: None,
             connector_response_reference_id: Some(item.response.handle),
             incremental_authorization_allowed: None,
@@ -334,12 +335,11 @@ impl<F> TryFrom<&BillwerkRouterData<&types::RefundsRouterData<F>>> for BillwerkR
 }
 
 // Type definition for Refund Response
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum RefundState {
     Refunded,
     Failed,
-    #[default]
     Processing,
 }
 

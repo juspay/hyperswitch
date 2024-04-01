@@ -3,7 +3,7 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use masking::PeekInterface;
 use transformers as billwerk;
 
@@ -186,7 +186,7 @@ impl
             .secondary_base_url
             .as_ref()
             .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
-        Ok(format!("{}v1/token", base_url))
+        Ok(format!("{base_url}v1/token"))
     }
 
     fn get_request_body(
@@ -452,9 +452,8 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_transaction_id = &req.request.connector_transaction_id;
         Ok(format!(
-            "{}v1/charge/{}/settle",
-            self.base_url(connectors),
-            connector_transaction_id
+            "{}v1/charge/{connector_transaction_id}/settle",
+            self.base_url(connectors)
         ))
     }
 
@@ -551,9 +550,8 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_transaction_id = &req.request.connector_transaction_id;
         Ok(format!(
-            "{}v1/charge/{}/cancel",
-            self.base_url(connectors),
-            connector_transaction_id
+            "{}v1/charge/{connector_transaction_id}/cancel",
+            self.base_url(connectors)
         ))
     }
 
@@ -721,9 +719,8 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     ) -> CustomResult<String, errors::ConnectorError> {
         let refund_id = req.request.get_connector_refund_id()?;
         Ok(format!(
-            "{}v1/refund/{}",
-            self.base_url(connectors),
-            refund_id
+            "{}v1/refund/{refund_id}",
+            self.base_url(connectors)
         ))
     }
 
