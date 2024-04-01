@@ -2815,6 +2815,7 @@ dependencies = [
  "error-stack",
  "masking",
  "router_env",
+ "serde",
  "serde_json",
  "thiserror",
  "time",

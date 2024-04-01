@@ -15,6 +15,8 @@
 use std::sync::Arc;
 
 use error_stack::Result;
+use masking::Serialize;
+use serde::{ser::SerializeMap, Serializer};
 use serde_json::Value;
 use time::PrimitiveDateTime;
 
@@ -27,6 +29,9 @@ pub enum EventsError {
     /// An error occurred when serializing the event.
     #[error("Event serialization error")]
     SerializationError,
+    /// An error occurred when publishing/producing the event.
+    #[error("Event publishing error")]
+    PublishError,
 }
 
 /// An event that can be published.
@@ -43,36 +48,33 @@ pub trait Event: EventInfo {
     fn class(&self) -> Self::EventType;
 }
 
-/// An Event sink that can publish events.
-/// This could be a simple logger, a message queue, or a database.
-pub trait EventSink<T>: Send + Sync {
-    /// Publish an event.
-    /// The parameters for this function are determined from the Event trait.
-    fn publish_event(
-        &self,
-        data: Value,
-        identifier: String,
-        topic: T,
-        timestamp: PrimitiveDateTime,
-    ) -> Result<(), EventsError>;
-}
-
 /// Hold the context information for any events
 #[derive(Clone)]
-pub struct EventContext<T> {
-    event_sink: Arc<Box<dyn EventSink<T>>>,
+pub struct EventContext<T, A>
+where
+    A: MessagingInterface<MessageClass = T>,
+{
+    message_sink: Arc<A>,
     metadata: Vec<Arc<Box<dyn EventInfo>>>,
 }
 
 /// intermediary structure to build events with in-place info.
-pub struct EventBuilder<T> {
-    event_sink: Arc<Box<dyn EventSink<T>>>,
+pub struct EventBuilder<T, A>
+where
+    A: MessagingInterface<MessageClass = T>,
+{
+    message_sink: Arc<A>,
     src_metadata: Vec<Arc<Box<dyn EventInfo>>>,
     event_metadata: Vec<Arc<Box<dyn EventInfo>>>,
     event: Box<dyn Event<EventType = T>>,
 }
 
-impl<T> EventBuilder<T> {
+struct RawEvent<T>(Vec<Arc<Box<dyn EventInfo>>>, Box<dyn Event<EventType = T>>);
+
+impl<T, A> EventBuilder<T, A>
+where
+    A: MessagingInterface<MessageClass = T>,
+{
     /// Add metadata to the event.
     pub fn with<E: EventInfo + 'static>(mut self, info: E) -> Self {
         let boxed_event: Box<dyn EventInfo> = Box::new(info);
@@ -92,17 +94,18 @@ impl<T> EventBuilder<T> {
     /// Emit the event.
     #[must_use = "make sure to actually emit the event"]
     #[track_caller]
-    pub fn try_emit(self) -> Result<(), EventsError> {
-        self.event_sink.publish_event(
-            self.data()?,
-            self.event.identifier(),
-            self.event.class(),
-            self.event.timestamp(),
-        )
+    pub fn try_emit(mut self) -> Result<(), EventsError> {
+        self.event_metadata.append(&mut self.src_metadata);
+        let ts = self.event.timestamp();
+        self.message_sink
+            .send_message(RawEvent(self.event_metadata.clone(), self.event), ts)
     }
 }
 
-impl<T> EventInfo for EventBuilder<T> {
+impl<T, A> EventInfo for EventBuilder<T, A>
+where
+    A: MessagingInterface<MessageClass = T>,
+{
     fn data(&self) -> Result<Value, EventsError> {
         let mut event_data = match self.event.data()? {
             Value::Object(map) => map,
@@ -127,11 +130,40 @@ impl<T> EventInfo for EventBuilder<T> {
     }
 }
 
-impl<T> EventContext<T> {
+impl<T> Serialize for RawEvent<T> {
+    fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut serialize_map = serializer.serialize_map(None)?;
+        self.0
+            .iter()
+            .map(|info| Some((info.key(), info.data().ok()?)))
+            .filter_map(|i| i)
+            .for_each(|(k, v)| {
+                serialize_map.serialize_entry(&k, &v).ok();
+            });
+        match self.1.data() {
+            Ok(Value::Object(map)) => {
+                for (k, v) in map.into_iter() {
+                    serialize_map.serialize_entry(&k, &v)?;
+                }
+            }
+            Ok(i) => serialize_map.serialize_entry(&self.1.key(), &i)?,
+            _ => {}
+        };
+        serialize_map.end()
+    }
+}
+
+impl<T, A> EventContext<T, A>
+where
+    A: MessagingInterface<MessageClass = T>,
+{
     /// Create a new event context.
-    pub fn new(event_sink: Box<dyn EventSink<T>>) -> Self {
+    pub fn new(message_sink: A) -> Self {
         Self {
-            event_sink: Arc::new(event_sink),
+            message_sink: Arc::new(message_sink),
             metadata: Vec::new(),
         }
     }
@@ -147,7 +179,7 @@ impl<T> EventContext<T> {
     #[track_caller]
     pub fn try_emit(&self, event: Box<dyn Event<EventType = T>>) -> Result<(), EventsError> {
         EventBuilder {
-            event_sink: self.event_sink.clone(),
+            message_sink: self.message_sink.clone(),
             src_metadata: self.metadata.clone(),
             event_metadata: vec![],
             event,
@@ -160,7 +192,7 @@ impl<T> EventContext<T> {
     #[track_caller]
     pub fn emit(&self, event: Box<dyn Event<EventType = T>>) {
         EventBuilder {
-            event_sink: self.event_sink.clone(),
+            message_sink: self.message_sink.clone(),
             src_metadata: self.metadata.clone(),
             event_metadata: vec![],
             event,
@@ -169,9 +201,9 @@ impl<T> EventContext<T> {
     }
 
     /// Create an event builder.
-    pub fn event(&self, event: Box<dyn Event<EventType = T>>) -> EventBuilder<T> {
+    pub fn event(&self, event: Box<dyn Event<EventType = T>>) -> EventBuilder<T, A> {
         EventBuilder {
-            event_sink: self.event_sink.clone(),
+            message_sink: self.message_sink.clone(),
             src_metadata: self.metadata.clone(),
             event_metadata: vec![],
             event,
@@ -180,7 +212,7 @@ impl<T> EventContext<T> {
 }
 
 /// Add information/metadata to the current context of an event.
-pub trait EventInfo: Send + Sync {
+pub trait EventInfo {
     /// The data that is sent with the event.
     fn data(&self) -> Result<Value, EventsError>;
 
@@ -195,5 +227,39 @@ impl EventInfo for (String, String) {
 
     fn key(&self) -> String {
         self.0.clone()
+    }
+}
+
+/// A messaging interface for sending messages/events.
+/// This can be implemented for any messaging system, such as a message queue, a logger, or a database.
+pub trait MessagingInterface {
+    /// The type of the event used for categorization by the event publisher.
+    type MessageClass;
+    /// Send a message that follows the defined message class.
+    fn send_message<T>(&self, data: T, timestamp: PrimitiveDateTime) -> Result<(), EventsError>
+    where
+        T: Message<Class = Self::MessageClass> + Serialize;
+}
+
+/// A message that can be sent.
+pub trait Message {
+    /// The type of the event used for categorization by the event publisher.
+    type Class;
+    /// The type of the event used for categorization by the event publisher.
+    fn get_message_class(&self) -> Self::Class;
+
+    /// The (unique) identifier of the event.
+    fn identifier(&self) -> String;
+}
+
+impl<T> Message for RawEvent<T> {
+    type Class = T;
+
+    fn get_message_class(&self) -> Self::Class {
+        self.1.class()
+    }
+
+    fn identifier(&self) -> String {
+        self.1.identifier()
     }
 }

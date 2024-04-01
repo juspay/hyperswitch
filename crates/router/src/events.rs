@@ -1,6 +1,6 @@
 use data_models::errors::{StorageError, StorageResult};
 use error_stack::ResultExt;
-use events::{EventSink, EventsError};
+use events::{EventsError, Message, MessagingInterface};
 use router_env::logger;
 use serde::{Deserialize, Serialize};
 use storage_impl::errors::ApplicationError;
@@ -83,20 +83,20 @@ impl EventsHandler {
     }
 }
 
-impl EventSink<EventType> for EventsHandler {
-    fn publish_event(
+impl MessagingInterface for EventsHandler {
+    type MessageClass = EventType;
+
+    fn send_message<T>(
         &self,
-        data: serde_json::Value,
-        identifier: String,
-        topic: EventType,
+        data: T,
         timestamp: PrimitiveDateTime,
-    ) -> error_stack::Result<(), EventsError> {
+    ) -> error_stack::Result<(), EventsError>
+    where
+        T: Message<Class = Self::MessageClass> + Serialize,
+    {
         match self {
-            Self::Kafka(kafka) => kafka.publish_event(data, identifier, topic, timestamp),
-            Self::Logs(_) => {
-                logger::info!(event = ?data, event_type=?topic, event_id =?identifier, log_type = "event");
-                Ok(())
-            }
+            EventsHandler::Kafka(a) => a.send_message(data, timestamp),
+            EventsHandler::Logs(a) => a.send_message(data, timestamp),
         }
     }
 }

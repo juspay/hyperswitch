@@ -59,7 +59,7 @@ pub use crate::{
 
 #[derive(Clone)]
 pub struct ReqState {
-    pub event_context: events::EventContext<crate::events::EventType>,
+    pub event_context: events::EventContext<crate::events::EventType, EventsHandler>,
 }
 
 #[derive(Clone)]
@@ -247,7 +247,7 @@ impl AppState {
 
     pub fn get_req_state(&self) -> ReqState {
         ReqState {
-            event_context: events::EventContext::new(Box::new(self.event_handler.clone())),
+            event_context: events::EventContext::new(self.event_handler.clone()),
         }
     }
 }
