@@ -3347,9 +3347,10 @@ pub async fn update_payment_method_with_ntid(
             _ => None,
         })
         .map_err(|err| {
-            logger::error!(error=?err);
-            errors::ApiErrorResponse::InternalServerError
-        })?;
+            logger::error!(error=?err, "Failed to obtain the network_transaction_id from payment response");
+        })
+        .ok()
+        .flatten();
 
     let pm_update =
         diesel_models::payment_method::PaymentMethodUpdate::NetworkTransactionIdUpdate {
