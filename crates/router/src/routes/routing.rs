@@ -568,7 +568,7 @@ pub async fn routing_retrieve_linked_config(
 
 #[cfg(feature = "olap")]
 #[instrument(skip_all)]
-pub async fn create_connector_agnostic_mandate_config(
+pub async fn upsert_connector_agnostic_mandate_config(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<routing_types::DetailedConnectorChoice>,
@@ -585,7 +585,7 @@ pub async fn create_connector_agnostic_mandate_config(
         &req,
         json_payload.into_inner(),
         |state, _auth: AuthenticationData, mandate_config| {
-            Box::pin(routing::create_connector_agnostic_mandate_config(
+            Box::pin(routing::upsert_connector_agnostic_mandate_config(
                 state,
                 &business_profile_id,
                 mandate_config,

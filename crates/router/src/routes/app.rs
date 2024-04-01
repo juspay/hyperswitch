@@ -439,7 +439,7 @@ impl Routing {
             )
             .service(
                 web::resource("/business_profile/{business_profile_id}/configs/pg_agnostic_mit")
-                    .route(web::post().to(cloud_routing::create_connector_agnostic_mandate_config)),
+                    .route(web::post().to(cloud_routing::upsert_connector_agnostic_mandate_config)),
             )
             .service(
                 web::resource("/default")
