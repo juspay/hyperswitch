@@ -820,7 +820,7 @@ pub async fn call_connector_payout(
         db.update_payout_attempt(
             &payout_data.payout_attempt,
             updated_payout_attempt,
-            Some(&payouts),
+            Some(payouts),
             merchant_account.storage_scheme,
         )
         .await

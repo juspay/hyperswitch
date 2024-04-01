@@ -295,7 +295,7 @@ pub async fn save_payout_data_to_locker(
     db.update_payout(
         &payout_data.payouts,
         updated_payout,
-        Some(&payout_attempt),
+        Some(payout_attempt),
         merchant_account.storage_scheme,
     )
     .await

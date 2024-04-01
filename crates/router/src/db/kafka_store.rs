@@ -1505,7 +1505,7 @@ impl PayoutAttemptInterface for KafkaStore {
             .kafka_producer
             .log_payouts(
                 &KafkaPayouts::from_storage(payout, &updated_payout_attempt),
-                Some(KafkaPayouts::from_storage(payout, &this))
+                Some(KafkaPayouts::from_storage(payout, this))
             )
             .await
             .map_err(|err|{
@@ -1529,7 +1529,7 @@ impl PayoutAttemptInterface for KafkaStore {
         if let Some(payout) = payouts {
             let _ = self
             .kafka_producer
-            .log_payouts(&KafkaPayouts::from_storage(&payout, &payout_attempt_new), None)
+            .log_payouts(&KafkaPayouts::from_storage(payout, &payout_attempt_new), None)
             .await
             .map_err(|err|{
                 logger::error!(message="Failed to add analytics entry for Payouts {payout:?}\n{payout_attempt_new:?}", error_message=?err);
@@ -1586,8 +1586,8 @@ impl PayoutsInterface for KafkaStore {
             let _ = self
             .kafka_producer
             .log_payouts(
-                &KafkaPayouts::from_storage(&updated_payout, &payout_attempt),
-                Some(KafkaPayouts::from_storage(this, &payout_attempt))
+                &KafkaPayouts::from_storage(&updated_payout, payout_attempt),
+                Some(KafkaPayouts::from_storage(this, payout_attempt))
             )
             .await
             .map_err(|err|{
