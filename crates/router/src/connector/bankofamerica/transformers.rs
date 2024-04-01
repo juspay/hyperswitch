@@ -1,6 +1,5 @@
 use api_models::payments;
 use base64::Engine;
-use common_enums::FutureUsage;
 use common_utils::{ext_traits::ValueExt, pii};
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -288,6 +287,10 @@ pub struct BankOfAmericaZeroMandateRequest {
     payment_information: PaymentInformation,
     order_information: OrderInformationWithBill,
     client_reference_information: ClientReferenceInformation,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    merchant_defined_information: Option<Vec<MerchantDefinedInformation>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    consumer_authentication_information: Option<BankOfAmericaConsumerAuthInformation>,
 }
 
 impl TryFrom<&types::SetupMandateRouterData> for BankOfAmericaZeroMandateRequest {
@@ -320,7 +323,16 @@ impl TryFrom<&types::SetupMandateRouterData> for BankOfAmericaZeroMandateRequest
             code: Some(item.connector_request_reference_id.clone()),
         };
 
-        let (payment_information, solution) = match item.request.payment_method_data.clone() {
+        let merchant_defined_information = item.request.metadata.clone().map(|metadata| {
+            Vec::<MerchantDefinedInformation>::foreign_from(metadata.peek().to_owned())
+        });
+
+        let (
+            payment_information,
+            solution,
+            commerce_indicator,
+            consumer_authentication_information,
+        ) = match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(ccard) => {
                 let card_issuer = ccard.get_card_issuer();
                 let card_type = match card_issuer {
@@ -338,12 +350,14 @@ impl TryFrom<&types::SetupMandateRouterData> for BankOfAmericaZeroMandateRequest
                         },
                     }),
                     None,
+                    get_commerce_indicator(None),
+                    None,
                 )
             }
 
             api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 payments::WalletData::ApplePay(apple_pay_data) => {
-                    match item.payment_method_token.clone() {
+                    let (payment_information, solution) = match item.payment_method_token.clone() {
                         Some(payment_method_token) => match payment_method_token {
                             types::PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
                                 let expiration_month = decrypt_data.get_expiry_month()?;
@@ -382,7 +396,31 @@ impl TryFrom<&types::SetupMandateRouterData> for BankOfAmericaZeroMandateRequest
                             }),
                             Some(PaymentSolution::ApplePay),
                         ),
-                    }
+                    };
+                    (
+                        payment_information,
+                        solution,
+                        get_commerce_indicator(Some(apple_pay_data.payment_method.network.clone())),
+                        {
+                            let ucaf_collection_indicator = match apple_pay_data
+                                .payment_method
+                                .network
+                                .to_lowercase()
+                                .as_str()
+                            {
+                                "mastercard" => Some("2".to_string()),
+                                _ => None,
+                            };
+                            Some(BankOfAmericaConsumerAuthInformation {
+                                ucaf_collection_indicator,
+                                cavv: None,
+                                ucaf_authentication_data: None,
+                                xid: None,
+                                directory_server_transaction_id: None,
+                                specification_version: None,
+                            })
+                        },
+                    )
                 }
                 payments::WalletData::GooglePay(google_pay_data) => (
                     PaymentInformation::GooglePay(GooglePayPaymentInformation {
@@ -394,6 +432,8 @@ impl TryFrom<&types::SetupMandateRouterData> for BankOfAmericaZeroMandateRequest
                         },
                     }),
                     Some(PaymentSolution::GooglePay),
+                    get_commerce_indicator(None),
+                    None,
                 ),
                 payments::WalletData::AliPayQr(_)
                 | payments::WalletData::AliPayRedirect(_)
@@ -446,7 +486,7 @@ impl TryFrom<&types::SetupMandateRouterData> for BankOfAmericaZeroMandateRequest
             action_list,
             action_token_types,
             authorization_options,
-            commerce_indicator: String::from("internet"),
+            commerce_indicator,
             payment_solution: solution.map(String::from),
         };
         Ok(Self {
@@ -454,6 +494,8 @@ impl TryFrom<&types::SetupMandateRouterData> for BankOfAmericaZeroMandateRequest
             payment_information,
             order_information,
             client_reference_information,
+            merchant_defined_information,
+            consumer_authentication_information,
         })
     }
 }
@@ -769,10 +811,8 @@ impl
         let (action_list, action_token_types, authorization_options) = if item
             .router_data
             .request
-            .setup_future_usage
-            .map_or(false, |future_usage| {
-                matches!(future_usage, FutureUsage::OffSession)
-            }) {
+            .is_merchant_initiated_mandate_payment()
+        {
             (
                 Some(vec![BankOfAmericaActionsList::TokenCreate]),
                 Some(vec![BankOfAmericaActionsTokenType::PaymentInstrument]),
@@ -790,14 +830,15 @@ impl
         };
 
         // To distinguish between SetupMandate and Authorization flows.
-        let capture = if item.router_data.request.amount == 0 && authorization_options.is_some() {
-            Some(false)
-        } else {
-            Some(matches!(
-                item.router_data.request.capture_method,
-                Some(enums::CaptureMethod::Automatic) | None
-            ))
-        };
+        let is_capture_automatic = matches!(
+            item.router_data.request.capture_method,
+            Some(enums::CaptureMethod::Automatic) | None
+        );
+        let is_setup_mandate_payment = item.router_data.request.is_setup_mandate_payment();
+        let capture = Some(
+            !((is_setup_mandate_payment && is_capture_automatic)
+                || (!is_setup_mandate_payment && !is_capture_automatic)),
+        );
 
         Self {
             capture,
@@ -1589,6 +1630,7 @@ fn get_payment_response(
                         connector_mandate_id: Some(token_info.payment_instrument.id.expose()),
                         payment_method_id: None,
                     });
+
             Ok(types::PaymentsResponseData::TransactionResponse {
             resource_id: types::ResponseId::ConnectorTransactionId(info_response.id.clone()),
             redirection_data: None,
@@ -2082,7 +2124,8 @@ impl<F>
             BankOfAmericaPaymentsResponse::ClientReferenceInformation(info_response) => {
                 let status = enums::AttemptStatus::foreign_from((
                     info_response.status.clone(),
-                    item.data.request.is_auto_capture()?,
+                    item.data.request.is_auto_capture()?
+                        || item.data.request.is_setup_mandate_payment(),
                 ));
                 let response = get_payment_response((&info_response, status, item.http_code));
                 Ok(Self {
@@ -2628,4 +2671,18 @@ impl
             connector_transaction_id: Some(transaction_id.clone()),
         }
     }
+}
+
+fn get_commerce_indicator(network: Option<String>) -> String {
+    match network {
+        Some(card_network) => match card_network.to_lowercase().as_str() {
+            "amex" => "aesk",
+            "discover" => "dipb",
+            "mastercard" => "spa",
+            "visa" => "internet",
+            _ => "internet",
+        },
+        None => "internet",
+    }
+    .to_string()
 }
