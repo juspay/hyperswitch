@@ -21,7 +21,7 @@ use diesel_models::{
     },
     ReverseLookupNew,
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use redis_interface::HsetnxReply;
 use router_env::{instrument, logger, tracing};
 
@@ -116,8 +116,8 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                     Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
                         entity: "payout attempt",
                         key: Some(key),
-                    })
-                    .into_report(),
+                    }
+                    .into()),
                     Ok(HsetnxReply::KeySet) => Ok(created_attempt),
                     Err(error) => Err(error.change_context(errors::StorageError::KVError)),
                 }
