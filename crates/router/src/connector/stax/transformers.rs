@@ -1,5 +1,5 @@
 use common_utils::pii::Email;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -157,8 +157,8 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for StaxCustomerRequest {
         if item.request.email.is_none() && item.request.name.is_none() {
             Err(errors::ConnectorError::MissingRequiredField {
                 field_name: "email or name",
-            })
-            .into_report()
+            }
+            .into())
         } else {
             Ok(Self {
                 email: item.request.email.to_owned(),

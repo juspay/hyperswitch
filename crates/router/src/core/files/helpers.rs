@@ -1,6 +1,6 @@
 use actix_multipart::Field;
 use common_utils::errors::CustomResult;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use futures::TryStreamExt;
 
 use crate::{
@@ -97,7 +97,6 @@ pub async fn delete_file_using_file_id(
     ) {
         (Some(provider), Some(provider_file_id), true) => (provider, provider_file_id),
         _ => Err(errors::ApiErrorResponse::FileNotAvailable)
-            .into_report()
             .attach_printable("File not available")?,
     };
     match provider {
@@ -123,7 +122,6 @@ pub async fn retrieve_file_from_connector(
         file_metadata
             .file_upload_provider
             .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .into_report()
             .attach_printable("Missing file upload provider")?,
     )?
     .to_string();
@@ -194,7 +192,6 @@ pub async fn retrieve_file_and_provider_file_id_from_file_id(
             ) {
                 (Some(provider), Some(provider_file_id), true) => (provider, provider_file_id),
                 _ => Err(errors::ApiErrorResponse::FileNotAvailable)
-                    .into_report()
                     .attach_printable("File not available")?,
             };
             match provider {

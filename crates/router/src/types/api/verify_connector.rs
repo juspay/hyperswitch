@@ -1,7 +1,7 @@
 pub mod paypal;
 pub mod stripe;
 
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 
 use crate::{
     consts,
@@ -167,8 +167,8 @@ pub trait VerifyConnector {
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
         Err(errors::ApiErrorResponse::InvalidRequestData {
             message: error.reason.unwrap_or(error.message),
-        })
-        .into_report()
+        }
+        .into())
     }
 
     async fn handle_access_token_error_response<F, R1, R2>(
@@ -183,7 +183,7 @@ pub trait VerifyConnector {
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
         Err(errors::ApiErrorResponse::InvalidRequestData {
             message: error.reason.unwrap_or(error.message),
-        })
-        .into_report()
+        }
+        .into())
     }
 }

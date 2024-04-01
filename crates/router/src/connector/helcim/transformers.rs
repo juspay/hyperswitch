@@ -1,5 +1,5 @@
 use common_utils::pii::{Email, IpAddress};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -158,10 +158,9 @@ impl TryFrom<&types::SetupMandateRouterData> for HelcimVerifyRequest {
     fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(req_card) => Self::try_from((item, &req_card)),
-            api_models::payments::PaymentMethodData::BankTransfer(_) => Err(
-                errors::ConnectorError::NotImplemented("Payment Method".to_string()),
-            )
-            .into_report(),
+            api_models::payments::PaymentMethodData::BankTransfer(_) => {
+                Err(errors::ConnectorError::NotImplemented("Payment Method".to_string()).into())
+            }
             api_models::payments::PaymentMethodData::CardRedirect(_)
             | api_models::payments::PaymentMethodData::Wallet(_)
             | api_models::payments::PaymentMethodData::PayLater(_)
@@ -260,10 +259,9 @@ impl TryFrom<&HelcimRouterData<&types::PaymentsAuthorizeRouterData>> for HelcimP
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(req_card) => Self::try_from((item, &req_card)),
-            api_models::payments::PaymentMethodData::BankTransfer(_) => Err(
-                errors::ConnectorError::NotImplemented("Payment Method".to_string()),
-            )
-            .into_report(),
+            api_models::payments::PaymentMethodData::BankTransfer(_) => {
+                Err(errors::ConnectorError::NotImplemented("Payment Method".to_string()).into())
+            }
             api_models::payments::PaymentMethodData::CardRedirect(_)
             | api_models::payments::PaymentMethodData::Wallet(_)
             | api_models::payments::PaymentMethodData::PayLater(_)
@@ -541,7 +539,6 @@ impl TryFrom<&HelcimRouterData<&types::PaymentsCaptureRouterData>> for HelcimCap
                 .request
                 .connector_transaction_id
                 .parse::<u64>()
-                .into_report()
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?,
             amount: item.amount,
             ip_address,
@@ -605,7 +602,6 @@ impl TryFrom<&types::PaymentsCancelRouterData> for HelcimVoidRequest {
                 .request
                 .connector_transaction_id
                 .parse::<u64>()
-                .into_report()
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?,
             ip_address,
             ecommerce: None,
@@ -672,7 +668,6 @@ impl<F> TryFrom<&HelcimRouterData<&types::RefundsRouterData<F>>> for HelcimRefun
             .request
             .connector_transaction_id
             .parse::<u64>()
-            .into_report()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
         let ip_address = item
