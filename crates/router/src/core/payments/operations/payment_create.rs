@@ -1,15 +1,17 @@
 use std::marker::PhantomData;
 
-use api_models::{enums::FrmSuggestion, mandates::RecurringDetails};
+use api_models::{
+    enums::FrmSuggestion, mandates::RecurringDetails, payment_methods::PaymentMethodsData,
+};
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
 use data_models::{
     mandates::{MandateData, MandateDetails},
     payments::payment_attempt::PaymentAttempt,
 };
-use diesel_models::ephemeral_key;
+use diesel_models::{ephemeral_key, PaymentMethod};
 use error_stack::{self, ResultExt};
-use masking::PeekInterface;
+use masking::{ExposeInterface, PeekInterface};
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 use time::PrimitiveDateTime;
@@ -259,6 +261,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             payment_method_billing_address
                 .as_ref()
                 .map(|address| address.address_id.clone()),
+            &payment_method_info,
+            merchant_key_store,
         )
         .await?;
 
@@ -744,6 +748,8 @@ impl PaymentCreate {
         browser_info: Option<serde_json::Value>,
         state: &AppState,
         payment_method_billing_address_id: Option<String>,
+        payment_method_info: &Option<PaymentMethod>,
+        key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         storage::PaymentAttemptNew,
         Option<api_models::payments::AdditionalPaymentData>,
@@ -753,7 +759,7 @@ impl PaymentCreate {
             helpers::payment_attempt_status_fsm(&request.payment_method_data, request.confirm);
         let (amount, currency) = (money.0, Some(money.1));
 
-        let additional_pm_data = request
+        let mut additional_pm_data = request
             .payment_method_data
             .as_ref()
             .async_map(|payment_method_data| async {
@@ -764,6 +770,35 @@ impl PaymentCreate {
                 .await
             })
             .await;
+
+        if additional_pm_data.is_none() {
+            // If recurring payment is made using payment_method_id, then fetch payment_method_data from retrieved payment_method object
+            additional_pm_data = payment_method_info
+                .as_ref()
+                .async_map(|pm_info| async {
+                    domain::types::decrypt::<serde_json::Value, masking::WithType>(
+                        pm_info.payment_method_data.clone(),
+                        key_store.key.get_inner().peek(),
+                    )
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)
+                    .attach_printable("unable to decrypt card details")
+                    .ok()
+                    .flatten()
+                    .map(|x| x.into_inner().expose())
+                    .and_then(|v| serde_json::from_value::<PaymentMethodsData>(v).ok())
+                    .and_then(|pmd| match pmd {
+                        PaymentMethodsData::Card(crd) => Some(api::CardDetailFromLocker::from(crd)),
+                        _ => None,
+                    })
+                })
+                .await
+                .flatten()
+                .map(|card| {
+                    api_models::payments::AdditionalPaymentData::Card(Box::new(card.into()))
+                })
+        };
+
         let additional_pm_data_value = additional_pm_data
             .as_ref()
             .map(Encode::encode_to_value)
@@ -842,7 +877,9 @@ impl PaymentCreate {
                 connector: None,
                 error_message: None,
                 offer_amount: None,
-                payment_method_id: None,
+                payment_method_id: payment_method_info
+                    .as_ref()
+                    .map(|pm_info| pm_info.payment_method_id.clone()),
                 cancellation_reason: None,
                 error_code: None,
                 connector_metadata: None,
