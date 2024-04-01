@@ -217,7 +217,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             payment_id,
             merchant_account,
             key_store,
-            state,
+            &*state.store,
             request,
             self,
             merchant_account.storage_scheme,
@@ -235,14 +235,12 @@ async fn get_tracker_for_sync<
     payment_id: &api::PaymentIdType,
     merchant_account: &domain::MerchantAccount,
     mechant_key_store: &domain::MerchantKeyStore,
-    state: &'a AppState,
+    db: &dyn StorageInterface,
     request: &api::PaymentsRetrieveRequest,
     operation: Op,
     storage_scheme: enums::MerchantStorageScheme,
 ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest, Ctx>> {
     let (payment_intent, mut payment_attempt, currency, amount);
-
-    let db = &*state.store;
 
     (payment_intent, payment_attempt) = get_payment_intent_payment_attempt(
         db,
@@ -406,9 +404,7 @@ async fn get_tracker_for_sync<
     let payment_method_info =
         if let Some(ref payment_method_id) = payment_attempt.payment_method_id.clone() {
             Some(
-                state
-                    .store
-                    .find_payment_method(payment_method_id)
+                db.find_payment_method(payment_method_id)
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
                     .attach_printable("error retrieving payment method from DB")?,
