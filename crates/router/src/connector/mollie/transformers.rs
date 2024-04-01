@@ -2,7 +2,6 @@ use api_models::payments;
 use cards::CardNumber;
 use common_utils::pii::Email;
 use diesel_models::enums;
-use error_stack::IntoReport;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -198,10 +197,9 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
                     api_models::payments::PaymentMethodData::BankDebit(ref directdebit_data) => {
                         PaymentMethodData::try_from(directdebit_data)
                     }
-                    _ => Err(errors::ConnectorError::NotImplemented(
-                        "Payment Method".to_string(),
-                    ))
-                    .into_report(),
+                    _ => Err(
+                        errors::ConnectorError::NotImplemented("Payment Method".to_string()).into(),
+                    ),
                 }
             }
             _ => Err(errors::ConnectorError::FlowNotSupported {
@@ -210,8 +208,8 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
                     item.router_data.request.capture_method.unwrap_or_default()
                 ),
                 connector: "Mollie".to_string(),
-            })
-            .into_report(),
+            }
+            .into()),
         }?;
         Ok(Self {
             amount,
@@ -341,10 +339,7 @@ fn get_payment_method_for_wallet(
                 apple_pay_payment_token: Secret::new(applepay_wallet_data.payment_data.to_owned()),
             })))
         }
-        _ => Err(errors::ConnectorError::NotImplemented(
-            "Payment Method".to_string(),
-        ))
-        .into_report(),
+        _ => Err(errors::ConnectorError::NotImplemented("Payment Method".to_string()).into()),
     }
 }
 
