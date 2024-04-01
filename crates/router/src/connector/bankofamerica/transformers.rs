@@ -280,20 +280,7 @@ pub struct BillTo {
     email: pii::Email,
 }
 
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct BankOfAmericaZeroMandateRequest {
-    processing_information: ProcessingInformation,
-    payment_information: PaymentInformation,
-    order_information: OrderInformationWithBill,
-    client_reference_information: ClientReferenceInformation,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    merchant_defined_information: Option<Vec<MerchantDefinedInformation>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    consumer_authentication_information: Option<BankOfAmericaConsumerAuthInformation>,
-}
-
-impl TryFrom<&types::SetupMandateRouterData> for BankOfAmericaZeroMandateRequest {
+impl TryFrom<&types::SetupMandateRouterData> for BankOfAmericaPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
         let email = item.request.get_email()?;
@@ -779,6 +766,7 @@ impl
             None => "internet",
         }
         .to_string();
+
         Ok(Self {
             capture: Some(matches!(
                 item.router_data.request.capture_method,
@@ -835,6 +823,7 @@ impl
             Some(enums::CaptureMethod::Automatic) | None
         );
         let is_setup_mandate_payment = item.router_data.request.is_setup_mandate_payment();
+
         let capture = Some(
             !((is_setup_mandate_payment && is_capture_automatic)
                 || (!is_setup_mandate_payment && !is_capture_automatic)),

@@ -326,7 +326,7 @@ impl
             ))?;
             Ok(RequestContent::Json(Box::new(connector_req)))
         } else {
-            let connector_req = bankofamerica::BankOfAmericaZeroMandateRequest::try_from(req)?;
+            let connector_req = bankofamerica::BankOfAmericaPaymentsRequest::try_from(req)?;
             Ok(RequestContent::Json(Box::new(connector_req)))
         }
     }
