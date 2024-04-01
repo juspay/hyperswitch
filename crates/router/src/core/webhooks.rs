@@ -1205,16 +1205,17 @@ Once actix_web upgrades the http version from v0.2.9 to 1.x, this can be removed
 */
 fn convert_headers(
     actix_headers: &actix_web::http::header::HeaderMap,
-) -> reqwest::header::HeaderMap {
+) -> Result<reqwest::header::HeaderMap, errors::ApiErrorResponse> {
     let mut reqwest_headers = reqwest::header::HeaderMap::new();
     for (name, value) in actix_headers.iter() {
-        if let Ok(name) = reqwest::header::HeaderName::from_str(name.as_str()) {
-            if let Ok(value) = reqwest::header::HeaderValue::from_bytes(value.as_bytes()) {
-                reqwest_headers.insert(name, value);
-            }
-        }
+        let name_result = reqwest::header::HeaderName::from_str(name.as_str())
+            .map_err(|_err| errors::ApiErrorResponse::InternalServerError)?;
+        let value_result = reqwest::header::HeaderValue::from_bytes(value.as_bytes())
+            .map_err(|_err| errors::ApiErrorResponse::InternalServerError)?;
+
+        reqwest_headers.insert(name_result, value_result);
     }
-    reqwest_headers
+    Ok(reqwest_headers)
 }
 
 #[instrument(skip_all)]
@@ -1241,7 +1242,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
     let mut request_details = api::IncomingWebhookRequestDetails {
         method: req.method().clone(),
         uri: req.uri().clone(),
-        headers: &convert_headers(req.headers()),
+        headers: &convert_headers(req.headers())?,
         query_params: req.query_string().to_string(),
         body: &body,
     };

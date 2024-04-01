@@ -1,7 +1,6 @@
 use std::time::Duration;
 
 use error_stack::ResultExt;
-use http::{HeaderValue, Method};
 use masking::PeekInterface;
 use once_cell::sync::OnceCell;
 use reqwest::{multipart::Form, Method};
