@@ -2644,27 +2644,26 @@ pub struct AddressDetails {
 
 impl AddressDetails {
     pub fn unify_address_details(self, other: Option<&Self>) -> Self {
-        match (self, other) {
-            (address, Some(other)) => {
-                let (first_name, last_name) = if address.first_name.is_some() {
-                    (address.first_name, address.last_name)
-                } else {
-                    (other.first_name.clone(), other.last_name.clone())
-                };
+        if let Some(other) = other {
+            let (first_name, last_name) = if self.first_name.is_some() {
+                (self.first_name, self.last_name)
+            } else {
+                (other.first_name.clone(), other.last_name.clone())
+            };
 
-                Self {
-                    first_name,
-                    last_name,
-                    city: address.city.or(other.city.clone()),
-                    country: address.country.or(other.country),
-                    line1: address.line1.or(other.line1.clone()),
-                    line2: address.line2.or(other.line2.clone()),
-                    line3: address.line3.or(other.line3.clone()),
-                    zip: address.zip.or(other.zip.clone()),
-                    state: address.state.or(other.state.clone()),
-                }
+            Self {
+                first_name,
+                last_name,
+                city: self.city.or(other.city.clone()),
+                country: self.country.or(other.country),
+                line1: self.line1.or(other.line1.clone()),
+                line2: self.line2.or(other.line2.clone()),
+                line3: self.line3.or(other.line3.clone()),
+                zip: self.zip.or(other.zip.clone()),
+                state: self.state.or(other.state.clone()),
             }
-            (address, None) => address,
+        } else {
+            self
         }
     }
 }
