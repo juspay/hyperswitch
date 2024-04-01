@@ -817,7 +817,7 @@ pub async fn retrieve_linked_routing_config(
     }
 }
 
-pub async fn create_connector_agnostic_mandate_config(
+pub async fn upsert_connector_agnostic_mandate_config(
     state: AppState,
     business_profile_id: &str,
     mandate_config: routing_types::DetailedConnectorChoice,
