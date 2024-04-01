@@ -1,6 +1,6 @@
 use api_models::{disputes as dispute_models, files as files_api_models};
 use common_utils::ext_traits::{Encode, ValueExt};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 pub mod transformers;
 
@@ -368,7 +368,6 @@ pub async fn attach_evidence(
     let file_id = match &create_file_response {
         services::ApplicationResponse::Json(res) => res.file_id.clone(),
         _ => Err(errors::ApiErrorResponse::InternalServerError)
-            .into_report()
             .attach_printable("Unexpected response received from files create core")?,
     };
     let dispute_evidence: api::DisputeEvidence = dispute
