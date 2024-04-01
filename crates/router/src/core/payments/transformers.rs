@@ -6,7 +6,7 @@ use api_models::payouts::PayoutAttemptResponse;
 use common_enums::RequestIncrementalAuthorization;
 use common_utils::{consts::X_HS_LATENCY, fp_utils};
 use diesel_models::ephemeral_key;
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use masking::Maskable;
 use router_env::{instrument, tracing};
 
@@ -102,7 +102,6 @@ where
         .multiple_api_version_supported_connectors
         .supported_connectors;
     let connector_enum = api_models::enums::Connector::from_str(connector_id)
-        .into_report()
         .change_context(errors::ConnectorError::InvalidConnectorName)
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "connector",
@@ -374,7 +373,6 @@ where
         .get_required_value("currency")?;
     let amount = currency
         .to_currency_base_unit(payment_attempt.amount)
-        .into_report()
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "amount",
         })?;
@@ -491,6 +489,8 @@ where
             Maskable::new_normal(payment_confirm_source.to_string()),
         ))
     }
+
+    let customer_details_response = customer.as_ref().map(ForeignInto::foreign_into);
 
     headers.extend(
         external_latency
@@ -781,6 +781,7 @@ where
                         .set_payment_method_status(
                             payment_data.payment_method_info.map(|info| info.status),
                         )
+                        .set_customer(customer_details_response.clone())
                         .to_owned(),
                     headers,
                 ))
@@ -851,6 +852,7 @@ where
                 expires_on: payment_intent.session_expiry,
                 external_3ds_authentication_attempted: payment_attempt
                     .external_three_ds_authentication_attempted,
+                customer: customer_details_response,
                 ..Default::default()
             },
             headers,

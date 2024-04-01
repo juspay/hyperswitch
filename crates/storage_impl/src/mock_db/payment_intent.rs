@@ -8,7 +8,7 @@ use data_models::{
     },
 };
 use diesel_models::enums as storage_enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 
 use super::MockDb;
 use crate::DataModelExt;
@@ -66,11 +66,7 @@ impl PaymentIntentInterface for MockDb {
         let time = common_utils::date_time::now();
         let payment_intent = PaymentIntent {
             #[allow(clippy::as_conversions)]
-            id: payment_intents
-                .len()
-                .try_into()
-                .into_report()
-                .change_context(StorageError::MockDbError)?,
+            id: i32::try_from(payment_intents.len()).change_context(StorageError::MockDbError)?,
             payment_id: new.payment_id,
             merchant_id: new.merchant_id,
             status: new.status,
