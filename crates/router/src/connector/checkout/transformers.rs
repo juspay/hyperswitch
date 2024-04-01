@@ -303,21 +303,15 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                 Ok(a)
             }
             domain::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                domain::WalletData::GooglePay(_) => {
-                    Ok(PaymentSource::Wallets(WalletSource {
-                        source_type: CheckoutSourceTypes::Token,
-                        token: match item.router_data.get_payment_method_token()? {
-                            types::PaymentMethodToken::Token(token) => token.into(),
-                            types::PaymentMethodToken::ApplePayDecrypt(_) => {
-                                Err(unimplemented_payment_method!(
-                                    "Apple Pay",
-                                    "Simplified",
-                                    "Checkout"
-                                ))?
-                            }
-                        },
-                    }))
-                }
+                domain::WalletData::GooglePay(_) => Ok(PaymentSource::Wallets(WalletSource {
+                    source_type: CheckoutSourceTypes::Token,
+                    token: match item.router_data.get_payment_method_token()? {
+                        types::PaymentMethodToken::Token(token) => token.into(),
+                        types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
+                            unimplemented_payment_method!("Apple Pay", "Simplified", "Checkout"),
+                        )?,
+                    },
+                })),
                 domain::WalletData::ApplePay(_) => {
                     let payment_method_token = item.router_data.get_payment_method_token()?;
                     match payment_method_token {
