@@ -184,9 +184,9 @@ impl TryFrom<&BillwerkRouterData<&types::PaymentsAuthorizeRouterData>> for Billw
         item: &BillwerkRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         if item.router_data.is_three_ds() {
-            return Err(errors::ConnectorError::NotImplemented(format!(
-                "Three_ds payments through Billwerk"
-            ))
+            return Err(errors::ConnectorError::NotImplemented(
+                "Three_ds payments through Billwerk".to_string(),
+            )
             .into());
         };
         let source = match item.router_data.get_payment_method_token()? {
