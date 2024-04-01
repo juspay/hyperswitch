@@ -3002,10 +3002,10 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
         | (None, None, Some(RecurringDetails::PaymentMethodId(_)), Some(true)) => {
             logger::debug!("performing routing for token-based MIT flow");
 
-                let payment_method_info = payment_data
-                    .payment_method_info
-                    .as_ref()
-                    .get_required_value("payment_method_info")?;
+            let payment_method_info = payment_data
+                .payment_method_info
+                .as_ref()
+                .get_required_value("payment_method_info")?;
 
             let connector_mandate_details = &payment_method_info
                 .connector_mandate_details
@@ -3024,6 +3024,7 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
                 .profile_id
                 .as_ref()
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?;
+
             let pg_agnostic = state
                 .store
                 .find_config_by_key_unwrap_or(
@@ -3140,15 +3141,15 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
                 .attach_printable("no eligible connector found for payment")?
                 .clone();
 
-                routing_data.routed_through = Some(first_choice.connector_name.to_string());
-                #[cfg(feature = "connector_choice_mca_id")]
-                {
-                    routing_data.merchant_connector_id = first_choice.merchant_connector_id;
-                }
-
-                Ok(api::ConnectorCallType::Retryable(connectors))
+            routing_data.routed_through = Some(first_choice.connector_name.to_string());
+            #[cfg(feature = "connector_choice_mca_id")]
+            {
+                routing_data.merchant_connector_id = first_choice.merchant_connector_id;
             }
+
+            Ok(api::ConnectorCallType::Retryable(connectors))
         }
+    }
 }
 
 pub async fn is_network_transaction_id_flow(
@@ -3171,7 +3172,6 @@ pub async fn is_network_transaction_id_flow(
     } else {
         Ok(false)
     }
-}
 }
 
 pub fn should_add_task_to_process_tracker<F: Clone>(payment_data: &PaymentData<F>) -> bool {
