@@ -5,7 +5,7 @@ use std::fmt::Debug;
 use base64::Engine;
 use common_utils::request::RequestContent;
 use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 use ring::{digest, hmac};
 use time::OffsetDateTime;
@@ -87,7 +87,6 @@ impl Bankofamerica {
         );
         let key_value = consts::BASE64_ENGINE
             .decode(api_secret.expose())
-            .into_report()
             .change_context(errors::ConnectorError::InvalidConnectorConfig {
                 config: "connector_account_details.api_secret",
             })?;
@@ -129,9 +128,8 @@ where
         let auth = bankofamerica::BankOfAmericaAuthType::try_from(&req.connector_auth_type)?;
         let merchant_account = auth.merchant_account.clone();
         let base_url = connectors.bankofamerica.base_url.as_str();
-        let boa_host = Url::parse(base_url)
-            .into_report()
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let boa_host =
+            Url::parse(base_url).change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let host = boa_host
             .host_str()
             .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
@@ -140,11 +138,7 @@ where
             .chars()
             .skip(base_url.len() - 1)
             .collect();
-        let sha256 = self.generate_digest(
-            types::RequestBody::get_inner_value(boa_req)
-                .expose()
-                .as_bytes(),
-        );
+        let sha256 = self.generate_digest(boa_req.get_inner_value().expose().as_bytes());
         let signature = self.generate_signature(
             auth,
             host.to_string(),
@@ -1179,20 +1173,20 @@ impl api::IncomingWebhook for Bankofamerica {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_event_type(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_resource_object(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }

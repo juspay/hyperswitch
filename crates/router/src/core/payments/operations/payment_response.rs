@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use common_enums::AuthorizationStatus;
 use common_utils::ext_traits::Encode;
 use data_models::payments::payment_attempt::PaymentAttempt;
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use futures::FutureExt;
 use router_derive;
 use router_env::{instrument, tracing};
@@ -18,7 +18,14 @@ use crate::{
         errors::{self, RouterResult, StorageErrorExt},
         mandate,
         payment_methods::PaymentMethodRetrieve,
-        payments::{helpers as payments_helpers, types::MultipleCaptureData, PaymentData},
+        payments::{
+            helpers::{
+                self as payments_helpers,
+                update_additional_payment_data_with_connector_response_pm_data,
+            },
+            types::MultipleCaptureData,
+            PaymentData,
+        },
         utils as core_utils,
     },
     routes::{metrics, AppState},
@@ -124,7 +131,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
                     }
                 }
                 _ => Err(errors::ApiErrorResponse::InternalServerError)
-                    .into_report()
                     .attach_printable("unexpected response in incremental_authorization flow")?,
             };
         //payment_attempt update
@@ -171,7 +177,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
                 connector_authorization_id: connector_authorization_id.clone(),
             }),
             Ok(_) => Err(errors::ApiErrorResponse::InternalServerError)
-                .into_report()
                 .attach_printable("unexpected response in incremental_authorization flow"),
         }?;
         let authorization_id = incremental_authorization_details
@@ -441,6 +446,18 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     router_data: types::RouterData<F, T, types::PaymentsResponseData>,
     storage_scheme: enums::MerchantStorageScheme,
 ) -> RouterResult<PaymentData<F>> {
+    // Update additional payment data with the payment method response that we received from connector
+    let additional_payment_method_data =
+        update_additional_payment_data_with_connector_response_pm_data(
+            payment_data.payment_attempt.payment_method_data.clone(),
+            router_data
+                .connector_response
+                .as_ref()
+                .and_then(|connector_response| {
+                    connector_response.additional_payment_method_data.clone()
+                }),
+        )?;
+
     router_data.payment_method_status.and_then(|status| {
         payment_data
             .payment_method_info
@@ -477,6 +494,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         flow_name.clone(),
                     )
                     .await;
+
                     let status = match err.attempt_status {
                         // Use the status sent by connector in error_response if it's present
                         Some(status) => status,
@@ -519,6 +537,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             unified_code: option_gsm.clone().map(|gsm| gsm.unified_code),
                             unified_message: option_gsm.map(|gsm| gsm.unified_message),
                             connector_transaction_id: err.connector_transaction_id,
+                            payment_method_data: additional_payment_method_data,
                         }),
                     )
                 }
@@ -672,6 +691,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 updated_by: storage_scheme.to_string(),
                                 authentication_data,
                                 encoded_data,
+                                payment_method_data: additional_payment_method_data,
                             }),
                         ),
                     };
@@ -793,7 +813,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     payment_data.payment_attempt = payment_attempt;
 
     payment_data.authentication = match payment_data.authentication {
-        Some((authentication, authentication_data)) => {
+        Some(authentication) => {
             let authentication_update = storage::AuthenticationUpdate::PostAuthorizationUpdate {
                 authentication_lifecycle_status:
                     storage::enums::AuthenticationLifecycleStatus::Used,
@@ -806,7 +826,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-            Some((updated_authentication, authentication_data))
+            Some(updated_authentication)
         }
         None => None,
     };
@@ -914,7 +934,9 @@ async fn update_payment_method_status<F: Clone>(
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
-        if pm.status != attempt_status.into() {
+        if pm.status != common_enums::PaymentMethodStatus::Active
+            && pm.status != attempt_status.into()
+        {
             let updated_pm_status = common_enums::PaymentMethodStatus::from(attempt_status);
 
             payment_data

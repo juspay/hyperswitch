@@ -9,12 +9,12 @@ use common_utils::{
     pii,
 };
 use diesel_models::enums as storage_enums;
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 
 use super::domain;
 use crate::{
-    core::{authentication::types::AuthenticationData, errors},
+    core::errors,
     services::authentication::get_header_value_by_key,
     types::{
         api::{self as api_types, routing as routing_types},
@@ -188,6 +188,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Authorizedotnet => Self::Authorizedotnet,
             api_enums::Connector::Bambora => Self::Bambora,
             api_enums::Connector::Bankofamerica => Self::Bankofamerica,
+            // api_enums::Connector::Billwerk => Self::Billwerk, Added as template code for future usage
             api_enums::Connector::Bitpay => Self::Bitpay,
             api_enums::Connector::Bluesnap => Self::Bluesnap,
             api_enums::Connector::Boku => Self::Boku,
@@ -220,8 +221,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Plaid => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "plaid is not a routable connector".to_string(),
-                })
-                .into_report()?
+                })?
             }
             api_enums::Connector::Powertranz => Self::Powertranz,
             api_enums::Connector::Prophetpay => Self::Prophetpay,
@@ -230,14 +230,12 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Signifyd => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "signifyd is not a routable connector".to_string(),
-                })
-                .into_report()?
+                })?
             }
             api_enums::Connector::Riskified => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "riskified is not a routable connector".to_string(),
-                })
-                .into_report()?
+                })?
             }
             api_enums::Connector::Square => Self::Square,
             api_enums::Connector::Stax => Self::Stax,
@@ -266,8 +264,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Threedsecureio => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "threedsecureio is not a routable connector".to_string(),
-                })
-                .into_report()?
+                })?
             }
         })
     }
@@ -745,31 +742,20 @@ impl ForeignFrom<storage::Authorization> for payments::IncrementalAuthorizationR
     }
 }
 
-impl ForeignFrom<&(storage::Authentication, AuthenticationData)>
-    for payments::ExternalAuthenticationDetailsResponse
-{
-    fn foreign_from(authn_data: &(storage::Authentication, AuthenticationData)) -> Self {
-        let (ds_transaction_id, version) = if authn_data.0.authentication_data.is_some() {
-            (
-                Some(authn_data.1.threeds_server_transaction_id.clone()),
-                Some(format!(
-                    "{}.{}.{}",
-                    authn_data.1.maximum_supported_version.0,
-                    authn_data.1.maximum_supported_version.1,
-                    authn_data.1.maximum_supported_version.2
-                )),
-            )
-        } else {
-            (None, None)
-        };
+impl ForeignFrom<&storage::Authentication> for payments::ExternalAuthenticationDetailsResponse {
+    fn foreign_from(authn_data: &storage::Authentication) -> Self {
+        let version = authn_data
+            .maximum_supported_version
+            .as_ref()
+            .map(|version| version.to_string());
         Self {
-            authentication_flow: authn_data.0.authentication_type,
-            electronic_commerce_indicator: authn_data.1.eci.clone(),
-            status: authn_data.0.authentication_status,
-            ds_transaction_id,
+            authentication_flow: authn_data.authentication_type,
+            electronic_commerce_indicator: authn_data.eci.clone(),
+            status: authn_data.authentication_status,
+            ds_transaction_id: authn_data.threeds_server_transaction_id.clone(),
             version,
-            error_code: authn_data.0.error_code.clone(),
-            error_message: authn_data.0.error_message.clone(),
+            error_code: authn_data.error_code.clone(),
+            error_message: authn_data.error_message.clone(),
         }
     }
 }
@@ -923,6 +909,7 @@ impl ForeignFrom<storage::Capture> for api_models::payments::CaptureResponse {
     }
 }
 
+#[cfg(feature = "payouts")]
 impl ForeignFrom<api_models::payouts::PayoutMethodData> for api_enums::PaymentMethodType {
     fn foreign_from(value: api_models::payouts::PayoutMethodData) -> Self {
         match value {
@@ -933,6 +920,7 @@ impl ForeignFrom<api_models::payouts::PayoutMethodData> for api_enums::PaymentMe
     }
 }
 
+#[cfg(feature = "payouts")]
 impl ForeignFrom<api_models::payouts::Bank> for api_enums::PaymentMethodType {
     fn foreign_from(value: api_models::payouts::Bank) -> Self {
         match value {
@@ -943,6 +931,7 @@ impl ForeignFrom<api_models::payouts::Bank> for api_enums::PaymentMethodType {
     }
 }
 
+#[cfg(feature = "payouts")]
 impl ForeignFrom<api_models::payouts::Wallet> for api_enums::PaymentMethodType {
     fn foreign_from(value: api_models::payouts::Wallet) -> Self {
         match value {
@@ -951,6 +940,7 @@ impl ForeignFrom<api_models::payouts::Wallet> for api_enums::PaymentMethodType {
     }
 }
 
+#[cfg(feature = "payouts")]
 impl ForeignFrom<api_models::payouts::PayoutMethodData> for api_enums::PaymentMethod {
     fn foreign_from(value: api_models::payouts::PayoutMethodData) -> Self {
         match value {
@@ -961,6 +951,7 @@ impl ForeignFrom<api_models::payouts::PayoutMethodData> for api_enums::PaymentMe
     }
 }
 
+#[cfg(feature = "payouts")]
 impl ForeignFrom<api_models::enums::PayoutType> for api_enums::PaymentMethod {
     fn foreign_from(value: api_models::enums::PayoutType) -> Self {
         match value {
@@ -1136,5 +1127,116 @@ impl ForeignFrom<storage::GatewayStatusMap> for gsm_api_types::GsmResponse {
             unified_code: value.unified_code,
             unified_message: value.unified_message,
         }
+    }
+}
+
+#[cfg(feature = "olap")]
+impl ForeignTryFrom<api_types::webhook_events::EventListConstraints>
+    for api_types::webhook_events::EventListConstraintsInternal
+{
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn foreign_try_from(
+        item: api_types::webhook_events::EventListConstraints,
+    ) -> Result<Self, Self::Error> {
+        if item.object_id.is_some()
+            && (item.created_after.is_some()
+                || item.created_before.is_some()
+                || item.limit.is_some()
+                || item.offset.is_some())
+        {
+            return Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                message:
+                    "Either only `object_id` must be specified, or one or more of \
+                          `created_after`, `created_before`, `limit` and `offset` must be specified"
+                        .to_string()
+            }));
+        }
+
+        match item.object_id {
+            Some(object_id) => Ok(Self::ObjectIdFilter { object_id }),
+            None => Ok(Self::GenericFilter {
+                created_after: item.created_after,
+                created_before: item.created_before,
+                limit: item.limit.map(i64::from),
+                offset: item.offset.map(i64::from),
+            }),
+        }
+    }
+}
+
+#[cfg(feature = "olap")]
+impl TryFrom<domain::Event> for api_models::webhook_events::EventListItemResponse {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(item: domain::Event) -> Result<Self, Self::Error> {
+        use crate::utils::OptionExt;
+
+        // We only allow retrieving events with merchant_id, business_profile_id
+        // and initial_attempt_id populated.
+        // We cannot retrieve events with only some of these fields populated.
+        let merchant_id = item
+            .merchant_id
+            .get_required_value("merchant_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        let profile_id = item
+            .business_profile_id
+            .get_required_value("business_profile_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        let initial_attempt_id = item
+            .initial_attempt_id
+            .get_required_value("initial_attempt_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        Ok(Self {
+            event_id: item.event_id,
+            merchant_id,
+            profile_id,
+            object_id: item.primary_object_id,
+            event_type: item.event_type,
+            event_class: item.event_class,
+            is_delivery_successful: item.is_webhook_notified,
+            initial_attempt_id,
+            created: item.created_at,
+        })
+    }
+}
+
+#[cfg(feature = "olap")]
+impl TryFrom<domain::Event> for api_models::webhook_events::EventRetrieveResponse {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(item: domain::Event) -> Result<Self, Self::Error> {
+        use crate::utils::OptionExt;
+
+        // We only allow retrieving events with all required fields in `EventListItemResponse`, and
+        // `request` and `response` populated.
+        // We cannot retrieve events with only some of these fields populated.
+        let event_information =
+            api_models::webhook_events::EventListItemResponse::try_from(item.clone())?;
+
+        let request = item
+            .request
+            .get_required_value("request")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?
+            .peek()
+            .parse_struct("OutgoingWebhookRequestContent")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse webhook event request information")?;
+        let response = item
+            .response
+            .get_required_value("response")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?
+            .peek()
+            .parse_struct("OutgoingWebhookResponseContent")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse webhook event response information")?;
+
+        Ok(Self {
+            event_information,
+            request,
+            response,
+            delivery_attempt: item.delivery_attempt,
+        })
     }
 }

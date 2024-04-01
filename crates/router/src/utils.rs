@@ -24,7 +24,7 @@ pub use common_utils::{
     validation::validate_email,
 };
 use data_models::payments::PaymentIntent;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use image::Luma;
 use masking::ExposeInterface;
 use nanoid::nanoid;
@@ -127,32 +127,28 @@ impl<E> ConnectorResponseExt
     for Result<Result<types::Response, types::Response>, error_stack::Report<E>>
 {
     fn get_error_response(self) -> RouterResult<types::Response> {
-        self.change_context(errors::ApiErrorResponse::InternalServerError)
+        self.map_err(|error| error.change_context(errors::ApiErrorResponse::InternalServerError))
             .attach_printable("Error while receiving response")
             .and_then(|inner| match inner {
                 Ok(res) => {
                     logger::error!(response=?res);
-                    Err(errors::ApiErrorResponse::InternalServerError)
-                        .into_report()
-                        .attach_printable(format!(
-                            "Expecting error response, received response: {res:?}"
-                        ))
+                    Err(errors::ApiErrorResponse::InternalServerError).attach_printable(format!(
+                        "Expecting error response, received response: {res:?}"
+                    ))
                 }
                 Err(err_res) => Ok(err_res),
             })
     }
 
     fn get_response(self) -> RouterResult<types::Response> {
-        self.change_context(errors::ApiErrorResponse::InternalServerError)
+        self.map_err(|error| error.change_context(errors::ApiErrorResponse::InternalServerError))
             .attach_printable("Error while receiving response")
             .and_then(|inner| match inner {
                 Err(err_res) => {
                     logger::error!(error_response=?err_res);
-                    Err(errors::ApiErrorResponse::InternalServerError)
-                        .into_report()
-                        .attach_printable(format!(
-                            "Expecting response, received error response: {err_res:?}"
-                        ))
+                    Err(errors::ApiErrorResponse::InternalServerError).attach_printable(format!(
+                        "Expecting response, received error response: {err_res:?}"
+                    ))
                 }
                 Ok(res) => Ok(res),
             })
@@ -174,7 +170,6 @@ impl QrImage {
         data: String,
     ) -> Result<Self, error_stack::Report<common_utils::errors::QrCodeError>> {
         let qr_code = qrcode::QrCode::new(data.as_bytes())
-            .into_report()
             .change_context(common_utils::errors::QrCodeError::FailedToCreateQrCode)?;
 
         // Renders the QR code into an image.
@@ -318,7 +313,6 @@ pub async fn find_payment_intent_from_mandate_id_type(
         &mandate
             .original_payment_id
             .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .into_report()
             .attach_printable("original_payment_id not present in mandate record")?,
         &merchant_account.merchant_id,
         merchant_account.storage_scheme,
@@ -434,7 +428,6 @@ pub fn handle_json_response_deserialization_failure(
     );
 
     let response_data = String::from_utf8(res.response.to_vec())
-        .into_report()
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
     // check for whether the response is in json format
@@ -467,7 +460,6 @@ pub fn get_http_status_code_type(
         400..=499 => "4xx",
         500..=599 => "5xx",
         _ => Err(errors::ApiErrorResponse::InternalServerError)
-            .into_report()
             .attach_printable("Invalid http status code")?,
     };
     Ok(status_code_type.to_string())
@@ -842,7 +834,6 @@ pub async fn flatten_join_error<T>(handle: Handle<T>) -> RouterResult<T> {
         Ok(Ok(t)) => Ok(t),
         Ok(Err(err)) => Err(err),
         Err(err) => Err(err)
-            .into_report()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Join Error"),
     }

@@ -4,7 +4,7 @@ use std::fmt::Debug;
 use base64::Engine;
 use common_utils::request::RequestContent;
 use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use transformers as cashtocode;
 
@@ -384,11 +384,9 @@ impl api::IncomingWebhook for Cashtocode {
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         let secret_auth = String::from_utf8(connector_webhook_secrets.secret.to_vec())
-            .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
             .attach_printable("Could not convert secret to UTF-8")?;
         let signature_auth = String::from_utf8(signature.to_vec())
-            .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
             .attach_printable("Could not convert secret to UTF-8")?;
         Ok(signature_auth == secret_auth)
