@@ -469,6 +469,15 @@ pub async fn get_token_pm_type_mandate_details(
                                 errors::ApiErrorResponse::PaymentMethodNotFound,
                             )?;
 
+                        let customer_id = request
+                            .customer_id
+                            .clone()
+                            .get_required_value("customer_id")?;
+                        if payment_method_info.customer_id != customer_id {
+                            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                                message: "customer_id must match mandate customer_id".into()
+                            }))?
+                        };
                         (
                             None,
                             Some(payment_method_info.payment_method),
