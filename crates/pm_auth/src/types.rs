@@ -165,7 +165,7 @@ pub enum ConnectorAuthType {
 
 #[derive(Clone, Debug)]
 pub struct Response {
-    pub headers: Option<reqwest::header::HeaderMap>,
+    pub headers: Option<http::HeaderMap>,
     pub response: bytes::Bytes,
     pub status_code: u16,
 }

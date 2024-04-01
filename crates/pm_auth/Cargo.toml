@@ -19,9 +19,8 @@ router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra
 async-trait = "0.1.66"
 bytes = "1.4.0"
 error-stack = "0.4.1"
-http = "0.2.9"
+http = "1.1.0"
 mime = "0.3.17"
-reqwest = "0.12.2"
 serde = "1.0.193"
 serde_json = "1.0.108"
 strum = { version = "0.24.1", features = ["derive"] }
