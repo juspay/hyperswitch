@@ -12,11 +12,12 @@
 //! Event: A trait that defines the event itself. This trait is used to define the data that is sent with the event and defines the event's type & identifier.
 //!
 
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use error_stack::Result;
-use masking::Serialize;
-use serde::{ser::SerializeMap, Serializer};
+use masking::{ErasedMaskSerialize, Serialize};
+use router_env::logger;
+use serde::Serializer;
 use serde_json::Value;
 use time::PrimitiveDateTime;
 
@@ -55,7 +56,7 @@ where
     A: MessagingInterface<MessageClass = T>,
 {
     message_sink: Arc<A>,
-    metadata: Vec<Arc<Box<dyn EventInfo>>>,
+    metadata: HashMap<String, Arc<Box<dyn ErasedMaskSerialize + Sync + Send>>>,
 }
 
 /// intermediary structure to build events with in-place info.
@@ -64,12 +65,14 @@ where
     A: MessagingInterface<MessageClass = T>,
 {
     message_sink: Arc<A>,
-    src_metadata: Vec<Arc<Box<dyn EventInfo>>>,
-    event_metadata: Vec<Arc<Box<dyn EventInfo>>>,
+    metadata: HashMap<String, Arc<Box<dyn ErasedMaskSerialize + Sync + Send>>>,
     event: Box<dyn Event<EventType = T>>,
 }
 
-struct RawEvent<T>(Vec<Arc<Box<dyn EventInfo>>>, Box<dyn Event<EventType = T>>);
+struct RawEvent<T>(
+    HashMap<String, Arc<Box<dyn ErasedMaskSerialize + Sync + Send>>>,
+    Box<dyn Event<EventType = T>>,
+);
 
 impl<T, A> EventBuilder<T, A>
 where
@@ -77,56 +80,29 @@ where
 {
     /// Add metadata to the event.
     pub fn with<E: EventInfo + 'static>(mut self, info: E) -> Self {
-        let boxed_event: Box<dyn EventInfo> = Box::new(info);
-        self.event_metadata.push(boxed_event.into());
+        info.data()
+            .map_err(|e| {
+                logger::error!("Error adding event info: {:?}", e);
+            })
+            .ok()
+            .and_then(|data| self.metadata.insert(info.key(), Arc::new(data)));
         self
     }
     /// Emit the event and log any errors.
-    #[track_caller]
     pub fn emit(self) {
         self.try_emit()
             .map_err(|e| {
-                router_env::logger::error!("Error emitting event: {:?}", e);
+                logger::error!("Error emitting event: {:?}", e);
             })
             .ok();
     }
 
     /// Emit the event.
-    #[must_use = "make sure to actually emit the event"]
-    #[track_caller]
-    pub fn try_emit(mut self) -> Result<(), EventsError> {
-        self.event_metadata.append(&mut self.src_metadata);
+    #[must_use = "make sure to call `emit` to actually emit the event"]
+    pub fn try_emit(self) -> Result<(), EventsError> {
         let ts = self.event.timestamp();
         self.message_sink
-            .send_message(RawEvent(self.event_metadata.clone(), self.event), ts)
-    }
-}
-
-impl<T, A> EventInfo for EventBuilder<T, A>
-where
-    A: MessagingInterface<MessageClass = T>,
-{
-    fn data(&self) -> Result<Value, EventsError> {
-        let mut event_data = match self.event.data()? {
-            Value::Object(map) => map,
-            d => {
-                let mut map = serde_json::Map::new();
-                map.insert(self.event.key(), d);
-                map
-            }
-        };
-        let mut data: serde_json::Map<String, Value> = self
-            .src_metadata
-            .iter()
-            .chain(self.event_metadata.iter())
-            .map(|info| info.data().map(|d| (info.key(), d)))
-            .collect::<Result<serde_json::Map<_, _>, _>>()?;
-        data.append(&mut event_data);
-        Ok(Value::Object(data))
-    }
-
-    fn key(&self) -> String {
-        self.event.key()
+            .send_message(RawEvent(self.metadata, self.event), ts)
     }
 }
 
@@ -135,24 +111,25 @@ impl<T> Serialize for RawEvent<T> {
     where
         S: Serializer,
     {
-        let mut serialize_map = serializer.serialize_map(None)?;
-        self.0
+        let mut serialize_map: HashMap<_, _> = self
+            .0
             .iter()
-            .map(|info| Some((info.key(), info.data().ok()?)))
-            .filter_map(|i| i)
-            .for_each(|(k, v)| {
-                serialize_map.serialize_entry(&k, &v).ok();
-            });
-        match self.1.data() {
-            Ok(Value::Object(map)) => {
+            .filter_map(|(k, v)| Some((k.clone(), v.masked_serialize().ok()?)))
+            .collect();
+        match self.1.data().map(|i| i.masked_serialize()) {
+            Ok(Ok(Value::Object(map))) => {
                 for (k, v) in map.into_iter() {
-                    serialize_map.serialize_entry(&k, &v)?;
+                    serialize_map.insert(k, v);
                 }
             }
-            Ok(i) => serialize_map.serialize_entry(&self.1.key(), &i)?,
-            _ => {}
+            Ok(Ok(i)) => {
+                serialize_map.insert(self.1.key(), i);
+            }
+            i => {
+                logger::error!("Error serializing event: {:?}", i);
+            }
         };
-        serialize_map.end()
+        serialize_map.serialize(serializer)
     }
 }
 
@@ -164,37 +141,38 @@ where
     pub fn new(message_sink: A) -> Self {
         Self {
             message_sink: Arc::new(message_sink),
-            metadata: Vec::new(),
+            metadata: HashMap::new(),
         }
     }
 
     /// Add metadata to the event context.
+    #[track_caller]
     pub fn record_info<E: EventInfo + 'static>(&mut self, info: E) {
-        let boxed_event: Box<dyn EventInfo> = Box::new(info);
-        self.metadata.push(boxed_event.into());
+        match info.data() {
+            Ok(data) => {
+                self.metadata.insert(info.key(), Arc::new(data));
+            }
+            Err(e) => {
+                logger::error!("Error recording event info: {:?}", e);
+            }
+        }
     }
 
     /// Emit an event.
-    #[must_use = "make sure to actually emit the event"]
-    #[track_caller]
     pub fn try_emit(&self, event: Box<dyn Event<EventType = T>>) -> Result<(), EventsError> {
         EventBuilder {
             message_sink: self.message_sink.clone(),
-            src_metadata: self.metadata.clone(),
-            event_metadata: vec![],
+            metadata: self.metadata.clone(),
             event,
         }
         .try_emit()
     }
 
     /// Emit an event.
-    /// This silences the error thrown when emitting an event.
-    #[track_caller]
     pub fn emit(&self, event: Box<dyn Event<EventType = T>>) {
         EventBuilder {
             message_sink: self.message_sink.clone(),
-            src_metadata: self.metadata.clone(),
-            event_metadata: vec![],
+            metadata: self.metadata.clone(),
             event,
         }
         .emit()
@@ -204,8 +182,7 @@ where
     pub fn event(&self, event: Box<dyn Event<EventType = T>>) -> EventBuilder<T, A> {
         EventBuilder {
             message_sink: self.message_sink.clone(),
-            src_metadata: self.metadata.clone(),
-            event_metadata: vec![],
+            metadata: self.metadata.clone(),
             event,
         }
     }
@@ -214,15 +191,15 @@ where
 /// Add information/metadata to the current context of an event.
 pub trait EventInfo {
     /// The data that is sent with the event.
-    fn data(&self) -> Result<Value, EventsError>;
+    fn data(&self) -> Result<Box<dyn ErasedMaskSerialize + Sync + Send>, EventsError>;
 
     /// The key identifying the data for an event.
     fn key(&self) -> String;
 }
 
 impl EventInfo for (String, String) {
-    fn data(&self) -> Result<Value, EventsError> {
-        Ok(Value::String(self.1.clone()))
+    fn data(&self) -> Result<Box<dyn ErasedMaskSerialize + Sync + Send>, EventsError> {
+        Ok(Box::new(Value::String(self.1.clone())))
     }
 
     fn key(&self) -> String {
