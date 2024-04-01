@@ -1,8 +1,15 @@
-use common_utils::{ext_traits::Encode, fallback_reverse_lookup_not_found};
+use std::str::FromStr;
+
+use api_models::enums::PayoutConnectors;
+use common_utils::{errors::CustomResult, ext_traits::Encode, fallback_reverse_lookup_not_found};
 use data_models::{
     errors,
-    payouts::payout_attempt::{
-        PayoutAttempt, PayoutAttemptInterface, PayoutAttemptNew, PayoutAttemptUpdate,
+    payouts::{
+        payout_attempt::{
+            PayoutAttempt, PayoutAttemptInterface, PayoutAttemptNew, PayoutAttemptUpdate,
+            PayoutListFilters,
+        },
+        payouts::Payouts,
     },
 };
 use diesel_models::{
@@ -14,9 +21,9 @@ use diesel_models::{
     },
     ReverseLookupNew,
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use redis_interface::HsetnxReply;
-use router_env::{instrument, tracing};
+use router_env::{instrument, logger, tracing};
 
 use crate::{
     diesel_error_to_data_error,
@@ -108,8 +115,8 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                     Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
                         entity: "payout attempt",
                         key: Some(key),
-                    })
-                    .into_report(),
+                    }
+                    .into()),
                     Ok(HsetnxReply::KeySet) => Ok(created_attempt),
                     Err(error) => Err(error.change_context(errors::StorageError::KVError)),
                 }
@@ -227,6 +234,18 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
             }
         }
     }
+
+    #[instrument(skip_all)]
+    async fn get_filters_for_payouts(
+        &self,
+        payouts: &[Payouts],
+        merchant_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PayoutListFilters, errors::StorageError> {
+        self.router_store
+            .get_filters_for_payouts(payouts, merchant_id, storage_scheme)
+            .await
+    }
 }
 
 #[async_trait::async_trait]
@@ -286,6 +305,48 @@ impl<T: DatabaseStore> PayoutAttemptInterface for crate::RouterStore<T> {
             let new_err = diesel_error_to_data_error(er.current_context());
             er.change_context(new_err)
         })
+    }
+
+    #[instrument(skip_all)]
+    async fn get_filters_for_payouts(
+        &self,
+        payouts: &[Payouts],
+        merchant_id: &str,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<PayoutListFilters, errors::StorageError> {
+        let conn = pg_connection_read(self).await?;
+        let payouts = payouts
+            .iter()
+            .cloned()
+            .map(|payouts| payouts.to_storage_model())
+            .collect::<Vec<diesel_models::Payouts>>();
+        DieselPayoutAttempt::get_filters_for_payouts(&conn, payouts.as_slice(), merchant_id)
+            .await
+            .map_err(|er| {
+                let new_err = diesel_error_to_data_error(er.current_context());
+                er.change_context(new_err)
+            })
+            .map(
+                |(connector, currency, status, payout_method)| PayoutListFilters {
+                    connector: connector
+                        .iter()
+                        .filter_map(|c| {
+                            PayoutConnectors::from_str(c)
+                                .map_err(|e| {
+                                    logger::error!(
+                                        "Failed to parse payout connector '{}' - {}",
+                                        c,
+                                        e
+                                    );
+                                })
+                                .ok()
+                        })
+                        .collect(),
+                    currency,
+                    status,
+                    payout_method,
+                },
+            )
     }
 }
 

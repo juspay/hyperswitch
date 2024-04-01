@@ -1,5 +1,5 @@
 use common_utils::ext_traits::ValueExt;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 
 use crate::{
     consts,
@@ -248,7 +248,6 @@ pub async fn get_authentication_connector_data(
                 business_profile.profile_id
             ),
         })
-        .into_report()
         .attach_printable(
             "No authentication_connector found from merchant_account.authentication_details",
         )?

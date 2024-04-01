@@ -1,5 +1,5 @@
 use common_utils::crypto::{self, GenerateDigest};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use rand::distributions::DistString;
 use serde::{Deserialize, Serialize};
@@ -265,9 +265,7 @@ impl<F, T>
             })
             .filter(|redirect_str| !redirect_str.is_empty())
             .map(|url| {
-                Url::parse(url)
-                    .into_report()
-                    .change_context(errors::ConnectorError::FailedToObtainIntegrationUrl)
+                Url::parse(url).change_context(errors::ConnectorError::FailedToObtainIntegrationUrl)
             })
             .transpose()?;
         let redirection_data =
@@ -459,7 +457,7 @@ fn get_wallet_data(
         api_models::payments::WalletData::GooglePay(_) => {
             Ok(PaymentMethodData::DigitalWallet(requests::DigitalWallet {
                 provider: Some(requests::DigitalWalletProvider::PayByGoogle),
-                payment_token: wallet_data.get_wallet_token_as_json()?,
+                payment_token: wallet_data.get_wallet_token_as_json("Google Pay".to_string())?,
             }))
         }
         _ => Err(errors::ConnectorError::NotImplemented(
@@ -486,10 +484,7 @@ impl TryFrom<&api_models::payments::BankRedirectData> for PaymentMethodData {
             api_models::payments::BankRedirectData::Sofort { .. } => Ok(Self::Apm(requests::Apm {
                 provider: Some(ApmProvider::Sofort),
             })),
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment method".to_string(),
-            ))
-            .into_report(),
+            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
 }

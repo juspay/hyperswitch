@@ -22,10 +22,10 @@ pub use api_models::{enums::Connector, mandates};
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 use common_enums::MandateStatus;
-pub use common_utils::request::{RequestBody, RequestContent};
+pub use common_utils::request::RequestContent;
 use common_utils::{pii, pii::Email};
 use data_models::mandates::{CustomerAcceptance, MandateData};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::Secret;
 use serde::Serialize;
 
@@ -321,7 +321,35 @@ pub struct RouterData<Flow, Request, Response> {
 
     pub dispute_id: Option<String>,
     pub refund_id: Option<String>,
+
+    /// This field is used to store various data regarding the response from connector
+    pub connector_response: Option<ConnectorResponseData>,
     pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum AdditionalPaymentMethodConnectorResponse {
+    Card {
+        /// Details regarding the authentication details of the connector, if this is a 3ds payment.
+        authentication_data: Option<serde_json::Value>,
+        /// Various payment checks that are done for a payment
+        payment_checks: Option<serde_json::Value>,
+    },
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ConnectorResponseData {
+    pub additional_payment_method_data: Option<AdditionalPaymentMethodConnectorResponse>,
+}
+
+impl ConnectorResponseData {
+    pub fn with_additional_payment_method_data(
+        additional_payment_method_data: AdditionalPaymentMethodConnectorResponse,
+    ) -> Self {
+        Self {
+            additional_payment_method_data: Some(additional_payment_method_data),
+        }
+    }
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -695,9 +723,9 @@ impl Capturable for PaymentsCaptureData {
         let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
         match intent_status {
             common_enums::IntentStatus::Succeeded
-            | common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::Processing => Some(0),
-            common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::PartiallyCaptured => Some(0),
+            common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
@@ -954,7 +982,6 @@ impl ResponseId {
             _ => Err(errors::ValidationError::IncorrectValueProvided {
                 field_name: "connector_transaction_id",
             })
-            .into_report()
             .attach_printable("Expected connector transaction ID not found"),
         }
     }
@@ -1479,6 +1506,7 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             frm_metadata: data.frm_metadata.clone(),
             dispute_id: data.dispute_id.clone(),
             refund_id: data.refund_id.clone(),
+            connector_response: data.connector_response.clone(),
         }
     }
 }
@@ -1538,6 +1566,7 @@ impl<F1, F2>
             frm_metadata: None,
             refund_id: None,
             dispute_id: None,
+            connector_response: data.connector_response.clone(),
         }
     }
 }

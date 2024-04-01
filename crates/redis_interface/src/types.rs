@@ -4,7 +4,6 @@
 //!
 
 use common_utils::errors::CustomResult;
-use error_stack::IntoReport;
 use fred::types::RedisValue as FredRedisValue;
 
 use crate::errors;
@@ -69,14 +68,12 @@ impl RedisSettings {
             Err(errors::RedisError::InvalidConfiguration(
                 "Redis `host` must be specified".into(),
             ))
-            .into_report()
         })?;
 
         when(self.cluster_enabled && self.cluster_urls.is_empty(), || {
             Err(errors::RedisError::InvalidConfiguration(
                 "Redis `cluster_urls` must be specified if `cluster_enabled` is `true`".into(),
             ))
-            .into_report()
         })?;
 
         when(
@@ -84,8 +81,8 @@ impl RedisSettings {
             || {
                 Err(errors::RedisError::InvalidConfiguration(
                     "Unresponsive timeout cannot be greater than the command timeout".into(),
-                ))
-                .into_report()
+                )
+                .into())
             },
         )
     }

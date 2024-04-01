@@ -1,5 +1,5 @@
 use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -14,6 +14,7 @@ use crate::{
     core::errors,
     services,
     types::{self, api, storage::enums, transformers::ForeignFrom},
+    unimplemented_payment_method,
 };
 
 #[derive(Debug, Serialize)]
@@ -92,12 +93,12 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
             api::PaymentMethodData::Wallet(wallet_data) => match wallet_data.clone() {
                 api_models::payments::WalletData::GooglePay(_data) => {
                     let json_wallet_data: CheckoutGooglePayData =
-                        wallet_data.get_wallet_token_as_json()?;
+                        wallet_data.get_wallet_token_as_json("Google Pay".to_string())?;
                     Ok(Self::Googlepay(json_wallet_data))
                 }
                 api_models::payments::WalletData::ApplePay(_data) => {
                     let json_wallet_data: CheckoutApplePayData =
-                        wallet_data.get_wallet_token_as_json()?;
+                        wallet_data.get_wallet_token_as_json("Apple Pay".to_string())?;
                     Ok(Self::Applepay(json_wallet_data))
                 }
                 api_models::payments::WalletData::AliPayQr(_)
@@ -308,7 +309,11 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                         token: match item.router_data.get_payment_method_token()? {
                             types::PaymentMethodToken::Token(token) => token.into(),
                             types::PaymentMethodToken::ApplePayDecrypt(_) => {
-                                Err(errors::ConnectorError::InvalidWalletToken)?
+                                Err(unimplemented_payment_method!(
+                                    "Apple Pay",
+                                    "Simplified",
+                                    "Checkout"
+                                ))?
                             }
                         },
                     }))
@@ -1345,13 +1350,12 @@ pub fn construct_file_upload_request(
             request.file_key,
             request
                 .file_type
-                .to_string()
+                .as_ref()
                 .split('/')
                 .last()
                 .unwrap_or_default()
         ))
         .mime_str(request.file_type.as_ref())
-        .into_report()
         .change_context(errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Failure in constructing file data")?;
     multipart = multipart.part("file", file_data);

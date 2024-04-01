@@ -4,7 +4,7 @@ use std::fmt::{Debug, Write};
 use base64::Engine;
 use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
 use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use transformers as paypal;
 
@@ -245,7 +245,6 @@ impl ConnectorCommon for Paypal {
                     .try_fold(String::new(), |mut acc, error| {
                         if let Some(description) = &error.description {
                             write!(acc, "description - {} ;", description)
-                                .into_report()
                                 .change_context(
                                     errors::ConnectorError::ResponseDeserializationFailed,
                                 )
