@@ -2671,7 +2671,7 @@ fn get_commerce_indicator(network: Option<String>) -> String {
 }
 
 fn is_setup_mandate_payment(item: &types::CompleteAuthorizeData) -> bool {
-    matches!(item.amount, 0) && is_merchant_initiated_mandate_payment(item)
+    matches!(item.amount, 0) && is_customer_initiated_mandate_payment(item)
 }
 
 fn is_customer_initiated_mandate_payment(item: &types::CompleteAuthorizeData) -> bool {
