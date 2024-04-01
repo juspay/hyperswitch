@@ -497,6 +497,8 @@ where
         ))
     }
 
+    let customer_details_response = customer.as_ref().map(ForeignInto::foreign_into);
+
     headers.extend(
         external_latency
             .map(|latency| {
@@ -786,6 +788,7 @@ where
                         .set_payment_method_status(
                             payment_data.payment_method_info.map(|info| info.status),
                         )
+                        .set_customer(customer_details_response.clone())
                         .to_owned(),
                     headers,
                 ))
@@ -856,6 +859,7 @@ where
                 expires_on: payment_intent.session_expiry,
                 external_3ds_authentication_attempted: payment_attempt
                     .external_three_ds_authentication_attempted,
+                customer: customer_details_response,
                 ..Default::default()
             },
             headers,
