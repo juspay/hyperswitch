@@ -7,8 +7,9 @@ use api_models::{
     admin::{self, PaymentMethodsEnabled},
     enums::{self as api_enums},
     payment_methods::{
-        BankAccountTokenData, CardDetailsPaymentMethod, CardNetworkTypes,
-        CustomerDefaultPaymentMethodResponse, MaskedBankDetails, PaymentExperienceTypes,
+        BankAccountTokenData, CardDetailsPaymentMethod, CardNetworkTypes, CountryCodeWithName,
+        CustomerDefaultPaymentMethodResponse, ListCountriesCurrenciesRequest,
+        ListCountriesCurrenciesResponse, MaskedBankDetails, PaymentExperienceTypes,
         PaymentMethodsData, RequestPaymentMethodTypes, RequiredFieldInfo,
         ResponsePaymentMethodIntermediate, ResponsePaymentMethodTypes,
         ResponsePaymentMethodsEnabled,
@@ -30,6 +31,7 @@ use domain::CustomerUpdate;
 use error_stack::{report, IntoReport, ResultExt};
 use masking::Secret;
 use router_env::{instrument, tracing};
+use strum::IntoEnumIterator;
 
 use super::surcharge_decision_configs::{
     perform_surcharge_decision_management_for_payment_method_list,
@@ -3605,4 +3607,60 @@ pub async fn create_encrypted_payment_method_data(
         .map(|details| details.into());
 
     pm_data_encrypted
+}
+
+pub async fn list_countries_currencies_for_connector_payment_method(
+    state: routes::AppState,
+    req: ListCountriesCurrenciesRequest,
+) -> errors::RouterResponse<ListCountriesCurrenciesResponse> {
+    Ok(services::ApplicationResponse::Json(
+        list_countries_currencies_for_connector_payment_method_util(
+            state.conf.pm_filters.clone(),
+            req.connector,
+            req.payment_method_type,
+        )
+        .await,
+    ))
+}
+
+// This feature will be more efficient as a WASM function rather than as an API.
+// So extracting this logic to a separate function so that it can be used in WASM as well.
+pub async fn list_countries_currencies_for_connector_payment_method_util(
+    connector_filters: settings::ConnectorFilters,
+    connector: api_enums::Connector,
+    payment_method_type: api_enums::PaymentMethodType,
+) -> ListCountriesCurrenciesResponse {
+    let payment_method_type =
+        settings::PaymentMethodFilterKey::PaymentMethodType(payment_method_type);
+
+    let (currencies, country_codes) = connector_filters
+        .0
+        .get(&connector.to_string())
+        .and_then(|filter| filter.0.get(&payment_method_type))
+        .map(|filter| (filter.currency.clone(), filter.country.clone()))
+        .unwrap_or_else(|| {
+            connector_filters
+                .0
+                .get("default")
+                .and_then(|filter| filter.0.get(&payment_method_type))
+                .map_or((None, None), |filter| {
+                    (filter.currency.clone(), filter.country.clone())
+                })
+        });
+
+    let currencies =
+        currencies.unwrap_or_else(|| api_enums::Currency::iter().collect::<HashSet<_>>());
+    let country_codes =
+        country_codes.unwrap_or_else(|| api_enums::CountryAlpha2::iter().collect::<HashSet<_>>());
+
+    ListCountriesCurrenciesResponse {
+        currencies,
+        countries: country_codes
+            .into_iter()
+            .map(|country_code| CountryCodeWithName {
+                code: country_code,
+                name: common_enums::Country::from_alpha2(country_code),
+            })
+            .collect(),
+    }
 }

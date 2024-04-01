@@ -68,9 +68,7 @@ where
             "{}{}{}",
             auth.x_login.peek(),
             date,
-            types::RequestBody::get_inner_value(dlocal_req)
-                .peek()
-                .to_owned()
+            dlocal_req.get_inner_value().peek().to_owned()
         );
         let authz = crypto::HmacSha256::sign_message(
             &crypto::HmacSha256,

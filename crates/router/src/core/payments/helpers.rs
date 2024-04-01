@@ -1,9 +1,12 @@
 use std::borrow::Cow;
 
-use api_models::payments::{CardToken, GetPaymentMethodType, RequestSurchargeDetails};
+use api_models::{
+    mandates::RecurringDetails,
+    payments::{CardToken, GetPaymentMethodType, RequestSurchargeDetails},
+};
 use base64::Engine;
 use common_utils::{
-    ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
+    ext_traits::{AsyncExt, ByteSliceExt, Encode, ValueExt},
     fp_utils, generate_id, pii,
 };
 use data_models::{
@@ -34,6 +37,7 @@ use crate::{
     consts::{self, BASE64_ENGINE},
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
+        mandate::helpers::MandateGenericData,
         payment_methods::{cards, vault, PaymentMethodRetrieve},
         payments,
         pm_auth::retrieve_payment_method_from_auth_service,
@@ -42,6 +46,7 @@ use crate::{
     routes::{metrics, payment_methods, AppState},
     services,
     types::{
+        self as core_types,
         api::{self, admin, enums as api_enums, MandateValidationFieldsExt},
         domain::{
             self,
@@ -413,59 +418,117 @@ pub async fn get_token_pm_type_mandate_details(
     mandate_type: Option<api::MandateTransactionType>,
     merchant_account: &domain::MerchantAccount,
     merchant_key_store: &domain::MerchantKeyStore,
-) -> RouterResult<(
-    Option<String>,
-    Option<storage_enums::PaymentMethod>,
-    Option<storage_enums::PaymentMethodType>,
-    Option<MandateData>,
-    Option<payments::RecurringMandatePaymentData>,
-    Option<payments::MandateConnectorDetails>,
-)> {
+) -> RouterResult<MandateGenericData> {
     let mandate_data = request.mandate_data.clone().map(MandateData::foreign_from);
-    match mandate_type {
-        Some(api::MandateTransactionType::NewMandateTransaction) => {
-            let setup_mandate = mandate_data.clone().get_required_value("mandate_data")?;
-            Ok((
-                request.payment_token.to_owned(),
-                request.payment_method,
-                request.payment_method_type,
-                Some(setup_mandate),
-                None,
-                None,
-            ))
-        }
+    let (
+        payment_token,
+        payment_method,
+        payment_method_type,
+        mandate_data,
+        recurring_payment_data,
+        mandate_connector_details,
+        payment_method_info,
+    ) = match mandate_type {
+        Some(api::MandateTransactionType::NewMandateTransaction) => (
+            request.payment_token.to_owned(),
+            request.payment_method,
+            request.payment_method_type,
+            Some(mandate_data.clone().get_required_value("mandate_data")?),
+            None,
+            None,
+            None,
+        ),
         Some(api::MandateTransactionType::RecurringMandateTransaction) => {
-            let (
-                token_,
-                payment_method_,
-                recurring_mandate_payment_data,
-                payment_method_type_,
-                mandate_connector,
-            ) = get_token_for_recurring_mandate(
-                state,
-                request,
-                merchant_account,
-                merchant_key_store,
-            )
-            .await?;
-            Ok((
-                token_,
-                payment_method_,
-                payment_method_type_.or(request.payment_method_type),
-                None,
-                recurring_mandate_payment_data,
-                mandate_connector,
-            ))
+            match &request.recurring_details {
+                Some(recurring_details) => match recurring_details {
+                    RecurringDetails::MandateId(mandate_id) => {
+                        let mandate_generic_data = get_token_for_recurring_mandate(
+                            state,
+                            request,
+                            merchant_account,
+                            merchant_key_store,
+                            mandate_id.to_owned(),
+                        )
+                        .await?;
+
+                        (
+                            mandate_generic_data.token,
+                            mandate_generic_data.payment_method,
+                            mandate_generic_data
+                                .payment_method_type
+                                .or(request.payment_method_type),
+                            None,
+                            mandate_generic_data.recurring_mandate_payment_data,
+                            mandate_generic_data.mandate_connector,
+                            None,
+                        )
+                    }
+                    RecurringDetails::PaymentMethodId(payment_method_id) => {
+                        let payment_method_info = state
+                            .store
+                            .find_payment_method(payment_method_id)
+                            .await
+                            .to_not_found_response(
+                                errors::ApiErrorResponse::PaymentMethodNotFound,
+                            )?;
+
+                        (
+                            None,
+                            Some(payment_method_info.payment_method),
+                            payment_method_info.payment_method_type,
+                            None,
+                            None,
+                            None,
+                            Some(payment_method_info),
+                        )
+                    }
+                },
+                None => {
+                    let mandate_id = request
+                        .mandate_id
+                        .clone()
+                        .get_required_value("mandate_id")?;
+                    let mandate_generic_data = get_token_for_recurring_mandate(
+                        state,
+                        request,
+                        merchant_account,
+                        merchant_key_store,
+                        mandate_id,
+                    )
+                    .await?;
+                    (
+                        mandate_generic_data.token,
+                        mandate_generic_data.payment_method,
+                        mandate_generic_data
+                            .payment_method_type
+                            .or(request.payment_method_type),
+                        None,
+                        mandate_generic_data.recurring_mandate_payment_data,
+                        mandate_generic_data.mandate_connector,
+                        None,
+                    )
+                }
+            }
         }
-        None => Ok((
+        None => (
             request.payment_token.to_owned(),
             request.payment_method,
             request.payment_method_type,
             mandate_data,
             None,
             None,
-        )),
-    }
+            None,
+        ),
+    };
+    Ok(MandateGenericData {
+        token: payment_token,
+        payment_method,
+        payment_method_type,
+        mandate_data,
+        recurring_mandate_payment_data: recurring_payment_data,
+        mandate_connector: mandate_connector_details,
+        payment_method_info,
+    })
 }
 
 pub async fn get_token_for_recurring_mandate(
@@ -473,15 +536,9 @@ pub async fn get_token_for_recurring_mandate(
     req: &api::PaymentsRequest,
     merchant_account: &domain::MerchantAccount,
     merchant_key_store: &domain::MerchantKeyStore,
-) -> RouterResult<(
-    Option<String>,
-    Option<storage_enums::PaymentMethod>,
-    Option<payments::RecurringMandatePaymentData>,
-    Option<storage_enums::PaymentMethodType>,
-    Option<payments::MandateConnectorDetails>,
-)> {
+    mandate_id: String,
+) -> RouterResult<MandateGenericData> {
     let db = &*state.store;
-    let mandate_id = req.mandate_id.clone().get_required_value("mandate_id")?;
 
     let mandate = db
         .find_mandate_by_merchant_id_mandate_id(&merchant_account.merchant_id, mandate_id.as_str())
@@ -565,29 +622,33 @@ pub async fn get_token_for_recurring_mandate(
             }
         };
 
-        Ok((
-            Some(token),
-            Some(payment_method.payment_method),
-            Some(payments::RecurringMandatePaymentData {
+        Ok(MandateGenericData {
+            token: Some(token),
+            payment_method: Some(payment_method.payment_method),
+            recurring_mandate_payment_data: Some(payments::RecurringMandatePaymentData {
                 payment_method_type,
                 original_payment_authorized_amount,
                 original_payment_authorized_currency,
             }),
-            payment_method.payment_method_type,
-            Some(mandate_connector_details),
-        ))
+            payment_method_type: payment_method.payment_method_type,
+            mandate_connector: Some(mandate_connector_details),
+            mandate_data: None,
+            payment_method_info: None,
+        })
     } else {
-        Ok((
-            None,
-            Some(payment_method.payment_method),
-            Some(payments::RecurringMandatePaymentData {
+        Ok(MandateGenericData {
+            token: None,
+            payment_method: Some(payment_method.payment_method),
+            recurring_mandate_payment_data: Some(payments::RecurringMandatePaymentData {
                 payment_method_type,
                 original_payment_authorized_amount,
                 original_payment_authorized_currency,
             }),
-            payment_method.payment_method_type,
-            Some(mandate_connector_details),
-        ))
+            payment_method_type: payment_method.payment_method_type,
+            mandate_connector: Some(mandate_connector_details),
+            mandate_data: None,
+            payment_method_info: None,
+        })
     }
 }
 
@@ -791,7 +852,7 @@ pub fn validate_mandate(
     let req: api::MandateValidationFields = req.into();
     match req.validate_and_get_mandate_type().change_context(
         errors::ApiErrorResponse::MandateValidationFailed {
-            reason: "Expected one out of mandate_id and mandate_data but got both".into(),
+            reason: "Expected one out of recurring_details and mandate_data but got both".into(),
         },
     )? {
         Some(api::MandateTransactionType::NewMandateTransaction) => {
@@ -806,6 +867,23 @@ pub fn validate_mandate(
         }
         None => Ok(None),
     }
+}
+
+pub fn validate_recurring_details_and_token(
+    recurring_details: &Option<RecurringDetails>,
+    payment_token: &Option<String>,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    utils::when(
+        recurring_details.is_some() && payment_token.is_some(),
+        || {
+            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Expected one out of recurring_details and payment_token but got both"
+                    .into()
+            }))
+        },
+    )?;
+
+    Ok(())
 }
 
 fn validate_new_mandate_request(
@@ -939,7 +1017,8 @@ pub fn create_complete_authorize_url(
 }
 
 fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult<()> {
-    req.mandate_id.check_value_present("mandate_id")?;
+    req.recurring_details
+        .check_value_present("recurring_details")?;
 
     req.customer_id.check_value_present("customer_id")?;
 
@@ -1949,7 +2028,8 @@ pub(crate) fn validate_payment_method_fields_present(
     utils::when(
         req.payment_method.is_some()
             && req.payment_method_data.is_none()
-            && req.payment_token.is_none(),
+            && req.payment_token.is_none()
+            && req.recurring_details.is_none(),
         || {
             Err(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "payment_method_data",
@@ -3070,6 +3150,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         frm_metadata: router_data.frm_metadata,
         refund_id: router_data.refund_id,
         dispute_id: router_data.dispute_id,
+        connector_response: router_data.connector_response,
     }
 }
 
@@ -3450,6 +3531,9 @@ pub async fn get_additional_payment_data(
                         last4: last4.clone(),
                         card_isin: card_isin.clone(),
                         card_extended_bin: card_extended_bin.clone(),
+                        // These are filled after calling the processor / connector
+                        payment_checks: None,
+                        authentication_data: None,
                     },
                 ))
             } else {
@@ -3477,6 +3561,9 @@ pub async fn get_additional_payment_data(
                                 card_exp_month: Some(card_data.card_exp_month.clone()),
                                 card_exp_year: Some(card_data.card_exp_year.clone()),
                                 card_holder_name: card_data.card_holder_name.clone(),
+                                // These are filled after calling the processor / connector
+                                payment_checks: None,
+                                authentication_data: None,
                             },
                         ))
                     });
@@ -3494,6 +3581,9 @@ pub async fn get_additional_payment_data(
                             card_exp_month: Some(card_data.card_exp_month.clone()),
                             card_exp_year: Some(card_data.card_exp_year.clone()),
                             card_holder_name: card_data.card_holder_name.clone(),
+                            // These are filled after calling the processor / connector
+                            payment_checks: None,
+                            authentication_data: None,
                         },
                     ))
                 })
@@ -3516,13 +3606,11 @@ pub async fn get_additional_payment_data(
         }
         api_models::payments::PaymentMethodData::Wallet(wallet) => match wallet {
             api_models::payments::WalletData::ApplePay(apple_pay_wallet_data) => {
-                api_models::payments::AdditionalPaymentData::Wallet(Some(
-                    api_models::payments::Wallets::ApplePay(
-                        apple_pay_wallet_data.payment_method.to_owned(),
-                    ),
-                ))
+                api_models::payments::AdditionalPaymentData::Wallet {
+                    apple_pay: Some(apple_pay_wallet_data.payment_method.to_owned()),
+                }
             }
-            _ => api_models::payments::AdditionalPaymentData::Wallet(None),
+            _ => api_models::payments::AdditionalPaymentData::Wallet { apple_pay: None },
         },
         api_models::payments::PaymentMethodData::PayLater(_) => {
             api_models::payments::AdditionalPaymentData::PayLater {}
@@ -3596,8 +3684,10 @@ impl ApplePayData {
     pub fn token_json(
         wallet_data: api_models::payments::WalletData,
     ) -> CustomResult<Self, errors::ConnectorError> {
-        let json_wallet_data: Self =
-            connector::utils::WalletData::get_wallet_token_as_json(&wallet_data)?;
+        let json_wallet_data: Self = connector::utils::WalletData::get_wallet_token_as_json(
+            &wallet_data,
+            "Apple Pay".to_string(),
+        )?;
         Ok(json_wallet_data)
     }
 
@@ -3924,6 +4014,65 @@ pub fn validate_session_expiry(session_expiry: u32) -> Result<(), errors::ApiErr
     } else {
         Ok(())
     }
+}
+
+pub fn add_connector_response_to_additional_payment_data(
+    additional_payment_data: api_models::payments::AdditionalPaymentData,
+    connector_response_payment_method_data: core_types::AdditionalPaymentMethodConnectorResponse,
+) -> api_models::payments::AdditionalPaymentData {
+    match (
+        &additional_payment_data,
+        connector_response_payment_method_data,
+    ) {
+        (
+            api_models::payments::AdditionalPaymentData::Card(additional_card_data),
+            core_types::AdditionalPaymentMethodConnectorResponse::Card {
+                authentication_data,
+                payment_checks,
+            },
+        ) => api_models::payments::AdditionalPaymentData::Card(Box::new(
+            api_models::payments::AdditionalCardInfo {
+                payment_checks,
+                authentication_data,
+                ..*additional_card_data.clone()
+            },
+        )),
+        _ => additional_payment_data,
+    }
+}
+
+pub fn update_additional_payment_data_with_connector_response_pm_data(
+    additional_payment_data: Option<serde_json::Value>,
+    connector_response_pm_data: Option<core_types::AdditionalPaymentMethodConnectorResponse>,
+) -> RouterResult<Option<serde_json::Value>> {
+    let parsed_additional_payment_method_data = additional_payment_data
+        .as_ref()
+        .map(|payment_method_data| {
+            payment_method_data
+                .clone()
+                .parse_value::<api_models::payments::AdditionalPaymentData>(
+                    "additional_payment_method_data",
+                )
+        })
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("unable to parse value into additional_payment_method_data")?;
+
+    let additional_payment_method_data = parsed_additional_payment_method_data
+        .zip(connector_response_pm_data)
+        .map(|(additional_pm_data, connector_response_pm_data)| {
+            add_connector_response_to_additional_payment_data(
+                additional_pm_data,
+                connector_response_pm_data,
+            )
+        });
+
+    additional_payment_method_data
+        .as_ref()
+        .map(Encode::encode_to_value)
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to encode additional pm data")
 }
 
 pub async fn get_payment_method_details_from_payment_token(
