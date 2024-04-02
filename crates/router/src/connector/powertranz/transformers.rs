@@ -1,6 +1,5 @@
 use common_utils::pii::{Email, IpAddress};
 use diesel_models::enums::RefundStatus;
-use error_stack::IntoReport;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -117,8 +116,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest 
                 Err(errors::ConnectorError::NotSupported {
                     message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                     connector: "powertranz",
-                })
-                .into_report()
+                }
+                .into())
             }
         }?;
         // let billing_address = get_address_details(&item.address.billing, &item.request.email);

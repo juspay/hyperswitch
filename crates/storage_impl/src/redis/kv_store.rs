@@ -1,7 +1,7 @@
 use std::{fmt::Debug, sync::Arc};
 
 use common_utils::errors::CustomResult;
-use error_stack::IntoReport;
+use error_stack::report;
 use redis_interface::errors::RedisError;
 use router_derive::TryGetEnumVariant;
 use router_env::logger;
@@ -136,7 +136,7 @@ where
                     .await
                     .and_then(|result| {
                         if result.is_empty() {
-                            Err(RedisError::NotFound).into_report()
+                            Err(report!(RedisError::NotFound))
                         } else {
                             Ok(result)
                         }
@@ -159,7 +159,7 @@ where
                         .await?;
                     Ok(KvResult::HSetNx(result))
                 } else {
-                    Err(RedisError::SetNxFailed).into_report()
+                    Err(report!(RedisError::SetNxFailed))
                 }
             }
 
@@ -178,7 +178,7 @@ where
                         .await?;
                     Ok(KvResult::SetNx(result))
                 } else {
-                    Err(RedisError::SetNxFailed).into_report()
+                    Err(report!(RedisError::SetNxFailed))
                 }
             }
 

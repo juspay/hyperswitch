@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use futures::FutureExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
@@ -793,7 +793,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                 .authentication_connectors
                 .first()
                 .ok_or(errors::ApiErrorResponse::UnprocessableEntity { message: format!("No authentication_connector found for profile_id {}", business_profile.profile_id) })
-                .into_report()
+
                 .attach_printable("No authentication_connector found from merchant_account.authentication_details")?
                 .to_string();
             let profile_id = &business_profile.profile_id;
@@ -1216,9 +1216,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
             Box::new(self),
             operations::ValidateResult {
                 merchant_id: &merchant_account.merchant_id,
-                payment_id: payment_id
-                    .and_then(|id| core_utils::validate_id(id, "payment_id"))
-                    .into_report()?,
+                payment_id: payment_id.and_then(|id| core_utils::validate_id(id, "payment_id"))?,
                 mandate_type,
                 storage_scheme: merchant_account.storage_scheme,
                 requeue: matches!(

@@ -8,7 +8,7 @@ use common_utils::{
     request::RequestContent,
 };
 use diesel_models::enums;
-use error_stack::{IntoReport, Report, ResultExt};
+use error_stack::{Report, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 use rand::distributions::{Alphanumeric, DistString};
 use ring::hmac;
@@ -260,12 +260,11 @@ impl
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -383,12 +382,11 @@ impl
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -491,12 +489,11 @@ impl
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 }
@@ -725,12 +722,11 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -759,12 +755,11 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 }
@@ -786,7 +781,6 @@ impl api::IncomingWebhook for Rapyd {
         let base64_signature = connector_utils::get_header_key_value("signature", request.headers)?;
         let signature = consts::BASE64_ENGINE_URL_SAFE
             .decode(base64_signature.as_bytes())
-            .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         Ok(signature)
     }
@@ -803,7 +797,6 @@ impl api::IncomingWebhook for Rapyd {
         let salt = connector_utils::get_header_key_value("salt", request.headers)?;
         let timestamp = connector_utils::get_header_key_value("timestamp", request.headers)?;
         let stringify_auth = String::from_utf8(connector_webhook_secrets.secret.to_vec())
-            .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
             .attach_printable("Could not convert secret to UTF-8")?;
         let auth: transformers::RapydAuthType = stringify_auth
@@ -812,7 +805,6 @@ impl api::IncomingWebhook for Rapyd {
         let access_key = auth.access_key;
         let secret_key = auth.secret_key;
         let body_string = String::from_utf8(request.body.to_vec())
-            .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
             .attach_printable("Could not convert body to UTF-8")?;
         let to_sign = format!(
@@ -851,7 +843,6 @@ impl api::IncomingWebhook for Rapyd {
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         let stringify_auth = String::from_utf8(connector_webhook_secrets.secret.to_vec())
-            .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
             .attach_printable("Could not convert secret to UTF-8")?;
         let auth: transformers::RapydAuthType = stringify_auth
