@@ -21,7 +21,7 @@ use api_models::{
 use common_utils::{ext_traits::AsyncExt, pii, types::Surcharge};
 use data_models::mandates::{CustomerAcceptance, MandateData};
 use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use futures::future::join_all;
 use helpers::ApplePayData;
 use masking::Secret;
@@ -254,7 +254,6 @@ where
                             0,
                         )
                         .await
-                        .into_report()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed while getting process schedule time")?
                     } else {
@@ -310,7 +309,6 @@ where
                             0,
                         )
                         .await
-                        .into_report()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed while getting process schedule time")?
                     } else {
@@ -420,7 +418,6 @@ where
                         .ok_or(errors::ApiErrorResponse::MissingRequiredField {
                             field_name: "frm_configs",
                         })
-                        .into_report()
                         .attach_printable("Frm configs label not found")?,
                     &customer,
                     key_store.clone(),
@@ -615,7 +612,6 @@ pub fn get_connector_data(
     connectors
         .next()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .into_report()
         .attach_printable("Connector not found in connectors iterator")
 }
 
@@ -838,7 +834,6 @@ pub trait PaymentRedirectFlow<Ctx: PaymentMethodRetrieve>: Sync {
             services::ApplicationResponse::Json(response) => Ok(response),
             services::ApplicationResponse::JsonWithHeaders((response, _)) => Ok(response),
             _ => Err(errors::ApiErrorResponse::InternalServerError)
-                .into_report()
                 .attach_printable("Failed to get the response in json"),
         }?;
 
@@ -933,7 +928,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectCom
                         api_models::payments::NextActionData::ThreeDsInvoke{..} => None,
                     })
                     .ok_or(errors::ApiErrorResponse::InternalServerError)
-                    .into_report()
+
                     .attach_printable(
                         "did not receive redirect to url when status is requires customer action",
                     )?;
@@ -954,7 +949,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectCom
                 payments_response,
                 connector,
             ),
-            _ => Err(errors::ApiErrorResponse::InternalServerError).into_report().attach_printable_lazy(|| format!("Could not proceed with payment as payment status {} cannot be handled during redirection",payments_response.status))?
+            _ => Err(errors::ApiErrorResponse::InternalServerError).attach_printable_lazy(|| format!("Could not proceed with payment as payment status {} cannot be handled during redirection",payments_response.status))?
         }?;
         Ok(services::ApplicationResponse::JsonForRedirection(
             redirection_response,
@@ -2175,21 +2170,22 @@ pub mod payment_address {
             billing: Option<api::Address>,
             payment_method_billing: Option<api::Address>,
         ) -> Self {
+            // billing -> .billing, this is the billing details passed in the root of payments request
+            // payment_method_billing -> .payment_method_data.billing
+
             // Merge the billing details field from both `payment.billing` and `payment.payment_method_data.billing`
             // The unified payment_method_billing will be used as billing address and passed to the connector module
             // This unification is required in order to provide backwards compatibility
             // so that if `payment.billing` is passed it should be sent to the connector module
-            let unified_payment_method_billing =
-                match (payment_method_billing.clone(), billing.clone()) {
-                    (Some(payment_method_billing), Some(order_billing)) => Some(api::Address {
-                        address: payment_method_billing.address.or(order_billing.address),
-                        phone: payment_method_billing.phone.or(order_billing.phone),
-                        email: payment_method_billing.email.or(order_billing.email),
-                    }),
-                    (Some(payment_method_billing), None) => Some(payment_method_billing),
-                    (None, Some(order_billing)) => Some(order_billing),
-                    (None, None) => None,
-                };
+            // Unify the billing details with `payment_method_data.billing`
+            let unified_payment_method_billing = payment_method_billing
+                .as_ref()
+                .map(|payment_method_billing| {
+                    payment_method_billing
+                        .clone()
+                        .unify_address(billing.as_ref())
+                })
+                .or(billing.clone());
 
             Self {
                 shipping,
@@ -2205,6 +2201,25 @@ pub mod payment_address {
 
         pub fn get_payment_method_billing(&self) -> Option<&api::Address> {
             self.unified_payment_method_billing.as_ref()
+        }
+
+        pub fn unify_with_payment_method_data_billing(
+            self,
+            payment_method_data_billing: Option<api::Address>,
+        ) -> Self {
+            // Unify the billing details with `payment_method_data.billing_details`
+            let unified_payment_method_billing = payment_method_data_billing
+                .map(|payment_method_data_billing| {
+                    payment_method_data_billing.unify_address(self.get_payment_method_billing())
+                })
+                .or(self.get_payment_method_billing().cloned());
+
+            Self {
+                shipping: self.shipping,
+                billing: self.billing,
+                unified_payment_method_billing,
+                payment_method_billing: self.payment_method_billing,
+            }
         }
 
         pub fn get_request_payment_method_billing(&self) -> Option<&api::Address> {
@@ -2576,8 +2591,7 @@ pub async fn add_process_sync_task(
         tracking_data,
         schedule_time,
     )
-    .map_err(errors::StorageError::from)
-    .into_report()?;
+    .map_err(errors::StorageError::from)?;
 
     db.insert_process(process_tracker_entry).await?;
     Ok(())
@@ -3065,7 +3079,6 @@ pub fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone>(
             let first_choice = connectors
                 .first()
                 .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
-                .into_report()
                 .attach_printable("no eligible connector found for payment")?
                 .clone();
 
@@ -3274,7 +3287,6 @@ where
     let first_connector_choice = connectors
         .first()
         .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
-        .into_report()
         .attach_printable("Empty connector list returned")?
         .clone();
 
@@ -3409,7 +3421,6 @@ pub async fn payment_external_authentication(
         .authentication_connector
         .clone()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .into_report()
         .attach_printable("authentication_connector not found in payment_attempt")?;
     let merchant_connector_account = helpers::get_merchant_connector_account(
         &state,
@@ -3428,7 +3439,6 @@ pub async fn payment_external_authentication(
                 .authentication_id
                 .clone()
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .into_report()
                 .attach_printable("missing authentication_id in payment_attempt")?,
         )
         .await
@@ -3442,7 +3452,6 @@ pub async fn payment_external_authentication(
     )
     .await?
     .ok_or(errors::ApiErrorResponse::InternalServerError)
-    .into_report()
     .attach_printable("missing payment_method_details")?;
     let browser_info: Option<BrowserInformation> = payment_attempt
         .browser_info
@@ -3456,7 +3465,6 @@ pub async fn payment_external_authentication(
         .connector
         .as_ref()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .into_report()
         .attach_printable("missing connector in payment_attempt")?;
     let return_url = Some(helpers::create_authorize_url(
         &state.conf.server.base_url,

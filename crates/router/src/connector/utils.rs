@@ -12,7 +12,7 @@ use common_utils::{
 };
 use data_models::payments::payment_attempt::PaymentAttempt;
 use diesel_models::enums;
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, Secret};
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -29,8 +29,8 @@ use crate::{
     },
     pii::PeekInterface,
     types::{
-        self, api, transformers::ForeignTryFrom, ApplePayPredecryptData, BrowserInformation,
-        PaymentsCancelData, ResponseId,
+        self, api, domain, transformers::ForeignTryFrom, ApplePayPredecryptData,
+        BrowserInformation, PaymentsCancelData, ResponseId,
     },
     utils::{OptionExt, ValueExt},
 };
@@ -88,6 +88,14 @@ pub trait RouterData {
 
     fn get_optional_billing(&self) -> Option<&api::Address>;
     fn get_optional_shipping(&self) -> Option<&api::Address>;
+    fn get_optional_billing_line1(&self) -> Option<Secret<String>>;
+    fn get_optional_billing_line2(&self) -> Option<Secret<String>>;
+    fn get_optional_billing_city(&self) -> Option<String>;
+    fn get_optional_billing_country(&self) -> Option<enums::CountryAlpha2>;
+    fn get_optional_billing_zip(&self) -> Option<Secret<String>>;
+    fn get_optional_billing_state(&self) -> Option<Secret<String>>;
+    fn get_optional_billing_first_name(&self) -> Option<Secret<String>>;
+    fn get_optional_billing_last_name(&self) -> Option<Secret<String>>;
 }
 
 pub trait PaymentResponseRouterData {
@@ -200,6 +208,94 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
         self.session_token
             .clone()
             .ok_or_else(missing_field_err("session_token"))
+    }
+
+    fn get_optional_billing_line1(&self) -> Option<Secret<String>> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_address_details| billing_address_details.line1)
+            })
+    }
+
+    fn get_optional_billing_line2(&self) -> Option<Secret<String>> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_address_details| billing_address_details.line2)
+            })
+    }
+
+    fn get_optional_billing_city(&self) -> Option<String> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_address_details| billing_address_details.city)
+            })
+    }
+
+    fn get_optional_billing_country(&self) -> Option<enums::CountryAlpha2> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_address_details| billing_address_details.country)
+            })
+    }
+
+    fn get_optional_billing_zip(&self) -> Option<Secret<String>> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_address_details| billing_address_details.zip)
+            })
+    }
+
+    fn get_optional_billing_state(&self) -> Option<Secret<String>> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_address_details| billing_address_details.state)
+            })
+    }
+
+    fn get_optional_billing_first_name(&self) -> Option<Secret<String>> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_address_details| billing_address_details.first_name)
+            })
+    }
+
+    fn get_optional_billing_last_name(&self) -> Option<Secret<String>> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_address_details| billing_address_details.last_name)
+            })
     }
 
     fn to_connector_meta<T>(&self) -> Result<T, Error>
@@ -381,7 +477,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_email(&self) -> Result<Email, Error>;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
-    fn get_card(&self) -> Result<api::Card, Error>;
+    fn get_card(&self) -> Result<domain::Card, Error>;
     fn get_return_url(&self) -> Result<String, Error>;
     fn connector_mandate_id(&self) -> Option<String>;
     fn is_mandate_payment(&self) -> bool;
@@ -434,9 +530,9 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
             .ok_or_else(missing_field_err("order_details"))
     }
 
-    fn get_card(&self) -> Result<api::Card, Error> {
+    fn get_card(&self) -> Result<domain::Card, Error> {
         match self.payment_method_data.clone() {
-            api::PaymentMethodData::Card(card) => Ok(card),
+            domain::PaymentMethodData::Card(card) => Ok(card),
             _ => Err(missing_field_err("card")()),
         }
     }
@@ -481,10 +577,13 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
             .ok_or_else(missing_field_err("return_url"))
     }
     fn is_wallet(&self) -> bool {
-        matches!(self.payment_method_data, api::PaymentMethodData::Wallet(_))
+        matches!(
+            self.payment_method_data,
+            domain::PaymentMethodData::Wallet(_)
+        )
     }
     fn is_card(&self) -> bool {
-        matches!(self.payment_method_data, api::PaymentMethodData::Card(_))
+        matches!(self.payment_method_data, domain::PaymentMethodData::Card(_))
     }
 
     fn get_payment_method_type(&self) -> Result<diesel_models::enums::PaymentMethodType, Error> {
@@ -657,7 +756,6 @@ impl PaymentsSyncRequestData for types::PaymentsSyncData {
             _ => Err(errors::ValidationError::IncorrectValueProvided {
                 field_name: "connector_transaction_id",
             })
-            .into_report()
             .attach_printable("Expected connector transaction ID not found")
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?,
         }
@@ -808,7 +906,7 @@ pub trait CardData {
     fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error>;
 }
 
-impl CardData for api::Card {
+impl CardData for domain::Card {
     fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
         let binding = self.card_exp_year.clone();
         let year = binding.peek();
@@ -868,7 +966,6 @@ impl CardData for api::Card {
             .peek()
             .clone()
             .parse::<i8>()
-            .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)
             .map(Secret::new)
     }
@@ -877,7 +974,6 @@ impl CardData for api::Card {
             .peek()
             .clone()
             .parse::<i32>()
-            .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)
             .map(Secret::new)
     }
@@ -888,7 +984,6 @@ fn get_card_issuer(card_number: &str) -> Result<CardIssuer, Error> {
     for (k, v) in CARD_REGEX.iter() {
         let regex: Regex = v
             .clone()
-            .into_report()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         if regex.is_match(card_number) {
             return Ok(*k);
@@ -920,7 +1015,6 @@ impl WalletData for api::WalletData {
         T: serde::de::DeserializeOwned,
     {
         serde_json::from_str::<T>(self.get_wallet_token()?.peek())
-            .into_report()
             .change_context(errors::ConnectorError::InvalidWalletToken { wallet_name })
     }
 
@@ -929,11 +1023,11 @@ impl WalletData for api::WalletData {
             Self::GooglePay(_) => {
                 let json_token: serde_json::Value =
                     self.get_wallet_token_as_json("Google Pay".to_owned())?;
-                let token_as_vec = serde_json::to_vec(&json_token)
-                    .into_report()
-                    .change_context(errors::ConnectorError::InvalidWalletToken {
+                let token_as_vec = serde_json::to_vec(&json_token).change_context(
+                    errors::ConnectorError::InvalidWalletToken {
                         wallet_name: "Google Pay".to_string(),
-                    })?;
+                    },
+                )?;
                 let encoded_token = consts::BASE64_ENGINE.encode(token_as_vec);
                 Ok(encoded_token)
             }
@@ -954,12 +1048,10 @@ impl ApplePay for payments::ApplePayWalletData {
             String::from_utf8(
                 consts::BASE64_ENGINE
                     .decode(&self.payment_data)
-                    .into_report()
                     .change_context(errors::ConnectorError::InvalidWalletToken {
                         wallet_name: "Apple Pay".to_string(),
                     })?,
             )
-            .into_report()
             .change_context(errors::ConnectorError::InvalidWalletToken {
                 wallet_name: "Apple Pay".to_string(),
             })?,
@@ -1157,7 +1249,6 @@ impl MandateData for payments::MandateAmountData {
             "mandate_data.mandate_type.{multi_use|single_use}.end_date",
         ))?;
         date_time::format_date(date, format)
-            .into_report()
             .change_context(errors::ConnectorError::DateFormattingFailed)
     }
     fn get_metadata(&self) -> Result<pii::SecretSerdeValue, Error> {
@@ -1216,7 +1307,6 @@ fn get_header_field(
         .map(|header_value| {
             header_value
                 .to_str()
-                .into_report()
                 .change_context(errors::ConnectorError::WebhookSignatureNotFound)
         })
         .ok_or(report!(
@@ -1270,7 +1360,6 @@ impl common_utils::errors::ErrorSwitch<errors::ConnectorError> for errors::Parsi
 pub fn base64_decode(data: String) -> Result<Vec<u8>, Error> {
     consts::BASE64_ENGINE
         .decode(data)
-        .into_report()
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)
 }
 
@@ -1307,7 +1396,6 @@ pub fn get_amount_as_f64(
     let amount = match currency_unit {
         types::api::CurrencyUnit::Base => to_currency_base_unit_asf64(amount, currency)?,
         types::api::CurrencyUnit::Minor => u32::try_from(amount)
-            .into_report()
             .change_context(errors::ConnectorError::ParsingFailed)?
             .into(),
     };
@@ -1320,7 +1408,6 @@ pub fn to_currency_base_unit(
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     currency
         .to_currency_base_unit(amount)
-        .into_report()
         .change_context(errors::ConnectorError::ParsingFailed)
 }
 
@@ -1330,7 +1417,6 @@ pub fn to_currency_lower_unit(
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     currency
         .to_currency_lower_unit(amount)
-        .into_report()
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
 }
 
@@ -1359,7 +1445,6 @@ pub fn to_currency_base_unit_with_zero_decimal_check(
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     currency
         .to_currency_base_unit_with_zero_decimal_check(amount)
-        .into_report()
         .change_context(errors::ConnectorError::RequestEncodingFailed)
 }
 
@@ -1369,7 +1454,6 @@ pub fn to_currency_base_unit_asf64(
 ) -> Result<f64, error_stack::Report<errors::ConnectorError>> {
     currency
         .to_currency_base_unit_asf64(amount)
-        .into_report()
         .change_context(errors::ConnectorError::ParsingFailed)
 }
 

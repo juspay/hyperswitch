@@ -70,8 +70,6 @@ The fastest and easiest way to try Hyperswitch is via our CDK scripts
 
 3. Follow the instructions provided on the console to successfully deploy Hyperswitch
 
-For an early access to the production-ready setup fill this <a href="https://forms.gle/v6ru55XDZFufVPnu9">Early Access Form</a>
-
 ### Run it on your system
 
 You can run Hyperswitch on your system using Docker Compose after cloning this repository:

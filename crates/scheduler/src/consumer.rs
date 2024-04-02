@@ -7,7 +7,7 @@ pub mod workflows;
 use common_utils::{errors::CustomResult, signals::get_allowed_signals};
 use diesel_models::enums;
 pub use diesel_models::{self, process_tracker as storage};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use futures::future;
 use redis_interface::{RedisConnectionPool, RedisEntryId};
 use router_env::{
@@ -48,7 +48,6 @@ pub async fn start_consumer<T: SchedulerAppState + 'static>(
     #[allow(unknown_lints)]
     #[allow(clippy::unnecessary_fallible_conversions)]
     let timeout = Uniform::try_from(0..=settings.loop_interval)
-        .into_report()
         .change_context(errors::ProcessTrackerError::ConfigurationError)?;
 
     tokio::time::sleep(Duration::from_millis(timeout.sample(&mut rng))).await;
@@ -64,7 +63,6 @@ pub async fn start_consumer<T: SchedulerAppState + 'static>(
             logger::error!(?error, "Signal Handler Error");
             errors::ProcessTrackerError::ConfigurationError
         })
-        .into_report()
         .attach_printable("Failed while creating a signals handler")?;
     let handle = signal.handle();
     let task_handle =
@@ -112,7 +110,6 @@ pub async fn start_consumer<T: SchedulerAppState + 'static>(
     handle.close();
     task_handle
         .await
-        .into_report()
         .change_context(errors::ProcessTrackerError::UnexpectedFlow)?;
 
     Ok(())

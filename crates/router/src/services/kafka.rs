@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use common_utils::errors::CustomResult;
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use rdkafka::{
     config::FromClientConfig,
     producer::{BaseRecord, DefaultProducerContext, Producer, ThreadedProducer},
@@ -32,9 +32,7 @@ where
 {
     fn value(&self) -> MQResult<Vec<u8>> {
         // Add better error logging here
-        serde_json::to_vec(&self)
-            .into_report()
-            .change_context(KafkaError::GenericError)
+        serde_json::to_vec(&self).change_context(KafkaError::GenericError)
     }
 
     fn key(&self) -> String;
@@ -210,7 +208,6 @@ impl KafkaProducer {
                 ThreadedProducer::from_config(
                     rdkafka::ClientConfig::new().set("bootstrap.servers", conf.brokers.join(",")),
                 )
-                .into_report()
                 .change_context(KafkaError::InitializationError)?,
             )),
 

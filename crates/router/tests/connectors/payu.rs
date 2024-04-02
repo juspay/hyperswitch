@@ -89,7 +89,7 @@ async fn should_authorize_gpay_payment() {
     let authorize_response = Payu {}
         .authorize_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Wallet(api::WalletData::GooglePay(
+                payment_method_data: types::domain::PaymentMethodData::Wallet(api::WalletData::GooglePay(
                     api_models::payments::GooglePayWalletData {
                         pm_type: "CARD".to_string(),
                         description: "Visa1234567890".to_string(),

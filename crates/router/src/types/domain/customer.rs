@@ -60,7 +60,7 @@ impl super::behaviour::Conversion for Customer {
         async {
             let inner_decrypt = |inner| types::decrypt(inner, key.peek());
             let inner_decrypt_email = |inner| types::decrypt(inner, key.peek());
-            Ok(Self {
+            Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 id: Some(item.id),
                 customer_id: item.customer_id,
                 merchant_id: item.merchant_id,

@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 
@@ -255,10 +255,10 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             Box::new(self),
             operations::ValidateResult {
                 merchant_id: &merchant_account.merchant_id,
-                payment_id: api::PaymentIdType::PaymentIntentId(
-                    crate::core::utils::validate_id(request.payment_id.clone(), "payment_id")
-                        .into_report()?,
-                ),
+                payment_id: api::PaymentIdType::PaymentIntentId(crate::core::utils::validate_id(
+                    request.payment_id.clone(),
+                    "payment_id",
+                )?),
                 mandate_type: None,
                 storage_scheme: merchant_account.storage_scheme,
                 requeue: false,
