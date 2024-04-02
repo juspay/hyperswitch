@@ -70,6 +70,7 @@ impl TryFrom<&CryptopayRouterData<&types::PaymentsAuthorizeRouterData>>
                     pay_currency,
                     success_redirect_url: item.router_data.request.router_return_url.clone(),
                     unsuccess_redirect_url: item.router_data.request.router_return_url.clone(),
+                    //Cryptopay only accepts metadata as Object. If any other type, payment will fail with error.
                     metadata: item.router_data.request.get_metadata_as_object(),
                     custom_id: item.router_data.connector_request_reference_id.clone(),
                 })
