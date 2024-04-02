@@ -285,8 +285,8 @@ impl TryFrom<&types::SetupMandateRouterData> for BankOfAmericaPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(card_data) => Self::try_from((item, card_data)),
-            api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+            domain::PaymentMethodData::Card(card_data) => Self::try_from((item, card_data)),
+            domain::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 payments::WalletData::ApplePay(apple_pay_data) => {
                     Self::try_from((item, apple_pay_data))
                 }
@@ -320,18 +320,18 @@ impl TryFrom<&types::SetupMandateRouterData> for BankOfAmericaPaymentsRequest {
                     utils::get_unimplemented_payment_method_error_message("BankOfAmerica"),
                 ))?,
             },
-            payments::PaymentMethodData::CardRedirect(_)
-            | payments::PaymentMethodData::PayLater(_)
-            | payments::PaymentMethodData::BankRedirect(_)
-            | payments::PaymentMethodData::BankDebit(_)
-            | payments::PaymentMethodData::BankTransfer(_)
-            | payments::PaymentMethodData::Crypto(_)
-            | payments::PaymentMethodData::MandatePayment
-            | payments::PaymentMethodData::Reward
-            | payments::PaymentMethodData::Upi(_)
-            | payments::PaymentMethodData::Voucher(_)
-            | payments::PaymentMethodData::GiftCard(_)
-            | payments::PaymentMethodData::CardToken(_) => {
+            domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("BankOfAmerica"),
                 ))?
@@ -1076,13 +1076,10 @@ pub struct BankOfAmericaAuthSetupRequest {
     client_reference_information: ClientReferenceInformation,
 }
 
-impl TryFrom<(&payments::PaymentMethodData, String)> for BankOfAmericaAuthSetupRequest {
+impl TryFrom<(&domain::PaymentMethodData, String)> for BankOfAmericaAuthSetupRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (payment_method_data, connector_request_reference_id): (
-            &payments::PaymentMethodData,
-            String,
-        ),
+        (payment_method_data, connector_request_reference_id): (&domain::PaymentMethodData, String),
     ) -> Result<Self, Self::Error> {
         match payment_method_data.clone() {
             domain::PaymentMethodData::Card(ccard) => {
@@ -1545,8 +1542,8 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsPreProcessingRouterData>>
             | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("BankOfAmerica"),
-                ))
-                .into_report()
+                )
+                .into())
             }
         }?;
 
@@ -2385,10 +2382,10 @@ impl
     }
 }
 
-impl TryFrom<(&types::SetupMandateRouterData, payments::Card)> for BankOfAmericaPaymentsRequest {
+impl TryFrom<(&types::SetupMandateRouterData, domain::Card)> for BankOfAmericaPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (item, ccard): (&types::SetupMandateRouterData, payments::Card),
+        (item, ccard): (&types::SetupMandateRouterData, domain::Card),
     ) -> Result<Self, Self::Error> {
         let order_information = OrderInformationWithBill::try_from(item)?;
         let client_reference_information = ClientReferenceInformation::from(item);
@@ -2416,13 +2413,10 @@ impl TryFrom<(&types::SetupMandateRouterData, payments::ApplePayWalletData)>
         (item, apple_pay_data): (&types::SetupMandateRouterData, payments::ApplePayWalletData),
     ) -> Result<Self, Self::Error> {
         let order_information = OrderInformationWithBill::try_from(item)?;
-
         let client_reference_information = ClientReferenceInformation::from(item);
-
         let merchant_defined_information = item.request.metadata.clone().map(|metadata| {
             Vec::<MerchantDefinedInformation>::foreign_from(metadata.peek().to_owned())
         });
-
         let payment_information = match item.payment_method_token.clone() {
             Some(payment_method_token) => match payment_method_token {
                 types::PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
@@ -2436,12 +2430,10 @@ impl TryFrom<(&types::SetupMandateRouterData, payments::ApplePayWalletData)>
             },
             None => PaymentInformation::from(&apple_pay_data),
         };
-
         let processing_information = ProcessingInformation::try_from((
             Some(PaymentSolution::ApplePay),
             Some(apple_pay_data.payment_method.network.clone()),
         ))?;
-
         let ucaf_collection_indicator = match apple_pay_data
             .payment_method
             .network
@@ -2451,7 +2443,6 @@ impl TryFrom<(&types::SetupMandateRouterData, payments::ApplePayWalletData)>
             "mastercard" => Some("2".to_string()),
             _ => None,
         };
-
         let consumer_authentication_information = Some(BankOfAmericaConsumerAuthInformation {
             ucaf_collection_indicator,
             cavv: None,
@@ -2543,10 +2534,10 @@ impl TryFrom<&types::SetupMandateRouterData> for OrderInformationWithBill {
     }
 }
 
-impl TryFrom<&payments::Card> for PaymentInformation {
+impl TryFrom<&domain::Card> for PaymentInformation {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(ccard: &payments::Card) -> Result<Self, Self::Error> {
+    fn try_from(ccard: &domain::Card) -> Result<Self, Self::Error> {
         let card_issuer = ccard.get_card_issuer();
         let card_type = match card_issuer {
             Ok(issuer) => Some(String::from(issuer)),

@@ -473,7 +473,7 @@ impl PaymentsSetupMandateRequestData for types::SetupMandateRequestData {
         self.email.clone().ok_or_else(missing_field_err("email"))
     }
     fn is_card(&self) -> bool {
-        matches!(self.payment_method_data, api::PaymentMethodData::Card(_))
+        matches!(self.payment_method_data, domain::PaymentMethodData::Card(_))
     }
 }
 pub trait PaymentsAuthorizeRequestData {
