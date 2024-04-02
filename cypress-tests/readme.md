@@ -1,7 +1,7 @@
-# HS Test Automation Tool
+# Cypress Tests
 
 ## Overview
-The HS Test Automation Tool is a solution designed to automate testing for the [Hyperswitch](https://github.com/juspay/hyperswitch/) using Cypress, an open-source tool capable of conducting API call tests and UI tests. This README provides guidance on installing Cypress and its dependencies and outlines how to utilize the HS Test Automation Tool effectively.
+This Tool is a solution designed to automate testing for the [Hyperswitch](https://github.com/juspay/hyperswitch/) using Cypress, an open-source tool capable of conducting API call tests and UI tests. This README provides guidance on installing Cypress and its dependencies and outlines how to utilize the HS Test Automation Tool effectively.
 
 ## Installation
 
