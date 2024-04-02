@@ -1132,7 +1132,14 @@ impl
         let payment_instrument = BankOfAmericaPaymentInstrument {
             id: connector_mandate_id.into(),
         };
-        let order_information = OrderInformationWithBill::from((item, None));
+        let email = item.router_data.request.get_email().ok();
+        let bill_to = email.and_then(|email_id| {
+            item.router_data
+                .get_billing()
+                .ok()
+                .and_then(|billing_details| build_bill_to(billing_details, email_id).ok())
+        });
+        let order_information = OrderInformationWithBill::from((item, bill_to));
         let payment_information =
             PaymentInformation::MandatePayment(MandatePaymentInformation { payment_instrument });
         let client_reference_information = ClientReferenceInformation::from(item);
