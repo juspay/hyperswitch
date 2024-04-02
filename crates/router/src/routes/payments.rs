@@ -950,7 +950,7 @@ pub async fn get_payment_filters(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
 ) -> impl Responder {
-    let flow = Flow::PaymentsList;
+    let flow = Flow::PaymentsFilters;
     api::server_wrap(
         flow,
         state,

@@ -23,8 +23,11 @@ use url::Url;
 use utoipa::ToSchema;
 
 use crate::{
-    admin, disputes, enums as api_enums, ephemeral_key::EphemeralKeyCreateResponse,
-    mandates::RecurringDetails, refunds,
+    admin::{self, MerchantConnectorInfo},
+    disputes, enums as api_enums,
+    ephemeral_key::EphemeralKeyCreateResponse,
+    mandates::RecurringDetails,
+    refunds,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

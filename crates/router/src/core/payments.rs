@@ -11,8 +11,12 @@ pub mod tokenization;
 pub mod transformers;
 pub mod types;
 
+#[cfg(feature = "olap")]
+use std::collections::{HashMap, HashSet};
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant, vec::IntoIter};
 
+#[cfg(feature = "olap")]
+use api_models::admin::MerchantConnectorInfo;
 use api_models::{
     self, enums,
     mandates::RecurringDetails,
@@ -2550,15 +2554,8 @@ pub async fn get_payment_filters(
     state: AppState,
     merchant: domain::MerchantAccount,
 ) -> RouterResponse<api::PaymentListFiltersV2> {
-    use std::collections::{HashMap, HashSet};
-
-    use api_models::admin::MerchantConnectorInfo;
-
-    use super::admin::list_payment_connectors;
-    use crate::services::ApplicationResponse;
-
-    let merchant_connector_accounts = if let ApplicationResponse::Json(data) =
-        list_payment_connectors(state, merchant.merchant_id).await?
+    let merchant_connector_accounts = if let services::ApplicationResponse::Json(data) =
+        super::admin::list_payment_connectors(state, merchant.merchant_id).await?
     {
         data
     } else {
@@ -2598,7 +2595,7 @@ pub async fn get_payment_filters(
 
                     for request_payment_method_type in payment_method_types_vec {
                         types_set.insert(request_payment_method_type.payment_method_type.clone());
-                    }
+                   }
                 }
             }
         }
