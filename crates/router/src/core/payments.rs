@@ -2568,38 +2568,49 @@ pub async fn get_payment_filters(
         HashSet<enums::PaymentMethodType>,
     > = HashMap::new();
 
-    for merchant_connector_account in merchant_connector_accounts {
-        if let Some(label) = merchant_connector_account.connector_label {
-            let info = MerchantConnectorInfo {
-                connector_label: label,
-                merchant_connector_id: merchant_connector_account.merchant_connector_id,
-            };
-
-            connector_map
-                .entry(merchant_connector_account.connector_name.clone())
-                .or_insert_with(Vec::new)
-                .push(info);
-        }
-
-        // Populate all the enabled payment methods and corresponding payment method types
-        if let Some(ref payment_methods_enabled) =
-            merchant_connector_account.payment_methods_enabled
-        {
-            for payment_method_enabled in payment_methods_enabled {
-                if let Some(payment_method_types_vec) = &payment_method_enabled.payment_method_types
-                {
-                    let payment_method = payment_method_enabled.payment_method;
-                    let types_set = payment_method_types_map
-                        .entry(payment_method.clone())
-                        .or_insert_with(HashSet::new);
-
-                    for request_payment_method_type in payment_method_types_vec {
-                        types_set.insert(request_payment_method_type.payment_method_type.clone());
-                   }
-                }
+    // generate connector map
+    merchant_connector_accounts
+        .iter()
+        .for_each(|merchant_connector_account| {
+            if let Some(label) = &merchant_connector_account.connector_label {
+                let info = MerchantConnectorInfo {
+                    connector_label: label.clone(),
+                    merchant_connector_id: merchant_connector_account.merchant_connector_id.clone(),
+                };
+                connector_map
+                    .entry(merchant_connector_account.connector_name.clone())
+                    .or_insert_with(Vec::new)
+                    .push(info);
             }
-        }
-    }
+        });
+
+    // generate payment_method_types_map
+    merchant_connector_accounts
+        .iter()
+        .for_each(|merchant_connector_account| {
+            if let Some(payment_methods_enabled) =
+                &merchant_connector_account.payment_methods_enabled
+            {
+                payment_methods_enabled
+                    .iter()
+                    .for_each(|payment_method_enabled| {
+                        if let Some(payment_method_types_vec) =
+                            &payment_method_enabled.payment_method_types
+                        {
+                            let payment_method = &payment_method_enabled.payment_method;
+                            let types_set = payment_method_types_map
+                                .entry(payment_method.clone())
+                                .or_insert_with(HashSet::new);
+
+                            types_set.extend(
+                                payment_method_types_vec
+                                    .iter()
+                                    .map(|p| p.payment_method_type.clone()),
+                            );
+                        }
+                    });
+            }
+        });
 
     Ok(services::ApplicationResponse::Json(
         api::PaymentListFiltersV2 {
