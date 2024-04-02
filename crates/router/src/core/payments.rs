@@ -170,8 +170,8 @@ where
             Some("false".to_string()),
         )
         .await
-        .change_context(errors::ApiErrorResponse::ResourceIdNotFound)
-        .attach_printable("The conditional config was not found in the DB")?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("The pg_agnostic config was not found in the DB")?;
 
     let connector = get_connector_choice(
         &operation,
@@ -3055,8 +3055,8 @@ pub fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone>(
                     .ok_or(errors::ApiErrorResponse::InternalServerError)?;
 
                 let pg_agnostic = pg_agnostic_config
-                    .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)
-                    .attach_printable("The conditional config was not found in the DB")?;
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("The pg_agnostic config was not found in the DB")?;
 
                 if is_network_transaction_id_flow(
                     state,
