@@ -1,5 +1,3 @@
-
-
 use api_models::payments::{BankDebitData, WalletData};
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
