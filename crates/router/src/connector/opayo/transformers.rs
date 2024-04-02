@@ -30,7 +30,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for OpayoPaymentsRequest {
             domain::PaymentMethodData::Card(req_card) => {
                 let card = OpayoCard {
                     name: item
-                        .get_optional_billing_name()
+                        .get_optional_billing_combined_name()
                         .unwrap_or(Secret::new("".to_string())),
                     number: req_card.card_number,
                     expiry_month: req_card.card_exp_month,

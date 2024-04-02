@@ -243,7 +243,7 @@ fn get_payment_method_data(
                 card_type,
                 cardholder_name: item
                     .router_data
-                    .get_optional_billing_name()
+                    .get_optional_billing_combined_name()
                     .unwrap_or(Secret::new("".to_string())),
                 card_number: card.card_number.clone(),
                 exp_date: card.get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?,

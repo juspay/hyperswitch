@@ -869,7 +869,7 @@ impl TryFrom<&types::TokenizationRouterData> for BraintreeTokenRequest {
                         expiration_month: card_data.card_exp_month,
                         cvv: card_data.card_cvc,
                         cardholder_name: item
-                            .get_optional_billing_name()
+                            .get_optional_billing_combined_name()
                             .unwrap_or(Secret::new("".to_string())),
                     },
                 };

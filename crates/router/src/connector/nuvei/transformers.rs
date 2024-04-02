@@ -996,7 +996,7 @@ fn get_card_info<F>(
         payment_option: PaymentOption::from(NuveiCardDetails {
             card: card_details.clone(),
             three_d,
-            card_holder_name: item.get_optional_billing_name(),
+            card_holder_name: item.get_optional_billing_combined_name(),
         }),
         billing_address,
         ..Default::default()
@@ -1033,7 +1033,7 @@ impl TryFrom<(&types::PaymentsCompleteAuthorizeRouterData, Secret<String>)>
                 payment_option: PaymentOption::from(NuveiCardDetails {
                     card,
                     three_d: None,
-                    card_holder_name: item.get_optional_billing_name(),
+                    card_holder_name: item.get_optional_billing_combined_name(),
                 }),
                 ..Default::default()
             }),
