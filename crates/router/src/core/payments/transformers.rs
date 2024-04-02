@@ -773,6 +773,7 @@ where
                             payment_data.payment_method_info.map(|info| info.status),
                         )
                         .set_customer(customer_details_response.clone())
+                        .set_browser_info(payment_attempt.browser_info)
                         .to_owned(),
                     headers,
                 ))
