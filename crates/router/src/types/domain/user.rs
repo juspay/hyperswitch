@@ -11,7 +11,7 @@ use diesel_models::{
     user as storage_user,
     user_role::{UserRole, UserRoleNew},
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use once_cell::sync::Lazy;
 use router_env::env;
@@ -319,8 +319,8 @@ impl NewUserMerchant {
             return Err(UserErrors::MerchantAccountCreationError(format!(
                 "Merchant with {} already exists",
                 self.get_merchant_id()
-            )))
-            .into_report();
+            ))
+            .into());
         }
         Ok(())
     }
@@ -499,9 +499,9 @@ impl NewUser {
             Ok(user) => Ok(user.into()),
             Err(e) => {
                 if e.current_context().is_db_unique_violation() {
-                    return Err(e.change_context(UserErrors::UserExists));
+                    Err(e.change_context(UserErrors::UserExists))
                 } else {
-                    return Err(e.change_context(UserErrors::InternalServerError));
+                    Err(e.change_context(UserErrors::InternalServerError))
                 }
             }
         }
@@ -515,7 +515,7 @@ impl NewUser {
             .await
             .is_ok()
         {
-            return Err(UserErrors::UserExists).into_report();
+            return Err(report!(UserErrors::UserExists));
         }
         Ok(())
     }

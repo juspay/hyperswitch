@@ -7,7 +7,7 @@ use crate::{
         self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData, RouterData,
     },
     core::errors,
-    types::{self, api, storage::enums, transformers::ForeignFrom},
+    types::{self, api, domain, storage::enums, transformers::ForeignFrom},
 };
 
 #[derive(Debug, Serialize)]
@@ -71,7 +71,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest {
             ))?
         }
         match item.request.payment_method_data {
-            api_models::payments::PaymentMethodData::Card(ref ccard) => {
+            domain::PaymentMethodData::Card(ref ccard) => {
                 let action = match item.request.is_auto_capture()? {
                     true => ForteAction::Sale,
                     false => ForteAction::Authorize,
@@ -102,19 +102,19 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest {
                     card,
                 })
             }
-            api_models::payments::PaymentMethodData::CardRedirect(_)
-            | api_models::payments::PaymentMethodData::Wallet(_)
-            | api_models::payments::PaymentMethodData::PayLater(_)
-            | api_models::payments::PaymentMethodData::BankRedirect(_)
-            | api_models::payments::PaymentMethodData::BankDebit(_)
-            | api_models::payments::PaymentMethodData::BankTransfer(_)
-            | api_models::payments::PaymentMethodData::Crypto(_)
-            | api_models::payments::PaymentMethodData::MandatePayment {}
-            | api_models::payments::PaymentMethodData::Reward {}
-            | api_models::payments::PaymentMethodData::Upi(_)
-            | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_)
-            | api_models::payments::PaymentMethodData::CardToken(_) => {
+            domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment {}
+            | domain::PaymentMethodData::Reward {}
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Forte"),
                 ))?

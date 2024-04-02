@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use common_utils::errors::CustomResult;
 use diesel_models::enums::ProcessTrackerStatus;
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use router_env::{
     instrument,
     tracing::{self, Instrument},
@@ -39,7 +39,6 @@ where
     #[allow(unknown_lints)]
     #[allow(clippy::unnecessary_fallible_conversions)]
     let timeout = Uniform::try_from(0..=scheduler_settings.loop_interval)
-        .into_report()
         .change_context(errors::ProcessTrackerError::ConfigurationError)?;
 
     tokio::time::sleep(Duration::from_millis(timeout.sample(&mut rng))).await;
@@ -57,7 +56,6 @@ where
             logger::error!("Signal Handler Error: {:?}", error);
             errors::ProcessTrackerError::ConfigurationError
         })
-        .into_report()
         .attach_printable("Failed while creating a signals handler")?;
     let handle = signal.handle();
     let task_handle =
@@ -89,7 +87,6 @@ where
     handle.close();
     task_handle
         .await
-        .into_report()
         .change_context(errors::ProcessTrackerError::UnexpectedFlow)?;
 
     Ok(())

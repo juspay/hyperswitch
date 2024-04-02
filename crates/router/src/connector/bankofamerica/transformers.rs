@@ -1,7 +1,7 @@
 use api_models::payments;
 use base64::Engine;
 use common_utils::{ext_traits::ValueExt, pii};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -19,6 +19,7 @@ use crate::{
     types::{
         self,
         api::{self, enums as api_enums},
+        domain,
         storage::enums,
         transformers::ForeignFrom,
         ApplePayPredecryptData,
@@ -732,14 +733,14 @@ pub struct Avs {
 impl
     TryFrom<(
         &BankOfAmericaRouterData<&types::PaymentsCompleteAuthorizeRouterData>,
-        payments::Card,
+        domain::Card,
     )> for BankOfAmericaPaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (item, ccard): (
             &BankOfAmericaRouterData<&types::PaymentsCompleteAuthorizeRouterData>,
-            payments::Card,
+            domain::Card,
         ),
     ) -> Result<Self, Self::Error> {
         let email = item.router_data.request.get_email()?;
@@ -795,14 +796,14 @@ impl
 impl
     TryFrom<(
         &BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>,
-        payments::Card,
+        domain::Card,
     )> for BankOfAmericaPaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (item, ccard): (
             &BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>,
-            payments::Card,
+            domain::Card,
         ),
     ) -> Result<Self, Self::Error> {
         let email = item.router_data.request.get_email()?;
@@ -930,8 +931,8 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
             Some(connector_mandate_id) => Self::try_from((item, connector_mandate_id)),
             None => {
                 match item.router_data.request.payment_method_data.clone() {
-                    payments::PaymentMethodData::Card(ccard) => Self::try_from((item, ccard)),
-                    payments::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                    domain::PaymentMethodData::Card(ccard) => Self::try_from((item, ccard)),
+                    domain::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                         payments::WalletData::ApplePay(apple_pay_data) => {
                             match item.router_data.payment_method_token.clone() {
                                 Some(payment_method_token) => match payment_method_token {
@@ -1035,7 +1036,7 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                     },
                     // If connector_mandate_id is present MandatePayment will be the PMD, the case will be handled in the first `if` clause.
                     // This is a fallback implementation in the event of catastrophe.
-                    payments::PaymentMethodData::MandatePayment => {
+                    domain::PaymentMethodData::MandatePayment => {
                         let connector_mandate_id =
                             item.router_data.request.connector_mandate_id().ok_or(
                                 errors::ConnectorError::MissingRequiredField {
@@ -1044,17 +1045,17 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                             )?;
                         Self::try_from((item, connector_mandate_id))
                     }
-                    payments::PaymentMethodData::CardRedirect(_)
-                    | payments::PaymentMethodData::PayLater(_)
-                    | payments::PaymentMethodData::BankRedirect(_)
-                    | payments::PaymentMethodData::BankDebit(_)
-                    | payments::PaymentMethodData::BankTransfer(_)
-                    | payments::PaymentMethodData::Crypto(_)
-                    | payments::PaymentMethodData::Reward
-                    | payments::PaymentMethodData::Upi(_)
-                    | payments::PaymentMethodData::Voucher(_)
-                    | payments::PaymentMethodData::GiftCard(_)
-                    | payments::PaymentMethodData::CardToken(_) => {
+                    domain::PaymentMethodData::CardRedirect(_)
+                    | domain::PaymentMethodData::PayLater(_)
+                    | domain::PaymentMethodData::BankRedirect(_)
+                    | domain::PaymentMethodData::BankDebit(_)
+                    | domain::PaymentMethodData::BankTransfer(_)
+                    | domain::PaymentMethodData::Crypto(_)
+                    | domain::PaymentMethodData::Reward
+                    | domain::PaymentMethodData::Upi(_)
+                    | domain::PaymentMethodData::Voucher(_)
+                    | domain::PaymentMethodData::GiftCard(_)
+                    | domain::PaymentMethodData::CardToken(_) => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message(
                                 "Bank of America",
@@ -1084,7 +1085,7 @@ impl TryFrom<(&payments::PaymentMethodData, String)> for BankOfAmericaAuthSetupR
         ),
     ) -> Result<Self, Self::Error> {
         match payment_method_data.clone() {
-            payments::PaymentMethodData::Card(ccard) => {
+            domain::PaymentMethodData::Card(ccard) => {
                 let payment_information = PaymentInformation::try_from(&ccard)?;
                 let client_reference_information = ClientReferenceInformation {
                     code: Some(connector_request_reference_id),
@@ -1095,19 +1096,19 @@ impl TryFrom<(&payments::PaymentMethodData, String)> for BankOfAmericaAuthSetupR
                     client_reference_information,
                 })
             }
-            payments::PaymentMethodData::MandatePayment
-            | payments::PaymentMethodData::Wallet(_)
-            | payments::PaymentMethodData::CardRedirect(_)
-            | payments::PaymentMethodData::PayLater(_)
-            | payments::PaymentMethodData::BankRedirect(_)
-            | payments::PaymentMethodData::BankDebit(_)
-            | payments::PaymentMethodData::BankTransfer(_)
-            | payments::PaymentMethodData::Crypto(_)
-            | payments::PaymentMethodData::Reward
-            | payments::PaymentMethodData::Upi(_)
-            | payments::PaymentMethodData::Voucher(_)
-            | payments::PaymentMethodData::GiftCard(_)
-            | payments::PaymentMethodData::CardToken(_) => {
+            domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Bank Of America"),
                 )
@@ -1528,20 +1529,20 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsPreProcessingRouterData>>
             },
         )?;
         let payment_information = match payment_method_data {
-            payments::PaymentMethodData::Card(ccard) => PaymentInformation::try_from(&ccard),
-            payments::PaymentMethodData::Wallet(_)
-            | payments::PaymentMethodData::CardRedirect(_)
-            | payments::PaymentMethodData::PayLater(_)
-            | payments::PaymentMethodData::BankRedirect(_)
-            | payments::PaymentMethodData::BankDebit(_)
-            | payments::PaymentMethodData::BankTransfer(_)
-            | payments::PaymentMethodData::Crypto(_)
-            | payments::PaymentMethodData::MandatePayment
-            | payments::PaymentMethodData::Reward
-            | payments::PaymentMethodData::Upi(_)
-            | payments::PaymentMethodData::Voucher(_)
-            | payments::PaymentMethodData::GiftCard(_)
-            | payments::PaymentMethodData::CardToken(_) => {
+            domain::PaymentMethodData::Card(ccard) => PaymentInformation::try_from(&ccard),
+            domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("BankOfAmerica"),
                 ))
@@ -1630,20 +1631,20 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsCompleteAuthorizeRouterDat
             },
         )?;
         match payment_method_data {
-            payments::PaymentMethodData::Card(ccard) => Self::try_from((item, ccard)),
-            payments::PaymentMethodData::Wallet(_)
-            | payments::PaymentMethodData::CardRedirect(_)
-            | payments::PaymentMethodData::PayLater(_)
-            | payments::PaymentMethodData::BankRedirect(_)
-            | payments::PaymentMethodData::BankDebit(_)
-            | payments::PaymentMethodData::BankTransfer(_)
-            | payments::PaymentMethodData::Crypto(_)
-            | payments::PaymentMethodData::MandatePayment
-            | payments::PaymentMethodData::Reward
-            | payments::PaymentMethodData::Upi(_)
-            | payments::PaymentMethodData::Voucher(_)
-            | payments::PaymentMethodData::GiftCard(_)
-            | payments::PaymentMethodData::CardToken(_) => {
+            domain::PaymentMethodData::Card(ccard) => Self::try_from((item, ccard)),
+            domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("BankOfAmerica"),
                 )
@@ -1782,7 +1783,6 @@ impl<F>
                             .consumer_authentication_information
                             .validate_response,
                     )
-                    .into_report()
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
                     Ok(Self {
                         status,

@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
 use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use transformers as shift4;
 
 use super::utils::{self as connector_utils, RefundsRequestData};
@@ -74,8 +74,7 @@ impl ConnectorCommon for Shift4 {
         &self,
         auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth: shift4::Shift4AuthType = auth_type
-            .try_into()
+        let auth = shift4::Shift4AuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
@@ -432,12 +431,11 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -717,12 +715,11 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -788,12 +785,11 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -834,7 +830,7 @@ impl api::IncomingWebhook for Shift4 {
                 ),
             ))
         } else {
-            Err(errors::ConnectorError::WebhookReferenceIdNotFound).into_report()
+            Err(report!(errors::ConnectorError::WebhookReferenceIdNotFound))
         }
     }
 

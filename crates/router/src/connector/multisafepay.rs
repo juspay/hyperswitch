@@ -3,7 +3,7 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use common_utils::request::RequestContent;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
 use transformers as multisafepay;
 
@@ -63,8 +63,7 @@ impl ConnectorCommon for Multisafepay {
         &self,
         auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth: multisafepay::MultisafepayAuthType = auth_type
-            .try_into()
+        let auth = multisafepay::MultisafepayAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
@@ -339,12 +338,11 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -439,12 +437,11 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)
     }
 
@@ -515,12 +512,11 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)
     }
 
@@ -539,7 +535,7 @@ impl api::IncomingWebhook for Multisafepay {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_event_type(
@@ -553,6 +549,6 @@ impl api::IncomingWebhook for Multisafepay {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }

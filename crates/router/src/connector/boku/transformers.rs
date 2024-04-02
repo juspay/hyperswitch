@@ -9,7 +9,7 @@ use crate::{
     connector::utils::{self, AddressDetailsData, RouterData},
     core::errors,
     services::{self, RedirectForm},
-    types::{self, api, storage::enums},
+    types::{self, api, domain, storage::enums},
 };
 
 #[derive(Debug, Clone, Serialize)]
@@ -78,22 +78,20 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BokuPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
-            api_models::payments::PaymentMethodData::Wallet(wallet_data) => {
-                Self::try_from((item, &wallet_data))
-            }
-            api_models::payments::PaymentMethodData::Card(_)
-            | api_models::payments::PaymentMethodData::CardRedirect(_)
-            | api_models::payments::PaymentMethodData::PayLater(_)
-            | api_models::payments::PaymentMethodData::BankRedirect(_)
-            | api_models::payments::PaymentMethodData::BankDebit(_)
-            | api_models::payments::PaymentMethodData::BankTransfer(_)
-            | api_models::payments::PaymentMethodData::Crypto(_)
-            | api_models::payments::PaymentMethodData::MandatePayment
-            | api_models::payments::PaymentMethodData::Reward
-            | api_models::payments::PaymentMethodData::Upi(_)
-            | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_)
-            | api_models::payments::PaymentMethodData::CardToken(_) => {
+            domain::PaymentMethodData::Wallet(wallet_data) => Self::try_from((item, &wallet_data)),
+            domain::PaymentMethodData::Card(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("boku"),
                 ))?

@@ -8,7 +8,7 @@ use crate::{
     consts,
     core::errors,
     services,
-    types::{self, api, storage::enums},
+    types::{self, domain, storage::enums},
 };
 
 #[derive(Debug, Serialize)]
@@ -62,7 +62,7 @@ impl TryFrom<&CryptopayRouterData<&types::PaymentsAuthorizeRouterData>>
         item: &CryptopayRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let cryptopay_request = match item.router_data.request.payment_method_data {
-            api::PaymentMethodData::Crypto(ref cryptodata) => {
+            domain::PaymentMethodData::Crypto(ref cryptodata) => {
                 let pay_currency = cryptodata.get_pay_currency()?;
                 Ok(Self {
                     price_amount: item.amount.to_owned(),
@@ -74,19 +74,19 @@ impl TryFrom<&CryptopayRouterData<&types::PaymentsAuthorizeRouterData>>
                     custom_id: item.router_data.connector_request_reference_id.clone(),
                 })
             }
-            api_models::payments::PaymentMethodData::Card(_)
-            | api_models::payments::PaymentMethodData::CardRedirect(_)
-            | api_models::payments::PaymentMethodData::Wallet(_)
-            | api_models::payments::PaymentMethodData::PayLater(_)
-            | api_models::payments::PaymentMethodData::BankRedirect(_)
-            | api_models::payments::PaymentMethodData::BankDebit(_)
-            | api_models::payments::PaymentMethodData::BankTransfer(_)
-            | api_models::payments::PaymentMethodData::MandatePayment {}
-            | api_models::payments::PaymentMethodData::Reward {}
-            | api_models::payments::PaymentMethodData::Upi(_)
-            | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_)
-            | api_models::payments::PaymentMethodData::CardToken(_) => {
+            domain::PaymentMethodData::Card(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::MandatePayment {}
+            | domain::PaymentMethodData::Reward {}
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("CryptoPay"),
                 ))
