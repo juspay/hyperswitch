@@ -2507,7 +2507,7 @@ impl TryFrom<(Option<PaymentSolution>, Option<String>)> for ProcessingInformatio
         let commerce_indicator = get_commerce_indicator(network);
 
         Ok(Self {
-            capture: Some(false), 
+            capture: Some(false),
             capture_options: None,
             action_list,
             action_token_types,
