@@ -914,27 +914,33 @@ impl GetAddressFromPaymentMethodData for Card {
         // Create billing address if first_name is some or if it is not ""
         self.card_holder_name
             .as_ref()
-            .and_then(|card_holder_name| {
-                if card_holder_name.is_empty_after_trim() {
+            .filter(|card_holder_name| !card_holder_name.is_empty_after_trim())
+            .map(|card_holder_name| {
+                // Split the `card_holder_name` into `first_name` and `last_name` based on the
+                // first occurence of ' '. For example
+                // John Wheat Dough
+                // first_name -> John
+                // last_name -> Wheat Dough
+                card_holder_name.peek().split_whitespace()
+            })
+            .map(|mut card_holder_name_iter| {
+                let first_name = card_holder_name_iter
+                    .next()
+                    .map(ToOwned::to_owned)
+                    .map(Secret::new);
+
+                let last_name = card_holder_name_iter.collect::<Vec<_>>().join(" ");
+                let last_name = if last_name.is_empty_after_trim() {
                     None
                 } else {
-                    Some(card_holder_name)
+                    Some(Secret::new(last_name))
+                };
+
+                AddressDetails {
+                    first_name,
+                    last_name,
+                    ..Default::default()
                 }
-            })
-            .and_then(|card_holder_name| {
-                // Split the `card_holder_name` into `first_name` and `last_name` based on the
-                // last occurence of ' '. For example
-                // John Wheat Dough
-                // first_name -> John Wheat
-                // last_name -> Dough
-                card_holder_name.peek().rsplit_once(' ')
-            })
-            .map(|(first_name, last_name)| AddressDetails {
-                first_name: Some(Secret::new(first_name.to_string())),
-                last_name: (!last_name.is_empty()) // split_once will return "" if no last name
-                    .then_some(last_name.to_string())
-                    .map(Secret::new),
-                ..Default::default()
             })
             .map(|address_details| Address {
                 address: Some(address_details),
@@ -2685,7 +2691,7 @@ impl AddressDetails {
                 first_name.peek(),
                 last_name.peek()
             ))),
-            (Some(name), None) | (None, Some(name)) => Some(Secret::new(name.peek().to_string())),
+            (Some(name), None) | (None, Some(name)) => Some(name.to_owned()),
             _ => None,
         }
     }
@@ -4636,8 +4642,9 @@ mod billing_from_payment_method_data {
 
     const TEST_COUNTRY: CountryAlpha2 = CountryAlpha2::US;
     const TEST_FIRST_NAME: &str = "John";
-    const TEST_LAST_NAME: &str = "Dough";
-    const TEST_FULL_NAME: &str = "John Dough";
+    const TEST_LAST_NAME: &str = "Wheat Dough";
+    const TEST_FULL_NAME: &str = "John Wheat Dough";
+    const TEST_FIRST_NAME_SINGLE: &str = "John";
 
     #[test]
     fn test_wallet_payment_method_data_paypal() {
@@ -4746,15 +4753,18 @@ mod billing_from_payment_method_data {
     #[test]
     fn test_card_payment_method_data() {
         let card_payment_method_data = PaymentMethodData::Card(Card {
-            card_holder_name: Some(Secret::new(TEST_FIRST_NAME.into())),
+            card_holder_name: Some(Secret::new(TEST_FIRST_NAME_SINGLE.into())),
             ..Default::default()
         });
 
-        let billing_address = card_payment_method_data.get_billing_address().unwrap();
+        let billing_address = card_payment_method_data.get_billing_address();
+
+        dbg!(&billing_address);
+        let billing_address = billing_address.unwrap();
 
         assert_eq!(
-            billing_address.address.unwrap().first_name.unwrap(),
-            Secret::new(TEST_FIRST_NAME.into())
+            billing_address.address.unwrap().first_name.expose_option(),
+            Some(TEST_FIRST_NAME_SINGLE.into())
         );
     }
 
@@ -4783,8 +4793,8 @@ mod billing_from_payment_method_data {
         );
 
         assert_eq!(
-            billing_address.last_name,
-            Some(Secret::new(TEST_LAST_NAME.into()))
+            billing_address.last_name.expose_option(),
+            Some(TEST_LAST_NAME.into())
         );
     }
 
