@@ -22,7 +22,7 @@ counter_metric!(
 counter_metric!(
     ACCEPT_DISPUTE_STATUS_VALIDATION_FAILURE_METRIC,
     GLOBAL_METER
-); //No. of status validation failures while accpeting a dispute
+); //No. of status validation failures while accepting a dispute
 counter_metric!(
     EVIDENCE_SUBMISSION_DISPUTE_STATUS_VALIDATION_FAILURE_METRIC,
     GLOBAL_METER

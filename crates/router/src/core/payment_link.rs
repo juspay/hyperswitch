@@ -46,7 +46,7 @@ pub async fn retrieve_payment_link(
     Ok(services::ApplicationResponse::Json(response))
 }
 
-pub async fn intiate_payment_link_flow(
+pub async fn initiate_payment_link_flow(
     state: AppState,
     merchant_account: domain::MerchantAccount,
     merchant_id: String,
