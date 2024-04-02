@@ -22,10 +22,6 @@ describe("Card - SingleUse Mandates flow test", () => {
         cy.task('setGlobalState', globalState.data);
     })
 
-    // it("customer-create-call-test", () => {
-    //     cy.createCustomerCallTest(customerCreateBody, globalState);
-    // });
-
     context("Card - NoThreeDS Create + Confirm Automatic CIT and MIT payment flow test", () => {
 
         it("Confirm No 3DS CIT", () => {

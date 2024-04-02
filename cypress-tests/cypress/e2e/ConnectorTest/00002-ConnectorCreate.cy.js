@@ -1,6 +1,6 @@
 import createConnectorBody from "../../fixtures/create-connector-body.json";
 import State from "../../utils/State";
-// import ConnectorAuthDetails from "../../../creds.json";
+
 let globalState;
 describe("Connector Account Create flow test", () => {
 

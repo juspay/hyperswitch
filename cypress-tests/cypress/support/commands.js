@@ -49,7 +49,6 @@ Cypress.Commands.add("merchantCreateCallTest", (merchantCreateBody, globalState)
     // Handle the response as needed
     console.log(response.body);
     globalState.set("publishableKey", response.body.publishable_key);
-    console.log("publishable_key------>" + globalState.get("publishableKey"));
   });
 });
 
@@ -65,16 +64,14 @@ Cypress.Commands.add("apiKeyCreateTest", (apiKeyCreateBody, globalState) => {
     body: apiKeyCreateBody,
   }).then((response) => {
     // Handle the response as needed
-    console.log(response.body.api_key);
+    console.log(response.body);
     globalState.set("apiKey", response.body.api_key);
-    console.log("api_key------>" + globalState.get("apiKey"));
   });
 });
 
 Cypress.Commands.add("createConnectorCallTest", (createConnectorBody, globalState) => {
   const merchantId = globalState.get("merchantId");
   createConnectorBody.connector_name = globalState.get("connectorId");
-  console.log("connn ->" + globalState.get("connectorId"));
   const authDetails = getValueByKey(ConnectorAuthDetails, globalState.get("connectorId"));
   createConnectorBody.connector_account_details = authDetails;
   cy.request({
@@ -109,14 +106,11 @@ Cypress.Commands.add("createConnectorCallTest", (createConnectorBody, globalStat
 });
 
 function getValueByKey(jsonObject, key) {
-  // Convert the input JSON string to a JavaScript object if it's a string
   const data = typeof jsonObject === 'string' ? JSON.parse(jsonObject) : jsonObject;
-
-  // Check if the key exists in the object
   if (data && typeof data === 'object' && key in data) {
     return data[key];
   } else {
-    return null; // Key not found
+    return null;
   }
 }
 
@@ -134,8 +128,6 @@ Cypress.Commands.add("createCustomerCallTest", (customerCreateBody, globalState)
     console.log(response);
 
     globalState.set("customerId", response.body.customer_id);
-    console.log(globalState.get("customerId"));
-    // console.log("customer_id------>" + globalState.get("customerId"));
   });
 });
 
@@ -146,7 +138,6 @@ Cypress.Commands.add("createPaymentIntentTest", (request, currency, authenticati
   request.currency = currency;
   request.authentication_type = authentication_type;
   request.capture_method = capture_method;
-  console.log("api_key ------>" + globalState.get("apiKey"));
   globalState.set("paymentAmount", request.amount);
   cy.request({
     method: "POST",
@@ -175,8 +166,6 @@ Cypress.Commands.add("paymentMethodsCallTest", (globalState) => {
   const clientSecret = globalState.get("clientSecret");
   const paymentIntentID = clientSecret.split("_secret_")[0];
 
-  console.log("cl confirm------>" + clientSecret);
-
   cy.request({
     method: "GET",
     url: `${globalState.get("baseUrl")}/account/payment_methods?client_secret=${clientSecret}`,
@@ -196,12 +185,10 @@ Cypress.Commands.add("paymentMethodsCallTest", (globalState) => {
 
 Cypress.Commands.add("confirmCallTest", (confirmBody, details, confirm, globalState) => {
 
-  // RequestBodyUtils.setCardNo(confirmBody, details.card);
   const paymentIntentID = globalState.get("paymentID");
   confirmBody.payment_method_data.card = details.card;
   confirmBody.confirm = confirm;
   confirmBody.client_secret = globalState.get("clientSecret");
-  console.log("conf connn ->" + globalState.get("connectorId"));
 
   cy.request({
     method: "POST",
@@ -296,7 +283,6 @@ Cypress.Commands.add("captureCallTest", (requestBody, amount_to_capture, payment
   const payment_id = globalState.get("paymentID");
   requestBody.amount_to_capture = amount_to_capture;
   let amount = globalState.get("paymentAmount");
-  console.log("amount------>" + amount);
   cy.request({
     method: "POST",
     url: `${globalState.get("baseUrl")}/payments/${payment_id}/capture`,
@@ -360,7 +346,6 @@ Cypress.Commands.add("retrievePaymentCallTest", (globalState) => {
     expect(response.body.payment_id).to.equal(payment_id);
     expect(response.body.amount).to.equal(globalState.get("paymentAmount"));
     globalState.set("paymentID", response.body.payment_id);
-    console.log("sync status -->>" + response.body.status);
 
   });
 });
@@ -380,7 +365,6 @@ Cypress.Commands.add("refundCallTest", (requestBody, refund_amount, det, globalS
   }).then((response) => {
     expect(response.headers["content-type"]).to.include("application/json");
     console.log(response.body);
-    console.log("refund status -->>" + response.body.status);
     globalState.set("refundId", response.body.refund_id);
     expect(response.body.status).to.equal(det.refundStatus);
     expect(response.body.amount).to.equal(refund_amount);
@@ -400,7 +384,6 @@ Cypress.Commands.add("syncRefundCallTest", (det, globalState) => {
   }).then((response) => {
     expect(response.headers["content-type"]).to.include("application/json");
     console.log(response.body);
-    console.log("sync status -->>" + response.body.status);
     expect(response.body.status).to.equal(det.refundSyncStatus);
   });
 });
@@ -414,7 +397,6 @@ Cypress.Commands.add("citForMandatesCallTest", (requestBody, details, confirm, c
   requestBody.mandate_data.mandate_type = details.mandate_type;
   requestBody.customer_id = globalState.get("customerId");
   globalState.set("paymentAmount", requestBody.amount);
-  console.log("cit body " + JSON.stringify(requestBody));
   cy.request({
     method: "POST",
     url: `${globalState.get("baseUrl")}/payments`,
@@ -427,7 +409,6 @@ Cypress.Commands.add("citForMandatesCallTest", (requestBody, details, confirm, c
     expect(response.headers["content-type"]).to.include("application/json");
     expect(response.body).to.have.property("mandate_id");
     console.log(response.body);
-    console.log("mandate_id -->>" + response.body.mandate_id);
     globalState.set("mandateId", response.body.mandate_id);
     globalState.set("paymentID", response.body.payment_id);
 
@@ -452,7 +433,6 @@ Cypress.Commands.add("citForMandatesCallTest", (requestBody, details, confirm, c
       else if (response.body.authentication_type === "no_three_ds") {
         expect(response.body.status).to.equal("requires_capture");
       } else {
-        // Handle other authentication types as needed
         throw new Error(`Unsupported authentication type: ${authentication_type}`);
       }
     }
@@ -514,7 +494,6 @@ Cypress.Commands.add("mitForMandatesCallTest", (requestBody, amount, confirm, ca
 
 
 Cypress.Commands.add("listMandateCallTest", (globalState) => {
-  console.log("customerID------>" + globalState.get("customerId"));
   const customerId = globalState.get("customerId");
   cy.request({
     method: "GET",
@@ -532,7 +511,6 @@ Cypress.Commands.add("listMandateCallTest", (globalState) => {
         expect(response.body[i].status).to.equal("active");
       }
     };
-    // expect(response.body.mandate_id).to.equal(mandate_id);
   });
 });
 

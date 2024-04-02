@@ -1,5 +1,5 @@
 class State {
-    data = {};
+  data = {};
   constructor(data) {
     this.data = data;
     this.data["connectorId"] = Cypress.env("CONNECTOR");
