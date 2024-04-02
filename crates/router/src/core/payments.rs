@@ -2723,6 +2723,7 @@ where
     Ok(connector)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn connector_selection<F>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
@@ -3177,10 +3178,10 @@ pub fn is_network_transaction_id_flow(
         .network_transaction_id_supported_connectors
         .connector_list;
 
-    return pg_agnostic == "true"
+    pg_agnostic == "true"
         && payment_method_info.payment_method == storage_enums::PaymentMethod::Card
         && ntid_supported_connectors.contains(&connector)
-        && payment_method_info.network_transaction_id.is_some();
+        && payment_method_info.network_transaction_id.is_some()
 }
 
 pub fn should_add_task_to_process_tracker<F: Clone>(payment_data: &PaymentData<F>) -> bool {
@@ -3306,6 +3307,7 @@ where
     Ok(final_list)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn route_connector_v1<F>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
