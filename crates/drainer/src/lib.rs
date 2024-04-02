@@ -16,7 +16,7 @@ mod secrets_transformers;
 use actix_web::dev::Server;
 use common_utils::signals::get_allowed_signals;
 use diesel_models::kv;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use hyperswitch_interfaces::secrets_interface::secret_state::RawSecret;
 use router_env::{
     instrument,
@@ -35,12 +35,9 @@ pub async fn start_drainer(store: Arc<Store>, conf: DrainerSettings) -> errors::
 
     let (tx, rx) = mpsc::channel::<()>(1);
 
-    let signal =
-        get_allowed_signals()
-            .into_report()
-            .change_context(errors::DrainerError::SignalError(
-                "Failed while getting allowed signals".to_string(),
-            ))?;
+    let signal = get_allowed_signals().change_context(errors::DrainerError::SignalError(
+        "Failed while getting allowed signals".to_string(),
+    ))?;
     let handle = signal.handle();
     let task_handle =
         tokio::spawn(common_utils::signals::signal_handler(signal, tx.clone()).in_current_span());

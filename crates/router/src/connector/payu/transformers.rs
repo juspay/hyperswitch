@@ -1,6 +1,6 @@
 use base64::Engine;
 use common_utils::pii::{Email, IpAddress};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -8,7 +8,7 @@ use crate::{
     consts,
     core::errors,
     pii::Secret,
-    types::{self, api, storage::enums},
+    types::{self, api, domain, storage::enums},
 };
 
 const WALLET_IDENTIFIER: &str = "PBL";
@@ -71,7 +71,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let auth_type = PayuAuthType::try_from(&item.connector_auth_type)?;
         let payment_method = match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(ccard) => Ok(PayuPaymentMethod {
+            domain::PaymentMethodData::Card(ccard) => Ok(PayuPaymentMethod {
                 pay_method: PayuPaymentMethodData::Card(PayuCard::Card {
                     number: ccard.card_number,
                     expiration_month: ccard.card_exp_month,
@@ -79,7 +79,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
                     cvv: ccard.card_cvc,
                 }),
             }),
-            api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+            domain::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 api_models::payments::WalletData::GooglePay(data) => Ok(PayuPaymentMethod {
                     pay_method: PayuPaymentMethodData::Wallet({
                         PayuWallet {
@@ -491,7 +491,6 @@ impl<F, T>
                 order
                     .total_amount
                     .parse::<i64>()
-                    .into_report()
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
             ),
             ..item.data
