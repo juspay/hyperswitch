@@ -2505,7 +2505,7 @@ impl TryFrom<(Option<PaymentSolution>, Option<String>)> for ProcessingInformatio
             get_boa_mandate_action_details();
         let commerce_indicator = get_commerce_indicator(network);
 
-        Ok(ProcessingInformation {
+        Ok(Self {
             capture: Some(false),
             capture_options: None,
             action_list,
@@ -2524,7 +2524,7 @@ impl TryFrom<&types::SetupMandateRouterData> for OrderInformationWithBill {
         let email = item.request.get_email()?;
         let bill_to = build_bill_to(item.get_billing()?, email)?;
 
-        Ok(OrderInformationWithBill {
+        Ok(Self {
             amount_details: Amount {
                 total_amount: "0".to_string(),
                 currency: item.request.currency,
@@ -2543,7 +2543,7 @@ impl TryFrom<&domain::Card> for PaymentInformation {
             Ok(issuer) => Some(String::from(issuer)),
             Err(_) => None,
         };
-        Ok(PaymentInformation::Cards(CardPaymentInformation {
+        Ok(Self::Cards(CardPaymentInformation {
             card: Card {
                 number: ccard.card_number.clone(),
                 expiration_month: ccard.card_exp_month.clone(),
@@ -2562,7 +2562,7 @@ impl TryFrom<&Box<ApplePayPredecryptData>> for PaymentInformation {
         let expiration_month = apple_pay_data.get_expiry_month()?;
         let expiration_year = apple_pay_data.get_four_digit_expiry_year()?;
 
-        Ok(PaymentInformation::ApplePay(ApplePayPaymentInformation {
+        Ok(Self::ApplePay(ApplePayPaymentInformation {
             tokenized_card: TokenizedCard {
                 number: apple_pay_data.application_primary_account_number.clone(),
                 cryptogram: apple_pay_data
@@ -2579,7 +2579,7 @@ impl TryFrom<&Box<ApplePayPredecryptData>> for PaymentInformation {
 
 impl From<&payments::ApplePayWalletData> for PaymentInformation {
     fn from(apple_pay_data: &payments::ApplePayWalletData) -> Self {
-        PaymentInformation::ApplePayToken(ApplePayTokenPaymentInformation {
+        Self::ApplePayToken(ApplePayTokenPaymentInformation {
             fluid_data: FluidData {
                 value: Secret::from(apple_pay_data.payment_data.clone()),
             },
@@ -2592,7 +2592,7 @@ impl From<&payments::ApplePayWalletData> for PaymentInformation {
 
 impl From<&payments::GooglePayWalletData> for PaymentInformation {
     fn from(google_pay_data: &payments::GooglePayWalletData) -> Self {
-        PaymentInformation::GooglePay(GooglePayPaymentInformation {
+        Self::GooglePay(GooglePayPaymentInformation {
             fluid_data: FluidData {
                 value: Secret::from(
                     consts::BASE64_ENGINE.encode(google_pay_data.tokenization_data.token.clone()),
@@ -2610,7 +2610,7 @@ impl From<(&BankOfAmericaErrorInformationResponse, u16)> for types::ErrorRespons
             .to_owned()
             .unwrap_or(consts::NO_ERROR_MESSAGE.to_string());
         let error_message = error_response.error_information.reason.to_owned();
-        types::ErrorResponse {
+        Self {
             code: error_message
                 .clone()
                 .unwrap_or(consts::NO_ERROR_CODE.to_string()),
