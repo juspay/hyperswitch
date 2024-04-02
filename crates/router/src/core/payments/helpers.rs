@@ -473,11 +473,14 @@ pub async fn get_token_pm_type_mandate_details(
                             .customer_id
                             .clone()
                             .get_required_value("customer_id")?;
-                        if payment_method_info.customer_id != customer_id {
-                            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                                message: "customer_id must match mandate customer_id".into()
-                            }))?
-                        };
+
+                        verify_mandate_details_for_recurring_payments(
+                            &payment_method_info.merchant_id,
+                            &merchant_account.merchant_id,
+                            &payment_method_info.customer_id,
+                            &customer_id,
+                        )?;
+
                         (
                             None,
                             Some(payment_method_info.payment_method),
@@ -1094,6 +1097,24 @@ pub fn verify_mandate_details(
             }))
         },
     )
+}
+
+pub fn verify_mandate_details_for_recurring_payments(
+    mandate_merchant_id: &str,
+    merchant_id: &str,
+    mandate_customer_id: &str,
+    customer_id: &str,
+) -> RouterResult<()> {
+    if mandate_merchant_id != merchant_id {
+        Err(report!(errors::ApiErrorResponse::MandateNotFound))?
+    }
+    if mandate_customer_id != customer_id {
+        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+            message: "customer_id must match mandate customer_id".into()
+        }))?
+    }
+
+    Ok(())
 }
 
 #[instrument(skip_all)]
