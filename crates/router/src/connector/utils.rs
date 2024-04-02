@@ -460,6 +460,7 @@ impl RevokeMandateRequestData for types::MandateRevokeRequestData {
 pub trait PaymentsSetupMandateRequestData {
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
     fn get_email(&self) -> Result<Email, Error>;
+    fn is_card(&self) -> bool;
 }
 
 impl PaymentsSetupMandateRequestData for types::SetupMandateRequestData {
@@ -470,6 +471,9 @@ impl PaymentsSetupMandateRequestData for types::SetupMandateRequestData {
     }
     fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
+    }
+    fn is_card(&self) -> bool {
+        matches!(self.payment_method_data, domain::PaymentMethodData::Card(_))
     }
 }
 pub trait PaymentsAuthorizeRequestData {
