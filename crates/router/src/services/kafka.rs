@@ -20,9 +20,15 @@ use time::OffsetDateTime;
 
 use self::{
     dispute::KafkaDispute, payment_attempt::KafkaPaymentAttempt,
-    payment_intent::KafkaPaymentIntent, payout::KafkaPayout, refund::KafkaRefund,
+    payment_intent::KafkaPaymentIntent, refund::KafkaRefund,
 };
-use crate::types::storage::{Dispute, Payouts};
+use crate::types::storage::Dispute;
+
+#[cfg(feature = "payouts")]
+use crate::types::storage::Payouts;
+#[cfg(feature = "payouts")]
+use self::payout::KafkaPayout;
+
 // Using message queue result here to avoid confusion with Kafka result provided by library
 pub type MQResult<T> = CustomResult<T, KafkaError>;
 
@@ -351,6 +357,7 @@ impl KafkaProducer {
             .attach_printable_lazy(|| format!("Failed to add positive dispute event {dispute:?}"))
     }
 
+    #[cfg(feature = "payouts")]
     pub async fn log_payout(&self, payout: &Payouts, old_payout: Option<Payouts>) -> MQResult<()> {
         if let Some(negative_event) = old_payout {
             self.log_event(&KafkaEvent::old(&KafkaPayout::from_storage(
@@ -364,6 +371,7 @@ impl KafkaProducer {
             .attach_printable_lazy(|| format!("Failed to add positive payout event {payout:?}"))
     }
 
+    #[cfg(feature = "payouts")]
     pub async fn log_payout_delete(&self, delete_old_payout: &Payouts) -> MQResult<()> {
         self.log_event(&KafkaEvent::old(&KafkaPayout::from_storage(
             delete_old_payout,

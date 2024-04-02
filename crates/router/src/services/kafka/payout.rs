@@ -2,6 +2,7 @@ use common_utils::pii;
 use diesel_models::enums as storage_enums;
 use time::OffsetDateTime;
 
+#[cfg(feature = "payouts")]
 use crate::types::storage::Payouts;
 
 #[derive(serde::Serialize, Debug)]
@@ -30,6 +31,7 @@ pub struct KafkaPayout<'a> {
     pub status: &'a storage_enums::PayoutStatus,
 }
 
+#[cfg(feature = "payouts")]
 impl<'a> KafkaPayout<'a> {
     pub fn from_storage(payout: &'a Payouts) -> Self {
         Self {
