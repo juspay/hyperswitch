@@ -1,5 +1,5 @@
 use common_utils::pii;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -1370,16 +1370,15 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
                 &item.router_data.request,
             )?
             .expose();
-        let redirection_response: BraintreeRedirectionResponse =
-            serde_json::from_value(payload_data)
-                .into_report()
-                .change_context(errors::ConnectorError::MissingConnectorRedirectionPayload {
-                    field_name: "redirection_response",
-                })?;
+        let redirection_response: BraintreeRedirectionResponse = serde_json::from_value(
+            payload_data,
+        )
+        .change_context(errors::ConnectorError::MissingConnectorRedirectionPayload {
+            field_name: "redirection_response",
+        })?;
         let three_ds_data = serde_json::from_str::<BraintreeThreeDsResponse>(
             &redirection_response.authentication_response,
         )
-        .into_report()
         .change_context(errors::ConnectorError::MissingConnectorRedirectionPayload {
             field_name: "three_ds_data",
         })?;

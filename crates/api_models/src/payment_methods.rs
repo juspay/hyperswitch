@@ -70,7 +70,7 @@ pub struct PaymentMethodCreate {
     pub client_secret: Option<String>,
 
     /// Payment method data to be passed
-    pub payment_method_data: Option<PaymentMethodData>,
+    pub payment_method_data: Option<PaymentMethodCreateData>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -106,12 +106,14 @@ pub struct PaymentMethodUpdate {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
+#[serde(rename = "payment_method_data")]
 
-pub enum PaymentMethodData {
+pub enum PaymentMethodCreateData {
     Card(CardDetail),
+    #[schema(value_type = Bank)]
     Bank(payouts::Bank),
+    #[schema(value_type = Wallet)]
     Wallet(payouts::Wallet),
-    Default,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]

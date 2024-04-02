@@ -9,7 +9,7 @@ use common_utils::{
     pii,
 };
 use diesel_models::enums as storage_enums;
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 
 use super::domain;
@@ -221,8 +221,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Plaid => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "plaid is not a routable connector".to_string(),
-                })
-                .into_report()?
+                })?
             }
             api_enums::Connector::Powertranz => Self::Powertranz,
             api_enums::Connector::Prophetpay => Self::Prophetpay,
@@ -231,14 +230,12 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Signifyd => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "signifyd is not a routable connector".to_string(),
-                })
-                .into_report()?
+                })?
             }
             api_enums::Connector::Riskified => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "riskified is not a routable connector".to_string(),
-                })
-                .into_report()?
+                })?
             }
             api_enums::Connector::Square => Self::Square,
             api_enums::Connector::Stax => Self::Stax,
@@ -267,8 +264,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Threedsecureio => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "threedsecureio is not a routable connector".to_string(),
-                })
-                .into_report()?
+                })?
             }
         })
     }

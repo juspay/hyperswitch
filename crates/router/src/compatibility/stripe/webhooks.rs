@@ -3,7 +3,7 @@ use api_models::{
     webhooks::{self as api},
 };
 use common_utils::{crypto::SignMessage, date_time, ext_traits::Encode};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use router_env::logger;
 use serde::Serialize;
 
@@ -39,7 +39,6 @@ impl OutgoingWebhookType for StripeOutgoingWebhook {
 
         let payment_response_hash_key = payment_response_hash_key
             .ok_or(errors::WebhooksFlowError::MerchantConfigNotFound)
-            .into_report()
             .attach_printable("For stripe compatibility payment_response_hash_key is mandatory")?;
 
         let webhook_signature_payload = self
