@@ -303,7 +303,7 @@ pub async fn authenticate_pm_client_secret(
         .clone()
         .get_required_value("client_secret")
         .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
-        .attach_printable("Unable to find payment method")?;
+        .attach_printable("client secret not found in db")?;
 
     if req_client_secret != &stored_client_secret {
         Err((errors::ApiErrorResponse::ClientSecretInvalid).into())
