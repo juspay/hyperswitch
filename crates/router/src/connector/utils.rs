@@ -634,12 +634,12 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
         self.metadata
             .clone()
             .and_then(|meta_data| match meta_data.peek() {
-                tera::Value::Null
-                | tera::Value::Bool(_)
-                | tera::Value::Number(_)
-                | tera::Value::String(_)
-                | tera::Value::Array(_) => None,
-                tera::Value::Object(_) => Some(meta_data),
+                serde_json::Value::Null
+                | serde_json::Value::Bool(_)
+                | serde_json::Value::Number(_)
+                | serde_json::Value::String(_)
+                | serde_json::Value::Array(_) => None,
+                serde_json::Value::Object(_) => Some(meta_data),
             })
     }
 }
