@@ -20,10 +20,10 @@ To run test cases, follow these steps:
 3. Clone the repository and switch to the project directory:
 
    ```shell
-   git clone https://github.com/juspay/hs-test-automation
-   cd hs-test-automation
+   git clone https://github.com/juspay/hyperswitch
+   cd cypress-tests
    ```
-4. Set the cypress env
+4. Set environment variables for cypress
    ```shell
    export CYPRESS_CONNECTOR="connector_id"
    export CYPRESS_BASEURL="base_url"

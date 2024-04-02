@@ -1,4 +1,3 @@
-// const { defineConfig } = require('cypress');
 
 let globalState;
 module.exports = {
@@ -13,7 +12,6 @@ module.exports = {
         },
         cli_log: (message) => {
           console.log("Logging console message from task");
-          // console.trace();
           console.log(message);
           return null;
         }
@@ -22,5 +20,4 @@ module.exports = {
     experimentalRunAllSpecs: true
   },
   chromeWebSecurity: false
-  // retries: { runMode: 3, openMode: 3 },
 };
