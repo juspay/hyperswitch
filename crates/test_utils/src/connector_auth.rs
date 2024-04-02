@@ -39,6 +39,7 @@ pub struct ConnectorAuthentication {
     pub iatapay: Option<SignatureKey>,
     pub mollie: Option<BodyKey>,
     pub multisafepay: Option<HeaderKey>,
+    pub netcetera: Option<HeaderKey>,
     pub nexinets: Option<BodyKey>,
     pub noon: Option<SignatureKey>,
     pub nmi: Option<HeaderKey>,

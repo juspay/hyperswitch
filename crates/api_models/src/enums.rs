@@ -44,6 +44,7 @@ pub enum RoutingAlgorithm {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum Connector {
+    Netcetera,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
     #[strum(serialize = "phonypay")]
@@ -210,6 +211,7 @@ impl Connector {
             | Self::Plaid
             | Self::Riskified
             | Self::Threedsecureio
+            | Self::Netcetera
             | Self::Cybersource
             | Self::Noon
             | Self::Stripe => false,
@@ -292,6 +294,7 @@ impl Connector {
 #[strum(serialize_all = "snake_case")]
 pub enum AuthenticationConnectors {
     Threedsecureio,
+    Netcetera,
 }
 
 #[cfg(feature = "payouts")]

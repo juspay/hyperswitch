@@ -107,6 +107,7 @@ impl AuthenticationConnectorData {
             enums::AuthenticationConnectors::Threedsecureio => {
                 Ok(Box::new(&connector::Threedsecureio))
             }
+            enums::AuthenticationConnectors::Netcetera => Ok(Box::new(&connector::Netcetera)),
         }
     }
 }

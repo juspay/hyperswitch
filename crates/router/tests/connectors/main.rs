@@ -35,6 +35,7 @@ mod helcim;
 mod iatapay;
 mod mollie;
 mod multisafepay;
+mod netcetera;
 mod nexinets;
 mod nmi;
 mod noon;
