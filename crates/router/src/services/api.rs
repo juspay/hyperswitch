@@ -888,6 +888,7 @@ pub struct PaymentLinkFormData {
     pub js_script: String,
     pub css_script: String,
     pub sdk_url: String,
+    pub html_meta_tags: String,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
@@ -2016,6 +2017,8 @@ pub fn build_payment_link_html(
         include_str!("../core/payment_link/payment_link_initiate/payment_link.html").to_string();
 
     let _ = tera.add_raw_template("payment_link", &html_template);
+
+    context.insert("rendered_meta_tag_html", &payment_link_data.html_meta_tags);
 
     context.insert(
         "preload_link_tags",

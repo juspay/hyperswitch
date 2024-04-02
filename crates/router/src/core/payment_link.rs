@@ -218,12 +218,16 @@ pub async fn intiate_payment_link_flow(
     };
 
     let js_script = get_js_script(api_models::payments::PaymentLinkData::PaymentLinkDetails(
-        payment_details,
+        payment_details.clone(),
     ))?;
+
+    let html_meta_tags = get_meta_tags_html(payment_details);
+
     let payment_link_data = services::PaymentLinkFormData {
         js_script,
         sdk_url: state.conf.payment_link.sdk_url.clone(),
         css_script,
+        html_meta_tags,
     };
     Ok(services::ApplicationResponse::PaymentLinkForm(Box::new(
         services::api::PaymentLinkAction::PaymentLinkFormData(payment_link_data),
@@ -248,6 +252,15 @@ fn get_color_scheme_css(payment_link_config: api_models::admin::PaymentLinkConfi
         ":root {{
       --primary-color: {background_primary_color};
     }}"
+    )
+}
+
+fn get_meta_tags_html(payment_details: api_models::payments::PaymentLinkDetails) -> String {
+    format!(
+        r#"<meta property="og:title" content="Payment request from {0}"/>
+        <meta property="og:description" content="{1}"/>"#,
+        payment_details.merchant_name,
+        payment_details.merchant_description.unwrap_or_default()
     )
 }
 
