@@ -15,10 +15,10 @@ use crate::{
 };
 
 #[derive(Default)]
-pub(super) struct SdkInitiatedCount;
+pub(super) struct AuthenticationUnsuccessfulCount;
 
 #[async_trait::async_trait]
-impl<T> super::SdkEventMetric<T> for SdkInitiatedCount
+impl<T> super::SdkEventMetric<T> for AuthenticationUnsuccessfulCount
 where
     T: AnalyticsDataSource + super::SdkEventMetricAnalytics,
     PrimitiveDateTime: ToSql<T>,
@@ -63,11 +63,15 @@ where
             .switch()?;
 
         query_builder
-            .add_bool_filter_clause("first_event", 1)
+            .add_filter_clause("event_name", SdkEventNames::AuthenticationCall)
             .switch()?;
 
         query_builder
-            .add_filter_clause("event_name", SdkEventNames::OrcaElementsCalled)
+            .add_filter_clause("log_type", "ERROR")
+            .switch()?;
+
+        query_builder
+            .add_filter_clause("category", "USER_EVENT")
             .switch()?;
 
         time_range
