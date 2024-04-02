@@ -14738,7 +14738,7 @@
             "description": "Payment Fingerprint",
             "nullable": true
           },
-          "browser_information": {
+          "browser_info": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/BrowserInformation"
