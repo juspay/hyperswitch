@@ -3,7 +3,7 @@ use common_utils::{
     ext_traits::{BytesExt, Encode},
     generate_id_with_default_len,
 };
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 use scheduler::{types::process_data, utils as process_tracker_utils};
@@ -90,10 +90,7 @@ impl Vaultable for api::Card {
             .attach_printable("Could not deserialize into card value2")?;
 
         let card = Self {
-            card_number: value1
-                .card_number
-                .try_into()
-                .into_report()
+            card_number: cards::CardNumber::try_from(value1.card_number)
                 .change_context(errors::VaultError::ResponseDeserializationFailed)
                 .attach_printable("Invalid card number format from the mock locker")?,
             card_exp_month: value1.exp_month.into(),
@@ -276,7 +273,6 @@ impl Vaultable for api::PaymentMethodData {
                 VaultPaymentMethod::BankRedirect(bank_redirect.get_value1(customer_id)?)
             }
             _ => Err(errors::VaultError::PaymentMethodNotSupported)
-                .into_report()
                 .attach_printable("Payment method not supported")?,
         };
 
@@ -297,7 +293,6 @@ impl Vaultable for api::PaymentMethodData {
                 VaultPaymentMethod::BankRedirect(bank_redirect.get_value2(customer_id)?)
             }
             _ => Err(errors::VaultError::PaymentMethodNotSupported)
-                .into_report()
                 .attach_printable("Payment method not supported")?,
         };
 
@@ -348,7 +343,6 @@ impl Vaultable for api::PaymentMethodData {
             }
 
             _ => Err(errors::VaultError::PaymentMethodNotSupported)
-                .into_report()
                 .attach_printable("Payment method not supported"),
         }
     }
@@ -713,7 +707,6 @@ impl Vaultable for api::PayoutMethodData {
                 Ok((Self::Wallet(wallet), supp_data))
             }
             _ => Err(errors::VaultError::PayoutMethodNotSupported)
-                .into_report()
                 .attach_printable("Payout method not supported"),
         }
     }
@@ -998,16 +991,13 @@ pub async fn delete_tokenized_data(state: &routes::AppState, lookup_key: &str) -
             Ok(redis_interface::DelReply::KeyDeleted) => Ok(()),
             Ok(redis_interface::DelReply::KeyNotDeleted) => {
                 Err(errors::ApiErrorResponse::InternalServerError)
-                    .into_report()
                     .attach_printable("Token invalid or expired")
             }
             Err(err) => {
                 metrics::TEMP_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
-                Err(errors::ApiErrorResponse::InternalServerError)
-                    .into_report()
-                    .attach_printable_lazy(|| {
-                        format!("Failed to delete from redis locker: {err:?}")
-                    })
+                Err(errors::ApiErrorResponse::InternalServerError).attach_printable_lazy(|| {
+                    format!("Failed to delete from redis locker: {err:?}")
+                })
             }
         }
     };
@@ -1044,7 +1034,6 @@ pub async fn add_delete_tokenized_data_task(
     let schedule_time = get_delete_tokenize_schedule_time(db, &pm, 0)
         .await
         .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .into_report()
         .attach_printable("Failed to obtain initial process tracker schedule time")?;
 
     let process_tracker_entry = storage::ProcessTrackerNew::new(
@@ -1076,7 +1065,6 @@ pub async fn start_tokenize_data_workflow(
     let delete_tokenize_data = serde_json::from_value::<storage::TokenizeCoreWorkflow>(
         tokenize_tracker.tracking_data.clone(),
     )
-    .into_report()
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable_lazy(|| {
         format!(
