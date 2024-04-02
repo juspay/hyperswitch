@@ -444,7 +444,7 @@ impl Vaultable for api::WalletPayout {
         value1
             .encode_to_string_of_json()
             .change_context(errors::VaultError::RequestEncodingFailed)
-            .attach_printable("Failed to encode wallet data wallet_sensitive_data")
+            .attach_printable("Failed to encode wallet data - TokenizedWalletSensitiveValues")
     }
 
     fn get_value2(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
@@ -453,7 +453,7 @@ impl Vaultable for api::WalletPayout {
         value2
             .encode_to_string_of_json()
             .change_context(errors::VaultError::RequestEncodingFailed)
-            .attach_printable("Failed to encode wallet wallet_insensitive_data")
+            .attach_printable("Failed to encode data - TokenizedWalletInsensitiveValues")
     }
 
     fn from_values(
