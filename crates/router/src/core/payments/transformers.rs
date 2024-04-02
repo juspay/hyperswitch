@@ -617,167 +617,159 @@ where
         });
 
         services::ApplicationResponse::JsonWithHeaders((
-                    response
-                        .set_net_amount(payment_attempt.net_amount)
-                        .set_payment_id(Some(payment_attempt.payment_id))
-                        .set_merchant_id(Some(payment_attempt.merchant_id))
-                        .set_status(payment_intent.status)
-                        .set_amount(payment_attempt.amount)
-                        .set_amount_capturable(Some(payment_attempt.amount_capturable))
-                        .set_amount_received(payment_intent.amount_captured)
-                        .set_surcharge_details(surcharge_details)
-                        .set_connector(routed_through)
-                        .set_client_secret(payment_intent.client_secret.map(masking::Secret::new))
-                        .set_created(Some(payment_intent.created_at))
-                        .set_currency(currency.to_string())
-                        .set_customer_id(customer.as_ref().map(|cus| cus.clone().customer_id))
-                        .set_email(
-                            customer
-                                .as_ref()
-                                .and_then(|cus| cus.email.as_ref().map(|s| s.to_owned())),
-                        )
-                        .set_name(
-                            customer
-                                .as_ref()
-                                .and_then(|cus| cus.name.as_ref().map(|s| s.to_owned())),
-                        )
-                        .set_phone(
-                            customer
-                                .as_ref()
-                                .and_then(|cus| cus.phone.as_ref().map(|s| s.to_owned())),
-                        )
-                        .set_mandate_id(mandate_id)
-                        .set_mandate_data(
-                            payment_data.setup_mandate.map(|d| api::MandateData {
-                                customer_acceptance: d.customer_acceptance.map(|d| {
-                                    api::CustomerAcceptance {
-                                        acceptance_type: match d.acceptance_type {
-                                            data_models::mandates::AcceptanceType::Online => {
-                                                api::AcceptanceType::Online
-                                            }
-                                            data_models::mandates::AcceptanceType::Offline => {
-                                                api::AcceptanceType::Offline
-                                            }
-                                        },
-                                        accepted_at: d.accepted_at,
-                                        online: d.online.map(|d| api::OnlineMandate {
-                                            ip_address: d.ip_address,
-                                            user_agent: d.user_agent,
-                                        }),
+            response
+                .set_net_amount(payment_attempt.net_amount)
+                .set_payment_id(Some(payment_attempt.payment_id))
+                .set_merchant_id(Some(payment_attempt.merchant_id))
+                .set_status(payment_intent.status)
+                .set_amount(payment_attempt.amount)
+                .set_amount_capturable(Some(payment_attempt.amount_capturable))
+                .set_amount_received(payment_intent.amount_captured)
+                .set_surcharge_details(surcharge_details)
+                .set_connector(routed_through)
+                .set_client_secret(payment_intent.client_secret.map(masking::Secret::new))
+                .set_created(Some(payment_intent.created_at))
+                .set_currency(currency.to_string())
+                .set_customer_id(customer.as_ref().map(|cus| cus.clone().customer_id))
+                .set_email(
+                    customer
+                        .as_ref()
+                        .and_then(|cus| cus.email.as_ref().map(|s| s.to_owned())),
+                )
+                .set_name(
+                    customer
+                        .as_ref()
+                        .and_then(|cus| cus.name.as_ref().map(|s| s.to_owned())),
+                )
+                .set_phone(
+                    customer
+                        .as_ref()
+                        .and_then(|cus| cus.phone.as_ref().map(|s| s.to_owned())),
+                )
+                .set_mandate_id(mandate_id)
+                .set_mandate_data(
+                    payment_data.setup_mandate.map(|d| api::MandateData {
+                        customer_acceptance: d.customer_acceptance.map(|d| {
+                            api::CustomerAcceptance {
+                                acceptance_type: match d.acceptance_type {
+                                    data_models::mandates::AcceptanceType::Online => {
+                                        api::AcceptanceType::Online
                                     }
+                                    data_models::mandates::AcceptanceType::Offline => {
+                                        api::AcceptanceType::Offline
+                                    }
+                                },
+                                accepted_at: d.accepted_at,
+                                online: d.online.map(|d| api::OnlineMandate {
+                                    ip_address: d.ip_address,
+                                    user_agent: d.user_agent,
                                 }),
-                                mandate_type: d.mandate_type.map(|d| match d {
-                                    data_models::mandates::MandateDataType::MultiUse(Some(i)) => {
-                                        api::MandateType::MultiUse(Some(api::MandateAmountData {
-                                            amount: i.amount,
-                                            currency: i.currency,
-                                            start_date: i.start_date,
-                                            end_date: i.end_date,
-                                            metadata: i.metadata,
-                                        }))
-                                    }
-                                    data_models::mandates::MandateDataType::SingleUse(i) => {
-                                        api::MandateType::SingleUse(
-                                            api::payments::MandateAmountData {
-                                                amount: i.amount,
-                                                currency: i.currency,
-                                                start_date: i.start_date,
-                                                end_date: i.end_date,
-                                                metadata: i.metadata,
-                                            },
-                                        )
-                                    }
-                                    data_models::mandates::MandateDataType::MultiUse(None) => {
-                                        api::MandateType::MultiUse(None)
-                                    }
-                                }),
-                                update_mandate_id: d.update_mandate_id,
-                            }),
-                            auth_flow == services::AuthFlow::Merchant,
-                        )
-                        .set_description(payment_intent.description)
-                        .set_refunds(refunds_response) // refunds.iter().map(refund_to_refund_response),
-                        .set_disputes(disputes_response)
-                        .set_attempts(attempts_response)
-                        .set_captures(captures_response)
-                        .set_payment_method(
-                            payment_attempt.payment_method,
-                            auth_flow == services::AuthFlow::Merchant,
-                        )
-                        .set_payment_method_data(
-                            payment_method_data_response,
-                            auth_flow == services::AuthFlow::Merchant,
-                        )
-                        .set_payment_token(payment_attempt.payment_token)
-                        .set_error_message(
-                            payment_attempt
-                                .error_reason
-                                .or(payment_attempt.error_message),
-                        )
-                        .set_error_code(payment_attempt.error_code)
-                        .set_shipping(payment_data.address.get_shipping().cloned())
-                        .set_billing(payment_data.address.get_payment_billing().cloned())
-                        .set_next_action(next_action_response)
-                        .set_return_url(payment_intent.return_url)
-                        .set_cancellation_reason(payment_attempt.cancellation_reason)
-                        .set_authentication_type(payment_attempt.authentication_type)
-                        .set_statement_descriptor_name(payment_intent.statement_descriptor_name)
-                        .set_statement_descriptor_suffix(payment_intent.statement_descriptor_suffix)
-                        .set_setup_future_usage(payment_intent.setup_future_usage)
-                        .set_capture_method(payment_attempt.capture_method)
-                        .set_payment_experience(payment_attempt.payment_experience)
-                        .set_payment_method_type(payment_attempt.payment_method_type)
-                        .set_metadata(payment_intent.metadata)
-                        .set_order_details(payment_intent.order_details)
-                        .set_connector_label(connector_label)
-                        .set_business_country(payment_intent.business_country)
-                        .set_business_label(payment_intent.business_label)
-                        .set_business_sub_label(payment_attempt.business_sub_label)
-                        .set_allowed_payment_method_types(
-                            payment_intent.allowed_payment_method_types,
-                        )
-                        .set_ephemeral_key(
-                            payment_data.ephemeral_key.map(ForeignFrom::foreign_from),
-                        )
-                        .set_frm_message(frm_message)
-                        .set_merchant_decision(merchant_decision)
-                        .set_manual_retry_allowed(helpers::is_manual_retry_allowed(
-                            &payment_intent.status,
-                            &payment_attempt.status,
-                            connector_request_reference_id_config,
-                            &merchant_id,
-                        ))
-                        .set_connector_transaction_id(payment_attempt.connector_transaction_id)
-                        .set_feature_metadata(payment_intent.feature_metadata)
-                        .set_connector_metadata(payment_intent.connector_metadata)
-                        .set_reference_id(payment_attempt.connector_response_reference_id)
-                        .set_payment_link(payment_link_data)
-                        .set_profile_id(payment_intent.profile_id)
-                        .set_attempt_count(payment_intent.attempt_count)
-                        .set_merchant_connector_id(payment_attempt.merchant_connector_id)
-                        .set_unified_code(payment_attempt.unified_code)
-                        .set_unified_message(payment_attempt.unified_message)
-                        .set_incremental_authorization_allowed(
-                            payment_intent.incremental_authorization_allowed,
-                        )
-                        .set_external_authentication_details(external_authentication_details)
-                        .set_fingerprint(payment_intent.fingerprint_id)
-                        .set_authorization_count(payment_intent.authorization_count)
-                        .set_incremental_authorizations(incremental_authorizations_response)
-                        .set_expires_on(payment_intent.session_expiry)
-                        .set_external_3ds_authentication_attempted(
-                            payment_attempt.external_three_ds_authentication_attempted,
-                        )
-                        .set_payment_method_id(payment_attempt.payment_method_id)
-                        .set_payment_method_status(
-                            payment_data.payment_method_info.map(|info| info.status),
-                        )
-                        .set_customer(customer_details_response.clone())
-                        .set_browser_info(payment_attempt.browser_info)
-                        .to_owned(),
-                    headers,
+                            }
+                        }),
+                        mandate_type: d.mandate_type.map(|d| match d {
+                            data_models::mandates::MandateDataType::MultiUse(Some(i)) => {
+                                api::MandateType::MultiUse(Some(api::MandateAmountData {
+                                    amount: i.amount,
+                                    currency: i.currency,
+                                    start_date: i.start_date,
+                                    end_date: i.end_date,
+                                    metadata: i.metadata,
+                                }))
+                            }
+                            data_models::mandates::MandateDataType::SingleUse(i) => {
+                                api::MandateType::SingleUse(api::payments::MandateAmountData {
+                                    amount: i.amount,
+                                    currency: i.currency,
+                                    start_date: i.start_date,
+                                    end_date: i.end_date,
+                                    metadata: i.metadata,
+                                })
+                            }
+                            data_models::mandates::MandateDataType::MultiUse(None) => {
+                                api::MandateType::MultiUse(None)
+                            }
+                        }),
+                        update_mandate_id: d.update_mandate_id,
+                    }),
+                    auth_flow == services::AuthFlow::Merchant,
+                )
+                .set_description(payment_intent.description)
+                .set_refunds(refunds_response) // refunds.iter().map(refund_to_refund_response),
+                .set_disputes(disputes_response)
+                .set_attempts(attempts_response)
+                .set_captures(captures_response)
+                .set_payment_method(
+                    payment_attempt.payment_method,
+                    auth_flow == services::AuthFlow::Merchant,
+                )
+                .set_payment_method_data(
+                    payment_method_data_response,
+                    auth_flow == services::AuthFlow::Merchant,
+                )
+                .set_payment_token(payment_attempt.payment_token)
+                .set_error_message(
+                    payment_attempt
+                        .error_reason
+                        .or(payment_attempt.error_message),
+                )
+                .set_error_code(payment_attempt.error_code)
+                .set_shipping(payment_data.address.get_shipping().cloned())
+                .set_billing(payment_data.address.get_payment_billing().cloned())
+                .set_next_action(next_action_response)
+                .set_return_url(payment_intent.return_url)
+                .set_cancellation_reason(payment_attempt.cancellation_reason)
+                .set_authentication_type(payment_attempt.authentication_type)
+                .set_statement_descriptor_name(payment_intent.statement_descriptor_name)
+                .set_statement_descriptor_suffix(payment_intent.statement_descriptor_suffix)
+                .set_setup_future_usage(payment_intent.setup_future_usage)
+                .set_capture_method(payment_attempt.capture_method)
+                .set_payment_experience(payment_attempt.payment_experience)
+                .set_payment_method_type(payment_attempt.payment_method_type)
+                .set_metadata(payment_intent.metadata)
+                .set_order_details(payment_intent.order_details)
+                .set_connector_label(connector_label)
+                .set_business_country(payment_intent.business_country)
+                .set_business_label(payment_intent.business_label)
+                .set_business_sub_label(payment_attempt.business_sub_label)
+                .set_allowed_payment_method_types(payment_intent.allowed_payment_method_types)
+                .set_ephemeral_key(payment_data.ephemeral_key.map(ForeignFrom::foreign_from))
+                .set_frm_message(frm_message)
+                .set_merchant_decision(merchant_decision)
+                .set_manual_retry_allowed(helpers::is_manual_retry_allowed(
+                    &payment_intent.status,
+                    &payment_attempt.status,
+                    connector_request_reference_id_config,
+                    &merchant_id,
                 ))
-            };
+                .set_connector_transaction_id(payment_attempt.connector_transaction_id)
+                .set_feature_metadata(payment_intent.feature_metadata)
+                .set_connector_metadata(payment_intent.connector_metadata)
+                .set_reference_id(payment_attempt.connector_response_reference_id)
+                .set_payment_link(payment_link_data)
+                .set_profile_id(payment_intent.profile_id)
+                .set_attempt_count(payment_intent.attempt_count)
+                .set_merchant_connector_id(payment_attempt.merchant_connector_id)
+                .set_unified_code(payment_attempt.unified_code)
+                .set_unified_message(payment_attempt.unified_message)
+                .set_incremental_authorization_allowed(
+                    payment_intent.incremental_authorization_allowed,
+                )
+                .set_external_authentication_details(external_authentication_details)
+                .set_fingerprint(payment_intent.fingerprint_id)
+                .set_authorization_count(payment_intent.authorization_count)
+                .set_incremental_authorizations(incremental_authorizations_response)
+                .set_expires_on(payment_intent.session_expiry)
+                .set_external_3ds_authentication_attempted(
+                    payment_attempt.external_three_ds_authentication_attempted,
+                )
+                .set_payment_method_id(payment_attempt.payment_method_id)
+                .set_payment_method_status(payment_data.payment_method_info.map(|info| info.status))
+                .set_customer(customer_details_response.clone())
+                .set_browser_info(payment_attempt.browser_info)
+                .to_owned(),
+            headers,
+        ))
+    };
 
     metrics::PAYMENT_OPS_COUNT.add(
         &metrics::CONTEXT,
