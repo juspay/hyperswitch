@@ -1418,7 +1418,7 @@ pub async fn list_payment_methods(
 
     let payment_intent = if let Some(cs) = &req.client_secret {
         if cs.starts_with("pm_") {
-            let _ = authenticate_pm_client_secret(cs, db).await?;
+            authenticate_pm_client_secret(cs, db).await?;
             None
         } else {
             helpers::verify_payment_intent_time_and_client_secret(
@@ -1576,8 +1576,6 @@ pub async fn list_payment_methods(
         )
         .await?;
     }
-
-    println!("vec is {:?}", response);
 
     // Filter out wallet payment method from mca if customer has already saved it
     customer
