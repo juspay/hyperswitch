@@ -234,6 +234,7 @@ impl Connector {
             | Self::Coinbase
             | Self::Cryptopay
             | Self::Dlocal
+            | Self::Ebanx
             | Self::Fiserv
             | Self::Forte
             | Self::Globalpay

@@ -1,6 +1,7 @@
 use api_models::payouts::{Bank, PayoutMethodData};
 use common_enums::Currency;
-use masking::Secret;
+use common_utils::pii::Email;
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -56,9 +57,9 @@ pub enum EbanxPayoutType {
 #[derive(Debug, Serialize, Clone)]
 pub struct EbanxPayoutDetails {
     name: Secret<String>,
-    // email: Option<Email>,
-    // document: Option<String>,
-    // document_type: Option<EbanxDocumentType>,
+    email: Option<Email>,
+    document: Option<Secret<String>>,
+    document_type: Option<EbanxDocumentType>,
     bank_info: EbanxBankDetails,
 }
 
@@ -112,9 +113,18 @@ impl TryFrom<&EbanxRouterData<&types::PayoutsRouterData<api::PoCreate>>>
                     },
                 )?;
 
+                let document_type = if pix_data.tax_id.clone().expose().len() == 11 {
+                    Some(EbanxDocumentType::NaturalPersonsRegister)
+                } else {
+                    Some(EbanxDocumentType::NationalRegistryOfLegalEntities)
+                };
+
                 let payee = EbanxPayoutDetails {
                     name: billing_address.get_full_name()?,
+                    email: customer_details.email.clone(),
                     bank_info,
+                    document_type,
+                    document: Some(pix_data.tax_id.to_owned()),
                 };
                 Ok(Self {
                     amount: item.amount,

@@ -279,6 +279,9 @@ pub struct PixBankTransfer {
     /// Unique key for pix customer
     #[schema(value_type = String, example = "000123456")]
     pub pix_key: Secret<String>,
+
+    /// Individual taxpayer identification number
+    pub tax_id: Secret<String>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
