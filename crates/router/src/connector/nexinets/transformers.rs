@@ -1,7 +1,7 @@
-use api_models::payments::PaymentMethodData;
 use base64::Engine;
 use cards::CardNumber;
 use common_utils::errors::CustomResult;
+use domain::PaymentMethodData;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -14,7 +14,7 @@ use crate::{
     consts,
     core::errors,
     services,
-    types::{self, api, storage::enums, transformers::ForeignFrom},
+    types::{self, api, domain, storage::enums, transformers::ForeignFrom},
 };
 
 #[derive(Debug, Serialize)]
@@ -633,7 +633,7 @@ fn get_payment_details_and_product(
 
 fn get_card_data(
     item: &types::PaymentsAuthorizeRouterData,
-    card: &api_models::payments::Card,
+    card: &domain::payments::Card,
 ) -> Result<NexinetsPaymentDetails, errors::ConnectorError> {
     let (card_data, cof_contract) = match item.request.is_mandate_payment() {
         true => {
@@ -676,7 +676,7 @@ fn get_applepay_details(
 }
 
 fn get_card_details(
-    req_card: &api_models::payments::Card,
+    req_card: &domain::payments::Card,
 ) -> Result<CardDetails, errors::ConnectorError> {
     Ok(CardDetails {
         card_number: req_card.card_number.clone(),
