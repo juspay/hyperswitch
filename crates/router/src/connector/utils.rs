@@ -494,6 +494,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_surcharge_amount(&self) -> Option<i64>;
     fn get_tax_on_surcharge_amount(&self) -> Option<i64>;
     fn get_total_surcharge_amount(&self) -> Option<i64>;
+    fn get_metadata_as_object(&self) -> Option<pii::SecretSerdeValue>;
 }
 
 pub trait PaymentMethodTokenizationRequestData {
@@ -627,6 +628,17 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
 
     fn is_customer_initiated_mandate_payment(&self) -> bool {
         self.setup_mandate_details.is_some()
+    }
+
+    fn get_metadata_as_object(&self) -> Option<pii::SecretSerdeValue>{
+        self.metadata.clone().and_then(|meta_data| match meta_data.peek() {
+            tera::Value::Null |
+            tera::Value::Bool(_) |
+            tera::Value::Number(_)|
+            tera::Value::String(_) |
+            tera::Value::Array(_) => None,
+            tera::Value::Object(_) => Some(meta_data),
+        })
     }
 }
 
