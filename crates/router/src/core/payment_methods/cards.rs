@@ -313,9 +313,9 @@ pub async fn authenticate_pm_client_secret(
             .created_at
             .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY));
 
-        let _ = fp_utils::when(current_timestamp > session_expiry, || {
+        fp_utils::when(current_timestamp > session_expiry, || {
             Err::<(), errors::ApiErrorResponse>(errors::ApiErrorResponse::ClientSecretExpired)
-        });
+        })?;
 
         Ok(payment_method)
     }
@@ -335,6 +335,7 @@ pub async fn add_payment_method_data(
         .payment_method_data
         .clone()
         .get_required_value("payment_method_data")?;
+
     let client_secret = req
         .client_secret
         .clone()
@@ -347,8 +348,7 @@ pub async fn add_payment_method_data(
             let resp =
                 add_card_to_locker(&state, req.clone(), &card, &customer_id, merchant_account)
                     .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Add Card Failed");
+                    .change_context(errors::ApiErrorResponse::InternalServerError);
 
             match resp {
                 Ok((mut pm_resp, duplication_check)) => {
