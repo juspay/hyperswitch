@@ -7,7 +7,7 @@ use common_utils::{
     pii::{Email, IpAddress},
 };
 use data_models::mandates::MandateDataType;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -1084,7 +1084,6 @@ impl TryFrom<NuveiPaymentRequestData> for NuveiPaymentsRequest {
         let client_request_id = request.client_request_id;
         let time_stamp =
             date_time::format_date(date_time::now(), date_time::DateFormat::YYYYMMDDHHmmss)
-                .into_report()
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let merchant_secret = connector_meta.merchant_secret;
         Ok(Self {
@@ -1122,7 +1121,6 @@ impl TryFrom<NuveiPaymentRequestData> for NuveiPaymentFlowRequest {
         let client_request_id = request.client_request_id;
         let time_stamp =
             date_time::format_date(date_time::now(), date_time::DateFormat::YYYYMMDDHHmmss)
-                .into_report()
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let merchant_secret = connector_meta.merchant_secret;
         Ok(Self {
@@ -1459,7 +1457,6 @@ where
                             serde_json::to_value(NuveiMeta {
                                 session_token: token,
                             })
-                            .into_report()
                             .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
                         )
                     } else {

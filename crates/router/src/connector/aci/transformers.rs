@@ -568,7 +568,7 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let (item, card_data) = value;
-        let card_holder_name = item.router_data.get_optional_billing_name();
+        let card_holder_name = item.router_data.get_optional_billing_combined_name();
         let txn_details = get_transaction_details(item)?;
         let payment_method = PaymentDetails::try_from((card_data.clone(), card_holder_name))?;
         let instruction = get_instruction_details(item);

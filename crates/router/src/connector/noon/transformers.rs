@@ -1,5 +1,5 @@
 use common_utils::{ext_traits::Encode, pii};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -241,7 +241,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                 match item.request.payment_method_data.clone() {
                     domain::PaymentMethodData::Card(req_card) => {
                         Ok(NoonPaymentData::Card(NoonCard {
-                            name_on_card: item.get_optional_billing_name(),
+                            name_on_card: item.get_optional_billing_combined_name(),
                             number_plain: req_card.card_number.clone(),
                             expiry_month: req_card.card_exp_month.clone(),
                             expiry_year: req_card.get_expiry_year_4_digit(),
@@ -381,13 +381,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                         Err(errors::ConnectorError::MissingRequiredField {
                             field_name:
                                 "setup_future_usage.mandate_data.mandate_type.multi_use.amount",
-                        })
-                        .into_report()
+                        }
+                        .into())
                     }
                     None => Err(errors::ConnectorError::MissingRequiredField {
                         field_name: "setup_future_usage.mandate_data.mandate_type",
-                    })
-                    .into_report(),
+                    }
+                    .into()),
                 }?;
 
                 Ok::<NoonSubscriptionData, error_stack::Report<errors::ConnectorError>>(

@@ -3,7 +3,7 @@ use api_models::payouts::PayoutMethodData;
 use api_models::{enums, payments, webhooks};
 use cards::CardNumber;
 use common_utils::{ext_traits::Encode, pii};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -295,7 +295,7 @@ impl ForeignTryFrom<(bool, AdyenWebhookStatus)> for storage_enums::AttemptStatus
             //If Unexpected Event is received, need to understand how it reached this point
             //Webhooks with Payment Events only should try to conume this resource object.
             AdyenWebhookStatus::UnexpectedEvent => {
-                Err(errors::ConnectorError::WebhookBodyDecodingFailed).into_report()
+                Err(report!(errors::ConnectorError::WebhookBodyDecodingFailed))
             }
         }
     }
@@ -2572,7 +2572,7 @@ impl<'a>
                     domain::PaymentMethodData::Card(ref card) => {
                         let card_issuer = card.get_card_issuer()?;
                         let brand = CardBrand::try_from(&card_issuer)?;
-                        let card_holder_name = item.router_data.get_optional_billing_name();
+                        let card_holder_name = item.router_data.get_optional_billing_combined_name();
                         let adyen_card = AdyenCard {
                             payment_type: PaymentType::Scheme,
                             number: card.card_number.clone(),
@@ -2663,7 +2663,7 @@ impl<'a>
         let country_code = get_country_code(item.router_data.get_optional_billing());
         let additional_data = get_additional_data(item.router_data);
         let return_url = item.router_data.request.get_return_url()?;
-        let card_holder_name = item.router_data.get_optional_billing_name();
+        let card_holder_name = item.router_data.get_optional_billing_combined_name();
         let payment_method = AdyenPaymentMethod::try_from((card_data, card_holder_name))?;
         let shopper_email = item.router_data.request.email.clone();
         let shopper_name = get_shopper_name(item.router_data.get_optional_billing());
