@@ -504,6 +504,24 @@ impl
             Option<String>,
         ),
     ) -> Result<Self, Self::Error> {
+        let mut commerce_indicator = solution
+            .as_ref()
+            .map(|pm_solution| match pm_solution {
+                PaymentSolution::ApplePay => network
+                    .as_ref()
+                    .map(|card_network| match card_network.to_lowercase().as_str() {
+                        "amex" => "aesk",
+                        "discover" => "dipb",
+                        "mastercard" => "spa",
+                        "visa" => "internet",
+                        _ => "internet",
+                    })
+                    .unwrap_or("internet"),
+                PaymentSolution::GooglePay => "internet",
+            })
+            .unwrap_or("internet")
+            .to_string();
+
         let (action_list, action_token_types, authorization_options) = if item
             .router_data
             .request
@@ -616,7 +634,7 @@ impl
                         ),
                         _ => None,
                     };
-
+                    commerce_indicator = "recurring".to_string();
                     (
                         None,
                         None,
@@ -639,18 +657,6 @@ impl
         } else {
             (None, None, None)
         };
-        let commerce_indicator = match network {
-            //this should be made as recurring for mit
-            Some(card_network) => match card_network.to_lowercase().as_str() {
-                "amex" => "aesk",
-                "discover" => "dipb",
-                "mastercard" => "spa",
-                "visa" => "internet",
-                _ => "internet",
-            },
-            None => "internet",
-        }
-        .to_string();
         Ok(Self {
             capture: Some(matches!(
                 item.router_data.request.capture_method,
