@@ -428,9 +428,6 @@ pub async fn add_payment_method_data(
                 }
             }
         }
-        _ => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-            message: "card data must be provided".to_string(),
-        })),
     }
 }
 
