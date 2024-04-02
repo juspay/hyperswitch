@@ -1,7 +1,7 @@
 pub mod helpers;
 
 use api_models::files;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 
 use super::errors::{self, RouterResponse};
 use crate::{
@@ -118,13 +118,11 @@ pub async fn files_retrieve_core(
     let content_type = file_metadata_object
         .file_type
         .parse::<mime::Mime>()
-        .into_report()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to parse file content type")?;
     Ok(ApplicationResponse::FileData((
         received_data
             .ok_or(errors::ApiErrorResponse::FileNotAvailable)
-            .into_report()
             .attach_printable("File data not found")?,
         content_type,
     )))

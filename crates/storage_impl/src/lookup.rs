@@ -6,7 +6,7 @@ use diesel_models::{
         ReverseLookup as DieselReverseLookup, ReverseLookupNew as DieselReverseLookupNew,
     },
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use redis_interface::SetnxReply;
 
 use crate::{
@@ -42,7 +42,6 @@ impl<T: DatabaseStore> ReverseLookupInterface for RouterStore<T> {
             .get_master_pool()
             .get()
             .await
-            .into_report()
             .change_context(errors::StorageError::DatabaseConnectionError)?;
         new.insert(&conn).await.map_err(|er| {
             let new_err = diesel_error_to_data_error(er.current_context());
@@ -105,8 +104,8 @@ impl<T: DatabaseStore> ReverseLookupInterface for KVRouterStore<T> {
                     Ok(SetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
                         entity: "reverse_lookup",
                         key: Some(created_rev_lookup.lookup_id.clone()),
-                    })
-                    .into_report(),
+                    }
+                    .into()),
                     Err(er) => Err(er).change_context(errors::StorageError::KVError),
                 }
             }

@@ -514,28 +514,23 @@ Within the `ConnectorIntegration` trait, you'll find the following methods imple
   }
 ```
 
-- `get_request_body` method calls transformers where hyperswitch payment request data is transformed into connector payment request. For constructing the request body have a function `log_and_get_request_body` that allows generic argument which is the struct that is passed as the body for connector integration, and a function that can be use to encode it into String. We log the request in this function, as the struct will be intact and the masked values will be masked.
+- `get_request_body` method calls transformers where hyperswitch payment request data is transformed into connector payment request. If the conversion and construction processes are successful, the function wraps the constructed connector_req in a Box and returns it as `RequestContent::Json`. The `RequestContent` enum defines different types of request content that can be sent. It includes variants for JSON, form-urlencoded, XML, raw bytes, and potentially other formats.
 
 ```rust
   fn get_request_body(
-      &self,
-      req: &types::PaymentsAuthorizeRouterData,
-      _connectors: &settings::Connectors,
-  ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-      let connector_router_data = checkout::CheckoutRouterData::try_from((
-          &self.get_currency_unit(),
-          req.request.currency,
-          req.request.amount,
-          req,
-      ))?;
-      let connector_req = checkout::PaymentsRequest::try_from(&connector_router_data)?;
-      let checkout_req = types::RequestBody::log_and_get_request_body(
-          &connector_req,
-          utils::Encode::encode_to_string_of_json,
-      )
-      .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-      Ok(Some(checkout_req))
-  }
+        &self,
+        req: &types::PaymentsAuthorizeRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_router_data = checkout::CheckoutRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let connector_req = checkout::PaymentsRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
 ```
 
 - `build_request` method assembles the API request by providing the method, URL, headers, and request body as parameters.
