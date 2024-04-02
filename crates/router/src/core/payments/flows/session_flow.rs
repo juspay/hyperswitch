@@ -185,9 +185,11 @@ async fn create_applepay_session_token(
                         .clone()
                         .expose();
 
+                    let merchant_business_country = session_token_data.merchant_business_country;
+
                     let apple_pay_session_request = get_session_request_for_simplified_apple_pay(
                         merchant_identifier,
-                        session_token_data.clone(),
+                        session_token_data,
                     );
 
                     let apple_pay_merchant_cert = state
@@ -205,8 +207,6 @@ async fn create_applepay_session_token(
                         .apple_pay_merchant_cert_key
                         .clone()
                         .expose();
-
-                    let merchant_business_country = session_token_data.merchant_business_country;
 
                     (
                         payment_request_data,
