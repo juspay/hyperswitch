@@ -17,7 +17,7 @@ use crate::{
     },
     core::errors,
     services,
-    types::{self, api, storage::enums, transformers::ForeignFrom, ConnectorAuthType},
+    types::{self, api, domain, storage::enums, transformers::ForeignFrom, ConnectorAuthType},
 };
 
 type Error = Report<errors::ConnectorError>;
@@ -136,10 +136,10 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for NmiVaultRequest {
 }
 
 fn get_card_details(
-    payment_method_data: Option<api::PaymentMethodData>,
+    payment_method_data: Option<domain::PaymentMethodData>,
 ) -> CustomResult<(CardNumber, Secret<String>, Secret<String>), errors::ConnectorError> {
     match payment_method_data {
-        Some(api::PaymentMethodData::Card(ref card_details)) => Ok((
+        Some(domain::PaymentMethodData::Card(ref card_details)) => Ok((
             card_details.card_number.clone(),
             utils::CardData::get_card_expiry_month_year_2_digit_with_delimiter(
                 card_details,
@@ -513,14 +513,12 @@ impl TryFrom<&NmiRouterData<&types::PaymentsAuthorizeRouterData>> for NmiPayment
     }
 }
 
-impl TryFrom<&api_models::payments::PaymentMethodData> for PaymentMethod {
+impl TryFrom<&domain::PaymentMethodData> for PaymentMethod {
     type Error = Error;
-    fn try_from(
-        payment_method_data: &api_models::payments::PaymentMethodData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(payment_method_data: &domain::PaymentMethodData) -> Result<Self, Self::Error> {
         match &payment_method_data {
-            api::PaymentMethodData::Card(ref card) => Ok(Self::try_from(card)?),
-            api::PaymentMethodData::Wallet(ref wallet_type) => match wallet_type {
+            domain::PaymentMethodData::Card(ref card) => Ok(Self::try_from(card)?),
+            domain::PaymentMethodData::Wallet(ref wallet_type) => match wallet_type {
                 api_models::payments::WalletData::GooglePay(ref googlepay_data) => {
                     Ok(Self::from(googlepay_data))
                 }
@@ -557,28 +555,30 @@ impl TryFrom<&api_models::payments::PaymentMethodData> for PaymentMethod {
                     .into())
                 }
             },
-            api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::PayLater(_)
-            | api::PaymentMethodData::BankRedirect(_)
-            | api::PaymentMethodData::BankDebit(_)
-            | api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::Crypto(_)
-            | api::PaymentMethodData::MandatePayment
-            | api::PaymentMethodData::Reward
-            | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("nmi"),
-            )
-            .into()),
+            domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("nmi"),
+                )
+                .into())
+            }
         }
     }
 }
 
-impl TryFrom<&api_models::payments::Card> for PaymentMethod {
+impl TryFrom<&domain::payments::Card> for PaymentMethod {
     type Error = Error;
-    fn try_from(card: &api_models::payments::Card) -> Result<Self, Self::Error> {
+    fn try_from(card: &domain::payments::Card) -> Result<Self, Self::Error> {
         let ccexp = utils::CardData::get_card_expiry_month_year_2_digit_with_delimiter(
             card,
             "".to_string(),
