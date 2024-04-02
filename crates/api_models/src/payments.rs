@@ -921,7 +921,14 @@ impl GetAddressFromPaymentMethodData for Card {
                     Some(card_holder_name)
                 }
             })
-            .and_then(|card_holder_name| card_holder_name.peek().split_once(' '))
+            .and_then(|card_holder_name| {
+                // Split the `card_holder_name` into `first_name` and `last_name` based on the
+                // last occurence of ' '. For example
+                // John Wheat Dough
+                // first_name -> John Wheat
+                // last_name -> Dough
+                card_holder_name.peek().rsplit_once(' ')
+            })
             .map(|(first_name, last_name)| AddressDetails {
                 first_name: Some(Secret::new(first_name.to_string())),
                 last_name: (!last_name.is_empty()) // split_once will return "" if no last name
