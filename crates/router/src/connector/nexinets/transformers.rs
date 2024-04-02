@@ -2,7 +2,7 @@ use base64::Engine;
 use cards::CardNumber;
 use common_utils::errors::CustomResult;
 use domain::PaymentMethodData;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;

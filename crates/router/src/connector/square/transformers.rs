@@ -1,5 +1,5 @@
 use api_models::payments::{BankDebitData, PayLaterData};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 

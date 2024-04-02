@@ -100,7 +100,6 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
 
         let (payment_information, solution) = match item.request.payment_method_data.clone() {
             domain::PaymentMethodData::Card(ccard) => {
-            domain::PaymentMethodData::Card(ccard) => {
                 let card_issuer = ccard.get_card_issuer();
                 let card_type = match card_issuer {
                     Ok(issuer) => Some(String::from(issuer)),

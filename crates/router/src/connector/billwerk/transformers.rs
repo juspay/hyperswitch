@@ -38,48 +38,6 @@ impl<T>
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct BillwerkPaymentsRequest {
-    amount: i64,
-    card: BillwerkCard,
-}
-
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct BillwerkCard {
-    number: cards::CardNumber,
-    expiry_month: Secret<String>,
-    expiry_year: Secret<String>,
-    cvc: Secret<String>,
-    complete: bool,
-}
-
-impl TryFrom<&BillwerkRouterData<&types::PaymentsAuthorizeRouterData>> for BillwerkPaymentsRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &BillwerkRouterData<&types::PaymentsAuthorizeRouterData>,
-    ) -> Result<Self, Self::Error> {
-        match item.router_data.request.payment_method_data.clone() {
-            domain::PaymentMethodData::Card(req_card) => {
-                let card = BillwerkCard {
-                    number: req_card.card_number,
-                    expiry_month: req_card.card_exp_month,
-                    expiry_year: req_card.card_exp_year,
-                    cvc: req_card.card_cvc,
-                    complete: item.router_data.request.is_auto_capture()?,
-                };
-                Ok(Self {
-                    amount: item.amount.to_owned(),
-                    card,
-                })
-            }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
-        }
-    }
-}
-
-//TODO: Fill the struct with respective fields
-// Auth Struct
 pub struct BillwerkAuthType {
     pub(super) api_key: Secret<String>,
     pub(super) public_api_key: Secret<String>,

@@ -6,7 +6,7 @@ use common_utils::{
     ext_traits::XmlExt,
     pii::{self, Email},
 };
-use error_stack::{Report, ResultExt};
+use error_stack::{report, Report, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -544,10 +544,11 @@ impl TryFrom<&domain::PaymentMethodData> for PaymentMethod {
                 | domain::WalletData::WeChatPayRedirect(_)
                 | domain::WalletData::WeChatPayQr(_)
                 | domain::WalletData::CashappQr(_)
-                | domain::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("nmi"),
-                ))
-                .into_report(),
+                | domain::WalletData::SwishQr(_) => {
+                    Err(report!(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("nmi"),
+                    )))
+                }
             },
             domain::PaymentMethodData::CardRedirect(_)
             | domain::PaymentMethodData::PayLater(_)

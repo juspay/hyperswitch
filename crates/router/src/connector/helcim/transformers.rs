@@ -160,10 +160,9 @@ impl TryFrom<&types::SetupMandateRouterData> for HelcimVerifyRequest {
     fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
             domain::PaymentMethodData::Card(req_card) => Self::try_from((item, &req_card)),
-            domain::PaymentMethodData::BankTransfer(_) => Err(
-                errors::ConnectorError::NotImplemented("Payment Method".to_string()),
-            )
-            .into_report(),
+            domain::PaymentMethodData::BankTransfer(_) => {
+                Err(errors::ConnectorError::NotImplemented("Payment Method".to_string()).into())
+            }
             domain::PaymentMethodData::CardRedirect(_)
             | domain::PaymentMethodData::Wallet(_)
             | domain::PaymentMethodData::PayLater(_)
@@ -262,10 +261,9 @@ impl TryFrom<&HelcimRouterData<&types::PaymentsAuthorizeRouterData>> for HelcimP
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
             domain::PaymentMethodData::Card(req_card) => Self::try_from((item, &req_card)),
-            domain::PaymentMethodData::BankTransfer(_) => Err(
-                errors::ConnectorError::NotImplemented("Payment Method".to_string()),
-            )
-            .into_report(),
+            domain::PaymentMethodData::BankTransfer(_) => {
+                Err(errors::ConnectorError::NotImplemented("Payment Method".to_string()).into())
+            }
             domain::PaymentMethodData::CardRedirect(_)
             | domain::PaymentMethodData::Wallet(_)
             | domain::PaymentMethodData::PayLater(_)
