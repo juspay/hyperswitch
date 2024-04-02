@@ -18,16 +18,15 @@ use diesel_models::refund::Refund;
 use serde::Serialize;
 use time::OffsetDateTime;
 
+#[cfg(feature = "payouts")]
+use self::payout::KafkaPayout;
 use self::{
     dispute::KafkaDispute, payment_attempt::KafkaPaymentAttempt,
     payment_intent::KafkaPaymentIntent, refund::KafkaRefund,
 };
 use crate::types::storage::Dispute;
-
 #[cfg(feature = "payouts")]
 use crate::types::storage::Payouts;
-#[cfg(feature = "payouts")]
-use self::payout::KafkaPayout;
 
 // Using message queue result here to avoid confusion with Kafka result provided by library
 pub type MQResult<T> = CustomResult<T, KafkaError>;
