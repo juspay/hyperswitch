@@ -427,8 +427,7 @@ impl From<api_models::payments::WalletData> for WalletData {
             api_models::payments::WalletData::GcashRedirect(_) => {
                 Self::GcashRedirect(GcashRedirection {})
             }
-            api_models::payments::WalletData::ApplePay(data) => {
-                let apple_pay_data = data;
+            api_models::payments::WalletData::ApplePay(apple_pay_data) => {
                 Self::ApplePay(ApplePayWalletData {
                     payment_data: apple_pay_data.payment_data,
                     payment_method: ApplepayPaymentMethod {
@@ -446,8 +445,7 @@ impl From<api_models::payments::WalletData> for WalletData {
                 Self::ApplePayThirdPartySdk(Box::new(ApplePayThirdPartySdkData {}))
             }
             api_models::payments::WalletData::DanaRedirect {} => Self::DanaRedirect {},
-            api_models::payments::WalletData::GooglePay(data) => {
-                let google_pay_data = data;
+            api_models::payments::WalletData::GooglePay(google_pay_data) => {
                 Self::GooglePay(GooglePayWalletData {
                     pm_type: google_pay_data.pm_type,
                     description: google_pay_data.description,
@@ -467,8 +465,7 @@ impl From<api_models::payments::WalletData> for WalletData {
             api_models::payments::WalletData::GooglePayThirdPartySdk(_) => {
                 Self::GooglePayThirdPartySdk(Box::new(GooglePayThirdPartySdkData {}))
             }
-            api_models::payments::WalletData::MbWayRedirect(data) => {
-                let mbway_redirect_data = data;
+            api_models::payments::WalletData::MbWayRedirect(mbway_redirect_data) => {
                 Self::MbWayRedirect(Box::new(MbWayRedirection {
                     telephone_number: mbway_redirect_data.telephone_number,
                 }))
@@ -476,20 +473,17 @@ impl From<api_models::payments::WalletData> for WalletData {
             api_models::payments::WalletData::MobilePayRedirect(_) => {
                 Self::MobilePayRedirect(Box::new(MobilePayRedirection {}))
             }
-            api_models::payments::WalletData::PaypalRedirect(data) => {
-                let paypal_redirect_data = data;
+            api_models::payments::WalletData::PaypalRedirect(paypal_redirect_data) => {
                 Self::PaypalRedirect(PaypalRedirection {
                     email: paypal_redirect_data.email,
                 })
             }
-            api_models::payments::WalletData::PaypalSdk(data) => {
-                let paypal_sdk_data = data;
+            api_models::payments::WalletData::PaypalSdk(paypal_sdk_data) => {
                 Self::PaypalSdk(PayPalWalletData {
                     token: paypal_sdk_data.token,
                 })
             }
-            api_models::payments::WalletData::SamsungPay(data) => {
-                let samsung_pay_data = data;
+            api_models::payments::WalletData::SamsungPay(samsung_pay_data) => {
                 Self::SamsungPay(Box::new(SamsungPayWalletData {
                     token: samsung_pay_data.token,
                 }))
