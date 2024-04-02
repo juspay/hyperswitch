@@ -2572,7 +2572,8 @@ impl<'a>
                     domain::PaymentMethodData::Card(ref card) => {
                         let card_issuer = card.get_card_issuer()?;
                         let brand = CardBrand::try_from(&card_issuer)?;
-                        let card_holder_name = item.router_data.get_optional_billing_combined_name();
+                        let card_holder_name =
+                            item.router_data.get_optional_billing_combined_name();
                         let adyen_card = AdyenCard {
                             payment_type: PaymentType::Scheme,
                             number: card.card_number.clone(),
