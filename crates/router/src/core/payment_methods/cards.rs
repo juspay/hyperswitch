@@ -236,8 +236,8 @@ pub async fn generate_client_secret_or_add_payment_method(
     let merchant_id = &merchant_account.merchant_id;
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
 
-    if req.payment_method_data.is_some() {
-        add_payment_method_data(state, req, merchant_account, key_store).await
+    if let Some(cs) = req.client_secret.clone() {
+        add_payment_method_data(state, req, merchant_account, key_store, cs).await
     } else if req.card.is_some() || req.bank_transfer.is_some() || req.wallet.is_some() {
         add_payment_method(state, req, merchant_account, key_store).await
     } else {
@@ -327,6 +327,7 @@ pub async fn add_payment_method_data(
     req: api::PaymentMethodCreate,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
+    client_secret: String,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
     let db = &*state.store;
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
@@ -336,10 +337,6 @@ pub async fn add_payment_method_data(
         .clone()
         .get_required_value("payment_method_data")?;
 
-    let client_secret = req
-        .client_secret
-        .clone()
-        .get_required_value("client_secret")?;
     let payment_method = authenticate_pm_client_secret(&client_secret, db).await?;
     let pm_id = payment_method.id;
 
