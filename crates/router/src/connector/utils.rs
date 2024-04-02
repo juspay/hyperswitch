@@ -630,15 +630,17 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
         self.setup_mandate_details.is_some()
     }
 
-    fn get_metadata_as_object(&self) -> Option<pii::SecretSerdeValue>{
-        self.metadata.clone().and_then(|meta_data| match meta_data.peek() {
-            tera::Value::Null |
-            tera::Value::Bool(_) |
-            tera::Value::Number(_)|
-            tera::Value::String(_) |
-            tera::Value::Array(_) => None,
-            tera::Value::Object(_) => Some(meta_data),
-        })
+    fn get_metadata_as_object(&self) -> Option<pii::SecretSerdeValue> {
+        self.metadata
+            .clone()
+            .and_then(|meta_data| match meta_data.peek() {
+                tera::Value::Null
+                | tera::Value::Bool(_)
+                | tera::Value::Number(_)
+                | tera::Value::String(_)
+                | tera::Value::Array(_) => None,
+                tera::Value::Object(_) => Some(meta_data),
+            })
     }
 }
 
