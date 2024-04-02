@@ -339,7 +339,6 @@ impl<F, T>
             order_id: Some(item.response.order_id.clone()),
             psync_flow: item.response.transaction_type.clone(),
         })
-        .into_report()
         .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
         let redirection_data = item
             .response
@@ -436,7 +435,6 @@ impl<F, T>
             order_id: Some(item.response.order.order_id.clone()),
             psync_flow: item.response.transaction_type.clone(),
         })
-        .into_report()
         .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
         let resource_id = match item.response.transaction_type.clone() {
             NexinetsTransactionType::Debit | NexinetsTransactionType::Capture => {

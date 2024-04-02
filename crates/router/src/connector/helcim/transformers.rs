@@ -1,5 +1,5 @@
 use common_utils::pii::{Email, IpAddress};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -545,7 +545,6 @@ impl TryFrom<&HelcimRouterData<&types::PaymentsCaptureRouterData>> for HelcimCap
                 .request
                 .connector_transaction_id
                 .parse::<u64>()
-                .into_report()
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?,
             amount: item.amount,
             ip_address,
@@ -609,7 +608,6 @@ impl TryFrom<&types::PaymentsCancelRouterData> for HelcimVoidRequest {
                 .request
                 .connector_transaction_id
                 .parse::<u64>()
-                .into_report()
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?,
             ip_address,
             ecommerce: None,
@@ -676,7 +674,6 @@ impl<F> TryFrom<&HelcimRouterData<&types::RefundsRouterData<F>>> for HelcimRefun
             .request
             .connector_transaction_id
             .parse::<u64>()
-            .into_report()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
         let ip_address = item

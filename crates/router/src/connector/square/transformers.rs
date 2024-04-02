@@ -43,7 +43,6 @@ impl TryFrom<(&types::TokenizationRouterData, domain::Card)> for SquareTokenRequ
                 .get_expiry_year_4_digit()
                 .peek()
                 .parse::<u16>()
-                .into_report()
                 .change_context(errors::ConnectorError::DateFormattingFailed)?,
         );
         let exp_month = Secret::new(
@@ -51,7 +50,6 @@ impl TryFrom<(&types::TokenizationRouterData, domain::Card)> for SquareTokenRequ
                 .card_exp_month
                 .peek()
                 .parse::<u16>()
-                .into_report()
                 .change_context(errors::ConnectorError::DateFormattingFailed)?,
         );
         //The below error will never happen because if session-id is not generated it would give error in execute_pretasks itself.

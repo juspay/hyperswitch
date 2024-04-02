@@ -2,7 +2,7 @@ use api_models::payments;
 use base64::Engine;
 use common_enums::FutureUsage;
 use common_utils::{ext_traits::ValueExt, pii};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -99,6 +99,7 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
         };
 
         let (payment_information, solution) = match item.request.payment_method_data.clone() {
+            domain::PaymentMethodData::Card(ccard) => {
             domain::PaymentMethodData::Card(ccard) => {
                 let card_issuer = ccard.get_card_issuer();
                 let card_type = match card_issuer {
@@ -2121,7 +2122,6 @@ impl<F>
                             .consumer_authentication_information
                             .validate_response,
                     )
-                    .into_report()
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
                     Ok(Self {
                         status,
