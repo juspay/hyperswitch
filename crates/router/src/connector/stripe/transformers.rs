@@ -2707,7 +2707,7 @@ impl<F, T>
         } else {
             let network_transaction_id = match item.response.latest_attempt {
                 Some(LatestAttempt::PaymentIntentAttempt(attempt)) => attempt
-                    .payment_method_details
+                    .payment_method_details_card
                     .and_then(|payment_method_details| match payment_method_details.card {
                         Some(card) => card.network_transaction_id,
                         _ => None,
@@ -3167,7 +3167,7 @@ pub enum LatestAttempt {
 }
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct LatestPaymentAttempt {
-    pub payment_method_details: Option<StripePaymentMethodDetails>,
+    pub payment_method_details_card: Option<StripePaymentMethodDetails>,
     pub payment_method_options: Option<StripePaymentMethodOptions>,
     pub payment_method_details: Option<StripePaymentMethodDetailsResponse>,
 }
