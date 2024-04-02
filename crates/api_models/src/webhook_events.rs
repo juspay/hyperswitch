@@ -132,14 +132,28 @@ pub struct OutgoingWebhookResponseContent {
 
 #[derive(Debug, serde::Serialize)]
 pub struct EventListRequestInternal {
-    pub merchant_id: String,
+    pub merchant_id_or_profile_id: String,
     pub constraints: EventListConstraints,
 }
 
 impl common_utils::events::ApiEventMetric for EventListRequestInternal {
     fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
         Some(common_utils::events::ApiEventsType::Events {
-            merchant_id: self.merchant_id.clone(),
+            merchant_id_or_profile_id: self.merchant_id_or_profile_id.clone(),
+        })
+    }
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct WebhookDeliveryAttemptListRequestInternal {
+    pub merchant_id_or_profile_id: String,
+    pub initial_attempt_id: String,
+}
+
+impl common_utils::events::ApiEventMetric for WebhookDeliveryAttemptListRequestInternal {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::Events {
+            merchant_id_or_profile_id: self.merchant_id_or_profile_id.clone(),
         })
     }
 }

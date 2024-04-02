@@ -4325,19 +4325,19 @@
         ]
       }
     },
-    "/events/{merchant_id}": {
+    "/events/{merchant_id_or_profile_id}": {
       "get": {
         "tags": [
           "Event"
         ],
         "summary": "Events - List",
-        "description": "Events - List\n\nList all Events associated with a Merchant Account.",
-        "operationId": "List all Events associated with a Merchant Account",
+        "description": "Events - List\n\nList all Events associated with a Merchant Account or Business Profile.",
+        "operationId": "List all Events associated with a Merchant Account or Business Profile",
         "parameters": [
           {
-            "name": "merchant_id",
+            "name": "merchant_id_or_profile_id",
             "in": "path",
-            "description": "The unique identifier for the Merchant Account",
+            "description": "The unique identifier for the Merchant Account or Business Profile",
             "required": true,
             "schema": {
               "type": "string"
@@ -4420,7 +4420,7 @@
         ]
       }
     },
-    "/events/{merchant_id}/{event_id}/attempts": {
+    "/events/{merchant_id_or_profile_id}/{event_id}/attempts": {
       "get": {
         "tags": [
           "Event"
@@ -4430,9 +4430,9 @@
         "operationId": "List all delivery attempts for an Event",
         "parameters": [
           {
-            "name": "merchant_id",
+            "name": "merchant_id_or_profile_id",
             "in": "path",
-            "description": "The unique identifier for the Merchant Account",
+            "description": "The unique identifier for the Merchant Account or Business Profile",
             "required": true,
             "schema": {
               "type": "string"
@@ -7067,6 +7067,7 @@
           "authorizedotnet",
           "bambora",
           "bankofamerica",
+          "billwerk",
           "bitpay",
           "bluesnap",
           "boku",
@@ -13334,6 +13335,14 @@
             "description": "Whether to perform external authentication (if applicable)",
             "example": true,
             "nullable": true
+          },
+          "recurring_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecurringDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -13725,6 +13734,14 @@
             "type": "boolean",
             "description": "Whether to perform external authentication (if applicable)",
             "example": true,
+            "nullable": true
+          },
+          "recurring_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecurringDetails"
+              }
+            ],
             "nullable": true
           }
         }
@@ -14220,6 +14237,14 @@
             "description": "Whether to perform external authentication (if applicable)",
             "example": true,
             "nullable": true
+          },
+          "recurring_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecurringDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -14313,6 +14338,14 @@
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
             "maxLength": 255
+          },
+          "customer": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDetails"
+              }
+            ],
+            "nullable": true
           },
           "description": {
             "type": "string",
@@ -15228,6 +15261,14 @@
             "description": "Whether to perform external authentication (if applicable)",
             "example": true,
             "nullable": true
+          },
+          "recurring_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecurringDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -16137,6 +16178,49 @@
           "disabled"
         ]
       },
+      "RecurringDetails": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "mandate_id"
+                ]
+              },
+              "data": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "payment_method_id"
+                ]
+              },
+              "data": {
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
       "RedirectResponse": {
         "type": "object",
         "properties": {
@@ -16738,6 +16822,7 @@
           "airwallex",
           "authorizedotnet",
           "bankofamerica",
+          "billwerk",
           "bitpay",
           "bambora",
           "bluesnap",
