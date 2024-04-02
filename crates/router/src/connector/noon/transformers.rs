@@ -10,7 +10,7 @@ use crate::{
     },
     core::{errors, mandate::MandateBehaviour},
     services,
-    types::{self, api, storage::enums, transformers::ForeignFrom, ErrorResponse},
+    types::{self, api, domain, storage::enums, transformers::ForeignFrom, ErrorResponse},
 };
 
 // These needs to be accepted from SDK, need to be done after 1.0.0 stability as API contract will change
@@ -239,14 +239,16 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
             ),
             _ => (
                 match item.request.payment_method_data.clone() {
-                    api::PaymentMethodData::Card(req_card) => Ok(NoonPaymentData::Card(NoonCard {
-                        name_on_card: req_card.card_holder_name.clone(),
-                        number_plain: req_card.card_number.clone(),
-                        expiry_month: req_card.card_exp_month.clone(),
-                        expiry_year: req_card.get_expiry_year_4_digit(),
-                        cvv: req_card.card_cvc,
-                    })),
-                    api::PaymentMethodData::Wallet(wallet_data) => match wallet_data.clone() {
+                    domain::PaymentMethodData::Card(req_card) => {
+                        Ok(NoonPaymentData::Card(NoonCard {
+                            name_on_card: req_card.card_holder_name.clone(),
+                            number_plain: req_card.card_number.clone(),
+                            expiry_month: req_card.card_exp_month.clone(),
+                            expiry_year: req_card.get_expiry_year_4_digit(),
+                            cvv: req_card.card_cvc,
+                        }))
+                    }
+                    domain::PaymentMethodData::Wallet(wallet_data) => match wallet_data.clone() {
                         api_models::payments::WalletData::GooglePay(google_pay_data) => {
                             Ok(NoonPaymentData::GooglePay(NoonGooglePay {
                                 api_version_minor: GOOGLEPAY_API_VERSION_MINOR,
@@ -312,18 +314,18 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                             ))
                         }
                     },
-                    api::PaymentMethodData::CardRedirect(_)
-                    | api::PaymentMethodData::PayLater(_)
-                    | api::PaymentMethodData::BankRedirect(_)
-                    | api::PaymentMethodData::BankDebit(_)
-                    | api::PaymentMethodData::BankTransfer(_)
-                    | api::PaymentMethodData::Crypto(_)
-                    | api::PaymentMethodData::MandatePayment {}
-                    | api::PaymentMethodData::Reward {}
-                    | api::PaymentMethodData::Upi(_)
-                    | api::PaymentMethodData::Voucher(_)
-                    | api::PaymentMethodData::GiftCard(_)
-                    | api::PaymentMethodData::CardToken(_) => {
+                    domain::PaymentMethodData::CardRedirect(_)
+                    | domain::PaymentMethodData::PayLater(_)
+                    | domain::PaymentMethodData::BankRedirect(_)
+                    | domain::PaymentMethodData::BankDebit(_)
+                    | domain::PaymentMethodData::BankTransfer(_)
+                    | domain::PaymentMethodData::Crypto(_)
+                    | domain::PaymentMethodData::MandatePayment {}
+                    | domain::PaymentMethodData::Reward {}
+                    | domain::PaymentMethodData::Upi(_)
+                    | domain::PaymentMethodData::Voucher(_)
+                    | domain::PaymentMethodData::GiftCard(_)
+                    | domain::PaymentMethodData::CardToken(_) => {
                         Err(errors::ConnectorError::NotImplemented(
                             conn_utils::get_unimplemented_payment_method_error_message("Noon"),
                         ))
