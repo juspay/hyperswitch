@@ -141,6 +141,7 @@ cards = [
     "wise",
     "worldline",
     "worldpay",
+    "zsl",
     "zen",
 ]
 
@@ -219,6 +220,7 @@ stripe.base_url_file_upload = "https://files.stripe.com/"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
+zsl.base_url = "https://api.sitoffalb.net/ecp"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 tsys.base_url = "https://stagegw.transnox.com/"
 volt.base_url = "https://api.sandbox.volt.io/"
