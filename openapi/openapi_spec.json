@@ -12336,7 +12336,7 @@
           },
           "client_secret": {
             "type": "string",
-            "description": "For Client based calls",
+            "description": "For Client based calls, SDK will use the client_secret\nin order to call /payment_methods",
             "nullable": true
           },
           "payment_method_data": {
