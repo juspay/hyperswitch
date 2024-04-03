@@ -123,13 +123,13 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 logger::info!("Call to save_payment_method in locker");
 
                 let pm = Box::pin(tokenization::save_payment_method(
-                    &state,
-                    &connector,
+                    state,
+                    connector,
                     response,
-                    &maybe_customer,
-                    &merchant_account,
+                    maybe_customer,
+                    merchant_account,
                     self.request.payment_method_type,
-                    &key_store,
+                    key_store,
                     Some(resp.request.amount),
                     Some(resp.request.currency),
                 ))
