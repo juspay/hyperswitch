@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use error_stack;
+use router_env::tracing::Instrument;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -125,26 +126,32 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 let state = state.clone();
 
                 logger::info!("Call to save_payment_method in locker");
-                tokio::spawn(async move {
-                    logger::info!("Starting async call to save_payment_method in locker");
+                let _task_handle = tokio::spawn(
+                    async move {
+                        logger::info!("Starting async call to save_payment_method in locker");
 
-                    let result = Box::pin(tokenization::save_payment_method(
-                        &state,
-                        &connector,
-                        response,
-                        &maybe_customer,
-                        &merchant_account,
-                        self.request.payment_method_type,
-                        &key_store,
-                        Some(resp.request.amount),
-                        Some(resp.request.currency),
-                    ))
-                    .await;
+                        let result = Box::pin(tokenization::save_payment_method(
+                            &state,
+                            &connector,
+                            response,
+                            &maybe_customer,
+                            &merchant_account,
+                            self.request.payment_method_type,
+                            &key_store,
+                            Some(resp.request.amount),
+                            Some(resp.request.currency),
+                        ))
+                        .await;
 
-                    if let Err(err) = result {
-                        logger::error!("Asynchronously saving card in locker failed : {:?}", err);
+                        if let Err(err) = result {
+                            logger::error!(
+                                "Asynchronously saving card in locker failed : {:?}",
+                                err
+                            );
+                        }
                     }
-                });
+                    .in_current_span(),
+                );
 
                 Ok(resp)
             }
@@ -287,7 +294,7 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
     fn get_mandate_id(&self) -> Option<&api_models::payments::MandateIds> {
         self.mandate_id.as_ref()
     }
-    fn get_payment_method_data(&self) -> api_models::payments::PaymentMethodData {
+    fn get_payment_method_data(&self) -> domain::payments::PaymentMethodData {
         self.payment_method_data.clone()
     }
     fn get_setup_future_usage(&self) -> Option<diesel_models::enums::FutureUsage> {

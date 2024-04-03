@@ -1,8 +1,8 @@
-use api_models::payments::PaymentMethodData;
 use base64::Engine;
 use cards::CardNumber;
 use common_utils::errors::CustomResult;
-use error_stack::{IntoReport, ResultExt};
+use domain::PaymentMethodData;
+use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -14,7 +14,7 @@ use crate::{
     consts,
     core::errors,
     services,
-    types::{self, api, storage::enums, transformers::ForeignFrom},
+    types::{self, api, domain, storage::enums, transformers::ForeignFrom},
 };
 
 #[derive(Debug, Serialize)]
@@ -339,7 +339,6 @@ impl<F, T>
             order_id: Some(item.response.order_id.clone()),
             psync_flow: item.response.transaction_type.clone(),
         })
-        .into_report()
         .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
         let redirection_data = item
             .response
@@ -436,7 +435,6 @@ impl<F, T>
             order_id: Some(item.response.order.order_id.clone()),
             psync_flow: item.response.transaction_type.clone(),
         })
-        .into_report()
         .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
         let resource_id = match item.response.transaction_type.clone() {
             NexinetsTransactionType::Debit | NexinetsTransactionType::Capture => {
@@ -635,7 +633,7 @@ fn get_payment_details_and_product(
 
 fn get_card_data(
     item: &types::PaymentsAuthorizeRouterData,
-    card: &api_models::payments::Card,
+    card: &domain::payments::Card,
 ) -> Result<NexinetsPaymentDetails, errors::ConnectorError> {
     let (card_data, cof_contract) = match item.request.is_mandate_payment() {
         true => {
@@ -665,7 +663,7 @@ fn get_applepay_details(
     wallet_data: &api_models::payments::WalletData,
     applepay_data: &api_models::payments::ApplePayWalletData,
 ) -> CustomResult<ApplePayDetails, errors::ConnectorError> {
-    let payment_data = wallet_data.get_wallet_token_as_json()?;
+    let payment_data = wallet_data.get_wallet_token_as_json("Apple Pay".to_string())?;
     Ok(ApplePayDetails {
         payment_data,
         payment_method: ApplepayPaymentMethod {
@@ -678,7 +676,7 @@ fn get_applepay_details(
 }
 
 fn get_card_details(
-    req_card: &api_models::payments::Card,
+    req_card: &domain::payments::Card,
 ) -> Result<CardDetails, errors::ConnectorError> {
     Ok(CardDetails {
         card_number: req_card.card_number.clone(),

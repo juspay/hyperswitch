@@ -2,7 +2,7 @@ use api_models::user::dashboard_metadata::{self as api, GetMultipleMetaDataPaylo
 use diesel_models::{
     enums::DashboardMetadata as DBEnum, user::dashboard_metadata::DashboardMetadata,
 };
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 #[cfg(feature = "email")]
 use masking::ExposeInterface;
 #[cfg(feature = "email")]
@@ -61,7 +61,7 @@ fn parse_set_request(data_enum: api::SetMetaDataRequest) -> UserResult<types::Me
         api::SetMetaDataRequest::ProductionAgreement(req) => {
             let ip_address = req
                 .ip_address
-                .ok_or(UserErrors::InternalServerError.into())
+                .ok_or(report!(UserErrors::InternalServerError))
                 .attach_printable("Error Getting Ip Address")?;
             Ok(types::MetaData::ProductionAgreement(
                 types::ProductionAgreementValue {

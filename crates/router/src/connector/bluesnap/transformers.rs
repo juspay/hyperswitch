@@ -7,7 +7,7 @@ use common_utils::{
     ext_traits::{ByteSliceExt, StringExt, ValueExt},
     pii::Email,
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -21,7 +21,7 @@ use crate::{
     core::errors,
     pii::Secret,
     types::{
-        self, api,
+        self, api, domain,
         storage::enums,
         transformers::{ForeignFrom, ForeignTryFrom},
     },
@@ -230,27 +230,27 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>>
         item: &BluesnapRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data {
-            api::PaymentMethodData::Card(ref ccard) => Ok(Self {
+            domain::PaymentMethodData::Card(ref ccard) => Ok(Self {
                 cc_number: ccard.card_number.clone(),
                 exp_date: ccard.get_expiry_date_as_mmyyyy("/"),
             }),
-            api::PaymentMethodData::Wallet(_)
-            | payments::PaymentMethodData::PayLater(_)
-            | payments::PaymentMethodData::BankRedirect(_)
-            | payments::PaymentMethodData::BankDebit(_)
-            | payments::PaymentMethodData::BankTransfer(_)
-            | payments::PaymentMethodData::Crypto(_)
-            | payments::PaymentMethodData::MandatePayment
-            | payments::PaymentMethodData::Reward
-            | payments::PaymentMethodData::Upi(_)
-            | payments::PaymentMethodData::CardRedirect(_)
-            | payments::PaymentMethodData::Voucher(_)
-            | payments::PaymentMethodData::GiftCard(_)
-            | payments::PaymentMethodData::CardToken(_) => {
+            domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     "Selected payment method via Token flow through bluesnap".to_string(),
-                ))
-                .into_report()
+                )
+                .into())
             }
         }
     }
@@ -280,7 +280,7 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
             .payment_method_data
             .clone()
         {
-            api::PaymentMethodData::Card(ref ccard) => Ok((
+            domain::PaymentMethodData::Card(ref ccard) => Ok((
                 PaymentMethodDetails::CreditCard(Card {
                     card_number: ccard.card_number.clone(),
                     expiration_month: ccard.card_exp_month.clone(),
@@ -292,7 +292,7 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
                     item.router_data.request.get_email()?,
                 )?,
             )),
-            api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+            domain::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 api_models::payments::WalletData::GooglePay(payment_method_data) => {
                     let gpay_object = BluesnapGooglePayObject {
                         payment_method_data: utils::GooglePayWalletData::from(payment_method_data),
@@ -310,14 +310,15 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
                     ))
                 }
                 api_models::payments::WalletData::ApplePay(payment_method_data) => {
-                    let apple_pay_payment_data = payment_method_data
-                        .get_applepay_decoded_payment_data()
-                        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+                    let apple_pay_payment_data =
+                        payment_method_data.get_applepay_decoded_payment_data()?;
                     let apple_pay_payment_data: ApplePayEncodedPaymentData = apple_pay_payment_data
                         .expose()[..]
                         .as_bytes()
                         .parse_struct("ApplePayEncodedPaymentData")
-                        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+                        .change_context(errors::ConnectorError::InvalidWalletToken {
+                            wallet_name: "Apple Pay".to_string(),
+                        })?;
 
                     let billing = item.router_data.get_billing()?.to_owned();
 
@@ -398,20 +399,22 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
                     ))
                 }
             },
-            payments::PaymentMethodData::PayLater(_)
-            | payments::PaymentMethodData::BankRedirect(_)
-            | payments::PaymentMethodData::BankDebit(_)
-            | payments::PaymentMethodData::BankTransfer(_)
-            | payments::PaymentMethodData::Crypto(_)
-            | payments::PaymentMethodData::MandatePayment
-            | payments::PaymentMethodData::Reward
-            | payments::PaymentMethodData::Upi(_)
-            | payments::PaymentMethodData::CardRedirect(_)
-            | payments::PaymentMethodData::Voucher(_)
-            | payments::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("bluesnap"),
-            )),
+            domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("bluesnap"),
+                ))
+            }
         }?;
         Ok(Self {
             amount: item.amount.to_owned(),
@@ -495,7 +498,6 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
 
         let wallet_token = consts::BASE64_ENGINE
             .decode(response.wallet_token.clone().expose())
-            .into_report()
             .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
         let session_response: api_models::payments::NoThirdPartySdkSessionResponse =
@@ -1070,7 +1072,6 @@ impl TryFrom<BluesnapWebhookObjectResource> for Value {
             BluesnapWebhookEvents::Chargeback | BluesnapWebhookEvents::ChargebackStatusChanged => {
                 //It won't be consumed in dispute flow, so currently does not hold any significance
                 return serde_json::to_value(details)
-                    .into_report()
                     .change_context(errors::ConnectorError::WebhookBodyDecodingFailed);
             }
             BluesnapWebhookEvents::Refund => Ok((
@@ -1081,7 +1082,7 @@ impl TryFrom<BluesnapWebhookObjectResource> for Value {
                     .ok_or(errors::ConnectorError::WebhookResourceObjectNotFound)?,
             )),
             BluesnapWebhookEvents::Unknown => {
-                Err(errors::ConnectorError::WebhookResourceObjectNotFound).into_report()
+                Err(errors::ConnectorError::WebhookResourceObjectNotFound)
             }
         }?;
         let sync_struct = BluesnapPaymentsResponse {
@@ -1094,7 +1095,6 @@ impl TryFrom<BluesnapWebhookObjectResource> for Value {
             card_transaction_type,
         };
         serde_json::to_value(sync_struct)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
     }
 }

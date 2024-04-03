@@ -44,7 +44,7 @@ use api_models::analytics::{
 };
 use clickhouse::ClickhouseClient;
 pub use clickhouse::ClickhouseConfig;
-use error_stack::IntoReport;
+use error_stack::report;
 use router_env::{
     logger,
     tracing::{self, instrument},
@@ -513,7 +513,7 @@ impl AnalyticsProvider {
         time_range: &TimeRange,
     ) -> types::MetricsResult<Vec<(SdkEventMetricsBucketIdentifier, SdkEventMetricRow)>> {
         match self {
-            Self::Sqlx(_pool) => Err(MetricsError::NotImplemented).into_report(),
+            Self::Sqlx(_pool) => Err(report!(MetricsError::NotImplemented)),
             Self::Clickhouse(pool) => {
                 metric
                     .load_metrics(dimensions, pub_key, filters, granularity, time_range, pool)
@@ -545,7 +545,7 @@ impl AnalyticsProvider {
         time_range: &TimeRange,
     ) -> types::MetricsResult<Vec<(ApiEventMetricsBucketIdentifier, ApiEventMetricRow)>> {
         match self {
-            Self::Sqlx(_pool) => Err(MetricsError::NotImplemented).into_report(),
+            Self::Sqlx(_pool) => Err(report!(MetricsError::NotImplemented)),
             Self::Clickhouse(ckh_pool)
             | Self::CombinedCkh(_, ckh_pool)
             | Self::CombinedSqlx(_, ckh_pool) => {
