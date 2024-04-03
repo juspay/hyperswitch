@@ -2425,12 +2425,12 @@ impl<F, T>
                 services::RedirectForm::from((redirection_url, services::Method::Get))
             });
 
-        let mandate_reference = item.response.payment_method.map(|paymet_method_id| {
+        let mandate_reference = item.response.payment_method.map(|payment_method_id| {
             // Implemented Save and re-use payment information for recurring charges
             // For more info: https://docs.stripe.com/recurring-payments#accept-recurring-payments
-            // For backward compataibility payment_method_id & connector_mandate_id is being populated with the same value
-            let connector_mandate_id = Some(paymet_method_id.clone().expose());
-            let payment_method_id = Some(paymet_method_id.expose());
+            // For backward compatibility payment_method_id & connector_mandate_id is being populated with the same value
+            let connector_mandate_id = Some(payment_method_id.clone().expose());
+            let payment_method_id = Some(payment_method_id.expose());
             types::MandateReference {
                 connector_mandate_id,
                 payment_method_id,
@@ -2557,11 +2557,11 @@ impl<F, T>
             .response
             .payment_method
             .clone()
-            .map(|paymet_method_id| {
+            .map(|payment_method_id| {
                 // Implemented Save and re-use payment information for recurring charges
                 // For more info: https://docs.stripe.com/recurring-payments#accept-recurring-payments
-                // For backward compataibility payment_method_id & connector_mandate_id is being populated with the same value
-                let connector_mandate_id = Some(paymet_method_id.clone().expose());
+                // For backward compatibility payment_method_id & connector_mandate_id is being populated with the same value
+                let connector_mandate_id = Some(payment_method_id.clone().expose());
                 let payment_method_id = match item.response.latest_charge.clone() {
                     Some(StripeChargeEnum::ChargeObject(charge)) => {
                         match charge.payment_method_details {
@@ -2569,16 +2569,16 @@ impl<F, T>
                                 bancontact
                                     .attached_payment_method
                                     .map(|attached_payment_method| attached_payment_method.expose())
-                                    .unwrap_or(paymet_method_id.expose())
+                                    .unwrap_or(payment_method_id.expose())
                             }
                             Some(StripePaymentMethodDetailsResponse::Ideal { ideal }) => ideal
                                 .attached_payment_method
                                 .map(|attached_payment_method| attached_payment_method.expose())
-                                .unwrap_or(paymet_method_id.expose()),
+                                .unwrap_or(payment_method_id.expose()),
                             Some(StripePaymentMethodDetailsResponse::Sofort { sofort }) => sofort
                                 .attached_payment_method
                                 .map(|attached_payment_method| attached_payment_method.expose())
-                                .unwrap_or(paymet_method_id.expose()),
+                                .unwrap_or(payment_method_id.expose()),
                             Some(StripePaymentMethodDetailsResponse::Blik)
                             | Some(StripePaymentMethodDetailsResponse::Eps)
                             | Some(StripePaymentMethodDetailsResponse::Fpx)
@@ -2596,10 +2596,10 @@ impl<F, T>
                             | Some(StripePaymentMethodDetailsResponse::Wechatpay)
                             | Some(StripePaymentMethodDetailsResponse::Alipay)
                             | Some(StripePaymentMethodDetailsResponse::CustomerBalance)
-                            | None => paymet_method_id.expose(),
+                            | None => payment_method_id.expose(),
                         }
                     }
-                    Some(StripeChargeEnum::ChargeId(_)) | None => paymet_method_id.expose(),
+                    Some(StripeChargeEnum::ChargeId(_)) | None => payment_method_id.expose(),
                 };
                 types::MandateReference {
                     connector_mandate_id,
@@ -2661,12 +2661,12 @@ impl<F, T>
                 services::RedirectForm::from((redirection_url, services::Method::Get))
             });
 
-        let mandate_reference = item.response.payment_method.map(|paymet_method_id| {
+        let mandate_reference = item.response.payment_method.map(|payment_method_id| {
             // Implemented Save and re-use payment information for recurring charges
             // For more info: https://docs.stripe.com/recurring-payments#accept-recurring-payments
-            // For backward compataibility payment_method_id & connector_mandate_id is being populated with the same value
-            let connector_mandate_id = Some(paymet_method_id.clone());
-            let payment_method_id = Some(paymet_method_id);
+            // For backward compatibility payment_method_id & connector_mandate_id is being populated with the same value
+            let connector_mandate_id = Some(payment_method_id.clone());
+            let payment_method_id = Some(payment_method_id);
             types::MandateReference {
                 connector_mandate_id,
                 payment_method_id,
