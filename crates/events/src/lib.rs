@@ -71,10 +71,7 @@ where
     event: E,
 }
 
-struct RawEvent<T, A: Event<EventType = T>>(
-    HashMap<String, Value>,
-    A
-);
+struct RawEvent<T, A: Event<EventType = T>>(HashMap<String, Value>, A);
 
 impl<T, A, E, D> EventBuilder<T, A, E, D>
 where
@@ -82,8 +79,15 @@ where
     E: Event<EventType = T, Data = D>,
 {
     /// Add metadata to the event.
-    pub fn with<F: ErasedMaskSerialize, G: EventInfo<Data = F> + 'static>(mut self, info: G) -> Self {
-        info.data().and_then(|i| i.masked_serialize().change_context(EventsError::SerializationError))
+    pub fn with<F: ErasedMaskSerialize, G: EventInfo<Data = F> + 'static>(
+        mut self,
+        info: G,
+    ) -> Self {
+        info.data()
+            .and_then(|i| {
+                i.masked_serialize()
+                    .change_context(EventsError::SerializationError)
+            })
             .map_err(|e| {
                 logger::error!("Error adding event info: {:?}", e);
             })
@@ -109,8 +113,9 @@ where
     }
 }
 
-impl<T, A> Serialize for RawEvent<T, A> 
-where A: Event<EventType = T>
+impl<T, A> Serialize for RawEvent<T, A>
+where
+    A: Event<EventType = T>,
 {
     fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
     where
@@ -152,8 +157,14 @@ where
 
     /// Add metadata to the event context.
     #[track_caller]
-    pub fn record_info<G: ErasedMaskSerialize, E: EventInfo<Data = G> + 'static>(&mut self, info: E) {
-        match info.data().and_then(|i| i.masked_serialize().change_context(EventsError::SerializationError)) {
+    pub fn record_info<G: ErasedMaskSerialize, E: EventInfo<Data = G> + 'static>(
+        &mut self,
+        info: E,
+    ) {
+        match info.data().and_then(|i| {
+            i.masked_serialize()
+                .change_context(EventsError::SerializationError)
+        }) {
             Ok(data) => {
                 self.metadata.insert(info.key(), data);
             }
@@ -184,7 +195,10 @@ where
     }
 
     /// Create an event builder.
-    pub fn event<D, E: Event<EventType = T, Data = D>>(&self, event: E) -> EventBuilder<T, A, E, D> {
+    pub fn event<D, E: Event<EventType = T, Data = D>>(
+        &self,
+        event: E,
+    ) -> EventBuilder<T, A, E, D> {
         EventBuilder {
             message_sink: self.message_sink.clone(),
             metadata: self.metadata.clone(),
@@ -238,7 +252,8 @@ pub trait Message {
 }
 
 impl<T, A> Message for RawEvent<T, A>
-where A: Event<EventType = T>
+where
+    A: Event<EventType = T>,
 {
     type Class = T;
 
