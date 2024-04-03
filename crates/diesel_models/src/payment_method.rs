@@ -126,6 +126,9 @@ pub enum PaymentMethodUpdate {
     StatusUpdate {
         status: Option<storage_enums::PaymentMethodStatus>,
     },
+    ConnectorMandateDetailsUpdate {
+        connector_mandate_details: Option<serde_json::Value>,
+    },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -135,6 +138,7 @@ pub struct PaymentMethodUpdateInternal {
     payment_method_data: Option<Encryption>,
     last_used_at: Option<PrimitiveDateTime>,
     status: Option<storage_enums::PaymentMethodStatus>,
+    connector_mandate_details: Option<serde_json::Value>,
 }
 
 impl PaymentMethodUpdateInternal {
@@ -153,6 +157,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 payment_method_data: None,
                 last_used_at: None,
                 status: None,
+                connector_mandate_details: None,
             },
             PaymentMethodUpdate::PaymentMethodDataUpdate {
                 payment_method_data,
@@ -161,18 +166,30 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 payment_method_data,
                 last_used_at: None,
                 status: None,
+                connector_mandate_details: None,
             },
             PaymentMethodUpdate::LastUsedUpdate { last_used_at } => Self {
                 metadata: None,
                 payment_method_data: None,
                 last_used_at: Some(last_used_at),
                 status: None,
+                connector_mandate_details: None,
             },
             PaymentMethodUpdate::StatusUpdate { status } => Self {
                 metadata: None,
                 payment_method_data: None,
                 last_used_at: None,
                 status,
+                connector_mandate_details: None,
+            },
+            PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
+                connector_mandate_details,
+            } => Self {
+                metadata: None,
+                payment_method_data: None,
+                last_used_at: None,
+                status: None,
+                connector_mandate_details,
             },
         }
     }

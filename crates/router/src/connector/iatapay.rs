@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use base64::Engine;
 use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::PeekInterface;
 use transformers as iatapay;
 
@@ -652,7 +652,6 @@ impl api::IncomingWebhook for Iatapay {
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let message = std::str::from_utf8(request.body)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         Ok(message.to_string().into_bytes())
     }

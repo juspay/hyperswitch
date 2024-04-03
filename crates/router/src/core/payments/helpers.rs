@@ -15,7 +15,7 @@ use data_models::{
 };
 use diesel_models::enums;
 // TODO : Evaluate all the helper functions ()
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use josekit::jwe;
 use masking::{ExposeInterface, PeekInterface};
 use openssl::{
@@ -69,24 +69,19 @@ pub fn create_identity_from_certificate_and_key(
 ) -> Result<reqwest::Identity, error_stack::Report<errors::ApiClientError>> {
     let decoded_certificate = BASE64_ENGINE
         .decode(encoded_certificate)
-        .into_report()
         .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
 
     let decoded_certificate_key = BASE64_ENGINE
         .decode(encoded_certificate_key)
-        .into_report()
         .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
 
     let certificate = String::from_utf8(decoded_certificate)
-        .into_report()
         .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
 
     let certificate_key = String::from_utf8(decoded_certificate_key)
-        .into_report()
         .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
 
     reqwest::Identity::from_pkcs8_pem(certificate.as_bytes(), certificate_key.as_bytes())
-        .into_report()
         .change_context(errors::ApiClientError::CertificateDecodeFailed)
 }
 
@@ -122,74 +117,76 @@ pub async fn create_or_update_address_for_payment_by_request(
         Some(id) => match req_address {
             Some(address) => {
                 let address_update = async {
-                    Ok(storage::AddressUpdate::Update {
-                        city: address
-                            .address
-                            .as_ref()
-                            .and_then(|value| value.city.clone()),
-                        country: address.address.as_ref().and_then(|value| value.country),
-                        line1: address
-                            .address
-                            .as_ref()
-                            .and_then(|value| value.line1.clone())
-                            .async_lift(|inner| types::encrypt_optional(inner, key))
-                            .await?,
-                        line2: address
-                            .address
-                            .as_ref()
-                            .and_then(|value| value.line2.clone())
-                            .async_lift(|inner| types::encrypt_optional(inner, key))
-                            .await?,
-                        line3: address
-                            .address
-                            .as_ref()
-                            .and_then(|value| value.line3.clone())
-                            .async_lift(|inner| types::encrypt_optional(inner, key))
-                            .await?,
-                        state: address
-                            .address
-                            .as_ref()
-                            .and_then(|value| value.state.clone())
-                            .async_lift(|inner| types::encrypt_optional(inner, key))
-                            .await?,
-                        zip: address
-                            .address
-                            .as_ref()
-                            .and_then(|value| value.zip.clone())
-                            .async_lift(|inner| types::encrypt_optional(inner, key))
-                            .await?,
-                        first_name: address
-                            .address
-                            .as_ref()
-                            .and_then(|value| value.first_name.clone())
-                            .async_lift(|inner| types::encrypt_optional(inner, key))
-                            .await?,
-                        last_name: address
-                            .address
-                            .as_ref()
-                            .and_then(|value| value.last_name.clone())
-                            .async_lift(|inner| types::encrypt_optional(inner, key))
-                            .await?,
-                        phone_number: address
-                            .phone
-                            .as_ref()
-                            .and_then(|value| value.number.clone())
-                            .async_lift(|inner| types::encrypt_optional(inner, key))
-                            .await?,
-                        country_code: address
-                            .phone
-                            .as_ref()
-                            .and_then(|value| value.country_code.clone()),
-                        updated_by: storage_scheme.to_string(),
-                        email: address
-                            .email
-                            .as_ref()
-                            .cloned()
-                            .async_lift(|inner| {
-                                types::encrypt_optional(inner.map(|inner| inner.expose()), key)
-                            })
-                            .await?,
-                    })
+                    Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(
+                        storage::AddressUpdate::Update {
+                            city: address
+                                .address
+                                .as_ref()
+                                .and_then(|value| value.city.clone()),
+                            country: address.address.as_ref().and_then(|value| value.country),
+                            line1: address
+                                .address
+                                .as_ref()
+                                .and_then(|value| value.line1.clone())
+                                .async_lift(|inner| types::encrypt_optional(inner, key))
+                                .await?,
+                            line2: address
+                                .address
+                                .as_ref()
+                                .and_then(|value| value.line2.clone())
+                                .async_lift(|inner| types::encrypt_optional(inner, key))
+                                .await?,
+                            line3: address
+                                .address
+                                .as_ref()
+                                .and_then(|value| value.line3.clone())
+                                .async_lift(|inner| types::encrypt_optional(inner, key))
+                                .await?,
+                            state: address
+                                .address
+                                .as_ref()
+                                .and_then(|value| value.state.clone())
+                                .async_lift(|inner| types::encrypt_optional(inner, key))
+                                .await?,
+                            zip: address
+                                .address
+                                .as_ref()
+                                .and_then(|value| value.zip.clone())
+                                .async_lift(|inner| types::encrypt_optional(inner, key))
+                                .await?,
+                            first_name: address
+                                .address
+                                .as_ref()
+                                .and_then(|value| value.first_name.clone())
+                                .async_lift(|inner| types::encrypt_optional(inner, key))
+                                .await?,
+                            last_name: address
+                                .address
+                                .as_ref()
+                                .and_then(|value| value.last_name.clone())
+                                .async_lift(|inner| types::encrypt_optional(inner, key))
+                                .await?,
+                            phone_number: address
+                                .phone
+                                .as_ref()
+                                .and_then(|value| value.number.clone())
+                                .async_lift(|inner| types::encrypt_optional(inner, key))
+                                .await?,
+                            country_code: address
+                                .phone
+                                .as_ref()
+                                .and_then(|value| value.country_code.clone()),
+                            updated_by: storage_scheme.to_string(),
+                            email: address
+                                .email
+                                .as_ref()
+                                .cloned()
+                                .async_lift(|inner| {
+                                    types::encrypt_optional(inner.map(|inner| inner.expose()), key)
+                                })
+                                .await?,
+                        },
+                    )
                 }
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -769,11 +766,11 @@ pub fn validate_card_data(
                 message: "Invalid card_cvc length".to_string()
             }))?
         }
-        let card_cvc = cvc.parse::<u16>().into_report().change_context(
-            errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "card_cvc",
-            },
-        )?;
+        let card_cvc =
+            cvc.parse::<u16>()
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "card_cvc",
+                })?;
         ::cards::CardSecurityCode::try_from(card_cvc).change_context(
             errors::ApiErrorResponse::PreconditionFailed {
                 message: "Invalid Card CVC".to_string(),
@@ -785,7 +782,6 @@ pub fn validate_card_data(
             .peek()
             .to_string()
             .parse::<u8>()
-            .into_report()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "card_exp_month",
             })?;
@@ -798,11 +794,12 @@ pub fn validate_card_data(
         if year_str.len() == 2 {
             year_str = format!("20{}", year_str);
         }
-        let exp_year = year_str.parse::<u16>().into_report().change_context(
-            errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "card_exp_year",
-            },
-        )?;
+        let exp_year =
+            year_str
+                .parse::<u16>()
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "card_exp_year",
+                })?;
         let year = ::cards::CardExpirationYear::try_from(exp_year).change_context(
             errors::ApiErrorResponse::PreconditionFailed {
                 message: "Invalid Expiry Year".to_string(),
@@ -941,8 +938,8 @@ pub fn validate_customer_id_mandatory_cases(
     match (has_setup_future_usage, customer_id) {
         (true, None) => Err(errors::ApiErrorResponse::PreconditionFailed {
             message: "customer_id is mandatory when setup_future_usage is given".to_string(),
-        })
-        .into_report(),
+        }
+        .into()),
         _ => Ok(()),
     }
 }
@@ -1148,7 +1145,6 @@ where
                     );
                     super::reset_process_sync_task(&*state.store, payment_attempt, stime)
                         .await
-                        .into_report()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed while updating task in process tracker")
                 }
@@ -1171,7 +1167,7 @@ where
 
 #[instrument(skip_all)]
 pub(crate) async fn get_payment_method_create_request(
-    payment_method_data: Option<&api::PaymentMethodData>,
+    payment_method_data: Option<&domain::PaymentMethodData>,
     payment_method: Option<storage_enums::PaymentMethod>,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     customer: &domain::Customer,
@@ -1179,7 +1175,7 @@ pub(crate) async fn get_payment_method_create_request(
     match payment_method_data {
         Some(pm_data) => match payment_method {
             Some(payment_method) => match pm_data {
-                api::PaymentMethodData::Card(card) => {
+                domain::PaymentMethodData::Card(card) => {
                     let card_detail = api::CardDetail {
                         card_number: card.card_number.clone(),
                         card_exp_month: card.card_exp_month.clone(),
@@ -1424,34 +1420,36 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, Ctx>(
                     {
                         let key = key_store.key.get_inner().peek();
                         let customer_update = async {
-                            Ok(Update {
-                                name: request_customer_details
-                                    .name
-                                    .async_lift(|inner| types::encrypt_optional(inner, key))
-                                    .await?,
-                                email: request_customer_details
-                                    .email
-                                    .clone()
-                                    .async_lift(|inner| {
-                                        types::encrypt_optional(
-                                            inner.map(|inner| inner.expose()),
-                                            key,
-                                        )
-                                    })
-                                    .await?,
-                                phone: Box::new(
-                                    request_customer_details
-                                        .phone
-                                        .clone()
+                            Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(
+                                Update {
+                                    name: request_customer_details
+                                        .name
                                         .async_lift(|inner| types::encrypt_optional(inner, key))
                                         .await?,
-                                ),
-                                phone_country_code: request_customer_details.phone_country_code,
-                                description: None,
-                                connector_customer: None,
-                                metadata: None,
-                                address_id: None,
-                            })
+                                    email: request_customer_details
+                                        .email
+                                        .clone()
+                                        .async_lift(|inner| {
+                                            types::encrypt_optional(
+                                                inner.map(|inner| inner.expose()),
+                                                key,
+                                            )
+                                        })
+                                        .await?,
+                                    phone: Box::new(
+                                        request_customer_details
+                                            .phone
+                                            .clone()
+                                            .async_lift(|inner| types::encrypt_optional(inner, key))
+                                            .await?,
+                                    ),
+                                    phone_country_code: request_customer_details.phone_country_code,
+                                    description: None,
+                                    connector_customer: None,
+                                    metadata: None,
+                                    address_id: None,
+                                },
+                            )
                         }
                         .await
                         .change_context(errors::StorageError::SerializationFailed)
@@ -1471,35 +1469,42 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, Ctx>(
                 None => {
                     let new_customer = async {
                         let key = key_store.key.get_inner().peek();
-                        Ok(domain::Customer {
-                            customer_id: customer_id.to_string(),
-                            merchant_id: merchant_id.to_string(),
-                            name: request_customer_details
-                                .name
-                                .async_lift(|inner| types::encrypt_optional(inner, key))
-                                .await?,
-                            email: request_customer_details
-                                .email
-                                .clone()
-                                .async_lift(|inner| {
-                                    types::encrypt_optional(inner.map(|inner| inner.expose()), key)
-                                })
-                                .await?,
-                            phone: request_customer_details
-                                .phone
-                                .clone()
-                                .async_lift(|inner| types::encrypt_optional(inner, key))
-                                .await?,
-                            phone_country_code: request_customer_details.phone_country_code.clone(),
-                            description: None,
-                            created_at: common_utils::date_time::now(),
-                            id: None,
-                            metadata: None,
-                            modified_at: common_utils::date_time::now(),
-                            connector_customer: None,
-                            address_id: None,
-                            default_payment_method_id: None,
-                        })
+                        Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(
+                            domain::Customer {
+                                customer_id: customer_id.to_string(),
+                                merchant_id: merchant_id.to_string(),
+                                name: request_customer_details
+                                    .name
+                                    .async_lift(|inner| types::encrypt_optional(inner, key))
+                                    .await?,
+                                email: request_customer_details
+                                    .email
+                                    .clone()
+                                    .async_lift(|inner| {
+                                        types::encrypt_optional(
+                                            inner.map(|inner| inner.expose()),
+                                            key,
+                                        )
+                                    })
+                                    .await?,
+                                phone: request_customer_details
+                                    .phone
+                                    .clone()
+                                    .async_lift(|inner| types::encrypt_optional(inner, key))
+                                    .await?,
+                                phone_country_code: request_customer_details
+                                    .phone_country_code
+                                    .clone(),
+                                description: None,
+                                created_at: common_utils::date_time::now(),
+                                id: None,
+                                metadata: None,
+                                modified_at: common_utils::date_time::now(),
+                                connector_customer: None,
+                                address_id: None,
+                                default_payment_method_id: None,
+                            },
+                        )
                     }
                     .await
                     .change_context(errors::StorageError::SerializationFailed)
@@ -1633,7 +1638,6 @@ pub async fn retrieve_payment_method_with_temporary_token(
         }
 
         Some(_) => Err(errors::ApiErrorResponse::InternalServerError)
-            .into_report()
             .attach_printable("Payment method received from locker is unsupported by locker")?,
 
         None => None,
@@ -2326,7 +2330,6 @@ pub fn make_merchant_url_with_response(
 
     let payment_client_secret = client_secret
         .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .into_report()
         .attach_printable("Expected client secret to be `Some`")?;
 
     let merchant_url_with_response = if business_profile.redirect_to_merchant_with_http_post {
@@ -2344,7 +2347,6 @@ pub fn make_merchant_url_with_response(
                 ),
             ],
         )
-        .into_report()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to parse the url with param")?
     } else {
@@ -2364,7 +2366,6 @@ pub fn make_merchant_url_with_response(
                 ),
             ],
         )
-        .into_report()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to parse the url with param")?
     };
@@ -2426,7 +2427,6 @@ pub fn make_url_with_signature(
     business_profile: &diesel_models::business_profile::BusinessProfile,
 ) -> RouterResult<api::RedirectionResponse> {
     let mut url = url::Url::parse(redirect_url)
-        .into_report()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to parse the url")?;
 
@@ -2507,7 +2507,7 @@ pub fn generate_mandate(
     payment_method_id: String,
     connector_mandate_id: Option<pii::SecretSerdeValue>,
     network_txn_id: Option<String>,
-    payment_method_data_option: Option<api_models::payments::PaymentMethodData>,
+    payment_method_data_option: Option<domain::payments::PaymentMethodData>,
     mandate_reference: Option<MandateReference>,
     merchant_connector_id: Option<String>,
 ) -> CustomResult<Option<storage::MandateNew>, errors::ApiErrorResponse> {
@@ -2754,8 +2754,7 @@ pub fn get_business_details(
 pub(crate) fn get_payment_id_from_client_secret(cs: &str) -> RouterResult<String> {
     let (payment_id, _) = cs
         .rsplit_once("_secret_")
-        .ok_or(errors::ApiErrorResponse::ClientSecretInvalid)
-        .into_report()?;
+        .ok_or(errors::ApiErrorResponse::ClientSecretInvalid)?;
     Ok(payment_id.to_string())
 }
 
@@ -3203,7 +3202,6 @@ pub fn get_attempt_type(
                             )],
                         );
                         Err(errors::ApiErrorResponse::InternalServerError)
-                            .into_report()
                             .attach_printable("Payment Attempt unexpected state")
                     }
 
@@ -3700,7 +3698,6 @@ impl ApplePayData {
         let symmetric_key = self.symmetric_key(&merchant_id, &shared_secret)?;
         let decrypted = self.decrypt_ciphertext(&symmetric_key)?;
         let parsed_decrypted: serde_json::Value = serde_json::from_str(&decrypted)
-            .into_report()
             .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?;
         Ok(parsed_decrypted)
     }
@@ -3719,12 +3716,10 @@ impl ApplePayData {
 
         let base64_decode_cert_data = BASE64_ENGINE
             .decode(cert_data)
-            .into_report()
             .change_context(errors::ApplePayDecryptionError::Base64DecodingFailed)?;
 
         // Parsing the certificate using x509-parser
         let (_, certificate) = parse_x509_certificate(&base64_decode_cert_data)
-            .into_report()
             .change_context(errors::ApplePayDecryptionError::CertificateParsingFailed)
             .attach_printable("Error parsing apple pay PPC")?;
 
@@ -3747,7 +3742,6 @@ impl ApplePayData {
                 merchant_id
             })
             .ok_or(errors::ApplePayDecryptionError::MissingMerchantId)
-            .into_report()
             .attach_printable("Unable to find merchant ID extension in the certificate")?;
 
         Ok(apple_pay_m_id)
@@ -3759,11 +3753,9 @@ impl ApplePayData {
     ) -> CustomResult<Vec<u8>, errors::ApplePayDecryptionError> {
         let public_ec_bytes = BASE64_ENGINE
             .decode(self.header.ephemeral_public_key.peek().as_bytes())
-            .into_report()
             .change_context(errors::ApplePayDecryptionError::Base64DecodingFailed)?;
 
         let public_key = PKey::public_key_from_der(&public_ec_bytes)
-            .into_report()
             .change_context(errors::ApplePayDecryptionError::KeyDeserializationFailed)
             .attach_printable("Failed to deserialize the public key")?;
 
@@ -3777,26 +3769,22 @@ impl ApplePayData {
 
         // Create PKey objects from EcKey
         let private_key = PKey::private_key_from_pem(decrypted_apple_pay_ppc_key.as_bytes())
-            .into_report()
             .change_context(errors::ApplePayDecryptionError::KeyDeserializationFailed)
             .attach_printable("Failed to deserialize the private key")?;
 
         // Create the Deriver object and set the peer public key
         let mut deriver = Deriver::new(&private_key)
-            .into_report()
             .change_context(errors::ApplePayDecryptionError::DerivingSharedSecretKeyFailed)
             .attach_printable("Failed to create a deriver for the private key")?;
 
         deriver
             .set_peer(&public_key)
-            .into_report()
             .change_context(errors::ApplePayDecryptionError::DerivingSharedSecretKeyFailed)
             .attach_printable("Failed to set the peer key for the secret derivation")?;
 
         // Compute the shared secret
         let shared_secret = deriver
             .derive_to_vec()
-            .into_report()
             .change_context(errors::ApplePayDecryptionError::DerivingSharedSecretKeyFailed)
             .attach_printable("Final key derivation failed")?;
         Ok(shared_secret)
@@ -3809,7 +3797,6 @@ impl ApplePayData {
     ) -> CustomResult<Vec<u8>, errors::ApplePayDecryptionError> {
         let kdf_algorithm = b"\x0did-aes256-GCM";
         let kdf_party_v = hex::decode(merchant_id)
-            .into_report()
             .change_context(errors::ApplePayDecryptionError::Base64DecodingFailed)?;
         let kdf_party_u = b"Apple";
         let kdf_info = [&kdf_algorithm[..], kdf_party_u, &kdf_party_v[..]].concat();
@@ -3829,7 +3816,6 @@ impl ApplePayData {
     ) -> CustomResult<String, errors::ApplePayDecryptionError> {
         let data = BASE64_ENGINE
             .decode(self.data.peek().as_bytes())
-            .into_report()
             .change_context(errors::ApplePayDecryptionError::Base64DecodingFailed)?;
         let iv = [0u8; 16]; //Initialization vector IV is typically used in AES-GCM (Galois/Counter Mode) encryption for randomizing the encryption process.
         let ciphertext = data
@@ -3840,10 +3826,8 @@ impl ApplePayData {
             .ok_or(errors::ApplePayDecryptionError::DecryptionFailed)?;
         let cipher = Cipher::aes_256_gcm();
         let decrypted_data = decrypt_aead(cipher, symmetric_key, Some(&iv), &[], ciphertext, tag)
-            .into_report()
             .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?;
         let decrypted = String::from_utf8(decrypted_data)
-            .into_report()
             .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?;
 
         Ok(decrypted)
@@ -4128,7 +4112,6 @@ pub async fn get_payment_method_details_from_payment_token(
     };
     let token = hyperswitch_token
         .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .into_report()
         .attach_printable("missing hyperswitch_token")?;
     match token {
         storage::PaymentTokenData::TemporaryGeneric(generic_token) => {

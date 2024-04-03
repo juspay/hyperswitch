@@ -28,7 +28,7 @@ use diesel_models::{
     payment_method,
 };
 use domain::CustomerUpdate;
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use masking::Secret;
 use router_env::{instrument, tracing};
 use strum::IntoEnumIterator;
@@ -510,7 +510,6 @@ pub async fn add_bank_to_locker(
                 logger::error!("Error while encoding payout method data: {}", err);
                 errors::VaultError::SavePaymentMethodFailed
             })
-            .into_report()
             .change_context(errors::VaultError::SavePaymentMethodFailed)
             .attach_printable("Unable to encode payout method data")
             .ok()
@@ -716,7 +715,6 @@ pub async fn decode_and_decrypt_locker_data(
     let key = key_store.key.get_inner().peek();
     // Decode
     let decoded_bytes = hex::decode(&enc_card_data)
-        .into_report()
         .change_context(errors::VaultError::ResponseDeserializationFailed)
         .attach_printable("Failed to decode hex string into bytes")?;
     // Decrypt
@@ -848,6 +846,20 @@ pub async fn update_payment_method(
     Ok(())
 }
 
+pub async fn update_payment_method_connector_mandate_details(
+    db: &dyn db::StorageInterface,
+    pm: payment_method::PaymentMethod,
+    connector_mandate_details: Option<serde_json::Value>,
+) -> errors::CustomResult<(), errors::VaultError> {
+    let pm_update = payment_method::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
+        connector_mandate_details,
+    };
+
+    db.update_payment_method(pm, pm_update)
+        .await
+        .change_context(errors::VaultError::UpdateInPaymentMethodDataTableFailed)?;
+    Ok(())
+}
 #[instrument(skip_all)]
 pub async fn get_card_from_hs_locker<'a>(
     state: &'a routes::AppState,
@@ -1025,10 +1037,7 @@ pub async fn mock_get_card<'a>(
         card_fingerprint: locker_mock_up.card_fingerprint.into(),
         card_global_fingerprint: locker_mock_up.card_global_fingerprint.into(),
         merchant_id: Some(locker_mock_up.merchant_id),
-        card_number: locker_mock_up
-            .card_number
-            .try_into()
-            .into_report()
+        card_number: cards::CardNumber::try_from(locker_mock_up.card_number)
             .change_context(errors::VaultError::ResponseDeserializationFailed)
             .attach_printable("Invalid card number format from the mock locker")
             .map(Some)?,
@@ -1492,10 +1501,8 @@ pub async fn list_payment_methods(
                     .connector
                     .connector_name
                     .to_string()
-                    .parse()
-                    .into_report()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("")?,
+                    .parse::<api_enums::RoutableConnectors>()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
                 #[cfg(feature = "connector_choice_mca_id")]
                 merchant_connector_id: choice.connector.merchant_connector_id,
                 #[cfg(not(feature = "connector_choice_mca_id"))]
@@ -1540,7 +1547,6 @@ pub async fn list_payment_methods(
                     .as_ref()
                     .map(|config| {
                         serde_json::from_value::<PaymentMethodAuthConfig>(config.clone())
-                            .into_report()
                             .change_context(errors::StorageError::DeserializationFailed)
                             .attach_printable("Failed to deserialize Payment Method Auth config")
                     })
@@ -1651,7 +1657,6 @@ pub async fn list_payment_methods(
         let connector = element.connector.clone();
 
         let connector_variant = api_enums::Connector::from_str(connector.as_str())
-            .into_report()
             .change_context(errors::ConnectorError::InvalidConnectorName)
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "connector",
@@ -2238,7 +2243,6 @@ pub async fn filter_payment_methods(
                     );
 
                     let connector_variant = api_enums::Connector::from_str(connector.as_str())
-                        .into_report()
                         .change_context(errors::ConnectorError::InvalidConnectorName)
                         .change_context(errors::ApiErrorResponse::InvalidDataValue {
                             field_name: "connector",
@@ -3161,7 +3165,7 @@ async fn get_masked_bank_details(
                 mask: bank_details.mask,
             })),
         },
-        None => Err(errors::ApiErrorResponse::InternalServerError.into())
+        None => Err(report!(errors::ApiErrorResponse::InternalServerError))
             .attach_printable("Unable to fetch payment method data"),
     }
 }
@@ -3191,8 +3195,8 @@ async fn get_bank_account_connector_details(
         Some(pmd) => match pmd {
             PaymentMethodsData::Card(_) => Err(errors::ApiErrorResponse::UnprocessableEntity {
                 message: "Card is not a valid entity".to_string(),
-            })
-            .into_report(),
+            }
+            .into()),
             PaymentMethodsData::BankDetails(bank_details) => {
                 let connector_details = bank_details
                     .connector_details
@@ -3240,7 +3244,6 @@ pub async fn set_default_payment_method(
             Err(errors::ApiErrorResponse::PreconditionFailed {
                 message: "The payment_method_id is not valid".to_string(),
             })
-            .into_report()
         },
     )?;
 
@@ -3250,7 +3253,6 @@ pub async fn set_default_payment_method(
             Err(errors::ApiErrorResponse::PreconditionFailed {
                 message: "Payment Method is already set as default".to_string(),
             })
-            .into_report()
         },
     )?;
 

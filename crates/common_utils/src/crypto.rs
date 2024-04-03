@@ -1,7 +1,7 @@
 //! Utilities for cryptographic algorithms
 use std::ops::Deref;
 
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use md5;
 use ring::{
@@ -248,18 +248,15 @@ impl EncodeMessage for GcmAes256 {
         secret: &[u8],
         msg: &[u8],
     ) -> CustomResult<Vec<u8>, errors::CryptoError> {
-        let nonce_sequence = NonceSequence::new()
-            .into_report()
-            .change_context(errors::CryptoError::EncodingFailed)?;
+        let nonce_sequence =
+            NonceSequence::new().change_context(errors::CryptoError::EncodingFailed)?;
         let current_nonce = nonce_sequence.current();
         let key = UnboundKey::new(&aead::AES_256_GCM, secret)
-            .into_report()
             .change_context(errors::CryptoError::EncodingFailed)?;
         let mut key = SealingKey::new(key, nonce_sequence);
         let mut in_out = msg.to_vec();
 
         key.seal_in_place_append_tag(aead::Aad::empty(), &mut in_out)
-            .into_report()
             .change_context(errors::CryptoError::EncodingFailed)?;
         in_out.splice(0..0, current_nonce);
 
@@ -275,17 +272,15 @@ impl DecodeMessage for GcmAes256 {
     ) -> CustomResult<Vec<u8>, errors::CryptoError> {
         let msg = msg.expose();
         let key = UnboundKey::new(&aead::AES_256_GCM, secret)
-            .into_report()
             .change_context(errors::CryptoError::DecodingFailed)?;
 
         let nonce_sequence = NonceSequence::from_bytes(
-            msg.get(..ring::aead::NONCE_LEN)
-                .ok_or(errors::CryptoError::DecodingFailed)
-                .into_report()
-                .attach_printable("Failed to read the nonce form the encrypted ciphertext")?
-                .try_into()
-                .into_report()
-                .change_context(errors::CryptoError::DecodingFailed)?,
+            <[u8; ring::aead::NONCE_LEN]>::try_from(
+                msg.get(..ring::aead::NONCE_LEN)
+                    .ok_or(errors::CryptoError::DecodingFailed)
+                    .attach_printable("Failed to read the nonce form the encrypted ciphertext")?,
+            )
+            .change_context(errors::CryptoError::DecodingFailed)?,
         );
 
         let mut key = OpeningKey::new(key, nonce_sequence);
@@ -294,7 +289,6 @@ impl DecodeMessage for GcmAes256 {
 
         let result = key
             .open_within(aead::Aad::empty(), output, ring::aead::NONCE_LEN..)
-            .into_report()
             .change_context(errors::CryptoError::DecodingFailed)?;
 
         Ok(result.to_vec())
@@ -329,7 +323,6 @@ impl VerifySignature for Sha512 {
         msg: &[u8],
     ) -> CustomResult<bool, errors::CryptoError> {
         let msg_str = std::str::from_utf8(msg)
-            .into_report()
             .change_context(errors::CryptoError::EncodingFailed)?
             .to_owned();
         let hashed_digest = hex::encode(

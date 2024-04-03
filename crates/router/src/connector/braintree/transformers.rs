@@ -7,7 +7,7 @@ use crate::{
     connector::utils::{self},
     consts,
     core::errors,
-    types::{self, api, storage::enums},
+    types::{self, api, domain, storage::enums},
 };
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -115,7 +115,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
         let kind = "sale".to_string();
 
         let payment_method_data_type = match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(ccard) => Ok(PaymentMethodType::CreditCard(Card {
+            domain::PaymentMethodData::Card(ccard) => Ok(PaymentMethodType::CreditCard(Card {
                 credit_card: CardDetails {
                     number: ccard.card_number,
                     expiration_month: ccard.card_exp_month,
@@ -123,7 +123,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
                     cvv: ccard.card_cvc,
                 },
             })),
-            api::PaymentMethodData::Wallet(ref wallet_data) => {
+            domain::PaymentMethodData::Wallet(ref wallet_data) => {
                 Ok(PaymentMethodType::PaymentMethodNonce(Nonce {
                     payment_method_nonce: match wallet_data {
                         api_models::payments::WalletData::PaypalSdk(wallet_data) => {
@@ -162,20 +162,22 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
                     .into(),
                 }))
             }
-            api::PaymentMethodData::PayLater(_)
-            | api::PaymentMethodData::BankRedirect(_)
-            | api::PaymentMethodData::BankDebit(_)
-            | api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::Crypto(_)
-            | api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::MandatePayment
-            | api::PaymentMethodData::Reward
-            | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("braintree"),
-            )),
+            domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("braintree"),
+                ))
+            }
         }?;
         let braintree_transaction_body = TransactionBody {
             amount,
