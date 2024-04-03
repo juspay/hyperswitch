@@ -416,7 +416,7 @@ impl From<api_models::payments::PayLaterData> for PayLaterData {
                 billing_country,
             },
             api_models::payments::PayLaterData::KlarnaSdk { token } => Self::KlarnaSdk { token },
-            api_models::payments::PayLaterData::AffirmRedirect {} => Self::AtomeRedirect {},
+            api_models::payments::PayLaterData::AffirmRedirect {} => Self::AffirmRedirect {},
             api_models::payments::PayLaterData::AfterpayClearpayRedirect {
                 billing_email,
                 billing_name,
