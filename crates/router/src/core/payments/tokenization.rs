@@ -345,7 +345,7 @@ where
                                                 customer_acceptance,
                                                 locker_id,
                                                 connector_mandate_details,
-                                                    network_transaction_id,
+                                                network_transaction_id,
                                             )
                                             .await
                                         } else {

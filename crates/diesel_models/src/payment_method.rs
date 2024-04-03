@@ -183,6 +183,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_used_at: Some(last_used_at),
                 network_transaction_id: None,
                 status: None,
+                connector_mandate_details: None,
             },
             PaymentMethodUpdate::NetworkTransactionIdUpdate {
                 network_transaction_id,
@@ -210,6 +211,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_used_at: None,
                 status: None,
                 connector_mandate_details,
+                network_transaction_id: None,
             },
         }
     }
