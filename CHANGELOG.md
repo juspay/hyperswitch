@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.04.01.0-hotfix1
+
+### Bug Fixes
+
+- **connector:** [Cryptopay]fix redirection for cryptopay ([#4279](https://github.com/juspay/hyperswitch/pull/4279)) ([`b73a6d2`](https://github.com/juspay/hyperswitch/commit/b73a6d2adcf9b50549282959e4264d4aca4ecb1e))
+
+- - -
+
 ## 2024.04.01.0
 
 ### Features
