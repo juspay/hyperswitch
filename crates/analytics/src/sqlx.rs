@@ -430,10 +430,11 @@ impl<'a> FromRow<'a, PgRow> for super::refunds::filters::RefundFilterRow {
 
 impl<'a> FromRow<'a, PgRow> for super::disputes::filters::DisputeFilterRow {
     fn from_row(row: &'a PgRow) -> sqlx::Result<Self> {
-        let dispute_stage: Option<String> = row.try_get("dispute_stage").or_else(|e| match e {
-            ColumnNotFound(_) => Ok(Default::default()),
-            e => Err(e),
-        })?;
+        let dispute_stage: Option<DBEnumWrapper<DisputeStage>> =
+            row.try_get("dispute_stage").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
         let dispute_status: Option<String> =
             row.try_get("dispute_status").or_else(|e| match e {
                 ColumnNotFound(_) => Ok(Default::default()),

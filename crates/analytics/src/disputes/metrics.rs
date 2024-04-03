@@ -90,7 +90,10 @@ where
                     )
                     .await
             }
-            Self::DisputeStatusMetric => {
+            Self::DisputesChallenged
+            | Self::DisputesWon
+            | Self::DisputesLost
+            | Self::TotalDispute => {
                 DisputeStatusMetric::default()
                     .load_metrics(
                         dimensions,

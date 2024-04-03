@@ -1,4 +1,7 @@
-use api_models::analytics::{disputes::DisputeDimensions, Granularity, TimeRange};
+use api_models::{
+    analytics::{disputes::DisputeDimensions, Granularity, TimeRange},
+    enums::DisputeStage,
+};
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
@@ -48,5 +51,5 @@ pub struct DisputeFilterRow {
     pub connector: Option<String>,
     pub dispute_status: Option<String>,
     pub connector_status: Option<String>,
-    pub dispute_stage: Option<String>,
+    pub dispute_stage: Option<crate::types::DBEnumWrapper<DisputeStage>>,
 }

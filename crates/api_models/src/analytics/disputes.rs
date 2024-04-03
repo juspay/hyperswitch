@@ -21,7 +21,10 @@ use crate::enums::DisputeStage;
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum DisputeMetrics {
-    DisputeStatusMetric,
+    DisputesChallenged,
+    DisputesWon,
+    DisputesLost,
+    TotalDispute,
     TotalAmountDisputed,
     TotalDisputeLostAmount,
 }
