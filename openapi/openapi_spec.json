@@ -7770,7 +7770,7 @@
           "default_payment_method_id": {
             "type": "string",
             "description": "The unique identifier of the Payment method",
-            "example": "card_rGK4Vi5iSW70MY7J2mIy",
+            "example": "card_rGK4Vi5iSW70MY7J2mIg",
             "nullable": true
           },
           "customer_id": {
@@ -12557,7 +12557,7 @@
           "payment_method_id": {
             "type": "string",
             "description": "The unique identifier of the Payment method",
-            "example": "card_rGK4Vi5iSW70MY7J2mIy"
+            "example": "card_rGK4Vi5iSW70MY7J2mIg"
           },
           "deleted": {
             "type": "boolean",
@@ -12683,7 +12683,7 @@
           "payment_method_id": {
             "type": "string",
             "description": "The unique identifier of the Payment method",
-            "example": "card_rGK4Vi5iSW70MY7J2mIy"
+            "example": "card_rGK4Vi5iSW70MY7J2mIg"
           },
           "payment_method": {
             "$ref": "#/components/schemas/PaymentMethod"
@@ -14795,6 +14795,14 @@
             "description": "Payment Fingerprint",
             "nullable": true
           },
+          "browser_info": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
+            "nullable": true
+          },
           "payment_method_id": {
             "type": "string",
             "description": "Payment Method Id",
@@ -16389,7 +16397,7 @@
         "properties": {
           "payment_id": {
             "type": "string",
-            "description": "The payment id against which refund is to be intiated",
+            "description": "The payment id against which refund is to be initiated",
             "example": "pay_mbabizu24mvu3mela5njyhpit4",
             "maxLength": 30,
             "minLength": 30
@@ -16466,7 +16474,7 @@
           },
           "payment_id": {
             "type": "string",
-            "description": "The payment id against which refund is intiated"
+            "description": "The payment id against which refund is initiated"
           },
           "amount": {
             "type": "integer",

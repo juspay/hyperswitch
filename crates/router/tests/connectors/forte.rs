@@ -459,7 +459,7 @@ async fn should_sync_refund() {
     );
 }
 
-// Cards Negative scenerios
+// Cards Negative scenarios
 // Creates a payment with incorrect CVC.
 #[actix_web::test]
 async fn should_fail_payment_for_incorrect_cvc() {
@@ -623,7 +623,7 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
 
 // [#478]: add unit tests for non 3DS, wallets & webhooks in connector tests
 
-// Cards Negative scenerios
+// Cards Negative scenarios
 // Creates a payment with incorrect card issuer.
 
 #[actix_web::test]
