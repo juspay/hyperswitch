@@ -2,7 +2,7 @@ use api_models::analytics::search::SearchIndex;
 use aws_config::{self, meta::region::RegionProviderChain, Region};
 use common_utils::errors::CustomResult;
 use data_models::errors::{StorageError, StorageResult};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use opensearch::{
     auth::Credentials,
     cert::CertificateValidation,
@@ -129,12 +129,14 @@ impl OpenSearchClient {
     ) -> CustomResult<Response, OpenSearchError> {
         match query_builder.query_type {
             OpenSearchQuery::Msearch => {
+                let search_indexes = SearchIndex::iter();
+
                 let payload = query_builder
-                    .construct_payload(SearchIndex::iter().collect())
+                    .construct_payload(search_indexes.clone().into_iter().collect())
                     .change_context(OpenSearchError::ResponseError)?;
 
                 let mut payload_with_indexes: Vec<JsonBody<Value>> = vec![];
-                for (index_hit, index) in payload.iter().to_owned().zip(SearchIndex::iter()) {
+                for (index_hit, index) in payload.iter().to_owned().zip(search_indexes) {
                     payload_with_indexes.push(
                         json!({"index": self.search_index_to_opensearch_index(index)}).into(),
                     );
@@ -146,7 +148,6 @@ impl OpenSearchClient {
                     .body(payload_with_indexes)
                     .send()
                     .await
-                    .into_report()
                     .change_context(OpenSearchError::ResponseError)
             }
             OpenSearchQuery::Search(index) => {
@@ -166,7 +167,6 @@ impl OpenSearchClient {
                     .body(final_payload)
                     .send()
                     .await
-                    .into_report()
                     .change_context(OpenSearchError::ResponseError)
             }
         }
@@ -180,17 +180,15 @@ impl HealthCheck for OpenSearchClient {
             .health(ClusterHealthParts::None)
             .send()
             .await
-            .into_report()
             .change_context(QueryExecutionError::DatabaseError)?
             .json::<OpenSearchHealth>()
             .await
-            .into_report()
             .change_context(QueryExecutionError::DatabaseError)?;
 
         if health.status != OpenSearchHealthStatus::Red {
             Ok(())
         } else {
-            Err(QueryExecutionError::DatabaseError).into_report()
+            Err(QueryExecutionError::DatabaseError.into())
         }
     }
 }
