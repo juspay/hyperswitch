@@ -1379,6 +1379,7 @@ pub enum PaymentMethodType {
     Indomaret,
     Klarna,
     KakaoPay,
+    IdealPay,
     MandiriVa,
     Knet,
     MbWay,

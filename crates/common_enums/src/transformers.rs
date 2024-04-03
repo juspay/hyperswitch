@@ -1824,6 +1824,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::Ideal => Self::BankRedirect,
             PaymentMethodType::Klarna => Self::PayLater,
             PaymentMethodType::KakaoPay => Self::Wallet,
+            PaymentMethodType::IdealPay => Self::Wallet,
             PaymentMethodType::Knet => Self::CardRedirect,
             PaymentMethodType::MbWay => Self::Wallet,
             PaymentMethodType::MobilePay => Self::Wallet,

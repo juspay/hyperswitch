@@ -270,6 +270,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::TouchNGoRedirection,
         api_models::payments::GcashRedirection,
         api_models::payments::KakaoPayRedirection,
+        api_models::payments::IdealPayRedirection,
         api_models::payments::AliPayHkRedirection,
         api_models::payments::GoPayRedirection,
         api_models::payments::MbWayRedirection,
