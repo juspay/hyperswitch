@@ -88,14 +88,14 @@ impl ConnectorCommon for Multisafepay {
 
         let attempt_status = Option::<AttemptStatus>::from(response.clone());
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.error_code.to_string(),
-            message: response.error_info,
-            reason: None,
+        Ok(ErrorResponse::from((
+            Some(response.error_code.to_string()),
+            Some(response.error_info.clone()),
+            Some(response.error_info),
+            res.status_code,
             attempt_status,
-            connector_transaction_id: None,
-        })
+            None,
+        )))
     }
 }
 
