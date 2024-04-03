@@ -4,7 +4,7 @@ use diesel_models::enums as storage_enums;
 use time::OffsetDateTime;
 
 #[derive(serde::Serialize, Debug)]
-pub struct KafkaPayouts<'a> {
+pub struct KafkaPayout<'a> {
     pub payout_id: &'a String,
     pub payout_attempt_id: &'a String,
     pub merchant_id: &'a String,
@@ -38,7 +38,7 @@ pub struct KafkaPayouts<'a> {
     pub merchant_connector_id: Option<&'a String>,
 }
 
-impl<'a> KafkaPayouts<'a> {
+impl<'a> KafkaPayout<'a> {
     pub fn from_storage(payouts: &'a Payouts, payout_attempt: &'a PayoutAttempt) -> Self {
         Self {
             payout_id: &payouts.payout_id,
@@ -73,7 +73,7 @@ impl<'a> KafkaPayouts<'a> {
     }
 }
 
-impl<'a> super::KafkaMessage for KafkaPayouts<'a> {
+impl<'a> super::KafkaMessage for KafkaPayout<'a> {
     fn key(&self) -> String {
         format!("{}_{}", self.merchant_id, self.payout_attempt_id)
     }
@@ -83,6 +83,6 @@ impl<'a> super::KafkaMessage for KafkaPayouts<'a> {
     }
 
     fn event_type(&self) -> crate::events::EventType {
-        crate::events::EventType::Payouts
+        crate::events::EventType::Payout
     }
 }

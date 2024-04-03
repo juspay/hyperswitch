@@ -6,10 +6,8 @@ use rdkafka::{
     config::FromClientConfig,
     producer::{BaseRecord, DefaultProducerContext, Producer, ThreadedProducer},
 };
-
 #[cfg(feature = "payouts")]
-pub mod payouts;
-
+pub mod payout;
 use crate::events::EventType;
 mod dispute;
 mod payment_attempt;
@@ -21,12 +19,13 @@ use serde::Serialize;
 use time::OffsetDateTime;
 
 #[cfg(feature = "payouts")]
-use self::payouts::KafkaPayouts;
+use self::payout::KafkaPayout;
 use self::{
     dispute::KafkaDispute, payment_attempt::KafkaPaymentAttempt,
     payment_intent::KafkaPaymentIntent, refund::KafkaRefund,
 };
 use crate::types::storage::Dispute;
+
 // Using message queue result here to avoid confusion with Kafka result provided by library
 pub type MQResult<T> = CustomResult<T, KafkaError>;
 
@@ -96,7 +95,8 @@ pub struct KafkaSettings {
     outgoing_webhook_logs_topic: String,
     dispute_analytics_topic: String,
     audit_events_topic: String,
-    payout_events_topic: String,
+    #[cfg(feature = "payouts")]
+    payout_analytics_topic: String,
 }
 
 impl KafkaSettings {
@@ -162,6 +162,13 @@ impl KafkaSettings {
             ))
         })?;
 
+        #[cfg(feature = "payouts")]
+        common_utils::fp_utils::when(self.payout_analytics_topic.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "Kafka Payout Analytics topic must not be empty".into(),
+            ))
+        })?;
+
         Ok(())
     }
 }
@@ -177,7 +184,8 @@ pub struct KafkaProducer {
     outgoing_webhook_logs_topic: String,
     dispute_analytics_topic: String,
     audit_events_topic: String,
-    payout_events_topic: String,
+    #[cfg(feature = "payouts")]
+    payout_analytics_topic: String,
 }
 
 struct RdKafkaProducer(ThreadedProducer<DefaultProducerContext>);
@@ -217,7 +225,8 @@ impl KafkaProducer {
             outgoing_webhook_logs_topic: conf.outgoing_webhook_logs_topic.clone(),
             dispute_analytics_topic: conf.dispute_analytics_topic.clone(),
             audit_events_topic: conf.audit_events_topic.clone(),
-            payout_events_topic: conf.payout_events_topic.clone(),
+            #[cfg(feature = "payouts")]
+            payout_analytics_topic: conf.payout_analytics_topic.clone(),
         })
     }
 
@@ -232,7 +241,8 @@ impl KafkaProducer {
             EventType::OutgoingWebhookLogs => &self.outgoing_webhook_logs_topic,
             EventType::Dispute => &self.dispute_analytics_topic,
             EventType::AuditEvent => &self.audit_events_topic,
-            EventType::Payouts => &self.payout_events_topic,
+            #[cfg(feature = "payouts")]
+            EventType::Payout => &self.payout_analytics_topic,
         };
         self.producer
             .0
@@ -349,19 +359,28 @@ impl KafkaProducer {
             .attach_printable_lazy(|| format!("Failed to add positive dispute event {dispute:?}"))
     }
 
-    pub async fn log_payouts(
+    #[cfg(feature = "payouts")]
+    pub async fn log_payout(
         &self,
-        payouts: &KafkaPayouts<'_>,
-        old_payouts: Option<KafkaPayouts<'_>>,
+        payout: &KafkaPayout<'_>,
+        old_payout: Option<KafkaPayout<'_>>,
     ) -> MQResult<()> {
-        if let Some(negative_event) = old_payouts {
+        if let Some(negative_event) = old_payout {
             self.log_event(&KafkaEvent::old(&negative_event))
                 .attach_printable_lazy(|| {
-                    format!("Failed to add negative payouts event {negative_event:?}")
+                    format!("Failed to add negative payout event {negative_event:?}")
                 })?;
         };
-        self.log_event(&KafkaEvent::new(payouts))
-            .attach_printable_lazy(|| format!("Failed to add positive payouts event {payouts:?}"))
+        self.log_event(&KafkaEvent::new(payout))
+            .attach_printable_lazy(|| format!("Failed to add positive payout event {payout:?}"))
+    }
+
+    #[cfg(feature = "payouts")]
+    pub async fn log_payout_delete(&self, delete_old_payout: &KafkaPayout<'_>) -> MQResult<()> {
+        self.log_event(&KafkaEvent::old(delete_old_payout))
+            .attach_printable_lazy(|| {
+                format!("Failed to add negative payout event {delete_old_payout:?}")
+            })
     }
 
     pub fn get_topic(&self, event: EventType) -> &str {
@@ -374,7 +393,8 @@ impl KafkaProducer {
             EventType::OutgoingWebhookLogs => &self.outgoing_webhook_logs_topic,
             EventType::Dispute => &self.dispute_analytics_topic,
             EventType::AuditEvent => &self.audit_events_topic,
-            EventType::Payouts => &self.payout_events_topic,
+            #[cfg(feature = "payouts")]
+            EventType::Payout => &self.payout_analytics_topic,
         }
     }
 }
