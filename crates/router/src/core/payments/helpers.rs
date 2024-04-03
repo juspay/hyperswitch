@@ -3680,7 +3680,7 @@ pub struct ApplePayHeader {
 
 impl ApplePayData {
     pub fn token_json(
-        wallet_data: api_models::payments::WalletData,
+        wallet_data: domain::WalletData,
     ) -> CustomResult<Self, errors::ConnectorError> {
         let json_wallet_data: Self = connector::utils::WalletData::get_wallet_token_as_json(
             &wallet_data,
