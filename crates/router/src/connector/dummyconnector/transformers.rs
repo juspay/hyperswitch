@@ -108,16 +108,16 @@ pub enum DummyConnectorWallet {
     AliPayHK,
 }
 
-impl TryFrom<api_models::payments::WalletData> for DummyConnectorWallet {
+impl TryFrom<domain::WalletData> for DummyConnectorWallet {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: api_models::payments::WalletData) -> Result<Self, Self::Error> {
+    fn try_from(value: domain::WalletData) -> Result<Self, Self::Error> {
         match value {
-            api_models::payments::WalletData::GooglePayRedirect(_) => Ok(Self::GooglePay),
-            api_models::payments::WalletData::PaypalRedirect(_) => Ok(Self::Paypal),
-            api_models::payments::WalletData::WeChatPayRedirect(_) => Ok(Self::WeChatPay),
-            api_models::payments::WalletData::MbWayRedirect(_) => Ok(Self::MbWay),
-            api_models::payments::WalletData::AliPayRedirect(_) => Ok(Self::AliPay),
-            api_models::payments::WalletData::AliPayHkRedirect(_) => Ok(Self::AliPayHK),
+            domain::WalletData::GooglePayRedirect(_) => Ok(Self::GooglePay),
+            domain::WalletData::PaypalRedirect(_) => Ok(Self::Paypal),
+            domain::WalletData::WeChatPayRedirect(_) => Ok(Self::WeChatPay),
+            domain::WalletData::MbWayRedirect(_) => Ok(Self::MbWay),
+            domain::WalletData::AliPayRedirect(_) => Ok(Self::AliPay),
+            domain::WalletData::AliPayHkRedirect(_) => Ok(Self::AliPayHK),
             _ => Err(errors::ConnectorError::NotImplemented("Dummy wallet".to_string()).into()),
         }
     }
