@@ -2278,6 +2278,7 @@ impl Deref for PaymentIntentSyncResponse {
 pub struct StripeAdditionalCardDetails {
     checks: Option<Value>,
     three_d_secure: Option<Value>,
+    network_transaction_id: Option<String>,
 }
 
 #[derive(Deserialize, Clone, Debug, PartialEq, Eq, Serialize)]
@@ -2746,9 +2747,11 @@ impl<F, T>
         } else {
             let network_transaction_id = match item.response.latest_attempt {
                 Some(LatestAttempt::PaymentIntentAttempt(attempt)) => attempt
-                    .payment_method_details_card
-                    .and_then(|payment_method_details| match payment_method_details.card {
-                        Some(card) => card.network_transaction_id,
+                    .payment_method_details
+                    .and_then(|payment_method_details| match payment_method_details {
+                        StripePaymentMethodDetailsResponse::Card { card } => {
+                            card.network_transaction_id
+                        }
                         _ => None,
                     }),
                 _ => None,
@@ -3211,7 +3214,6 @@ pub enum LatestAttempt {
 }
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct LatestPaymentAttempt {
-    pub payment_method_details_card: Option<StripePaymentMethodDetails>,
     pub payment_method_options: Option<StripePaymentMethodOptions>,
     pub payment_method_details: Option<StripePaymentMethodDetailsResponse>,
 }
