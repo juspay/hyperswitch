@@ -60,6 +60,7 @@ where
 }
 
 /// intermediary structure to build events with in-place info.
+#[must_use]
 pub struct EventBuilder<T, A>
 where
     A: MessagingInterface<MessageClass = T>,
