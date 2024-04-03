@@ -1825,7 +1825,7 @@ impl
             Option<String>,
         ),
     ) -> Self {
-        types::ErrorResponse {
+        Self {
             code: code.unwrap_or(consts::NO_ERROR_CODE.to_string()),
             message: message
                 .clone()

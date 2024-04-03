@@ -890,7 +890,7 @@ pub struct MultisafepayErrorResponse {
 }
 
 impl From<MultisafepayErrorResponse> for Option<AttemptStatus> {
-    fn from(error_data: MultisafepayErrorResponse) -> Option<AttemptStatus> {
+    fn from(error_data: MultisafepayErrorResponse) -> Self {
         match error_data.error_code {
             10001 // InvalidAmount
             | 1002 // InvalidCurrency
