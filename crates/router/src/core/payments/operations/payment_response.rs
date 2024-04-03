@@ -243,10 +243,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
         merchant_account: &domain::MerchantAccount,
         connector_request: Option<services::Request>,
         key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<(), errors::ApiErrorResponse>
-    where
-        F: Clone,
-    {
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
 }
@@ -283,10 +280,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         merchant_account: &domain::MerchantAccount,
         connector_request: Option<services::Request>,
         key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<(), errors::ApiErrorResponse>
-    where
-        F: Clone,
-    {
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
 }
@@ -327,10 +321,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
         merchant_account: &domain::MerchantAccount,
         connector_request: Option<services::Request>,
         key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<(), errors::ApiErrorResponse>
-    where
-        F: Clone,
-    {
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
 }
@@ -371,10 +362,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
         merchant_account: &domain::MerchantAccount,
         connector_request: Option<services::Request>,
         key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<(), errors::ApiErrorResponse>
-    where
-        F: Clone,
-    {
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
 }
@@ -414,10 +402,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
         merchant_account: &domain::MerchantAccount,
         connector_request: Option<services::Request>,
         key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<(), errors::ApiErrorResponse>
-    where
-        F: Clone,
-    {
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
 }
@@ -459,10 +444,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
         merchant_account: &domain::MerchantAccount,
         connector_request: Option<services::Request>,
         key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<(), errors::ApiErrorResponse>
-    where
-        F: Clone,
-    {
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
 }
@@ -502,10 +484,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> f
         merchant_account: &domain::MerchantAccount,
         connector_request: Option<services::Request>,
         key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<(), errors::ApiErrorResponse>
-    where
-        F: Clone,
-    {
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
 }
@@ -560,10 +539,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         merchant_account: &domain::MerchantAccount,
         connector_request: Option<services::Request>,
         key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<(), errors::ApiErrorResponse>
-    where
-        F: Clone,
-    {
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
 }
@@ -602,10 +578,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
         merchant_account: &domain::MerchantAccount,
         connector_request: Option<services::Request>,
         key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<(), errors::ApiErrorResponse>
-    where
-        F: Clone,
-    {
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
 }

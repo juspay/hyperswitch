@@ -235,7 +235,7 @@ pub trait PostUpdateTracker<F, D, R>: Send {
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
-        F: Clone;
+        F: Send;
 }
 
 #[async_trait]
