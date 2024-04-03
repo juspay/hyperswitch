@@ -277,6 +277,9 @@ wildcard_origin = false
 card.credit ={connector_list ="cybersource"}
 card.debit = {connector_list ="cybersource"}
 
+[network_transaction_id_supported_connectors]
+connector_list = "stripe,adyen,cybersource"
+
 [analytics]
 source = "sqlx"
 

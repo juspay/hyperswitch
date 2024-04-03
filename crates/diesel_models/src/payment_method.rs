@@ -39,6 +39,7 @@ pub struct PaymentMethod {
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::PaymentMethodStatus,
     pub client_secret: Option<String>,
+    pub network_transaction_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Insertable, router_derive::DebugAsDisplay)]
@@ -71,6 +72,7 @@ pub struct PaymentMethodNew {
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::PaymentMethodStatus,
     pub client_secret: Option<String>,
+    pub network_transaction_id: Option<String>,
 }
 
 impl Default for PaymentMethodNew {
@@ -105,6 +107,7 @@ impl Default for PaymentMethodNew {
             customer_acceptance: Option::default(),
             status: storage_enums::PaymentMethodStatus::Active,
             client_secret: Option::default(),
+            network_transaction_id: Option::default(),
         }
     }
 }

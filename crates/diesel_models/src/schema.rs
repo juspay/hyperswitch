@@ -915,6 +915,8 @@ diesel::table! {
         status -> Varchar,
         #[max_length = 128]
         client_secret -> Nullable<Varchar>,
+        #[max_length = 255]
+        network_transaction_id -> Nullable<Varchar>,
     }
 }
 
