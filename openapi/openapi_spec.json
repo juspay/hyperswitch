@@ -7118,7 +7118,8 @@
           "zen",
           "signifyd",
           "plaid",
-          "riskified"
+          "riskified",
+          "zsl"
         ]
       },
       "ConnectorMetadata": {
@@ -16830,6 +16831,7 @@
         "type": "string",
         "description": "Connectors eligible for payments routing",
         "enum": [
+          "zsl",
           "phonypay",
           "fauxpay",
           "pretendpay",
