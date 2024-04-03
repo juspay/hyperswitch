@@ -1463,7 +1463,7 @@
               ]
             },
             {
-              "name": "Scenario3-Create 3DS payment with confrm false",
+              "name": "Scenario3-Create 3DS payment with confirm false",
               "item": [
                 {
                   "name": "Payments - Create",

@@ -28,6 +28,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon},
+        domain,
     },
     utils::{crypto, ByteSliceExt, BytesExt, OptionExt},
 };
@@ -822,7 +823,7 @@ impl
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         match &req.request.payment_method_data {
-            api_models::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
+            domain::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
                 match bank_transfer_data.deref() {
                     api_models::payments::BankTransferData::AchBankTransfer { .. }
                     | api_models::payments::BankTransferData::MultibancoBankTransfer { .. } => {
@@ -849,7 +850,7 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         match &req.request.payment_method_data {
-            api_models::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
+            domain::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
                 stripe::get_bank_transfer_request_data(req, bank_transfer_data.deref())
             }
             _ => {
@@ -889,7 +890,7 @@ impl
         res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         match &data.request.payment_method_data {
-            api_models::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
+            domain::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
                 match bank_transfer_data.deref() {
                     api_models::payments::BankTransferData::AchBankTransfer { .. }
                     | api_models::payments::BankTransferData::MultibancoBankTransfer { .. } => {

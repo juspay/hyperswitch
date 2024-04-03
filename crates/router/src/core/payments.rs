@@ -481,14 +481,12 @@ where
 
     let cloned_payment_data = payment_data.clone();
     let cloned_customer = customer.clone();
-    let cloned_request = req.clone();
 
     crate::utils::trigger_payments_webhook(
         merchant_account,
         business_profile,
         &key_store,
         cloned_payment_data,
-        Some(cloned_request),
         cloned_customer,
         state,
         operation,
@@ -693,7 +691,7 @@ where
     FData: Send + Sync,
     Op: Operation<F, Req, Ctx> + Send + Sync + Clone,
     Req: Debug + Authenticate + Clone,
-    Res: transformers::ToResponse<Req, PaymentData<F>, Op>,
+    Res: transformers::ToResponse<PaymentData<F>, Op>,
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
     router_types::RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
@@ -712,7 +710,7 @@ where
             .flat_map(|c| c.foreign_try_into())
             .collect()
     });
-    let (payment_data, req, customer, connector_http_status_code, external_latency) =
+    let (payment_data, _req, customer, connector_http_status_code, external_latency) =
         payments_operation_core::<_, _, _, _, Ctx>(
             &state,
             merchant_account,
@@ -727,7 +725,6 @@ where
         .await?;
 
     Res::generate_response(
-        Some(req),
         payment_data,
         customer,
         auth_flow,
@@ -1243,15 +1240,21 @@ where
             | TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt
     ) {
         let apple_pay_data = match payment_data.payment_method_data.clone() {
-            Some(api_models::payments::PaymentMethodData::Wallet(
-                api_models::payments::WalletData::ApplePay(wallet_data),
-            )) => Some(
-                ApplePayData::token_json(api_models::payments::WalletData::ApplePay(wallet_data))
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?
-                    .decrypt(state)
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
-            ),
+            Some(payment_data) => {
+                let domain_data = domain::PaymentMethodData::from(payment_data);
+                match domain_data {
+                    domain::PaymentMethodData::Wallet(domain::WalletData::ApplePay(
+                        wallet_data,
+                    )) => Some(
+                        ApplePayData::token_json(domain::WalletData::ApplePay(wallet_data))
+                            .change_context(errors::ApiErrorResponse::InternalServerError)?
+                            .decrypt(state)
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                    ),
+                    _ => None,
+                }
+            }
             _ => None,
         };
 
@@ -2176,21 +2179,22 @@ pub mod payment_address {
             billing: Option<api::Address>,
             payment_method_billing: Option<api::Address>,
         ) -> Self {
+            // billing -> .billing, this is the billing details passed in the root of payments request
+            // payment_method_billing -> .payment_method_data.billing
+
             // Merge the billing details field from both `payment.billing` and `payment.payment_method_data.billing`
             // The unified payment_method_billing will be used as billing address and passed to the connector module
             // This unification is required in order to provide backwards compatibility
             // so that if `payment.billing` is passed it should be sent to the connector module
-            let unified_payment_method_billing =
-                match (payment_method_billing.clone(), billing.clone()) {
-                    (Some(payment_method_billing), Some(order_billing)) => Some(api::Address {
-                        address: payment_method_billing.address.or(order_billing.address),
-                        phone: payment_method_billing.phone.or(order_billing.phone),
-                        email: payment_method_billing.email.or(order_billing.email),
-                    }),
-                    (Some(payment_method_billing), None) => Some(payment_method_billing),
-                    (None, Some(order_billing)) => Some(order_billing),
-                    (None, None) => None,
-                };
+            // Unify the billing details with `payment_method_data.billing`
+            let unified_payment_method_billing = payment_method_billing
+                .as_ref()
+                .map(|payment_method_billing| {
+                    payment_method_billing
+                        .clone()
+                        .unify_address(billing.as_ref())
+                })
+                .or(billing.clone());
 
             Self {
                 shipping,
@@ -2206,6 +2210,25 @@ pub mod payment_address {
 
         pub fn get_payment_method_billing(&self) -> Option<&api::Address> {
             self.unified_payment_method_billing.as_ref()
+        }
+
+        pub fn unify_with_payment_method_data_billing(
+            self,
+            payment_method_data_billing: Option<api::Address>,
+        ) -> Self {
+            // Unify the billing details with `payment_method_data.billing_details`
+            let unified_payment_method_billing = payment_method_data_billing
+                .map(|payment_method_data_billing| {
+                    payment_method_data_billing.unify_address(self.get_payment_method_billing())
+                })
+                .or(self.get_payment_method_billing().cloned());
+
+            Self {
+                shipping: self.shipping,
+                billing: self.billing,
+                unified_payment_method_billing,
+                payment_method_billing: self.payment_method_billing,
+            }
         }
 
         pub fn get_request_payment_method_billing(&self) -> Option<&api::Address> {

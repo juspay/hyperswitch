@@ -1,4 +1,3 @@
-use api_models::payments::Card;
 use cards::CardNumber;
 use common_utils::{ext_traits::ValueExt, pii};
 use error_stack::ResultExt;
@@ -14,7 +13,7 @@ use crate::{
     consts,
     core::errors::{self, CustomResult},
     services::{self, Method},
-    types::{self, api, storage::enums, transformers::ForeignTryFrom},
+    types::{self, api, domain, storage::enums, transformers::ForeignTryFrom},
     utils::OptionExt,
 };
 
@@ -204,10 +203,18 @@ pub struct WalletSessionData {
     pub pay_wall_secret: Option<Secret<String>>,
 }
 
-impl TryFrom<(&ZenRouterData<&types::PaymentsAuthorizeRouterData>, &Card)> for ZenPaymentsRequest {
+impl
+    TryFrom<(
+        &ZenRouterData<&types::PaymentsAuthorizeRouterData>,
+        &domain::Card,
+    )> for ZenPaymentsRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        value: (&ZenRouterData<&types::PaymentsAuthorizeRouterData>, &Card),
+        value: (
+            &ZenRouterData<&types::PaymentsAuthorizeRouterData>,
+            &domain::Card,
+        ),
     ) -> Result<Self, Self::Error> {
         let (item, ccard) = value;
         let browser_info = item.router_data.request.get_browser_info()?;
@@ -453,14 +460,14 @@ impl
 impl
     TryFrom<(
         &ZenRouterData<&types::PaymentsAuthorizeRouterData>,
-        &api_models::payments::WalletData,
+        &domain::WalletData,
     )> for ZenPaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (item, wallet_data): (
             &ZenRouterData<&types::PaymentsAuthorizeRouterData>,
-            &api_models::payments::WalletData,
+            &domain::WalletData,
         ),
     ) -> Result<Self, Self::Error> {
         let amount = item.amount.to_owned();
@@ -469,7 +476,7 @@ impl
             .parse_value("SessionObject")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let (specified_payment_channel, session_data) = match wallet_data {
-            api_models::payments::WalletData::ApplePayRedirect(_) => (
+            domain::WalletData::ApplePayRedirect(_) => (
                 ZenPaymentChannels::PclApplepay,
                 session
                     .apple_pay
@@ -477,7 +484,7 @@ impl
                         wallet_name: "Apple Pay".to_string(),
                     })?,
             ),
-            api_models::payments::WalletData::GooglePayRedirect(_) => (
+            domain::WalletData::GooglePayRedirect(_) => (
                 ZenPaymentChannels::PclGooglepay,
                 session
                     .google_pay
@@ -485,34 +492,32 @@ impl
                         wallet_name: "Google Pay".to_string(),
                     })?,
             ),
-            api_models::payments::WalletData::WeChatPayRedirect(_)
-            | api_models::payments::WalletData::PaypalRedirect(_)
-            | api_models::payments::WalletData::ApplePay(_)
-            | api_models::payments::WalletData::GooglePay(_)
-            | api_models::payments::WalletData::AliPayQr(_)
-            | api_models::payments::WalletData::AliPayRedirect(_)
-            | api_models::payments::WalletData::AliPayHkRedirect(_)
-            | api_models::payments::WalletData::MomoRedirect(_)
-            | api_models::payments::WalletData::KakaoPayRedirect(_)
-            | api_models::payments::WalletData::GoPayRedirect(_)
-            | api_models::payments::WalletData::GcashRedirect(_)
-            | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
-            | api_models::payments::WalletData::DanaRedirect {}
-            | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
-            | api_models::payments::WalletData::MbWayRedirect(_)
-            | api_models::payments::WalletData::MobilePayRedirect(_)
-            | api_models::payments::WalletData::PaypalSdk(_)
-            | api_models::payments::WalletData::SamsungPay(_)
-            | api_models::payments::WalletData::TwintRedirect {}
-            | api_models::payments::WalletData::VippsRedirect {}
-            | api_models::payments::WalletData::TouchNGoRedirect(_)
-            | api_models::payments::WalletData::CashappQr(_)
-            | api_models::payments::WalletData::SwishQr(_)
-            | api_models::payments::WalletData::WeChatPayQr(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Zen"),
-                ))?
-            }
+            domain::WalletData::WeChatPayRedirect(_)
+            | domain::WalletData::PaypalRedirect(_)
+            | domain::WalletData::ApplePay(_)
+            | domain::WalletData::GooglePay(_)
+            | domain::WalletData::AliPayQr(_)
+            | domain::WalletData::AliPayRedirect(_)
+            | domain::WalletData::AliPayHkRedirect(_)
+            | domain::WalletData::MomoRedirect(_)
+            | domain::WalletData::KakaoPayRedirect(_)
+            | domain::WalletData::GoPayRedirect(_)
+            | domain::WalletData::GcashRedirect(_)
+            | domain::WalletData::ApplePayThirdPartySdk(_)
+            | domain::WalletData::DanaRedirect {}
+            | domain::WalletData::GooglePayThirdPartySdk(_)
+            | domain::WalletData::MbWayRedirect(_)
+            | domain::WalletData::MobilePayRedirect(_)
+            | domain::WalletData::PaypalSdk(_)
+            | domain::WalletData::SamsungPay(_)
+            | domain::WalletData::TwintRedirect {}
+            | domain::WalletData::VippsRedirect {}
+            | domain::WalletData::TouchNGoRedirect(_)
+            | domain::WalletData::CashappQr(_)
+            | domain::WalletData::SwishQr(_)
+            | domain::WalletData::WeChatPayQr(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Zen"),
+            ))?,
         };
         let terminal_uuid = session_data
             .terminal_uuid
@@ -685,36 +690,32 @@ impl TryFrom<&ZenRouterData<&types::PaymentsAuthorizeRouterData>> for ZenPayment
         item: &ZenRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match &item.router_data.request.payment_method_data {
-            api_models::payments::PaymentMethodData::Card(card) => Self::try_from((item, card)),
-            api_models::payments::PaymentMethodData::Wallet(wallet_data) => {
-                Self::try_from((item, wallet_data))
-            }
-            api_models::payments::PaymentMethodData::Voucher(voucher_data) => {
+            domain::PaymentMethodData::Card(card) => Self::try_from((item, card)),
+            domain::PaymentMethodData::Wallet(wallet_data) => Self::try_from((item, wallet_data)),
+            domain::PaymentMethodData::Voucher(voucher_data) => {
                 Self::try_from((item, voucher_data))
             }
-            api_models::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
+            domain::PaymentMethodData::BankTransfer(bank_transfer_data) => {
                 Self::try_from((item, bank_transfer_data))
             }
-            api_models::payments::PaymentMethodData::BankRedirect(bank_redirect_data) => {
+            domain::PaymentMethodData::BankRedirect(bank_redirect_data) => {
                 Self::try_from(bank_redirect_data)
             }
-            api_models::payments::PaymentMethodData::PayLater(paylater_data) => {
-                Self::try_from(paylater_data)
-            }
-            api_models::payments::PaymentMethodData::BankDebit(bank_debit_data) => {
+            domain::PaymentMethodData::PayLater(paylater_data) => Self::try_from(paylater_data),
+            domain::PaymentMethodData::BankDebit(bank_debit_data) => {
                 Self::try_from(bank_debit_data)
             }
-            api_models::payments::PaymentMethodData::CardRedirect(car_redirect_data) => {
+            domain::PaymentMethodData::CardRedirect(car_redirect_data) => {
                 Self::try_from(car_redirect_data)
             }
-            api_models::payments::PaymentMethodData::GiftCard(gift_card_data) => {
+            domain::PaymentMethodData::GiftCard(gift_card_data) => {
                 Self::try_from(gift_card_data.as_ref())
             }
-            api_models::payments::PaymentMethodData::Crypto(_)
-            | api_models::payments::PaymentMethodData::MandatePayment
-            | api_models::payments::PaymentMethodData::Reward
-            | api_models::payments::PaymentMethodData::Upi(_)
-            | api_models::payments::PaymentMethodData::CardToken(_) => {
+            domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Zen"),
                 ))?
@@ -791,14 +792,14 @@ impl TryFrom<&api_models::payments::BankDebitData> for ZenPaymentsRequest {
     }
 }
 
-impl TryFrom<&api_models::payments::CardRedirectData> for ZenPaymentsRequest {
+impl TryFrom<&domain::payments::CardRedirectData> for ZenPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: &api_models::payments::CardRedirectData) -> Result<Self, Self::Error> {
+    fn try_from(value: &domain::payments::CardRedirectData) -> Result<Self, Self::Error> {
         match value {
-            api_models::payments::CardRedirectData::Knet {}
-            | api_models::payments::CardRedirectData::Benefit {}
-            | api_models::payments::CardRedirectData::MomoAtm {}
-            | api_models::payments::CardRedirectData::CardRedirect {} => {
+            domain::payments::CardRedirectData::Knet {}
+            | domain::payments::CardRedirectData::Benefit {}
+            | domain::payments::CardRedirectData::MomoAtm {}
+            | domain::payments::CardRedirectData::CardRedirect {} => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Zen"),
                 )

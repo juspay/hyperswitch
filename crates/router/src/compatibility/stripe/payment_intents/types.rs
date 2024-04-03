@@ -423,24 +423,14 @@ impl From<api_enums::IntentStatus> for StripePaymentStatus {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Copy, Clone)]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone, strum::Display)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum CancellationReason {
     Duplicate,
     Fraudulent,
     RequestedByCustomer,
     Abandoned,
-}
-
-impl ToString for CancellationReason {
-    fn to_string(&self) -> String {
-        String::from(match self {
-            Self::Duplicate => "duplicate",
-            Self::Fraudulent => "fradulent",
-            Self::RequestedByCustomer => "requested_by_customer",
-            Self::Abandoned => "abandoned",
-        })
-    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Copy, Clone)]
