@@ -328,10 +328,7 @@ pub async fn add_payment_method_data(
         .payment_method_data
         .clone()
         .get_required_value("payment_method_data")?;
-    let _payment_method = req
-        .payment_method
-        .clone()
-        .get_required_value("payment_method")?;
+    let _payment_method = req.payment_method.get_required_value("payment_method")?;
     let client_secret = req
         .client_secret
         .clone()
