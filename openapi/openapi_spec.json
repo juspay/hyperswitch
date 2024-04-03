@@ -4756,7 +4756,8 @@
             "type": "string",
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "AddressDetails": {
         "type": "object",
@@ -4825,7 +4826,8 @@
             "nullable": true,
             "maxLength": 255
           }
-        }
+        },
+        "additionalProperties": false
       },
       "AirwallexData": {
         "type": "object",
@@ -6607,7 +6609,8 @@
             ],
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "BusinessProfileResponse": {
         "type": "object",
@@ -6903,7 +6906,8 @@
             "description": "Card Type",
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "CardDetailFromLocker": {
         "type": "object",
@@ -7114,6 +7118,7 @@
           "authorizedotnet",
           "bambora",
           "bankofamerica",
+          "billwerk",
           "bitpay",
           "bluesnap",
           "boku",
@@ -7559,7 +7564,8 @@
           "expiration": {
             "$ref": "#/components/schemas/ApiKeyExpiration"
           }
-        }
+        },
+        "additionalProperties": false
       },
       "CreateApiKeyResponse": {
         "type": "object",
@@ -7798,7 +7804,8 @@
             ],
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "CustomerDefaultPaymentMethodResponse": {
         "type": "object",
@@ -7810,7 +7817,7 @@
           "default_payment_method_id": {
             "type": "string",
             "description": "The unique identifier of the Payment method",
-            "example": "card_rGK4Vi5iSW70MY7J2mIy",
+            "example": "card_rGK4Vi5iSW70MY7J2mIg",
             "nullable": true
           },
           "customer_id": {
@@ -8887,7 +8894,8 @@
             },
             "description": "payment methods that can be used in the payment"
           }
-        }
+        },
+        "additionalProperties": false
       },
       "FrmMessage": {
         "type": "object",
@@ -8943,7 +8951,8 @@
             },
             "description": "payment method types(credit, debit) that can be used in the payment"
           }
-        }
+        },
+        "additionalProperties": false
       },
       "FrmPaymentMethodType": {
         "type": "object",
@@ -8967,7 +8976,8 @@
           "action": {
             "$ref": "#/components/schemas/FrmAction"
           }
-        }
+        },
+        "additionalProperties": false
       },
       "FrmPreferredFlowTypes": {
         "type": "string",
@@ -9908,7 +9918,8 @@
             ],
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "MandateResponse": {
         "type": "object",
@@ -10166,7 +10177,8 @@
             "description": "The id of the organization to which the merchant belongs to",
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "MerchantAccountDeleteResponse": {
         "type": "object",
@@ -10451,7 +10463,8 @@
             "nullable": true,
             "maxLength": 64
           }
-        }
+        },
+        "additionalProperties": false
       },
       "MerchantConnectorCreate": {
         "type": "object",
@@ -10602,7 +10615,8 @@
             ],
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "MerchantConnectorDeleteResponse": {
         "type": "object",
@@ -10835,7 +10849,8 @@
           "status": {
             "$ref": "#/components/schemas/ConnectorStatus"
           }
-        }
+        },
+        "additionalProperties": false
       },
       "MerchantConnectorUpdate": {
         "type": "object",
@@ -10948,7 +10963,8 @@
           "status": {
             "$ref": "#/components/schemas/ConnectorStatus"
           }
-        }
+        },
+        "additionalProperties": false
       },
       "MerchantConnectorWebhookDetails": {
         "type": "object",
@@ -10965,7 +10981,8 @@
             "type": "string",
             "example": "12345678900987654321"
           }
-        }
+        },
+        "additionalProperties": false
       },
       "MerchantDetails": {
         "type": "object",
@@ -11034,7 +11051,8 @@
             ],
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "MerchantRoutingAlgorithm": {
         "type": "object",
@@ -11416,7 +11434,8 @@
             "type": "string",
             "description": "The user-agent of the customer's browser"
           }
-        }
+        },
+        "additionalProperties": false
       },
       "OrderDetails": {
         "type": "object",
@@ -12253,7 +12272,8 @@
             "example": "2022-09-10T10:11:12Z",
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "PaymentListResponse": {
         "type": "object",
@@ -12365,7 +12385,8 @@
             ],
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "PaymentMethodData": {
         "oneOf": [
@@ -12559,7 +12580,7 @@
           "payment_method_id": {
             "type": "string",
             "description": "The unique identifier of the Payment method",
-            "example": "card_rGK4Vi5iSW70MY7J2mIy"
+            "example": "card_rGK4Vi5iSW70MY7J2mIg"
           },
           "deleted": {
             "type": "boolean",
@@ -12685,7 +12706,7 @@
           "payment_method_id": {
             "type": "string",
             "description": "The unique identifier of the Payment method",
-            "example": "card_rGK4Vi5iSW70MY7J2mIy"
+            "example": "card_rGK4Vi5iSW70MY7J2mIg"
           },
           "payment_method": {
             "$ref": "#/components/schemas/PaymentMethod"
@@ -12892,7 +12913,8 @@
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "PaymentMethodsEnabled": {
         "type": "object",
@@ -12915,7 +12937,8 @@
             ],
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "PaymentRetrieveBody": {
         "type": "object",
@@ -14296,7 +14319,8 @@
             ],
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "PaymentsResponse": {
         "type": "object",
@@ -14388,6 +14412,14 @@
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
             "maxLength": 255
+          },
+          "customer": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDetails"
+              }
+            ],
+            "nullable": true
           },
           "description": {
             "type": "string",
@@ -15584,7 +15616,8 @@
             "description": "The business profile to use for this payment, if not passed the default business profile\nassociated with the merchant account will be used.",
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "PayoutCreateResponse": {
         "type": "object",
@@ -15753,7 +15786,8 @@
             "description": "List of attempts",
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "PayoutEntityType": {
         "type": "string",
@@ -16126,7 +16160,8 @@
             "type": "string",
             "example": "food"
           }
-        }
+        },
+        "additionalProperties": false
       },
       "ProductType": {
         "type": "string",
@@ -16371,7 +16406,7 @@
         "properties": {
           "payment_id": {
             "type": "string",
-            "description": "The payment id against which refund is to be intiated",
+            "description": "The payment id against which refund is to be initiated",
             "example": "pay_mbabizu24mvu3mela5njyhpit4",
             "maxLength": 30,
             "minLength": 30
@@ -16428,7 +16463,8 @@
             ],
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "RefundResponse": {
         "type": "object",
@@ -16447,7 +16483,7 @@
           },
           "payment_id": {
             "type": "string",
-            "description": "The payment id against which refund is intiated"
+            "description": "The payment id against which refund is initiated"
           },
           "amount": {
             "type": "integer",
@@ -16543,7 +16579,8 @@
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "RequestPaymentMethodTypes": {
         "type": "object",
@@ -16856,6 +16893,7 @@
           "airwallex",
           "authorizedotnet",
           "bankofamerica",
+          "billwerk",
           "bitpay",
           "bambora",
           "bluesnap",
@@ -17801,7 +17839,8 @@
             ],
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "UpiData": {
         "type": "object",
@@ -18470,7 +18509,8 @@
             "example": true,
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       }
     },
     "securitySchemes": {
