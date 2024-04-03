@@ -29,7 +29,6 @@ use super::{helpers, CustomerDetails, PaymentData};
 use crate::{
     core::{
         errors::{self, CustomResult, RouterResult},
-        mandate,
         payment_methods::PaymentMethodRetrieve,
         payments,
     },
@@ -68,12 +67,9 @@ pub trait Operation<F: Clone, T, Ctx: PaymentMethodRetrieve>: Send + std::fmt::D
         Err(report!(errors::ApiErrorResponse::InternalServerError))
             .attach_printable_lazy(|| format!("update tracker interface not found for {self:?}"))
     }
-    fn to_post_update_tracker<FData>(
+    fn to_post_update_tracker(
         &self,
-    ) -> RouterResult<&(dyn PostUpdateTracker<F, PaymentData<F>, T> + Send + Sync)>
-    where
-        FData: mandate::MandateBehaviour,
-    {
+    ) -> RouterResult<&(dyn PostUpdateTracker<F, PaymentData<F>, T> + Send + Sync)> {
         Err(report!(errors::ApiErrorResponse::InternalServerError)).attach_printable_lazy(|| {
             format!("post connector update tracker not found for {self:?}")
         })
