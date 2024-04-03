@@ -323,7 +323,7 @@ async fn should_sync_refund() {
     );
 }
 
-// Cards Negative scenerios
+// Cards Negative scenarios
 // Creates a payment with incorrect CVC.
 #[ignore = "Connector doesn't fail invalid cvv scenario"]
 #[actix_web::test]
