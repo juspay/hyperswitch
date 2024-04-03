@@ -357,7 +357,7 @@ pub struct RefundResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RefundResponseData {
-    //Some field related to forign exchange and split payment can be added as and when implemented
+    //Some field related to foreign exchange and split payment can be added as and when implemented
     pub id: String,
     pub payment: String,
     pub amount: i64,

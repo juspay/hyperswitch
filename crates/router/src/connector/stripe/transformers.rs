@@ -154,8 +154,8 @@ pub struct StripeMetadata {
     // merchant_reference_id
     #[serde(rename(serialize = "metadata[order_id]"))]
     pub order_id: Option<String>,
-    // to check whether the order_id is refund_id or payemnt_id
-    // before deployment, order id is set to payemnt_id in refunds but now it is set as refund_id
+    // to check whether the order_id is refund_id or payment_id
+    // before deployment, order id is set to payment_id in refunds but now it is set as refund_id
     // it is set as string instead of bool because stripe pass it as string even if we set it as bool
     #[serde(rename(serialize = "metadata[is_refund_id_as_reference]"))]
     pub is_refund_id_as_reference: Option<String>,
@@ -2845,7 +2845,7 @@ pub struct StripeVerifyWithMicroDepositsResponse {
 pub struct StripeBankTransferDetails {
     pub amount_remaining: i64,
     pub currency: String,
-    pub financial_addresses: Vec<StripeFinanicalInformation>,
+    pub financial_addresses: Vec<StripeFinancialInformation>,
     pub hosted_instructions_url: Option<String>,
     pub reference: Option<String>,
     #[serde(rename = "type")]
@@ -2867,7 +2867,7 @@ pub struct QrCodeResponse {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
-pub struct StripeFinanicalInformation {
+pub struct StripeFinancialInformation {
     pub iban: Option<SepaFinancialDetails>,
     pub sort_code: Option<BacsFinancialDetails>,
     pub supported_networks: Vec<String>,
