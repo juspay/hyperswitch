@@ -773,7 +773,7 @@ where
                 .set_payment_method_status(payment_data.payment_method_info.map(|info| info.status))
                 .set_customer(customer_details_response.clone())
                 .set_browser_info(payment_attempt.browser_info)
-                .set_updated(payment_intent.modified_at)
+                .set_updated(Some(payment_intent.modified_at))
                 .to_owned(),
             headers,
         ))
