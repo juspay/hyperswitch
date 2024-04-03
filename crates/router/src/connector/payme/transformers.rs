@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use api_models::enums::{AuthenticationType, PaymentMethod};
 use common_utils::pii;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -18,6 +18,7 @@ use crate::{
     core::errors,
     services,
     types::{self, api, domain, domain::PaymentMethodData, storage::enums, MandateReference},
+    unimplemented_payment_method,
 };
 
 const LANGUAGE: &str = "en";
@@ -694,7 +695,6 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
                 let payload_data = item.request.get_redirect_response_payload()?.expose();
 
                 let jwt_data: PaymeRedirectResponseData = serde_json::from_value(payload_data)
-                    .into_report()
                     .change_context(errors::ConnectorError::MissingConnectorRedirectionPayload {
                         field_name: "meta_data_jwt",
                     })?;
@@ -707,9 +707,9 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
                 let pm_token = item.get_payment_method_token()?;
                 let buyer_key = match pm_token {
                     types::PaymentMethodToken::Token(token) => token,
-                    types::PaymentMethodToken::ApplePayDecrypt(_) => {
-                        Err(errors::ConnectorError::InvalidWalletToken)?
-                    }
+                    types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
+                        unimplemented_payment_method!("Apple Pay", "Simplified", "Payme"),
+                    )?,
                 };
                 Ok(Self {
                     buyer_email,

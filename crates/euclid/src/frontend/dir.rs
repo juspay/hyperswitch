@@ -113,7 +113,7 @@ impl DirKey {
     serde::Serialize,
     strum::Display,
     strum::EnumIter,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     strum::EnumString,
     strum::EnumMessage,
     strum::EnumProperty,
@@ -490,7 +490,7 @@ impl DirKeyKind {
 }
 
 #[derive(
-    Debug, Clone, Hash, PartialEq, Eq, serde::Serialize, strum::Display, strum::EnumVariantNames,
+    Debug, Clone, Hash, PartialEq, Eq, serde::Serialize, strum::Display, strum::VariantNames,
 )]
 #[serde(tag = "key", content = "value")]
 pub enum DirValue {
@@ -677,7 +677,7 @@ impl DirValue {
     serde::Serialize,
     strum::Display,
     strum::EnumIter,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     strum::EnumString,
     strum::EnumMessage,
     strum::EnumProperty,
@@ -743,7 +743,7 @@ pub enum PayoutDirKeyKind {
 
 #[cfg(feature = "payouts")]
 #[derive(
-    Debug, Clone, Hash, PartialEq, Eq, serde::Serialize, strum::Display, strum::EnumVariantNames,
+    Debug, Clone, Hash, PartialEq, Eq, serde::Serialize, strum::Display, strum::VariantNames,
 )]
 pub enum PayoutDirValue {
     #[serde(rename = "business_country", alias = "country")]

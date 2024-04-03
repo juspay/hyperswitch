@@ -437,7 +437,7 @@ async fn should_refund_succeeded_payment_multiple_times() {
     }
 }
 
-// Cards Negative scenerios
+// Cards Negative scenarios
 // Creates a payment with incorrect card number.
 #[actix_web::test]
 async fn should_fail_payment_for_incorrect_card_number() {

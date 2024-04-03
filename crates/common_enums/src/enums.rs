@@ -15,6 +15,7 @@ pub mod diesel_exports {
         DbPaymentMethodIssuerCode as PaymentMethodIssuerCode, DbPaymentType as PaymentType,
         DbRefundStatus as RefundStatus,
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
+        DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
     };
 }
 
@@ -74,7 +75,7 @@ pub enum AttemptStatus {
     strum::Display,
     strum::EnumString,
     strum::EnumIter,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
@@ -115,6 +116,7 @@ pub enum RoutableConnectors {
     Airwallex,
     Authorizedotnet,
     Bankofamerica,
+    Billwerk,
     Bitpay,
     Bambora,
     Bluesnap,
@@ -208,7 +210,7 @@ impl AttemptStatus {
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     strum::EnumIter,
     strum::EnumString,
     ToSchema,
@@ -311,7 +313,7 @@ pub enum BlocklistDataKind {
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     strum::EnumIter,
     strum::EnumString,
     ToSchema,
@@ -385,7 +387,7 @@ pub enum ConnectorType {
     strum::Display,
     strum::EnumString,
     strum::EnumIter,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
@@ -1048,6 +1050,28 @@ impl Currency {
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+pub enum EventClass {
+    Payments,
+    Refunds,
+    Disputes,
+    Mandates,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum EventType {
     /// Authorize + Capture success
     PaymentSucceeded,
@@ -1069,6 +1093,27 @@ pub enum EventType {
     DisputeLost,
     MandateActive,
     MandateRevoked,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum WebhookDeliveryAttempt {
+    InitialAttempt,
+    AutomaticRetry,
+    ManualRetry,
 }
 
 // TODO: This decision about using KV mode or not,
@@ -1137,7 +1182,7 @@ pub enum IntentStatus {
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     strum::EnumIter,
     strum::EnumString,
     ToSchema,
@@ -1209,7 +1254,6 @@ pub enum PaymentMethodStatus {
 impl From<AttemptStatus> for PaymentMethodStatus {
     fn from(attempt_status: AttemptStatus) -> Self {
         match attempt_status {
-            AttemptStatus::Charged | AttemptStatus::Authorized => Self::Active,
             AttemptStatus::Failure => Self::Inactive,
             AttemptStatus::Voided
             | AttemptStatus::Started
@@ -1231,7 +1275,9 @@ impl From<AttemptStatus> for PaymentMethodStatus {
             | AttemptStatus::PartialCharged
             | AttemptStatus::PartialChargedAndChargeable
             | AttemptStatus::ConfirmationAwaited
-            | AttemptStatus::DeviceDataCollectionPending => Self::Processing,
+            | AttemptStatus::DeviceDataCollectionPending
+            | AttemptStatus::Charged
+            | AttemptStatus::Authorized => Self::Active,
         }
     }
 }
@@ -1283,7 +1329,7 @@ pub enum PaymentExperience {
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     strum::EnumIter,
     strum::EnumString,
     ToSchema,
@@ -1390,7 +1436,7 @@ pub enum PaymentMethodType {
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     strum::EnumIter,
     strum::EnumString,
     ToSchema,
@@ -1498,7 +1544,7 @@ pub enum MandateStatus {
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     strum::EnumIter,
     strum::EnumString,
     ToSchema,
@@ -1582,6 +1628,7 @@ pub enum DisputeStatus {
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
+    strum::EnumIter,
     strum::EnumString,
     utoipa::ToSchema,
     Copy
@@ -1663,7 +1710,7 @@ pub enum CountryAlpha3 {
     Eq,
     Hash,
     strum::Display,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     strum::EnumIter,
     strum::EnumString,
     Deserialize,
@@ -2063,7 +2110,7 @@ pub enum PayoutStatus {
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     strum::EnumIter,
     strum::EnumString,
     ToSchema,
@@ -2603,156 +2650,3 @@ pub enum BankNames {
     N26,
     NationaleNederlanden,
 }
-
-// impl From<enums::BankNames> for BankNames {
-//     fn from(api_bank_name: enums::BankNames) -> Self {
-//         match api_bank_name {
-//             enums::BankNames::AmericanExpress => BankNames::AmericanExpress,
-//             enums::BankNames::AffinBank => BankNames::AffinBank,
-//             enums::BankNames::AgroBank => BankNames::AgroBank,
-//             enums::BankNames::AllianceBank => BankNames::AllianceBank,
-//             enums::BankNames::AmBank => BankNames::AmBank,
-//             enums::BankNames::BankOfAmerica => BankNames::BankOfAmerica,
-//             enums::BankNames::BankIslam => BankNames::BankIslam,
-//             enums::BankNames::BankMuamalat => todo!(),
-//             enums::BankNames::BankRakyat => todo!(),
-//             enums::BankNames::BankSimpananNasional => todo!(),
-//             enums::BankNames::Barclays => todo!(),
-//             enums::BankNames::BlikPSP => todo!(),
-//             enums::BankNames::CapitalOne => todo!(),
-//             enums::BankNames::Chase => todo!(),
-//             enums::BankNames::Citi => todo!(),
-//             enums::BankNames::CimbBank => todo!(),
-//             enums::BankNames::Discover => todo!(),
-//             enums::BankNames::NavyFederalCreditUnion => todo!(),
-//             enums::BankNames::PentagonFederalCreditUnion => todo!(),
-//             enums::BankNames::SynchronyBank => todo!(),
-//             enums::BankNames::WellsFargo => todo!(),
-//             enums::BankNames::AbnAmro => todo!(),
-//             enums::BankNames::AsnBank => todo!(),
-//             enums::BankNames::Bunq => todo!(),
-//             enums::BankNames::Handelsbanken => todo!(),
-//             enums::BankNames::HongLeongBank => todo!(),
-//             enums::BankNames::HsbcBank => todo!(),
-//             enums::BankNames::Ing => todo!(),
-//             enums::BankNames::Knab => todo!(),
-//             enums::BankNames::KuwaitFinanceHouse => todo!(),
-//             enums::BankNames::Moneyou => todo!(),
-//             enums::BankNames::Rabobank => todo!(),
-//             enums::BankNames::Regiobank => todo!(),
-//             enums::BankNames::Revolut => todo!(),
-//             enums::BankNames::SnsBank => todo!(),
-//             enums::BankNames::TriodosBank => todo!(),
-//             enums::BankNames::VanLanschot => todo!(),
-//             enums::BankNames::ArzteUndApothekerBank => todo!(),
-//             enums::BankNames::AustrianAnadiBankAg => todo!(),
-//             enums::BankNames::BankAustria => todo!(),
-//             enums::BankNames::Bank99Ag => todo!(),
-//             enums::BankNames::BankhausCarlSpangler => todo!(),
-//             enums::BankNames::BankhausSchelhammerUndSchatteraAg => todo!(),
-//             enums::BankNames::BankMillennium => todo!(),
-//             enums::BankNames::BankPEKAOSA => todo!(),
-//             enums::BankNames::BawagPskAg => todo!(),
-//             enums::BankNames::BksBankAg => todo!(),
-//             enums::BankNames::BrullKallmusBankAg => todo!(),
-//             enums::BankNames::BtvVierLanderBank => todo!(),
-//             enums::BankNames::CapitalBankGraweGruppeAg => todo!(),
-//             enums::BankNames::CeskaSporitelna => todo!(),
-//             enums::BankNames::Dolomitenbank => todo!(),
-//             enums::BankNames::EasybankAg => todo!(),
-//             enums::BankNames::EPlatbyVUB => todo!(),
-//             enums::BankNames::ErsteBankUndSparkassen => todo!(),
-//             enums::BankNames::FrieslandBank => todo!(),
-//             enums::BankNames::HypoAlpeadriabankInternationalAg => todo!(),
-//             enums::BankNames::HypoNoeLbFurNiederosterreichUWien => todo!(),
-//             enums::BankNames::HypoOberosterreichSalzburgSteiermark => todo!(),
-//             enums::BankNames::HypoTirolBankAg => todo!(),
-//             enums::BankNames::HypoVorarlbergBankAg => todo!(),
-//             enums::BankNames::HypoBankBurgenlandAktiengesellschaft => todo!(),
-//             enums::BankNames::KomercniBanka => todo!(),
-//             enums::BankNames::MBank => todo!(),
-//             enums::BankNames::MarchfelderBank => todo!(),
-//             enums::BankNames::Maybank => todo!(),
-//             enums::BankNames::OberbankAg => todo!(),
-//             enums::BankNames::OsterreichischeArzteUndApothekerbank => todo!(),
-//             enums::BankNames::OcbcBank => todo!(),
-//             enums::BankNames::PayWithING => todo!(),
-//             enums::BankNames::PlaceZIPKO => todo!(),
-//             enums::BankNames::PlatnoscOnlineKartaPlatnicza => todo!(),
-//             enums::BankNames::PosojilnicaBankEGen => todo!(),
-//             enums::BankNames::PostovaBanka => todo!(),
-//             enums::BankNames::PublicBank => todo!(),
-//             enums::BankNames::RaiffeisenBankengruppeOsterreich => todo!(),
-//             enums::BankNames::RhbBank => todo!(),
-//             enums::BankNames::SchelhammerCapitalBankAg => todo!(),
-//             enums::BankNames::StandardCharteredBank => todo!(),
-//             enums::BankNames::SchoellerbankAg => todo!(),
-//             enums::BankNames::SpardaBankWien => todo!(),
-//             enums::BankNames::SporoPay => todo!(),
-//             enums::BankNames::SantanderPrzelew24 => todo!(),
-//             enums::BankNames::TatraPay => todo!(),
-//             enums::BankNames::Viamo => todo!(),
-//             enums::BankNames::VolksbankGruppe => todo!(),
-//             enums::BankNames::VolkskreditbankAg => todo!(),
-//             enums::BankNames::VrBankBraunau => todo!(),
-//             enums::BankNames::UobBank => todo!(),
-//             enums::BankNames::PayWithAliorBank => todo!(),
-//             enums::BankNames::BankiSpoldzielcze => todo!(),
-//             enums::BankNames::PayWithInteligo => todo!(),
-//             enums::BankNames::BNPParibasPoland => todo!(),
-//             enums::BankNames::BankNowySA => todo!(),
-//             enums::BankNames::CreditAgricole => todo!(),
-//             enums::BankNames::PayWithBOS => todo!(),
-//             enums::BankNames::PayWithCitiHandlowy => todo!(),
-//             enums::BankNames::PayWithPlusBank => todo!(),
-//             enums::BankNames::ToyotaBank => todo!(),
-//             enums::BankNames::VeloBank => todo!(),
-//             enums::BankNames::ETransferPocztowy24 => todo!(),
-//             enums::BankNames::PlusBank => todo!(),
-//             enums::BankNames::EtransferPocztowy24 => todo!(),
-//             enums::BankNames::BankiSpbdzielcze => todo!(),
-//             enums::BankNames::BankNowyBfgSa => todo!(),
-//             enums::BankNames::GetinBank => todo!(),
-//             enums::BankNames::Blik => todo!(),
-//             enums::BankNames::NoblePay => todo!(),
-//             enums::BankNames::IdeaBank => todo!(),
-//             enums::BankNames::EnveloBank => todo!(),
-//             enums::BankNames::NestPrzelew => todo!(),
-//             enums::BankNames::MbankMtransfer => todo!(),
-//             enums::BankNames::Inteligo => todo!(),
-//             enums::BankNames::PbacZIpko => todo!(),
-//             enums::BankNames::BnpParibas => todo!(),
-//             enums::BankNames::BankPekaoSa => todo!(),
-//             enums::BankNames::VolkswagenBank => todo!(),
-//             enums::BankNames::AliorBank => todo!(),
-//             enums::BankNames::Boz => todo!(),
-//             enums::BankNames::BangkokBank => todo!(),
-//             enums::BankNames::KrungsriBank => todo!(),
-//             enums::BankNames::KrungThaiBank => todo!(),
-//             enums::BankNames::TheSiamCommercialBank => todo!(),
-//             enums::BankNames::KasikornBank => todo!(),
-//             enums::BankNames::OpenBankSuccess => todo!(),
-//             enums::BankNames::OpenBankFailure => todo!(),
-//             enums::BankNames::OpenBankCancelled => todo!(),
-//             enums::BankNames::Aib => todo!(),
-//             enums::BankNames::BankOfScotland => todo!(),
-//             enums::BankNames::DanskeBank => todo!(),
-//             enums::BankNames::FirstDirect => todo!(),
-//             enums::BankNames::FirstTrust => todo!(),
-//             enums::BankNames::Halifax => todo!(),
-//             enums::BankNames::Lloyds => todo!(),
-//             enums::BankNames::Monzo => todo!(),
-//             enums::BankNames::NatWest => todo!(),
-//             enums::BankNames::NationwideBank => todo!(),
-//             enums::BankNames::RoyalBankOfScotland => todo!(),
-//             enums::BankNames::Starling => todo!(),
-//             enums::BankNames::TsbBank => todo!(),
-//             enums::BankNames::TescoBank => todo!(),
-//             enums::BankNames::UlsterBank => todo!(),
-//             enums::BankNames::Yoursafe => todo!(),
-//             enums::BankNames::N26 => todo!(),
-//             enums::BankNames::NationaleNederlanden => todo!(),
-//             // Add more mappings for each bank name variant
-//         }
-//     }
-// }

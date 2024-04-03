@@ -1,12 +1,12 @@
 use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
-use api_models::payments::{FrmMessage, RequestSurchargeDetails};
+use api_models::payments::{FrmMessage, GetAddressFromPaymentMethodData, RequestSurchargeDetails};
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutAttemptResponse;
 use common_enums::RequestIncrementalAuthorization;
 use common_utils::{consts::X_HS_LATENCY, fp_utils};
 use diesel_models::ephemeral_key;
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use masking::Maskable;
 use router_env::{instrument, tracing};
 
@@ -102,7 +102,6 @@ where
         .multiple_api_version_supported_connectors
         .supported_connectors;
     let connector_enum = api_models::enums::Connector::from_str(connector_id)
-        .into_report()
         .change_context(errors::ConnectorError::InvalidConnectorName)
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "connector",
@@ -125,6 +124,11 @@ where
         Some(merchant_connector_account),
     );
 
+    let payment_method_data_billing = payment_data
+        .payment_method_data
+        .as_ref()
+        .and_then(|payment_method_data| payment_method_data.get_billing_address());
+
     router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
@@ -138,7 +142,9 @@ where
         description: payment_data.payment_intent.description.clone(),
         return_url: payment_data.payment_intent.return_url.clone(),
         payment_method_id: payment_data.payment_attempt.payment_method_id.clone(),
-        address: payment_data.address.clone(),
+        address: payment_data
+            .address
+            .unify_with_payment_method_data_billing(payment_method_data_billing),
         auth_type: payment_data
             .payment_attempt
             .authentication_type
@@ -374,7 +380,6 @@ where
         .get_required_value("currency")?;
     let amount = currency
         .to_currency_base_unit(payment_attempt.amount)
-        .into_report()
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "amount",
         })?;
@@ -491,6 +496,8 @@ where
             Maskable::new_normal(payment_confirm_source.to_string()),
         ))
     }
+
+    let customer_details_response = customer.as_ref().map(ForeignInto::foreign_into);
 
     headers.extend(
         external_latency
@@ -781,6 +788,7 @@ where
                         .set_payment_method_status(
                             payment_data.payment_method_info.map(|info| info.status),
                         )
+                        .set_customer(customer_details_response.clone())
                         .to_owned(),
                     headers,
                 ))
@@ -851,6 +859,7 @@ where
                 expires_on: payment_intent.session_expiry,
                 external_3ds_authentication_attempted: payment_attempt
                     .external_three_ds_authentication_attempted,
+                customer: customer_details_response,
                 ..Default::default()
             },
             headers,

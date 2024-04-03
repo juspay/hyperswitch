@@ -1,4 +1,4 @@
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -323,7 +323,6 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for AirwallexCompleteR
                     .as_ref()
                     .map(|data| serde_json::to_string(data.peek()))
                     .transpose()
-                    .into_report()
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
                     .map(Secret::new),
             },

@@ -170,6 +170,8 @@ applepay.base_url = "https://apple-pay-gateway.apple.com/"
 authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 bambora.base_url = "https://api.na.bambora.com"
 bankofamerica.base_url = "https://apitest.merchant-services.bankofamerica.com/"
+billwerk.base_url = "https://api.reepay.com/"
+billwerk.secondary_base_url = "https://card.reepay.com/"
 bitpay.base_url = "https://test.bitpay.com"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
 bluesnap.secondary_base_url = "https://sandpay.bluesnap.com/"
@@ -348,6 +350,7 @@ stax = { long_lived_token = true, payment_method = "card,bank_debit" }
 square = { long_lived_token = false, payment_method = "card" }
 braintree = { long_lived_token = false, payment_method = "card" }
 gocardless = { long_lived_token = true, payment_method = "bank_debit" }
+billwerk = {long_lived_token = false, payment_method = "card"}
 
 [temp_locker_enable_config]
 stripe = { payment_method = "bank_transfer" }
@@ -380,7 +383,7 @@ slack_invite_url = "https://www.example.com/"   # Slack invite url for hyperswit
 discord_invite_url = "https://www.example.com/" # Discord invite url for hyperswitch
 
 [mandates.supported_payment_methods]
-card.credit = { connector_list = "stripe,adyen,cybersource" }           # Mandate supported payment method type and connector for card
+card.credit = { connector_list = "stripe,adyen,cybersource,bankofamerica"}           # Mandate supported payment method type and connector for card
 wallet.paypal = { connector_list = "adyen" }                            # Mandate supported payment method type and connector for wallets
 pay_later.klarna = { connector_list = "adyen" }                         # Mandate supported payment method type and connector for pay_later
 bank_debit.ach = { connector_list = "gocardless" }                      # Mandate supported payment method type and connector for bank_debit
@@ -388,7 +391,8 @@ bank_debit.becs = { connector_list = "gocardless" }                     # Mandat
 bank_debit.sepa = { connector_list = "gocardless" }                     # Mandate supported payment method type and connector for bank_debit
 bank_redirect.ideal = { connector_list = "stripe,adyen,globalpay" }     # Mandate supported payment method type and connector for bank_redirect
 bank_redirect.sofort = { connector_list = "stripe,adyen,globalpay" }
-wallet.apple_pay = { connector_list = "stripe,adyen,cybersource,noon" }
+wallet.apple_pay = { connector_list = "stripe,adyen,cybersource,noon,bankofamerica" }
+wallet.google_pay = { connector_list = "bankofamerica"}
 bank_redirect.giropay = { connector_list = "adyen,globalpay" }
 
 

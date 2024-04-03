@@ -117,6 +117,8 @@ pub enum Flow {
     CustomerPaymentMethodsList,
     /// List Customers for a merchant
     CustomersList,
+    /// Retrieve countries and currencies for connector and payment method
+    ListCountriesCurrencies,
     /// Payment methods retrieve flow.
     PaymentMethodsRetrieve,
     /// Payment methods update flow.
@@ -390,6 +392,10 @@ pub enum Flow {
     CreateRole,
     /// Update Role
     UpdateRole,
+    /// List initial webhook delivery attempts
+    WebhookEventInitialDeliveryAttemptList,
+    /// List delivery attempts for a webhook event
+    WebhookEventDeliveryAttemptList,
 }
 
 ///
