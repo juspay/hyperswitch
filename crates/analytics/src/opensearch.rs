@@ -175,7 +175,7 @@ impl OpenSearchClient {
                 let search_indexes = SearchIndex::iter();
 
                 let payload = query_builder
-                    .construct_payload(search_indexes.clone().into_iter().collect())
+                    .construct_payload(search_indexes.clone().collect())
                     .change_context(OpenSearchError::ResponseError)?;
 
                 let mut payload_with_indexes: Vec<JsonBody<Value>> = vec![];
@@ -196,10 +196,10 @@ impl OpenSearchClient {
             OpenSearchQuery::Search(index) => {
                 let payload = query_builder
                     .clone()
-                    .construct_payload(vec![index.clone()])
+                    .construct_payload(vec![index])
                     .change_context(OpenSearchError::ResponseError)?;
 
-                let final_payload = payload.get(0).unwrap_or(&Value::Null);
+                let final_payload = payload.first().unwrap_or(&Value::Null);
 
                 self.client
                     .search(SearchParts::Index(&[
@@ -354,8 +354,8 @@ pub struct OpenSearchQueryBuilder {
 impl OpenSearchQueryBuilder {
     pub fn new(query_type: OpenSearchQuery, query: String) -> Self {
         Self {
-            query_type: query_type,
-            query: query,
+            query_type,
+            query,
             offset: Default::default(),
             count: Default::default(),
             filters: Default::default(),
