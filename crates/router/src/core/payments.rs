@@ -2170,21 +2170,22 @@ pub mod payment_address {
             billing: Option<api::Address>,
             payment_method_billing: Option<api::Address>,
         ) -> Self {
+            // billing -> .billing, this is the billing details passed in the root of payments request
+            // payment_method_billing -> .payment_method_data.billing
+
             // Merge the billing details field from both `payment.billing` and `payment.payment_method_data.billing`
             // The unified payment_method_billing will be used as billing address and passed to the connector module
             // This unification is required in order to provide backwards compatibility
             // so that if `payment.billing` is passed it should be sent to the connector module
-            let unified_payment_method_billing =
-                match (payment_method_billing.clone(), billing.clone()) {
-                    (Some(payment_method_billing), Some(order_billing)) => Some(api::Address {
-                        address: payment_method_billing.address.or(order_billing.address),
-                        phone: payment_method_billing.phone.or(order_billing.phone),
-                        email: payment_method_billing.email.or(order_billing.email),
-                    }),
-                    (Some(payment_method_billing), None) => Some(payment_method_billing),
-                    (None, Some(order_billing)) => Some(order_billing),
-                    (None, None) => None,
-                };
+            // Unify the billing details with `payment_method_data.billing`
+            let unified_payment_method_billing = payment_method_billing
+                .as_ref()
+                .map(|payment_method_billing| {
+                    payment_method_billing
+                        .clone()
+                        .unify_address(billing.as_ref())
+                })
+                .or(billing.clone());
 
             Self {
                 shipping,
@@ -2200,6 +2201,25 @@ pub mod payment_address {
 
         pub fn get_payment_method_billing(&self) -> Option<&api::Address> {
             self.unified_payment_method_billing.as_ref()
+        }
+
+        pub fn unify_with_payment_method_data_billing(
+            self,
+            payment_method_data_billing: Option<api::Address>,
+        ) -> Self {
+            // Unify the billing details with `payment_method_data.billing_details`
+            let unified_payment_method_billing = payment_method_data_billing
+                .map(|payment_method_data_billing| {
+                    payment_method_data_billing.unify_address(self.get_payment_method_billing())
+                })
+                .or(self.get_payment_method_billing().cloned());
+
+            Self {
+                shipping: self.shipping,
+                billing: self.billing,
+                unified_payment_method_billing,
+                payment_method_billing: self.payment_method_billing,
+            }
         }
 
         pub fn get_request_payment_method_billing(&self) -> Option<&api::Address> {
