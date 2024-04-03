@@ -4469,6 +4469,53 @@
           }
         ]
       }
+    },
+    "/events/{merchant_id_or_profile_id}/{event_id}/retry": {
+      "post": {
+        "tags": [
+          "Event"
+        ],
+        "summary": "Events - Manual Retry",
+        "description": "Events - Manual Retry\n\nManually retry the delivery of the specified Event.",
+        "operationId": "Manually retry the delivery of an Event",
+        "parameters": [
+          {
+            "name": "merchant_id_or_profile_id",
+            "in": "path",
+            "description": "The unique identifier for the Merchant Account or Business Profile",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "event_id",
+            "in": "path",
+            "description": "The unique identifier for the Event",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The delivery of the Event was attempted. Check the `response` field in the response payload to identify the status of the delivery attempt.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventRetrieveResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
     }
   },
   "components": {
