@@ -118,12 +118,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 )
                 .await?)
             } else {
-                let connector = connector.clone();
                 let response = resp.clone();
-                let maybe_customer = maybe_customer.clone();
-                let merchant_account = merchant_account.clone();
-                let key_store = key_store.clone();
-                let state = state.clone();
 
                 logger::info!("Call to save_payment_method in locker");
 

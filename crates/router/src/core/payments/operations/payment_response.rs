@@ -587,7 +587,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     let payment_attempt_update =
                         storage::PaymentAttemptUpdate::PreprocessingUpdate {
                             status: updated_attempt_status,
-                            payment_method_id: Some(router_data.payment_method_id),
+                            payment_method_id: router_data.payment_method_id,
                             connector_metadata,
                             preprocessing_step_id,
                             connector_transaction_id,
@@ -676,7 +676,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 amount_capturable: router_data
                                     .request
                                     .get_amount_capturable(&payment_data, updated_attempt_status),
-                                payment_method_id: Some(payment_method_id),
+                                payment_method_id,
                                 mandate_id: payment_data
                                     .mandate_id
                                     .clone()
@@ -715,7 +715,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             status: updated_attempt_status,
                             connector: None,
                             connector_transaction_id,
-                            payment_method_id: Some(router_data.payment_method_id),
+                            payment_method_id: router_data.payment_method_id,
                             error_code: Some(reason.clone().map(|cd| cd.code)),
                             error_message: Some(reason.clone().map(|cd| cd.message)),
                             error_reason: Some(reason.map(|cd| cd.message)),
