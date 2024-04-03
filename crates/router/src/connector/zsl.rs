@@ -239,22 +239,22 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
 impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
     for Zsl
-{}
+{
+}
 
 impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
     for Zsl
-{}
+{
+}
 
 impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
     for Zsl
 {
 }
 
-impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData> for Zsl 
-{}
+impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData> for Zsl {}
 
-impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Zsl
- {}
+impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Zsl {}
 
 #[async_trait::async_trait]
 impl api::IncomingWebhook for Zsl {
