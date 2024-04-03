@@ -628,7 +628,7 @@ impl
                         }
                     };
 
-                    let amount = match (original_amount, original_currency) {
+                    let original_authorized_amount = match (original_amount, original_currency) {
                         (Some(original_amount), Some(original_currency)) => Some(
                             utils::to_currency_base_unit(original_amount, original_currency)?,
                         ),
@@ -646,7 +646,7 @@ impl
                             }),
                             merchant_intitiated_transaction: Some(MerchantInitiatedTransaction {
                                 reason: Some("7".to_string()),
-                                original_authorized_amount: amount,
+                                original_authorized_amount,
                                 previous_transaction_id: Some(Secret::new(network_transaction_id)),
                             }),
                         }),
