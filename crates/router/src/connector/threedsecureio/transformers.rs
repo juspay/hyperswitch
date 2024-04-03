@@ -107,7 +107,7 @@ impl
                             )
                             .change_context(errors::ConnectorError::ParsingFailed)?,
                         connector_authentication_id: pre_authn_response.threeds_server_trans_id,
-                        three_ds_method_data: three_ds_method_data_base64,
+                        three_ds_method_data: Some(three_ds_method_data_base64),
                         three_ds_method_url: pre_authn_response.threeds_method_url,
                         message_version: common_utils::types::SemanticVersion::from_str(
                             &pre_authn_response.acs_end_protocol_version,

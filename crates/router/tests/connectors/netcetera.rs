@@ -1,7 +1,4 @@
-use router::{
-    core::utils as core_utils,
-    types::{self, storage::enums},
-};
+use router::types::{self, storage::enums};
 use test_utils::connector_auth;
 
 use crate::utils::{self, ConnectorActions};

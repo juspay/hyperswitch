@@ -2421,7 +2421,6 @@ impl<const T: u8>
 {
 }
 default_imp_for_connector_authentication!(
-    connector::Netcetera,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
