@@ -60,14 +60,18 @@ impl Event for AuditEvent {
 }
 
 impl EventInfo for AuditEvent {
+    
+    type Data = Self;
+
     fn data(
         &self,
-    ) -> error_stack::Result<Box<dyn masking::ErasedMaskSerialize + Send + Sync>, events::EventsError>
+    ) -> error_stack::Result<Self::Data, events::EventsError>
     {
-        Ok(Box::new(self.clone()))
+        Ok(self.clone())
     }
 
     fn key(&self) -> String {
         "event".to_string()
     }
+    
 }
