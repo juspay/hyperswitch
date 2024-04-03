@@ -19,6 +19,7 @@ use crate::{
         mandate,
         payment_methods::PaymentMethodRetrieve,
         payments::{
+            self,
             helpers::{
                 self as payments_helpers,
                 update_additional_payment_data_with_connector_response_pm_data,
@@ -877,6 +878,37 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         }
         .in_current_span(),
     );
+
+    let flow_name = core_utils::get_flow_name::<F>()?;
+    if flow_name == "PSync" || flow_name == "CompleteAuthorize" {
+        let connector_mandate_id = match router_data.response.clone() {
+            Ok(resp) => match resp {
+                types::PaymentsResponseData::TransactionResponse {
+                    ref mandate_reference,
+                    ..
+                } => {
+                    if let Some(mandate_ref) = mandate_reference {
+                        mandate_ref.connector_mandate_id.clone()
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            },
+            Err(_) => None,
+        };
+        if let Some(ref payment_method) = payment_data.payment_method_info {
+            payments::tokenization::update_connector_mandate_details_in_payment_method(
+                payment_method.clone(),
+                payment_method.payment_method_type,
+                Some(payment_data.payment_attempt.amount),
+                payment_data.payment_attempt.currency,
+                payment_data.payment_attempt.merchant_connector_id.clone(),
+                connector_mandate_id,
+            )
+            .await?;
+        }
+    }
 
     // When connector requires redirection for mandate creation it can update the connector mandate_id during Psync and CompleteAuthorize
     let m_db = state.clone().store;
