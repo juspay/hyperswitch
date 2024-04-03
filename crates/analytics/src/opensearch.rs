@@ -1,6 +1,7 @@
-use crate::query::QueryBuildingError;
-use api_models::analytics::search::SearchIndex;
-use api_models::errors::types::{ApiError, ApiErrorResponse};
+use api_models::{
+    analytics::search::SearchIndex,
+    errors::types::{ApiError, ApiErrorResponse},
+};
 use aws_config::{self, meta::region::RegionProviderChain, Region};
 use common_utils::errors::{CustomResult, ErrorSwitch};
 use data_models::errors::{StorageError, StorageResult};
@@ -22,6 +23,7 @@ use storage_impl::errors::ApplicationError;
 use strum::IntoEnumIterator;
 
 use super::{health_check::HealthCheck, query::QueryResult, types::QueryExecutionError};
+use crate::query::QueryBuildingError;
 
 #[derive(Clone, Debug, serde::Deserialize)]
 #[serde(tag = "auth")]
