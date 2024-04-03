@@ -2,35 +2,33 @@ use api_models::analytics::search::{
     GetGlobalSearchRequest, GetSearchRequestWithIndex, GetSearchResponse, OpenMsearchOutput,
     OpensearchOutput, SearchIndex,
 };
-use common_utils::errors::CustomResult;
+use common_utils::errors::{CustomResult, ReportSwitchExt};
 use error_stack::ResultExt;
-// use common_utils::errors::ReportSwitchExt;
 use serde_json::Value;
 use strum::IntoEnumIterator;
 
-use crate::{
-    errors::AnalyticsError,
-    opensearch::{OpenSearchClient, OpenSearchQuery, OpenSearchQueryBuilder},
+use crate::opensearch::{
+    OpenSearchClient, OpenSearchError, OpenSearchQuery, OpenSearchQueryBuilder,
 };
 
 pub async fn msearch_results(
     client: &OpenSearchClient,
     req: GetGlobalSearchRequest,
     merchant_id: &String,
-) -> CustomResult<Vec<GetSearchResponse>, AnalyticsError> {
+) -> CustomResult<Vec<GetSearchResponse>, OpenSearchError> {
     let mut query_builder = OpenSearchQueryBuilder::new(OpenSearchQuery::Msearch, req.query);
 
     query_builder
         .add_filter_clause("merchant_id".to_string(), merchant_id.to_string())
-        .change_context(AnalyticsError::UnknownError)?;
+        .switch()?;
 
     let response_body = client
         .execute(query_builder)
         .await
-        .change_context(AnalyticsError::UnknownError)?
+        .change_context(OpenSearchError::ConnectionError)?
         .json::<OpenMsearchOutput<Value>>()
         .await
-        .map_err(|_| AnalyticsError::UnknownError)?;
+        .change_context(OpenSearchError::ResponseError)?;
 
     Ok(response_body
         .responses
@@ -53,7 +51,7 @@ pub async fn search_results(
     client: &OpenSearchClient,
     req: GetSearchRequestWithIndex,
     merchant_id: &String,
-) -> CustomResult<GetSearchResponse, AnalyticsError> {
+) -> CustomResult<GetSearchResponse, OpenSearchError> {
     let search_req = req.search_req;
 
     let mut query_builder =
@@ -61,19 +59,19 @@ pub async fn search_results(
 
     query_builder
         .add_filter_clause("merchant_id".to_string(), merchant_id.to_string())
-        .change_context(AnalyticsError::UnknownError)?;
+        .switch()?;
 
     query_builder
         .set_offset_n_count(search_req.offset, search_req.count)
-        .change_context(AnalyticsError::UnknownError)?;
+        .switch()?;
 
     let response_body = client
         .execute(query_builder)
         .await
-        .change_context(AnalyticsError::UnknownError)?
+        .change_context(OpenSearchError::ConnectionError)?
         .json::<OpensearchOutput<Value>>()
         .await
-        .map_err(|_| AnalyticsError::UnknownError)?;
+        .change_context(OpenSearchError::ResponseError)?;
 
     Ok(GetSearchResponse {
         count: response_body.hits.total.value,

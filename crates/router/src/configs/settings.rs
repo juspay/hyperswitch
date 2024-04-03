@@ -719,6 +719,8 @@ impl Settings<SecuredSecret> {
 
         self.lock_settings.validate()?;
         self.events.validate()?;
+
+        #[cfg(feature = "olap")]
         self.opensearch.validate()?;
 
         self.encryption_management

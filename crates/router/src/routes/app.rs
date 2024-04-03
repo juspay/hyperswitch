@@ -41,6 +41,8 @@ use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 use super::{currency, payment_methods::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, webhooks::*};
+#[cfg(feature = "olap")]
+pub use crate::analytics::opensearch::OpenSearchClient;
 use crate::configs::secrets_transformers;
 #[cfg(all(feature = "frm", feature = "oltp"))]
 use crate::routes::fraud_check as frm_routes;
@@ -49,7 +51,6 @@ use crate::routes::recon as recon_routes;
 #[cfg(feature = "olap")]
 use crate::routes::verify_connector::payment_connector_verify;
 pub use crate::{
-    analytics::opensearch::OpenSearchClient,
     configs::settings,
     core::routing,
     db::{StorageImpl, StorageInterface},
@@ -176,6 +177,7 @@ impl AppState {
                 .expect("Failed to create event handler");
 
             #[allow(clippy::expect_used)]
+            #[cfg(feature = "olap")]
             let opensearch_client = conf
                 .opensearch
                 .get_opensearch_client()

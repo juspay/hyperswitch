@@ -1,6 +1,8 @@
+use crate::query::QueryBuildingError;
 use api_models::analytics::search::SearchIndex;
+use api_models::errors::types::{ApiError, ApiErrorResponse};
 use aws_config::{self, meta::region::RegionProviderChain, Region};
-use common_utils::errors::CustomResult;
+use common_utils::errors::{CustomResult, ErrorSwitch};
 use data_models::errors::{StorageError, StorageResult};
 use error_stack::ResultExt;
 use opensearch::{
@@ -44,16 +46,6 @@ pub struct OpenSearchConfig {
     indexes: OpenSearchIndexes,
 }
 
-#[derive(Debug, thiserror::Error)]
-pub enum OpenSearchError {
-    #[error("Opensearch connection error")]
-    ConnectionError,
-    #[error("Opensearch NON-200 response content: '{0}'")]
-    ResponseNotOK(String),
-    #[error("Opensearch response error")]
-    ResponseError,
-}
-
 impl Default for OpenSearchConfig {
     fn default() -> Self {
         Self {
@@ -68,6 +60,55 @@ impl Default for OpenSearchConfig {
                 refunds: "hyperswitch-refund-events".to_string(),
                 disputes: "hyperswitch-dispute-events".to_string(),
             },
+        }
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum OpenSearchError {
+    #[error("Opensearch connection error")]
+    ConnectionError,
+    #[error("Opensearch NON-200 response content: '{0}'")]
+    ResponseNotOK(String),
+    #[error("Opensearch response error")]
+    ResponseError,
+    #[error("Opensearch query building error")]
+    QueryBuildingError,
+}
+
+impl ErrorSwitch<OpenSearchError> for QueryBuildingError {
+    fn switch(&self) -> OpenSearchError {
+        OpenSearchError::QueryBuildingError
+    }
+}
+
+impl ErrorSwitch<ApiErrorResponse> for OpenSearchError {
+    fn switch(&self) -> ApiErrorResponse {
+        match self {
+            Self::ConnectionError => ApiErrorResponse::InternalServerError(ApiError::new(
+                "IR",
+                0,
+                "Connection error",
+                None,
+            )),
+            Self::ResponseNotOK(response) => ApiErrorResponse::InternalServerError(ApiError::new(
+                "IR",
+                0,
+                format!("Something went wrong {}", response),
+                None,
+            )),
+            Self::ResponseError => ApiErrorResponse::InternalServerError(ApiError::new(
+                "IR",
+                0,
+                "Something went wrong",
+                None,
+            )),
+            Self::QueryBuildingError => ApiErrorResponse::InternalServerError(ApiError::new(
+                "IR",
+                0,
+                "Query building error",
+                None,
+            )),
         }
     }
 }
