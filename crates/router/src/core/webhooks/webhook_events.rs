@@ -265,7 +265,9 @@ async fn determine_identifier_and_get_key_store(
         )
         .await
     {
-        // Valid merchant ID
+        // Since a merchant key store was found with `merchant_id` = `merchant_id_or_profile_id`,
+        // `merchant_id_or_profile_id` is a valid merchant ID.
+        // Find a merchant account having `merchant_id` = `merchant_id_or_profile_id`.
         Ok(key_store) => {
             let merchant_account = store
                 .find_merchant_account_by_merchant_id(&merchant_id_or_profile_id, &key_store)
@@ -278,7 +280,10 @@ async fn determine_identifier_and_get_key_store(
             ))
         }
 
-        // Invalid merchant ID, check if we can find a business profile with the identifier
+        // Since no merchant key store was found with `merchant_id` = `merchant_id_or_profile_id`,
+        // `merchant_id_or_profile_id` is not a valid merchant ID.
+        // Assuming that `merchant_id_or_profile_id` is a business profile ID, try to find a
+        // business profile having `profile_id` = `merchant_id_or_profile_id`.
         Err(error) if error.current_context().is_db_not_found() => {
             router_env::logger::debug!(
                 ?error,
