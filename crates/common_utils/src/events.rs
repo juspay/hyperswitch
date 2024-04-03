@@ -54,7 +54,7 @@ pub enum ApiEventsType {
         dispute_id: String,
     },
     Events {
-        merchant_id: String,
+        merchant_id_or_profile_id: String,
     },
 }
 

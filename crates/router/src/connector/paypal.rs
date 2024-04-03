@@ -4,7 +4,7 @@ use std::fmt::{Debug, Write};
 use base64::Engine;
 use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
 use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use transformers as paypal;
 
@@ -245,7 +245,6 @@ impl ConnectorCommon for Paypal {
                     .try_fold(String::new(), |mut acc, error| {
                         if let Some(description) = &error.description {
                             write!(acc, "description - {} ;", description)
-                                .into_report()
                                 .change_context(
                                     errors::ConnectorError::ResponseDeserializationFailed,
                                 )
@@ -654,18 +653,18 @@ impl
                         .clone(),
                 ) {
                     (
-                        Some(paypal::EnrollementStatus::Ready),
+                        Some(paypal::EnrollmentStatus::Ready),
                         Some(paypal::AuthenticationStatus::Success),
                         paypal::LiabilityShift::Possible,
                     )
                     | (
-                        Some(paypal::EnrollementStatus::Ready),
+                        Some(paypal::EnrollmentStatus::Ready),
                         Some(paypal::AuthenticationStatus::Attempted),
                         paypal::LiabilityShift::Possible,
                     )
-                    | (Some(paypal::EnrollementStatus::NotReady), None, paypal::LiabilityShift::No)
-                    | (Some(paypal::EnrollementStatus::Unavailable), None, paypal::LiabilityShift::No)
-                    | (Some(paypal::EnrollementStatus::Bypassed), None, paypal::LiabilityShift::No) => {
+                    | (Some(paypal::EnrollmentStatus::NotReady), None, paypal::LiabilityShift::No)
+                    | (Some(paypal::EnrollmentStatus::Unavailable), None, paypal::LiabilityShift::No)
+                    | (Some(paypal::EnrollmentStatus::Bypassed), None, paypal::LiabilityShift::No) => {
                         Ok(types::PaymentsPreProcessingRouterData {
                             status: storage_enums::AttemptStatus::AuthenticationSuccessful,
                             response: Ok(types::PaymentsResponseData::TransactionResponse {
@@ -699,7 +698,7 @@ impl
                                 .authentication_result
                                 .three_d_secure
                                 .enrollment_status
-                                .unwrap_or(paypal::EnrollementStatus::Null),
+                                .unwrap_or(paypal::EnrollmentStatus::Null),
                             liability_response
                                 .payment_source
                                 .card
@@ -715,7 +714,7 @@ impl
                 }
             }
             // if card does not supports 3DS check for liability
-            paypal::PaypalPreProcessingResponse::PaypalNonLiablityResponse(_) => {
+            paypal::PaypalPreProcessingResponse::PaypalNonLiabilityResponse(_) => {
                 Ok(types::PaymentsPreProcessingRouterData {
                     status: storage_enums::AttemptStatus::AuthenticationSuccessful,
                     response: Ok(types::PaymentsResponseData::TransactionResponse {

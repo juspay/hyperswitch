@@ -365,7 +365,7 @@ async fn should_refund_succeeded_payment_multiple_times() {
 #[ignore]
 async fn should_sync_refund() {}
 
-// Cards Negative scenerios
+// Cards Negative scenarios
 // Creates a payment with incorrect card issuer.
 
 #[actix_web::test]

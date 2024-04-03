@@ -1,6 +1,6 @@
 use api_models::gsm as gsm_api_types;
 use diesel_models::gsm as storage;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
 use crate::{
@@ -132,7 +132,6 @@ pub async fn delete_gsm_rule(
                 ))
             } else {
                 Err(errors::ApiErrorResponse::InternalServerError)
-                    .into_report()
                     .attach_printable("Failed while Deleting Gsm rule, got response as false")
             }
         }

@@ -1,7 +1,7 @@
 use api_models::{enums, payments::BankRedirectData};
 use base64::Engine;
 use common_utils::errors::CustomResult;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -943,7 +943,7 @@ pub struct PaypalThreeDsResponse {
 #[serde(untagged)]
 pub enum PaypalPreProcessingResponse {
     PaypalLiabilityResponse(PaypalLiabilityResponse),
-    PaypalNonLiablityResponse(PaypalNonLiablityResponse),
+    PaypalNonLiabilityResponse(PaypalNonLiabilityResponse),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -952,7 +952,7 @@ pub struct PaypalLiabilityResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PaypalNonLiablityResponse {
+pub struct PaypalNonLiabilityResponse {
     payment_source: CardsData,
 }
 
@@ -973,7 +973,7 @@ pub struct PaypalThreeDsParams {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ThreeDsCheck {
-    pub enrollment_status: Option<EnrollementStatus>,
+    pub enrollment_status: Option<EnrollmentStatus>,
     pub authentication_status: Option<AuthenticationStatus>,
 }
 
@@ -986,7 +986,7 @@ pub enum LiabilityShift {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum EnrollementStatus {
+pub enum EnrollmentStatus {
     Null,
     #[serde(rename = "Y")]
     Ready,
@@ -2126,7 +2126,6 @@ impl TryFrom<&types::VerifyWebhookSourceRequestData> for PaypalSourceVerificatio
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(req: &types::VerifyWebhookSourceRequestData) -> Result<Self, Self::Error> {
         let req_body = serde_json::from_slice(&req.webhook_body)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(Self {
             transmission_id: get_headers(
@@ -2145,7 +2144,6 @@ impl TryFrom<&types::VerifyWebhookSourceRequestData> for PaypalSourceVerificatio
             )?,
             auth_algo: get_headers(&req.webhook_headers, webhook_headers::PAYPAL_AUTH_ALGO)?,
             webhook_id: String::from_utf8(req.merchant_secret.secret.to_vec())
-                .into_report()
                 .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)
                 .attach_printable("Could not convert secret to UTF-8")?,
             webhook_event: req_body,
@@ -2161,7 +2159,6 @@ fn get_headers(
         .get(key)
         .map(|value| value.to_str())
         .ok_or(errors::ConnectorError::MissingRequiredField { field_name: key })?
-        .into_report()
         .change_context(errors::ConnectorError::InvalidDataFormat { field_name: key })?
         .to_owned();
     Ok(header_value)

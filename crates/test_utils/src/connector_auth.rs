@@ -18,6 +18,7 @@ pub struct ConnectorAuthentication {
     pub authorizedotnet: Option<BodyKey>,
     pub bambora: Option<BodyKey>,
     pub bankofamerica: Option<SignatureKey>,
+    pub billwerk: Option<HeaderKey>,
     pub bitpay: Option<HeaderKey>,
     pub bluesnap: Option<BodyKey>,
     pub boku: Option<BodyKey>,

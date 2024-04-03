@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use cards::CardNumber;
 use common_utils::{
@@ -145,7 +145,7 @@ pub struct PaymentMethodResponse {
     pub customer_id: Option<String>,
 
     /// The unique identifier of the Payment method
-    #[schema(example = "card_rGK4Vi5iSW70MY7J2mIy")]
+    #[schema(example = "card_rGK4Vi5iSW70MY7J2mIg")]
     pub payment_method_id: String,
 
     /// The type of payment method use for the payment.
@@ -536,7 +536,7 @@ pub struct RequestPaymentMethodTypes {
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodListRequest {
     /// This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK
-    #[schema(max_length = 30, min_length = 30, example = "secret_k2uj3he2893ein2d")]
+    #[schema(max_length = 30, min_length = 30, example = "secret_k2uj3he2893eiu2d")]
     pub client_secret: Option<String>,
 
     /// The two-letter ISO currency code
@@ -743,7 +743,7 @@ pub struct CustomerPaymentMethodsListResponse {
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct PaymentMethodDeleteResponse {
     /// The unique identifier of the Payment method
-    #[schema(example = "card_rGK4Vi5iSW70MY7J2mIy")]
+    #[schema(example = "card_rGK4Vi5iSW70MY7J2mIg")]
     pub payment_method_id: String,
 
     /// Whether payment method was deleted or not
@@ -753,7 +753,7 @@ pub struct PaymentMethodDeleteResponse {
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct CustomerDefaultPaymentMethodResponse {
     /// The unique identifier of the Payment method
-    #[schema(example = "card_rGK4Vi5iSW70MY7J2mIy")]
+    #[schema(example = "card_rGK4Vi5iSW70MY7J2mIg")]
     pub default_payment_method_id: Option<String>,
     /// The unique identifier of the customer.
     #[schema(example = "cus_meowerunwiuwiwqw")]
@@ -912,6 +912,26 @@ pub struct TokenizedCardValue1 {
     pub nickname: Option<String>,
     pub card_last_four: Option<String>,
     pub card_token: Option<String>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListCountriesCurrenciesRequest {
+    pub connector: api_enums::Connector,
+    pub payment_method_type: api_enums::PaymentMethodType,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListCountriesCurrenciesResponse {
+    pub currencies: HashSet<api_enums::Currency>,
+    pub countries: HashSet<CountryCodeWithName>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Eq, Hash, PartialEq)]
+pub struct CountryCodeWithName {
+    pub code: api_enums::CountryAlpha2,
+    pub name: api_enums::Country,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]

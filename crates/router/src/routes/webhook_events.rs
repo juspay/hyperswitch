@@ -5,7 +5,9 @@ use crate::{
     core::{api_locking, webhooks::webhook_events},
     routes::AppState,
     services::{api, authentication as auth, authorization::permissions::Permission},
-    types::api::webhook_events::{EventListConstraints, EventListRequestInternal},
+    types::api::webhook_events::{
+        EventListConstraints, EventListRequestInternal, WebhookDeliveryAttemptListRequestInternal,
+    },
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::WebhookEventInitialDeliveryAttemptList))]
@@ -16,11 +18,11 @@ pub async fn list_initial_webhook_delivery_attempts(
     query: web::Query<EventListConstraints>,
 ) -> impl Responder {
     let flow = Flow::WebhookEventInitialDeliveryAttemptList;
-    let merchant_id = path.into_inner();
+    let merchant_id_or_profile_id = path.into_inner();
     let constraints = query.into_inner();
 
     let request_internal = EventListRequestInternal {
-        merchant_id: merchant_id.clone(),
+        merchant_id_or_profile_id: merchant_id_or_profile_id.clone(),
         constraints,
     };
 
@@ -32,14 +34,14 @@ pub async fn list_initial_webhook_delivery_attempts(
         |state, _, request_internal| {
             webhook_events::list_initial_delivery_attempts(
                 state,
-                request_internal.merchant_id,
+                request_internal.merchant_id_or_profile_id,
                 request_internal.constraints,
             )
         },
         auth::auth_type(
             &auth::AdminApiAuth,
-            &auth::JWTAuthMerchantFromRoute {
-                merchant_id,
+            &auth::JWTAuthMerchantOrProfileFromRoute {
+                merchant_id_or_profile_id,
                 required_permission: Permission::WebhookEventRead,
             },
             req.headers(),
@@ -56,20 +58,29 @@ pub async fn list_webhook_delivery_attempts(
     path: web::Path<(String, String)>,
 ) -> impl Responder {
     let flow = Flow::WebhookEventDeliveryAttemptList;
-    let (merchant_id, initial_event_id) = path.into_inner();
+    let (merchant_id_or_profile_id, initial_attempt_id) = path.into_inner();
+
+    let request_internal = WebhookDeliveryAttemptListRequestInternal {
+        merchant_id_or_profile_id: merchant_id_or_profile_id.clone(),
+        initial_attempt_id,
+    };
 
     api::server_wrap(
         flow,
         state,
         &req,
-        (&merchant_id, &initial_event_id),
-        |state, _, (merchant_id, initial_event_id)| {
-            webhook_events::list_delivery_attempts(state, merchant_id, initial_event_id)
+        request_internal,
+        |state, _, request_internal| {
+            webhook_events::list_delivery_attempts(
+                state,
+                request_internal.merchant_id_or_profile_id,
+                request_internal.initial_attempt_id,
+            )
         },
         auth::auth_type(
             &auth::AdminApiAuth,
-            &auth::JWTAuthMerchantFromRoute {
-                merchant_id: merchant_id.clone(),
+            &auth::JWTAuthMerchantOrProfileFromRoute {
+                merchant_id_or_profile_id,
                 required_permission: Permission::WebhookEventRead,
             },
             req.headers(),

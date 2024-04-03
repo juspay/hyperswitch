@@ -1,4 +1,4 @@
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
@@ -357,7 +357,7 @@ pub struct RefundResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RefundResponseData {
-    //Some field related to forign exchange and split payment can be added as and when implemented
+    //Some field related to foreign exchange and split payment can be added as and when implemented
     pub id: String,
     pub payment: String,
     pub amount: i64,
@@ -470,7 +470,7 @@ impl<F, T>
                             .as_ref()
                             .filter(|redirect_str| !redirect_str.is_empty())
                             .map(|url| {
-                                Url::parse(url).into_report().change_context(
+                                Url::parse(url).change_context(
                                     errors::ConnectorError::FailedToObtainIntegrationUrl,
                                 )
                             })
