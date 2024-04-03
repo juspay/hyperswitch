@@ -2591,7 +2591,7 @@ pub async fn get_payment_filters(
                 .or_default()
                 .push(info);
         });
-    
+
     // populate payment method type map
     merchant_connector_accounts
         .iter()
