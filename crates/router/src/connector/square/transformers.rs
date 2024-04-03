@@ -1,4 +1,4 @@
-use api_models::payments::{ PayLaterData, WalletData};
+use api_models::payments::{PayLaterData, WalletData};
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
