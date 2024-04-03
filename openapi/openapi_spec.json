@@ -14761,6 +14761,14 @@
             "description": "Payment Fingerprint",
             "nullable": true
           },
+          "browser_info": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
+            "nullable": true
+          },
           "payment_method_id": {
             "type": "string",
             "description": "Payment Method Id",
