@@ -719,6 +719,7 @@ impl Settings<SecuredSecret> {
 
         self.lock_settings.validate()?;
         self.events.validate()?;
+        self.opensearch.validate()?;
 
         self.encryption_management
             .validate()
