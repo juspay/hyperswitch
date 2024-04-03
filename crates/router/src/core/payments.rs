@@ -1234,15 +1234,21 @@ where
             | TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt
     ) {
         let apple_pay_data = match payment_data.payment_method_data.clone() {
-            Some(api_models::payments::PaymentMethodData::Wallet(
-                api_models::payments::WalletData::ApplePay(wallet_data),
-            )) => Some(
-                ApplePayData::token_json(api_models::payments::WalletData::ApplePay(wallet_data))
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?
-                    .decrypt(state)
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
-            ),
+            Some(payment_data) => {
+                let domain_data = domain::PaymentMethodData::from(payment_data);
+                match domain_data {
+                    domain::PaymentMethodData::Wallet(domain::WalletData::ApplePay(
+                        wallet_data,
+                    )) => Some(
+                        ApplePayData::token_json(domain::WalletData::ApplePay(wallet_data))
+                            .change_context(errors::ApiErrorResponse::InternalServerError)?
+                            .decrypt(state)
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                    ),
+                    _ => None,
+                }
+            }
             _ => None,
         };
 
