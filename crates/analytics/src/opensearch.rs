@@ -342,10 +342,12 @@ impl OpenSearchQueryBuilder {
             .map(|(k, v)| json!({"match_phrase" : {k : v}}))
             .collect::<Vec<Value>>();
 
+        query.append(&mut filters);
+
         // TODO add index specific filters
         Ok(indexes
             .iter()
-            .map(|_| json!({"query": {"bool": {"filter": query.append(&mut filters)}}}))
+            .map(|_index| json!({"query": {"bool": {"filter": query}}}))
             .collect::<Vec<Value>>())
     }
 }
