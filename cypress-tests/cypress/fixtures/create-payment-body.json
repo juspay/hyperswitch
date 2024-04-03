@@ -1,0 +1,19 @@
+{
+  "currency": "USD",
+  "amount": 6500,
+  "authentication_type": "three_ds",
+  "description": "Joseph First Crypto",
+  "email": "hyperswitch_sdk_demo_id@gmail.com",
+  "connector_metadata": {
+    "noon": {
+      "order_category": "applepay"
+    }
+  },
+  "metadata": {
+    "udf1": "value1",
+    "new_customer": "true",
+    "login_date": "2019-09-10T10:11:12Z"
+  },
+  "business_country": "US",
+  "business_label": "default"
+}
