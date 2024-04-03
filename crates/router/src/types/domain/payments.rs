@@ -428,15 +428,7 @@ impl From<api_models::payments::WalletData> for WalletData {
                 Self::GcashRedirect(GcashRedirection {})
             }
             api_models::payments::WalletData::ApplePay(apple_pay_data) => {
-                Self::ApplePay(ApplePayWalletData {
-                    payment_data: apple_pay_data.payment_data,
-                    payment_method: ApplepayPaymentMethod {
-                        display_name: apple_pay_data.payment_method.display_name,
-                        network: apple_pay_data.payment_method.network,
-                        pm_type: apple_pay_data.payment_method.pm_type,
-                    },
-                    transaction_identifier: apple_pay_data.transaction_identifier,
-                })
+                Self::ApplePay(ApplePayWalletData::from(apple_pay_data))
             }
             api_models::payments::WalletData::ApplePayRedirect(_) => {
                 Self::ApplePayRedirect(Box::new(ApplePayRedirectData {}))
@@ -446,18 +438,7 @@ impl From<api_models::payments::WalletData> for WalletData {
             }
             api_models::payments::WalletData::DanaRedirect {} => Self::DanaRedirect {},
             api_models::payments::WalletData::GooglePay(google_pay_data) => {
-                Self::GooglePay(GooglePayWalletData {
-                    pm_type: google_pay_data.pm_type,
-                    description: google_pay_data.description,
-                    info: GooglePayPaymentMethodInfo {
-                        card_network: google_pay_data.info.card_network,
-                        card_details: google_pay_data.info.card_details,
-                    },
-                    tokenization_data: GpayTokenizationData {
-                        token_type: google_pay_data.tokenization_data.token_type,
-                        token: google_pay_data.tokenization_data.token,
-                    },
-                })
+                Self::GooglePay(GooglePayWalletData::from(google_pay_data))
             }
             api_models::payments::WalletData::GooglePayRedirect(_) => {
                 Self::GooglePayRedirect(Box::new(GooglePayRedirectData {}))
@@ -503,6 +484,37 @@ impl From<api_models::payments::WalletData> for WalletData {
                 Self::CashappQr(Box::new(CashappQr {}))
             }
             api_models::payments::WalletData::SwishQr(_) => Self::SwishQr(SwishQrData {}),
+        }
+    }
+}
+
+impl From<api_models::payments::GooglePayWalletData> for GooglePayWalletData {
+    fn from(value: api_models::payments::GooglePayWalletData) -> Self {
+        Self {
+            pm_type: value.pm_type,
+            description: value.description,
+            info: GooglePayPaymentMethodInfo {
+                card_network: value.info.card_network,
+                card_details: value.info.card_details,
+            },
+            tokenization_data: GpayTokenizationData {
+                token_type: value.tokenization_data.token_type,
+                token: value.tokenization_data.token,
+            },
+        }
+    }
+}
+
+impl From<api_models::payments::ApplePayWalletData> for ApplePayWalletData {
+    fn from(value: api_models::payments::ApplePayWalletData) -> Self {
+        Self {
+            payment_data: value.payment_data,
+            payment_method: ApplepayPaymentMethod {
+                display_name: value.payment_method.display_name,
+                network: value.payment_method.network,
+                pm_type: value.payment_method.pm_type,
+            },
+            transaction_identifier: value.transaction_identifier,
         }
     }
 }
