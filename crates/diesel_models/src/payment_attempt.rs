@@ -459,7 +459,7 @@ impl PaymentAttemptUpdate {
             authentication_type: authentication_type.or(source.authentication_type),
             payment_method: payment_method.or(source.payment_method),
             error_message: error_message.unwrap_or(source.error_message),
-            payment_method_id,
+            payment_method_id: payment_method_id.or(source.payment_method_id),
             cancellation_reason: cancellation_reason.or(source.cancellation_reason),
             modified_at: common_utils::date_time::now(),
             mandate_id: mandate_id.or(source.mandate_id),
