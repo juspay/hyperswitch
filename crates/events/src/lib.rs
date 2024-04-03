@@ -16,7 +16,7 @@ mod actix;
 
 use std::{collections::HashMap, sync::Arc};
 
-use error_stack::Result;
+use error_stack::{Result, ResultExt};
 use masking::{ErasedMaskSerialize, Serialize};
 use router_env::logger;
 use serde::Serializer;
@@ -58,36 +58,43 @@ where
     A: MessagingInterface<MessageClass = T>,
 {
     message_sink: Arc<A>,
-    metadata: HashMap<String, Arc<Box<dyn ErasedMaskSerialize + Sync + Send>>>,
+    metadata: HashMap<String, Value>,
 }
 
 /// intermediary structure to build events with in-place info.
-pub struct EventBuilder<T, A>
+#[must_use]
+pub struct EventBuilder<T, A, E, D>
 where
     A: MessagingInterface<MessageClass = T>,
+    E: Event<EventType = T, Data = D>,
 {
     message_sink: Arc<A>,
-    metadata: HashMap<String, Arc<Box<dyn ErasedMaskSerialize + Sync + Send>>>,
-    event: Box<dyn Event<EventType = T>>,
+    metadata: HashMap<String, Value>,
+    event: E,
 }
 
-struct RawEvent<T>(
-    HashMap<String, Arc<Box<dyn ErasedMaskSerialize + Sync + Send>>>,
-    Box<dyn Event<EventType = T>>,
-);
+struct RawEvent<T, A: Event<EventType = T>>(HashMap<String, Value>, A);
 
-impl<T, A> EventBuilder<T, A>
+impl<T, A, E, D> EventBuilder<T, A, E, D>
 where
     A: MessagingInterface<MessageClass = T>,
+    E: Event<EventType = T, Data = D>,
 {
     /// Add metadata to the event.
-    pub fn with<E: EventInfo + 'static>(mut self, info: E) -> Self {
+    pub fn with<F: ErasedMaskSerialize, G: EventInfo<Data = F> + 'static>(
+        mut self,
+        info: G,
+    ) -> Self {
         info.data()
+            .and_then(|i| {
+                i.masked_serialize()
+                    .change_context(EventsError::SerializationError)
+            })
             .map_err(|e| {
                 logger::error!("Error adding event info: {:?}", e);
             })
             .ok()
-            .and_then(|data| self.metadata.insert(info.key(), Arc::new(data)));
+            .and_then(|data| self.metadata.insert(info.key(), data));
         self
     }
     /// Emit the event and log any errors.
@@ -108,7 +115,10 @@ where
     }
 }
 
-impl<T> Serialize for RawEvent<T> {
+impl<T, A> Serialize for RawEvent<T, A>
+where
+    A: Event<EventType = T>,
+{
     fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -149,10 +159,16 @@ where
 
     /// Add metadata to the event context.
     #[track_caller]
-    pub fn record_info<E: EventInfo + 'static>(&mut self, info: E) {
-        match info.data() {
+    pub fn record_info<G: ErasedMaskSerialize, E: EventInfo<Data = G> + 'static>(
+        &mut self,
+        info: E,
+    ) {
+        match info.data().and_then(|i| {
+            i.masked_serialize()
+                .change_context(EventsError::SerializationError)
+        }) {
             Ok(data) => {
-                self.metadata.insert(info.key(), Arc::new(data));
+                self.metadata.insert(info.key(), data);
             }
             Err(e) => {
                 logger::error!("Error recording event info: {:?}", e);
@@ -161,7 +177,7 @@ where
     }
 
     /// Emit an event.
-    pub fn try_emit(&self, event: Box<dyn Event<EventType = T>>) -> Result<(), EventsError> {
+    pub fn try_emit<E: Event<EventType = T>>(&self, event: E) -> Result<(), EventsError> {
         EventBuilder {
             message_sink: self.message_sink.clone(),
             metadata: self.metadata.clone(),
@@ -171,7 +187,7 @@ where
     }
 
     /// Emit an event.
-    pub fn emit(&self, event: Box<dyn Event<EventType = T>>) {
+    pub fn emit<D, E: Event<EventType = T, Data = D>>(&self, event: E) {
         EventBuilder {
             message_sink: self.message_sink.clone(),
             metadata: self.metadata.clone(),
@@ -181,7 +197,10 @@ where
     }
 
     /// Create an event builder.
-    pub fn event(&self, event: Box<dyn Event<EventType = T>>) -> EventBuilder<T, A> {
+    pub fn event<D, E: Event<EventType = T, Data = D>>(
+        &self,
+        event: E,
+    ) -> EventBuilder<T, A, E, D> {
         EventBuilder {
             message_sink: self.message_sink.clone(),
             metadata: self.metadata.clone(),
@@ -193,15 +212,18 @@ where
 /// Add information/metadata to the current context of an event.
 pub trait EventInfo {
     /// The data that is sent with the event.
-    fn data(&self) -> Result<Box<dyn ErasedMaskSerialize + Sync + Send>, EventsError>;
+    type Data: ErasedMaskSerialize;
+    /// The data that is sent with the event.
+    fn data(&self) -> Result<Self::Data, EventsError>;
 
     /// The key identifying the data for an event.
     fn key(&self) -> String;
 }
 
 impl EventInfo for (String, String) {
-    fn data(&self) -> Result<Box<dyn ErasedMaskSerialize + Sync + Send>, EventsError> {
-        Ok(Box::new(Value::String(self.1.clone())))
+    type Data = String;
+    fn data(&self) -> Result<String, EventsError> {
+        Ok(self.1.clone())
     }
 
     fn key(&self) -> String {
@@ -231,7 +253,10 @@ pub trait Message {
     fn identifier(&self) -> String;
 }
 
-impl<T> Message for RawEvent<T> {
+impl<T, A> Message for RawEvent<T, A>
+where
+    A: Event<EventType = T>,
+{
     type Class = T;
 
     fn get_message_class(&self) -> Self::Class {

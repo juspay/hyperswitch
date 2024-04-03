@@ -95,8 +95,8 @@ impl MessagingInterface for EventsHandler {
         T: Message<Class = Self::MessageClass> + Serialize,
     {
         match self {
-            EventsHandler::Kafka(a) => a.send_message(data, timestamp),
-            EventsHandler::Logs(a) => a.send_message(data, timestamp),
+            Self::Kafka(a) => a.send_message(data, timestamp),
+            Self::Logs(a) => a.send_message(data, timestamp),
         }
     }
 }

@@ -74,11 +74,9 @@ pub enum AuthenticationType {
 }
 
 impl events::EventInfo for AuthenticationType {
-    fn data(
-        &self,
-    ) -> error_stack::Result<Box<dyn masking::ErasedMaskSerialize + Sync + Send>, events::EventsError>
-    {
-        Ok(Box::new(self.clone()))
+    type Data = Self;
+    fn data(&self) -> error_stack::Result<Self::Data, events::EventsError> {
+        Ok(self.clone())
     }
 
     fn key(&self) -> String {

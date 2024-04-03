@@ -264,11 +264,9 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
         req_state
             .event_context
-            .event(Box::new(AuditEvent::new(
-                AuditEventType::PaymentCancelled {
-                    cancellation_reason,
-                },
-            )))
+            .event(AuditEvent::new(AuditEventType::PaymentCancelled {
+                cancellation_reason,
+            }))
             .with(payment_data.to_event())
             .emit();
         Ok((Box::new(self), payment_data))

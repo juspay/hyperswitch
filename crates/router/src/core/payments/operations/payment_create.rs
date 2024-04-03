@@ -388,6 +388,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             });
 
         let amount = payment_attempt.get_total_amount().into();
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
