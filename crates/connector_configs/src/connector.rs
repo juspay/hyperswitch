@@ -229,7 +229,7 @@ impl ConnectorConfig {
             Connector::Airwallex => Ok(connector_data.airwallex),
             Connector::Authorizedotnet => Ok(connector_data.authorizedotnet),
             Connector::Bankofamerica => Ok(connector_data.bankofamerica),
-            // Connector::Billwerk => Ok(connector_data.billwerk), Added as template code for future usage
+            Connector::Billwerk => Ok(connector_data.billwerk),
             Connector::Bitpay => Ok(connector_data.bitpay),
             Connector::Bluesnap => Ok(connector_data.bluesnap),
             Connector::Boku => Ok(connector_data.boku),

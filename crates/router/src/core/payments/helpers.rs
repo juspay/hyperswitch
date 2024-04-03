@@ -1167,7 +1167,7 @@ where
 
 #[instrument(skip_all)]
 pub(crate) async fn get_payment_method_create_request(
-    payment_method_data: Option<&api::PaymentMethodData>,
+    payment_method_data: Option<&domain::PaymentMethodData>,
     payment_method: Option<storage_enums::PaymentMethod>,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     customer: &domain::Customer,
@@ -1175,7 +1175,7 @@ pub(crate) async fn get_payment_method_create_request(
     match payment_method_data {
         Some(pm_data) => match payment_method {
             Some(payment_method) => match pm_data {
-                api::PaymentMethodData::Card(card) => {
+                domain::PaymentMethodData::Card(card) => {
                     let card_detail = api::CardDetail {
                         card_number: card.card_number.clone(),
                         card_exp_month: card.card_exp_month.clone(),
@@ -2507,7 +2507,7 @@ pub fn generate_mandate(
     payment_method_id: String,
     connector_mandate_id: Option<pii::SecretSerdeValue>,
     network_txn_id: Option<String>,
-    payment_method_data_option: Option<api_models::payments::PaymentMethodData>,
+    payment_method_data_option: Option<domain::payments::PaymentMethodData>,
     mandate_reference: Option<MandateReference>,
     merchant_connector_id: Option<String>,
 ) -> CustomResult<Option<storage::MandateNew>, errors::ApiErrorResponse> {
