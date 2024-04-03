@@ -3027,7 +3027,9 @@ pub fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone>(
         payment_data.payment_intent.off_session,
     ) {
         (Some(storage_enums::FutureUsage::OffSession), Some(_), None, None)
-        | (None, None, Some(RecurringDetails::PaymentMethodId(_)), Some(true)) => {
+        | (None, None, Some(RecurringDetails::PaymentMethodId(_)), Some(true)) 
+        | (None, Some(_), None, Some(true))
+        => {
             logger::debug!("performing routing for token-based MIT flow");
 
             let payment_method_info = payment_data
