@@ -15,10 +15,11 @@ use super::{Operation, PostUpdateTracker};
 use crate::{
     connector::utils::PaymentResponseRouterData,
     core::{
-        errors::{self, RouterResult, StorageErrorExt},
+        errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate,
         payment_methods::PaymentMethodRetrieve,
         payments::{
+            self,
             helpers::{
                 self as payments_helpers,
                 update_additional_payment_data_with_connector_response_pm_data,
@@ -29,8 +30,9 @@ use crate::{
         utils as core_utils,
     },
     routes::{metrics, AppState},
+    services,
     types::{
-        self, api,
+        self, api, domain,
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignTryFrom},
         CaptureSyncResponse,
@@ -46,8 +48,8 @@ use crate::{
 pub struct PaymentResponse;
 
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData>
-    for PaymentResponse
+impl<F: Clone, FData: mandate::MandateBehaviour>
+    PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData, FData> for PaymentResponse
 {
     async fn update_tracker<'b>(
         &'b self,
@@ -79,10 +81,28 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
 
         Ok(payment_data)
     }
+
+    async fn save_pm_and_mandate(
+        state: &AppState,
+        resp: types::RouterData<F, FData, types::PaymentsResponseData>,
+        connector: &api::ConnectorData,
+        maybe_customer: &Option<domain::Customer>,
+        call_connector_action: payments::CallConnectorAction,
+        merchant_account: &domain::MerchantAccount,
+        connector_request: Option<services::Request>,
+        key_store: &domain::MerchantKeyStore,
+        fdata: FData,
+    ) -> CustomResult<(), errors::ApiErrorResponse>
+    where
+        F: Clone,
+    {
+        Ok(())
+    }
 }
 
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAuthorizationData>
+impl<F: Clone, FData: mandate::MandateBehaviour>
+    PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAuthorizationData, FData>
     for PaymentResponse
 {
     async fn update_tracker<'b>(
@@ -211,10 +231,29 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
         payment_data.authorizations = authorizations;
         Ok(payment_data)
     }
+
+    async fn save_pm_and_mandate(
+        state: &AppState,
+        resp: types::RouterData<F, FData, types::PaymentsResponseData>,
+        connector: &api::ConnectorData,
+        maybe_customer: &Option<domain::Customer>,
+        call_connector_action: payments::CallConnectorAction,
+        merchant_account: &domain::MerchantAccount,
+        connector_request: Option<services::Request>,
+        key_store: &domain::MerchantKeyStore,
+        fdata: FData,
+    ) -> CustomResult<(), errors::ApiErrorResponse>
+    where
+        F: Clone,
+    {
+        Ok(())
+    }
 }
 
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for PaymentResponse {
+impl<F: Clone, FData: mandate::MandateBehaviour>
+    PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData, FData> for PaymentResponse
+{
     async fn update_tracker<'b>(
         &'b self,
         db: &'b AppState,
@@ -235,11 +274,28 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         ))
         .await
     }
+
+    async fn save_pm_and_mandate(
+        state: &AppState,
+        resp: types::RouterData<F, FData, types::PaymentsResponseData>,
+        connector: &api::ConnectorData,
+        maybe_customer: &Option<domain::Customer>,
+        call_connector_action: payments::CallConnectorAction,
+        merchant_account: &domain::MerchantAccount,
+        connector_request: Option<services::Request>,
+        key_store: &domain::MerchantKeyStore,
+        fdata: FData,
+    ) -> CustomResult<(), errors::ApiErrorResponse>
+    where
+        F: Clone,
+    {
+        Ok(())
+    }
 }
 
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
-    for PaymentResponse
+impl<F: Clone, FData: mandate::MandateBehaviour>
+    PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData, FData> for PaymentResponse
 {
     async fn update_tracker<'b>(
         &'b self,
@@ -263,11 +319,28 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
 
         Ok(payment_data)
     }
+
+    async fn save_pm_and_mandate(
+        state: &AppState,
+        resp: types::RouterData<F, FData, types::PaymentsResponseData>,
+        connector: &api::ConnectorData,
+        maybe_customer: &Option<domain::Customer>,
+        call_connector_action: payments::CallConnectorAction,
+        merchant_account: &domain::MerchantAccount,
+        connector_request: Option<services::Request>,
+        key_store: &domain::MerchantKeyStore,
+        fdata: FData,
+    ) -> CustomResult<(), errors::ApiErrorResponse>
+    where
+        F: Clone,
+    {
+        Ok(())
+    }
 }
 
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
-    for PaymentResponse
+impl<F: Clone, FData: mandate::MandateBehaviour>
+    PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData, FData> for PaymentResponse
 {
     async fn update_tracker<'b>(
         &'b self,
@@ -291,10 +364,29 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
 
         Ok(payment_data)
     }
+
+    async fn save_pm_and_mandate(
+        state: &AppState,
+        resp: types::RouterData<F, FData, types::PaymentsResponseData>,
+        connector: &api::ConnectorData,
+        maybe_customer: &Option<domain::Customer>,
+        call_connector_action: payments::CallConnectorAction,
+        merchant_account: &domain::MerchantAccount,
+        connector_request: Option<services::Request>,
+        key_store: &domain::MerchantKeyStore,
+        fdata: FData,
+    ) -> CustomResult<(), errors::ApiErrorResponse>
+    where
+        F: Clone,
+    {
+        Ok(())
+    }
 }
 
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> for PaymentResponse {
+impl<F: Clone, FData: mandate::MandateBehaviour>
+    PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData, FData> for PaymentResponse
+{
     async fn update_tracker<'b>(
         &'b self,
         db: &'b AppState,
@@ -318,11 +410,28 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
 
         Ok(payment_data)
     }
+
+    async fn save_pm_and_mandate(
+        state: &AppState,
+        resp: types::RouterData<F, FData, types::PaymentsResponseData>,
+        connector: &api::ConnectorData,
+        maybe_customer: &Option<domain::Customer>,
+        call_connector_action: payments::CallConnectorAction,
+        merchant_account: &domain::MerchantAccount,
+        connector_request: Option<services::Request>,
+        key_store: &domain::MerchantKeyStore,
+        fdata: FData,
+    ) -> CustomResult<(), errors::ApiErrorResponse>
+    where
+        F: Clone,
+    {
+        Ok(())
+    }
 }
 
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
-    for PaymentResponse
+impl<F: Clone, FData: mandate::MandateBehaviour>
+    PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData, FData> for PaymentResponse
 {
     async fn update_tracker<'b>(
         &'b self,
@@ -347,10 +456,29 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
 
         Ok(payment_data)
     }
+
+    async fn save_pm_and_mandate(
+        state: &AppState,
+        resp: types::RouterData<F, FData, types::PaymentsResponseData>,
+        connector: &api::ConnectorData,
+        maybe_customer: &Option<domain::Customer>,
+        call_connector_action: payments::CallConnectorAction,
+        merchant_account: &domain::MerchantAccount,
+        connector_request: Option<services::Request>,
+        key_store: &domain::MerchantKeyStore,
+        fdata: FData,
+    ) -> CustomResult<(), errors::ApiErrorResponse>
+    where
+        F: Clone,
+    {
+        Ok(())
+    }
 }
 
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> for PaymentResponse {
+impl<F: Clone, FData: mandate::MandateBehaviour>
+    PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData, FData> for PaymentResponse
+{
     async fn update_tracker<'b>(
         &'b self,
         db: &'b AppState,
@@ -374,10 +502,28 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> f
 
         Ok(payment_data)
     }
+
+    async fn save_pm_and_mandate(
+        state: &AppState,
+        resp: types::RouterData<F, FData, types::PaymentsResponseData>,
+        connector: &api::ConnectorData,
+        maybe_customer: &Option<domain::Customer>,
+        call_connector_action: payments::CallConnectorAction,
+        merchant_account: &domain::MerchantAccount,
+        connector_request: Option<services::Request>,
+        key_store: &domain::MerchantKeyStore,
+        fdata: FData,
+    ) -> CustomResult<(), errors::ApiErrorResponse>
+    where
+        F: Clone,
+    {
+        Ok(())
+    }
 }
 
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestData>
+impl<F: Clone, FData: mandate::MandateBehaviour>
+    PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestData, FData>
     for PaymentResponse
 {
     async fn update_tracker<'b>(
@@ -412,11 +558,28 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
 
         Ok(payment_data)
     }
+
+    async fn save_pm_and_mandate(
+        state: &AppState,
+        resp: types::RouterData<F, FData, types::PaymentsResponseData>,
+        connector: &api::ConnectorData,
+        maybe_customer: &Option<domain::Customer>,
+        call_connector_action: payments::CallConnectorAction,
+        merchant_account: &domain::MerchantAccount,
+        connector_request: Option<services::Request>,
+        key_store: &domain::MerchantKeyStore,
+        fdata: FData,
+    ) -> CustomResult<(), errors::ApiErrorResponse>
+    where
+        F: Clone,
+    {
+        Ok(())
+    }
 }
 
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData>
-    for PaymentResponse
+impl<F: Clone, FData: mandate::MandateBehaviour>
+    PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData, FData> for PaymentResponse
 {
     async fn update_tracker<'b>(
         &'b self,
@@ -437,6 +600,23 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
             storage_scheme,
         ))
         .await
+    }
+
+    async fn save_pm_and_mandate(
+        state: &AppState,
+        resp: types::RouterData<F, FData, types::PaymentsResponseData>,
+        connector: &api::ConnectorData,
+        maybe_customer: &Option<domain::Customer>,
+        call_connector_action: payments::CallConnectorAction,
+        merchant_account: &domain::MerchantAccount,
+        connector_request: Option<services::Request>,
+        key_store: &domain::MerchantKeyStore,
+        fdata: FData,
+    ) -> CustomResult<(), errors::ApiErrorResponse>
+    where
+        F: Clone,
+    {
+        Ok(())
     }
 }
 

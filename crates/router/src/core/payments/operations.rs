@@ -29,7 +29,9 @@ use super::{helpers, CustomerDetails, PaymentData};
 use crate::{
     core::{
         errors::{self, CustomResult, RouterResult},
+        mandate,
         payment_methods::PaymentMethodRetrieve,
+        payments,
     },
     db::StorageInterface,
     routes::AppState,
@@ -66,9 +68,13 @@ pub trait Operation<F: Clone, T, Ctx: PaymentMethodRetrieve>: Send + std::fmt::D
         Err(report!(errors::ApiErrorResponse::InternalServerError))
             .attach_printable_lazy(|| format!("update tracker interface not found for {self:?}"))
     }
-    fn to_post_update_tracker(
+    fn to_post_update_tracker<FData>(
         &self,
-    ) -> RouterResult<&(dyn PostUpdateTracker<F, PaymentData<F>, T> + Send + Sync)> {
+        fdata: FData,
+    ) -> RouterResult<&(dyn PostUpdateTracker<F, PaymentData<F>, T, FData> + Send + Sync)>
+    where
+        FData: mandate::MandateBehaviour,
+    {
         Err(report!(errors::ApiErrorResponse::InternalServerError)).attach_printable_lazy(|| {
             format!("post connector update tracker not found for {self:?}")
         })
@@ -211,7 +217,7 @@ pub trait UpdateTracker<F, D, Req, Ctx: PaymentMethodRetrieve>: Send {
 }
 
 #[async_trait]
-pub trait PostUpdateTracker<F, D, R>: Send {
+pub trait PostUpdateTracker<F, D, R, FData>: Send {
     async fn update_tracker<'b>(
         &'b self,
         db: &'b AppState,
@@ -222,6 +228,20 @@ pub trait PostUpdateTracker<F, D, R>: Send {
     ) -> RouterResult<D>
     where
         F: 'b + Send;
+
+    async fn save_pm_and_mandate(
+        state: &AppState,
+        resp: types::RouterData<F, FData, PaymentsResponseData>,
+        connector: &api::ConnectorData,
+        maybe_customer: &Option<domain::Customer>,
+        call_connector_action: payments::CallConnectorAction,
+        merchant_account: &domain::MerchantAccount,
+        connector_request: Option<services::Request>,
+        key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<(), errors::ApiErrorResponse>
+    where
+        FData: mandate::MandateBehaviour,
+        F: Clone;
 }
 
 #[async_trait]
