@@ -226,7 +226,7 @@ pub async fn get_or_insert_payment_method(
 }
 
 #[instrument(skip_all)]
-pub async fn generate_client_secret_or_add_payment_method(
+pub async fn get_client_secret_or_add_payment_method(
     state: routes::AppState,
     req: api::PaymentMethodCreate,
     merchant_account: &domain::MerchantAccount,
@@ -236,9 +236,7 @@ pub async fn generate_client_secret_or_add_payment_method(
     let merchant_id = &merchant_account.merchant_id;
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
 
-    if let Some(cs) = req.client_secret.clone() {
-        add_payment_method_data(state, req, merchant_account, key_store, cs).await
-    } else if req.card.is_some() || req.bank_transfer.is_some() || req.wallet.is_some() {
+    if req.card.is_some() || req.bank_transfer.is_some() || req.wallet.is_some() {
         add_payment_method(state, req, merchant_account, key_store).await
     } else {
         let payment_method_id = generate_id(consts::ID_LENGTH, "pm");
@@ -284,14 +282,8 @@ pub async fn generate_client_secret_or_add_payment_method(
 pub async fn authenticate_pm_client_secret(
     req_client_secret: &String,
     db: &dyn db::StorageInterface,
+    pm_id: &str,
 ) -> errors::CustomResult<diesel_models::PaymentMethod, errors::ApiErrorResponse> {
-    let pm_vec = req_client_secret.split("_secret").collect::<Vec<&str>>();
-    let pm_id = pm_vec
-        .first()
-        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "client_secret",
-        })?;
-
     let payment_method = db
         .find_payment_method(pm_id)
         .await
@@ -325,9 +317,9 @@ pub async fn authenticate_pm_client_secret(
 pub async fn add_payment_method_data(
     state: routes::AppState,
     req: api::PaymentMethodCreate,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
-    client_secret: String,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    pm_id: String,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
     let db = &*state.store;
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
@@ -336,14 +328,17 @@ pub async fn add_payment_method_data(
         .payment_method_data
         .clone()
         .get_required_value("payment_method_data")?;
+    let client_secret = req
+        .client_secret
+        .clone()
+        .get_required_value("client_secret")?;
 
-    let payment_method = authenticate_pm_client_secret(&client_secret, db).await?;
-    let pm_id = payment_method.id;
+    let payment_method = authenticate_pm_client_secret(&client_secret, db, pm_id.as_str()).await?;
 
     match pmd {
         api_models::payment_methods::PaymentMethodCreateData::Card(card) => {
             let resp =
-                add_card_to_locker(&state, req.clone(), &card, &customer_id, merchant_account)
+                add_card_to_locker(&state, req.clone(), &card, &customer_id, &merchant_account)
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError);
 
@@ -363,16 +358,16 @@ pub async fn add_payment_method_data(
                             db,
                             req.clone(),
                             &mut pm_resp,
-                            merchant_account,
+                            &merchant_account,
                             &customer_id,
-                            key_store,
+                            &key_store,
                         )
                         .await?;
 
                         return Ok(services::ApplicationResponse::Json(pm_resp));
                     } else {
                         let locker_id = pm_resp.payment_method_id.clone();
-                        pm_resp.payment_method_id = pm_id.to_string();
+                        pm_resp.payment_method_id = pm_id;
                         pm_resp.client_secret = Some(client_secret.clone());
 
                         let updated_card = Some(api::CardDetailFromLocker {
@@ -397,7 +392,7 @@ pub async fn add_payment_method_data(
                             PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone()))
                         });
                         let pm_data_encrypted =
-                            create_encrypted_payment_method_data(key_store, updated_pmd).await;
+                            create_encrypted_payment_method_data(&key_store, updated_pmd).await;
 
                         let pm_update = storage::PaymentMethodUpdate::AdditionalDataUpdate {
                             payment_method_data: pm_data_encrypted,

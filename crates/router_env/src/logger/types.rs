@@ -113,6 +113,8 @@ pub enum Flow {
     PaymentMethodsCreate,
     /// Payment methods list flow.
     PaymentMethodsList,
+    /// Payment method save flow
+    PaymentMethodSave,
     /// Customer payment methods list flow.
     CustomerPaymentMethodsList,
     /// List Customers for a merchant

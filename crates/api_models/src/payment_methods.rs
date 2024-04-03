@@ -66,10 +66,12 @@ pub struct PaymentMethodCreate {
     #[schema(value_type = Option<Wallet>)]
     pub wallet: Option<payouts::Wallet>,
 
-    /// For Client based calls
+    /// For Client based calls, SDK will use the client_secret
+    /// in order to call /payment_methods
     pub client_secret: Option<String>,
 
-    /// Payment method data to be passed
+    /// Payment method data to be passed in case of client
+    /// based flow
     pub payment_method_data: Option<PaymentMethodCreateData>,
 }
 
