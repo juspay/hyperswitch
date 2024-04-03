@@ -5078,7 +5078,8 @@
       "AuthenticationConnectors": {
         "type": "string",
         "enum": [
-          "threedsecureio"
+          "threedsecureio",
+          "netcetera"
         ]
       },
       "AuthenticationStatus": {
@@ -7058,6 +7059,7 @@
         "type": "string",
         "description": "A connector is an integration to fulfill payments",
         "enum": [
+          "netcetera",
           "phonypay",
           "fauxpay",
           "pretendpay",
