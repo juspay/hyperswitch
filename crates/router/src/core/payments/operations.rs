@@ -70,8 +70,7 @@ pub trait Operation<F: Clone, T, Ctx: PaymentMethodRetrieve>: Send + std::fmt::D
     }
     fn to_post_update_tracker<FData>(
         &self,
-        fdata: FData,
-    ) -> RouterResult<&(dyn PostUpdateTracker<F, PaymentData<F>, T, FData> + Send + Sync)>
+    ) -> RouterResult<&(dyn PostUpdateTracker<F, PaymentData<F>, T> + Send + Sync)>
     where
         FData: mandate::MandateBehaviour,
     {
@@ -217,7 +216,7 @@ pub trait UpdateTracker<F, D, Req, Ctx: PaymentMethodRetrieve>: Send {
 }
 
 #[async_trait]
-pub trait PostUpdateTracker<F, D, R, FData>: Send {
+pub trait PostUpdateTracker<F, D, R>: Send {
     async fn update_tracker<'b>(
         &'b self,
         db: &'b AppState,
@@ -231,7 +230,7 @@ pub trait PostUpdateTracker<F, D, R, FData>: Send {
 
     async fn save_pm_and_mandate(
         state: &AppState,
-        resp: types::RouterData<F, FData, PaymentsResponseData>,
+        resp: types::RouterData<F, R, PaymentsResponseData>,
         connector: &api::ConnectorData,
         maybe_customer: &Option<domain::Customer>,
         call_connector_action: payments::CallConnectorAction,
@@ -240,7 +239,6 @@ pub trait PostUpdateTracker<F, D, R, FData>: Send {
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
-        FData: mandate::MandateBehaviour,
         F: Clone;
 }
 
