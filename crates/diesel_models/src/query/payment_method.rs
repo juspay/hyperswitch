@@ -3,7 +3,7 @@ use diesel::{
     associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods,
     QueryDsl, Table,
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 
 use super::generics;
 use crate::{
@@ -124,7 +124,6 @@ impl PaymentMethod {
             generics::db_metrics::DatabaseOperation::Count,
         )
         .await
-        .into_report()
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Failed to get a count of payment methods")
     }

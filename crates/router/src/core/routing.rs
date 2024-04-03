@@ -13,14 +13,14 @@ use common_utils::ext_traits::{Encode, StringExt};
 use diesel_models::configs;
 #[cfg(feature = "business_profile_routing")]
 use diesel_models::routing_algorithm::RoutingAlgorithm;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use rustc_hash::FxHashSet;
 
 use super::payments;
 #[cfg(feature = "payouts")]
 use super::payouts;
 #[cfg(feature = "business_profile_routing")]
-use crate::types::transformers::{ForeignInto, ForeignTryInto};
+use crate::types::transformers::{ForeignInto, ForeignTryFrom};
 use crate::{
     consts,
     core::{
@@ -203,7 +203,6 @@ pub async fn create_routing_config(
                 Err(errors::ApiErrorResponse::PreconditionFailed {
             message: format!("Reached the maximum number of routing configs ({}), please delete some to create new ones", consts::MAX_ROUTING_CONFIGS_PER_MERCHANT),
         })
-        .into_report()
             },
         )?;
         let timestamp = common_utils::date_time::now_unix_timestamp();
@@ -304,7 +303,6 @@ pub async fn link_routing_config(
                 Err(errors::ApiErrorResponse::PreconditionFailed {
                     message: "Algorithm is already active".to_string(),
                 })
-                .into_report()
             },
         )?;
 
@@ -342,7 +340,6 @@ pub async fn link_routing_config(
                 Err(errors::ApiErrorResponse::PreconditionFailed {
                     message: "Algorithm is already active".to_string(),
                 })
-                .into_report()
             },
         )?;
         let mut merchant_dictionary =
@@ -354,7 +351,6 @@ pub async fn link_routing_config(
             .iter_mut()
             .find(|rec| rec.id == algorithm_id)
             .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)
-            .into_report()
             .attach_printable("Record with given ID not found for routing config activation")?;
 
         record.modified_at = modified_at;
@@ -400,8 +396,7 @@ pub async fn retrieve_routing_config(
         .get_required_value("BusinessProfile")
         .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?;
 
-        let response = routing_algorithm
-            .foreign_try_into()
+        let response = routing_types::MerchantRoutingAlgorithm::foreign_try_from(routing_algorithm)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("unable to parse routing algorithm")?;
 
@@ -419,7 +414,6 @@ pub async fn retrieve_routing_config(
             .into_iter()
             .find(|rec| rec.id == algorithm_id.0)
             .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)
-            .into_report()
             .attach_printable("Algorithm with the given ID not found in the merchant dictionary")?;
 
         let algorithm_config = db
@@ -528,8 +522,7 @@ pub async fn unlink_routing_config(
                     }
                     None => Err(errors::ApiErrorResponse::PreconditionFailed {
                         message: "Algorithm is already inactive".to_string(),
-                    })
-                    .into_report()?,
+                    })?,
                 }
             }
             None => Err(errors::ApiErrorResponse::InvalidRequestData {
@@ -560,7 +553,6 @@ pub async fn unlink_routing_config(
             Err(errors::ApiErrorResponse::PreconditionFailed {
                 message: "Algorithm is already inactive".to_string(),
             })
-            .into_report()
         })?;
         let routing_algorithm: routing_types::RoutingAlgorithmRef =
             routing_types::RoutingAlgorithmRef {
@@ -576,15 +568,13 @@ pub async fn unlink_routing_config(
             .ok_or(errors::ApiErrorResponse::PreconditionFailed {
                 // When the merchant_dictionary doesn't have any active algorithm and merchant_account doesn't have any routing_algorithm configured
                 message: "Algorithm is already inactive".to_string(),
-            })
-            .into_report()?;
+            })?;
 
         let record = merchant_dictionary
             .records
             .iter_mut()
             .find(|rec| rec.id == active_algorithm_id)
             .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)
-            .into_report()
             .attach_printable("Record with the given ID not found for de-activation")?;
 
         let response = record.clone();
@@ -655,7 +645,6 @@ pub async fn update_default_routing_config(
         Err(errors::ApiErrorResponse::PreconditionFailed {
             message: "current config and updated config have different lengths".to_string(),
         })
-        .into_report()
     })?;
 
     let existing_set: FxHashSet<String> =
@@ -675,7 +664,6 @@ pub async fn update_default_routing_config(
                 symmetric_diff.join(", ")
             ),
         })
-        .into_report()
     })?;
 
     helpers::update_merchant_default_config(
@@ -714,6 +702,7 @@ pub async fn retrieve_linked_routing_config(
     state: AppState,
     merchant_account: domain::MerchantAccount,
     #[cfg(feature = "business_profile_routing")] query_params: RoutingRetrieveLinkQuery,
+    #[cfg(feature = "business_profile_routing")] transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::LinkedRoutingConfigRetrieveResponse> {
     metrics::ROUTING_RETRIEVE_LINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
@@ -739,16 +728,17 @@ pub async fn retrieve_linked_routing_config(
         let mut active_algorithms = Vec::new();
 
         for business_profile in business_profiles {
-            let routing_ref: routing_types::RoutingAlgorithmRef = business_profile
-                .routing_algorithm
-                .clone()
-                .map(|val| val.parse_value("RoutingAlgorithmRef"))
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "unable to deserialize routing algorithm ref from merchant account",
-                )?
-                .unwrap_or_default();
+            let routing_ref: routing_types::RoutingAlgorithmRef = match transaction_type {
+                enums::TransactionType::Payment => business_profile.routing_algorithm,
+                #[cfg(feature = "payouts")]
+                enums::TransactionType::Payout => business_profile.payout_routing_algorithm,
+            }
+            .clone()
+            .map(|val| val.parse_value("RoutingAlgorithmRef"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to deserialize routing algorithm ref from merchant account")?
+            .unwrap_or_default();
 
             if let Some(algorithm_id) = routing_ref.algorithm_id {
                 let record = db
@@ -779,7 +769,6 @@ pub async fn retrieve_linked_routing_config(
                 .into_iter()
                 .find(|rec| rec.id == algorithm_id)
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)
-                .into_report()
                 .attach_printable("record for active algorithm not found in merchant dictionary")?;
 
             let config = db
@@ -883,7 +872,6 @@ pub async fn update_default_routing_config_for_profile(
         Err(errors::ApiErrorResponse::PreconditionFailed {
             message: "current config and updated config have different lengths".to_string(),
         })
-        .into_report()
     })?;
 
     let existing_set = FxHashSet::from_iter(default_config.iter().map(|c| {
@@ -921,7 +909,6 @@ pub async fn update_default_routing_config_for_profile(
         Err(errors::ApiErrorResponse::InvalidRequestData {
             message: format!("connector mismatch between old and new configs ({error_str})"),
         })
-        .into_report()
     })?;
 
     helpers::update_merchant_default_config(

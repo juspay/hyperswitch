@@ -4,7 +4,7 @@ use std::{collections::HashMap, fmt::Debug, ops::Deref};
 
 use common_utils::request::RequestContent;
 use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 use stripe::auth_headers;
@@ -54,8 +54,7 @@ impl ConnectorCommon for Stripe {
         &self,
         auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth: stripe::StripeAuthType = auth_type
-            .try_into()
+        let auth = stripe::StripeAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![
             (
@@ -674,10 +673,10 @@ impl
 
         match id.get_connector_transaction_id() {
             Ok(x) if x.starts_with("set") => Ok(format!(
-                "{}{}/{}",
+                "{}{}/{}?expand[0]=latest_attempt", // expand latest attempt to extract payment checks and three_d_secure data
                 self.base_url(connectors),
                 "v1/setup_intents",
-                x
+                x,
             )),
             Ok(x) => Ok(format!(
                 "{}{}/{}{}",
@@ -712,7 +711,6 @@ impl
         res: types::Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError>
     where
-        types::PaymentsAuthorizeData: Clone,
         types::PaymentsResponseData: Clone,
     {
         let id = data.request.connector_transaction_id.clone();
@@ -1919,10 +1917,8 @@ fn get_signature_elements_from_header(
                 .to_str()
                 .map(String::from)
                 .map_err(|_| errors::ConnectorError::WebhookSignatureNotFound)
-                .into_report()
         })
-        .ok_or(errors::ConnectorError::WebhookSignatureNotFound)
-        .into_report()??;
+        .ok_or(errors::ConnectorError::WebhookSignatureNotFound)??;
 
     let props = security_header.split(',').collect::<Vec<&str>>();
     let mut security_header_kvs: HashMap<String, Vec<u8>> = HashMap::with_capacity(props.len());
@@ -1930,8 +1926,7 @@ fn get_signature_elements_from_header(
     for prop_str in &props {
         let (prop_key, prop_value) = prop_str
             .split_once('=')
-            .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)
-            .into_report()?;
+            .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         security_header_kvs.insert(prop_key.to_string(), prop_value.bytes().collect());
     }
@@ -1957,12 +1952,9 @@ impl api::IncomingWebhook for Stripe {
 
         let signature = security_header_kvs
             .remove("v1")
-            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)
-            .into_report()?;
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
 
-        hex::decode(signature)
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookSignatureNotFound)
+        hex::decode(signature).change_context(errors::ConnectorError::WebhookSignatureNotFound)
     }
 
     fn get_webhook_source_verification_message(
@@ -1975,8 +1967,7 @@ impl api::IncomingWebhook for Stripe {
 
         let timestamp = security_header_kvs
             .remove("t")
-            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)
-            .into_report()?;
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
 
         Ok(format!(
             "{}.{}",

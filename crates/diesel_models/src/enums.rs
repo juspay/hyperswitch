@@ -19,6 +19,7 @@ pub mod diesel_exports {
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
         DbRoleScope as RoleScope, DbRoutingAlgorithmKind as RoutingAlgorithmKind,
         DbTransactionType as TransactionType, DbUserStatus as UserStatus,
+        DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
     };
 }
 pub use common_enums::*;
@@ -46,27 +47,6 @@ pub enum RoutingAlgorithmKind {
     Priority,
     VolumeSplit,
     Advanced,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-)]
-#[diesel_enum(storage_type = "db_enum")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum EventClass {
-    Payments,
-    Refunds,
-    Disputes,
-    Mandates,
 }
 
 #[derive(
