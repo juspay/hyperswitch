@@ -584,7 +584,7 @@ pub async fn upsert_connector_agnostic_mandate_config(
         state,
         &req,
         json_payload.into_inner(),
-        |state, _auth: AuthenticationData, mandate_config| {
+        |state, _auth: AuthenticationData, mandate_config, _| {
             Box::pin(routing::upsert_connector_agnostic_mandate_config(
                 state,
                 &business_profile_id,
