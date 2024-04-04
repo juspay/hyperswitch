@@ -13,8 +13,8 @@ use crate::{
     core::{
         errors::{self, RouterResult},
         payment_methods::{
-            cards, transformers,
-            transformers::{StoreCardReq, StoreGenericReq, StoreLockerReq},
+            cards,
+            transformers::{self, StoreCardReq, StoreGenericReq, StoreLockerReq},
             vault,
         },
         payments::{

@@ -304,6 +304,28 @@ fn saved_in_locker_default() -> bool {
     true
 }
 
+impl From<CardDetailFromLocker> for payments::AdditionalCardInfo {
+    fn from(item: CardDetailFromLocker) -> Self {
+        Self {
+            card_issuer: item.card_issuer,
+            card_network: item.card_network,
+            card_type: item.card_type,
+            card_issuing_country: item.issuer_country,
+            bank_code: None,
+            last4: item.last4_digits,
+            card_isin: item.card_isin,
+            card_extended_bin: item
+                .card_number
+                .map(|card_number| card_number.get_card_extended_bin()),
+            card_exp_month: item.expiry_month,
+            card_exp_year: item.expiry_year,
+            card_holder_name: item.card_holder_name,
+            payment_checks: None,
+            authentication_data: None,
+        }
+    }
+}
+
 impl From<CardDetailsPaymentMethod> for CardDetailFromLocker {
     fn from(item: CardDetailsPaymentMethod) -> Self {
         Self {
