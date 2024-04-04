@@ -6,7 +6,7 @@ use base64::Engine;
 use common_utils::{
     crypto, errors::ReportSwitchExt, ext_traits::ByteSliceExt, request::RequestContent,
 };
-use error_stack::{IntoReport, Report, ResultExt};
+use error_stack::{Report, ResultExt};
 use masking::PeekInterface;
 use transformers as trustpay;
 
@@ -942,7 +942,6 @@ impl api::IncomingWebhook for Trustpay {
             .parse_struct("TrustpayWebhookResponse")
             .switch()?;
         hex::decode(response.signature)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)
     }
 

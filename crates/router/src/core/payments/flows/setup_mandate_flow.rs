@@ -1,6 +1,6 @@
 use api_models::enums::{PaymentMethod, PaymentMethodType};
 use async_trait::async_trait;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -397,7 +397,6 @@ impl types::SetupMandateRouterData {
                     .await
                 }
                 Ok(_) => Err(errors::ApiErrorResponse::InternalServerError)
-                    .into_report()
                     .attach_printable("Unexpected response received")?,
                 Err(_) => Ok(resp),
             }
@@ -407,8 +406,8 @@ impl types::SetupMandateRouterData {
                     "Update Mandate flow not implemented for the connector {:?}",
                     connector.connector_name
                 ),
-            })
-            .into_report()
+            }
+            .into())
         }
     }
 }
@@ -430,7 +429,7 @@ impl mandate::MandateBehaviour for types::SetupMandateRequestData {
         self.mandate_id = new_mandate_id;
     }
 
-    fn get_payment_method_data(&self) -> api_models::payments::PaymentMethodData {
+    fn get_payment_method_data(&self) -> domain::payments::PaymentMethodData {
         self.payment_method_data.clone()
     }
 

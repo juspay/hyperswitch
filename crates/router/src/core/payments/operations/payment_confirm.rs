@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use futures::FutureExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
@@ -15,6 +15,7 @@ use crate::{
         authentication,
         blocklist::utils as blocklist_utils,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
+        mandate::helpers::MandateGenericData,
         payment_methods::PaymentMethodRetrieve,
         payments::{
             self, helpers, operations, populate_surcharge_details, CustomerDetails, PaymentAddress,
@@ -351,14 +352,15 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .setup_future_usage
             .or(payment_intent.setup_future_usage);
 
-        let (
+        let MandateGenericData {
             token,
             payment_method,
             payment_method_type,
-            mut setup_mandate,
+            mandate_data,
             recurring_mandate_payment_data,
             mandate_connector,
-        ) = mandate_details;
+            payment_method_info,
+        } = mandate_details;
 
         let browser_info = request
             .browser_info
@@ -406,13 +408,16 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
             (Some(token_data), payment_method_info)
         } else {
-            (None, None)
+            (None, payment_method_info)
         };
 
         payment_attempt.payment_method = payment_method.or(payment_attempt.payment_method);
         payment_attempt.browser_info = browser_info;
-        payment_attempt.payment_method_type =
-            payment_method_type.or(payment_attempt.payment_method_type);
+        payment_attempt.payment_method_type = payment_method_type
+            .or(payment_attempt.payment_method_type)
+            .or(payment_method_info
+                .as_ref()
+                .and_then(|pm_info| pm_info.payment_method_type));
 
         payment_attempt.payment_experience = request
             .payment_experience
@@ -478,7 +483,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .or(payment_attempt.business_sub_label);
 
         // The operation merges mandate data from both request and payment_attempt
-        setup_mandate = setup_mandate.map(|mut sm| {
+        let setup_mandate = mandate_data.map(|mut sm| {
             sm.mandate_type = payment_attempt.mandate_details.clone().or(sm.mandate_type);
             sm.update_mandate_id = payment_attempt
                 .mandate_data
@@ -619,6 +624,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             authorizations: vec![],
             frm_metadata: request.frm_metadata.clone(),
             authentication,
+            recurring_details: request.recurring_details.clone(),
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -790,7 +796,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                 .authentication_connectors
                 .first()
                 .ok_or(errors::ApiErrorResponse::UnprocessableEntity { message: format!("No authentication_connector found for profile_id {}", business_profile.profile_id) })
-                .into_report()
+
                 .attach_printable("No authentication_connector found from merchant_account.authentication_details")?
                 .to_string();
             let profile_id = &business_profile.profile_id;
@@ -1199,6 +1205,12 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
         let mandate_type =
             helpers::validate_mandate(request, payments::is_operation_confirm(self))?;
 
+        helpers::validate_recurring_details_and_token(
+            &request.recurring_details,
+            &request.payment_token,
+            &request.mandate_id,
+        )?;
+
         let payment_id = request
             .payment_id
             .clone()
@@ -1208,9 +1220,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
             Box::new(self),
             operations::ValidateResult {
                 merchant_id: &merchant_account.merchant_id,
-                payment_id: payment_id
-                    .and_then(|id| core_utils::validate_id(id, "payment_id"))
-                    .into_report()?,
+                payment_id: payment_id.and_then(|id| core_utils::validate_id(id, "payment_id"))?,
                 mandate_type,
                 storage_scheme: merchant_account.storage_scheme,
                 requeue: matches!(

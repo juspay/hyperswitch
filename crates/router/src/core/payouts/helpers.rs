@@ -4,7 +4,7 @@ use common_utils::{
     ext_traits::{AsyncExt, StringExt},
 };
 use diesel_models::encryption::Encryption;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::logger;
 
@@ -13,8 +13,8 @@ use crate::{
     core::{
         errors::{self, RouterResult},
         payment_methods::{
-            cards, transformers,
-            transformers::{StoreCardReq, StoreGenericReq, StoreLockerReq},
+            cards,
+            transformers::{self, StoreCardReq, StoreGenericReq, StoreLockerReq},
             vault,
         },
         payments::{
@@ -231,7 +231,6 @@ pub async fn save_payout_data_to_locker(
                 let key = key_store.key.get_inner().peek();
                 let enc_data = async {
                     serde_json::to_value(payout_method_data.to_owned())
-                        .into_report()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Unable to encode payout method data")
                         .ok()
@@ -289,7 +288,7 @@ pub async fn save_payout_data_to_locker(
     // Store card_reference in payouts table
     let db = &*state.store;
     let updated_payout = storage::PayoutsUpdate::PayoutMethodIdUpdate {
-        payout_method_id: Some(stored_resp.card_reference.to_owned()),
+        payout_method_id: stored_resp.card_reference.to_owned(),
     };
     db.update_payout(
         &payout_data.payouts,
@@ -389,6 +388,7 @@ pub async fn save_payout_data_to_locker(
         None,
         card_details_encrypted,
         key_store,
+        None,
         None,
     )
     .await?;
@@ -503,7 +503,6 @@ pub async fn decide_payout_connector(
         let first_connector_choice = connectors
             .first()
             .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
-            .into_report()
             .attach_printable("Empty connector list returned")?
             .clone();
 
@@ -563,7 +562,6 @@ pub async fn decide_payout_connector(
         let first_connector_choice = connectors
             .first()
             .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
-            .into_report()
             .attach_printable("Empty connector list returned")?
             .clone();
 

@@ -4,7 +4,7 @@ pub mod pub_sub;
 
 use std::sync::{atomic, Arc};
 
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use redis_interface::PubsubInterface;
 use router_env::{logger, tracing::Instrument};
 
@@ -53,7 +53,6 @@ impl RedisStore {
             .subscriber
             .subscribe::<(), _>(channel)
             .await
-            .into_report()
             .change_context(redis_interface::errors::RedisError::SubscribeError)?;
 
         let redis_clone = self.redis_conn.clone();

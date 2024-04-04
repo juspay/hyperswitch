@@ -2,7 +2,7 @@ use api_models::user_role::role::{self as role_api};
 use common_enums::RoleScope;
 use common_utils::generate_id_with_default_len;
 use diesel_models::role::{RoleNew, RoleUpdate};
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 
 use crate::{
     consts,
@@ -73,7 +73,7 @@ pub async fn create_role(
     if matches!(req.role_scope, RoleScope::Organization)
         && user_from_token.role_id != consts::user_role::ROLE_ID_ORGANIZATION_ADMIN
     {
-        return Err(UserErrors::InvalidRoleOperation.into())
+        return Err(report!(UserErrors::InvalidRoleOperation))
             .attach_printable("Non org admin user creating org level role");
     }
 
@@ -292,7 +292,7 @@ pub async fn update_role(
     if matches!(role_info.get_scope(), RoleScope::Organization)
         && user_from_token.role_id != consts::user_role::ROLE_ID_ORGANIZATION_ADMIN
     {
-        return Err(UserErrors::InvalidRoleOperation.into())
+        return Err(report!(UserErrors::InvalidRoleOperation))
             .attach_printable("Non org admin user changing org level role");
     }
 

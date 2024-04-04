@@ -8,7 +8,7 @@ use common_utils::errors::{CustomResult, ParsingError};
 use diesel_models::enums::{
     AttemptStatus, AuthenticationType, Currency, PaymentMethod, RefundStatus,
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::PeekInterface;
 use sqlx::{
     postgres::{PgArgumentBuffer, PgPoolOptions, PgRow, PgTypeInfo, PgValueRef},
@@ -100,10 +100,10 @@ where
     Type: DbType + FromStr + Display,
 {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> sqlx::encode::IsNull {
-        self.0.to_string().encode(buf)
+        <String as Encode<'q, Postgres>>::encode(self.0.to_string(), buf)
     }
     fn size_hint(&self) -> usize {
-        self.0.to_string().size_hint()
+        <String as Encode<'q, Postgres>>::size_hint(&self.0.to_string())
     }
 }
 
@@ -138,9 +138,7 @@ where
     for<'a> T: FromRow<'a, PgRow>,
 {
     fn load_row(row: PgRow) -> CustomResult<T, QueryExecutionError> {
-        T::from_row(&row)
-            .into_report()
-            .change_context(QueryExecutionError::RowExtractionFailure)
+        T::from_row(&row).change_context(QueryExecutionError::RowExtractionFailure)
     }
 }
 
@@ -163,7 +161,6 @@ impl AnalyticsDataSource for SqlxClient {
         sqlx::query(&format!("{query};"))
             .fetch_all(&self.pool)
             .await
-            .into_report()
             .change_context(QueryExecutionError::DatabaseError)
             .attach_printable_lazy(|| format!("Failed to run query {query}"))?
             .into_iter()
@@ -179,7 +176,6 @@ impl HealthCheck for SqlxClient {
             .fetch_all(&self.pool)
             .await
             .map(|_| ())
-            .into_report()
             .change_context(QueryExecutionError::DatabaseError)
     }
 }

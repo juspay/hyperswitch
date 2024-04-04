@@ -6,7 +6,7 @@ use aws_config::meta::region::RegionProviderChain;
 use aws_sdk_kms::{config::Region, primitives::Blob, Client};
 use base64::Engine;
 use common_utils::errors::CustomResult;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use router_env::logger;
 
 use crate::{consts, metrics};
@@ -49,7 +49,6 @@ impl AwsKmsClient {
         let start = Instant::now();
         let data = consts::BASE64_ENGINE
             .decode(data)
-            .into_report()
             .change_context(AwsKmsError::Base64DecodingFailed)?;
         let ciphertext_blob = Blob::new(data);
 
@@ -67,17 +66,13 @@ impl AwsKmsClient {
                 metrics::AWS_KMS_DECRYPTION_FAILURES.add(&metrics::CONTEXT, 1, &[]);
                 error
             })
-            .into_report()
             .change_context(AwsKmsError::DecryptionFailed)?;
 
         let output = decrypt_output
             .plaintext
-            .ok_or(AwsKmsError::MissingPlaintextDecryptionOutput)
-            .into_report()
+            .ok_or(report!(AwsKmsError::MissingPlaintextDecryptionOutput))
             .and_then(|blob| {
-                String::from_utf8(blob.into_inner())
-                    .into_report()
-                    .change_context(AwsKmsError::Utf8DecodingFailed)
+                String::from_utf8(blob.into_inner()).change_context(AwsKmsError::Utf8DecodingFailed)
             })?;
 
         let time_taken = start.elapsed();
@@ -108,13 +103,11 @@ impl AwsKmsClient {
                 metrics::AWS_KMS_ENCRYPTION_FAILURES.add(&metrics::CONTEXT, 1, &[]);
                 error
             })
-            .into_report()
             .change_context(AwsKmsError::EncryptionFailed)?;
 
         let output = encrypted_output
             .ciphertext_blob
             .ok_or(AwsKmsError::MissingCiphertextEncryptionOutput)
-            .into_report()
             .map(|blob| consts::BASE64_ENGINE.encode(blob.into_inner()))?;
         let time_taken = start.elapsed();
         metrics::AWS_KMS_ENCRYPT_TIME.record(&metrics::CONTEXT, time_taken.as_secs_f64(), &[]);

@@ -14,7 +14,7 @@ use api_models::{
 use common_utils::{
     errors::ReportSwitchExt, events::ApiEventsType, ext_traits::Encode, request::RequestContent,
 };
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, Mask, PeekInterface, Secret};
 use router_env::{
     instrument,
@@ -45,7 +45,7 @@ use crate::{
         api::{self, mandates::MandateResponseExt},
         domain::{self, types as domain_types},
         storage::{self, enums},
-        transformers::{ForeignInto, ForeignTryInto},
+        transformers::{ForeignInto, ForeignTryFrom},
     },
     utils::{self as helper_utils, generate_id, OptionExt, ValueExt},
     workflows::outgoing_webhook_retry,
@@ -150,11 +150,9 @@ pub async fn payments_incoming_webhook_flow<Ctx: PaymentMethodRetrieve>(
                 error @ Err(_) => error?,
             }
         }
-        _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
-            .into_report()
-            .attach_printable(
-                "Did not get payment id as object reference id in webhook payments flow",
-            )?,
+        _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure).attach_printable(
+            "Did not get payment id as object reference id in webhook payments flow",
+        )?,
     };
 
     match payments_response {
@@ -194,7 +192,6 @@ pub async fn payments_incoming_webhook_flow<Ctx: PaymentMethodRetrieve>(
         }
 
         _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
-            .into_report()
             .attach_printable("received non-json response from payments core")?,
     }
 }
@@ -236,7 +233,6 @@ pub async fn refunds_incoming_webhook_flow(
                 .attach_printable("Failed to fetch the refund")?,
         },
         _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
-            .into_report()
             .attach_printable("received a non-refund id when processing refund webhooks")?,
     };
     let refund_id = refund.refund_id.to_owned();
@@ -245,9 +241,7 @@ pub async fn refunds_incoming_webhook_flow(
         let refund_update = storage::RefundUpdate::StatusUpdate {
             connector_refund_id: None,
             sent_to_gateway: true,
-            refund_status: event_type
-                .foreign_try_into()
-                .into_report()
+            refund_status: common_enums::RefundStatus::foreign_try_from(event_type)
                 .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
                 .attach_printable("failed refund status mapping from event type")?,
             updated_by: merchant_account.storage_scheme.to_string(),
@@ -335,7 +329,6 @@ pub async fn get_payment_attempt_from_object_reference_id(
             .await
             .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound),
         _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
-            .into_report()
             .attach_printable("received a non-payment id for retrieving payment")?,
     }
 }
@@ -361,9 +354,7 @@ pub async fn get_or_update_dispute_object(
                 amount: dispute_details.amount.clone(),
                 currency: dispute_details.currency,
                 dispute_stage: dispute_details.dispute_stage,
-                dispute_status: event_type
-                    .foreign_try_into()
-                    .into_report()
+                dispute_status: common_enums::DisputeStatus::foreign_try_from(event_type)
                     .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
                     .attach_printable("event type to dispute status mapping failed")?,
                 payment_id: payment_attempt.payment_id.to_owned(),
@@ -391,9 +382,7 @@ pub async fn get_or_update_dispute_object(
         Some(dispute) => {
             logger::info!("Dispute Already exists, Updating the dispute details");
             metrics::INCOMING_DISPUTE_WEBHOOK_UPDATE_RECORD_METRIC.add(&metrics::CONTEXT, 1, &[]);
-            let dispute_status: diesel_models::enums::DisputeStatus = event_type
-                .foreign_try_into()
-                .into_report()
+            let dispute_status = diesel_models::enums::DisputeStatus::foreign_try_from(event_type)
                 .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
                 .attach_printable("event type to dispute state conversion failure")?;
             crate::core::utils::validate_dispute_stage_and_dispute_status(
@@ -451,12 +440,9 @@ pub async fn mandates_incoming_webhook_flow(
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?,
             _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
-                .into_report()
                 .attach_printable("received a non-mandate id for retrieving mandate")?,
         };
-        let mandate_status = event_type
-            .foreign_try_into()
-            .into_report()
+        let mandate_status = common_enums::MandateStatus::foreign_try_from(event_type)
             .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
             .attach_printable("event type to mandate status mapping failed")?;
         let updated_mandate = db
@@ -497,7 +483,9 @@ pub async fn mandates_incoming_webhook_flow(
         })
     } else {
         logger::error!("Webhook source verification failed for mandates webhook flow");
-        Err(errors::ApiErrorResponse::WebhookAuthenticationFailed).into_report()
+        Err(report!(
+            errors::ApiErrorResponse::WebhookAuthenticationFailed
+        ))
     }
 }
 
@@ -567,7 +555,9 @@ pub async fn disputes_incoming_webhook_flow(
         })
     } else {
         metrics::INCOMING_DISPUTE_WEBHOOK_SIGNATURE_FAILURE_METRIC.add(&metrics::CONTEXT, 1, &[]);
-        Err(errors::ApiErrorResponse::WebhookAuthenticationFailed).into_report()
+        Err(report!(
+            errors::ApiErrorResponse::WebhookAuthenticationFailed
+        ))
     }
 }
 
@@ -653,7 +643,6 @@ async fn bank_transfer_webhook_flow<Ctx: PaymentMethodRetrieve>(
         }
 
         _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
-            .into_report()
             .attach_printable("received non-json response from payments core")?,
     }
 }
@@ -898,9 +887,69 @@ async fn trigger_webhook_to_merchant(
     );
     logger::debug!(outgoing_webhook_response=?response);
 
+    let update_event_if_client_error =
+        |state: AppState,
+         merchant_key_store: domain::MerchantKeyStore,
+         merchant_id: String,
+         event_id: String,
+         error_message: String| async move {
+            let is_webhook_notified = false;
+
+            let response_to_store = OutgoingWebhookResponseContent {
+                body: None,
+                headers: None,
+                status_code: None,
+                error_message: Some(error_message),
+            };
+
+            let event_update = domain::EventUpdate::UpdateResponse {
+                is_webhook_notified,
+                response: Some(
+                    domain_types::encrypt(
+                        response_to_store
+                            .encode_to_string_of_json()
+                            .change_context(
+                                errors::WebhooksFlowError::OutgoingWebhookResponseEncodingFailed,
+                            )
+                            .map(Secret::new)?,
+                        merchant_key_store.key.get_inner().peek(),
+                    )
+                    .await
+                    .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)
+                    .attach_printable("Failed to encrypt outgoing webhook response content")?,
+                ),
+            };
+
+            state
+                .store
+                .update_event_by_merchant_id_event_id(
+                    &merchant_id,
+                    &event_id,
+                    event_update,
+                    &merchant_key_store,
+                )
+                .await
+                .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)
+        };
+
     let api_client_error_handler =
-        |client_error: error_stack::Report<errors::ApiClientError>,
-         delivery_attempt: enums::WebhookDeliveryAttempt| {
+        |state: AppState,
+         merchant_key_store: domain::MerchantKeyStore,
+         merchant_id: String,
+         event_id: String,
+         client_error: error_stack::Report<errors::ApiClientError>,
+         delivery_attempt: enums::WebhookDeliveryAttempt| async move {
+            // Not including detailed error message in response information since it contains too
+            // much of diagnostic information to be exposed to the merchant.
+            update_event_if_client_error(
+                state,
+                merchant_key_store,
+                merchant_id,
+                event_id,
+                "Unable to send request to merchant server".to_string(),
+            )
+            .await?;
+
             let error =
                 client_error.change_context(errors::WebhooksFlowError::CallToMerchantFailed);
             logger::error!(
@@ -908,6 +957,8 @@ async fn trigger_webhook_to_merchant(
                 ?delivery_attempt,
                 "An error occurred when sending webhook to merchant"
             );
+
+            Ok::<_, error_stack::Report<errors::WebhooksFlowError>>(())
         };
     let update_event_in_storage = |state: AppState,
                                    merchant_key_store: domain::MerchantKeyStore,
@@ -945,9 +996,10 @@ async fn trigger_webhook_to_merchant(
                 Secret::from(String::from("Non-UTF-8 response body"))
             });
         let response_to_store = OutgoingWebhookResponseContent {
-            body: response_body,
-            headers: response_headers,
-            status_code: status_code.as_u16(),
+            body: Some(response_body),
+            headers: Some(response_headers),
+            status_code: Some(status_code.as_u16()),
+            error_message: None,
         };
 
         let event_update = domain::EventUpdate::UpdateResponse {
@@ -964,7 +1016,7 @@ async fn trigger_webhook_to_merchant(
                 )
                 .await
                 .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)
-                .attach_printable("Failed to encrypt outgoing webhook request content")?,
+                .attach_printable("Failed to encrypt outgoing webhook response content")?,
             ),
         };
         state
@@ -978,16 +1030,19 @@ async fn trigger_webhook_to_merchant(
             .await
             .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)
     };
+    let increment_webhook_outgoing_received_count = |merchant_id: String| {
+        metrics::WEBHOOK_OUTGOING_RECEIVED_COUNT.add(
+            &metrics::CONTEXT,
+            1,
+            &[metrics::KeyValue::new(MERCHANT_ID, merchant_id)],
+        )
+    };
     let success_response_handler =
         |state: AppState,
          merchant_id: String,
          process_tracker: Option<storage::ProcessTracker>,
          business_status: &'static str| async move {
-            metrics::WEBHOOK_OUTGOING_RECEIVED_COUNT.add(
-                &metrics::CONTEXT,
-                1,
-                &[metrics::KeyValue::new(MERCHANT_ID, merchant_id)],
-            );
+            increment_webhook_outgoing_received_count(merchant_id);
 
             match process_tracker {
                 Some(process_tracker) => state
@@ -1017,7 +1072,17 @@ async fn trigger_webhook_to_merchant(
 
     match delivery_attempt {
         enums::WebhookDeliveryAttempt::InitialAttempt => match response {
-            Err(client_error) => api_client_error_handler(client_error, delivery_attempt),
+            Err(client_error) => {
+                api_client_error_handler(
+                    state.clone(),
+                    merchant_key_store.clone(),
+                    business_profile.merchant_id.clone(),
+                    event_id.clone(),
+                    client_error,
+                    delivery_attempt,
+                )
+                .await?
+            }
             Ok(response) => {
                 let status_code = response.status();
                 let _updated_event = update_event_in_storage(
@@ -1054,7 +1119,15 @@ async fn trigger_webhook_to_merchant(
                 .attach_printable("`process_tracker` is unavailable in automatic retry flow")?;
             match response {
                 Err(client_error) => {
-                    api_client_error_handler(client_error, delivery_attempt);
+                    api_client_error_handler(
+                        state.clone(),
+                        merchant_key_store.clone(),
+                        business_profile.merchant_id.clone(),
+                        event_id.clone(),
+                        client_error,
+                        delivery_attempt,
+                    )
+                    .await?;
                     // Schedule a retry attempt for webhook delivery
                     outgoing_webhook_retry::retry_webhook_delivery_task(
                         &*state.store,
@@ -1106,10 +1179,41 @@ async fn trigger_webhook_to_merchant(
                 }
             }
         }
-        enums::WebhookDeliveryAttempt::ManualRetry => {
-            // Will be updated when manual retry is implemented
-            Err(errors::WebhooksFlowError::NotReceivedByMerchant).into_report()?
-        }
+        enums::WebhookDeliveryAttempt::ManualRetry => match response {
+            Err(client_error) => {
+                api_client_error_handler(
+                    state.clone(),
+                    merchant_key_store.clone(),
+                    business_profile.merchant_id.clone(),
+                    event_id.clone(),
+                    client_error,
+                    delivery_attempt,
+                )
+                .await?
+            }
+            Ok(response) => {
+                let status_code = response.status();
+                let _updated_event = update_event_in_storage(
+                    state.clone(),
+                    merchant_key_store.clone(),
+                    business_profile.merchant_id.clone(),
+                    event_id.clone(),
+                    response,
+                )
+                .await?;
+
+                if status_code.is_success() {
+                    increment_webhook_outgoing_received_count(business_profile.merchant_id.clone());
+                } else {
+                    error_response_handler(
+                        business_profile.merchant_id,
+                        delivery_attempt,
+                        status_code.as_u16(),
+                        "Ignoring error when sending webhook to merchant",
+                    );
+                }
+            }
+        },
     }
 
     Ok(())
@@ -1126,7 +1230,6 @@ fn raise_webhooks_analytics_event(
         logger::error!(?error, "Failed to send webhook to merchant");
 
         serde_json::to_value(error.current_context())
-            .into_report()
             .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
             .map_err(|error| {
                 logger::error!(?error, "Failed to serialize outgoing webhook error as JSON");
@@ -1178,7 +1281,6 @@ pub async fn webhooks_wrapper<W: types::OutgoingWebhookType, Ctx: PaymentMethodR
 
     let request_id = RequestId::extract(req)
         .await
-        .into_report()
         .attach_printable("Unable to extract request id from request")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let auth_type = auth::AuthenticationType::WebhookAuth {
@@ -1190,7 +1292,6 @@ pub async fn webhooks_wrapper<W: types::OutgoingWebhookType, Ctx: PaymentMethodR
         payment_id: webhooks_response_tracker.get_payment_id(),
     };
     let response_value = serde_json::to_value(&webhooks_response_tracker)
-        .into_report()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Could not convert webhook effect to string")?;
 
@@ -1341,7 +1442,6 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
             .switch()
             .attach_printable("Could not find object reference id in incoming webhook body")?;
         let connector_enum = api_models::enums::Connector::from_str(&connector_name)
-            .into_report()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "connector",
             })
@@ -1431,7 +1531,6 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
         let webhook_details = api::IncomingWebhookDetails {
             object_reference_id: object_ref_id,
             resource_object: serde_json::to_vec(&event_object)
-                .into_report()
                 .change_context(errors::ParsingError::EncodeError("byte-vec"))
                 .attach_printable("Unable to convert webhook payload to a value")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1520,7 +1619,6 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
             .attach_printable("Incoming webhook flow for mandates failed")?,
 
             _ => Err(errors::ApiErrorResponse::InternalServerError)
-                .into_report()
                 .attach_printable("Unsupported Flow Type received in incoming webhooks")?,
         }
     } else {
@@ -1542,7 +1640,6 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
 
     let serialized_request = event_object
         .masked_serialize()
-        .into_report()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Could not convert webhook effect to string")?;
     Ok((response, webhook_effect, serialized_request))
@@ -1656,7 +1753,6 @@ pub async fn add_outgoing_webhook_retry_task_to_process_tracker(
     .ok_or(errors::StorageError::ValueNotFound(
         "Process tracker schedule time".into(), // Can raise a better error here
     ))
-    .into_report()
     .attach_printable("Failed to obtain initial process tracker schedule time")?;
 
     let tracking_data = types::OutgoingWebhookTrackingData {
