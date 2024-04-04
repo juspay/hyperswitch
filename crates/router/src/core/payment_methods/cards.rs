@@ -21,7 +21,7 @@ use api_models::{
 use common_utils::{
     consts,
     ext_traits::{AsyncExt, Encode, StringExt, ValueExt},
-    fp_utils, generate_id,
+    generate_id,
 };
 use diesel_models::{
     business_profile::BusinessProfile, encryption::Encryption, enums as storage_enums,
@@ -279,17 +279,10 @@ pub async fn get_client_secret_or_add_payment_method(
 }
 
 #[instrument(skip_all)]
-pub async fn authenticate_pm_client_secret(
+pub fn authenticate_pm_client_secret_and_check_expiry(
     req_client_secret: &String,
-    db: &dyn db::StorageInterface,
-    pm_id: &str,
-) -> errors::CustomResult<diesel_models::PaymentMethod, errors::ApiErrorResponse> {
-    let payment_method = db
-        .find_payment_method(pm_id)
-        .await
-        .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
-        .attach_printable("Unable to find payment method")?;
-
+    payment_method: &diesel_models::PaymentMethod,
+) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
     let stored_client_secret = payment_method
         .client_secret
         .clone()
@@ -305,11 +298,9 @@ pub async fn authenticate_pm_client_secret(
             .created_at
             .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY));
 
-        fp_utils::when(current_timestamp > session_expiry, || {
-            Err::<(), errors::ApiErrorResponse>(errors::ApiErrorResponse::ClientSecretExpired)
-        })?;
+        let expired = current_timestamp > session_expiry;
 
-        Ok(payment_method)
+        Ok(expired)
     }
 }
 
@@ -322,19 +313,39 @@ pub async fn add_payment_method_data(
     pm_id: String,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
     let db = &*state.store;
-    let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
 
     let pmd = req
         .payment_method_data
         .clone()
         .get_required_value("payment_method_data")?;
-    let _payment_method = req.payment_method.get_required_value("payment_method")?;
+    req.payment_method.get_required_value("payment_method")?;
     let client_secret = req
         .client_secret
         .clone()
         .get_required_value("client_secret")?;
+    let payment_method = db
+        .find_payment_method(pm_id.as_str())
+        .await
+        .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
+        .attach_printable("Unable to find payment method")?;
 
-    let payment_method = authenticate_pm_client_secret(&client_secret, db, pm_id.as_str()).await?;
+    let customer_id = payment_method.customer_id.clone();
+
+    let client_secret_expired =
+        authenticate_pm_client_secret_and_check_expiry(&client_secret, &payment_method)?;
+
+    if client_secret_expired {
+        let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
+            status: Some(enums::PaymentMethodStatus::Inactive),
+        };
+
+        db.update_payment_method(payment_method, pm_update)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to add payment method in db")?;
+
+        return Err((errors::ApiErrorResponse::ClientSecretExpired).into());
+    };
 
     match pmd {
         api_models::payment_methods::PaymentMethodCreateData::Card(card) => {

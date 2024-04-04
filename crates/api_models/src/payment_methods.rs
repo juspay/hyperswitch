@@ -68,6 +68,8 @@ pub struct PaymentMethodCreate {
 
     /// For Client based calls, SDK will use the client_secret
     /// in order to call /payment_methods
+    /// Client secret will be generated whenever a new
+    /// payment method is created
     pub client_secret: Option<String>,
 
     /// Payment method data to be passed in case of client
