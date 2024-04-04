@@ -32,6 +32,7 @@ use crate::{
     types::domain,
     utils::OptionExt,
 };
+use router_env::logger;
 pub mod blacklist;
 #[cfg(feature = "olap")]
 pub mod cookies;
@@ -598,6 +599,16 @@ where
     A: AppStateInfo + Sync,
 {
     let token = get_jwt_from_authorization_header(headers)?;
+    if let Some(token_from_cookies) = get_cookie_from_header(headers)
+        .ok()
+        .map(|cookies| cookies::parse_cookie(cookies).ok())
+        .flatten()
+    {
+        logger::info!(
+            "Cookie header and authorization header JWT comparison result: {}",
+            token == token_from_cookies
+        );
+    }
     let payload = decode_jwt(token, state).await?;
 
     Ok(payload)
@@ -957,6 +968,14 @@ pub fn get_jwt_from_authorization_header(headers: &HeaderMap) -> RouterResult<&s
         .attach_printable("Failed to convert JWT token to string")?
         .strip_prefix("Bearer ")
         .ok_or(errors::ApiErrorResponse::InvalidJwtToken.into())
+}
+
+pub fn get_cookie_from_header(headers: &HeaderMap) -> RouterResult<&str> {
+    headers
+        .get(cookies::get_cookie_header())
+        .map(|header_value| header_value.to_str().ok())
+        .flatten()
+        .ok_or(errors::ApiErrorResponse::InvalidCookie.into())
 }
 
 pub fn strip_jwt_token(token: &str) -> RouterResult<&str> {
