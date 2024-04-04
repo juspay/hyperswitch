@@ -856,8 +856,8 @@ pub struct GpayTokenizationData {
     pub token: Secret<String>,
 }
 
-impl From<api_models::payments::GooglePayWalletData> for GooglePayWalletData {
-    fn from(data: api_models::payments::GooglePayWalletData) -> Self {
+impl From<domain::GooglePayWalletData> for GooglePayWalletData {
+    fn from(data: domain::GooglePayWalletData) -> Self {
         Self {
             pm_type: data.pm_type,
             description: data.description,
@@ -1019,7 +1019,7 @@ pub trait WalletData {
     fn get_encoded_wallet_token(&self) -> Result<String, Error>;
 }
 
-impl WalletData for api::WalletData {
+impl WalletData for domain::WalletData {
     fn get_wallet_token(&self) -> Result<Secret<String>, Error> {
         match self {
             Self::GooglePay(data) => Ok(Secret::new(data.tokenization_data.token.clone())),
@@ -1060,7 +1060,7 @@ pub trait ApplePay {
     fn get_applepay_decoded_payment_data(&self) -> Result<Secret<String>, Error>;
 }
 
-impl ApplePay for payments::ApplePayWalletData {
+impl ApplePay for domain::ApplePayWalletData {
     fn get_applepay_decoded_payment_data(&self) -> Result<Secret<String>, Error> {
         let token = Secret::new(
             String::from_utf8(
