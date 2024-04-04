@@ -10,7 +10,7 @@ use crate::{
     core::errors,
     pii::Secret,
     services,
-    types::{self, api, storage::enums, PaymentsSyncData},
+    types::{self, api, domain, storage::enums, PaymentsSyncData},
 };
 
 pub struct AirwallexAuthType {
@@ -167,7 +167,7 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
         let mut payment_method_options = None;
         let request = &item.router_data.request;
         let payment_method = match request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(ccard) => {
+            domain::PaymentMethodData::Card(ccard) => {
                 payment_method_options =
                     Some(AirwallexPaymentOptions::Card(AirwallexCardPaymentOptions {
                         auto_capture: matches!(
@@ -185,21 +185,23 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
                     payment_method_type: AirwallexPaymentType::Card,
                 }))
             }
-            api::PaymentMethodData::Wallet(ref wallet_data) => get_wallet_details(wallet_data),
-            api::PaymentMethodData::PayLater(_)
-            | api::PaymentMethodData::BankRedirect(_)
-            | api::PaymentMethodData::BankDebit(_)
-            | api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::Crypto(_)
-            | api::PaymentMethodData::MandatePayment
-            | api::PaymentMethodData::Reward
-            | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("airwallex"),
-            )),
+            domain::PaymentMethodData::Wallet(ref wallet_data) => get_wallet_details(wallet_data),
+            domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("airwallex"),
+                ))
+            }
         }?;
 
         Ok(Self {
@@ -212,10 +214,10 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
 }
 
 fn get_wallet_details(
-    wallet_data: &api_models::payments::WalletData,
+    wallet_data: &domain::WalletData,
 ) -> Result<AirwallexPaymentMethod, errors::ConnectorError> {
     let wallet_details: AirwallexPaymentMethod = match wallet_data {
-        api_models::payments::WalletData::GooglePay(gpay_details) => {
+        domain::WalletData::GooglePay(gpay_details) => {
             AirwallexPaymentMethod::Wallets(WalletData::GooglePay(GooglePayData {
                 googlepay: GooglePayDetails {
                     encrypted_payment_token: Secret::new(
@@ -226,35 +228,33 @@ fn get_wallet_details(
                 payment_method_type: AirwallexPaymentType::Googlepay,
             }))
         }
-        api_models::payments::WalletData::AliPayQr(_)
-        | api_models::payments::WalletData::AliPayRedirect(_)
-        | api_models::payments::WalletData::AliPayHkRedirect(_)
-        | api_models::payments::WalletData::MomoRedirect(_)
-        | api_models::payments::WalletData::KakaoPayRedirect(_)
-        | api_models::payments::WalletData::GoPayRedirect(_)
-        | api_models::payments::WalletData::GcashRedirect(_)
-        | api_models::payments::WalletData::ApplePay(_)
-        | api_models::payments::WalletData::ApplePayRedirect(_)
-        | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
-        | api_models::payments::WalletData::DanaRedirect {}
-        | api_models::payments::WalletData::GooglePayRedirect(_)
-        | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
-        | api_models::payments::WalletData::MbWayRedirect(_)
-        | api_models::payments::WalletData::MobilePayRedirect(_)
-        | api_models::payments::WalletData::PaypalRedirect(_)
-        | api_models::payments::WalletData::PaypalSdk(_)
-        | api_models::payments::WalletData::SamsungPay(_)
-        | api_models::payments::WalletData::TwintRedirect {}
-        | api_models::payments::WalletData::VippsRedirect {}
-        | api_models::payments::WalletData::TouchNGoRedirect(_)
-        | api_models::payments::WalletData::WeChatPayRedirect(_)
-        | api_models::payments::WalletData::WeChatPayQr(_)
-        | api_models::payments::WalletData::CashappQr(_)
-        | api_models::payments::WalletData::SwishQr(_) => {
-            Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("airwallex"),
-            ))?
-        }
+        domain::WalletData::AliPayQr(_)
+        | domain::WalletData::AliPayRedirect(_)
+        | domain::WalletData::AliPayHkRedirect(_)
+        | domain::WalletData::MomoRedirect(_)
+        | domain::WalletData::KakaoPayRedirect(_)
+        | domain::WalletData::GoPayRedirect(_)
+        | domain::WalletData::GcashRedirect(_)
+        | domain::WalletData::ApplePay(_)
+        | domain::WalletData::ApplePayRedirect(_)
+        | domain::WalletData::ApplePayThirdPartySdk(_)
+        | domain::WalletData::DanaRedirect {}
+        | domain::WalletData::GooglePayRedirect(_)
+        | domain::WalletData::GooglePayThirdPartySdk(_)
+        | domain::WalletData::MbWayRedirect(_)
+        | domain::WalletData::MobilePayRedirect(_)
+        | domain::WalletData::PaypalRedirect(_)
+        | domain::WalletData::PaypalSdk(_)
+        | domain::WalletData::SamsungPay(_)
+        | domain::WalletData::TwintRedirect {}
+        | domain::WalletData::VippsRedirect {}
+        | domain::WalletData::TouchNGoRedirect(_)
+        | domain::WalletData::WeChatPayRedirect(_)
+        | domain::WalletData::WeChatPayQr(_)
+        | domain::WalletData::CashappQr(_)
+        | domain::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
+            utils::get_unimplemented_payment_method_error_message("airwallex"),
+        ))?,
     };
     Ok(wallet_details)
 }

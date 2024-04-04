@@ -100,10 +100,10 @@ where
     Type: DbType + FromStr + Display,
 {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> sqlx::encode::IsNull {
-        self.0.to_string().encode(buf)
+        <String as Encode<'q, Postgres>>::encode(self.0.to_string(), buf)
     }
     fn size_hint(&self) -> usize {
-        self.0.to_string().size_hint()
+        <String as Encode<'q, Postgres>>::size_hint(&self.0.to_string())
     }
 }
 

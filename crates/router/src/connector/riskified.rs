@@ -392,7 +392,7 @@ impl
         req: &frm_types::FrmFulfillmentRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let req_obj = riskified::RiskifiedFullfillmentRequest::try_from(req)?;
+        let req_obj = riskified::RiskifiedFulfillmentRequest::try_from(req)?;
         Ok(RequestContent::Json(Box::new(req_obj)))
     }
 

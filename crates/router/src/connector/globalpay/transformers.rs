@@ -17,7 +17,7 @@ use crate::{
     consts,
     core::errors,
     services::{self, RedirectForm},
-    types::{self, api, storage::enums, ErrorResponse},
+    types::{self, api, domain, storage::enums, ErrorResponse},
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -380,7 +380,7 @@ fn get_payment_method_data(
     brand_reference: Option<String>,
 ) -> Result<PaymentMethodData, Error> {
     match &item.request.payment_method_data {
-        api::PaymentMethodData::Card(ccard) => Ok(PaymentMethodData::Card(requests::Card {
+        domain::PaymentMethodData::Card(ccard) => Ok(PaymentMethodData::Card(requests::Card {
             number: ccard.card_number.clone(),
             expiry_month: ccard.card_exp_month.clone(),
             expiry_year: ccard.get_card_expiry_year_2_digit()?,
@@ -396,8 +396,8 @@ fn get_payment_method_data(
             tag: None,
             track: None,
         })),
-        api::PaymentMethodData::Wallet(wallet_data) => get_wallet_data(wallet_data),
-        api::PaymentMethodData::BankRedirect(bank_redirect) => {
+        domain::PaymentMethodData::Wallet(wallet_data) => get_wallet_data(wallet_data),
+        domain::PaymentMethodData::BankRedirect(bank_redirect) => {
             PaymentMethodData::try_from(bank_redirect)
         }
         _ => Err(errors::ConnectorError::NotImplemented(
@@ -408,7 +408,7 @@ fn get_payment_method_data(
 
 fn get_return_url(item: &types::PaymentsAuthorizeRouterData) -> Option<String> {
     match item.request.payment_method_data.clone() {
-        api::PaymentMethodData::Wallet(api_models::payments::WalletData::PaypalRedirect(_)) => {
+        domain::PaymentMethodData::Wallet(domain::WalletData::PaypalRedirect(_)) => {
             item.request.complete_authorize_url.clone()
         }
         _ => item.request.router_return_url.clone(),
@@ -445,16 +445,12 @@ fn get_mandate_details(item: &types::PaymentsAuthorizeRouterData) -> Result<Mand
     })
 }
 
-fn get_wallet_data(
-    wallet_data: &api_models::payments::WalletData,
-) -> Result<PaymentMethodData, Error> {
+fn get_wallet_data(wallet_data: &domain::WalletData) -> Result<PaymentMethodData, Error> {
     match wallet_data {
-        api_models::payments::WalletData::PaypalRedirect(_) => {
-            Ok(PaymentMethodData::Apm(requests::Apm {
-                provider: Some(ApmProvider::Paypal),
-            }))
-        }
-        api_models::payments::WalletData::GooglePay(_) => {
+        domain::WalletData::PaypalRedirect(_) => Ok(PaymentMethodData::Apm(requests::Apm {
+            provider: Some(ApmProvider::Paypal),
+        })),
+        domain::WalletData::GooglePay(_) => {
             Ok(PaymentMethodData::DigitalWallet(requests::DigitalWallet {
                 provider: Some(requests::DigitalWalletProvider::PayByGoogle),
                 payment_token: wallet_data.get_wallet_token_as_json("Google Pay".to_string())?,

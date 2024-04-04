@@ -145,7 +145,7 @@ pub struct PaymentMethodResponse {
     pub customer_id: Option<String>,
 
     /// The unique identifier of the Payment method
-    #[schema(example = "card_rGK4Vi5iSW70MY7J2mIy")]
+    #[schema(example = "card_rGK4Vi5iSW70MY7J2mIg")]
     pub payment_method_id: String,
 
     /// The type of payment method use for the payment.
@@ -280,6 +280,28 @@ pub struct CardDetailFromLocker {
 
 fn saved_in_locker_default() -> bool {
     true
+}
+
+impl From<CardDetailFromLocker> for payments::AdditionalCardInfo {
+    fn from(item: CardDetailFromLocker) -> Self {
+        Self {
+            card_issuer: item.card_issuer,
+            card_network: item.card_network,
+            card_type: item.card_type,
+            card_issuing_country: item.issuer_country,
+            bank_code: None,
+            last4: item.last4_digits,
+            card_isin: item.card_isin,
+            card_extended_bin: item
+                .card_number
+                .map(|card_number| card_number.get_card_extended_bin()),
+            card_exp_month: item.expiry_month,
+            card_exp_year: item.expiry_year,
+            card_holder_name: item.card_holder_name,
+            payment_checks: None,
+            authentication_data: None,
+        }
+    }
 }
 
 impl From<CardDetailsPaymentMethod> for CardDetailFromLocker {
@@ -536,7 +558,7 @@ pub struct RequestPaymentMethodTypes {
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodListRequest {
     /// This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK
-    #[schema(max_length = 30, min_length = 30, example = "secret_k2uj3he2893ein2d")]
+    #[schema(max_length = 30, min_length = 30, example = "secret_k2uj3he2893eiu2d")]
     pub client_secret: Option<String>,
 
     /// The two-letter ISO currency code
@@ -743,7 +765,7 @@ pub struct CustomerPaymentMethodsListResponse {
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct PaymentMethodDeleteResponse {
     /// The unique identifier of the Payment method
-    #[schema(example = "card_rGK4Vi5iSW70MY7J2mIy")]
+    #[schema(example = "card_rGK4Vi5iSW70MY7J2mIg")]
     pub payment_method_id: String,
 
     /// Whether payment method was deleted or not
@@ -753,7 +775,7 @@ pub struct PaymentMethodDeleteResponse {
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct CustomerDefaultPaymentMethodResponse {
     /// The unique identifier of the Payment method
-    #[schema(example = "card_rGK4Vi5iSW70MY7J2mIy")]
+    #[schema(example = "card_rGK4Vi5iSW70MY7J2mIg")]
     pub default_payment_method_id: Option<String>,
     /// The unique identifier of the customer.
     #[schema(example = "cus_meowerunwiuwiwqw")]

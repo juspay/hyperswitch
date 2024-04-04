@@ -1133,6 +1133,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
         helpers::validate_recurring_details_and_token(
             &request.recurring_details,
             &request.payment_token,
+            &request.mandate_id,
         )?;
 
         let payment_id = request

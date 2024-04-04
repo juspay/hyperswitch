@@ -429,7 +429,7 @@ impl mandate::MandateBehaviour for types::SetupMandateRequestData {
         self.mandate_id = new_mandate_id;
     }
 
-    fn get_payment_method_data(&self) -> api_models::payments::PaymentMethodData {
+    fn get_payment_method_data(&self) -> domain::payments::PaymentMethodData {
         self.payment_method_data.clone()
     }
 
