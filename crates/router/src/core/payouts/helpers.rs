@@ -527,10 +527,9 @@ pub async fn save_payout_data_to_locker(
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
-            Err(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "Failed to insert PMD from locker as a part of metadata update operation",
-                )?
+            Err(errors::ApiErrorResponse::InternalServerError).attach_printable(
+                "Failed to insert PMD from locker as a part of metadata update operation",
+            )?
         };
 
         // Update card's metadata in payment_methods table
