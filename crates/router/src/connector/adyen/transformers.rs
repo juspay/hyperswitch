@@ -746,13 +746,13 @@ impl TryFrom<&Box<payments::JCSVoucherData>> for JCSVoucherData {
     }
 }
 
-impl TryFrom<&common_enums::enums::BankNames> for OnlineBankingCzechRepublicBanks {
+impl TryFrom<&common_enums::BankNames> for OnlineBankingCzechRepublicBanks {
     type Error = Error;
-    fn try_from(bank_name: &common_enums::enums::BankNames) -> Result<Self, Self::Error> {
+    fn try_from(bank_name: &common_enums::BankNames) -> Result<Self, Self::Error> {
         match bank_name {
-            common_enums::enums::BankNames::KomercniBanka => Ok(Self::KB),
-            common_enums::enums::BankNames::CeskaSporitelna => Ok(Self::CS),
-            common_enums::enums::BankNames::PlatnoscOnlineKartaPlatnicza => Ok(Self::C),
+            common_enums::BankNames::KomercniBanka => Ok(Self::KB),
+            common_enums::BankNames::CeskaSporitelna => Ok(Self::CS),
+            common_enums::BankNames::PlatnoscOnlineKartaPlatnicza => Ok(Self::C),
             _ => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             ))?,
@@ -809,29 +809,29 @@ pub enum OnlineBankingPolandBanks {
     ETransferPocztowy24,
 }
 
-impl TryFrom<&common_enums::enums::BankNames> for OnlineBankingPolandBanks {
+impl TryFrom<&common_enums::BankNames> for OnlineBankingPolandBanks {
     type Error = Error;
-    fn try_from(bank_name: &common_enums::enums::BankNames) -> Result<Self, Self::Error> {
+    fn try_from(bank_name: &common_enums::BankNames) -> Result<Self, Self::Error> {
         match bank_name {
-            common_enums::enums::BankNames::BlikPSP => Ok(Self::BlikPSP),
-            common_enums::enums::BankNames::PlaceZIPKO => Ok(Self::PlaceZIPKO),
-            common_enums::enums::BankNames::MBank => Ok(Self::MBank),
-            common_enums::enums::BankNames::PayWithING => Ok(Self::PayWithING),
-            common_enums::enums::BankNames::SantanderPrzelew24 => Ok(Self::SantanderPrzelew24),
-            common_enums::enums::BankNames::BankPEKAOSA => Ok(Self::BankPEKAOSA),
-            common_enums::enums::BankNames::BankMillennium => Ok(Self::BankMillennium),
-            common_enums::enums::BankNames::PayWithAliorBank => Ok(Self::PayWithAliorBank),
-            common_enums::enums::BankNames::BankiSpoldzielcze => Ok(Self::BankiSpoldzielcze),
-            common_enums::enums::BankNames::PayWithInteligo => Ok(Self::PayWithInteligo),
-            common_enums::enums::BankNames::BNPParibasPoland => Ok(Self::BNPParibasPoland),
-            common_enums::enums::BankNames::BankNowySA => Ok(Self::BankNowySA),
-            common_enums::enums::BankNames::CreditAgricole => Ok(Self::CreditAgricole),
-            common_enums::enums::BankNames::PayWithBOS => Ok(Self::PayWithBOS),
-            common_enums::enums::BankNames::PayWithCitiHandlowy => Ok(Self::PayWithCitiHandlowy),
-            common_enums::enums::BankNames::PayWithPlusBank => Ok(Self::PayWithPlusBank),
-            common_enums::enums::BankNames::ToyotaBank => Ok(Self::ToyotaBank),
-            common_enums::enums::BankNames::VeloBank => Ok(Self::VeloBank),
-            common_enums::enums::BankNames::ETransferPocztowy24 => Ok(Self::ETransferPocztowy24),
+            common_enums::BankNames::BlikPSP => Ok(Self::BlikPSP),
+            common_enums::BankNames::PlaceZIPKO => Ok(Self::PlaceZIPKO),
+            common_enums::BankNames::MBank => Ok(Self::MBank),
+            common_enums::BankNames::PayWithING => Ok(Self::PayWithING),
+            common_enums::BankNames::SantanderPrzelew24 => Ok(Self::SantanderPrzelew24),
+            common_enums::BankNames::BankPEKAOSA => Ok(Self::BankPEKAOSA),
+            common_enums::BankNames::BankMillennium => Ok(Self::BankMillennium),
+            common_enums::BankNames::PayWithAliorBank => Ok(Self::PayWithAliorBank),
+            common_enums::BankNames::BankiSpoldzielcze => Ok(Self::BankiSpoldzielcze),
+            common_enums::BankNames::PayWithInteligo => Ok(Self::PayWithInteligo),
+            common_enums::BankNames::BNPParibasPoland => Ok(Self::BNPParibasPoland),
+            common_enums::BankNames::BankNowySA => Ok(Self::BankNowySA),
+            common_enums::BankNames::CreditAgricole => Ok(Self::CreditAgricole),
+            common_enums::BankNames::PayWithBOS => Ok(Self::PayWithBOS),
+            common_enums::BankNames::PayWithCitiHandlowy => Ok(Self::PayWithCitiHandlowy),
+            common_enums::BankNames::PayWithPlusBank => Ok(Self::PayWithPlusBank),
+            common_enums::BankNames::ToyotaBank => Ok(Self::ToyotaBank),
+            common_enums::BankNames::VeloBank => Ok(Self::VeloBank),
+            common_enums::BankNames::ETransferPocztowy24 => Ok(Self::ETransferPocztowy24),
             _ => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             ))?,
@@ -874,15 +874,15 @@ pub enum OnlineBankingSlovakiaBanks {
     Viamo,
 }
 
-impl TryFrom<&common_enums::enums::BankNames> for OnlineBankingSlovakiaBanks {
+impl TryFrom<&common_enums::BankNames> for OnlineBankingSlovakiaBanks {
     type Error = Error;
-    fn try_from(bank_name: &common_enums::enums::BankNames) -> Result<Self, Self::Error> {
+    fn try_from(bank_name: &common_enums::BankNames) -> Result<Self, Self::Error> {
         match bank_name {
-            common_enums::enums::BankNames::EPlatbyVUB => Ok(Self::Vub),
-            common_enums::enums::BankNames::PostovaBanka => Ok(Self::Posto),
-            common_enums::enums::BankNames::SporoPay => Ok(Self::Sporo),
-            common_enums::enums::BankNames::TatraPay => Ok(Self::Tatra),
-            common_enums::enums::BankNames::Viamo => Ok(Self::Viamo),
+            common_enums::BankNames::EPlatbyVUB => Ok(Self::Vub),
+            common_enums::BankNames::PostovaBanka => Ok(Self::Posto),
+            common_enums::BankNames::SporoPay => Ok(Self::Sporo),
+            common_enums::BankNames::TatraPay => Ok(Self::Tatra),
+            common_enums::BankNames::Viamo => Ok(Self::Viamo),
             _ => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             ))?,
@@ -890,28 +890,28 @@ impl TryFrom<&common_enums::enums::BankNames> for OnlineBankingSlovakiaBanks {
     }
 }
 
-impl TryFrom<&common_enums::enums::BankNames> for OnlineBankingFpxIssuer {
+impl TryFrom<&common_enums::BankNames> for OnlineBankingFpxIssuer {
     type Error = Error;
-    fn try_from(bank_name: &common_enums::enums::BankNames) -> Result<Self, Self::Error> {
+    fn try_from(bank_name: &common_enums::BankNames) -> Result<Self, Self::Error> {
         match bank_name {
-            common_enums::enums::BankNames::AffinBank => Ok(Self::FpxAbb),
-            common_enums::enums::BankNames::AgroBank => Ok(Self::FpxAgrobank),
-            common_enums::enums::BankNames::AllianceBank => Ok(Self::FpxAbmb),
-            common_enums::enums::BankNames::AmBank => Ok(Self::FpxAmb),
-            common_enums::enums::BankNames::BankIslam => Ok(Self::FpxBimb),
-            common_enums::enums::BankNames::BankMuamalat => Ok(Self::FpxBmmb),
-            common_enums::enums::BankNames::BankRakyat => Ok(Self::FpxBkrm),
-            common_enums::enums::BankNames::BankSimpananNasional => Ok(Self::FpxBsn),
-            common_enums::enums::BankNames::CimbBank => Ok(Self::FpxCimbclicks),
-            common_enums::enums::BankNames::HongLeongBank => Ok(Self::FpxHlb),
-            common_enums::enums::BankNames::HsbcBank => Ok(Self::FpxHsbc),
-            common_enums::enums::BankNames::KuwaitFinanceHouse => Ok(Self::FpxKfh),
-            common_enums::enums::BankNames::Maybank => Ok(Self::FpxMb2u),
-            common_enums::enums::BankNames::OcbcBank => Ok(Self::FpxOcbc),
-            common_enums::enums::BankNames::PublicBank => Ok(Self::FpxPbb),
-            common_enums::enums::BankNames::RhbBank => Ok(Self::FpxRhb),
-            common_enums::enums::BankNames::StandardCharteredBank => Ok(Self::FpxScb),
-            common_enums::enums::BankNames::UobBank => Ok(Self::FpxUob),
+            common_enums::BankNames::AffinBank => Ok(Self::FpxAbb),
+            common_enums::BankNames::AgroBank => Ok(Self::FpxAgrobank),
+            common_enums::BankNames::AllianceBank => Ok(Self::FpxAbmb),
+            common_enums::BankNames::AmBank => Ok(Self::FpxAmb),
+            common_enums::BankNames::BankIslam => Ok(Self::FpxBimb),
+            common_enums::BankNames::BankMuamalat => Ok(Self::FpxBmmb),
+            common_enums::BankNames::BankRakyat => Ok(Self::FpxBkrm),
+            common_enums::BankNames::BankSimpananNasional => Ok(Self::FpxBsn),
+            common_enums::BankNames::CimbBank => Ok(Self::FpxCimbclicks),
+            common_enums::BankNames::HongLeongBank => Ok(Self::FpxHlb),
+            common_enums::BankNames::HsbcBank => Ok(Self::FpxHsbc),
+            common_enums::BankNames::KuwaitFinanceHouse => Ok(Self::FpxKfh),
+            common_enums::BankNames::Maybank => Ok(Self::FpxMb2u),
+            common_enums::BankNames::OcbcBank => Ok(Self::FpxOcbc),
+            common_enums::BankNames::PublicBank => Ok(Self::FpxPbb),
+            common_enums::BankNames::RhbBank => Ok(Self::FpxRhb),
+            common_enums::BankNames::StandardCharteredBank => Ok(Self::FpxScb),
+            common_enums::BankNames::UobBank => Ok(Self::FpxUob),
             _ => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             ))?,
@@ -919,15 +919,15 @@ impl TryFrom<&common_enums::enums::BankNames> for OnlineBankingFpxIssuer {
     }
 }
 
-impl TryFrom<&common_enums::enums::BankNames> for OnlineBankingThailandIssuer {
+impl TryFrom<&common_enums::BankNames> for OnlineBankingThailandIssuer {
     type Error = Error;
-    fn try_from(bank_name: &common_enums::enums::BankNames) -> Result<Self, Self::Error> {
+    fn try_from(bank_name: &common_enums::BankNames) -> Result<Self, Self::Error> {
         match bank_name {
-            common_enums::enums::BankNames::BangkokBank => Ok(Self::Bangkokbank),
-            common_enums::enums::BankNames::KrungsriBank => Ok(Self::Krungsribank),
-            common_enums::enums::BankNames::KrungThaiBank => Ok(Self::Krungthaibank),
-            common_enums::enums::BankNames::TheSiamCommercialBank => Ok(Self::Siamcommercialbank),
-            common_enums::enums::BankNames::KasikornBank => Ok(Self::Kbank),
+            common_enums::BankNames::BangkokBank => Ok(Self::Bangkokbank),
+            common_enums::BankNames::KrungsriBank => Ok(Self::Krungsribank),
+            common_enums::BankNames::KrungThaiBank => Ok(Self::Krungthaibank),
+            common_enums::BankNames::TheSiamCommercialBank => Ok(Self::Siamcommercialbank),
+            common_enums::BankNames::KasikornBank => Ok(Self::Kbank),
             _ => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             ))?,
@@ -935,155 +935,155 @@ impl TryFrom<&common_enums::enums::BankNames> for OnlineBankingThailandIssuer {
     }
 }
 
-impl TryFrom<&common_enums::enums::BankNames> for OpenBankingUKIssuer {
+impl TryFrom<&common_enums::BankNames> for OpenBankingUKIssuer {
     type Error = Error;
-    fn try_from(bank_name: &common_enums::enums::BankNames) -> Result<Self, Self::Error> {
+    fn try_from(bank_name: &common_enums::BankNames) -> Result<Self, Self::Error> {
         match bank_name {
-            common_enums::enums::BankNames::OpenBankSuccess => Ok(Self::RedirectSuccess),
-            common_enums::enums::BankNames::OpenBankFailure => Ok(Self::RedirectFailure),
-            common_enums::enums::BankNames::OpenBankCancelled => Ok(Self::RedirectCancelled),
-            common_enums::enums::BankNames::Aib => Ok(Self::Aib),
-            common_enums::enums::BankNames::BankOfScotland => Ok(Self::BankOfScotland),
-            common_enums::enums::BankNames::Barclays => Ok(Self::Barclays),
-            common_enums::enums::BankNames::DanskeBank => Ok(Self::DanskeBank),
-            common_enums::enums::BankNames::FirstDirect => Ok(Self::FirstDirect),
-            common_enums::enums::BankNames::FirstTrust => Ok(Self::FirstTrust),
-            common_enums::enums::BankNames::HsbcBank => Ok(Self::HsbcBank),
-            common_enums::enums::BankNames::Halifax => Ok(Self::Halifax),
-            common_enums::enums::BankNames::Lloyds => Ok(Self::Lloyds),
-            common_enums::enums::BankNames::Monzo => Ok(Self::Monzo),
-            common_enums::enums::BankNames::NatWest => Ok(Self::NatWest),
-            common_enums::enums::BankNames::NationwideBank => Ok(Self::NationwideBank),
-            common_enums::enums::BankNames::Revolut => Ok(Self::Revolut),
-            common_enums::enums::BankNames::RoyalBankOfScotland => Ok(Self::RoyalBankOfScotland),
-            common_enums::enums::BankNames::SantanderPrzelew24 => Ok(Self::SantanderPrzelew24),
-            common_enums::enums::BankNames::Starling => Ok(Self::Starling),
-            common_enums::enums::BankNames::TsbBank => Ok(Self::TsbBank),
-            common_enums::enums::BankNames::TescoBank => Ok(Self::TescoBank),
-            common_enums::enums::BankNames::UlsterBank => Ok(Self::UlsterBank),
-            common_enums::enums::BankNames::AmericanExpress
-            | common_enums::enums::BankNames::AffinBank
-            | common_enums::enums::BankNames::AgroBank
-            | common_enums::enums::BankNames::AllianceBank
-            | common_enums::enums::BankNames::AmBank
-            | common_enums::enums::BankNames::BankOfAmerica
-            | common_enums::enums::BankNames::BankIslam
-            | common_enums::enums::BankNames::BankMuamalat
-            | common_enums::enums::BankNames::BankRakyat
-            | common_enums::enums::BankNames::BankSimpananNasional
-            | common_enums::enums::BankNames::BlikPSP
-            | common_enums::enums::BankNames::CapitalOne
-            | common_enums::enums::BankNames::Chase
-            | common_enums::enums::BankNames::Citi
-            | common_enums::enums::BankNames::CimbBank
-            | common_enums::enums::BankNames::Discover
-            | common_enums::enums::BankNames::NavyFederalCreditUnion
-            | common_enums::enums::BankNames::PentagonFederalCreditUnion
-            | common_enums::enums::BankNames::SynchronyBank
-            | common_enums::enums::BankNames::WellsFargo
-            | common_enums::enums::BankNames::AbnAmro
-            | common_enums::enums::BankNames::AsnBank
-            | common_enums::enums::BankNames::Bunq
-            | common_enums::enums::BankNames::Handelsbanken
-            | common_enums::enums::BankNames::HongLeongBank
-            | common_enums::enums::BankNames::Ing
-            | common_enums::enums::BankNames::Knab
-            | common_enums::enums::BankNames::KuwaitFinanceHouse
-            | common_enums::enums::BankNames::Moneyou
-            | common_enums::enums::BankNames::Rabobank
-            | common_enums::enums::BankNames::Regiobank
-            | common_enums::enums::BankNames::SnsBank
-            | common_enums::enums::BankNames::TriodosBank
-            | common_enums::enums::BankNames::VanLanschot
-            | common_enums::enums::BankNames::ArzteUndApothekerBank
-            | common_enums::enums::BankNames::AustrianAnadiBankAg
-            | common_enums::enums::BankNames::BankAustria
-            | common_enums::enums::BankNames::Bank99Ag
-            | common_enums::enums::BankNames::BankhausCarlSpangler
-            | common_enums::enums::BankNames::BankhausSchelhammerUndSchatteraAg
-            | common_enums::enums::BankNames::BankMillennium
-            | common_enums::enums::BankNames::BankPEKAOSA
-            | common_enums::enums::BankNames::BawagPskAg
-            | common_enums::enums::BankNames::BksBankAg
-            | common_enums::enums::BankNames::BrullKallmusBankAg
-            | common_enums::enums::BankNames::BtvVierLanderBank
-            | common_enums::enums::BankNames::CapitalBankGraweGruppeAg
-            | common_enums::enums::BankNames::CeskaSporitelna
-            | common_enums::enums::BankNames::Dolomitenbank
-            | common_enums::enums::BankNames::EasybankAg
-            | common_enums::enums::BankNames::EPlatbyVUB
-            | common_enums::enums::BankNames::ErsteBankUndSparkassen
-            | common_enums::enums::BankNames::FrieslandBank
-            | common_enums::enums::BankNames::HypoAlpeadriabankInternationalAg
-            | common_enums::enums::BankNames::HypoNoeLbFurNiederosterreichUWien
-            | common_enums::enums::BankNames::HypoOberosterreichSalzburgSteiermark
-            | common_enums::enums::BankNames::HypoTirolBankAg
-            | common_enums::enums::BankNames::HypoVorarlbergBankAg
-            | common_enums::enums::BankNames::HypoBankBurgenlandAktiengesellschaft
-            | common_enums::enums::BankNames::KomercniBanka
-            | common_enums::enums::BankNames::MBank
-            | common_enums::enums::BankNames::MarchfelderBank
-            | common_enums::enums::BankNames::Maybank
-            | common_enums::enums::BankNames::OberbankAg
-            | common_enums::enums::BankNames::OsterreichischeArzteUndApothekerbank
-            | common_enums::enums::BankNames::OcbcBank
-            | common_enums::enums::BankNames::PayWithING
-            | common_enums::enums::BankNames::PlaceZIPKO
-            | common_enums::enums::BankNames::PlatnoscOnlineKartaPlatnicza
-            | common_enums::enums::BankNames::PosojilnicaBankEGen
-            | common_enums::enums::BankNames::PostovaBanka
-            | common_enums::enums::BankNames::PublicBank
-            | common_enums::enums::BankNames::RaiffeisenBankengruppeOsterreich
-            | common_enums::enums::BankNames::RhbBank
-            | common_enums::enums::BankNames::SchelhammerCapitalBankAg
-            | common_enums::enums::BankNames::StandardCharteredBank
-            | common_enums::enums::BankNames::SchoellerbankAg
-            | common_enums::enums::BankNames::SpardaBankWien
-            | common_enums::enums::BankNames::SporoPay
-            | common_enums::enums::BankNames::TatraPay
-            | common_enums::enums::BankNames::Viamo
-            | common_enums::enums::BankNames::VolksbankGruppe
-            | common_enums::enums::BankNames::VolkskreditbankAg
-            | common_enums::enums::BankNames::VrBankBraunau
-            | common_enums::enums::BankNames::UobBank
-            | common_enums::enums::BankNames::PayWithAliorBank
-            | common_enums::enums::BankNames::BankiSpoldzielcze
-            | common_enums::enums::BankNames::PayWithInteligo
-            | common_enums::enums::BankNames::BNPParibasPoland
-            | common_enums::enums::BankNames::BankNowySA
-            | common_enums::enums::BankNames::CreditAgricole
-            | common_enums::enums::BankNames::PayWithBOS
-            | common_enums::enums::BankNames::PayWithCitiHandlowy
-            | common_enums::enums::BankNames::PayWithPlusBank
-            | common_enums::enums::BankNames::ToyotaBank
-            | common_enums::enums::BankNames::VeloBank
-            | common_enums::enums::BankNames::ETransferPocztowy24
-            | common_enums::enums::BankNames::PlusBank
-            | common_enums::enums::BankNames::EtransferPocztowy24
-            | common_enums::enums::BankNames::BankiSpbdzielcze
-            | common_enums::enums::BankNames::BankNowyBfgSa
-            | common_enums::enums::BankNames::GetinBank
-            | common_enums::enums::BankNames::Blik
-            | common_enums::enums::BankNames::NoblePay
-            | common_enums::enums::BankNames::IdeaBank
-            | common_enums::enums::BankNames::EnveloBank
-            | common_enums::enums::BankNames::NestPrzelew
-            | common_enums::enums::BankNames::MbankMtransfer
-            | common_enums::enums::BankNames::Inteligo
-            | common_enums::enums::BankNames::PbacZIpko
-            | common_enums::enums::BankNames::BnpParibas
-            | common_enums::enums::BankNames::BankPekaoSa
-            | common_enums::enums::BankNames::VolkswagenBank
-            | common_enums::enums::BankNames::AliorBank
-            | common_enums::enums::BankNames::Boz
-            | common_enums::enums::BankNames::BangkokBank
-            | common_enums::enums::BankNames::KrungsriBank
-            | common_enums::enums::BankNames::KrungThaiBank
-            | common_enums::enums::BankNames::TheSiamCommercialBank
-            | common_enums::enums::BankNames::Yoursafe
-            | common_enums::enums::BankNames::N26
-            | common_enums::enums::BankNames::NationaleNederlanden
-            | common_enums::enums::BankNames::KasikornBank => {
+            common_enums::BankNames::OpenBankSuccess => Ok(Self::RedirectSuccess),
+            common_enums::BankNames::OpenBankFailure => Ok(Self::RedirectFailure),
+            common_enums::BankNames::OpenBankCancelled => Ok(Self::RedirectCancelled),
+            common_enums::BankNames::Aib => Ok(Self::Aib),
+            common_enums::BankNames::BankOfScotland => Ok(Self::BankOfScotland),
+            common_enums::BankNames::Barclays => Ok(Self::Barclays),
+            common_enums::BankNames::DanskeBank => Ok(Self::DanskeBank),
+            common_enums::BankNames::FirstDirect => Ok(Self::FirstDirect),
+            common_enums::BankNames::FirstTrust => Ok(Self::FirstTrust),
+            common_enums::BankNames::HsbcBank => Ok(Self::HsbcBank),
+            common_enums::BankNames::Halifax => Ok(Self::Halifax),
+            common_enums::BankNames::Lloyds => Ok(Self::Lloyds),
+            common_enums::BankNames::Monzo => Ok(Self::Monzo),
+            common_enums::BankNames::NatWest => Ok(Self::NatWest),
+            common_enums::BankNames::NationwideBank => Ok(Self::NationwideBank),
+            common_enums::BankNames::Revolut => Ok(Self::Revolut),
+            common_enums::BankNames::RoyalBankOfScotland => Ok(Self::RoyalBankOfScotland),
+            common_enums::BankNames::SantanderPrzelew24 => Ok(Self::SantanderPrzelew24),
+            common_enums::BankNames::Starling => Ok(Self::Starling),
+            common_enums::BankNames::TsbBank => Ok(Self::TsbBank),
+            common_enums::BankNames::TescoBank => Ok(Self::TescoBank),
+            common_enums::BankNames::UlsterBank => Ok(Self::UlsterBank),
+            common_enums::BankNames::AmericanExpress
+            | common_enums::BankNames::AffinBank
+            | common_enums::BankNames::AgroBank
+            | common_enums::BankNames::AllianceBank
+            | common_enums::BankNames::AmBank
+            | common_enums::BankNames::BankOfAmerica
+            | common_enums::BankNames::BankIslam
+            | common_enums::BankNames::BankMuamalat
+            | common_enums::BankNames::BankRakyat
+            | common_enums::BankNames::BankSimpananNasional
+            | common_enums::BankNames::BlikPSP
+            | common_enums::BankNames::CapitalOne
+            | common_enums::BankNames::Chase
+            | common_enums::BankNames::Citi
+            | common_enums::BankNames::CimbBank
+            | common_enums::BankNames::Discover
+            | common_enums::BankNames::NavyFederalCreditUnion
+            | common_enums::BankNames::PentagonFederalCreditUnion
+            | common_enums::BankNames::SynchronyBank
+            | common_enums::BankNames::WellsFargo
+            | common_enums::BankNames::AbnAmro
+            | common_enums::BankNames::AsnBank
+            | common_enums::BankNames::Bunq
+            | common_enums::BankNames::Handelsbanken
+            | common_enums::BankNames::HongLeongBank
+            | common_enums::BankNames::Ing
+            | common_enums::BankNames::Knab
+            | common_enums::BankNames::KuwaitFinanceHouse
+            | common_enums::BankNames::Moneyou
+            | common_enums::BankNames::Rabobank
+            | common_enums::BankNames::Regiobank
+            | common_enums::BankNames::SnsBank
+            | common_enums::BankNames::TriodosBank
+            | common_enums::BankNames::VanLanschot
+            | common_enums::BankNames::ArzteUndApothekerBank
+            | common_enums::BankNames::AustrianAnadiBankAg
+            | common_enums::BankNames::BankAustria
+            | common_enums::BankNames::Bank99Ag
+            | common_enums::BankNames::BankhausCarlSpangler
+            | common_enums::BankNames::BankhausSchelhammerUndSchatteraAg
+            | common_enums::BankNames::BankMillennium
+            | common_enums::BankNames::BankPEKAOSA
+            | common_enums::BankNames::BawagPskAg
+            | common_enums::BankNames::BksBankAg
+            | common_enums::BankNames::BrullKallmusBankAg
+            | common_enums::BankNames::BtvVierLanderBank
+            | common_enums::BankNames::CapitalBankGraweGruppeAg
+            | common_enums::BankNames::CeskaSporitelna
+            | common_enums::BankNames::Dolomitenbank
+            | common_enums::BankNames::EasybankAg
+            | common_enums::BankNames::EPlatbyVUB
+            | common_enums::BankNames::ErsteBankUndSparkassen
+            | common_enums::BankNames::FrieslandBank
+            | common_enums::BankNames::HypoAlpeadriabankInternationalAg
+            | common_enums::BankNames::HypoNoeLbFurNiederosterreichUWien
+            | common_enums::BankNames::HypoOberosterreichSalzburgSteiermark
+            | common_enums::BankNames::HypoTirolBankAg
+            | common_enums::BankNames::HypoVorarlbergBankAg
+            | common_enums::BankNames::HypoBankBurgenlandAktiengesellschaft
+            | common_enums::BankNames::KomercniBanka
+            | common_enums::BankNames::MBank
+            | common_enums::BankNames::MarchfelderBank
+            | common_enums::BankNames::Maybank
+            | common_enums::BankNames::OberbankAg
+            | common_enums::BankNames::OsterreichischeArzteUndApothekerbank
+            | common_enums::BankNames::OcbcBank
+            | common_enums::BankNames::PayWithING
+            | common_enums::BankNames::PlaceZIPKO
+            | common_enums::BankNames::PlatnoscOnlineKartaPlatnicza
+            | common_enums::BankNames::PosojilnicaBankEGen
+            | common_enums::BankNames::PostovaBanka
+            | common_enums::BankNames::PublicBank
+            | common_enums::BankNames::RaiffeisenBankengruppeOsterreich
+            | common_enums::BankNames::RhbBank
+            | common_enums::BankNames::SchelhammerCapitalBankAg
+            | common_enums::BankNames::StandardCharteredBank
+            | common_enums::BankNames::SchoellerbankAg
+            | common_enums::BankNames::SpardaBankWien
+            | common_enums::BankNames::SporoPay
+            | common_enums::BankNames::TatraPay
+            | common_enums::BankNames::Viamo
+            | common_enums::BankNames::VolksbankGruppe
+            | common_enums::BankNames::VolkskreditbankAg
+            | common_enums::BankNames::VrBankBraunau
+            | common_enums::BankNames::UobBank
+            | common_enums::BankNames::PayWithAliorBank
+            | common_enums::BankNames::BankiSpoldzielcze
+            | common_enums::BankNames::PayWithInteligo
+            | common_enums::BankNames::BNPParibasPoland
+            | common_enums::BankNames::BankNowySA
+            | common_enums::BankNames::CreditAgricole
+            | common_enums::BankNames::PayWithBOS
+            | common_enums::BankNames::PayWithCitiHandlowy
+            | common_enums::BankNames::PayWithPlusBank
+            | common_enums::BankNames::ToyotaBank
+            | common_enums::BankNames::VeloBank
+            | common_enums::BankNames::ETransferPocztowy24
+            | common_enums::BankNames::PlusBank
+            | common_enums::BankNames::EtransferPocztowy24
+            | common_enums::BankNames::BankiSpbdzielcze
+            | common_enums::BankNames::BankNowyBfgSa
+            | common_enums::BankNames::GetinBank
+            | common_enums::BankNames::Blik
+            | common_enums::BankNames::NoblePay
+            | common_enums::BankNames::IdeaBank
+            | common_enums::BankNames::EnveloBank
+            | common_enums::BankNames::NestPrzelew
+            | common_enums::BankNames::MbankMtransfer
+            | common_enums::BankNames::Inteligo
+            | common_enums::BankNames::PbacZIpko
+            | common_enums::BankNames::BnpParibas
+            | common_enums::BankNames::BankPekaoSa
+            | common_enums::BankNames::VolkswagenBank
+            | common_enums::BankNames::AliorBank
+            | common_enums::BankNames::Boz
+            | common_enums::BankNames::BangkokBank
+            | common_enums::BankNames::KrungsriBank
+            | common_enums::BankNames::KrungThaiBank
+            | common_enums::BankNames::TheSiamCommercialBank
+            | common_enums::BankNames::Yoursafe
+            | common_enums::BankNames::N26
+            | common_enums::BankNames::NationaleNederlanden
+            | common_enums::BankNames::KasikornBank => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Adyen"),
                 ))?
@@ -1428,58 +1428,48 @@ pub enum OpenBankingUKIssuer {
 
 pub struct AdyenTestBankNames<'a>(&'a str);
 
-impl<'a> TryFrom<&common_enums::enums::BankNames> for AdyenTestBankNames<'a> {
+impl<'a> TryFrom<&common_enums::BankNames> for AdyenTestBankNames<'a> {
     type Error = Error;
-    fn try_from(bank: &common_enums::enums::BankNames) -> Result<Self, Self::Error> {
+    fn try_from(bank: &common_enums::BankNames) -> Result<Self, Self::Error> {
         Ok(match bank {
-            common_enums::enums::BankNames::AbnAmro => Self("1121"),
-            common_enums::enums::BankNames::AsnBank => Self("1151"),
-            common_enums::enums::BankNames::Bunq => Self("1152"),
-            common_enums::enums::BankNames::Ing => Self("1154"),
-            common_enums::enums::BankNames::Knab => Self("1155"),
-            common_enums::enums::BankNames::N26 => Self("1156"),
-            common_enums::enums::BankNames::NationaleNederlanden => Self("1157"),
-            common_enums::enums::BankNames::Rabobank => Self("1157"),
-            common_enums::enums::BankNames::Regiobank => Self("1158"),
-            common_enums::enums::BankNames::Revolut => Self("1159"),
-            common_enums::enums::BankNames::SnsBank => Self("1159"),
-            common_enums::enums::BankNames::TriodosBank => Self("1159"),
-            common_enums::enums::BankNames::VanLanschot => Self("1159"),
-            common_enums::enums::BankNames::Yoursafe => Self("1159"),
-            common_enums::enums::BankNames::BankAustria => {
-                Self("e6819e7a-f663-414b-92ec-cf7c82d2f4e5")
-            }
-            common_enums::enums::BankNames::BawagPskAg => {
-                Self("ba7199cc-f057-42f2-9856-2378abf21638")
-            }
-            common_enums::enums::BankNames::Dolomitenbank => {
-                Self("d5d5b133-1c0d-4c08-b2be-3c9b116dc326")
-            }
-            common_enums::enums::BankNames::EasybankAg => {
-                Self("eff103e6-843d-48b7-a6e6-fbd88f511b11")
-            }
-            common_enums::enums::BankNames::ErsteBankUndSparkassen => {
+            common_enums::BankNames::AbnAmro => Self("1121"),
+            common_enums::BankNames::AsnBank => Self("1151"),
+            common_enums::BankNames::Bunq => Self("1152"),
+            common_enums::BankNames::Ing => Self("1154"),
+            common_enums::BankNames::Knab => Self("1155"),
+            common_enums::BankNames::N26 => Self("1156"),
+            common_enums::BankNames::NationaleNederlanden => Self("1157"),
+            common_enums::BankNames::Rabobank => Self("1157"),
+            common_enums::BankNames::Regiobank => Self("1158"),
+            common_enums::BankNames::Revolut => Self("1159"),
+            common_enums::BankNames::SnsBank => Self("1159"),
+            common_enums::BankNames::TriodosBank => Self("1159"),
+            common_enums::BankNames::VanLanschot => Self("1159"),
+            common_enums::BankNames::Yoursafe => Self("1159"),
+            common_enums::BankNames::BankAustria => Self("e6819e7a-f663-414b-92ec-cf7c82d2f4e5"),
+            common_enums::BankNames::BawagPskAg => Self("ba7199cc-f057-42f2-9856-2378abf21638"),
+            common_enums::BankNames::Dolomitenbank => Self("d5d5b133-1c0d-4c08-b2be-3c9b116dc326"),
+            common_enums::BankNames::EasybankAg => Self("eff103e6-843d-48b7-a6e6-fbd88f511b11"),
+            common_enums::BankNames::ErsteBankUndSparkassen => {
                 Self("3fdc41fc-3d3d-4ee3-a1fe-cd79cfd58ea3")
             }
-            common_enums::enums::BankNames::HypoTirolBankAg => {
+            common_enums::BankNames::HypoTirolBankAg => {
                 Self("6765e225-a0dc-4481-9666-e26303d4f221")
             }
-            common_enums::enums::BankNames::PosojilnicaBankEGen => {
+            common_enums::BankNames::PosojilnicaBankEGen => {
                 Self("65ef4682-4944-499f-828f-5d74ad288376")
             }
-            common_enums::enums::BankNames::RaiffeisenBankengruppeOsterreich => {
+            common_enums::BankNames::RaiffeisenBankengruppeOsterreich => {
                 Self("ee9fc487-ebe0-486c-8101-17dce5141a67")
             }
-            common_enums::enums::BankNames::SchoellerbankAg => {
+            common_enums::BankNames::SchoellerbankAg => {
                 Self("1190c4d1-b37a-487e-9355-e0a067f54a9f")
             }
-            common_enums::enums::BankNames::SpardaBankWien => {
-                Self("8b0bfeea-fbb0-4337-b3a1-0e25c0f060fc")
-            }
-            common_enums::enums::BankNames::VolksbankGruppe => {
+            common_enums::BankNames::SpardaBankWien => Self("8b0bfeea-fbb0-4337-b3a1-0e25c0f060fc"),
+            common_enums::BankNames::VolksbankGruppe => {
                 Self("e2e97aaa-de4c-4e18-9431-d99790773433")
             }
-            common_enums::enums::BankNames::VolkskreditbankAg => {
+            common_enums::BankNames::VolkskreditbankAg => {
                 Self("4a0a975b-0594-4b40-9068-39f77b3a91f9")
             }
             _ => Err(errors::ConnectorError::NotImplemented(
@@ -1491,24 +1481,24 @@ impl<'a> TryFrom<&common_enums::enums::BankNames> for AdyenTestBankNames<'a> {
 
 pub struct AdyenBankNames<'a>(&'a str);
 
-impl<'a> TryFrom<&common_enums::enums::BankNames> for AdyenBankNames<'a> {
+impl<'a> TryFrom<&common_enums::BankNames> for AdyenBankNames<'a> {
     type Error = Error;
-    fn try_from(bank: &common_enums::enums::BankNames) -> Result<Self, Self::Error> {
+    fn try_from(bank: &common_enums::BankNames) -> Result<Self, Self::Error> {
         Ok(match bank {
-            common_enums::enums::BankNames::AbnAmro => Self("0031"),
-            common_enums::enums::BankNames::AsnBank => Self("0761"),
-            common_enums::enums::BankNames::Bunq => Self("0802"),
-            common_enums::enums::BankNames::Ing => Self("0721"),
-            common_enums::enums::BankNames::Knab => Self("0801"),
-            common_enums::enums::BankNames::N26 => Self("0807"),
-            common_enums::enums::BankNames::NationaleNederlanden => Self("0808"),
-            common_enums::enums::BankNames::Rabobank => Self("0021"),
-            common_enums::enums::BankNames::Regiobank => Self("0771"),
-            common_enums::enums::BankNames::Revolut => Self("0805"),
-            common_enums::enums::BankNames::SnsBank => Self("0751"),
-            common_enums::enums::BankNames::TriodosBank => Self("0511"),
-            common_enums::enums::BankNames::VanLanschot => Self("0161"),
-            common_enums::enums::BankNames::Yoursafe => Self("0806"),
+            common_enums::BankNames::AbnAmro => Self("0031"),
+            common_enums::BankNames::AsnBank => Self("0761"),
+            common_enums::BankNames::Bunq => Self("0802"),
+            common_enums::BankNames::Ing => Self("0721"),
+            common_enums::BankNames::Knab => Self("0801"),
+            common_enums::BankNames::N26 => Self("0807"),
+            common_enums::BankNames::NationaleNederlanden => Self("0808"),
+            common_enums::BankNames::Rabobank => Self("0021"),
+            common_enums::BankNames::Regiobank => Self("0771"),
+            common_enums::BankNames::Revolut => Self("0805"),
+            common_enums::BankNames::SnsBank => Self("0751"),
+            common_enums::BankNames::TriodosBank => Self("0511"),
+            common_enums::BankNames::VanLanschot => Self("0161"),
+            common_enums::BankNames::Yoursafe => Self("0806"),
             _ => Err(errors::ConnectorError::NotSupported {
                 message: String::from("BankRedirect"),
                 connector: "Adyen",
