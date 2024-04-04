@@ -257,6 +257,7 @@ pub async fn get_client_secret_or_add_payment_method(
             key_store,
             None,
             Some(enums::PaymentMethodStatus::AwaitingData),
+            None,
         )
         .await?;
 
