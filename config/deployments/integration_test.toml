@@ -20,6 +20,8 @@ applepay.base_url = "https://apple-pay-gateway.apple.com/"
 authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 bambora.base_url = "https://api.na.bambora.com"
 bankofamerica.base_url = "https://apitest.merchant-services.bankofamerica.com/"
+billwerk.base_url = "https://api.reepay.com/"
+billwerk.secondary_base_url = "https://card.reepay.com/"
 bitpay.base_url = "https://test.bitpay.com"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
 bluesnap.secondary_base_url = "https://sandpay.bluesnap.com/"
@@ -112,11 +114,11 @@ connectors_with_delayed_session_response = "trustpay,payme"
 bank_debit.ach.connector_list = "gocardless"
 bank_debit.becs.connector_list = "gocardless"
 bank_debit.sepa.connector_list = "gocardless"
-card.credit.connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon"
-card.debit.connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon"
+card.credit.connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica"
+card.debit.connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica"
 pay_later.klarna.connector_list = "adyen"
-wallet.apple_pay.connector_list = "stripe,adyen,cybersource,noon"
-wallet.google_pay.connector_list = "stripe,adyen,cybersource"
+wallet.apple_pay.connector_list = "stripe,adyen,cybersource,noon,bankofamerica"
+wallet.google_pay.connector_list = "stripe,adyen,cybersource,bankofamerica"
 wallet.paypal.connector_list = "adyen"
 bank_redirect.ideal.connector_list = "stripe,adyen,globalpay"
 bank_redirect.sofort.connector_list = "stripe,adyen,globalpay"
@@ -126,6 +128,9 @@ bank_redirect.giropay.connector_list = "adyen,globalpay"
 [mandates.update_mandate_supported]
 card.credit ={connector_list ="cybersource"}
 card.debit = {connector_list ="cybersource"}
+
+[network_transaction_id_supported_connectors]
+connector_list = "stripe,adyen,cybersource"
 
 [multiple_api_version_supported_connectors]
 supported_connectors = "braintree"
@@ -291,6 +296,7 @@ payme = { long_lived_token = false, payment_method = "card" }
 square = { long_lived_token = false, payment_method = "card" }
 stax = { long_lived_token = true, payment_method = "card,bank_debit" }
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { list = "google_pay", type = "disable_only" } }
+billwerk = {long_lived_token = false, payment_method = "card"}
 
 [webhooks]
 outgoing_enabled = true

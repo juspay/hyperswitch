@@ -22,7 +22,7 @@ use common_utils::{
     errors::{ErrorSwitch, ReportSwitchExt},
     request::RequestContent,
 };
-use error_stack::{report, IntoReport, Report, ResultExt};
+use error_stack::{report, Report, ResultExt};
 use masking::{Maskable, PeekInterface, Secret};
 use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
 use serde::Serialize;
@@ -579,7 +579,6 @@ pub async fn send_request(
     logger::info!(method=?request.method, headers=?request.headers, payload=?request.body, ?request);
 
     let url = reqwest::Url::parse(&request.url)
-        .into_report()
         .change_context(errors::ApiClientError::UrlEncodingFailed)?;
 
     #[cfg(feature = "dummy_connector")]
@@ -612,7 +611,6 @@ pub async fn send_request(
                     Some(RequestContent::FormUrlEncoded(payload)) => client.form(&payload),
                     Some(RequestContent::Xml(payload)) => {
                         let body = quick_xml::se::to_string(&payload)
-                            .into_report()
                             .change_context(errors::ApiClientError::BodySerializationFailed)?;
                         client.body(body).header("Content-Type", "application/xml")
                     }
@@ -628,7 +626,6 @@ pub async fn send_request(
                     Some(RequestContent::FormUrlEncoded(payload)) => client.form(&payload),
                     Some(RequestContent::Xml(payload)) => {
                         let body = quick_xml::se::to_string(&payload)
-                            .into_report()
                             .change_context(errors::ApiClientError::BodySerializationFailed)?;
                         client.body(body).header("Content-Type", "application/xml")
                     }
@@ -644,7 +641,6 @@ pub async fn send_request(
                     Some(RequestContent::FormUrlEncoded(payload)) => client.form(&payload),
                     Some(RequestContent::Xml(payload)) => {
                         let body = quick_xml::se::to_string(&payload)
-                            .into_report()
                             .change_context(errors::ApiClientError::BodySerializationFailed)?;
                         client.body(body).header("Content-Type", "application/xml")
                     }
@@ -676,7 +672,6 @@ pub async fn send_request(
                 }
                 _ => errors::ApiClientError::RequestNotSent(error.to_string()),
             })
-            .into_report()
             .attach_printable("Unable to send request to connector")
     });
 
@@ -695,7 +690,6 @@ pub async fn send_request(
                 }
                 _ => errors::ApiClientError::RequestNotSent(error.to_string()),
             })
-            .into_report()
             .attach_printable("Unable to send request to connector")
     };
 
@@ -774,7 +768,6 @@ async fn handle_response(
                     let response = response
                         .bytes()
                         .await
-                        .into_report()
                         .change_context(errors::ApiClientError::ResponseDecodingFailed)
                         .attach_printable("Error while waiting for response")?;
                     Ok(Ok(types::Response {
@@ -860,6 +853,7 @@ pub struct PaymentLinkFormData {
     pub js_script: String,
     pub css_script: String,
     pub sdk_url: String,
+    pub html_meta_tags: String,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
@@ -972,7 +966,6 @@ where
 {
     let request_id = RequestId::extract(request)
         .await
-        .into_report()
         .attach_printable("Unable to extract request id from request")
         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?;
 
@@ -981,7 +974,6 @@ where
     request_state.add_request_id(request_id);
     let start_instant = Instant::now();
     let serialized_request = masking::masked_serialize(&payload)
-        .into_report()
         .attach_printable("Failed to serialize json request")
         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?;
 
@@ -1032,14 +1024,12 @@ where
             if let ApplicationResponse::Json(data) = res {
                 serialized_response.replace(
                     masking::masked_serialize(&data)
-                        .into_report()
                         .attach_printable("Failed to serialize json response")
                         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?,
                 );
             } else if let ApplicationResponse::JsonWithHeaders((data, headers)) = res {
                 serialized_response.replace(
                     masking::masked_serialize(&data)
-                        .into_report()
                         .attach_printable("Failed to serialize json response")
                         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?,
                 );
@@ -1057,7 +1047,6 @@ where
         Err(err) => {
             error.replace(
                 serde_json::to_value(err.current_context())
-                    .into_report()
                     .attach_printable("Failed to serialize json response")
                     .change_context(errors::ApiErrorResponse::InternalServerError.switch())
                     .ok()
@@ -1499,7 +1488,6 @@ pub fn build_redirection_form(
                 </script>
                 "#))
 
-
                 h3 style="text-align: center;" { "Please wait while we process your payment..." }
                     form action=(PreEscaped(endpoint)) method=(method.to_string()) #payment_form {
                         @for (field, value) in form_fields {
@@ -1557,7 +1545,6 @@ pub fn build_redirection_form(
                         </script>
                         "#))
 
-
                         h3 style="text-align: center;" { "Please wait while we process your payment..." }
                     }
 
@@ -1613,7 +1600,6 @@ pub fn build_redirection_form(
                             </script>
                             "#))
 
-
                         h3 style="text-align: center;" { "Please wait while we process your payment..." }
                     }
 
@@ -1665,7 +1651,6 @@ pub fn build_redirection_form(
                             })
                             </script>
                             "#))
-
 
                         h3 style="text-align: center;" { "Please wait while we process your payment..." }
                     }
@@ -1744,7 +1729,6 @@ pub fn build_redirection_form(
                             })
                             </script>
                             "#))
-
 
                         h3 style="text-align: center;" { "Please wait while we process your payment..." }
                     }
@@ -1993,6 +1977,13 @@ pub fn build_payment_link_html(
         include_str!("../core/payment_link/payment_link_initiate/payment_link.html").to_string();
 
     let _ = tera.add_raw_template("payment_link", &html_template);
+
+    context.insert("rendered_meta_tag_html", &payment_link_data.html_meta_tags);
+
+    context.insert(
+        "preload_link_tags",
+        &get_preload_link_html_template(&payment_link_data.sdk_url),
+    );
 
     context.insert(
         "preload_link_tags",

@@ -68,7 +68,7 @@ pub async fn initiate_payment_link(
         &req,
         payload.clone(),
         |state, auth, _| {
-            intiate_payment_link_flow(
+            initiate_payment_link_flow(
                 state,
                 auth.merchant_account,
                 payload.merchant_id.clone(),

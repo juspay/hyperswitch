@@ -1,7 +1,7 @@
 use aws_config::meta::region::RegionProviderChain;
 use aws_sdk_lambda::{config::Region, primitives::Blob, types::InvocationType::Event, Client};
 use common_utils::errors::CustomResult;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 
 use crate::errors::AnalyticsError;
 
@@ -24,10 +24,9 @@ pub async fn invoke_lambda(
         .payload(Blob::new(json_bytes.to_owned()))
         .send()
         .await
-        .into_report()
         .map_err(|er| {
             let er_rep = format!("{er:?}");
-            er.attach_printable(er_rep)
+            report!(er).attach_printable(er_rep)
         })
         .change_context(AnalyticsError::UnknownError)
         .attach_printable("Lambda invocation failed")?;

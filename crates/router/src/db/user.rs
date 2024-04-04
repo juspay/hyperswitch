@@ -1,5 +1,5 @@
 use diesel_models::{user as storage, user_role::UserRole};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use masking::Secret;
 use router_env::{instrument, tracing};
 
@@ -62,8 +62,7 @@ impl UserInterface for Store {
         user_data
             .insert(&conn)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -74,8 +73,7 @@ impl UserInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::User::find_by_user_email(&conn, user_email)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -86,8 +84,7 @@ impl UserInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::User::find_by_user_id(&conn, user_id)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -99,8 +96,7 @@ impl UserInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::User::update_by_user_id(&conn, user_id, user)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -112,8 +108,7 @@ impl UserInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::User::update_by_user_email(&conn, user_email, user)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -124,8 +119,7 @@ impl UserInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::User::delete_by_user_id(&conn, user_id)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -136,8 +130,7 @@ impl UserInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::User::find_joined_users_and_roles_by_merchant_id(&conn, merchant_id)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
 
@@ -159,11 +152,7 @@ impl UserInterface for MockDb {
         }
         let time_now = common_utils::date_time::now();
         let user = storage::User {
-            id: users
-                .len()
-                .try_into()
-                .into_report()
-                .change_context(errors::StorageError::MockDbError)?,
+            id: i32::try_from(users.len()).change_context(errors::StorageError::MockDbError)?,
             user_id: user_data.user_id,
             email: user_data.email,
             name: user_data.name,

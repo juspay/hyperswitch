@@ -1,7 +1,7 @@
 use common_utils::errors::CustomResult;
 pub use diesel_models as storage;
 use diesel_models::enums as storage_enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use storage_impl::{connection, errors, mock_db::MockDb};
 use time::PrimitiveDateTime;
 
@@ -73,8 +73,7 @@ impl ProcessTrackerInterface for Store {
         let conn = connection::pg_connection_read(self).await?;
         storage::ProcessTracker::find_process_by_id(&conn, id)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     async fn reinitialize_limbo_processes(
@@ -85,8 +84,7 @@ impl ProcessTrackerInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::ProcessTracker::reinitialize_limbo_processes(&conn, ids, schedule_time)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     async fn find_processes_by_time_status(
@@ -105,8 +103,7 @@ impl ProcessTrackerInterface for Store {
             limit,
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     async fn insert_process(
@@ -116,8 +113,7 @@ impl ProcessTrackerInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         new.insert_process(&conn)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     async fn update_process(
@@ -128,8 +124,7 @@ impl ProcessTrackerInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         this.update(&conn, process)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     async fn reset_process(
@@ -194,8 +189,7 @@ impl ProcessTrackerInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::ProcessTracker::update_process_status_by_ids(&conn, task_ids, task_update)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
 

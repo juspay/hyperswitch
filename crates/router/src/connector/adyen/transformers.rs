@@ -3,7 +3,7 @@ use api_models::payouts::PayoutMethodData;
 use api_models::{enums, payments, webhooks};
 use cards::CardNumber;
 use common_utils::{ext_traits::Encode, pii};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -21,6 +21,7 @@ use crate::{
     types::{
         self,
         api::{self, enums as api_enums},
+        domain,
         storage::enums as storage_enums,
         transformers::{ForeignFrom, ForeignTryFrom},
         PaymentsAuthorizeData,
@@ -294,7 +295,7 @@ impl ForeignTryFrom<(bool, AdyenWebhookStatus)> for storage_enums::AttemptStatus
             //If Unexpected Event is received, need to understand how it reached this point
             //Webhooks with Payment Events only should try to conume this resource object.
             AdyenWebhookStatus::UnexpectedEvent => {
-                Err(errors::ConnectorError::WebhookBodyDecodingFailed).into_report()
+                Err(report!(errors::ConnectorError::WebhookBodyDecodingFailed))
             }
         }
     }
@@ -1553,38 +1554,38 @@ impl<'a> TryFrom<&AdyenRouterData<&types::PaymentsAuthorizeRouterData>>
         {
             Some(mandate_ref) => AdyenPaymentRequest::try_from((item, mandate_ref)),
             None => match item.router_data.request.payment_method_data {
-                api_models::payments::PaymentMethodData::Card(ref card) => {
+                domain::PaymentMethodData::Card(ref card) => {
                     AdyenPaymentRequest::try_from((item, card))
                 }
-                api_models::payments::PaymentMethodData::Wallet(ref wallet) => {
+                domain::PaymentMethodData::Wallet(ref wallet) => {
                     AdyenPaymentRequest::try_from((item, wallet))
                 }
-                api_models::payments::PaymentMethodData::PayLater(ref pay_later) => {
+                domain::PaymentMethodData::PayLater(ref pay_later) => {
                     AdyenPaymentRequest::try_from((item, pay_later))
                 }
-                api_models::payments::PaymentMethodData::BankRedirect(ref bank_redirect) => {
+                domain::PaymentMethodData::BankRedirect(ref bank_redirect) => {
                     AdyenPaymentRequest::try_from((item, bank_redirect))
                 }
-                api_models::payments::PaymentMethodData::BankDebit(ref bank_debit) => {
+                domain::PaymentMethodData::BankDebit(ref bank_debit) => {
                     AdyenPaymentRequest::try_from((item, bank_debit))
                 }
-                api_models::payments::PaymentMethodData::BankTransfer(ref bank_transfer) => {
+                domain::PaymentMethodData::BankTransfer(ref bank_transfer) => {
                     AdyenPaymentRequest::try_from((item, bank_transfer.as_ref()))
                 }
-                api_models::payments::PaymentMethodData::CardRedirect(ref card_redirect_data) => {
+                domain::PaymentMethodData::CardRedirect(ref card_redirect_data) => {
                     AdyenPaymentRequest::try_from((item, card_redirect_data))
                 }
-                api_models::payments::PaymentMethodData::Voucher(ref voucher_data) => {
+                domain::PaymentMethodData::Voucher(ref voucher_data) => {
                     AdyenPaymentRequest::try_from((item, voucher_data))
                 }
-                api_models::payments::PaymentMethodData::GiftCard(ref gift_card_data) => {
+                domain::PaymentMethodData::GiftCard(ref gift_card_data) => {
                     AdyenPaymentRequest::try_from((item, gift_card_data.as_ref()))
                 }
-                payments::PaymentMethodData::Crypto(_)
-                | payments::PaymentMethodData::MandatePayment
-                | payments::PaymentMethodData::Reward
-                | payments::PaymentMethodData::Upi(_)
-                | payments::PaymentMethodData::CardToken(_) => {
+                domain::PaymentMethodData::Crypto(_)
+                | domain::PaymentMethodData::MandatePayment
+                | domain::PaymentMethodData::Reward
+                | domain::PaymentMethodData::Upi(_)
+                | domain::PaymentMethodData::CardToken(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("Adyen"),
                     ))?
@@ -1598,7 +1599,7 @@ impl<'a> TryFrom<&types::PaymentsPreProcessingRouterData> for AdyenBalanceReques
     type Error = Error;
     fn try_from(item: &types::PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
         let payment_method = match &item.request.payment_method_data {
-            Some(payments::PaymentMethodData::GiftCard(gift_card_data)) => {
+            Some(domain::PaymentMethodData::GiftCard(gift_card_data)) => {
                 match gift_card_data.as_ref() {
                     payments::GiftCardData::Givex(gift_card_data) => {
                         let balance_pm = BalancePmData {
@@ -1962,9 +1963,9 @@ impl<'a> TryFrom<&api_models::payments::GiftCardData> for AdyenPaymentMethod<'a>
     }
 }
 
-impl<'a> TryFrom<&api::Card> for AdyenPaymentMethod<'a> {
+impl<'a> TryFrom<&domain::Card> for AdyenPaymentMethod<'a> {
     type Error = Error;
-    fn try_from(card: &api::Card) -> Result<Self, Self::Error> {
+    fn try_from(card: &domain::Card) -> Result<Self, Self::Error> {
         let adyen_card = AdyenCard {
             payment_type: PaymentType::Scheme,
             number: card.card_number.clone(),
@@ -2032,18 +2033,18 @@ impl TryFrom<&utils::CardIssuer> for CardBrand {
     }
 }
 
-impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
+impl<'a> TryFrom<&domain::WalletData> for AdyenPaymentMethod<'a> {
     type Error = Error;
-    fn try_from(wallet_data: &api::WalletData) -> Result<Self, Self::Error> {
+    fn try_from(wallet_data: &domain::WalletData) -> Result<Self, Self::Error> {
         match wallet_data {
-            api_models::payments::WalletData::GooglePay(data) => {
+            domain::WalletData::GooglePay(data) => {
                 let gpay_data = AdyenGPay {
                     payment_type: PaymentType::Googlepay,
                     google_pay_token: Secret::new(data.tokenization_data.token.to_owned()),
                 };
                 Ok(AdyenPaymentMethod::Gpay(Box::new(gpay_data)))
             }
-            api_models::payments::WalletData::ApplePay(data) => {
+            domain::WalletData::ApplePay(data) => {
                 let apple_pay_data = AdyenApplePay {
                     payment_type: PaymentType::Applepay,
                     apple_pay_token: Secret::new(data.payment_data.to_string()),
@@ -2051,79 +2052,77 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
 
                 Ok(AdyenPaymentMethod::ApplePay(Box::new(apple_pay_data)))
             }
-            api_models::payments::WalletData::PaypalRedirect(_) => {
+            domain::WalletData::PaypalRedirect(_) => {
                 let wallet = PmdForPaymentType {
                     payment_type: PaymentType::Paypal,
                 };
                 Ok(AdyenPaymentMethod::AdyenPaypal(Box::new(wallet)))
             }
-            api_models::payments::WalletData::AliPayRedirect(_) => {
+            domain::WalletData::AliPayRedirect(_) => {
                 let alipay_data = PmdForPaymentType {
                     payment_type: PaymentType::Alipay,
                 };
                 Ok(AdyenPaymentMethod::AliPay(Box::new(alipay_data)))
             }
-            api_models::payments::WalletData::AliPayHkRedirect(_) => {
+            domain::WalletData::AliPayHkRedirect(_) => {
                 let alipay_hk_data = PmdForPaymentType {
                     payment_type: PaymentType::AlipayHk,
                 };
                 Ok(AdyenPaymentMethod::AliPayHk(Box::new(alipay_hk_data)))
             }
-            api_models::payments::WalletData::GoPayRedirect(_) => {
+            domain::WalletData::GoPayRedirect(_) => {
                 let go_pay_data = GoPayData {};
                 Ok(AdyenPaymentMethod::GoPay(Box::new(go_pay_data)))
             }
-            api_models::payments::WalletData::KakaoPayRedirect(_) => {
+            domain::WalletData::KakaoPayRedirect(_) => {
                 let kakao_pay_data = KakaoPayData {};
                 Ok(AdyenPaymentMethod::Kakaopay(Box::new(kakao_pay_data)))
             }
-            api_models::payments::WalletData::GcashRedirect(_) => {
+            domain::WalletData::GcashRedirect(_) => {
                 let gcash_data = GcashData {};
                 Ok(AdyenPaymentMethod::Gcash(Box::new(gcash_data)))
             }
-            api_models::payments::WalletData::MomoRedirect(_) => {
+            domain::WalletData::MomoRedirect(_) => {
                 let momo_data = MomoData {};
                 Ok(AdyenPaymentMethod::Momo(Box::new(momo_data)))
             }
-            api_models::payments::WalletData::TouchNGoRedirect(_) => {
+            domain::WalletData::TouchNGoRedirect(_) => {
                 let touch_n_go_data = TouchNGoData {};
                 Ok(AdyenPaymentMethod::TouchNGo(Box::new(touch_n_go_data)))
             }
-            api_models::payments::WalletData::MbWayRedirect(data) => {
+            domain::WalletData::MbWayRedirect(data) => {
                 let mbway_data = MbwayData {
                     payment_type: PaymentType::Mbway,
                     telephone_number: data.telephone_number.clone(),
                 };
                 Ok(AdyenPaymentMethod::Mbway(Box::new(mbway_data)))
             }
-            api_models::payments::WalletData::MobilePayRedirect(_) => {
+            domain::WalletData::MobilePayRedirect(_) => {
                 let data = PmdForPaymentType {
                     payment_type: PaymentType::MobilePay,
                 };
                 Ok(AdyenPaymentMethod::MobilePay(Box::new(data)))
             }
-            api_models::payments::WalletData::WeChatPayRedirect(_) => {
-                Ok(AdyenPaymentMethod::WeChatPayWeb)
-            }
-            api_models::payments::WalletData::SamsungPay(samsung_data) => {
+            domain::WalletData::WeChatPayRedirect(_) => Ok(AdyenPaymentMethod::WeChatPayWeb),
+            domain::WalletData::SamsungPay(samsung_data) => {
                 let data = SamsungPayPmData {
                     payment_type: PaymentType::Samsungpay,
                     samsung_pay_token: samsung_data.token.to_owned(),
                 };
                 Ok(AdyenPaymentMethod::SamsungPay(Box::new(data)))
             }
-            api_models::payments::WalletData::TwintRedirect { .. } => Ok(AdyenPaymentMethod::Twint),
-            api_models::payments::WalletData::VippsRedirect { .. } => Ok(AdyenPaymentMethod::Vipps),
-            api_models::payments::WalletData::DanaRedirect { .. } => Ok(AdyenPaymentMethod::Dana),
-            api_models::payments::WalletData::SwishQr(_) => Ok(AdyenPaymentMethod::Swish),
-            payments::WalletData::AliPayQr(_)
-            | payments::WalletData::ApplePayRedirect(_)
-            | payments::WalletData::ApplePayThirdPartySdk(_)
-            | payments::WalletData::GooglePayRedirect(_)
-            | payments::WalletData::GooglePayThirdPartySdk(_)
-            | payments::WalletData::PaypalSdk(_)
-            | payments::WalletData::WeChatPayQr(_)
-            | payments::WalletData::CashappQr(_) => Err(errors::ConnectorError::NotImplemented(
+            domain::WalletData::TwintRedirect { .. } => Ok(AdyenPaymentMethod::Twint),
+            domain::WalletData::VippsRedirect { .. } => Ok(AdyenPaymentMethod::Vipps),
+            domain::WalletData::DanaRedirect { .. } => Ok(AdyenPaymentMethod::Dana),
+            domain::WalletData::SwishQr(_) => Ok(AdyenPaymentMethod::Swish),
+            domain::WalletData::AliPayQr(_)
+            | domain::WalletData::ApplePayRedirect(_)
+            | domain::WalletData::ApplePayThirdPartySdk(_)
+            | domain::WalletData::GooglePayRedirect(_)
+            | domain::WalletData::GooglePayThirdPartySdk(_)
+            | domain::WalletData::PaypalSdk(_)
+            | domain::WalletData::WeChatPayQr(_)
+            | domain::WalletData::CashappQr(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             )
             .into()),
@@ -2505,16 +2504,16 @@ impl<'a> TryFrom<&api_models::payments::BankTransferData> for AdyenPaymentMethod
     }
 }
 
-impl<'a> TryFrom<&api_models::payments::CardRedirectData> for AdyenPaymentMethod<'a> {
+impl<'a> TryFrom<&domain::payments::CardRedirectData> for AdyenPaymentMethod<'a> {
     type Error = Error;
     fn try_from(
-        card_redirect_data: &api_models::payments::CardRedirectData,
+        card_redirect_data: &domain::payments::CardRedirectData,
     ) -> Result<Self, Self::Error> {
         match card_redirect_data {
-            payments::CardRedirectData::Knet {} => Ok(AdyenPaymentMethod::Knet),
-            payments::CardRedirectData::Benefit {} => Ok(AdyenPaymentMethod::Benefit),
-            payments::CardRedirectData::MomoAtm {} => Ok(AdyenPaymentMethod::MomoAtm),
-            payments::CardRedirectData::CardRedirect {} => {
+            domain::CardRedirectData::Knet {} => Ok(AdyenPaymentMethod::Knet),
+            domain::CardRedirectData::Benefit {} => Ok(AdyenPaymentMethod::Benefit),
+            domain::CardRedirectData::MomoAtm {} => Ok(AdyenPaymentMethod::MomoAtm),
+            domain::CardRedirectData::CardRedirect {} => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Adyen"),
                 )
@@ -2566,7 +2565,7 @@ impl<'a>
             }
             payments::MandateReferenceId::NetworkMandateId(network_mandate_id) => {
                 match item.router_data.request.payment_method_data {
-                    api::PaymentMethodData::Card(ref card) => {
+                    domain::PaymentMethodData::Card(ref card) => {
                         let card_issuer = card.get_card_issuer()?;
                         let brand = CardBrand::try_from(&card_issuer)?;
                         let adyen_card = AdyenCard {
@@ -2581,19 +2580,19 @@ impl<'a>
                         };
                         Ok(AdyenPaymentMethod::AdyenCard(Box::new(adyen_card)))
                     }
-                    payments::PaymentMethodData::CardRedirect(_)
-                    | payments::PaymentMethodData::Wallet(_)
-                    | payments::PaymentMethodData::PayLater(_)
-                    | payments::PaymentMethodData::BankRedirect(_)
-                    | payments::PaymentMethodData::BankDebit(_)
-                    | payments::PaymentMethodData::BankTransfer(_)
-                    | payments::PaymentMethodData::Crypto(_)
-                    | payments::PaymentMethodData::MandatePayment
-                    | payments::PaymentMethodData::Reward
-                    | payments::PaymentMethodData::Upi(_)
-                    | payments::PaymentMethodData::Voucher(_)
-                    | payments::PaymentMethodData::GiftCard(_)
-                    | api::PaymentMethodData::CardToken(_) => {
+                    domain::PaymentMethodData::CardRedirect(_)
+                    | domain::PaymentMethodData::Wallet(_)
+                    | domain::PaymentMethodData::PayLater(_)
+                    | domain::PaymentMethodData::BankRedirect(_)
+                    | domain::PaymentMethodData::BankDebit(_)
+                    | domain::PaymentMethodData::BankTransfer(_)
+                    | domain::PaymentMethodData::Crypto(_)
+                    | domain::PaymentMethodData::MandatePayment
+                    | domain::PaymentMethodData::Reward
+                    | domain::PaymentMethodData::Upi(_)
+                    | domain::PaymentMethodData::Voucher(_)
+                    | domain::PaymentMethodData::GiftCard(_)
+                    | domain::PaymentMethodData::CardToken(_) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: "Network tokenization for payment method".to_string(),
                             connector: "Adyen",
@@ -2633,14 +2632,14 @@ impl<'a>
 impl<'a>
     TryFrom<(
         &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
-        &api::Card,
+        &domain::Card,
     )> for AdyenPaymentRequest<'a>
 {
     type Error = Error;
     fn try_from(
         value: (
             &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
-            &api::Card,
+            &domain::Card,
         ),
     ) -> Result<Self, Self::Error> {
         let (item, card_data) = value;
@@ -2960,22 +2959,20 @@ fn get_redirect_extra_details(
     item: &types::PaymentsAuthorizeRouterData,
 ) -> Result<(Option<String>, Option<api_enums::CountryAlpha2>), errors::ConnectorError> {
     match item.request.payment_method_data {
-        api_models::payments::PaymentMethodData::BankRedirect(ref redirect_data) => {
-            match redirect_data {
-                api_models::payments::BankRedirectData::Sofort {
-                    country,
-                    preferred_language,
-                    ..
-                } => Ok((preferred_language.clone(), *country)),
-                api_models::payments::BankRedirectData::OpenBankingUk { country, .. } => {
-                    let country = country.ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "country",
-                    })?;
-                    Ok((None, Some(country)))
-                }
-                _ => Ok((None, None)),
+        domain::PaymentMethodData::BankRedirect(ref redirect_data) => match redirect_data {
+            api_models::payments::BankRedirectData::Sofort {
+                country,
+                preferred_language,
+                ..
+            } => Ok((preferred_language.clone(), *country)),
+            api_models::payments::BankRedirectData::OpenBankingUk { country, .. } => {
+                let country = country.ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "country",
+                })?;
+                Ok((None, Some(country)))
             }
-        }
+            _ => Ok((None, None)),
+        },
         _ => Ok((None, None)),
     }
 }
@@ -3001,14 +2998,14 @@ fn get_shopper_email(
 impl<'a>
     TryFrom<(
         &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
-        &api::WalletData,
+        &domain::WalletData,
     )> for AdyenPaymentRequest<'a>
 {
     type Error = Error;
     fn try_from(
         value: (
             &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
-            &api::WalletData,
+            &domain::WalletData,
         ),
     ) -> Result<Self, Self::Error> {
         let (item, wallet_data) = value;
@@ -3131,14 +3128,14 @@ impl<'a>
 impl<'a>
     TryFrom<(
         &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
-        &api_models::payments::CardRedirectData,
+        &domain::payments::CardRedirectData,
     )> for AdyenPaymentRequest<'a>
 {
     type Error = Error;
     fn try_from(
         value: (
             &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
-            &api_models::payments::CardRedirectData,
+            &domain::payments::CardRedirectData,
         ),
     ) -> Result<Self, Self::Error> {
         let (item, card_redirect_data) = value;

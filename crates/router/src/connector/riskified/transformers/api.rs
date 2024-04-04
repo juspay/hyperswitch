@@ -451,8 +451,8 @@ impl TryFrom<&frm_types::FrmTransactionRouterData> for TransactionSuccessRequest
 }
 
 #[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Clone)]
-pub struct RiskifiedFullfillmentRequest {
-    order: OrderFullfillment,
+pub struct RiskifiedFulfillmentRequest {
+    order: OrderFulfillment,
 }
 
 #[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Clone)]
@@ -465,7 +465,7 @@ pub enum FulfillmentRequestStatus {
 }
 
 #[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Clone)]
-pub struct OrderFullfillment {
+pub struct OrderFulfillment {
     id: String,
     fulfillments: FulfilmentData,
 }
@@ -481,11 +481,11 @@ pub struct FulfilmentData {
     tracking_url: Option<String>,
 }
 
-impl TryFrom<&frm_types::FrmFulfillmentRouterData> for RiskifiedFullfillmentRequest {
+impl TryFrom<&frm_types::FrmFulfillmentRouterData> for RiskifiedFulfillmentRequest {
     type Error = Error;
     fn try_from(item: &frm_types::FrmFulfillmentRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
-            order: OrderFullfillment {
+            order: OrderFulfillment {
                 id: item.attempt_id.clone(),
                 fulfillments: FulfilmentData {
                     fulfillment_id: item.payment_id.clone(),

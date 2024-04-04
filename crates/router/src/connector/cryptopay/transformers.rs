@@ -4,11 +4,11 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, is_payment_failure, CryptoData},
+    connector::utils::{self, is_payment_failure, CryptoData, PaymentsAuthorizeRequestData},
     consts,
     core::errors,
     services,
-    types::{self, api, storage::enums},
+    types::{self, domain, storage::enums},
 };
 
 #[derive(Debug, Serialize)]
@@ -49,6 +49,7 @@ pub struct CryptopayPaymentsRequest {
     pay_currency: String,
     success_redirect_url: Option<String>,
     unsuccess_redirect_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     metadata: Option<pii::SecretSerdeValue>,
     custom_id: String,
 }
@@ -61,7 +62,7 @@ impl TryFrom<&CryptopayRouterData<&types::PaymentsAuthorizeRouterData>>
         item: &CryptopayRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let cryptopay_request = match item.router_data.request.payment_method_data {
-            api::PaymentMethodData::Crypto(ref cryptodata) => {
+            domain::PaymentMethodData::Crypto(ref cryptodata) => {
                 let pay_currency = cryptodata.get_pay_currency()?;
                 Ok(Self {
                     price_amount: item.amount.to_owned(),
@@ -69,23 +70,24 @@ impl TryFrom<&CryptopayRouterData<&types::PaymentsAuthorizeRouterData>>
                     pay_currency,
                     success_redirect_url: item.router_data.request.router_return_url.clone(),
                     unsuccess_redirect_url: item.router_data.request.router_return_url.clone(),
-                    metadata: item.router_data.request.metadata.clone(),
+                    //Cryptopay only accepts metadata as Object. If any other type, payment will fail with error.
+                    metadata: item.router_data.request.get_metadata_as_object(),
                     custom_id: item.router_data.connector_request_reference_id.clone(),
                 })
             }
-            api_models::payments::PaymentMethodData::Card(_)
-            | api_models::payments::PaymentMethodData::CardRedirect(_)
-            | api_models::payments::PaymentMethodData::Wallet(_)
-            | api_models::payments::PaymentMethodData::PayLater(_)
-            | api_models::payments::PaymentMethodData::BankRedirect(_)
-            | api_models::payments::PaymentMethodData::BankDebit(_)
-            | api_models::payments::PaymentMethodData::BankTransfer(_)
-            | api_models::payments::PaymentMethodData::MandatePayment {}
-            | api_models::payments::PaymentMethodData::Reward {}
-            | api_models::payments::PaymentMethodData::Upi(_)
-            | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_)
-            | api_models::payments::PaymentMethodData::CardToken(_) => {
+            domain::PaymentMethodData::Card(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::MandatePayment {}
+            | domain::PaymentMethodData::Reward {}
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("CryptoPay"),
                 ))

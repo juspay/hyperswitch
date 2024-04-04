@@ -1,4 +1,4 @@
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -123,7 +123,6 @@ impl TypedSql {
             (
                 "typed_sql",
                 serde_json::to_string(self)
-                    .into_report()
                     .change_context(errors::DatabaseError::QueryGenerationFailed)?,
             ),
             ("global_id", global_id),
