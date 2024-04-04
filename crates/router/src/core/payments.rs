@@ -157,22 +157,6 @@ where
 
     call_decision_manager(state, &merchant_account, &mut payment_data).await?;
 
-    let profile_id = payment_data
-        .payment_intent
-        .profile_id
-        .as_ref()
-        .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?;
-
-    let pg_agnostic = state
-        .store
-        .find_config_by_key_unwrap_or(
-            &format!("pg_agnostic_mandate_{}", profile_id),
-            Some("false".to_string()),
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("The pg_agnostic config was not found in the DB")?;
-
     let connector = get_connector_choice(
         &operation,
         state,
@@ -182,7 +166,6 @@ where
         &key_store,
         &mut payment_data,
         eligible_connectors,
-        Some(&pg_agnostic.config),
     )
     .await?;
 
@@ -2669,7 +2652,6 @@ pub async fn get_connector_choice<F, Req, Ctx>(
     key_store: &domain::MerchantKeyStore,
     payment_data: &mut PaymentData<F>,
     eligible_connectors: Option<Vec<api_models::enums::RoutableConnectors>>,
-    pg_agnostic_config: Option<&String>,
 ) -> RouterResult<Option<ConnectorCallType>>
 where
     F: Send + Clone,
@@ -2709,7 +2691,6 @@ where
                     payment_data,
                     Some(straight_through),
                     eligible_connectors,
-                    pg_agnostic_config,
                 )
                 .await?
             }
@@ -2723,7 +2704,6 @@ where
                     payment_data,
                     None,
                     eligible_connectors,
-                    pg_agnostic_config,
                 )
                 .await?
             }
@@ -2749,7 +2729,6 @@ pub async fn connector_selection<F>(
     payment_data: &mut PaymentData<F>,
     request_straight_through: Option<serde_json::Value>,
     eligible_connectors: Option<Vec<api_models::enums::RoutableConnectors>>,
-    pg_agnostic_config: Option<&String>,
 ) -> RouterResult<ConnectorCallType>
 where
     F: Send + Clone,
@@ -2791,7 +2770,6 @@ where
         request_straight_through,
         &mut routing_data,
         eligible_connectors,
-        pg_agnostic_config,
     )
     .await?;
 
@@ -2825,7 +2803,6 @@ pub async fn decide_connector<F>(
     request_straight_through: Option<api::routing::StraightThroughAlgorithm>,
     routing_data: &mut storage::RoutingData,
     eligible_connectors: Option<Vec<api_models::enums::RoutableConnectors>>,
-    pg_agnostic_config: Option<&String>,
 ) -> RouterResult<ConnectorCallType>
 where
     F: Send + Clone,
@@ -2957,8 +2934,8 @@ where
             payment_data,
             routing_data,
             connector_data,
-            pg_agnostic_config,
-        );
+        )
+        .await;
     }
 
     if let Some(ref routing_algorithm) = routing_data.routing_info.algorithm {
@@ -3013,8 +2990,8 @@ where
             payment_data,
             routing_data,
             connector_data,
-            pg_agnostic_config,
-        );
+        )
+        .await;
     }
 
     route_connector_v1(
@@ -3025,17 +3002,15 @@ where
         TransactionData::Payment(payment_data),
         routing_data,
         eligible_connectors,
-        pg_agnostic_config,
     )
     .await
 }
 
-pub fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone>(
+pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone>(
     state: &AppState,
     payment_data: &mut PaymentData<F>,
     routing_data: &mut storage::RoutingData,
     connectors: Vec<api::ConnectorData>,
-    pg_agnostic_config: Option<&String>,
 ) -> RouterResult<ConnectorCallType> {
     match (
         payment_data.payment_intent.setup_future_usage,
@@ -3065,6 +3040,22 @@ pub fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone>(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("unable to deserialize connector mandate details")?;
 
+            let profile_id = payment_data
+                .payment_intent
+                .profile_id
+                .as_ref()
+                .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?;
+
+            let pg_agnostic = state
+                .store
+                .find_config_by_key_unwrap_or(
+                    &format!("pg_agnostic_mandate_{}", profile_id),
+                    Some("false".to_string()),
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("The pg_agnostic config was not found in the DB")?;
+
             let mut connector_choice = None;
 
             for connector_data in connectors {
@@ -3073,13 +3064,9 @@ pub fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone>(
                     .as_ref()
                     .ok_or(errors::ApiErrorResponse::InternalServerError)?;
 
-                let pg_agnostic = pg_agnostic_config
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("The pg_agnostic config was not found in the DB")?;
-
                 if is_network_transaction_id_flow(
                     state,
-                    pg_agnostic,
+                    &pg_agnostic.config,
                     connector_data.connector_name,
                     payment_method_info,
                 ) {
@@ -3334,7 +3321,6 @@ pub async fn route_connector_v1<F>(
     transaction_data: TransactionData<'_, F>,
     routing_data: &mut storage::RoutingData,
     eligible_connectors: Option<Vec<api_models::enums::RoutableConnectors>>,
-    pg_agnostic_config: Option<&String>,
 ) -> RouterResult<ConnectorCallType>
 where
     F: Send + Clone,
@@ -3425,8 +3411,8 @@ where
                 payment_data,
                 routing_data,
                 connector_data,
-                pg_agnostic_config,
             )
+            .await
         }
 
         #[cfg(feature = "payouts")]

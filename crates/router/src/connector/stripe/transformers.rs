@@ -1824,7 +1824,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                     });
 
                     let payment_data = match item.request.payment_method_data {
-                        payments::PaymentMethodData::Card(ref card) => {
+                        domain::payments::PaymentMethodData::Card(ref card) => {
                             StripePaymentMethodData::Card(StripeCardData {
                                 payment_method_data_type: StripePaymentMethodType::Card,
                                 payment_method_data_card_number: card.card_number.clone(),
@@ -1834,19 +1834,19 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                                 payment_method_auth_type: None,
                             })
                         }
-                        payments::PaymentMethodData::CardRedirect(_)
-                        | payments::PaymentMethodData::Wallet(_)
-                        | payments::PaymentMethodData::PayLater(_)
-                        | payments::PaymentMethodData::BankRedirect(_)
-                        | payments::PaymentMethodData::BankDebit(_)
-                        | payments::PaymentMethodData::BankTransfer(_)
-                        | payments::PaymentMethodData::Crypto(_)
-                        | payments::PaymentMethodData::MandatePayment
-                        | payments::PaymentMethodData::Reward
-                        | payments::PaymentMethodData::Upi(_)
-                        | payments::PaymentMethodData::Voucher(_)
-                        | payments::PaymentMethodData::GiftCard(_)
-                        | api::PaymentMethodData::CardToken(_) => {
+                        domain::payments::PaymentMethodData::CardRedirect(_)
+                        | domain::payments::PaymentMethodData::Wallet(_)
+                        | domain::payments::PaymentMethodData::PayLater(_)
+                        | domain::payments::PaymentMethodData::BankRedirect(_)
+                        | domain::payments::PaymentMethodData::BankDebit(_)
+                        | domain::payments::PaymentMethodData::BankTransfer(_)
+                        | domain::payments::PaymentMethodData::Crypto(_)
+                        | domain::payments::PaymentMethodData::MandatePayment
+                        | domain::payments::PaymentMethodData::Reward
+                        | domain::payments::PaymentMethodData::Upi(_)
+                        | domain::payments::PaymentMethodData::Voucher(_)
+                        | domain::payments::PaymentMethodData::GiftCard(_)
+                        | domain::payments::PaymentMethodData::CardToken(_) => {
                             Err(errors::ConnectorError::NotSupported {
                                 message: "Network tokenization for payment method".to_string(),
                                 connector: "Stripe",
@@ -1856,7 +1856,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
 
                     (
                         Some(payment_data),
-                        None,
                         None,
                         StripeBillingAddress::default(),
                         None,
@@ -3147,7 +3146,6 @@ impl TryFrom<&types::PaymentsCancelRouterData> for CancelRequest {
 #[serde(untagged)]
 pub enum StripePaymentMethodOptions {
     Card {
-        #[serde(flatten)]
         mandate_options: Option<StripeMandateOptions>,
         #[serde(rename = "payment_method_options[card][network_transaction_id]")]
         network_transaction_id: Option<Secret<String>>,
@@ -3202,7 +3200,6 @@ pub struct LatestPaymentAttempt {
 // pub struct Card
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug, Default, Eq, PartialEq)]
 pub struct StripeMandateOptions {
-    #[serde(rename = "payment_method_options[card][mandate_options]")]
     reference: Secret<String>, // Extendable, But only important field to be captured
 }
 /// Represents the capture request body for stripe connector.
