@@ -1,16 +1,27 @@
+use cookie::Cookie;
+#[cfg(feature = "olap")]
 use cookie::{
     time::{Duration, OffsetDateTime},
-    Cookie, SameSite,
+    SameSite,
 };
 use error_stack::{report, ResultExt};
-use masking::{ExposeInterface, Mask, Secret};
+#[cfg(feature = "olap")]
+use masking::Mask;
+#[cfg(feature = "olap")]
+use masking::{ExposeInterface, Secret};
 
 use crate::{
-    consts::{JWT_TOKEN_COOKIE_NAME, JWT_TOKEN_TIME_IN_SECS},
-    core::errors::{ApiErrorResponse, RouterResult, UserErrors, UserResponse},
+    consts::JWT_TOKEN_COOKIE_NAME,
+    core::errors::{ApiErrorResponse, RouterResult},
+};
+#[cfg(feature = "olap")]
+use crate::{
+    consts::JWT_TOKEN_TIME_IN_SECS,
+    core::errors::{UserErrors, UserResponse},
     services::ApplicationResponse,
 };
 
+#[cfg(feature = "olap")]
 pub fn set_cookie_response<R>(response: R, token: Secret<String>) -> UserResponse<R> {
     let jwt_expiry_in_seconds = JWT_TOKEN_TIME_IN_SECS
         .try_into()
@@ -26,6 +37,7 @@ pub fn set_cookie_response<R>(response: R, token: Secret<String>) -> UserRespons
     Ok(ApplicationResponse::JsonWithHeaders((response, header)))
 }
 
+#[cfg(feature = "olap")]
 pub fn remove_cookie_response() -> UserResponse<()> {
     let (expiry, max_age) = get_expiry_and_max_age_from_seconds(0);
 
@@ -49,6 +61,7 @@ pub fn parse_cookie(cookies: &str) -> RouterResult<String> {
         .attach_printable("Cookie Parsing Failed")
 }
 
+#[cfg(feature = "olap")]
 fn create_cookie<'c>(
     token: Secret<String>,
     expires: OffsetDateTime,
@@ -64,12 +77,14 @@ fn create_cookie<'c>(
         .build()
 }
 
+#[cfg(feature = "olap")]
 fn get_expiry_and_max_age_from_seconds(seconds: i64) -> (OffsetDateTime, Duration) {
     let max_age = Duration::seconds(seconds);
     let expiry = OffsetDateTime::now_utc().saturating_add(max_age);
     (expiry, max_age)
 }
 
+#[cfg(feature = "olap")]
 fn get_set_cookie_header() -> String {
     actix_http::header::SET_COOKIE.to_string()
 }
