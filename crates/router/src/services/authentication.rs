@@ -600,8 +600,7 @@ where
     let token = get_jwt_from_authorization_header(headers)?;
     if let Some(token_from_cookies) = get_cookie_from_header(headers)
         .ok()
-        .map(|cookies| cookies::parse_cookie(cookies).ok())
-        .flatten()
+        .and_then(|cookies| cookies::parse_cookie(cookies).ok())
     {
         logger::info!(
             "Cookie header and authorization header JWT comparison result: {}",
@@ -972,8 +971,7 @@ pub fn get_jwt_from_authorization_header(headers: &HeaderMap) -> RouterResult<&s
 pub fn get_cookie_from_header(headers: &HeaderMap) -> RouterResult<&str> {
     headers
         .get(cookies::get_cookie_header())
-        .map(|header_value| header_value.to_str().ok())
-        .flatten()
+        .and_then(|header_value| header_value.to_str().ok())
         .ok_or(errors::ApiErrorResponse::InvalidCookie.into())
 }
 
