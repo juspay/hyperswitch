@@ -3154,15 +3154,6 @@ pub struct LatestPaymentAttempt {
     pub payment_method_details: Option<StripePaymentMethodDetailsResponse>,
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
-pub struct StripePaymentMethodDetails {
-    pub card: Option<Card>,
-}
-
-#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
-pub struct Card {
-    pub network_transaction_id: Option<String>,
-}
 // #[derive(Deserialize, Debug, Clone, Eq, PartialEq)]
 // pub struct Card
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug, Default, Eq, PartialEq)]

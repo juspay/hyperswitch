@@ -126,8 +126,9 @@ pub enum PaymentMethodUpdate {
     LastUsedUpdate {
         last_used_at: PrimitiveDateTime,
     },
-    NetworkTransactionIdUpdate {
+    NetworkTransactionIdAndStatusUpdate {
         network_transaction_id: Option<String>,
+        status: Option<storage_enums::PaymentMethodStatus>,
     },
     StatusUpdate {
         status: Option<storage_enums::PaymentMethodStatus>,
@@ -185,14 +186,15 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 status: None,
                 connector_mandate_details: None,
             },
-            PaymentMethodUpdate::NetworkTransactionIdUpdate {
+            PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
                 network_transaction_id,
+                status,
             } => Self {
                 metadata: None,
                 payment_method_data: None,
                 last_used_at: None,
                 network_transaction_id,
-                status: None,
+                status,
                 connector_mandate_details: None,
             },
             PaymentMethodUpdate::StatusUpdate { status } => Self {
