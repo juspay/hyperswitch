@@ -3146,7 +3146,6 @@ impl TryFrom<&types::PaymentsCancelRouterData> for CancelRequest {
 #[serde(untagged)]
 pub enum StripePaymentMethodOptions {
     Card {
-        #[serde(flatten)]
         mandate_options: Option<StripeMandateOptions>,
         #[serde(rename = "payment_method_options[card][network_transaction_id]")]
         network_transaction_id: Option<Secret<String>>,
@@ -3201,7 +3200,6 @@ pub struct LatestPaymentAttempt {
 // pub struct Card
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug, Default, Eq, PartialEq)]
 pub struct StripeMandateOptions {
-    #[serde(rename = "payment_method_options[card][mandate_options]")]
     reference: Secret<String>, // Extendable, But only important field to be captured
 }
 /// Represents the capture request body for stripe connector.
