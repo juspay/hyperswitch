@@ -975,9 +975,7 @@ impl ForeignFrom<(storage::Payouts, storage::PayoutAttempt, domain::Customer)>
     for api::PayoutCreateResponse
 {
     fn foreign_from(item: (storage::Payouts, storage::PayoutAttempt, domain::Customer)) -> Self {
-        let payout = item.0;
-        let payout_attempt = item.1;
-        let customer = item.2;
+        let (payout, payout_attempt, customer) = item;
         let attempt = PayoutAttemptResponse {
             attempt_id: payout_attempt.payout_attempt_id,
             status: payout_attempt.status,
