@@ -358,6 +358,7 @@ impl
             | api_models::payments::BankTransferData::BriVaBankTransfer { .. }
             | api_models::payments::BankTransferData::CimbVaBankTransfer { .. }
             | api_models::payments::BankTransferData::DanamonVaBankTransfer { .. }
+            | api_models::payments::BankTransferData::LocalBankTransfer { .. }
             | api_models::payments::BankTransferData::MandiriVaBankTransfer { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Zen"),

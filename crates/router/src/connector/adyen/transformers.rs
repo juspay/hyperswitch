@@ -2496,6 +2496,7 @@ impl<'a> TryFrom<&api_models::payments::BankTransferData> for AdyenPaymentMethod
             | api_models::payments::BankTransferData::SepaBankTransfer { .. }
             | api_models::payments::BankTransferData::BacsBankTransfer { .. }
             | api_models::payments::BankTransferData::MultibancoBankTransfer { .. }
+            | api_models::payments::BankTransferData::LocalBankTransfer { .. }
             | payments::BankTransferData::Pse {} => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             )

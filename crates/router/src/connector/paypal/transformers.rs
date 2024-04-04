@@ -688,7 +688,8 @@ impl TryFrom<&api_models::payments::BankTransferData> for PaypalPaymentsRequest 
             | api_models::payments::BankTransferData::DanamonVaBankTransfer { .. }
             | api_models::payments::BankTransferData::MandiriVaBankTransfer { .. }
             | api_models::payments::BankTransferData::Pix {}
-            | api_models::payments::BankTransferData::Pse {} => {
+            | api_models::payments::BankTransferData::Pse {}
+            | api_models::payments::BankTransferData::LocalBankTransfer { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),
                 )
