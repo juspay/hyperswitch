@@ -390,6 +390,7 @@ impl
                     | api_models::enums::PaymentMethodType::PaySafeCard
                     | api_models::enums::PaymentMethodType::Przelewy24
                     | api_models::enums::PaymentMethodType::Pse
+                    | api_models::enums::PaymentMethodType::LocalBankTransfer
                     | api_models::enums::PaymentMethodType::RedCompra
                     | api_models::enums::PaymentMethodType::RedPagos
                     | api_models::enums::PaymentMethodType::SamsungPay

@@ -1842,6 +1842,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::PermataBankTransfer => Self::BankTransfer,
             PaymentMethodType::Pix => Self::BankTransfer,
             PaymentMethodType::Pse => Self::BankTransfer,
+            PaymentMethodType::LocalBankTransfer => Self::BankTransfer,
             PaymentMethodType::PayBright => Self::PayLater,
             PaymentMethodType::Paypal => Self::Wallet,
             PaymentMethodType::PaySafeCard => Self::GiftCard,

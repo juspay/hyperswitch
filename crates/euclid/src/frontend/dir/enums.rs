@@ -186,6 +186,7 @@ pub enum BankTransferType {
     PermataBankTransfer,
     Pix,
     Pse,
+    LocalBankTransfer
 }
 
 #[derive(
