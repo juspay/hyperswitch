@@ -239,6 +239,7 @@ pub async fn get_client_secret_or_add_payment_method(
     let merchant_id = &merchant_account.merchant_id;
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
 
+    #[cfg(feature = "payouts")]
     if req.card.is_some() || req.bank_transfer.is_some() || req.wallet.is_some() {
         add_payment_method(state, req, merchant_account, key_store).await
     } else {
@@ -449,6 +450,7 @@ pub async fn add_payment_method(
     let payment_method = req.payment_method.get_required_value("payment_method")?;
 
     let response = match payment_method {
+        #[cfg(feature = "payouts")]
         api_enums::PaymentMethod::BankTransfer => match req.bank_transfer.clone() {
             Some(bank) => add_bank_to_locker(
                 &state,

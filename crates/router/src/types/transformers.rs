@@ -88,6 +88,7 @@ impl ForeignFrom<diesel_models::PaymentMethod> for payment_methods::PaymentMetho
             payment_experience: None,
             metadata: item.metadata,
             created: Some(item.created_at),
+            #[cfg(feature = "payouts")]
             bank_transfer: None,
             last_used_at: None,
             client_secret: item.client_secret,
