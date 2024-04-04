@@ -474,11 +474,10 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                         billing_details, ..
                     } => {
                         let parts = billing_details
-                            .unwrap() // TODO: Handle unwraps and replace with proper error handling
-                            .billing_name
-                            .unwrap()
-                            .clone()
-                            .expose();
+                            .as_ref()
+                            .and_then(|details| details.billing_name.as_ref())
+                            .map(|name| name.clone().expose())
+                            .unwrap_or_else(Default::default);
                         let mut billing_name = parts.split(' ');
                         let first_name = billing_name.next().unwrap_or("Unknown").to_string();
                         let last_name = billing_name.next().unwrap_or("Unknown").to_string();
@@ -489,22 +488,24 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                                 last_name,
                             },
                         });
-
                         Ok(a)
                     }
                     api_models::payments::BankRedirectData::Ideal { bank_name, .. } => {
-                        let issuer = Some(
-                            CheckoutTestBankNames::try_from(&bank_name.ok_or(
-                                errors::ConnectorError::MissingRequiredField {
-                                    field_name: "ideal.bank_name",
-                                },
-                            )?)?
-                            .0,
-                        );
+                        let issuer = CheckoutTestBankNames::try_from(&bank_name.ok_or(
+                            errors::ConnectorError::MissingRequiredField {
+                                field_name: "ideal.bank_name",
+                            },
+                        )?)
+                        .map_or_else(|_| Default::default(), |names| names.0);
+
                         let a = PaymentSource::Ideal(IdealSource {
                             source_type: CheckoutSourceTypes::Ideal,
-                            description: item.router_data.description.as_ref().unwrap().clone(), // TODO: Handle unwraps and replace with proper error handling
-                            bic: issuer.unwrap().to_string(),
+                            description: item
+                                .router_data
+                                .description
+                                .clone()
+                                .unwrap_or("Default description".to_string()),
+                            bic: issuer.to_string(),
                         });
                         Ok(a)
                     }
@@ -549,15 +550,38 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
 
         let shipping_address = item.router_data.get_shipping_address()?;
         let address = Address {
-            address_line1: shipping_address.clone().line1.unwrap().expose().clone(), // TODO: Handle unwraps and replace with proper error handling
-            address_line2: shipping_address.clone().line2.unwrap().expose().clone(),
-            city: shipping_address.clone().city.unwrap().clone(),
-            state: shipping_address.clone().state.unwrap().expose().clone(),
-            zip: shipping_address.clone().zip.unwrap().expose().clone(),
+            address_line1: shipping_address
+                .clone()
+                .line1
+                .unwrap_or(Secret::default())
+                .expose()
+                .clone(),
+            address_line2: shipping_address
+                .clone()
+                .line2
+                .unwrap_or(Secret::default())
+                .expose()
+                .clone(),
+            city: shipping_address
+                .clone()
+                .city
+                .unwrap_or_else(|| "Unknown".to_string()),
+            state: shipping_address
+                .clone()
+                .state
+                .unwrap_or(Secret::default())
+                .expose()
+                .clone(),
+            zip: shipping_address
+                .clone()
+                .zip
+                .unwrap_or(Secret::default())
+                .expose()
+                .clone(),
             country: shipping_address
                 .clone()
                 .country
-                .unwrap()
+                .unwrap_or_default()
                 .clone()
                 .to_string(),
         };
