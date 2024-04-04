@@ -239,8 +239,12 @@ pub async fn get_client_secret_or_add_payment_method(
     let merchant_id = &merchant_account.merchant_id;
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
 
+    #[cfg(not(feature = "payouts"))]
+    let condition = req.card.is_some();
     #[cfg(feature = "payouts")]
-    if req.card.is_some() || req.bank_transfer.is_some() || req.wallet.is_some() {
+    let condition = req.card.is_some() || req.bank_transfer.is_some() || req.wallet.is_some();
+
+    if condition {
         add_payment_method(state, req, merchant_account, key_store).await
     } else {
         let payment_method_id = generate_id(consts::ID_LENGTH, "pm");
