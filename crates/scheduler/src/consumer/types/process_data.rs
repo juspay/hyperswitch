@@ -6,8 +6,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct RetryMapping {
     pub start_after: i32,
-    pub frequency: Vec<i32>,
-    pub count: Vec<i32>,
+    pub frequencies: Vec<[i32; 2]>, // (frequency, count)
 }
 
 #[derive(Serialize, Deserialize)]
@@ -23,8 +22,7 @@ impl Default for ConnectorPTMapping {
             custom_merchant_mapping: HashMap::new(),
             default_mapping: RetryMapping {
                 start_after: 60,
-                frequency: vec![300],
-                count: vec![5],
+                frequencies: vec![[300, 5]],
             },
             max_retries_count: 5,
         }
@@ -44,8 +42,7 @@ impl Default for PaymentMethodsPTMapping {
             custom_pm_mapping: HashMap::new(),
             default_mapping: RetryMapping {
                 start_after: 900,
-                frequency: vec![300],
-                count: vec![5],
+                frequencies: vec![[300, 5]],
             },
             max_retries_count: 5,
         }
@@ -70,21 +67,15 @@ impl Default for OutgoingWebhookRetryProcessTrackerMapping {
                 // 1st attempt happens after 1 minute
                 start_after: 60,
 
-                frequency: vec![
+                frequencies: vec![
                     // 2nd and 3rd attempts happen at intervals of 5 minutes each
-                    60 * 5,
+                    [60 * 5, 2],
                     // 4th, 5th, 6th, 7th and 8th attempts happen at intervals of 10 minutes each
-                    60 * 10,
+                    [60 * 10, 5],
                     // 9th, 10th, 11th, 12th and 13th attempts happen at intervals of 1 hour each
-                    60 * 60,
+                    [60 * 60, 5],
                     // 14th, 15th and 16th attempts happen at intervals of 6 hours each
-                    60 * 60 * 6,
-                ],
-                count: vec![
-                    2, // 2nd and 3rd attempts
-                    5, // 4th, 5th, 6th, 7th and 8th attempts
-                    5, // 9th, 10th, 11th, 12th and 13th attempts
-                    3, // 14th, 15th and 16th attempts
+                    [60 * 60 * 6, 5],
                 ],
             },
             custom_merchant_mapping: HashMap::new(),
