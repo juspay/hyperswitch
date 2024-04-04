@@ -13,7 +13,7 @@ pub enum PaymentMethodData {
     PayLater(api_models::payments::PayLaterData),
     BankRedirect(api_models::payments::BankRedirectData),
     BankDebit(api_models::payments::BankDebitData),
-    BankTransfer(Box<api_models::payments::BankTransferData>),
+    BankTransfer(Box<BankTransferData>),
     Crypto(api_models::payments::CryptoData),
     MandatePayment,
     Reward,
@@ -432,7 +432,7 @@ impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
                 Self::BankDebit(bank_debit_data)
             }
             api_models::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
-                Self::BankTransfer(bank_transfer_data)
+                Self::BankTransfer(Box::new(From::from(*bank_transfer_data)))
             }
             api_models::payments::PaymentMethodData::Crypto(crypto_data) => {
                 Self::Crypto(crypto_data)
