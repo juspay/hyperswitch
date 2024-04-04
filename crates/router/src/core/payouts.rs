@@ -20,7 +20,7 @@ use serde_json;
 
 use super::errors::{ConnectorErrorExt, StorageErrorExt};
 #[cfg(feature = "olap")]
-use crate::types::{transformers::ForeignFrom, domain::behaviour::Conversion};
+use crate::types::{domain::behaviour::Conversion, transformers::ForeignFrom};
 use crate::{
     core::{
         errors::{self, RouterResponse, RouterResult},
