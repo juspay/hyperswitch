@@ -2,6 +2,7 @@ use std::{collections::HashMap, fmt, num::NonZeroI64};
 
 use cards::CardNumber;
 use common_utils::{
+    consts::default_payments_list_limit,
     crypto,
     ext_traits::Encode,
     pii::{self, Email},
@@ -18,10 +19,8 @@ use url::Url;
 use utoipa::ToSchema;
 
 use crate::{
-    admin, disputes,
-    enums::{self as api_enums},
-    ephemeral_key::EphemeralKeyCreateResponse,
-    refunds,
+    admin, disputes, enums as api_enums, ephemeral_key::EphemeralKeyCreateResponse,
+    mandates::RecurringDetails, refunds,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -170,7 +169,7 @@ mod client_secret_tests {
     }
 }
 
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, PartialEq)]
 pub struct CustomerDetails {
     /// The identifier for the customer.
     pub id: String,
@@ -458,6 +457,9 @@ pub struct PaymentsRequest {
     /// Whether to perform external authentication (if applicable)
     #[schema(example = true)]
     pub request_external_three_ds_authentication: Option<bool>,
+
+    /// Details required for recurring payment
+    pub recurring_details: Option<RecurringDetails>,
 }
 
 impl PaymentsRequest {
@@ -1290,26 +1292,14 @@ pub trait GetAddressFromPaymentMethodData {
 impl GetAddressFromPaymentMethodData for PaymentMethodData {
     fn get_billing_address(&self) -> Option<Address> {
         match self {
-            Self::Card(card_data) => {
-                card_data
-                    .card_holder_name
-                    .as_ref()
-                    .map(|card_holder_name| Address {
-                        address: Some(AddressDetails {
-                            first_name: Some(card_holder_name.clone()),
-                            ..AddressDetails::default()
-                        }),
-                        email: None,
-                        phone: None,
-                    })
-            }
+            Self::Card(_) => None,
             Self::CardRedirect(_) => None,
-            Self::Wallet(wallet_data) => wallet_data.get_billing_address(),
-            Self::PayLater(pay_later_data) => pay_later_data.get_billing_address(),
-            Self::BankRedirect(bank_redirect_data) => bank_redirect_data.get_billing_address(),
-            Self::BankDebit(bank_debit_data) => bank_debit_data.get_billing_address(),
-            Self::BankTransfer(bank_transfer_data) => bank_transfer_data.get_billing_address(),
-            Self::Voucher(voucher_data) => voucher_data.get_billing_address(),
+            Self::Wallet(_) => None,
+            Self::PayLater(_) => None,
+            Self::BankRedirect(_) => None,
+            Self::BankDebit(_) => None,
+            Self::BankTransfer(_) => None,
+            Self::Voucher(_) => None,
             Self::Crypto(_)
             | Self::Reward
             | Self::Upi(_)
@@ -2595,6 +2585,21 @@ pub struct Address {
     pub email: Option<Email>,
 }
 
+impl Address {
+    /// Unify the address, giving priority to `self` when details are present in both
+    pub fn unify_address(self, other: Option<&Self>) -> Self {
+        let other_address_details = other.and_then(|address| address.address.as_ref());
+        Self {
+            address: self
+                .address
+                .map(|address| address.unify_address_details(other_address_details))
+                .or(other_address_details.cloned()),
+            email: self.email.or(other.and_then(|other| other.email.clone())),
+            phone: self.phone.or(other.and_then(|other| other.phone.clone())),
+        }
+    }
+}
+
 // used by customers also, could be moved outside
 /// Address details
 #[derive(Clone, Default, Debug, Eq, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
@@ -2635,6 +2640,32 @@ pub struct AddressDetails {
     /// The last name for the address
     #[schema(value_type = Option<String>, max_length = 255, example = "Doe")]
     pub last_name: Option<Secret<String>>,
+}
+
+impl AddressDetails {
+    pub fn unify_address_details(self, other: Option<&Self>) -> Self {
+        if let Some(other) = other {
+            let (first_name, last_name) = if self.first_name.is_some() {
+                (self.first_name, self.last_name)
+            } else {
+                (other.first_name.clone(), other.last_name.clone())
+            };
+
+            Self {
+                first_name,
+                last_name,
+                city: self.city.or(other.city.clone()),
+                country: self.country.or(other.country),
+                line1: self.line1.or(other.line1.clone()),
+                line2: self.line2.or(other.line2.clone()),
+                line3: self.line3.or(other.line3.clone()),
+                zip: self.zip.or(other.zip.clone()),
+                state: self.state.or(other.state.clone()),
+            }
+        } else {
+            self
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, ToSchema, serde::Deserialize, serde::Serialize)]
@@ -2933,6 +2964,9 @@ pub struct PaymentsResponse {
     #[schema(max_length = 255, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub customer_id: Option<String>,
 
+    /// Details of customer attached to this payment
+    pub customer: Option<CustomerDetails>,
+
     /// A description of the payment
     #[schema(example = "It's my first payment request")]
     pub description: Option<String>,
@@ -3152,6 +3186,10 @@ pub struct PaymentsResponse {
     /// Payment Fingerprint
     pub fingerprint: Option<String>,
 
+    #[schema(value_type = Option<BrowserInformation>)]
+    /// The browser information used for this payment
+    pub browser_info: Option<serde_json::Value>,
+
     /// Payment Method Id
     pub payment_method_id: Option<String>,
 
@@ -3197,7 +3235,7 @@ pub struct PaymentListConstraints {
 
     /// limit on the number of objects to return
     #[schema(default = 10, maximum = 100)]
-    #[serde(default = "default_limit")]
+    #[serde(default = "default_payments_list_limit")]
     pub limit: u32,
 
     /// The time at which payment is created
@@ -3283,7 +3321,7 @@ pub struct PaymentListFilterConstraints {
     /// The identifier for customer
     pub customer_id: Option<String>,
     /// The limit on the number of objects. The default limit is 10 and max limit is 20
-    #[serde(default = "default_limit")]
+    #[serde(default = "default_payments_list_limit")]
     pub limit: u32,
     /// The starting point within a list of objects
     pub offset: Option<u32>,
@@ -3353,17 +3391,13 @@ pub struct VerifyResponse {
     pub error_message: Option<String>,
 }
 
-fn default_limit() -> u32 {
-    10
-}
-
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
 pub struct PaymentsRedirectionResponse {
     pub redirect_url: String,
 }
 
 pub struct MandateValidationFields {
-    pub mandate_id: Option<String>,
+    pub recurring_details: Option<RecurringDetails>,
     pub confirm: Option<bool>,
     pub customer_id: Option<String>,
     pub mandate_data: Option<MandateData>,
@@ -3373,8 +3407,14 @@ pub struct MandateValidationFields {
 
 impl From<&PaymentsRequest> for MandateValidationFields {
     fn from(req: &PaymentsRequest) -> Self {
+        let recurring_details = req
+            .mandate_id
+            .clone()
+            .map(RecurringDetails::MandateId)
+            .or(req.recurring_details.clone());
+
         Self {
-            mandate_id: req.mandate_id.clone(),
+            recurring_details,
             confirm: req.confirm,
             customer_id: req
                 .customer
@@ -3392,7 +3432,7 @@ impl From<&PaymentsRequest> for MandateValidationFields {
 impl From<&VerifyRequest> for MandateValidationFields {
     fn from(req: &VerifyRequest) -> Self {
         Self {
-            mandate_id: None,
+            recurring_details: None,
             confirm: Some(true),
             customer_id: req.customer_id.clone(),
             mandate_data: req.mandate_data.clone(),
@@ -4340,12 +4380,12 @@ pub struct PaymentLinkInitiateRequest {
 
 #[derive(Debug, serde::Serialize)]
 #[serde(untagged)]
-pub enum PaymentLinkData {
-    PaymentLinkDetails(PaymentLinkDetails),
+pub enum PaymentLinkData<'a> {
+    PaymentLinkDetails(&'a PaymentLinkDetails),
     PaymentLinkStatusDetails(PaymentLinkStatusDetails),
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, Clone)]
 pub struct PaymentLinkDetails {
     pub amount: String,
     pub currency: api_enums::Currency,

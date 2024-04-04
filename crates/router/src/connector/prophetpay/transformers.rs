@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use common_utils::{consts, errors::CustomResult};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -11,7 +11,7 @@ use crate::{
     consts as const_val,
     core::errors,
     services,
-    types::{self, api, storage::enums},
+    types::{self, api, domain, storage::enums},
 };
 
 pub struct ProphetpayRouterData<T> {
@@ -136,8 +136,8 @@ impl TryFrom<&ProphetpayRouterData<&types::PaymentsAuthorizeRouterData>>
     ) -> Result<Self, Self::Error> {
         if item.router_data.request.currency == api_models::enums::Currency::USD {
             match item.router_data.request.payment_method_data.clone() {
-                api::PaymentMethodData::CardRedirect(
-                    api_models::payments::CardRedirectData::CardRedirect {},
+                domain::PaymentMethodData::CardRedirect(
+                    domain::payments::CardRedirectData::CardRedirect {},
                 ) => {
                     let auth_data =
                         ProphetpayAuthType::try_from(&item.router_data.connector_auth_type)?;
@@ -201,7 +201,6 @@ impl<F>
         );
 
         let redirect_url = Url::parse(url_data.as_str())
-            .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         let redirection_data = get_redirect_url_form(
@@ -304,10 +303,9 @@ fn get_card_token(
                         .to_string(),
                 );
             }
-            Ok(queries)
+            Ok::<_, errors::ConnectorError>(queries)
         })
-        .transpose()
-        .into_report()?
+        .transpose()?
         .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
 
     for (key, val) in queries_params {

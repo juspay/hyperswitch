@@ -509,6 +509,7 @@ pub async fn routing_retrieve_linked_config(
     state: web::Data<AppState>,
     req: HttpRequest,
     #[cfg(feature = "business_profile_routing")] query: web::Query<RoutingRetrieveLinkQuery>,
+    #[cfg(feature = "business_profile_routing")] transaction_type: &enums::TransactionType,
 ) -> impl Responder {
     #[cfg(feature = "business_profile_routing")]
     {
@@ -520,7 +521,12 @@ pub async fn routing_retrieve_linked_config(
             &req,
             query.into_inner(),
             |state, auth: AuthenticationData, query_params| {
-                routing::retrieve_linked_routing_config(state, auth.merchant_account, query_params)
+                routing::retrieve_linked_routing_config(
+                    state,
+                    auth.merchant_account,
+                    query_params,
+                    transaction_type,
+                )
             },
             #[cfg(not(feature = "release"))]
             auth::auth_type(
@@ -558,6 +564,44 @@ pub async fn routing_retrieve_linked_config(
         ))
         .await
     }
+}
+
+#[cfg(feature = "olap")]
+#[instrument(skip_all)]
+pub async fn upsert_connector_agnostic_mandate_config(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<routing_types::DetailedConnectorChoice>,
+    path: web::Path<String>,
+) -> impl Responder {
+    use crate::services::authentication::AuthenticationData;
+
+    let flow = Flow::CreateConnectorAgnosticMandateConfig;
+    let business_profile_id = path.into_inner();
+
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, _auth: AuthenticationData, mandate_config| {
+            Box::pin(routing::upsert_connector_agnostic_mandate_config(
+                state,
+                &business_profile_id,
+                mandate_config,
+            ))
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::RoutingWrite),
+            req.headers(),
+        ),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth(Permission::RoutingWrite),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
 }
 
 #[cfg(feature = "olap")]

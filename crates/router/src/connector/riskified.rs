@@ -3,7 +3,7 @@ use std::fmt::Debug;
 
 #[cfg(feature = "frm")]
 use common_utils::request::RequestContent;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 use ring::hmac;
 use transformers as riskified;
@@ -63,7 +63,7 @@ where
 
         let riskified_req = self.get_request_body(req, connectors)?;
 
-        let binding = types::RequestBody::get_inner_value(riskified_req);
+        let binding = riskified_req.get_inner_value();
         let payload = binding.peek();
 
         let digest = self
@@ -392,7 +392,7 @@ impl
         req: &frm_types::FrmFulfillmentRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let req_obj = riskified::RiskifiedFullfillmentRequest::try_from(req)?;
+        let req_obj = riskified::RiskifiedFulfillmentRequest::try_from(req)?;
         Ok(RequestContent::Json(Box::new(req_obj)))
     }
 
@@ -551,20 +551,20 @@ impl api::IncomingWebhook for Riskified {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_event_type(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_resource_object(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }

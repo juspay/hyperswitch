@@ -4,7 +4,7 @@ use common_utils::{
     ext_traits::{AsyncExt, StringExt},
 };
 use diesel_models::encryption::Encryption;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::logger;
 
@@ -233,7 +233,6 @@ pub async fn save_payout_data_to_locker(
                 let key = key_store.key.get_inner().peek();
                 let enc_data = async {
                     serde_json::to_value(payout_method_data.to_owned())
-                        .into_report()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Unable to encode payout method data")
                         .ok()
@@ -479,6 +478,7 @@ pub async fn save_payout_data_to_locker(
             card_details_encrypted.clone(),
             key_store,
             None,
+            None,
         )
         .await?;
     }
@@ -528,7 +528,6 @@ pub async fn save_payout_data_to_locker(
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
             Err(errors::ApiErrorResponse::InternalServerError)
-                .into_report()
                 .attach_printable(
                     "Failed to insert PMD from locker as a part of metadata update operation",
                 )?
@@ -667,7 +666,6 @@ pub async fn decide_payout_connector(
         let first_connector_choice = connectors
             .first()
             .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
-            .into_report()
             .attach_printable("Empty connector list returned")?
             .clone();
 
@@ -727,7 +725,6 @@ pub async fn decide_payout_connector(
         let first_connector_choice = connectors
             .first()
             .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
-            .into_report()
             .attach_printable("Empty connector list returned")?
             .clone();
 
@@ -889,4 +886,17 @@ pub fn is_eligible_for_local_payout_cancellation(status: api_enums::PayoutStatus
         api_enums::PayoutStatus::RequiresCreation
             | api_enums::PayoutStatus::RequiresPayoutMethodData,
     )
+}
+
+#[cfg(feature = "olap")]
+pub(super) async fn filter_by_constraints(
+    db: &dyn StorageInterface,
+    constraints: &api::PayoutListConstraints,
+    merchant_id: &str,
+    storage_scheme: storage::enums::MerchantStorageScheme,
+) -> CustomResult<Vec<storage::Payouts>, errors::DataStorageError> {
+    let result = db
+        .filter_payouts_by_constraints(merchant_id, &constraints.clone().into(), storage_scheme)
+        .await?;
+    Ok(result)
 }

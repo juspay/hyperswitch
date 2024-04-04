@@ -3,7 +3,7 @@ use std::fmt::Debug;
 
 #[cfg(feature = "frm")]
 use common_utils::request::RequestContent;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use masking::PeekInterface;
 use transformers as signifyd;
 
@@ -498,7 +498,7 @@ impl
         req: &frm_types::FrmFulfillmentRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let req_obj = signifyd::FrmFullfillmentSignifydRequest::try_from(req)?;
+        let req_obj = signifyd::FrmFulfillmentSignifydRequest::try_from(req)?;
         Ok(RequestContent::Json(Box::new(req_obj.clone())))
     }
 
@@ -530,9 +530,9 @@ impl
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<frm_types::FrmFulfillmentRouterData, errors::ConnectorError> {
-        let response: signifyd::FrmFullfillmentSignifydApiResponse = res
+        let response: signifyd::FrmFulfillmentSignifydApiResponse = res
             .response
-            .parse_struct("FrmFullfillmentSignifydApiResponse Sale")
+            .parse_struct("FrmFulfillmentSignifydApiResponse Sale")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -647,20 +647,20 @@ impl api::IncomingWebhook for Signifyd {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_event_type(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_resource_object(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }

@@ -97,6 +97,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentMethodsUpdate
             | Flow::PaymentMethodsDelete
             | Flow::ValidatePaymentMethod
+            | Flow::ListCountriesCurrencies
             | Flow::DefaultPaymentMethodsSet => Self::PaymentMethods,
 
             Flow::PmAuthLinkTokenCreate | Flow::PmAuthExchangeToken => Self::PaymentMethodAuth,
@@ -123,6 +124,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PayoutsUpdate
             | Flow::PayoutsCancel
             | Flow::PayoutsFulfill
+            | Flow::PayoutsList
+            | Flow::PayoutsFilter
             | Flow::PayoutsAccounts => Self::Payouts,
 
             Flow::RefundsCreate
@@ -131,7 +134,10 @@ impl From<Flow> for ApiIdentifier {
             | Flow::RefundsUpdate
             | Flow::RefundsList => Self::Refunds,
 
-            Flow::FrmFulfillment | Flow::IncomingWebhookReceive => Self::Webhooks,
+            Flow::FrmFulfillment
+            | Flow::IncomingWebhookReceive
+            | Flow::WebhookEventInitialDeliveryAttemptList
+            | Flow::WebhookEventDeliveryAttemptList => Self::Webhooks,
 
             Flow::ApiKeyCreate
             | Flow::ApiKeyRetrieve
@@ -219,6 +225,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ReconTokenRequest
             | Flow::ReconServiceRequest
             | Flow::ReconVerifyToken => Self::Recon,
+            Flow::CreateConnectorAgnosticMandateConfig => Self::Routing,
         }
     }
 }

@@ -493,24 +493,128 @@ impl EventInterface for KafkaStore {
             .await
     }
 
-    async fn find_event_by_event_id(
+    async fn find_event_by_merchant_id_event_id(
         &self,
+        merchant_id: &str,
         event_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Event, errors::StorageError> {
         self.diesel_store
-            .find_event_by_event_id(event_id, merchant_key_store)
+            .find_event_by_merchant_id_event_id(merchant_id, event_id, merchant_key_store)
             .await
     }
 
-    async fn update_event(
+    async fn list_initial_events_by_merchant_id_primary_object_id(
         &self,
-        event_id: String,
+        merchant_id: &str,
+        primary_object_id: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
+        self.diesel_store
+            .list_initial_events_by_merchant_id_primary_object_id(
+                merchant_id,
+                primary_object_id,
+                merchant_key_store,
+            )
+            .await
+    }
+
+    async fn list_initial_events_by_merchant_id_constraints(
+        &self,
+        merchant_id: &str,
+        created_after: Option<PrimitiveDateTime>,
+        created_before: Option<PrimitiveDateTime>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
+        self.diesel_store
+            .list_initial_events_by_merchant_id_constraints(
+                merchant_id,
+                created_after,
+                created_before,
+                limit,
+                offset,
+                merchant_key_store,
+            )
+            .await
+    }
+
+    async fn list_events_by_merchant_id_initial_attempt_id(
+        &self,
+        merchant_id: &str,
+        initial_attempt_id: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
+        self.diesel_store
+            .list_events_by_merchant_id_initial_attempt_id(
+                merchant_id,
+                initial_attempt_id,
+                merchant_key_store,
+            )
+            .await
+    }
+
+    async fn list_initial_events_by_profile_id_primary_object_id(
+        &self,
+        profile_id: &str,
+        primary_object_id: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
+        self.diesel_store
+            .list_initial_events_by_profile_id_primary_object_id(
+                profile_id,
+                primary_object_id,
+                merchant_key_store,
+            )
+            .await
+    }
+
+    async fn list_initial_events_by_profile_id_constraints(
+        &self,
+        profile_id: &str,
+        created_after: Option<PrimitiveDateTime>,
+        created_before: Option<PrimitiveDateTime>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
+        self.diesel_store
+            .list_initial_events_by_profile_id_constraints(
+                profile_id,
+                created_after,
+                created_before,
+                limit,
+                offset,
+                merchant_key_store,
+            )
+            .await
+    }
+
+    async fn list_events_by_profile_id_initial_attempt_id(
+        &self,
+        profile_id: &str,
+        initial_attempt_id: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
+        self.diesel_store
+            .list_events_by_profile_id_initial_attempt_id(
+                profile_id,
+                initial_attempt_id,
+                merchant_key_store,
+            )
+            .await
+    }
+
+    async fn update_event_by_merchant_id_event_id(
+        &self,
+        merchant_id: &str,
+        event_id: &str,
         event: domain::EventUpdate,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Event, errors::StorageError> {
         self.diesel_store
-            .update_event(event_id, event, merchant_key_store)
+            .update_event_by_merchant_id_event_id(merchant_id, event_id, event, merchant_key_store)
             .await
     }
 }
@@ -1403,6 +1507,20 @@ impl PayoutAttemptInterface for KafkaStore {
             .insert_payout_attempt(payout_attempt, storage_scheme)
             .await
     }
+
+    async fn get_filters_for_payouts(
+        &self,
+        payouts: &[data_models::payouts::payouts::Payouts],
+        merchant_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<
+        data_models::payouts::payout_attempt::PayoutListFilters,
+        errors::DataStorageError,
+    > {
+        self.diesel_store
+            .get_filters_for_payouts(payouts, merchant_id, storage_scheme)
+            .await
+    }
 }
 
 #[cfg(not(feature = "payouts"))]
@@ -1428,9 +1546,20 @@ impl PayoutsInterface for KafkaStore {
         payout_update: storage::PayoutsUpdate,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::Payouts, errors::DataStorageError> {
-        self.diesel_store
+        let payout = self
+            .diesel_store
             .update_payout(this, payout_update, storage_scheme)
+            .await?;
+
+        if let Err(er) = self
+            .kafka_producer
+            .log_payout(&payout, Some(this.clone()))
             .await
+        {
+            logger::error!(message="Failed to add analytics entry for Payout {payout:?}", error_message=?er);
+        };
+
+        Ok(payout)
     }
 
     async fn insert_payout(
@@ -1438,9 +1567,16 @@ impl PayoutsInterface for KafkaStore {
         payout: storage::PayoutsNew,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::Payouts, errors::DataStorageError> {
-        self.diesel_store
+        let payout = self
+            .diesel_store
             .insert_payout(payout, storage_scheme)
-            .await
+            .await?;
+
+        if let Err(er) = self.kafka_producer.log_payout(&payout, None).await {
+            logger::error!(message="Failed to add analytics entry for Payout {payout:?}", error_message=?er);
+        };
+
+        Ok(payout)
     }
 
     async fn find_optional_payout_by_merchant_id_payout_id(
@@ -1451,6 +1587,43 @@ impl PayoutsInterface for KafkaStore {
     ) -> CustomResult<Option<storage::Payouts>, errors::DataStorageError> {
         self.diesel_store
             .find_optional_payout_by_merchant_id_payout_id(merchant_id, payout_id, storage_scheme)
+            .await
+    }
+
+    #[cfg(feature = "olap")]
+    async fn filter_payouts_by_constraints(
+        &self,
+        merchant_id: &str,
+        filters: &data_models::payouts::PayoutFetchConstraints,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<storage::Payouts>, errors::DataStorageError> {
+        self.diesel_store
+            .filter_payouts_by_constraints(merchant_id, filters, storage_scheme)
+            .await
+    }
+
+    #[cfg(feature = "olap")]
+    async fn filter_payouts_and_attempts(
+        &self,
+        merchant_id: &str,
+        filters: &data_models::payouts::PayoutFetchConstraints,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<(storage::Payouts, storage::PayoutAttempt)>, errors::DataStorageError>
+    {
+        self.diesel_store
+            .filter_payouts_and_attempts(merchant_id, filters, storage_scheme)
+            .await
+    }
+
+    #[cfg(feature = "olap")]
+    async fn filter_payouts_by_time_range_constraints(
+        &self,
+        merchant_id: &str,
+        time_range: &api_models::payments::TimeRange,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<storage::Payouts>, errors::DataStorageError> {
+        self.diesel_store
+            .filter_payouts_by_time_range_constraints(merchant_id, time_range, storage_scheme)
             .await
     }
 }

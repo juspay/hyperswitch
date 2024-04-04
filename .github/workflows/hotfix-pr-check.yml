@@ -13,6 +13,9 @@ jobs:
   hotfix_pr_check:
     name: Verify Hotfix PR
     runs-on: ubuntu-latest
+    env:
+      HOTFIX_PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+      HOTFIX_PR_TITLE: ${{ github.event.pull_request.title }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -70,8 +73,8 @@ jobs:
               pr_base_ref=$(echo "${pr_info}" | jq -r '.baseRefName')
               pr_state=$(echo "${pr_info}" | jq -r '.state')
 
-              if [[ "${pr_author}" == "${{ github.event.pull_request.user.login }}" && \
-                    "${pr_title}" == "${{ github.event.pull_request.title }}" && \
+              if [[ "${pr_author}" == "${HOTFIX_PR_AUTHOR}" && \
+                    "${pr_title}" == "${HOTFIX_PR_TITLE}" && \
                     "${pr_base_ref}" == "main" && \
                     "${pr_state}" == "MERGED" ]]; then
 
@@ -93,7 +96,7 @@ jobs:
             author_match_found=0
 
             for ((i = 0; i < ${#PR_AUTHORS[@]}; i++)); do
-              if [[ "${{github.event.pull_request.user.login}}" == "${PR_AUTHORS[i]}" ]]; then
+              if [[ "${HOTFIX_PR_AUTHOR}" == "${PR_AUTHORS[i]}" ]]; then
                 # If a match is found, set the flag to 1 and break out of the loop
                 author_match_found=1
                 break
@@ -101,7 +104,7 @@ jobs:
             done
 
             if [[ $author_match_found -eq 0 ]]; then
-              echo "::error::Hotfix PR author does not match any of the Original PR authors. Hotfix PR author: '${{ github.event.pull_request.user.login }}'"
+              echo "::error::Hotfix PR author does not match any of the Original PR authors. Hotfix PR author: '${HOTFIX_PR_AUTHOR}'"
             fi
 
 
@@ -109,7 +112,7 @@ jobs:
             title_match_found=0
 
             for ((i = 0; i < ${#PR_TITLES[@]}; i++)); do
-              if [[ "${{github.event.pull_request.title}}" == "${PR_TITLES[i]}" ]]; then
+              if [[ "${HOTFIX_PR_TITLE}" == "${PR_TITLES[i]}" ]]; then
                 # If a match is found, set the flag to 1 and break out of the loop
                 title_match_found=1
                 break
@@ -117,7 +120,7 @@ jobs:
             done
 
             if [[ $title_match_found -eq 0 ]]; then
-              echo "::error::Hotfix PR title does not match any of the Original PR titles. Hotfix PR title: '${{ github.event.pull_request.title }}'"
+              echo "::error::Hotfix PR title does not match any of the Original PR titles. Hotfix PR title: '${HOTFIX_PR_TITLE}'"
             fi
 
 

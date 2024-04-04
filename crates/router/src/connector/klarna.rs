@@ -1,9 +1,8 @@
 pub mod transformers;
 use std::fmt::Debug;
 
-use api_models::payments as api_payments;
 use common_utils::request::RequestContent;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use transformers as klarna;
 
 use crate::{
@@ -21,6 +20,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon},
+        domain,
         storage::enums as storage_enums,
     },
     utils::BytesExt,
@@ -50,8 +50,7 @@ impl ConnectorCommon for Klarna {
         &self,
         auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth: klarna::KlarnaAuthType = auth_type
-            .try_into()
+        let auth = klarna::KlarnaAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
@@ -308,9 +307,9 @@ impl
             .ok_or_else(connector_utils::missing_field_err("payment_method_type"))?;
 
         match payment_method_data {
-            api_payments::PaymentMethodData::PayLater(api_payments::PayLaterData::KlarnaSdk {
-                token,
-            }) => match (payment_experience, payment_method_type) {
+            domain::PaymentMethodData::PayLater(
+                api_models::payments::PayLaterData::KlarnaSdk { token },
+            ) => match (payment_experience, payment_method_type) {
                 (
                     storage_enums::PaymentExperience::InvokeSdkClient,
                     storage_enums::PaymentMethodType::Klarna,
@@ -416,20 +415,20 @@ impl
                 })),
             },
 
-            api_payments::PaymentMethodData::Card(_)
-            | api_payments::PaymentMethodData::CardRedirect(_)
-            | api_payments::PaymentMethodData::Wallet(_)
-            | api_payments::PaymentMethodData::PayLater(_)
-            | api_payments::PaymentMethodData::BankRedirect(_)
-            | api_payments::PaymentMethodData::BankDebit(_)
-            | api_payments::PaymentMethodData::BankTransfer(_)
-            | api_payments::PaymentMethodData::Crypto(_)
-            | api_payments::PaymentMethodData::MandatePayment
-            | api_payments::PaymentMethodData::Reward
-            | api_payments::PaymentMethodData::Upi(_)
-            | api_payments::PaymentMethodData::Voucher(_)
-            | api_payments::PaymentMethodData::GiftCard(_)
-            | api_payments::PaymentMethodData::CardToken(_) => Err(error_stack::report!(
+            domain::PaymentMethodData::Card(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => Err(error_stack::report!(
                 errors::ConnectorError::MismatchedPaymentData
             )),
         }
@@ -532,7 +531,7 @@ impl api::IncomingWebhook for Klarna {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_event_type(
@@ -546,6 +545,6 @@ impl api::IncomingWebhook for Klarna {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }

@@ -2,7 +2,7 @@ use api_models::payments;
 use base64::Engine;
 use common_enums::FutureUsage;
 use common_utils::{ext_traits::ValueExt, pii};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -19,10 +19,12 @@ use crate::{
     types::{
         self,
         api::{self, enums as api_enums},
+        domain,
         storage::enums,
         transformers::ForeignFrom,
         ApplePayPredecryptData,
     },
+    unimplemented_payment_method,
 };
 
 #[derive(Debug, Serialize)]
@@ -97,7 +99,7 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
         };
 
         let (payment_information, solution) = match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(ccard) => {
+            domain::PaymentMethodData::Card(ccard) => {
                 let card_issuer = ccard.get_card_issuer();
                 let card_type = match card_issuer {
                     Ok(issuer) => Some(String::from(issuer)),
@@ -117,8 +119,8 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
                 )
             }
 
-            api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                payments::WalletData::ApplePay(apple_pay_data) => {
+            domain::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                domain::WalletData::ApplePay(apple_pay_data) => {
                     match item.payment_method_token.clone() {
                         Some(payment_method_token) => match payment_method_token {
                             types::PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
@@ -139,9 +141,9 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
                                     Some(PaymentSolution::ApplePay),
                                 )
                             }
-                            types::PaymentMethodToken::Token(_) => {
-                                Err(errors::ConnectorError::InvalidWalletToken)?
-                            }
+                            types::PaymentMethodToken::Token(_) => Err(
+                                unimplemented_payment_method!("Apple Pay", "Manual", "Cybersource"),
+                            )?,
                         },
                         None => (
                             PaymentInformation::ApplePayToken(ApplePayTokenPaymentInformation {
@@ -156,7 +158,7 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
                         ),
                     }
                 }
-                payments::WalletData::GooglePay(google_pay_data) => (
+                domain::WalletData::GooglePay(google_pay_data) => (
                     PaymentInformation::GooglePay(GooglePayPaymentInformation {
                         fluid_data: FluidData {
                             value: Secret::from(
@@ -167,45 +169,45 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
                     }),
                     Some(PaymentSolution::GooglePay),
                 ),
-                payments::WalletData::AliPayQr(_)
-                | payments::WalletData::AliPayRedirect(_)
-                | payments::WalletData::AliPayHkRedirect(_)
-                | payments::WalletData::MomoRedirect(_)
-                | payments::WalletData::KakaoPayRedirect(_)
-                | payments::WalletData::GoPayRedirect(_)
-                | payments::WalletData::GcashRedirect(_)
-                | payments::WalletData::ApplePayRedirect(_)
-                | payments::WalletData::ApplePayThirdPartySdk(_)
-                | payments::WalletData::DanaRedirect {}
-                | payments::WalletData::GooglePayRedirect(_)
-                | payments::WalletData::GooglePayThirdPartySdk(_)
-                | payments::WalletData::MbWayRedirect(_)
-                | payments::WalletData::MobilePayRedirect(_)
-                | payments::WalletData::PaypalRedirect(_)
-                | payments::WalletData::PaypalSdk(_)
-                | payments::WalletData::SamsungPay(_)
-                | payments::WalletData::TwintRedirect {}
-                | payments::WalletData::VippsRedirect {}
-                | payments::WalletData::TouchNGoRedirect(_)
-                | payments::WalletData::WeChatPayRedirect(_)
-                | payments::WalletData::WeChatPayQr(_)
-                | payments::WalletData::CashappQr(_)
-                | payments::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
+                domain::WalletData::AliPayQr(_)
+                | domain::WalletData::AliPayRedirect(_)
+                | domain::WalletData::AliPayHkRedirect(_)
+                | domain::WalletData::MomoRedirect(_)
+                | domain::WalletData::KakaoPayRedirect(_)
+                | domain::WalletData::GoPayRedirect(_)
+                | domain::WalletData::GcashRedirect(_)
+                | domain::WalletData::ApplePayRedirect(_)
+                | domain::WalletData::ApplePayThirdPartySdk(_)
+                | domain::WalletData::DanaRedirect {}
+                | domain::WalletData::GooglePayRedirect(_)
+                | domain::WalletData::GooglePayThirdPartySdk(_)
+                | domain::WalletData::MbWayRedirect(_)
+                | domain::WalletData::MobilePayRedirect(_)
+                | domain::WalletData::PaypalRedirect(_)
+                | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::SamsungPay(_)
+                | domain::WalletData::TwintRedirect {}
+                | domain::WalletData::VippsRedirect {}
+                | domain::WalletData::TouchNGoRedirect(_)
+                | domain::WalletData::WeChatPayRedirect(_)
+                | domain::WalletData::WeChatPayQr(_)
+                | domain::WalletData::CashappQr(_)
+                | domain::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
                 ))?,
             },
-            payments::PaymentMethodData::CardRedirect(_)
-            | payments::PaymentMethodData::PayLater(_)
-            | payments::PaymentMethodData::BankRedirect(_)
-            | payments::PaymentMethodData::BankDebit(_)
-            | payments::PaymentMethodData::BankTransfer(_)
-            | payments::PaymentMethodData::Crypto(_)
-            | payments::PaymentMethodData::MandatePayment
-            | payments::PaymentMethodData::Reward
-            | payments::PaymentMethodData::Upi(_)
-            | payments::PaymentMethodData::Voucher(_)
-            | payments::PaymentMethodData::GiftCard(_)
-            | payments::PaymentMethodData::CardToken(_) => {
+            domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
                 ))?
@@ -726,14 +728,14 @@ impl ForeignFrom<Value> for Vec<MerchantDefinedInformation> {
 impl
     TryFrom<(
         &CybersourceRouterData<&types::PaymentsAuthorizeRouterData>,
-        payments::Card,
+        domain::Card,
     )> for CybersourcePaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (item, ccard): (
             &CybersourceRouterData<&types::PaymentsAuthorizeRouterData>,
-            payments::Card,
+            domain::Card,
         ),
     ) -> Result<Self, Self::Error> {
         let email = item.router_data.request.get_email()?;
@@ -777,14 +779,14 @@ impl
 impl
     TryFrom<(
         &CybersourceRouterData<&types::PaymentsCompleteAuthorizeRouterData>,
-        payments::Card,
+        domain::Card,
     )> for CybersourcePaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (item, ccard): (
             &CybersourceRouterData<&types::PaymentsCompleteAuthorizeRouterData>,
-            payments::Card,
+            domain::Card,
         ),
     ) -> Result<Self, Self::Error> {
         let email = item.router_data.request.get_email()?;
@@ -855,7 +857,7 @@ impl
     TryFrom<(
         &CybersourceRouterData<&types::PaymentsAuthorizeRouterData>,
         Box<ApplePayPredecryptData>,
-        payments::ApplePayWalletData,
+        domain::ApplePayWalletData,
     )> for CybersourcePaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -863,7 +865,7 @@ impl
         (item, apple_pay_data, apple_pay_wallet_data): (
             &CybersourceRouterData<&types::PaymentsAuthorizeRouterData>,
             Box<ApplePayPredecryptData>,
-            payments::ApplePayWalletData,
+            domain::ApplePayWalletData,
         ),
     ) -> Result<Self, Self::Error> {
         let email = item.router_data.request.get_email()?;
@@ -920,14 +922,14 @@ impl
 impl
     TryFrom<(
         &CybersourceRouterData<&types::PaymentsAuthorizeRouterData>,
-        payments::GooglePayWalletData,
+        domain::GooglePayWalletData,
     )> for CybersourcePaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (item, google_pay_data): (
             &CybersourceRouterData<&types::PaymentsAuthorizeRouterData>,
-            payments::GooglePayWalletData,
+            domain::GooglePayWalletData,
         ),
     ) -> Result<Self, Self::Error> {
         let email = item.router_data.request.get_email()?;
@@ -971,16 +973,20 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
             Some(connector_mandate_id) => Self::try_from((item, connector_mandate_id)),
             None => {
                 match item.router_data.request.payment_method_data.clone() {
-                    payments::PaymentMethodData::Card(ccard) => Self::try_from((item, ccard)),
-                    payments::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                        payments::WalletData::ApplePay(apple_pay_data) => {
+                    domain::PaymentMethodData::Card(ccard) => Self::try_from((item, ccard)),
+                    domain::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                        domain::WalletData::ApplePay(apple_pay_data) => {
                             match item.router_data.payment_method_token.clone() {
                                 Some(payment_method_token) => match payment_method_token {
                                     types::PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
                                         Self::try_from((item, decrypt_data, apple_pay_data))
                                     }
                                     types::PaymentMethodToken::Token(_) => {
-                                        Err(errors::ConnectorError::InvalidWalletToken)?
+                                        Err(unimplemented_payment_method!(
+                                            "Apple Pay",
+                                            "Manual",
+                                            "Cybersource"
+                                        ))?
                                     }
                                 },
                                 None => {
@@ -1042,33 +1048,33 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                                 }
                             }
                         }
-                        payments::WalletData::GooglePay(google_pay_data) => {
+                        domain::WalletData::GooglePay(google_pay_data) => {
                             Self::try_from((item, google_pay_data))
                         }
-                        payments::WalletData::AliPayQr(_)
-                        | payments::WalletData::AliPayRedirect(_)
-                        | payments::WalletData::AliPayHkRedirect(_)
-                        | payments::WalletData::MomoRedirect(_)
-                        | payments::WalletData::KakaoPayRedirect(_)
-                        | payments::WalletData::GoPayRedirect(_)
-                        | payments::WalletData::GcashRedirect(_)
-                        | payments::WalletData::ApplePayRedirect(_)
-                        | payments::WalletData::ApplePayThirdPartySdk(_)
-                        | payments::WalletData::DanaRedirect {}
-                        | payments::WalletData::GooglePayRedirect(_)
-                        | payments::WalletData::GooglePayThirdPartySdk(_)
-                        | payments::WalletData::MbWayRedirect(_)
-                        | payments::WalletData::MobilePayRedirect(_)
-                        | payments::WalletData::PaypalRedirect(_)
-                        | payments::WalletData::PaypalSdk(_)
-                        | payments::WalletData::SamsungPay(_)
-                        | payments::WalletData::TwintRedirect {}
-                        | payments::WalletData::VippsRedirect {}
-                        | payments::WalletData::TouchNGoRedirect(_)
-                        | payments::WalletData::WeChatPayRedirect(_)
-                        | payments::WalletData::WeChatPayQr(_)
-                        | payments::WalletData::CashappQr(_)
-                        | payments::WalletData::SwishQr(_) => {
+                        domain::WalletData::AliPayQr(_)
+                        | domain::WalletData::AliPayRedirect(_)
+                        | domain::WalletData::AliPayHkRedirect(_)
+                        | domain::WalletData::MomoRedirect(_)
+                        | domain::WalletData::KakaoPayRedirect(_)
+                        | domain::WalletData::GoPayRedirect(_)
+                        | domain::WalletData::GcashRedirect(_)
+                        | domain::WalletData::ApplePayRedirect(_)
+                        | domain::WalletData::ApplePayThirdPartySdk(_)
+                        | domain::WalletData::DanaRedirect {}
+                        | domain::WalletData::GooglePayRedirect(_)
+                        | domain::WalletData::GooglePayThirdPartySdk(_)
+                        | domain::WalletData::MbWayRedirect(_)
+                        | domain::WalletData::MobilePayRedirect(_)
+                        | domain::WalletData::PaypalRedirect(_)
+                        | domain::WalletData::PaypalSdk(_)
+                        | domain::WalletData::SamsungPay(_)
+                        | domain::WalletData::TwintRedirect {}
+                        | domain::WalletData::VippsRedirect {}
+                        | domain::WalletData::TouchNGoRedirect(_)
+                        | domain::WalletData::WeChatPayRedirect(_)
+                        | domain::WalletData::WeChatPayQr(_)
+                        | domain::WalletData::CashappQr(_)
+                        | domain::WalletData::SwishQr(_) => {
                             Err(errors::ConnectorError::NotImplemented(
                                 utils::get_unimplemented_payment_method_error_message(
                                     "Cybersource",
@@ -1079,7 +1085,7 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                     },
                     // If connector_mandate_id is present MandatePayment will be the PMD, the case will be handled in the first `if` clause.
                     // This is a fallback implementation in the event of catastrophe.
-                    payments::PaymentMethodData::MandatePayment => {
+                    domain::PaymentMethodData::MandatePayment => {
                         let connector_mandate_id =
                             item.router_data.request.connector_mandate_id().ok_or(
                                 errors::ConnectorError::MissingRequiredField {
@@ -1088,17 +1094,17 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                             )?;
                         Self::try_from((item, connector_mandate_id))
                     }
-                    payments::PaymentMethodData::CardRedirect(_)
-                    | payments::PaymentMethodData::PayLater(_)
-                    | payments::PaymentMethodData::BankRedirect(_)
-                    | payments::PaymentMethodData::BankDebit(_)
-                    | payments::PaymentMethodData::BankTransfer(_)
-                    | payments::PaymentMethodData::Crypto(_)
-                    | payments::PaymentMethodData::Reward
-                    | payments::PaymentMethodData::Upi(_)
-                    | payments::PaymentMethodData::Voucher(_)
-                    | payments::PaymentMethodData::GiftCard(_)
-                    | payments::PaymentMethodData::CardToken(_) => {
+                    domain::PaymentMethodData::CardRedirect(_)
+                    | domain::PaymentMethodData::PayLater(_)
+                    | domain::PaymentMethodData::BankRedirect(_)
+                    | domain::PaymentMethodData::BankDebit(_)
+                    | domain::PaymentMethodData::BankTransfer(_)
+                    | domain::PaymentMethodData::Crypto(_)
+                    | domain::PaymentMethodData::Reward
+                    | domain::PaymentMethodData::Upi(_)
+                    | domain::PaymentMethodData::Voucher(_)
+                    | domain::PaymentMethodData::GiftCard(_)
+                    | domain::PaymentMethodData::CardToken(_) => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message("Cybersource"),
                         )
@@ -1163,7 +1169,7 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
         item: &CybersourceRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
-            payments::PaymentMethodData::Card(ccard) => {
+            domain::PaymentMethodData::Card(ccard) => {
                 let card_issuer = ccard.get_card_issuer();
                 let card_type = match card_issuer {
                     Ok(issuer) => Some(String::from(issuer)),
@@ -1184,19 +1190,19 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                     client_reference_information,
                 })
             }
-            payments::PaymentMethodData::Wallet(_)
-            | payments::PaymentMethodData::CardRedirect(_)
-            | payments::PaymentMethodData::PayLater(_)
-            | payments::PaymentMethodData::BankRedirect(_)
-            | payments::PaymentMethodData::BankDebit(_)
-            | payments::PaymentMethodData::BankTransfer(_)
-            | payments::PaymentMethodData::Crypto(_)
-            | payments::PaymentMethodData::MandatePayment
-            | payments::PaymentMethodData::Reward
-            | payments::PaymentMethodData::Upi(_)
-            | payments::PaymentMethodData::Voucher(_)
-            | payments::PaymentMethodData::GiftCard(_)
-            | payments::PaymentMethodData::CardToken(_) => {
+            domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
                 )
@@ -1848,7 +1854,7 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsPreProcessingRouterData>>
             },
         )?;
         let payment_information = match payment_method_data {
-            payments::PaymentMethodData::Card(ccard) => {
+            domain::PaymentMethodData::Card(ccard) => {
                 let card_issuer = ccard.get_card_issuer();
                 let card_type = match card_issuer {
                     Ok(issuer) => Some(String::from(issuer)),
@@ -1864,19 +1870,19 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsPreProcessingRouterData>>
                     },
                 }))
             }
-            payments::PaymentMethodData::Wallet(_)
-            | payments::PaymentMethodData::CardRedirect(_)
-            | payments::PaymentMethodData::PayLater(_)
-            | payments::PaymentMethodData::BankRedirect(_)
-            | payments::PaymentMethodData::BankDebit(_)
-            | payments::PaymentMethodData::BankTransfer(_)
-            | payments::PaymentMethodData::Crypto(_)
-            | payments::PaymentMethodData::MandatePayment
-            | payments::PaymentMethodData::Reward
-            | payments::PaymentMethodData::Upi(_)
-            | payments::PaymentMethodData::Voucher(_)
-            | payments::PaymentMethodData::GiftCard(_)
-            | payments::PaymentMethodData::CardToken(_) => {
+            domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
                 ))
@@ -1964,20 +1970,20 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsCompleteAuthorizeRouterData>
             },
         )?;
         match payment_method_data {
-            payments::PaymentMethodData::Card(ccard) => Self::try_from((item, ccard)),
-            payments::PaymentMethodData::Wallet(_)
-            | payments::PaymentMethodData::CardRedirect(_)
-            | payments::PaymentMethodData::PayLater(_)
-            | payments::PaymentMethodData::BankRedirect(_)
-            | payments::PaymentMethodData::BankDebit(_)
-            | payments::PaymentMethodData::BankTransfer(_)
-            | payments::PaymentMethodData::Crypto(_)
-            | payments::PaymentMethodData::MandatePayment
-            | payments::PaymentMethodData::Reward
-            | payments::PaymentMethodData::Upi(_)
-            | payments::PaymentMethodData::Voucher(_)
-            | payments::PaymentMethodData::GiftCard(_)
-            | payments::PaymentMethodData::CardToken(_) => {
+            domain::PaymentMethodData::Card(ccard) => Self::try_from((item, ccard)),
+            domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
                 )
@@ -2115,7 +2121,6 @@ impl<F>
                             .consumer_authentication_information
                             .validate_response,
                     )
-                    .into_report()
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
                     Ok(Self {
                         status,

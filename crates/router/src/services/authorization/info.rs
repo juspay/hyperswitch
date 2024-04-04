@@ -41,6 +41,7 @@ pub enum PermissionModule {
     ThreeDsDecisionManager,
     SurchargeDecisionManager,
     AccountCreate,
+    Payouts,
 }
 
 impl PermissionModule {
@@ -57,7 +58,8 @@ impl PermissionModule {
             Self::Disputes => "Everything related to disputes - like creating and viewing dispute related information are within this module",
             Self::ThreeDsDecisionManager => "View and configure 3DS decision rules configured for a merchant",
             Self::SurchargeDecisionManager =>"View and configure surcharge decision rules configured for a merchant",
-            Self::AccountCreate => "Create new account within your organization"
+            Self::AccountCreate => "Create new account within your organization",
+            Self::Payouts => "Everything related to payouts - like creating and viewing payout related information are within this module"
         }
     }
 }
@@ -168,6 +170,14 @@ impl ModuleInfo {
                     Permission::MerchantAccountCreate,
                 ]),
             },
+            PermissionModule::Payouts => Self {
+                module: module_name,
+                description,
+                permissions: get_permission_info_from_permissions(&[
+                    Permission::PayoutRead,
+                    Permission::PayoutWrite,
+                ]),
+            },
         }
     }
 }
@@ -184,10 +194,10 @@ fn get_group_info_from_permission_group(group: PermissionGroup) -> GroupInfo {
 fn get_group_description(group: PermissionGroup) -> &'static str {
     match group {
         PermissionGroup::OperationsView => {
-            "View Payments, Refunds, Mandates, Disputes and Customers"
+            "View Payments, Refunds, Payouts, Mandates, Disputes and Customers"
         }
         PermissionGroup::OperationsManage => {
-            "Create, modify and delete Payments, Refunds, Mandates, Disputes and Customers"
+            "Create, modify and delete Payments, Refunds, Payouts, Mandates, Disputes and Customers"
         }
         PermissionGroup::ConnectorsView => {
             "View connected Payment Processors, Payout Processors and Fraud & Risk Manager details"
