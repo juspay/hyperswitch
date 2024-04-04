@@ -1,8 +1,14 @@
+use common_enums::enums;
 use common_utils::errors::CustomResult;
+use data_models::mandates::MandateData;
 use diesel_models::Mandate;
 use error_stack::ResultExt;
 
-use crate::{core::errors, routes::AppState, types::domain};
+use crate::{
+    core::{errors, payments},
+    routes::AppState,
+    types::domain,
+};
 
 pub async fn get_profile_id_for_mandate(
     state: &AppState,
@@ -32,4 +38,15 @@ pub async fn get_profile_id_for_mandate(
         Err(errors::ApiErrorResponse::PaymentNotFound)
     }?;
     Ok(profile_id)
+}
+
+#[derive(Clone)]
+pub struct MandateGenericData {
+    pub token: Option<String>,
+    pub payment_method: Option<enums::PaymentMethod>,
+    pub payment_method_type: Option<enums::PaymentMethodType>,
+    pub mandate_data: Option<MandateData>,
+    pub recurring_mandate_payment_data: Option<payments::RecurringMandatePaymentData>,
+    pub mandate_connector: Option<payments::MandateConnectorDetails>,
+    pub payment_method_info: Option<diesel_models::PaymentMethod>,
 }

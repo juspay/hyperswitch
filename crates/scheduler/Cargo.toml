@@ -1,7 +1,9 @@
 [package]
 name = "scheduler"
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
 
 [features]
 default = ["kv_store", "olap"]
@@ -11,19 +13,19 @@ email = ["external_services/email"]
 
 [dependencies]
 # Third party crates
-async-trait = "0.1.68"
-error-stack = "0.3.1"
-futures = "0.3.28"
-num_cpus = "1.15.0"
-once_cell = "1.18.0"
+async-trait = "0.1.79"
+error-stack = "0.4.1"
+futures = "0.3.30"
+num_cpus = "1.16.0"
+once_cell = "1.19.0"
 rand = "0.8.5"
-serde = "1.0.193"
-serde_json = "1.0.108"
-strum = { version = "0.24.1", features = ["derive"] }
-thiserror = "1.0.40"
-time = { version = "0.3.21", features = ["serde", "serde-well-known", "std"] }
-tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread"] }
-uuid = { version = "1.7.0", features = ["v4"] }
+serde = "1.0.197"
+serde_json = "1.0.115"
+strum = { version = "0.26.2", features = ["derive"] }
+thiserror = "1.0.58"
+time = { version = "0.3.34", features = ["serde", "serde-well-known", "std"] }
+tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"] }
+uuid = { version = "1.8.0", features = ["v4"] }
 
 # First party crates
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["signals", "async_ext"] }

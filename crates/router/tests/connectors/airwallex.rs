@@ -349,7 +349,7 @@ async fn should_sync_refund() {
     );
 }
 
-// Cards Negative scenerios
+// Cards Negative scenarios
 // Creates a payment with incorrect card number.
 #[serial_test::serial]
 #[actix_web::test]

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use api_models::enums::{AuthenticationType, PaymentMethod};
 use common_utils::pii;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -18,6 +18,7 @@ use crate::{
     core::errors,
     services,
     types::{self, api, domain, domain::PaymentMethodData, storage::enums, MandateReference},
+    unimplemented_payment_method,
 };
 
 const LANGUAGE: &str = "en";
@@ -384,38 +385,36 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
         match item {
             PaymentMethodData::Card(_) => Ok(Self::CreditCard),
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                api_models::payments::WalletData::ApplePayThirdPartySdk(_) => Ok(Self::ApplePay),
-                api_models::payments::WalletData::AliPayQr(_)
-                | api_models::payments::WalletData::AliPayRedirect(_)
-                | api_models::payments::WalletData::AliPayHkRedirect(_)
-                | api_models::payments::WalletData::MomoRedirect(_)
-                | api_models::payments::WalletData::KakaoPayRedirect(_)
-                | api_models::payments::WalletData::GoPayRedirect(_)
-                | api_models::payments::WalletData::GcashRedirect(_)
-                | api_models::payments::WalletData::ApplePayRedirect(_)
-                | api_models::payments::WalletData::DanaRedirect {}
-                | api_models::payments::WalletData::GooglePay(_)
-                | api_models::payments::WalletData::GooglePayRedirect(_)
-                | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
-                | api_models::payments::WalletData::MbWayRedirect(_)
-                | api_models::payments::WalletData::MobilePayRedirect(_)
-                | api_models::payments::WalletData::PaypalRedirect(_)
-                | api_models::payments::WalletData::PaypalSdk(_)
-                | api_models::payments::WalletData::SamsungPay(_)
-                | api_models::payments::WalletData::TwintRedirect {}
-                | api_models::payments::WalletData::VippsRedirect {}
-                | api_models::payments::WalletData::TouchNGoRedirect(_)
-                | api_models::payments::WalletData::WeChatPayRedirect(_)
-                | api_models::payments::WalletData::WeChatPayQr(_)
-                | api_models::payments::WalletData::CashappQr(_)
-                | api_models::payments::WalletData::ApplePay(_)
-                | api_models::payments::WalletData::SwishQr(_) => {
-                    Err(errors::ConnectorError::NotSupported {
-                        message: "Wallet".to_string(),
-                        connector: "payme",
-                    }
-                    .into())
+                domain::WalletData::ApplePayThirdPartySdk(_) => Ok(Self::ApplePay),
+                domain::WalletData::AliPayQr(_)
+                | domain::WalletData::AliPayRedirect(_)
+                | domain::WalletData::AliPayHkRedirect(_)
+                | domain::WalletData::MomoRedirect(_)
+                | domain::WalletData::KakaoPayRedirect(_)
+                | domain::WalletData::GoPayRedirect(_)
+                | domain::WalletData::GcashRedirect(_)
+                | domain::WalletData::ApplePayRedirect(_)
+                | domain::WalletData::DanaRedirect {}
+                | domain::WalletData::GooglePay(_)
+                | domain::WalletData::GooglePayRedirect(_)
+                | domain::WalletData::GooglePayThirdPartySdk(_)
+                | domain::WalletData::MbWayRedirect(_)
+                | domain::WalletData::MobilePayRedirect(_)
+                | domain::WalletData::PaypalRedirect(_)
+                | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::SamsungPay(_)
+                | domain::WalletData::TwintRedirect {}
+                | domain::WalletData::VippsRedirect {}
+                | domain::WalletData::TouchNGoRedirect(_)
+                | domain::WalletData::WeChatPayRedirect(_)
+                | domain::WalletData::WeChatPayQr(_)
+                | domain::WalletData::CashappQr(_)
+                | domain::WalletData::ApplePay(_)
+                | domain::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotSupported {
+                    message: "Wallet".to_string(),
+                    connector: "payme",
                 }
+                .into()),
             },
             PaymentMethodData::PayLater(_)
             | PaymentMethodData::BankRedirect(_)
@@ -550,9 +549,9 @@ impl<F>
                 let payme_auth_type = PaymeAuthType::try_from(&item.data.connector_auth_type)?;
 
                 let session_token = match pmd {
-                    Some(PaymentMethodData::Wallet(
-                        api_models::payments::WalletData::ApplePayThirdPartySdk(_),
-                    )) => Some(api_models::payments::SessionToken::ApplePay(Box::new(
+                    Some(PaymentMethodData::Wallet(domain::WalletData::ApplePayThirdPartySdk(
+                        _,
+                    ))) => Some(api_models::payments::SessionToken::ApplePay(Box::new(
                         api_models::payments::ApplepaySessionTokenResponse {
                             session_token_data:
                                 api_models::payments::ApplePaySessionResponse::NoSessionResponse,
@@ -694,7 +693,6 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
                 let payload_data = item.request.get_redirect_response_payload()?.expose();
 
                 let jwt_data: PaymeRedirectResponseData = serde_json::from_value(payload_data)
-                    .into_report()
                     .change_context(errors::ConnectorError::MissingConnectorRedirectionPayload {
                         field_name: "meta_data_jwt",
                     })?;
@@ -707,9 +705,9 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
                 let pm_token = item.get_payment_method_token()?;
                 let buyer_key = match pm_token {
                     types::PaymentMethodToken::Token(token) => token,
-                    types::PaymentMethodToken::ApplePayDecrypt(_) => {
-                        Err(errors::ConnectorError::InvalidWalletToken)?
-                    }
+                    types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
+                        unimplemented_payment_method!("Apple Pay", "Simplified", "Payme"),
+                    )?,
                 };
                 Ok(Self {
                     buyer_email,

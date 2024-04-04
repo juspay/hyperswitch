@@ -19,8 +19,6 @@ use tokio::sync::oneshot;
 
 #[cfg(feature = "olap")]
 use super::blocklist;
-#[cfg(any(feature = "olap", feature = "oltp"))]
-use super::currency;
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
 #[cfg(feature = "payouts")]
@@ -39,8 +37,10 @@ use super::{
 use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
+#[cfg(any(feature = "olap", feature = "oltp"))]
+use super::{currency, payment_methods::*};
 #[cfg(feature = "oltp")]
-use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
+use super::{ephemeral_key::*, webhooks::*};
 use crate::configs::secrets_transformers;
 #[cfg(all(feature = "frm", feature = "oltp"))]
 use crate::routes::fraud_check as frm_routes;
@@ -438,6 +438,10 @@ impl Routing {
                     })),
             )
             .service(
+                web::resource("/business_profile/{business_profile_id}/configs/pg_agnostic_mit")
+                    .route(web::post().to(cloud_routing::upsert_connector_agnostic_mandate_config)),
+            )
+            .service(
                 web::resource("/default")
                     .route(web::get().to(|state, req| {
                         cloud_routing::routing_retrieve_default_config(
@@ -738,24 +742,39 @@ impl Payouts {
 
 pub struct PaymentMethods;
 
-#[cfg(feature = "oltp")]
+#[cfg(any(feature = "olap", feature = "oltp"))]
 impl PaymentMethods {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/payment_methods")
-            .app_data(web::Data::new(state))
-            .service(
-                web::resource("")
-                    .route(web::post().to(create_payment_method_api))
-                    .route(web::get().to(list_payment_method_api)), // TODO : added for sdk compatibility for now, need to deprecate this later
-            )
-            .service(
-                web::resource("/{payment_method_id}")
-                    .route(web::get().to(payment_method_retrieve_api))
-                    .route(web::post().to(payment_method_update_api))
-                    .route(web::delete().to(payment_method_delete_api)),
-            )
-            .service(web::resource("/auth/link").route(web::post().to(pm_auth::link_token_create)))
-            .service(web::resource("/auth/exchange").route(web::post().to(pm_auth::exchange_token)))
+        let mut route = web::scope("/payment_methods").app_data(web::Data::new(state));
+        #[cfg(feature = "olap")]
+        {
+            route = route.service(
+                web::resource("/filter")
+                    .route(web::get().to(list_countries_currencies_for_connector_payment_method)),
+            );
+        }
+        #[cfg(feature = "oltp")]
+        {
+            route = route
+                .service(
+                    web::resource("")
+                        .route(web::post().to(create_payment_method_api))
+                        .route(web::get().to(list_payment_method_api)), // TODO : added for sdk compatibility for now, need to deprecate this later
+                )
+                .service(
+                    web::resource("/{payment_method_id}")
+                        .route(web::get().to(payment_method_retrieve_api))
+                        .route(web::post().to(payment_method_update_api))
+                        .route(web::delete().to(payment_method_delete_api)),
+                )
+                .service(
+                    web::resource("/auth/link").route(web::post().to(pm_auth::link_token_create)),
+                )
+                .service(
+                    web::resource("/auth/exchange").route(web::post().to(pm_auth::exchange_token)),
+                )
+        }
+        route
     }
 }
 
@@ -1224,7 +1243,7 @@ pub struct WebhookEvents;
 #[cfg(feature = "olap")]
 impl WebhookEvents {
     pub fn server(config: AppState) -> Scope {
-        web::scope("/events/{merchant_id}")
+        web::scope("/events/{merchant_id_or_profile_id}")
             .app_data(web::Data::new(config))
             .service(web::resource("").route(web::get().to(list_initial_webhook_delivery_attempts)))
             .service(

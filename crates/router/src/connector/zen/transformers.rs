@@ -456,14 +456,14 @@ impl
 impl
     TryFrom<(
         &ZenRouterData<&types::PaymentsAuthorizeRouterData>,
-        &api_models::payments::WalletData,
+        &domain::WalletData,
     )> for ZenPaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (item, wallet_data): (
             &ZenRouterData<&types::PaymentsAuthorizeRouterData>,
-            &api_models::payments::WalletData,
+            &domain::WalletData,
         ),
     ) -> Result<Self, Self::Error> {
         let amount = item.amount.to_owned();
@@ -472,46 +472,48 @@ impl
             .parse_value("SessionObject")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let (specified_payment_channel, session_data) = match wallet_data {
-            api_models::payments::WalletData::ApplePayRedirect(_) => (
+            domain::WalletData::ApplePayRedirect(_) => (
                 ZenPaymentChannels::PclApplepay,
                 session
                     .apple_pay
-                    .ok_or(errors::ConnectorError::RequestEncodingFailed)?,
+                    .ok_or(errors::ConnectorError::InvalidWalletToken {
+                        wallet_name: "Apple Pay".to_string(),
+                    })?,
             ),
-            api_models::payments::WalletData::GooglePayRedirect(_) => (
+            domain::WalletData::GooglePayRedirect(_) => (
                 ZenPaymentChannels::PclGooglepay,
                 session
                     .google_pay
-                    .ok_or(errors::ConnectorError::RequestEncodingFailed)?,
+                    .ok_or(errors::ConnectorError::InvalidWalletToken {
+                        wallet_name: "Google Pay".to_string(),
+                    })?,
             ),
-            api_models::payments::WalletData::WeChatPayRedirect(_)
-            | api_models::payments::WalletData::PaypalRedirect(_)
-            | api_models::payments::WalletData::ApplePay(_)
-            | api_models::payments::WalletData::GooglePay(_)
-            | api_models::payments::WalletData::AliPayQr(_)
-            | api_models::payments::WalletData::AliPayRedirect(_)
-            | api_models::payments::WalletData::AliPayHkRedirect(_)
-            | api_models::payments::WalletData::MomoRedirect(_)
-            | api_models::payments::WalletData::KakaoPayRedirect(_)
-            | api_models::payments::WalletData::GoPayRedirect(_)
-            | api_models::payments::WalletData::GcashRedirect(_)
-            | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
-            | api_models::payments::WalletData::DanaRedirect {}
-            | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
-            | api_models::payments::WalletData::MbWayRedirect(_)
-            | api_models::payments::WalletData::MobilePayRedirect(_)
-            | api_models::payments::WalletData::PaypalSdk(_)
-            | api_models::payments::WalletData::SamsungPay(_)
-            | api_models::payments::WalletData::TwintRedirect {}
-            | api_models::payments::WalletData::VippsRedirect {}
-            | api_models::payments::WalletData::TouchNGoRedirect(_)
-            | api_models::payments::WalletData::CashappQr(_)
-            | api_models::payments::WalletData::SwishQr(_)
-            | api_models::payments::WalletData::WeChatPayQr(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Zen"),
-                ))?
-            }
+            domain::WalletData::WeChatPayRedirect(_)
+            | domain::WalletData::PaypalRedirect(_)
+            | domain::WalletData::ApplePay(_)
+            | domain::WalletData::GooglePay(_)
+            | domain::WalletData::AliPayQr(_)
+            | domain::WalletData::AliPayRedirect(_)
+            | domain::WalletData::AliPayHkRedirect(_)
+            | domain::WalletData::MomoRedirect(_)
+            | domain::WalletData::KakaoPayRedirect(_)
+            | domain::WalletData::GoPayRedirect(_)
+            | domain::WalletData::GcashRedirect(_)
+            | domain::WalletData::ApplePayThirdPartySdk(_)
+            | domain::WalletData::DanaRedirect {}
+            | domain::WalletData::GooglePayThirdPartySdk(_)
+            | domain::WalletData::MbWayRedirect(_)
+            | domain::WalletData::MobilePayRedirect(_)
+            | domain::WalletData::PaypalSdk(_)
+            | domain::WalletData::SamsungPay(_)
+            | domain::WalletData::TwintRedirect {}
+            | domain::WalletData::VippsRedirect {}
+            | domain::WalletData::TouchNGoRedirect(_)
+            | domain::WalletData::CashappQr(_)
+            | domain::WalletData::SwishQr(_)
+            | domain::WalletData::WeChatPayQr(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Zen"),
+            ))?,
         };
         let terminal_uuid = session_data
             .terminal_uuid

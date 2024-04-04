@@ -1,5 +1,5 @@
 use common_utils::pii;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -10,6 +10,7 @@ use crate::{
     core::errors,
     services,
     types::{self, api, domain, storage::enums},
+    unimplemented_payment_method,
 };
 
 pub const CLIENT_TOKEN_MUTATION: &str = "mutation createClientToken($input: CreateClientTokenInput!) { createClientToken(input: $input) { clientToken}}";
@@ -1336,9 +1337,9 @@ impl
                 input: PaymentInput {
                     payment_method_id: match item.router_data.get_payment_method_token()? {
                         types::PaymentMethodToken::Token(token) => token.into(),
-                        types::PaymentMethodToken::ApplePayDecrypt(_) => {
-                            Err(errors::ConnectorError::InvalidWalletToken)?
-                        }
+                        types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
+                            unimplemented_payment_method!("Apple Pay", "Simplified", "Braintree"),
+                        )?,
                     },
                     transaction: TransactionBody {
                         amount: item.amount.to_owned(),
@@ -1371,16 +1372,15 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
                 &item.router_data.request,
             )?
             .expose();
-        let redirection_response: BraintreeRedirectionResponse =
-            serde_json::from_value(payload_data)
-                .into_report()
-                .change_context(errors::ConnectorError::MissingConnectorRedirectionPayload {
-                    field_name: "redirection_response",
-                })?;
+        let redirection_response: BraintreeRedirectionResponse = serde_json::from_value(
+            payload_data,
+        )
+        .change_context(errors::ConnectorError::MissingConnectorRedirectionPayload {
+            field_name: "redirection_response",
+        })?;
         let three_ds_data = serde_json::from_str::<BraintreeThreeDsResponse>(
             &redirection_response.authentication_response,
         )
-        .into_report()
         .change_context(errors::ConnectorError::MissingConnectorRedirectionPayload {
             field_name: "three_ds_data",
         })?;
@@ -1418,9 +1418,11 @@ fn get_braintree_redirect_form(
             .expose(),
         card_token: match payment_method_token {
             types::PaymentMethodToken::Token(token) => token,
-            types::PaymentMethodToken::ApplePayDecrypt(_) => {
-                Err(errors::ConnectorError::InvalidWalletToken)?
-            }
+            types::PaymentMethodToken::ApplePayDecrypt(_) => Err(unimplemented_payment_method!(
+                "Apple Pay",
+                "Simplified",
+                "Braintree"
+            ))?,
         },
         bin: match card_details {
             domain::PaymentMethodData::Card(card_details) => {

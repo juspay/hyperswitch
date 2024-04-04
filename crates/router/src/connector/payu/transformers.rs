@@ -1,6 +1,6 @@
 use base64::Engine;
 use common_utils::pii::{Email, IpAddress};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -79,7 +79,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
                 }),
             }),
             domain::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                api_models::payments::WalletData::GooglePay(data) => Ok(PayuPaymentMethod {
+                domain::WalletData::GooglePay(data) => Ok(PayuPaymentMethod {
                     pay_method: PayuPaymentMethodData::Wallet({
                         PayuWallet {
                             value: PayuWalletCode::Ap,
@@ -90,7 +90,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
                         }
                     }),
                 }),
-                api_models::payments::WalletData::ApplePay(data) => Ok(PayuPaymentMethod {
+                domain::WalletData::ApplePay(data) => Ok(PayuPaymentMethod {
                     pay_method: PayuPaymentMethodData::Wallet({
                         PayuWallet {
                             value: PayuWalletCode::Jp,
@@ -489,7 +489,6 @@ impl<F, T>
                 order
                     .total_amount
                     .parse::<i64>()
-                    .into_report()
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
             ),
             ..item.data

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use api_models::user as user_api;
 use common_utils::errors::CustomResult;
 use diesel_models::{enums::UserStatus, user_role::UserRole};
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, Secret};
 
 use crate::{
@@ -148,7 +148,7 @@ pub fn get_multiple_merchant_details_with_status(
         .map(|merchant| {
             let role = roles
                 .get(merchant.merchant_id.as_str())
-                .ok_or(UserErrors::InternalServerError.into())
+                .ok_or(report!(UserErrors::InternalServerError))
                 .attach_printable("Merchant exists but user role doesn't")?;
 
             Ok(user_api::UserMerchantAccount {
