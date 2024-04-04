@@ -17,7 +17,7 @@ use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
         mandate,
-        payment_methods::PaymentMethodRetrieve,
+        payment_methods::{self, PaymentMethodRetrieve},
         payments::{
             self,
             helpers::{
@@ -879,6 +879,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         .in_current_span(),
     );
 
+    // When connector requires redirection for mandate creation it can update the connector mandate_id in payment_methods during Psync and CompleteAuthorize
+    let m_payment_method_id = payment_data.payment_attempt.payment_method_id.clone();
     let flow_name = core_utils::get_flow_name::<F>()?;
     if flow_name == "PSync" || flow_name == "CompleteAuthorize" {
         let connector_mandate_id = match router_data.response.clone() {
@@ -897,22 +899,35 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             },
             Err(_) => None,
         };
-        if let Some(ref payment_method) = payment_data.payment_method_info {
-            payments::tokenization::update_connector_mandate_details_in_payment_method(
+        if let Some(payment_method_id) = &m_payment_method_id {
+            let payment_method = state
+                .store
+                .find_payment_method(payment_method_id)
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
+            let connector_mandate_details =
+                payments::tokenization::update_connector_mandate_details_in_payment_method(
+                    payment_method.clone(),
+                    payment_method.payment_method_type,
+                    Some(payment_data.payment_attempt.amount),
+                    payment_data.payment_attempt.currency,
+                    payment_data.payment_attempt.merchant_connector_id.clone(),
+                    connector_mandate_id,
+                )
+                .await?;
+            payment_methods::cards::update_payment_method_connector_mandate_details(
+                &*state.store,
                 payment_method.clone(),
-                payment_method.payment_method_type,
-                Some(payment_data.payment_attempt.amount),
-                payment_data.payment_attempt.currency,
-                payment_data.payment_attempt.merchant_connector_id.clone(),
-                connector_mandate_id,
+                connector_mandate_details,
             )
-            .await?;
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to update payment method in db")?
         }
     }
-
     // When connector requires redirection for mandate creation it can update the connector mandate_id during Psync and CompleteAuthorize
     let m_db = state.clone().store;
-    let m_payment_method_id = payment_data.payment_attempt.payment_method_id.clone();
     let m_router_data_merchant_id = router_data.merchant_id.clone();
     let m_payment_data_mandate_id =
         payment_data
