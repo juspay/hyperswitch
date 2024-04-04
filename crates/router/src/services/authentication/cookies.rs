@@ -2,7 +2,7 @@ use cookie::{
     time::{Duration, OffsetDateTime},
     Cookie, SameSite,
 };
-use error_stack::{ResultExt,report};
+use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, Mask, Secret};
 
 use crate::{
