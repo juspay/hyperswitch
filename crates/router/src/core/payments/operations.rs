@@ -224,7 +224,8 @@ pub trait PostUpdateTracker<F, D, R>: Send {
     where
         F: 'b + Send;
 
-    async fn save_pm_and_mandate(
+    async fn save_pm_and_mandate<'b>(
+        &'b self,
         state: &AppState,
         resp: types::RouterData<F, R, PaymentsResponseData>,
         connector: &api::ConnectorData,
@@ -233,9 +234,10 @@ pub trait PostUpdateTracker<F, D, R>: Send {
         merchant_account: &domain::MerchantAccount,
         connector_request: Option<services::Request>,
         key_store: &domain::MerchantKeyStore,
+        payment_data: D,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
-        F: Send;
+        F: 'b + Send;
 }
 
 #[async_trait]
