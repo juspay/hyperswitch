@@ -381,6 +381,9 @@ bank_redirect.giropay = { connector_list = "adyen,globalpay" }
 card.credit = { connector_list = "cybersource" }
 card.debit = { connector_list = "cybersource" }
 
+[network_transaction_id_supported_connectors]
+connector_list = "stripe,adyen,cybersource"
+
 [connector_customer]
 connector_list = "gocardless,stax,stripe"
 payout_connector_list = "wise"

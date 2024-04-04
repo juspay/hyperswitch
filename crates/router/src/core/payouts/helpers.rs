@@ -13,8 +13,8 @@ use crate::{
     core::{
         errors::{self, RouterResult},
         payment_methods::{
-            cards, transformers,
-            transformers::{StoreCardReq, StoreGenericReq, StoreLockerReq},
+            cards,
+            transformers::{self, StoreCardReq, StoreGenericReq, StoreLockerReq},
             vault,
         },
         payments::{
@@ -390,6 +390,7 @@ pub async fn save_payout_data_to_locker(
         None,
         card_details_encrypted,
         key_store,
+        None,
         None,
     )
     .await?;
