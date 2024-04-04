@@ -305,7 +305,7 @@ impl super::RedisConnectionPool {
         self.set_hash_field_if_not_exist(key, field, serialized.as_slice(), ttl)
             .await
     }
-    
+
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn serialize_and_set_multiple_hash_field_if_not_exist<V>(
         &self,
