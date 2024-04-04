@@ -1,8 +1,9 @@
+use std::collections::HashSet;
+
 use api_models::payments::{BankRedirectBilling, BankRedirectData};
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
 use time::PrimitiveDateTime;
 use url::Url;
 use uuid::Uuid;
@@ -161,7 +162,6 @@ pub struct AirwallexCardPaymentOptions {
     auto_capture: bool,
 }
 
-
 // airwallex bank redirect request input data models
 // since the input json consists of multiple nested objects, a combination of enums and
 // structs is required to properly transform the hyperswitch input data
@@ -171,16 +171,16 @@ pub struct BankRedirectPaymentMethod {
     type_field: AirwallexPaymentType,
     #[serde(flatten)]
     // flattening here since here a variant of this enum can be stored
-    data_field: AirwallexBankRedirectType
+    data_field: AirwallexBankRedirectType,
 }
 
 // using untagged enums here so that only the actual values are serialized
 #[derive(Debug, Serialize)]
-pub enum AirwallexBankRedirectType{
+pub enum AirwallexBankRedirectType {
     #[serde(untagged)]
     Eps(EpsDetails),
     #[serde(untagged)]
-    Sofort(SofortDetails)
+    Sofort(SofortDetails),
 }
 
 // need to have multiple objects here since rust does not support nested enums.
@@ -193,7 +193,6 @@ pub struct SofortDetails {
 pub struct EpsDetails {
     eps: EpsData,
 }
-
 
 // here shopper_name is a Secret<String> as data is recd. in the same format in input
 #[derive(Debug, Serialize)]
@@ -271,7 +270,7 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
                                     .get_billing_name()
                                     .unwrap(),
                             },
-                        })
+                        }),
                     },
                 )),
                 // sofort transform
