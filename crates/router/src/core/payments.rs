@@ -2720,7 +2720,6 @@ where
     Ok(connector)
 }
 
-#[allow(clippy::too_many_arguments)]
 pub async fn connector_selection<F>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
@@ -3312,7 +3311,6 @@ where
     Ok(final_list)
 }
 
-#[allow(clippy::too_many_arguments)]
 pub async fn route_connector_v1<F>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
