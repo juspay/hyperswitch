@@ -21,7 +21,7 @@ use api_models::{
 use common_utils::{
     consts,
     ext_traits::{AsyncExt, Encode, StringExt, ValueExt},
-    fp_utils, generate_id,
+    generate_id,
 };
 use diesel_models::{
     business_profile::BusinessProfile, encryption::Encryption, enums as storage_enums,
@@ -88,6 +88,7 @@ pub async fn create_payment_method(
     key_store: &domain::MerchantKeyStore,
     connector_mandate_details: Option<serde_json::Value>,
     status: Option<enums::PaymentMethodStatus>,
+    network_transaction_id: Option<String>,
 ) -> errors::CustomResult<storage::PaymentMethod, errors::ApiErrorResponse> {
     let customer = db
         .find_customer_by_customer_id_merchant_id(customer_id, merchant_id, key_store)
@@ -115,6 +116,7 @@ pub async fn create_payment_method(
             customer_acceptance: customer_acceptance.map(masking::Secret::new),
             client_secret: Some(client_secret),
             status: status.unwrap_or(enums::PaymentMethodStatus::Active),
+            network_transaction_id: network_transaction_id.to_owned(),
             ..storage::PaymentMethodNew::default()
         })
         .await
@@ -214,6 +216,7 @@ pub async fn get_or_insert_payment_method(
                     None,
                     locker_id,
                     None,
+                    None,
                 )
                 .await
             } else {
@@ -226,7 +229,7 @@ pub async fn get_or_insert_payment_method(
 }
 
 #[instrument(skip_all)]
-pub async fn generate_client_secret_or_add_payment_method(
+pub async fn get_client_secret_or_add_payment_method(
     state: routes::AppState,
     req: api::PaymentMethodCreate,
     merchant_account: &domain::MerchantAccount,
@@ -236,9 +239,7 @@ pub async fn generate_client_secret_or_add_payment_method(
     let merchant_id = &merchant_account.merchant_id;
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
 
-    if let Some(cs) = req.client_secret.clone() {
-        add_payment_method_data(state, req, merchant_account, key_store, cs).await
-    } else if req.card.is_some() || req.bank_transfer.is_some() || req.wallet.is_some() {
+    if req.card.is_some() || req.bank_transfer.is_some() || req.wallet.is_some() {
         add_payment_method(state, req, merchant_account, key_store).await
     } else {
         let payment_method_id = generate_id(consts::ID_LENGTH, "pm");
@@ -260,50 +261,22 @@ pub async fn generate_client_secret_or_add_payment_method(
         .await?;
 
         Ok(services::api::ApplicationResponse::Json(
-            api::PaymentMethodResponse {
-                merchant_id: merchant_id.to_string(),
-                customer_id: Some(customer_id),
-                payment_method_id,
-                payment_method: req.payment_method,
-                payment_method_type: req.payment_method_type,
-                card: None,
-                recurring_enabled: false,
-                installment_payment_enabled: false,
-                payment_experience: None,
-                metadata: req.metadata,
-                created: None,
-                bank_transfer: None,
-                last_used_at: None,
-                client_secret: res.client_secret,
-            },
+            api::PaymentMethodResponse::foreign_from(res),
         ))
     }
 }
 
 #[instrument(skip_all)]
-pub async fn authenticate_pm_client_secret(
+pub fn authenticate_pm_client_secret_and_check_expiry(
     req_client_secret: &String,
-    db: &dyn db::StorageInterface,
-) -> errors::CustomResult<diesel_models::PaymentMethod, errors::ApiErrorResponse> {
-    let pm_vec = req_client_secret.split("_secret").collect::<Vec<&str>>();
-    let pm_id = pm_vec
-        .first()
-        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "client_secret",
-        })?;
-
-    let payment_method = db
-        .find_payment_method(pm_id)
-        .await
-        .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
-        .attach_printable("Unable to find payment method")?;
-
+    payment_method: &diesel_models::PaymentMethod,
+) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
     let stored_client_secret = payment_method
         .client_secret
         .clone()
         .get_required_value("client_secret")
         .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
-        .attach_printable("Unable to find payment method")?;
+        .attach_printable("client secret not found in db")?;
 
     if req_client_secret != &stored_client_secret {
         Err((errors::ApiErrorResponse::ClientSecretInvalid).into())
@@ -313,11 +286,9 @@ pub async fn authenticate_pm_client_secret(
             .created_at
             .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY));
 
-        fp_utils::when(current_timestamp > session_expiry, || {
-            Err::<(), errors::ApiErrorResponse>(errors::ApiErrorResponse::ClientSecretExpired)
-        })?;
+        let expired = current_timestamp > session_expiry;
 
-        Ok(payment_method)
+        Ok(expired)
     }
 }
 
@@ -325,25 +296,49 @@ pub async fn authenticate_pm_client_secret(
 pub async fn add_payment_method_data(
     state: routes::AppState,
     req: api::PaymentMethodCreate,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
-    client_secret: String,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    pm_id: String,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
     let db = &*state.store;
-    let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
 
     let pmd = req
         .payment_method_data
         .clone()
         .get_required_value("payment_method_data")?;
+    req.payment_method.get_required_value("payment_method")?;
+    let client_secret = req
+        .client_secret
+        .clone()
+        .get_required_value("client_secret")?;
+    let payment_method = db
+        .find_payment_method(pm_id.as_str())
+        .await
+        .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
+        .attach_printable("Unable to find payment method")?;
 
-    let payment_method = authenticate_pm_client_secret(&client_secret, db).await?;
-    let pm_id = payment_method.id;
+    let customer_id = payment_method.customer_id.clone();
+
+    let client_secret_expired =
+        authenticate_pm_client_secret_and_check_expiry(&client_secret, &payment_method)?;
+
+    if client_secret_expired {
+        let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
+            status: Some(enums::PaymentMethodStatus::Inactive),
+        };
+
+        db.update_payment_method(payment_method, pm_update)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to add payment method in db")?;
+
+        return Err((errors::ApiErrorResponse::ClientSecretExpired).into());
+    };
 
     match pmd {
         api_models::payment_methods::PaymentMethodCreateData::Card(card) => {
             let resp =
-                add_card_to_locker(&state, req.clone(), &card, &customer_id, merchant_account)
+                add_card_to_locker(&state, req.clone(), &card, &customer_id, &merchant_account)
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError);
 
@@ -363,16 +358,16 @@ pub async fn add_payment_method_data(
                             db,
                             req.clone(),
                             &mut pm_resp,
-                            merchant_account,
+                            &merchant_account,
                             &customer_id,
-                            key_store,
+                            &key_store,
                         )
                         .await?;
 
                         return Ok(services::ApplicationResponse::Json(pm_resp));
                     } else {
                         let locker_id = pm_resp.payment_method_id.clone();
-                        pm_resp.payment_method_id = pm_id.to_string();
+                        pm_resp.payment_method_id = pm_id;
                         pm_resp.client_secret = Some(client_secret.clone());
 
                         let updated_card = Some(api::CardDetailFromLocker {
@@ -397,7 +392,7 @@ pub async fn add_payment_method_data(
                             PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone()))
                         });
                         let pm_data_encrypted =
-                            create_encrypted_payment_method_data(key_store, updated_pmd).await;
+                            create_encrypted_payment_method_data(&key_store, updated_pmd).await;
 
                         let pm_update = storage::PaymentMethodUpdate::AdditionalDataUpdate {
                             payment_method_data: pm_data_encrypted,
@@ -428,9 +423,6 @@ pub async fn add_payment_method_data(
                 }
             }
         }
-        _ => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-            message: "card data must be provided".to_string(),
-        })),
     }
 }
 
@@ -610,6 +602,7 @@ pub async fn add_payment_method(
                 None,
                 locker_id,
                 None,
+                None,
             )
             .await?;
         }
@@ -630,6 +623,7 @@ pub async fn insert_payment_method(
     customer_acceptance: Option<serde_json::Value>,
     locker_id: Option<String>,
     connector_mandate_details: Option<serde_json::Value>,
+    network_transaction_id: Option<String>,
 ) -> errors::RouterResult<diesel_models::PaymentMethod> {
     let pm_card_details = resp
         .card
@@ -649,6 +643,7 @@ pub async fn insert_payment_method(
         key_store,
         connector_mandate_details,
         None,
+        network_transaction_id,
     )
     .await
 }
@@ -1067,6 +1062,20 @@ pub async fn update_payment_method(
     Ok(())
 }
 
+pub async fn update_payment_method_connector_mandate_details(
+    db: &dyn db::StorageInterface,
+    pm: payment_method::PaymentMethod,
+    connector_mandate_details: Option<serde_json::Value>,
+) -> errors::CustomResult<(), errors::VaultError> {
+    let pm_update = payment_method::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
+        connector_mandate_details,
+    };
+
+    db.update_payment_method(pm, pm_update)
+        .await
+        .change_context(errors::VaultError::UpdateInPaymentMethodDataTableFailed)?;
+    Ok(())
+}
 #[instrument(skip_all)]
 pub async fn get_card_from_hs_locker<'a>(
     state: &'a routes::AppState,

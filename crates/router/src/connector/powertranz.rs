@@ -115,7 +115,7 @@ impl ConnectorCommon for Powertranz {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        // For error scenerios connector respond with 200 http status code and error response object in response
+        // For error scenarios connector respond with 200 http status code and error response object in response
         // For http status code other than 200 they send empty response back
         event_builder.map(|i: &mut ConnectorEvent| i.set_error_response_body(&serde_json::json!({"error_response": std::str::from_utf8(&res.response).unwrap_or("")})));
 

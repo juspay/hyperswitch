@@ -16,8 +16,8 @@ use crate::{
     core::errors,
     services,
     types::{
-        self, api, storage::enums as storage_enums, transformers::ForeignFrom, ConnectorAuthType,
-        VerifyWebhookSourceResponseData,
+        self, api, domain, storage::enums as storage_enums, transformers::ForeignFrom,
+        ConnectorAuthType, VerifyWebhookSourceResponseData,
     },
 };
 
@@ -425,7 +425,7 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
             PaypalAuthType::try_from(&item.router_data.connector_auth_type)?;
         let payee = get_payee(&paypal_auth);
         match item.router_data.request.payment_method_data {
-            api_models::payments::PaymentMethodData::Card(ref ccard) => {
+            domain::PaymentMethodData::Card(ref ccard) => {
                 let intent = if item.router_data.request.is_auto_capture()? {
                     PaypalPaymentIntent::Capture
                 } else {
@@ -476,8 +476,8 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                     payment_source,
                 })
             }
-            api::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
-                api_models::payments::WalletData::PaypalRedirect(_) => {
+            domain::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
+                domain::WalletData::PaypalRedirect(_) => {
                     let intent = if item.router_data.request.is_auto_capture()? {
                         PaypalPaymentIntent::Capture
                     } else {
@@ -523,37 +523,35 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                         payment_source,
                     })
                 }
-                api_models::payments::WalletData::AliPayQr(_)
-                | api_models::payments::WalletData::AliPayRedirect(_)
-                | api_models::payments::WalletData::AliPayHkRedirect(_)
-                | api_models::payments::WalletData::MomoRedirect(_)
-                | api_models::payments::WalletData::KakaoPayRedirect(_)
-                | api_models::payments::WalletData::GoPayRedirect(_)
-                | api_models::payments::WalletData::GcashRedirect(_)
-                | api_models::payments::WalletData::ApplePay(_)
-                | api_models::payments::WalletData::ApplePayRedirect(_)
-                | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
-                | api_models::payments::WalletData::DanaRedirect {}
-                | api_models::payments::WalletData::GooglePay(_)
-                | api_models::payments::WalletData::GooglePayRedirect(_)
-                | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
-                | api_models::payments::WalletData::MbWayRedirect(_)
-                | api_models::payments::WalletData::MobilePayRedirect(_)
-                | api_models::payments::WalletData::PaypalSdk(_)
-                | api_models::payments::WalletData::SamsungPay(_)
-                | api_models::payments::WalletData::TwintRedirect {}
-                | api_models::payments::WalletData::VippsRedirect {}
-                | api_models::payments::WalletData::TouchNGoRedirect(_)
-                | api_models::payments::WalletData::WeChatPayRedirect(_)
-                | api_models::payments::WalletData::WeChatPayQr(_)
-                | api_models::payments::WalletData::CashappQr(_)
-                | api_models::payments::WalletData::SwishQr(_) => {
-                    Err(errors::ConnectorError::NotImplemented(
-                        utils::get_unimplemented_payment_method_error_message("Paypal"),
-                    ))?
-                }
+                domain::WalletData::AliPayQr(_)
+                | domain::WalletData::AliPayRedirect(_)
+                | domain::WalletData::AliPayHkRedirect(_)
+                | domain::WalletData::MomoRedirect(_)
+                | domain::WalletData::KakaoPayRedirect(_)
+                | domain::WalletData::GoPayRedirect(_)
+                | domain::WalletData::GcashRedirect(_)
+                | domain::WalletData::ApplePay(_)
+                | domain::WalletData::ApplePayRedirect(_)
+                | domain::WalletData::ApplePayThirdPartySdk(_)
+                | domain::WalletData::DanaRedirect {}
+                | domain::WalletData::GooglePay(_)
+                | domain::WalletData::GooglePayRedirect(_)
+                | domain::WalletData::GooglePayThirdPartySdk(_)
+                | domain::WalletData::MbWayRedirect(_)
+                | domain::WalletData::MobilePayRedirect(_)
+                | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::SamsungPay(_)
+                | domain::WalletData::TwintRedirect {}
+                | domain::WalletData::VippsRedirect {}
+                | domain::WalletData::TouchNGoRedirect(_)
+                | domain::WalletData::WeChatPayRedirect(_)
+                | domain::WalletData::WeChatPayQr(_)
+                | domain::WalletData::CashappQr(_)
+                | domain::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Paypal"),
+                ))?,
             },
-            api::PaymentMethodData::BankRedirect(ref bank_redirection_data) => {
+            domain::PaymentMethodData::BankRedirect(ref bank_redirection_data) => {
                 let intent = if item.router_data.request.is_auto_capture()? {
                     PaypalPaymentIntent::Capture
                 } else {
@@ -586,34 +584,30 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                     payment_source,
                 })
             }
-            api_models::payments::PaymentMethodData::CardRedirect(ref card_redirect_data) => {
+            domain::PaymentMethodData::CardRedirect(ref card_redirect_data) => {
                 Self::try_from(card_redirect_data)
             }
-            api_models::payments::PaymentMethodData::PayLater(ref paylater_data) => {
-                Self::try_from(paylater_data)
-            }
-            api_models::payments::PaymentMethodData::BankDebit(ref bank_debit_data) => {
+            domain::PaymentMethodData::PayLater(ref paylater_data) => Self::try_from(paylater_data),
+            domain::PaymentMethodData::BankDebit(ref bank_debit_data) => {
                 Self::try_from(bank_debit_data)
             }
-            api_models::payments::PaymentMethodData::BankTransfer(ref bank_transfer_data) => {
+            domain::PaymentMethodData::BankTransfer(ref bank_transfer_data) => {
                 Self::try_from(bank_transfer_data.as_ref())
             }
-            api_models::payments::PaymentMethodData::Voucher(ref voucher_data) => {
-                Self::try_from(voucher_data)
-            }
-            api_models::payments::PaymentMethodData::GiftCard(ref giftcard_data) => {
+            domain::PaymentMethodData::Voucher(ref voucher_data) => Self::try_from(voucher_data),
+            domain::PaymentMethodData::GiftCard(ref giftcard_data) => {
                 Self::try_from(giftcard_data.as_ref())
             }
-            api_models::payments::PaymentMethodData::MandatePayment => {
+            domain::PaymentMethodData::MandatePayment => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),
                 )
                 .into())
             }
-            api_models::payments::PaymentMethodData::Reward
-            | api_models::payments::PaymentMethodData::Crypto(_)
-            | api_models::payments::PaymentMethodData::Upi(_)
-            | api_models::payments::PaymentMethodData::CardToken(_) => {
+            domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),
                 )
@@ -623,14 +617,14 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
     }
 }
 
-impl TryFrom<&api_models::payments::CardRedirectData> for PaypalPaymentsRequest {
+impl TryFrom<&domain::payments::CardRedirectData> for PaypalPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: &api_models::payments::CardRedirectData) -> Result<Self, Self::Error> {
+    fn try_from(value: &domain::payments::CardRedirectData) -> Result<Self, Self::Error> {
         match value {
-            api_models::payments::CardRedirectData::Knet {}
-            | api_models::payments::CardRedirectData::Benefit {}
-            | api_models::payments::CardRedirectData::MomoAtm {}
-            | api_models::payments::CardRedirectData::CardRedirect {} => {
+            domain::payments::CardRedirectData::Knet {}
+            | domain::payments::CardRedirectData::Benefit {}
+            | domain::payments::CardRedirectData::MomoAtm {}
+            | domain::payments::CardRedirectData::CardRedirect {} => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),
                 )
@@ -950,7 +944,7 @@ pub struct PaypalThreeDsResponse {
 #[serde(untagged)]
 pub enum PaypalPreProcessingResponse {
     PaypalLiabilityResponse(PaypalLiabilityResponse),
-    PaypalNonLiablityResponse(PaypalNonLiablityResponse),
+    PaypalNonLiabilityResponse(PaypalNonLiabilityResponse),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -959,7 +953,7 @@ pub struct PaypalLiabilityResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PaypalNonLiablityResponse {
+pub struct PaypalNonLiabilityResponse {
     payment_source: CardsData,
 }
 
@@ -980,7 +974,7 @@ pub struct PaypalThreeDsParams {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ThreeDsCheck {
-    pub enrollment_status: Option<EnrollementStatus>,
+    pub enrollment_status: Option<EnrollmentStatus>,
     pub authentication_status: Option<AuthenticationStatus>,
 }
 
@@ -993,7 +987,7 @@ pub enum LiabilityShift {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum EnrollementStatus {
+pub enum EnrollmentStatus {
     Null,
     #[serde(rename = "Y")]
     Ready,

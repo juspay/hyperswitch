@@ -18,6 +18,7 @@ use crate::{
         self,
         api::{self, MessageCategory},
         authentication::ChallengeParams,
+        domain,
     },
     utils::OptionExt,
 };
@@ -244,10 +245,10 @@ impl TryFrom<&types::ConnectorAuthType> for ThreedsecureioAuthType {
 }
 
 fn get_card_details(
-    payment_method_data: api_models::payments::PaymentMethodData,
-) -> Result<api_models::payments::Card, errors::ConnectorError> {
+    payment_method_data: domain::PaymentMethodData,
+) -> Result<domain::payments::Card, errors::ConnectorError> {
     match payment_method_data {
-        api_models::payments::PaymentMethodData::Card(details) => Ok(details),
+        domain::PaymentMethodData::Card(details) => Ok(details),
         _ => Err(errors::ConnectorError::NotSupported {
             message: SELECTED_PAYMENT_METHOD.to_string(),
             connector: "threedsecureio",

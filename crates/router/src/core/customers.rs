@@ -42,7 +42,7 @@ pub async fn create_customer(
     // We first need to validate whether the customer with the given customer id already exists
     // this may seem like a redundant db call, as the insert_customer will anyway return this error
     //
-    // Consider a scenerio where the address is inserted and then when inserting the customer,
+    // Consider a scenario where the address is inserted and then when inserting the customer,
     // it errors out, now the address that was inserted is not deleted
     match db
         .find_customer_by_customer_id_merchant_id(customer_id, merchant_id, &key_store)
