@@ -271,6 +271,7 @@ impl Connector {
             | Self::Threedsecureio
             | Self::Cybersource
             | Self::Noon
+            | Self::Netcetera
             | Self::Stripe => false,
             Self::Checkout => true,
         }

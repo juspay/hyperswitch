@@ -133,10 +133,13 @@ pub struct NetceteraAuthType {
 impl TryFrom<&types::ConnectorAuthType> for NetceteraAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        match auth_type {
-            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
-                certificate: api_key.to_owned(),
-                private_key: key1.to_owned(),
+        match auth_type.to_owned() {
+            types::ConnectorAuthType::CertificateAuth {
+                certificate,
+                private_key,
+            } => Ok(Self {
+                certificate,
+                private_key,
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }

@@ -55,6 +55,10 @@ pub enum ConnectorAuthType {
     CurrencyAuthKey {
         auth_key_map: HashMap<String, CurrencyAuthKeyType>,
     },
+    CertificateAuth {
+        certificate: String,
+        private_key: String,
+    },
     #[default]
     NoKey,
 }
