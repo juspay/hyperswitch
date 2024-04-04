@@ -1004,6 +1004,9 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
                 if &pg_agnostic.config == "true" {
                     Some(network_transaction_id)
                 } else {
+                    logger::info!(
+                        "Skip storing network transaction id as pg_agnostic config is not enabled"
+                    );
                     None
                 }
             } else {
