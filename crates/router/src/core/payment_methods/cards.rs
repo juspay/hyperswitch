@@ -258,22 +258,7 @@ pub async fn get_client_secret_or_add_payment_method(
         .await?;
 
         Ok(services::api::ApplicationResponse::Json(
-            api::PaymentMethodResponse {
-                merchant_id: merchant_id.to_string(),
-                customer_id: Some(customer_id),
-                payment_method_id,
-                payment_method: req.payment_method,
-                payment_method_type: req.payment_method_type,
-                card: None,
-                recurring_enabled: false,
-                installment_payment_enabled: false,
-                payment_experience: None,
-                metadata: req.metadata,
-                created: None,
-                bank_transfer: None,
-                last_used_at: None,
-                client_secret: res.client_secret,
-            },
+            api::PaymentMethodResponse::foreign_from(res),
         ))
     }
 }
