@@ -257,6 +257,7 @@ pub async fn get_client_secret_or_add_payment_method(
             key_store,
             None,
             Some(enums::PaymentMethodStatus::AwaitingData),
+            None,
         )
         .await?;
 
@@ -1427,7 +1428,25 @@ pub async fn list_payment_methods(
 
     let payment_intent = if let Some(cs) = &req.client_secret {
         if cs.starts_with("pm_") {
-            authenticate_pm_client_secret(cs, db).await?;
+            let pm_vec = cs.split("_secret").collect::<Vec<&str>>();
+            let pm_id = pm_vec
+                .first()
+                .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "client_secret",
+                })?;
+
+            let payment_method = db
+                .find_payment_method(pm_id)
+                .await
+                .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
+                .attach_printable("Unable to find payment method")?;
+
+            let client_secret_expired =
+                authenticate_pm_client_secret_and_check_expiry(cs, &payment_method)?;
+            if client_secret_expired {
+                return Err((errors::ApiErrorResponse::ClientSecretExpired).into());
+            }
+
             None
         } else {
             helpers::verify_payment_intent_time_and_client_secret(
