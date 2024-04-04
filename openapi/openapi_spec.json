@@ -7004,29 +7004,6 @@
             "description": "Card Holder's Nick Name",
             "example": "John Doe",
             "nullable": true
-          },
-          "card_issuing_country": {
-            "type": "string",
-            "description": "Card Issuing Country",
-            "nullable": true
-          },
-          "card_network": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CardNetwork"
-              }
-            ],
-            "nullable": true
-          },
-          "card_issuer": {
-            "type": "string",
-            "description": "Issuer Bank for Card",
-            "nullable": true
-          },
-          "card_type": {
-            "type": "string",
-            "description": "Card Type",
-            "nullable": true
           }
         },
         "additionalProperties": false

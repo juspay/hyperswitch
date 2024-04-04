@@ -487,7 +487,7 @@ pub async fn update_customer_payment_method(
         let is_card_updation_required =
             validate_payment_method_update(card_update.clone(), existing_card_data.clone());
 
-        if is_card_updation_required {
+        let response = if is_card_updation_required {
             // Fetch the existing card data from locker for getting card number
             let card_data_from_locker = get_card_from_locker(
                 &state,
@@ -584,30 +584,28 @@ pub async fn update_customer_payment_method(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to update payment method in db")?;
 
-            Ok(services::ApplicationResponse::Json(add_card_resp))
+            add_card_resp
         } else {
             // Return existing payment method data as response without any changes
-            Ok(services::ApplicationResponse::Json(
-                api::PaymentMethodResponse {
-                    merchant_id: pm.merchant_id.to_owned(),
-                    customer_id: Some(pm.customer_id),
-                    payment_method_id: pm.payment_method_id,
-                    payment_method: pm.payment_method,
-                    payment_method_type: pm.payment_method_type,
-                    #[cfg(feature = "payouts")]
-                    bank_transfer: None,
-                    card: Some(existing_card_data),
-                    metadata: pm.metadata,
-                    created: Some(pm.created_at),
-                    recurring_enabled: false,
-                    installment_payment_enabled: false,
-                    payment_experience: Some(vec![
-                        api_models::enums::PaymentExperience::RedirectToUrl,
-                    ]),
-                    last_used_at: Some(common_utils::date_time::now()),
-                },
-            ))
-        }
+            api::PaymentMethodResponse {
+                merchant_id: pm.merchant_id.to_owned(),
+                customer_id: Some(pm.customer_id),
+                payment_method_id: pm.payment_method_id,
+                payment_method: pm.payment_method,
+                payment_method_type: pm.payment_method_type,
+                #[cfg(feature = "payouts")]
+                bank_transfer: None,
+                card: Some(existing_card_data),
+                metadata: pm.metadata,
+                created: Some(pm.created_at),
+                recurring_enabled: false,
+                installment_payment_enabled: false,
+                payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
+                last_used_at: Some(common_utils::date_time::now()),
+            }
+        };
+
+        Ok(services::ApplicationResponse::Json(response))
     } else {
         Err(report!(errors::ApiErrorResponse::NotSupported {
             message: "Payment method update for the given payment method is not supported".into()
@@ -622,8 +620,9 @@ pub fn validate_payment_method_update(
     // Return true If any one of the below condition returns true,
     // If a field is not passed in the update request, return false.
     // If the field is present, it depends on the existing field data:
-    // - If existing field data is not present, or if it is present and matches
+    // - If existing field data is not present, or if it is present and doesn't match
     //   the update request data, then return true.
+    // - Or else return false
     card_updation_obj
         .card_exp_month
         .map(|exp_month| exp_month.expose())
