@@ -972,18 +972,46 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
             .find_payment_method(id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
-        let network_transaction_id = payment_response
-            .map(|resp| match resp {
-                crate::types::PaymentsResponseData::TransactionResponse { network_txn_id, .. } => {
-                    network_txn_id.to_owned()
+
+        let pm_resp_network_transaction_id = payment_response
+            .map(|resp| if let types::PaymentsResponseData::TransactionResponse { network_txn_id: network_transaction_id, .. } = resp {
+                network_transaction_id
+    } else {None})
+    .map_err(|err| {
+        logger::error!(error=?err, "Failed to obtain the network_transaction_id from payment response");
+    })
+    .ok()
+    .flatten();
+
+        let network_transaction_id =
+            if let Some(network_transaction_id) = pm_resp_network_transaction_id {
+                let profile_id = payment_data
+                    .payment_intent
+                    .profile_id
+                    .as_ref()
+                    .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?;
+
+                let pg_agnostic = state
+                    .store
+                    .find_config_by_key_unwrap_or(
+                        &format!("pg_agnostic_mandate_{}", profile_id),
+                        Some("false".to_string()),
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("The pg_agnostic config was not found in the DB")?;
+
+                if &pg_agnostic.config == "true" {
+                    Some(network_transaction_id)
+                } else {
+                    logger::info!(
+                        "Skip storing network transaction id as pg_agnostic config is not enabled"
+                    );
+                    None
                 }
-                _ => None,
-            })
-            .map_err(|err| {
-                logger::error!(error=?err, "Failed to obtain the network_transaction_id from payment response");
-            })
-            .ok()
-            .flatten();
+            } else {
+                None
+            };
 
         let pm_update = if pm.status != common_enums::PaymentMethodStatus::Active
             && pm.status != attempt_status.into()
