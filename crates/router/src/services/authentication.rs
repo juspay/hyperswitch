@@ -5,6 +5,7 @@ use common_utils::date_time;
 use error_stack::{report, ResultExt};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use masking::PeekInterface;
+use router_env::logger;
 use serde::Serialize;
 
 use self::blacklist::BlackList;
@@ -32,7 +33,6 @@ use crate::{
     types::domain,
     utils::OptionExt,
 };
-use router_env::logger;
 pub mod blacklist;
 #[cfg(feature = "olap")]
 pub mod cookies;
