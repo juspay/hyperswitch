@@ -96,19 +96,33 @@ where
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Unable to serialize customer acceptance to value")?;
 
-            let connector_mandate_details = if resp.request.get_setup_mandate_details().is_none()
+            let connector_mandate_id = match responses {
+                types::PaymentsResponseData::TransactionResponse {
+                    ref mandate_reference,
+                    ..
+                } => {
+                    if let Some(mandate_ref) = mandate_reference {
+                        mandate_ref.connector_mandate_id.clone()
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            };
+            let check_for_mit_mandates = resp.request.get_setup_mandate_details().is_none()
                 && resp
                     .request
                     .get_setup_future_usage()
                     .map(|future_usage| future_usage == storage_enums::FutureUsage::OffSession)
-                    .unwrap_or(false)
-            {
+                    .unwrap_or(false);
+            // insert in PaymentMethods if its a off-session mit payment
+            let connector_mandate_details = if check_for_mit_mandates {
                 add_connector_mandate_details_in_payment_method(
-                    responses,
                     payment_method_type,
                     amount,
                     currency,
-                    connector,
+                    connector.merchant_connector_id.clone(),
+                    connector_mandate_id.clone(),
                 )
             } else {
                 None
@@ -203,7 +217,9 @@ where
                                     )?;
                                     if let Some(metadata) = pm_metadata {
                                         payment_methods::cards::update_payment_method(
-                                            db, pm, metadata,
+                                            db,
+                                            pm.clone(),
+                                            metadata,
                                         )
                                         .await
                                         .change_context(
@@ -211,6 +227,24 @@ where
                                         )
                                         .attach_printable("Failed to add payment method in db")?;
                                     };
+                                    // update if its a off-session mit payment
+                                    if check_for_mit_mandates {
+                                        let connector_mandate_details =
+                                            update_connector_mandate_details_in_payment_method(
+                                                pm.clone(),
+                                                payment_method_type,
+                                                amount,
+                                                currency,
+                                                connector.merchant_connector_id.clone(),
+                                                connector_mandate_id.clone(),
+                                            )
+                                            .await?;
+
+                                        payment_methods::cards::update_payment_method_connector_mandate_details(db, pm, connector_mandate_details).await.change_context(
+                                        errors::ApiErrorResponse::InternalServerError,
+                                    )
+                                    .attach_printable("Failed to update payment method in db")?;
+                                    }
                                 }
                                 Err(err) => {
                                     if err.current_context().is_db_not_found() {
@@ -276,32 +310,55 @@ where
 
                                 resp.payment_method_id = payment_method_id;
 
-                                let existing_pm =
-                                    match payment_method {
-                                        Ok(pm) => Ok(pm),
-                                        Err(err) => {
-                                            if err.current_context().is_db_not_found() {
-                                                payment_methods::cards::insert_payment_method(
-                                                    db,
-                                                    &resp,
-                                                    payment_method_create_request.clone(),
-                                                    key_store,
-                                                    &merchant_account.merchant_id,
-                                                    &customer.customer_id,
-                                                    resp.metadata.clone().map(|val| val.expose()),
-                                                    customer_acceptance,
-                                                    locker_id,
-                                                    connector_mandate_details,
-                                                    network_transaction_id,
+                                let existing_pm = match payment_method {
+                                    Ok(pm) => {
+                                        // update if its a off-session mit payment
+                                        if check_for_mit_mandates {
+                                            let connector_mandate_details =
+                                                update_connector_mandate_details_in_payment_method(
+                                                    pm.clone(),
+                                                    payment_method_type,
+                                                    amount,
+                                                    currency,
+                                                    connector.merchant_connector_id.clone(),
+                                                    connector_mandate_id.clone(),
                                                 )
-                                                .await
-                                            } else {
-                                                Err(err)
-                                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                                    .attach_printable("Error while finding payment method")
-                                            }
+                                                .await?;
+
+                                            payment_methods::cards::update_payment_method_connector_mandate_details(db, pm.clone(), connector_mandate_details).await.change_context(
+                                            errors::ApiErrorResponse::InternalServerError,
+                                        )
+                                        .attach_printable("Failed to update payment method in db")?;
                                         }
-                                    }?;
+                                        Ok(pm)
+                                    }
+                                    Err(err) => {
+                                        if err.current_context().is_db_not_found() {
+                                            payment_methods::cards::insert_payment_method(
+                                                db,
+                                                &resp,
+                                                payment_method_create_request.clone(),
+                                                key_store,
+                                                &merchant_account.merchant_id,
+                                                &customer.customer_id,
+                                                resp.metadata.clone().map(|val| val.expose()),
+                                                customer_acceptance,
+                                                locker_id,
+                                                connector_mandate_details,
+                                                network_transaction_id,
+                                            )
+                                            .await
+                                        } else {
+                                            Err(err)
+                                                .change_context(
+                                                    errors::ApiErrorResponse::InternalServerError,
+                                                )
+                                                .attach_printable(
+                                                    "Error while finding payment method",
+                                                )
+                                        }
+                                    }
+                                }?;
 
                                 payment_methods::cards::delete_card_from_locker(
                                     state,
@@ -667,32 +724,17 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
     }
 }
 
-fn add_connector_mandate_details_in_payment_method(
-    resp: types::PaymentsResponseData,
+pub fn add_connector_mandate_details_in_payment_method(
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     authorized_amount: Option<i64>,
     authorized_currency: Option<storage_enums::Currency>,
-    connector: &api::ConnectorData,
+    merchant_connector_id: Option<String>,
+    connector_mandate_id: Option<String>,
 ) -> Option<storage::PaymentsMandateReference> {
     let mut mandate_details = HashMap::new();
 
-    let connector_mandate_id = match resp {
-        types::PaymentsResponseData::TransactionResponse {
-            mandate_reference, ..
-        } => {
-            if let Some(mandate_ref) = mandate_reference {
-                mandate_ref.connector_mandate_id.clone()
-            } else {
-                None
-            }
-        }
-        _ => None,
-    };
-
-    if let Some((mca_id, connector_mandate_id)) = connector
-        .merchant_connector_id
-        .clone()
-        .zip(connector_mandate_id)
+    if let Some((mca_id, connector_mandate_id)) =
+        merchant_connector_id.clone().zip(connector_mandate_id)
     {
         mandate_details.insert(
             mca_id,
@@ -707,4 +749,64 @@ fn add_connector_mandate_details_in_payment_method(
     } else {
         None
     }
+}
+
+pub async fn update_connector_mandate_details_in_payment_method(
+    payment_method: diesel_models::PaymentMethod,
+    payment_method_type: Option<storage_enums::PaymentMethodType>,
+    authorized_amount: Option<i64>,
+    authorized_currency: Option<storage_enums::Currency>,
+    merchant_connector_id: Option<String>,
+    connector_mandate_id: Option<String>,
+) -> RouterResult<Option<serde_json::Value>> {
+    let mandate_reference = match payment_method.connector_mandate_details {
+        Some(_) => {
+            let mandate_details = payment_method
+                .connector_mandate_details
+                .map(|val| {
+                    val.parse_value::<storage::PaymentsMandateReference>("PaymentsMandateReference")
+                })
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to deserialize to Payment Mandate Reference ")?;
+
+            if let Some((mca_id, connector_mandate_id)) =
+                merchant_connector_id.clone().zip(connector_mandate_id)
+            {
+                let updated_record = storage::PaymentsMandateReferenceRecord {
+                    connector_mandate_id: connector_mandate_id.clone(),
+                    payment_method_type,
+                    original_payment_authorized_amount: authorized_amount,
+                    original_payment_authorized_currency: authorized_currency,
+                };
+                mandate_details.map(|mut payment_mandate_reference| {
+                    payment_mandate_reference
+                        .entry(mca_id)
+                        .and_modify(|pm| *pm = updated_record)
+                        .or_insert(storage::PaymentsMandateReferenceRecord {
+                            connector_mandate_id,
+                            payment_method_type,
+                            original_payment_authorized_amount: authorized_amount,
+                            original_payment_authorized_currency: authorized_currency,
+                        });
+                    payment_mandate_reference
+                })
+            } else {
+                None
+            }
+        }
+        None => add_connector_mandate_details_in_payment_method(
+            payment_method_type,
+            authorized_amount,
+            authorized_currency,
+            merchant_connector_id,
+            connector_mandate_id,
+        ),
+    };
+    let connector_mandate_details = mandate_reference
+        .map(|mand| mand.encode_to_value())
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to serialize customer acceptance to value")?;
+    Ok(connector_mandate_details)
 }

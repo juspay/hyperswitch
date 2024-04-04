@@ -6,7 +6,7 @@ use crate::{
     connector::utils::{self, CardData, PaymentsAuthorizeRequestData, RouterData},
     consts,
     core::errors,
-    types::{self, api, storage::enums},
+    types::{self, api, domain, storage::enums},
 };
 
 pub struct BillwerkRouterData<T> {
@@ -85,7 +85,7 @@ impl TryFrom<&types::TokenizationRouterData> for BillwerkTokenRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::TokenizationRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(ccard) => {
+            domain::PaymentMethodData::Card(ccard) => {
                 let connector_auth = &item.connector_auth_type;
                 let auth_type = BillwerkAuthType::try_from(connector_auth)?;
                 Ok(Self {
@@ -99,19 +99,19 @@ impl TryFrom<&types::TokenizationRouterData> for BillwerkTokenRequest {
                     strong_authentication_rule: None,
                 })
             }
-            api_models::payments::PaymentMethodData::Wallet(_)
-            | api_models::payments::PaymentMethodData::CardRedirect(_)
-            | api_models::payments::PaymentMethodData::PayLater(_)
-            | api_models::payments::PaymentMethodData::BankRedirect(_)
-            | api_models::payments::PaymentMethodData::BankDebit(_)
-            | api_models::payments::PaymentMethodData::BankTransfer(_)
-            | api_models::payments::PaymentMethodData::Crypto(_)
-            | api_models::payments::PaymentMethodData::MandatePayment
-            | api_models::payments::PaymentMethodData::Reward
-            | api_models::payments::PaymentMethodData::Upi(_)
-            | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_)
-            | api_models::payments::PaymentMethodData::CardToken(_) => {
+            domain::payments::PaymentMethodData::Wallet(_)
+            | domain::payments::PaymentMethodData::CardRedirect(_)
+            | domain::payments::PaymentMethodData::PayLater(_)
+            | domain::payments::PaymentMethodData::BankRedirect(_)
+            | domain::payments::PaymentMethodData::BankDebit(_)
+            | domain::payments::PaymentMethodData::BankTransfer(_)
+            | domain::payments::PaymentMethodData::Crypto(_)
+            | domain::payments::PaymentMethodData::MandatePayment
+            | domain::payments::PaymentMethodData::Reward
+            | domain::payments::PaymentMethodData::Upi(_)
+            | domain::payments::PaymentMethodData::Voucher(_)
+            | domain::payments::PaymentMethodData::GiftCard(_)
+            | domain::payments::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("billwerk"),
                 )

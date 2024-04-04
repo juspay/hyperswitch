@@ -157,22 +157,6 @@ where
 
     call_decision_manager(state, &merchant_account, &mut payment_data).await?;
 
-    let profile_id = payment_data
-        .payment_intent
-        .profile_id
-        .as_ref()
-        .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?;
-
-    let pg_agnostic = state
-        .store
-        .find_config_by_key_unwrap_or(
-            &format!("pg_agnostic_mandate_{}", profile_id),
-            Some("false".to_string()),
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("The pg_agnostic config was not found in the DB")?;
-
     let connector = get_connector_choice(
         &operation,
         state,
@@ -182,7 +166,6 @@ where
         &key_store,
         &mut payment_data,
         eligible_connectors,
-        Some(&pg_agnostic.config),
     )
     .await?;
 
@@ -301,14 +284,6 @@ where
                     external_latency = router_data.external_latency;
                     //add connector http status code metrics
                     add_connector_http_status_code_metrics(connector_http_status_code);
-
-                    helpers::update_payment_method_with_ntid(
-                        state,
-                        &pg_agnostic.config,
-                        payment_data.payment_method_info.clone(),
-                        router_data.response.clone(),
-                    )
-                    .await?;
                     operation
                         .to_post_update_tracker()?
                         .update_tracker(
@@ -500,14 +475,12 @@ where
 
     let cloned_payment_data = payment_data.clone();
     let cloned_customer = customer.clone();
-    let cloned_request = req.clone();
 
     crate::utils::trigger_payments_webhook(
         merchant_account,
         business_profile,
         &key_store,
         cloned_payment_data,
-        Some(cloned_request),
         cloned_customer,
         state,
         operation,
@@ -712,7 +685,7 @@ where
     FData: Send + Sync,
     Op: Operation<F, Req, Ctx> + Send + Sync + Clone,
     Req: Debug + Authenticate + Clone,
-    Res: transformers::ToResponse<Req, PaymentData<F>, Op>,
+    Res: transformers::ToResponse<PaymentData<F>, Op>,
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
     router_types::RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
@@ -731,7 +704,7 @@ where
             .flat_map(|c| c.foreign_try_into())
             .collect()
     });
-    let (payment_data, req, customer, connector_http_status_code, external_latency) =
+    let (payment_data, _req, customer, connector_http_status_code, external_latency) =
         payments_operation_core::<_, _, _, _, Ctx>(
             &state,
             merchant_account,
@@ -746,7 +719,6 @@ where
         .await?;
 
     Res::generate_response(
-        Some(req),
         payment_data,
         customer,
         auth_flow,
@@ -1262,15 +1234,21 @@ where
             | TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt
     ) {
         let apple_pay_data = match payment_data.payment_method_data.clone() {
-            Some(api_models::payments::PaymentMethodData::Wallet(
-                api_models::payments::WalletData::ApplePay(wallet_data),
-            )) => Some(
-                ApplePayData::token_json(api_models::payments::WalletData::ApplePay(wallet_data))
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?
-                    .decrypt(state)
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
-            ),
+            Some(payment_data) => {
+                let domain_data = domain::PaymentMethodData::from(payment_data);
+                match domain_data {
+                    domain::PaymentMethodData::Wallet(domain::WalletData::ApplePay(
+                        wallet_data,
+                    )) => Some(
+                        ApplePayData::token_json(domain::WalletData::ApplePay(wallet_data))
+                            .change_context(errors::ApiErrorResponse::InternalServerError)?
+                            .decrypt(state)
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                    ),
+                    _ => None,
+                }
+            }
             _ => None,
         };
 
@@ -2158,7 +2136,9 @@ where
                 )
                 .await?;
             payment_data.payment_method_data = payment_method_data;
-            payment_data.payment_attempt.payment_method_id = pm_id;
+            if let Some(payment_method_id) = pm_id {
+                payment_data.payment_attempt.payment_method_id = Some(payment_method_id);
+            }
             payment_data
         } else {
             payment_data
@@ -2195,21 +2175,22 @@ pub mod payment_address {
             billing: Option<api::Address>,
             payment_method_billing: Option<api::Address>,
         ) -> Self {
+            // billing -> .billing, this is the billing details passed in the root of payments request
+            // payment_method_billing -> .payment_method_data.billing
+
             // Merge the billing details field from both `payment.billing` and `payment.payment_method_data.billing`
             // The unified payment_method_billing will be used as billing address and passed to the connector module
             // This unification is required in order to provide backwards compatibility
             // so that if `payment.billing` is passed it should be sent to the connector module
-            let unified_payment_method_billing =
-                match (payment_method_billing.clone(), billing.clone()) {
-                    (Some(payment_method_billing), Some(order_billing)) => Some(api::Address {
-                        address: payment_method_billing.address.or(order_billing.address),
-                        phone: payment_method_billing.phone.or(order_billing.phone),
-                        email: payment_method_billing.email.or(order_billing.email),
-                    }),
-                    (Some(payment_method_billing), None) => Some(payment_method_billing),
-                    (None, Some(order_billing)) => Some(order_billing),
-                    (None, None) => None,
-                };
+            // Unify the billing details with `payment_method_data.billing`
+            let unified_payment_method_billing = payment_method_billing
+                .as_ref()
+                .map(|payment_method_billing| {
+                    payment_method_billing
+                        .clone()
+                        .unify_address(billing.as_ref())
+                })
+                .or(billing.clone());
 
             Self {
                 shipping,
@@ -2225,6 +2206,25 @@ pub mod payment_address {
 
         pub fn get_payment_method_billing(&self) -> Option<&api::Address> {
             self.unified_payment_method_billing.as_ref()
+        }
+
+        pub fn unify_with_payment_method_data_billing(
+            self,
+            payment_method_data_billing: Option<api::Address>,
+        ) -> Self {
+            // Unify the billing details with `payment_method_data.billing_details`
+            let unified_payment_method_billing = payment_method_data_billing
+                .map(|payment_method_data_billing| {
+                    payment_method_data_billing.unify_address(self.get_payment_method_billing())
+                })
+                .or(self.get_payment_method_billing().cloned());
+
+            Self {
+                shipping: self.shipping,
+                billing: self.billing,
+                unified_payment_method_billing,
+                payment_method_billing: self.payment_method_billing,
+            }
         }
 
         pub fn get_request_payment_method_billing(&self) -> Option<&api::Address> {
@@ -2652,7 +2652,6 @@ pub async fn get_connector_choice<F, Req, Ctx>(
     key_store: &domain::MerchantKeyStore,
     payment_data: &mut PaymentData<F>,
     eligible_connectors: Option<Vec<api_models::enums::RoutableConnectors>>,
-    pg_agnostic_config: Option<&String>,
 ) -> RouterResult<Option<ConnectorCallType>>
 where
     F: Send + Clone,
@@ -2692,7 +2691,6 @@ where
                     payment_data,
                     Some(straight_through),
                     eligible_connectors,
-                    pg_agnostic_config,
                 )
                 .await?
             }
@@ -2706,7 +2704,6 @@ where
                     payment_data,
                     None,
                     eligible_connectors,
-                    pg_agnostic_config,
                 )
                 .await?
             }
@@ -2732,7 +2729,6 @@ pub async fn connector_selection<F>(
     payment_data: &mut PaymentData<F>,
     request_straight_through: Option<serde_json::Value>,
     eligible_connectors: Option<Vec<api_models::enums::RoutableConnectors>>,
-    pg_agnostic_config: Option<&String>,
 ) -> RouterResult<ConnectorCallType>
 where
     F: Send + Clone,
@@ -2774,7 +2770,6 @@ where
         request_straight_through,
         &mut routing_data,
         eligible_connectors,
-        pg_agnostic_config,
     )
     .await?;
 
@@ -2808,7 +2803,6 @@ pub async fn decide_connector<F>(
     request_straight_through: Option<api::routing::StraightThroughAlgorithm>,
     routing_data: &mut storage::RoutingData,
     eligible_connectors: Option<Vec<api_models::enums::RoutableConnectors>>,
-    pg_agnostic_config: Option<&String>,
 ) -> RouterResult<ConnectorCallType>
 where
     F: Send + Clone,
@@ -2940,8 +2934,8 @@ where
             payment_data,
             routing_data,
             connector_data,
-            pg_agnostic_config,
-        );
+        )
+        .await;
     }
 
     if let Some(ref routing_algorithm) = routing_data.routing_info.algorithm {
@@ -2996,8 +2990,8 @@ where
             payment_data,
             routing_data,
             connector_data,
-            pg_agnostic_config,
-        );
+        )
+        .await;
     }
 
     route_connector_v1(
@@ -3008,17 +3002,15 @@ where
         TransactionData::Payment(payment_data),
         routing_data,
         eligible_connectors,
-        pg_agnostic_config,
     )
     .await
 }
 
-pub fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone>(
+pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone>(
     state: &AppState,
     payment_data: &mut PaymentData<F>,
     routing_data: &mut storage::RoutingData,
     connectors: Vec<api::ConnectorData>,
-    pg_agnostic_config: Option<&String>,
 ) -> RouterResult<ConnectorCallType> {
     match (
         payment_data.payment_intent.setup_future_usage,
@@ -3048,6 +3040,22 @@ pub fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone>(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("unable to deserialize connector mandate details")?;
 
+            let profile_id = payment_data
+                .payment_intent
+                .profile_id
+                .as_ref()
+                .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?;
+
+            let pg_agnostic = state
+                .store
+                .find_config_by_key_unwrap_or(
+                    &format!("pg_agnostic_mandate_{}", profile_id),
+                    Some("false".to_string()),
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("The pg_agnostic config was not found in the DB")?;
+
             let mut connector_choice = None;
 
             for connector_data in connectors {
@@ -3056,13 +3064,9 @@ pub fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone>(
                     .as_ref()
                     .ok_or(errors::ApiErrorResponse::InternalServerError)?;
 
-                let pg_agnostic = pg_agnostic_config
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("The pg_agnostic config was not found in the DB")?;
-
                 if is_network_transaction_id_flow(
                     state,
-                    pg_agnostic,
+                    &pg_agnostic.config,
                     connector_data.connector_name,
                     payment_method_info,
                 ) {
@@ -3317,7 +3321,6 @@ pub async fn route_connector_v1<F>(
     transaction_data: TransactionData<'_, F>,
     routing_data: &mut storage::RoutingData,
     eligible_connectors: Option<Vec<api_models::enums::RoutableConnectors>>,
-    pg_agnostic_config: Option<&String>,
 ) -> RouterResult<ConnectorCallType>
 where
     F: Send + Clone,
@@ -3408,8 +3411,8 @@ where
                 payment_data,
                 routing_data,
                 connector_data,
-                pg_agnostic_config,
             )
+            .await
         }
 
         #[cfg(feature = "payouts")]
