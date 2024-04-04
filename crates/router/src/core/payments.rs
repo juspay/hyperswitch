@@ -2142,7 +2142,9 @@ where
                 )
                 .await?;
             payment_data.payment_method_data = payment_method_data;
-            payment_data.payment_attempt.payment_method_id = pm_id;
+            if let Some(payment_method_id) = pm_id {
+                payment_data.payment_attempt.payment_method_id = Some(payment_method_id);
+            }
             payment_data
         } else {
             payment_data
