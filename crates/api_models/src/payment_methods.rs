@@ -76,7 +76,7 @@ pub struct PaymentMethodUpdate {
     "card_exp_month": "10",
     "card_exp_year": "25",
     "card_holder_name": "John Doe"}))]
-    pub card: Option<CardDetail>,
+    pub card: Option<CardDetailUpdate>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<CardNetwork>,example = "Visa")]
@@ -132,6 +132,26 @@ pub struct CardDetail {
 
     /// Card Type
     pub card_type: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CardDetailUpdate {
+    /// Card Expiry Month
+    #[schema(value_type = String,example = "10")]
+    pub card_exp_month: Option<masking::Secret<String>>,
+
+    /// Card Expiry Year
+    #[schema(value_type = String,example = "25")]
+    pub card_exp_year: Option<masking::Secret<String>>,
+
+    /// Card Holder Name
+    #[schema(value_type = String,example = "John Doe")]
+    pub card_holder_name: Option<masking::Secret<String>>,
+
+    /// Card Holder's Nick Name
+    #[schema(value_type = Option<String>,example = "John Doe")]
+    pub nick_name: Option<masking::Secret<String>>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]

@@ -6976,6 +6976,61 @@
           }
         }
       },
+      "CardDetailUpdate": {
+        "type": "object",
+        "required": [
+          "card_exp_month",
+          "card_exp_year",
+          "card_holder_name"
+        ],
+        "properties": {
+          "card_exp_month": {
+            "type": "string",
+            "description": "Card Expiry Month",
+            "example": "10"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "Card Expiry Year",
+            "example": "25"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "Card Holder Name",
+            "example": "John Doe"
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "Card Holder's Nick Name",
+            "example": "John Doe",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "description": "Card Issuing Country",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "Issuer Bank for Card",
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "description": "Card Type",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "CardNetwork": {
         "type": "string",
         "description": "Indicates the card network.",
@@ -12879,7 +12934,7 @@
           "card": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/CardDetail"
+                "$ref": "#/components/schemas/CardDetailUpdate"
               }
             ],
             "nullable": true

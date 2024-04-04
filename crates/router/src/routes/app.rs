@@ -764,8 +764,11 @@ impl PaymentMethods {
                 .service(
                     web::resource("/{payment_method_id}")
                         .route(web::get().to(payment_method_retrieve_api))
-                        .route(web::post().to(payment_method_update_api))
                         .route(web::delete().to(payment_method_delete_api)),
+                )
+                .service(
+                    web::resource("/{payment_method_id}/update")
+                        .route(web::post().to(payment_method_update_api)),
                 )
                 .service(
                     web::resource("/auth/link").route(web::post().to(pm_auth::link_token_create)),
