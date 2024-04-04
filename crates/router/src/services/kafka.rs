@@ -377,10 +377,11 @@ impl MessagingInterface for KafkaProducer {
         timestamp: PrimitiveDateTime,
     ) -> error_stack::Result<(), EventsError>
     where
-        T: Message<Class = Self::MessageClass> + Serialize,
+        T: Message<Class = Self::MessageClass> + masking::ErasedMaskSerialize,
     {
         let topic = self.get_topic(data.get_message_class());
-        let json_data = masking::masked_serialize(&data)
+        let json_data = data
+            .masked_serialize()
             .and_then(|i| serde_json::to_vec(&i))
             .change_context(EventsError::SerializationError)?;
         self.producer

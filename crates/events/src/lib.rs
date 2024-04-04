@@ -237,7 +237,7 @@ pub trait MessagingInterface {
     /// Send a message that follows the defined message class.
     fn send_message<T>(&self, data: T, timestamp: PrimitiveDateTime) -> Result<(), EventsError>
     where
-        T: Message<Class = Self::MessageClass> + Serialize;
+        T: Message<Class = Self::MessageClass> + ErasedMaskSerialize;
 }
 
 /// A message that can be sent.

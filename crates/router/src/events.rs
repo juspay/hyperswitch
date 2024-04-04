@@ -1,6 +1,7 @@
 use data_models::errors::{StorageError, StorageResult};
 use error_stack::ResultExt;
 use events::{EventsError, Message, MessagingInterface};
+use masking::ErasedMaskSerialize;
 use router_env::logger;
 use serde::{Deserialize, Serialize};
 use storage_impl::errors::ApplicationError;
@@ -92,7 +93,7 @@ impl MessagingInterface for EventsHandler {
         timestamp: PrimitiveDateTime,
     ) -> error_stack::Result<(), EventsError>
     where
-        T: Message<Class = Self::MessageClass> + Serialize,
+        T: Message<Class = Self::MessageClass> + ErasedMaskSerialize,
     {
         match self {
             Self::Kafka(a) => a.send_message(data, timestamp),
