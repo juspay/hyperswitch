@@ -2,7 +2,7 @@ use cookie::{
     time::{Duration, OffsetDateTime},
     Cookie, SameSite,
 };
-use error_stack::ResultExt;
+use error_stack::{ResultExt,report};
 use masking::{ExposeInterface, Mask, Secret};
 
 use crate::{
@@ -45,7 +45,7 @@ pub fn parse_cookie(cookies: &str) -> RouterResult<String> {
                 .filter(|parsed_cookie| parsed_cookie.name() == JWT_TOKEN_COOKIE_NAME)
                 .map(|parsed_cookie| parsed_cookie.value().to_owned())
         })
-        .ok_or(ApiErrorResponse::InvalidCookie.into())
+        .ok_or(report!(ApiErrorResponse::InvalidCookie))
         .attach_printable("Cookie Parsing Failed")
 }
 
