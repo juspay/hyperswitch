@@ -318,6 +318,10 @@ pub async fn add_payment_method_data(
         .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
         .attach_printable("Unable to find payment method")?;
 
+    if payment_method.status != enums::PaymentMethodStatus::AwaitingData {
+        return Err((errors::ApiErrorResponse::DuplicatePaymentMethod).into());
+    }
+
     let customer_id = payment_method.customer_id.clone();
 
     let client_secret_expired =
@@ -371,27 +375,31 @@ pub async fn add_payment_method_data(
                         pm_resp.payment_method_id = pm_id;
                         pm_resp.client_secret = Some(client_secret.clone());
 
-                        let updated_card = Some(api::CardDetailFromLocker {
-                            scheme: None,
+                        let card_isin = card.card_number.clone().get_card_isin();
+
+                        let card_info = db
+                            .get_card_info(card_isin.as_str())
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to get card info")?;
+
+                        let updated_card = CardDetailsPaymentMethod {
+                            issuer_country: card_info
+                                .as_ref()
+                                .and_then(|ci| ci.card_issuing_country.clone()),
                             last4_digits: Some(card.card_number.clone().get_last4()),
-                            issuer_country: None,
-                            card_number: Some(card.card_number),
                             expiry_month: Some(card.card_exp_month),
                             expiry_year: Some(card.card_exp_year),
-                            card_token: None,
-                            card_fingerprint: None,
-                            card_holder_name: card.card_holder_name,
                             nick_name: card.nick_name,
-                            card_network: None,
-                            card_isin: None,
-                            card_issuer: None,
-                            card_type: None,
+                            card_holder_name: card.card_holder_name,
+                            card_network: card_info.as_ref().and_then(|ci| ci.card_network.clone()),
+                            card_isin: Some(card_isin),
+                            card_issuer: card_info.as_ref().and_then(|ci| ci.card_issuer.clone()),
+                            card_type: card_info.as_ref().and_then(|ci| ci.card_type.clone()),
                             saved_to_locker: true,
-                        });
+                        };
 
-                        let updated_pmd = updated_card.as_ref().map(|card| {
-                            PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone()))
-                        });
+                        let updated_pmd = Some(PaymentMethodsData::Card(updated_card));
                         let pm_data_encrypted =
                             create_encrypted_payment_method_data(&key_store, updated_pmd).await;
 
@@ -418,7 +426,7 @@ pub async fn add_payment_method_data(
                     db.update_payment_method(payment_method, pm_update)
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to udpate payment method in db")?;
+                        .attach_printable("Failed to update payment method in db")?;
 
                     return Err(e.attach_printable("Failed to add card to locker"));
                 }

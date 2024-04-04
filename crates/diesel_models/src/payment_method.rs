@@ -212,6 +212,8 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_used_at: None,
                 network_transaction_id,
                 status,
+                locker_id: None,
+                payment_method: None,
                 connector_mandate_details: None,
             },
             PaymentMethodUpdate::StatusUpdate { status } => Self {
@@ -233,6 +235,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 metadata: None,
                 payment_method_data,
                 last_used_at: None,
+                network_transaction_id: None,
                 status,
                 locker_id,
                 payment_method,
