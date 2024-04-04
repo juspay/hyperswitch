@@ -262,7 +262,7 @@ pub enum ApiErrorResponse {
     PaymentMethodDeleteFailed,
     #[error(
         error_type = ErrorType::InvalidRequestError, code = "IR_26",
-        message = "Cookie "
+        message = "Invalid Cookie"
     )]
     InvalidCookie,
 }
