@@ -305,46 +305,7 @@ impl super::RedisConnectionPool {
         self.set_hash_field_if_not_exist(key, field, serialized.as_slice(), ttl)
             .await
     }
-
-    #[instrument(level = "DEBUG", skip(self))]
-    pub async fn get_multiple_keys<K, V>(
-        &self,
-        keys: K,
-    ) -> CustomResult<Vec<Option<V>>, errors::RedisError>
-    where
-        V: FromRedis + Unpin + Send + 'static,
-        K: Into<MultipleKeys> + Send + Debug,
-    {
-        self.pool
-            .mget(keys)
-            .await
-            .change_context(errors::RedisError::GetFailed)
-    }
-
-    #[instrument(level = "DEBUG", skip(self))]
-    pub async fn get_and_deserialize_multiple_keys<K, V>(
-        &self,
-        keys: K,
-        type_name: &'static str,
-    ) -> CustomResult<Vec<Option<V>>, errors::RedisError>
-    where
-        K: Into<MultipleKeys> + Send + Debug,
-        V: serde::de::DeserializeOwned,
-    {
-        let data = self.get_multiple_keys::<K, Vec<u8>>(keys).await?;
-        data.into_iter()
-            .map(|value_bytes| {
-                value_bytes
-                    .map(|bytes| {
-                        bytes
-                            .parse_struct(type_name)
-                            .change_context(errors::RedisError::JsonSerializationFailed)
-                    })
-                    .transpose()
-            })
-            .collect()
-    }
-
+    
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn serialize_and_set_multiple_hash_field_if_not_exist<V>(
         &self,
