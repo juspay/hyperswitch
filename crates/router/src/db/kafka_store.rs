@@ -1546,9 +1546,20 @@ impl PayoutsInterface for KafkaStore {
         payout_update: storage::PayoutsUpdate,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::Payouts, errors::DataStorageError> {
-        self.diesel_store
+        let payout = self
+            .diesel_store
             .update_payout(this, payout_update, storage_scheme)
+            .await?;
+
+        if let Err(er) = self
+            .kafka_producer
+            .log_payout(&payout, Some(this.clone()))
             .await
+        {
+            logger::error!(message="Failed to add analytics entry for Payout {payout:?}", error_message=?er);
+        };
+
+        Ok(payout)
     }
 
     async fn insert_payout(
@@ -1556,9 +1567,16 @@ impl PayoutsInterface for KafkaStore {
         payout: storage::PayoutsNew,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::Payouts, errors::DataStorageError> {
-        self.diesel_store
+        let payout = self
+            .diesel_store
             .insert_payout(payout, storage_scheme)
-            .await
+            .await?;
+
+        if let Err(er) = self.kafka_producer.log_payout(&payout, None).await {
+            logger::error!(message="Failed to add analytics entry for Payout {payout:?}", error_message=?er);
+        };
+
+        Ok(payout)
     }
 
     async fn find_optional_payout_by_merchant_id_payout_id(
