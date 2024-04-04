@@ -129,6 +129,7 @@ pub enum Connector {
     Signifyd,
     Plaid,
     Riskified,
+    Zsl,
 }
 
 impl Connector {
@@ -206,6 +207,7 @@ impl Connector {
             | Self::Worldline
             | Self::Worldpay
             | Self::Zen
+            | Self::Zsl
             | Self::Signifyd
             | Self::Plaid
             | Self::Riskified

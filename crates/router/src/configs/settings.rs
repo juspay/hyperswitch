@@ -537,6 +537,7 @@ pub struct Connectors {
     pub wise: ConnectorParams,
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
+    pub zsl: ConnectorParams,
     pub zen: ConnectorParams,
 }
 

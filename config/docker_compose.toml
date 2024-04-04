@@ -161,6 +161,7 @@ volt.base_url = "https://api.sandbox.volt.io/"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
+zsl.base_url = "https://api.sitoffalb.net/ecp"
 zen.base_url = "https://api.zen-test.com/"
 zen.secondary_base_url = "https://secure.zen-test.com/"
 
@@ -222,6 +223,7 @@ cards = [
     "wise",
     "worldline",
     "worldpay",
+    "zsl",
     "zen",
 ]
 

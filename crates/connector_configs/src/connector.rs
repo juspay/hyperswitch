@@ -164,6 +164,7 @@ pub struct ConnectorConfig {
     pub worldline: Option<ConnectorTomlConfig>,
     pub worldpay: Option<ConnectorTomlConfig>,
     pub zen: Option<ConnectorTomlConfig>,
+    pub zsl: Option<ConnectorTomlConfig>,
     pub square: Option<ConnectorTomlConfig>,
     pub stax: Option<ConnectorTomlConfig>,
     pub dummy_connector: Option<ConnectorTomlConfig>,
@@ -277,6 +278,7 @@ impl ConnectorConfig {
             Connector::Worldline => Ok(connector_data.worldline),
             Connector::Worldpay => Ok(connector_data.worldpay),
             Connector::Zen => Ok(connector_data.zen),
+            Connector::Zsl => Ok(connector_data.zsl),
             #[cfg(feature = "dummy_connector")]
             Connector::DummyConnector1 => Ok(connector_data.dummy_connector),
             #[cfg(feature = "dummy_connector")]

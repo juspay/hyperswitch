@@ -65,6 +65,7 @@ pub struct ConnectorAuthentication {
     pub volt: Option<HeaderKey>,
     pub wise: Option<BodyKey>,
     pub worldpay: Option<BodyKey>,
+    pub zsl: Option<HeaderKey>,
     pub worldline: Option<SignatureKey>,
     pub zen: Option<HeaderKey>,
     pub automation_configs: Option<AutomationConfigs>,
