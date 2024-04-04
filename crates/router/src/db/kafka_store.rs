@@ -1501,16 +1501,16 @@ impl PayoutAttemptInterface for KafkaStore {
             .update_payout_attempt(this, payout_attempt_update, payouts, storage_scheme)
             .await?;
         if let Some(payout) = payouts {
-            let _ = self
-            .kafka_producer
-            .log_payout(
-                &KafkaPayout::from_storage(payout, &updated_payout_attempt),
-                Some(KafkaPayout::from_storage(payout, this))
-            )
-            .await
-            .map_err(|err|{
+            if let Err(err) = self
+                .kafka_producer
+                .log_payout(
+                    &KafkaPayout::from_storage(payout, &updated_payout_attempt),
+                    Some(KafkaPayout::from_storage(payout, this)),
+                )
+                .await
+            {
                 logger::error!(message="Failed to update analytics entry for Payouts {payout:?}\n{updated_payout_attempt:?}", error_message=?err);
-            });
+            };
         };
 
         Ok(updated_payout_attempt)
@@ -1527,13 +1527,16 @@ impl PayoutAttemptInterface for KafkaStore {
             .insert_payout_attempt(payout_attempt, None, storage_scheme)
             .await?;
         if let Some(payout) = payouts {
-            let _ = self
-            .kafka_producer
-            .log_payout(&KafkaPayout::from_storage(payout, &payout_attempt_new), None)
-            .await
-            .map_err(|err|{
+            if let Err(err) = self
+                .kafka_producer
+                .log_payout(
+                    &KafkaPayout::from_storage(payout, &payout_attempt_new),
+                    None,
+                )
+                .await
+            {
                 logger::error!(message="Failed to add analytics entry for Payouts {payout:?}\n{payout_attempt_new:?}", error_message=?err);
-            });
+            };
         };
 
         Ok(payout_attempt_new)
@@ -1583,16 +1586,16 @@ impl PayoutsInterface for KafkaStore {
             .update_payout(this, payout_update, None, storage_scheme)
             .await?;
         if let Some(payout_attempt) = payout_attempt {
-            let _ = self
-            .kafka_producer
-            .log_payout(
-                &KafkaPayout::from_storage(&payout, payout_attempt),
-                Some(KafkaPayout::from_storage(this, payout_attempt))
-            )
-            .await
-            .map_err(|err|{
+            if let Err(err) = self
+                .kafka_producer
+                .log_payout(
+                    &KafkaPayout::from_storage(&payout, payout_attempt),
+                    Some(KafkaPayout::from_storage(this, payout_attempt)),
+                )
+                .await
+            {
                 logger::error!(message="Failed to update analytics entry for Payouts {payout:?}\n{payout_attempt:?}", error_message=?err);
-            });
+            };
         };
         Ok(payout)
     }
