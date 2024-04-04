@@ -1413,7 +1413,7 @@ fn create_stripe_payment_method(
                 )
                 .into()),
                 payments::BankTransferData::Pse {}
-                | payments::BankTransferData::LocalBankTransfer {..}
+                | payments::BankTransferData::LocalBankTransfer { .. }
                 | payments::BankTransferData::PermataBankTransfer { .. }
                 | payments::BankTransferData::BcaBankTransfer { .. }
                 | payments::BankTransferData::BniVaBankTransfer { .. }
@@ -3659,7 +3659,7 @@ impl
                 | payments::BankTransferData::BriVaBankTransfer { .. }
                 | payments::BankTransferData::CimbVaBankTransfer { .. }
                 | payments::BankTransferData::DanamonVaBankTransfer { .. }
-                |  payments::BankTransferData::LocalBankTransfer { .. }
+                | payments::BankTransferData::LocalBankTransfer { .. }
                 | payments::BankTransferData::MandiriVaBankTransfer { .. } => {
                     Err(errors::ConnectorError::NotImplemented(
                         connector_util::get_unimplemented_payment_method_error_message("stripe"),
