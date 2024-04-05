@@ -3069,6 +3069,7 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
                     connector_data.connector_name,
                     payment_method_info,
                 ) {
+                    logger::info!("using network_transaction_id for MIT flow");
                     let network_transaction_id = payment_method_info
                         .network_transaction_id
                         .as_ref()
