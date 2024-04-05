@@ -534,6 +534,7 @@ pub async fn payouts_cancel_core(
             .update_payout(
                 &payout_data.payouts,
                 storage::PayoutsUpdate::StatusUpdate { status },
+                &payout_data.payout_attempt,
                 merchant_account.storage_scheme,
             )
             .await
@@ -1146,6 +1147,7 @@ pub async fn check_payout_eligibility(
                 .update_payout(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
+                    &payout_data.payout_attempt,
                     merchant_account.storage_scheme,
                 )
                 .await
@@ -1182,6 +1184,7 @@ pub async fn check_payout_eligibility(
                 .update_payout(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
+                    &payout_data.payout_attempt,
                     merchant_account.storage_scheme,
                 )
                 .await
@@ -1266,6 +1269,7 @@ pub async fn create_payout(
                 .update_payout(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
+                    &payout_data.payout_attempt,
                     merchant_account.storage_scheme,
                 )
                 .await
@@ -1302,6 +1306,7 @@ pub async fn create_payout(
                 .update_payout(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
+                    &payout_data.payout_attempt,
                     merchant_account.storage_scheme,
                 )
                 .await
@@ -1379,6 +1384,7 @@ pub async fn cancel_payout(
                 .update_payout(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
+                    &payout_data.payout_attempt,
                     merchant_account.storage_scheme,
                 )
                 .await
@@ -1408,6 +1414,7 @@ pub async fn cancel_payout(
                 .update_payout(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
+                    &payout_data.payout_attempt,
                     merchant_account.storage_scheme,
                 )
                 .await
@@ -1500,6 +1507,7 @@ pub async fn fulfill_payout(
                 .update_payout(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
+                    &payout_data.payout_attempt,
                     merchant_account.storage_scheme,
                 )
                 .await
@@ -1536,6 +1544,7 @@ pub async fn fulfill_payout(
                 .update_payout(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
+                    &payout_data.payout_attempt,
                     merchant_account.storage_scheme,
                 )
                 .await
