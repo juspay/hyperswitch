@@ -1347,6 +1347,7 @@ where
                 merchant_account,
                 connector_request,
                 key_store,
+                payment_data.payment_intent.profile_id.clone(),
             )
             .await
     } else {
@@ -1475,6 +1476,7 @@ where
             merchant_account,
             None,
             key_store,
+            payment_data.payment_intent.profile_id.clone(),
         );
 
         join_handlers.push(res);
