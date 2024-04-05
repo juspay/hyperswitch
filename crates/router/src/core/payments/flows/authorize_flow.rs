@@ -140,7 +140,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                         resp.payment_method_id = payment_method_id.clone();
                         resp.payment_method_status = payment_method_status;
                     }
-                    Err(_) => logger::error!("Save pm to locker failed"),
+                    Err(err) => logger::error!("Save pm to locker failed : {err:?}"),
                 }
 
                 Ok(resp)

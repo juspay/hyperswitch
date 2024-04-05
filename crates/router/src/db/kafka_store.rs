@@ -1633,8 +1633,14 @@ impl PayoutsInterface for KafkaStore {
         merchant_id: &str,
         filters: &data_models::payouts::PayoutFetchConstraints,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<Vec<(storage::Payouts, storage::PayoutAttempt)>, errors::DataStorageError>
-    {
+    ) -> CustomResult<
+        Vec<(
+            storage::Payouts,
+            storage::PayoutAttempt,
+            diesel_models::Customer,
+        )>,
+        errors::DataStorageError,
+    > {
         self.diesel_store
             .filter_payouts_and_attempts(merchant_id, filters, storage_scheme)
             .await
