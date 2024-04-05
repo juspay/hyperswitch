@@ -177,6 +177,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             //
             //     Ok(resp)
             // }
+            // Ok(resp)
         } else {
             Ok(self.clone())
         }

@@ -263,11 +263,11 @@ where
                         state,
                         &merchant_account,
                         &key_store,
-                        connector,
+                        connector.clone(),
                         &operation,
                         &mut payment_data,
                         &customer,
-                        call_connector_action,
+                        call_connector_action.clone(),
                         &validate_result,
                         schedule_time,
                         header_payload,
@@ -284,6 +284,21 @@ where
                     external_latency = router_data.external_latency;
                     //add connector http status code metrics
                     add_connector_http_status_code_metrics(connector_http_status_code);
+
+                    operation
+                        .to_post_update_tracker()?
+                        .save_pm_and_mandate(
+                            state,
+                            &router_data,
+                            &connector,
+                            &None,
+                            call_connector_action,
+                            &merchant_account,
+                            None,
+                            &key_store,
+                            &mut payment_data,
+                        )
+                        .await?;
 
                     operation
                         .to_post_update_tracker()?
@@ -323,7 +338,7 @@ where
                         &operation,
                         &mut payment_data,
                         &customer,
-                        call_connector_action,
+                        call_connector_action.clone(),
                         &validate_result,
                         schedule_time,
                         header_payload,
@@ -350,7 +365,7 @@ where
                                 state,
                                 &mut payment_data,
                                 connectors,
-                                connector_data,
+                                connector_data.clone(),
                                 router_data,
                                 &merchant_account,
                                 &key_store,
@@ -372,6 +387,22 @@ where
                     external_latency = router_data.external_latency;
                     //add connector http status code metrics
                     add_connector_http_status_code_metrics(connector_http_status_code);
+
+                    operation
+                        .to_post_update_tracker()?
+                        .save_pm_and_mandate(
+                            state,
+                            &router_data,
+                            &connector_data,
+                            &None,
+                            call_connector_action,
+                            &merchant_account,
+                            None,
+                            &key_store,
+                            &mut payment_data,
+                        )
+                        .await?;
+
                     operation
                         .to_post_update_tracker()?
                         .update_tracker(
