@@ -563,6 +563,23 @@ where
                     alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
                 )
             }
+            Self::Percentile {
+                field,
+                alias,
+                percentile,
+            } => {
+                format!(
+                    "percentile_cont(0.{}) within group (order by {} asc){}",
+                    percentile.map_or_else(
+                        || "50".to_owned(),
+                        |percentile| format!("{}", percentile.to_string())
+                    ),
+                    field
+                        .to_sql(table_engine)
+                        .attach_printable("Failed to percentile aggregate")?,
+                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
+                )
+            }
         })
     }
 }
