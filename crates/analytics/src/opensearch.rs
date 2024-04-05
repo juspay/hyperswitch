@@ -178,13 +178,16 @@ impl OpenSearchClient {
                     .construct_payload(search_indexes.clone().collect())
                     .change_context(OpenSearchError::ResponseError)?;
 
-                let mut payload_with_indexes: Vec<JsonBody<Value>> = vec![];
-                for (index_hit, index) in payload.iter().to_owned().zip(search_indexes) {
-                    payload_with_indexes.push(
-                        json!({"index": self.search_index_to_opensearch_index(index)}).into(),
-                    );
-                    payload_with_indexes.push(JsonBody::new(index_hit.clone()));
-                }
+                let payload_with_indexes = payload.into_iter().zip(search_indexes).fold(
+                    Vec::new(),
+                    |mut payload_with_indexes, (index_hit, index)| {
+                        payload_with_indexes.push(
+                            json!({"index": self.search_index_to_opensearch_index(index)}).into(),
+                        );
+                        payload_with_indexes.push(JsonBody::new(index_hit.clone()));
+                        payload_with_indexes
+                    },
+                );
 
                 self.client
                     .msearch(MsearchParts::None)
@@ -246,19 +249,19 @@ impl OpenSearchIndexes {
             ))
         })?;
 
-        common_utils::fp_utils::when(self.payment_intents.is_default_or_empty(), || {
+        when(self.payment_intents.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "Opensearch Payment Intents index must not be empty".into(),
             ))
         })?;
 
-        common_utils::fp_utils::when(self.refunds.is_default_or_empty(), || {
+        when(self.refunds.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "Opensearch Refunds index must not be empty".into(),
             ))
         })?;
 
-        common_utils::fp_utils::when(self.disputes.is_default_or_empty(), || {
+        when(self.disputes.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "Opensearch Disputes index must not be empty".into(),
             ))
