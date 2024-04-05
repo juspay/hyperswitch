@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     connector::utils::PaymentsAuthorizeRequestData,
     core::errors,
-    types::{self, api, storage::enums},
+    types::{self, api, domain, storage::enums},
 };
 
 //TODO: Fill the struct with respective fields
@@ -60,7 +60,7 @@ impl TryFrom<&EbanxRouterData<&types::PaymentsAuthorizeRouterData>> for EbanxPay
         item: &EbanxRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(req_card) => {
+            domain::payments::PaymentMethodData::Card(req_card) => {
                 let card = EbanxCard {
                     number: req_card.card_number,
                     expiry_month: req_card.card_exp_month,
