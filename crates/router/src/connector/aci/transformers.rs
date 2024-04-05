@@ -107,46 +107,42 @@ pub enum PaymentDetails {
     Mandate,
 }
 
-impl TryFrom<&api_models::payments::WalletData> for PaymentDetails {
+impl TryFrom<&domain::WalletData> for PaymentDetails {
     type Error = Error;
-    fn try_from(wallet_data: &api_models::payments::WalletData) -> Result<Self, Self::Error> {
+    fn try_from(wallet_data: &domain::WalletData) -> Result<Self, Self::Error> {
         let payment_data = match wallet_data {
-            api_models::payments::WalletData::MbWayRedirect(data) => {
-                Self::Wallet(Box::new(WalletPMData {
-                    payment_brand: PaymentBrand::Mbway,
-                    account_id: Some(data.telephone_number.clone()),
-                }))
-            }
-            api_models::payments::WalletData::AliPayRedirect { .. } => {
-                Self::Wallet(Box::new(WalletPMData {
-                    payment_brand: PaymentBrand::AliPay,
-                    account_id: None,
-                }))
-            }
-            api_models::payments::WalletData::AliPayHkRedirect(_)
-            | api_models::payments::WalletData::MomoRedirect(_)
-            | api_models::payments::WalletData::KakaoPayRedirect(_)
-            | api_models::payments::WalletData::GoPayRedirect(_)
-            | api_models::payments::WalletData::GcashRedirect(_)
-            | api_models::payments::WalletData::ApplePay(_)
-            | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
-            | api_models::payments::WalletData::DanaRedirect { .. }
-            | api_models::payments::WalletData::GooglePay(_)
-            | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
-            | api_models::payments::WalletData::MobilePayRedirect(_)
-            | api_models::payments::WalletData::PaypalRedirect(_)
-            | api_models::payments::WalletData::PaypalSdk(_)
-            | api_models::payments::WalletData::SamsungPay(_)
-            | api_models::payments::WalletData::TwintRedirect { .. }
-            | api_models::payments::WalletData::VippsRedirect { .. }
-            | api_models::payments::WalletData::TouchNGoRedirect(_)
-            | api_models::payments::WalletData::WeChatPayRedirect(_)
-            | api_models::payments::WalletData::WeChatPayQr(_)
-            | api_models::payments::WalletData::CashappQr(_)
-            | api_models::payments::WalletData::SwishQr(_)
-            | api_models::payments::WalletData::AliPayQr(_)
-            | api_models::payments::WalletData::ApplePayRedirect(_)
-            | api_models::payments::WalletData::GooglePayRedirect(_) => Err(
+            domain::WalletData::MbWayRedirect(data) => Self::Wallet(Box::new(WalletPMData {
+                payment_brand: PaymentBrand::Mbway,
+                account_id: Some(data.telephone_number.clone()),
+            })),
+            domain::WalletData::AliPayRedirect { .. } => Self::Wallet(Box::new(WalletPMData {
+                payment_brand: PaymentBrand::AliPay,
+                account_id: None,
+            })),
+            domain::WalletData::AliPayHkRedirect(_)
+            | domain::WalletData::MomoRedirect(_)
+            | domain::WalletData::KakaoPayRedirect(_)
+            | domain::WalletData::GoPayRedirect(_)
+            | domain::WalletData::GcashRedirect(_)
+            | domain::WalletData::ApplePay(_)
+            | domain::WalletData::ApplePayThirdPartySdk(_)
+            | domain::WalletData::DanaRedirect { .. }
+            | domain::WalletData::GooglePay(_)
+            | domain::WalletData::GooglePayThirdPartySdk(_)
+            | domain::WalletData::MobilePayRedirect(_)
+            | domain::WalletData::PaypalRedirect(_)
+            | domain::WalletData::PaypalSdk(_)
+            | domain::WalletData::SamsungPay(_)
+            | domain::WalletData::TwintRedirect { .. }
+            | domain::WalletData::VippsRedirect { .. }
+            | domain::WalletData::TouchNGoRedirect(_)
+            | domain::WalletData::WeChatPayRedirect(_)
+            | domain::WalletData::WeChatPayQr(_)
+            | domain::WalletData::CashappQr(_)
+            | domain::WalletData::SwishQr(_)
+            | domain::WalletData::AliPayQr(_)
+            | domain::WalletData::ApplePayRedirect(_)
+            | domain::WalletData::GooglePayRedirect(_) => Err(
                 errors::ConnectorError::NotImplemented("Payment method".to_string()),
             )?,
         };
@@ -479,14 +475,14 @@ impl TryFrom<&AciRouterData<&types::PaymentsAuthorizeRouterData>> for AciPayment
 impl
     TryFrom<(
         &AciRouterData<&types::PaymentsAuthorizeRouterData>,
-        &api_models::payments::WalletData,
+        &domain::WalletData,
     )> for AciPaymentsRequest
 {
     type Error = Error;
     fn try_from(
         value: (
             &AciRouterData<&types::PaymentsAuthorizeRouterData>,
-            &api_models::payments::WalletData,
+            &domain::WalletData,
         ),
     ) -> Result<Self, Self::Error> {
         let (item, wallet_data) = value;

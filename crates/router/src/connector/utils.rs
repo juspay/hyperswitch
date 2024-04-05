@@ -468,6 +468,7 @@ impl RevokeMandateRequestData for types::MandateRevokeRequestData {
 pub trait PaymentsSetupMandateRequestData {
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
     fn get_email(&self) -> Result<Email, Error>;
+    fn is_card(&self) -> bool;
 }
 
 impl PaymentsSetupMandateRequestData for types::SetupMandateRequestData {
@@ -478,6 +479,9 @@ impl PaymentsSetupMandateRequestData for types::SetupMandateRequestData {
     }
     fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
+    }
+    fn is_card(&self) -> bool {
+        matches!(self.payment_method_data, domain::PaymentMethodData::Card(_))
     }
 }
 pub trait PaymentsAuthorizeRequestData {
@@ -502,6 +506,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_surcharge_amount(&self) -> Option<i64>;
     fn get_tax_on_surcharge_amount(&self) -> Option<i64>;
     fn get_total_surcharge_amount(&self) -> Option<i64>;
+    fn get_metadata_as_object(&self) -> Option<pii::SecretSerdeValue>;
 }
 
 pub trait PaymentMethodTokenizationRequestData {
@@ -635,6 +640,19 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
 
     fn is_customer_initiated_mandate_payment(&self) -> bool {
         self.setup_mandate_details.is_some()
+    }
+
+    fn get_metadata_as_object(&self) -> Option<pii::SecretSerdeValue> {
+        self.metadata
+            .clone()
+            .and_then(|meta_data| match meta_data.peek() {
+                serde_json::Value::Null
+                | serde_json::Value::Bool(_)
+                | serde_json::Value::Number(_)
+                | serde_json::Value::String(_)
+                | serde_json::Value::Array(_) => None,
+                serde_json::Value::Object(_) => Some(meta_data),
+            })
     }
 }
 
@@ -846,8 +864,8 @@ pub struct GpayTokenizationData {
     pub token: Secret<String>,
 }
 
-impl From<api_models::payments::GooglePayWalletData> for GooglePayWalletData {
-    fn from(data: api_models::payments::GooglePayWalletData) -> Self {
+impl From<domain::GooglePayWalletData> for GooglePayWalletData {
+    fn from(data: domain::GooglePayWalletData) -> Self {
         Self {
             pm_type: data.pm_type,
             description: data.description,
@@ -1009,7 +1027,7 @@ pub trait WalletData {
     fn get_encoded_wallet_token(&self) -> Result<String, Error>;
 }
 
-impl WalletData for api::WalletData {
+impl WalletData for domain::WalletData {
     fn get_wallet_token(&self) -> Result<Secret<String>, Error> {
         match self {
             Self::GooglePay(data) => Ok(Secret::new(data.tokenization_data.token.clone())),
@@ -1050,7 +1068,7 @@ pub trait ApplePay {
     fn get_applepay_decoded_payment_data(&self) -> Result<Secret<String>, Error>;
 }
 
-impl ApplePay for payments::ApplePayWalletData {
+impl ApplePay for domain::ApplePayWalletData {
     fn get_applepay_decoded_payment_data(&self) -> Result<Secret<String>, Error> {
         let token = Secret::new(
             String::from_utf8(
@@ -1903,6 +1921,39 @@ pub fn is_refund_failure(status: enums::RefundStatus) -> bool {
         common_enums::RefundStatus::ManualReview
         | common_enums::RefundStatus::Pending
         | common_enums::RefundStatus::Success => false,
+    }
+}
+
+impl
+    From<(
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        u16,
+        Option<enums::AttemptStatus>,
+        Option<String>,
+    )> for types::ErrorResponse
+{
+    fn from(
+        (code, message, reason, http_code, attempt_status, connector_transaction_id): (
+            Option<String>,
+            Option<String>,
+            Option<String>,
+            u16,
+            Option<enums::AttemptStatus>,
+            Option<String>,
+        ),
+    ) -> Self {
+        Self {
+            code: code.unwrap_or(consts::NO_ERROR_CODE.to_string()),
+            message: message
+                .clone()
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            reason,
+            status_code: http_code,
+            attempt_status,
+            connector_transaction_id,
+        }
     }
 }
 

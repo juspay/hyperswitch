@@ -3239,6 +3239,10 @@ pub struct PaymentsResponse {
     /// Payment Fingerprint
     pub fingerprint: Option<String>,
 
+    #[schema(value_type = Option<BrowserInformation>)]
+    /// The browser information used for this payment
+    pub browser_info: Option<serde_json::Value>,
+
     /// Payment Method Id
     pub payment_method_id: Option<String>,
 
@@ -4429,12 +4433,12 @@ pub struct PaymentLinkInitiateRequest {
 
 #[derive(Debug, serde::Serialize)]
 #[serde(untagged)]
-pub enum PaymentLinkData {
-    PaymentLinkDetails(PaymentLinkDetails),
+pub enum PaymentLinkData<'a> {
+    PaymentLinkDetails(&'a PaymentLinkDetails),
     PaymentLinkStatusDetails(PaymentLinkStatusDetails),
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, Clone)]
 pub struct PaymentLinkDetails {
     pub amount: String,
     pub currency: api_enums::Currency,

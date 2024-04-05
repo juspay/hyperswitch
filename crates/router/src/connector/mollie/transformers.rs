@@ -324,16 +324,16 @@ impl TryFrom<&types::TokenizationRouterData> for MollieCardTokenRequest {
 
 fn get_payment_method_for_wallet(
     item: &types::PaymentsAuthorizeRouterData,
-    wallet_data: &api_models::payments::WalletData,
+    wallet_data: &domain::WalletData,
 ) -> Result<PaymentMethodData, Error> {
     match wallet_data {
-        api_models::payments::WalletData::PaypalRedirect { .. } => {
+        domain::WalletData::PaypalRedirect { .. } => {
             Ok(PaymentMethodData::Paypal(Box::new(PaypalMethodData {
                 billing_address: get_billing_details(item)?,
                 shipping_address: get_shipping_details(item)?,
             })))
         }
-        api_models::payments::WalletData::ApplePay(applepay_wallet_data) => {
+        domain::WalletData::ApplePay(applepay_wallet_data) => {
             Ok(PaymentMethodData::Applepay(Box::new(ApplePayMethodData {
                 apple_pay_payment_token: Secret::new(applepay_wallet_data.payment_data.to_owned()),
             })))

@@ -176,15 +176,15 @@ impl QrImage {
         let qrcode_image_buffer = qr_code.render::<Luma<u8>>().build();
         let qrcode_dynamic_image = image::DynamicImage::ImageLuma8(qrcode_image_buffer);
 
-        let mut image_bytes = Vec::new();
+        let mut image_bytes = std::io::BufWriter::new(std::io::Cursor::new(Vec::new()));
 
         // Encodes qrcode_dynamic_image and write it to image_bytes
-        let _ = qrcode_dynamic_image.write_to(&mut image_bytes, image::ImageOutputFormat::Png);
+        let _ = qrcode_dynamic_image.write_to(&mut image_bytes, image::ImageFormat::Png);
 
         let image_data_source = format!(
             "{},{}",
             consts::QR_IMAGE_DATA_SOURCE_STRING,
-            consts::BASE64_ENGINE.encode(image_bytes)
+            consts::BASE64_ENGINE.encode(image_bytes.get_ref().get_ref())
         );
         Ok(Self {
             data: image_data_source,
@@ -736,12 +736,11 @@ pub fn add_apple_pay_payment_status_metrics(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn trigger_payments_webhook<F, Req, Op>(
+pub async fn trigger_payments_webhook<F, Op>(
     merchant_account: domain::MerchantAccount,
     business_profile: diesel_models::business_profile::BusinessProfile,
     key_store: &domain::MerchantKeyStore,
     payment_data: crate::core::payments::PaymentData<F>,
-    req: Option<Req>,
     customer: Option<domain::Customer>,
     state: &crate::routes::AppState,
     operation: Op,
@@ -770,7 +769,6 @@ where
             | enums::IntentStatus::PartiallyCaptured
     ) {
         let payments_response = crate::core::payments::transformers::payments_to_payments_response(
-            req,
             payment_data,
             captures,
             customer,
