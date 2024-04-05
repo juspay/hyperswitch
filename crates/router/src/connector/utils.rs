@@ -358,7 +358,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
     fn get_optional_billing_full_name(&self) -> Option<Secret<String>> {
         self.get_optional_billing()
             .and_then(|billing_details| billing_details.address.as_ref())
-            .and_then(|billing_address| billing_address.get_full_name())
+            .and_then(|billing_address| billing_address.get_optional_full_name())
     }
 
     #[cfg(feature = "payouts")]
