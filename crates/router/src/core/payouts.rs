@@ -148,7 +148,6 @@ pub async fn make_connector_decision(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    req: &payouts::PayoutCreateRequest,
     connector_call_type: api::ConnectorCallType,
     mut payout_data: PayoutData,
 ) -> RouterResult<PayoutData> {
@@ -158,7 +157,6 @@ pub async fn make_connector_decision(
                 state,
                 merchant_account,
                 key_store,
-                req,
                 &connector_data,
                 &mut payout_data,
             )
@@ -181,7 +179,6 @@ pub async fn make_connector_decision(
                         payout_data,
                         merchant_account,
                         key_store,
-                        req,
                     ))
                     .await?;
                 }
@@ -198,7 +195,6 @@ pub async fn make_connector_decision(
                 state,
                 merchant_account,
                 key_store,
-                req,
                 &connector_data,
                 &mut payout_data,
             )
@@ -222,7 +218,6 @@ pub async fn make_connector_decision(
                         payout_data,
                         merchant_account,
                         key_store,
-                        req,
                     ))
                     .await?;
                 }
@@ -241,7 +236,6 @@ pub async fn make_connector_decision(
                         payout_data,
                         merchant_account,
                         key_store,
-                        req,
                     ))
                     .await?;
                 }
@@ -291,19 +285,12 @@ pub async fn payouts_create_core(
         &state,
         &merchant_account,
         &key_store,
-        &req,
         connector_call_type,
         payout_data,
     ))
     .await?;
 
-    response_handler(
-        &state,
-        &merchant_account,
-        &payouts::PayoutRequest::PayoutCreateRequest(req.to_owned()),
-        &payout_data,
-    )
-    .await
+    response_handler(&merchant_account, &payout_data).await
 }
 
 pub async fn payouts_update_core(
@@ -348,6 +335,7 @@ pub async fn payouts_update_core(
         metadata: req.metadata.clone().or(payouts.metadata.clone()),
         status: Some(status),
         profile_id: Some(payout_attempt.profile_id),
+        confirm: req.confirm,
     };
 
     let db = &*state.store;
@@ -435,19 +423,12 @@ pub async fn payouts_update_core(
         &state,
         &merchant_account,
         &key_store,
-        &req,
         connector_call_type,
         payout_data,
     ))
     .await?;
 
-    response_handler(
-        &state,
-        &merchant_account,
-        &payouts::PayoutRequest::PayoutCreateRequest(req.to_owned()),
-        &payout_data,
-    )
-    .await
+    response_handler(&merchant_account, &payout_data).await
 }
 
 #[instrument(skip_all)]
@@ -465,13 +446,7 @@ pub async fn payouts_retrieve_core(
     )
     .await?;
 
-    response_handler(
-        &state,
-        &merchant_account,
-        &payouts::PayoutRequest::PayoutRetrieveRequest(req.to_owned()),
-        &payout_data,
-    )
-    .await
+    response_handler(&merchant_account, &payout_data).await
 }
 
 #[instrument(skip_all)]
@@ -558,7 +533,6 @@ pub async fn payouts_cancel_core(
             &state,
             &merchant_account,
             &key_store,
-            &payouts::PayoutRequest::PayoutActionRequest(req.to_owned()),
             &connector_data,
             &mut payout_data,
         )
@@ -566,13 +540,7 @@ pub async fn payouts_cancel_core(
         .attach_printable("Payout cancellation failed for given Payout request")?;
     }
 
-    response_handler(
-        &state,
-        &merchant_account,
-        &payouts::PayoutRequest::PayoutActionRequest(req.to_owned()),
-        &payout_data,
-    )
-    .await
+    response_handler(&merchant_account, &payout_data).await
 }
 
 #[instrument(skip_all)]
@@ -644,7 +612,6 @@ pub async fn payouts_fulfill_core(
         &state,
         &merchant_account,
         &key_store,
-        &payouts::PayoutRequest::PayoutActionRequest(req.to_owned()),
         &connector_data,
         &mut payout_data,
     )
@@ -659,13 +626,7 @@ pub async fn payouts_fulfill_core(
         }));
     }
 
-    response_handler(
-        &state,
-        &merchant_account,
-        &payouts::PayoutRequest::PayoutActionRequest(req.to_owned()),
-        &payout_data,
-    )
-    .await
+    response_handler(&merchant_account, &payout_data).await
 }
 
 #[cfg(feature = "olap")]
@@ -847,7 +808,6 @@ pub async fn call_connector_payout(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    req: &payouts::PayoutCreateRequest,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<PayoutData> {
@@ -879,7 +839,7 @@ pub async fn call_connector_payout(
         payout_data.payout_method_data = Some(
             helpers::make_payout_method_data(
                 state,
-                req.payout_method_data.as_ref(),
+                payout_data.payout_method_data.as_ref(),
                 payout_attempt.payout_token.as_deref(),
                 &payout_attempt.customer_id,
                 &payout_attempt.merchant_id,
@@ -893,7 +853,7 @@ pub async fn call_connector_payout(
         );
     }
 
-    if let Some(true) = req.confirm {
+    if let Some(true) = payouts.confirm {
         // Eligibility flow
         if payouts.payout_type == storage_enums::PayoutType::Card
             && payout_attempt.is_eligible.is_none()
@@ -902,7 +862,6 @@ pub async fn call_connector_payout(
                 state,
                 merchant_account,
                 key_store,
-                req,
                 connector_data,
                 payout_data,
             )
@@ -932,7 +891,6 @@ pub async fn call_connector_payout(
                 state,
                 merchant_account,
                 key_store,
-                req,
                 connector_data,
                 payout_data,
             )
@@ -944,7 +902,6 @@ pub async fn call_connector_payout(
                 state,
                 merchant_account,
                 key_store,
-                req,
                 connector_data,
                 payout_data,
             )
@@ -960,7 +917,6 @@ pub async fn call_connector_payout(
                 state,
                 merchant_account,
                 key_store,
-                req,
                 connector_data,
                 payout_data,
             )
@@ -976,7 +932,6 @@ pub async fn call_connector_payout(
             state,
             merchant_account,
             key_store,
-            &payouts::PayoutRequest::PayoutCreateRequest(req.to_owned()),
             connector_data,
             payout_data,
         )
@@ -991,7 +946,6 @@ pub async fn create_recipient(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    req: &payouts::PayoutCreateRequest,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<PayoutData> {
@@ -1015,7 +969,6 @@ pub async fn create_recipient(
             &connector_name,
             merchant_account,
             key_store,
-            &payouts::PayoutRequest::PayoutCreateRequest(req.to_owned()),
             payout_data,
         )
         .await?;
@@ -1075,7 +1028,6 @@ pub async fn check_payout_eligibility(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    req: &payouts::PayoutCreateRequest,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<PayoutData> {
@@ -1085,7 +1037,6 @@ pub async fn check_payout_eligibility(
         &connector_data.connector_name.to_string(),
         merchant_account,
         key_store,
-        &payouts::PayoutRequest::PayoutCreateRequest(req.to_owned()),
         payout_data,
     )
     .await?;
@@ -1187,7 +1138,6 @@ pub async fn create_payout(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    req: &payouts::PayoutCreateRequest,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<PayoutData> {
@@ -1197,7 +1147,6 @@ pub async fn create_payout(
         &connector_data.connector_name.to_string(),
         merchant_account,
         key_store,
-        &payouts::PayoutRequest::PayoutCreateRequest(req.to_owned()),
         payout_data,
     )
     .await?;
@@ -1305,7 +1254,6 @@ pub async fn cancel_payout(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    req: &payouts::PayoutRequest,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<PayoutData> {
@@ -1315,7 +1263,6 @@ pub async fn cancel_payout(
         &connector_data.connector_name.to_string(),
         merchant_account,
         key_store,
-        req,
         payout_data,
     )
     .await?;
@@ -1409,7 +1356,6 @@ pub async fn fulfill_payout(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    req: &payouts::PayoutRequest,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<PayoutData> {
@@ -1419,7 +1365,6 @@ pub async fn fulfill_payout(
         &connector_data.connector_name.to_string(),
         merchant_account,
         key_store,
-        req,
         payout_data,
     )
     .await?;
@@ -1535,9 +1480,7 @@ pub async fn fulfill_payout(
 }
 
 pub async fn response_handler(
-    _state: &AppState,
     merchant_account: &domain::MerchantAccount,
-    _req: &payouts::PayoutRequest,
     payout_data: &PayoutData,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let payout_attempt = payout_data.payout_attempt.to_owned();

@@ -1,6 +1,5 @@
 use std::{cmp::Ordering, str::FromStr, vec::IntoIter};
 
-use api_models::payouts::PayoutCreateRequest;
 use error_stack::{report, ResultExt};
 use router_env::{
     logger,
@@ -35,7 +34,6 @@ pub async fn do_gsm_multiple_connector_actions(
     mut payout_data: PayoutData,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    req: &PayoutCreateRequest,
 ) -> RouterResult<PayoutData> {
     let mut retries = None;
 
@@ -76,7 +74,6 @@ pub async fn do_gsm_multiple_connector_actions(
                     merchant_account,
                     key_store,
                     payout_data,
-                    req,
                 ))
                 .await?;
 
@@ -103,7 +100,6 @@ pub async fn do_gsm_single_connector_actions(
     mut payout_data: PayoutData,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    req: &PayoutCreateRequest,
 ) -> RouterResult<PayoutData> {
     let mut retries = None;
 
@@ -142,7 +138,6 @@ pub async fn do_gsm_single_connector_actions(
                     merchant_account,
                     key_store,
                     payout_data,
-                    req,
                 ))
                 .await?;
 
@@ -246,7 +241,6 @@ pub async fn do_retry(
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     mut payout_data: PayoutData,
-    req: &PayoutCreateRequest,
 ) -> RouterResult<PayoutData> {
     metrics::AUTO_RETRY_PAYOUT_COUNT.add(&metrics::CONTEXT, 1, &[]);
 
@@ -256,7 +250,6 @@ pub async fn do_retry(
         state,
         merchant_account,
         key_store,
-        req,
         &connector,
         &mut payout_data,
     )
