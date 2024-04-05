@@ -917,7 +917,7 @@ impl GetAddressFromPaymentMethodData for Card {
             .filter(|card_holder_name| !card_holder_name.is_empty_after_trim())
             .map(|card_holder_name| {
                 // Split the `card_holder_name` into `first_name` and `last_name` based on the
-                // first occurence of ' '. For example
+                // first occurrence of ' '. For example
                 // John Wheat Dough
                 // first_name -> John
                 // last_name -> Wheat Dough
