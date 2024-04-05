@@ -228,7 +228,7 @@ pub async fn payouts_list(
         state,
         &req,
         payload,
-        |state, auth, req| payouts_list_core(state, auth.merchant_account, req),
+        |state, auth, req| payouts_list_core(state, auth.merchant_account, auth.key_store, req),
         auth::auth_type(
             &auth::ApiKeyAuth,
             &auth::JWTAuth(Permission::PayoutRead),
@@ -266,7 +266,9 @@ pub async fn payouts_list_by_filter(
         state,
         &req,
         payload,
-        |state, auth, req| payouts_filtered_list_core(state, auth.merchant_account, req),
+        |state, auth, req| {
+            payouts_filtered_list_core(state, auth.merchant_account, auth.key_store, req)
+        },
         auth::auth_type(
             &auth::ApiKeyAuth,
             &auth::JWTAuth(Permission::PayoutRead),

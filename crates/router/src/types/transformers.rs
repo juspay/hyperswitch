@@ -188,7 +188,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Authorizedotnet => Self::Authorizedotnet,
             api_enums::Connector::Bambora => Self::Bambora,
             api_enums::Connector::Bankofamerica => Self::Bankofamerica,
-            // api_enums::Connector::Billwerk => Self::Billwerk, Added as template code for future usage
+            api_enums::Connector::Billwerk => Self::Billwerk,
             api_enums::Connector::Bitpay => Self::Bitpay,
             api_enums::Connector::Bluesnap => Self::Bluesnap,
             api_enums::Connector::Boku => Self::Boku,
@@ -1126,6 +1126,24 @@ impl ForeignFrom<storage::GatewayStatusMap> for gsm_api_types::GsmResponse {
             step_up_possible: value.step_up_possible,
             unified_code: value.unified_code,
             unified_message: value.unified_message,
+        }
+    }
+}
+
+impl ForeignFrom<&domain::Customer> for api_models::payments::CustomerDetails {
+    fn foreign_from(customer: &domain::Customer) -> Self {
+        Self {
+            id: customer.customer_id.clone(),
+            name: customer
+                .name
+                .as_ref()
+                .map(|name| name.get_inner().to_owned()),
+            email: customer.email.clone().map(Into::into),
+            phone: customer
+                .phone
+                .as_ref()
+                .map(|phone| phone.get_inner().to_owned()),
+            phone_country_code: customer.phone_country_code.clone(),
         }
     }
 }

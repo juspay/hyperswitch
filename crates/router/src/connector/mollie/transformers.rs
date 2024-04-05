@@ -13,7 +13,7 @@ use crate::{
     },
     core::errors,
     services, types,
-    types::storage::enums as storage_enums,
+    types::{domain, storage::enums as storage_enums},
     unimplemented_payment_method,
 };
 
@@ -169,7 +169,7 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
         {
             enums::CaptureMethod::Automatic => {
                 match &item.router_data.request.payment_method_data {
-                    api_models::payments::PaymentMethodData::Card(_) => {
+                    domain::PaymentMethodData::Card(_) => {
                         let pm_token = item.router_data.get_payment_method_token()?;
                         Ok(PaymentMethodData::CreditCard(Box::new(
                             CreditCardMethodData {
@@ -188,13 +188,13 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
                             },
                         )))
                     }
-                    api_models::payments::PaymentMethodData::BankRedirect(ref redirect_data) => {
+                    domain::PaymentMethodData::BankRedirect(ref redirect_data) => {
                         PaymentMethodData::try_from(redirect_data)
                     }
-                    api_models::payments::PaymentMethodData::Wallet(ref wallet_data) => {
+                    domain::PaymentMethodData::Wallet(ref wallet_data) => {
                         get_payment_method_for_wallet(item.router_data, wallet_data)
                     }
-                    api_models::payments::PaymentMethodData::BankDebit(ref directdebit_data) => {
+                    domain::PaymentMethodData::BankDebit(ref directdebit_data) => {
                         PaymentMethodData::try_from(directdebit_data)
                     }
                     _ => Err(
@@ -287,7 +287,7 @@ impl TryFrom<&types::TokenizationRouterData> for MollieCardTokenRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::TokenizationRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
-            api_models::payments::PaymentMethodData::Card(ccard) => {
+            domain::PaymentMethodData::Card(ccard) => {
                 let auth = MollieAuthType::try_from(&item.connector_auth_type)?;
                 let card_holder = ccard
                     .card_holder_name
@@ -325,16 +325,16 @@ impl TryFrom<&types::TokenizationRouterData> for MollieCardTokenRequest {
 
 fn get_payment_method_for_wallet(
     item: &types::PaymentsAuthorizeRouterData,
-    wallet_data: &api_models::payments::WalletData,
+    wallet_data: &domain::WalletData,
 ) -> Result<PaymentMethodData, Error> {
     match wallet_data {
-        api_models::payments::WalletData::PaypalRedirect { .. } => {
+        domain::WalletData::PaypalRedirect { .. } => {
             Ok(PaymentMethodData::Paypal(Box::new(PaypalMethodData {
                 billing_address: get_billing_details(item)?,
                 shipping_address: get_shipping_details(item)?,
             })))
         }
-        api_models::payments::WalletData::ApplePay(applepay_wallet_data) => {
+        domain::WalletData::ApplePay(applepay_wallet_data) => {
             Ok(PaymentMethodData::Applepay(Box::new(ApplePayMethodData {
                 apple_pay_payment_token: Secret::new(applepay_wallet_data.payment_data.to_owned()),
             })))
