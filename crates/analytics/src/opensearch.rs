@@ -176,7 +176,7 @@ impl OpenSearchClient {
 
                 let payload = query_builder
                     .construct_payload(search_indexes.clone().collect())
-                    .change_context(OpenSearchError::ResponseError)?;
+                    .change_context(OpenSearchError::QueryBuildingError)?;
 
                 let payload_with_indexes = payload.into_iter().zip(search_indexes).fold(
                     Vec::new(),
@@ -200,7 +200,7 @@ impl OpenSearchClient {
                 let payload = query_builder
                     .clone()
                     .construct_payload(vec![index])
-                    .change_context(OpenSearchError::ResponseError)?;
+                    .change_context(OpenSearchError::QueryBuildingError)?;
 
                 let final_payload = payload.first().unwrap_or(&Value::Null);
 
@@ -273,17 +273,17 @@ impl OpenSearchIndexes {
 
 impl OpenSearchAuth {
     pub fn validate(&self) -> Result<(), ApplicationError> {
-        use common_utils::ext_traits::ConfigExt;
+        use common_utils::{ext_traits::ConfigExt, fp_utils::when};
 
         match self {
             Self::Basic { username, password } => {
-                common_utils::fp_utils::when(username.is_default_or_empty(), || {
+                when(username.is_default_or_empty(), || {
                     Err(ApplicationError::InvalidConfigurationValueError(
                         "Opensearch Basic auth username must not be empty".into(),
                     ))
                 })?;
 
-                common_utils::fp_utils::when(password.is_default_or_empty(), || {
+                when(password.is_default_or_empty(), || {
                     Err(ApplicationError::InvalidConfigurationValueError(
                         "Opensearch Basic auth password must not be empty".into(),
                     ))
@@ -291,7 +291,7 @@ impl OpenSearchAuth {
             }
 
             Self::Aws { region } => {
-                common_utils::fp_utils::when(region.is_default_or_empty(), || {
+                when(region.is_default_or_empty(), || {
                     Err(ApplicationError::InvalidConfigurationValueError(
                         "Opensearch Aws auth region must not be empty".into(),
                     ))
@@ -311,9 +311,9 @@ impl OpenSearchConfig {
     }
 
     pub fn validate(&self) -> Result<(), ApplicationError> {
-        use common_utils::ext_traits::ConfigExt;
+        use common_utils::{ext_traits::ConfigExt, fp_utils::when};
 
-        common_utils::fp_utils::when(self.host.is_default_or_empty(), || {
+        when(self.host.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "Opensearch host must not be empty".into(),
             ))
