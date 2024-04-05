@@ -329,16 +329,7 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
         let meta: ThreeDSecureIoConnectorMetaData =
             to_connector_meta(request.pre_authentication_data.connector_metadata.clone())?;
 
-        let card_holder_name = billing_address
-            .first_name
-            .map(|first_name| {
-                let first_name = first_name.expose();
-                billing_address
-                    .last_name
-                    .map(|last_name| format!("{first_name} {}", last_name.expose()))
-                    .unwrap_or(first_name)
-            })
-            .map(Secret::new);
+        let card_holder_name = billing_address.get_full_name();
 
         Ok(Self {
             ds_start_protocol_version: meta.ds_start_protocol_version.clone(),
