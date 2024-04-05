@@ -238,9 +238,9 @@ impl HealthCheck for OpenSearchClient {
 
 impl OpenSearchIndexes {
     pub fn validate(&self) -> Result<(), ApplicationError> {
-        use common_utils::ext_traits::ConfigExt;
+        use common_utils::{ext_traits::ConfigExt, fp_utils::when};
 
-        common_utils::fp_utils::when(self.payment_attempts.is_default_or_empty(), || {
+        when(self.payment_attempts.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "Opensearch Payment Attempts index must not be empty".into(),
             ))
