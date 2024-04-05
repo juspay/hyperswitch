@@ -247,6 +247,11 @@ pub enum Aggregate<R> {
         field: R,
         alias: Option<&'static str>,
     },
+    Percentile {
+        field: R,
+        alias: Option<&'static str>,
+        percentile: Option<&'static u64>,
+    },
 }
 
 // Window functions in query

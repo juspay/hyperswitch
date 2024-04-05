@@ -13,6 +13,7 @@ use crate::{
 
 mod authentication_unsuccessful_count;
 mod average_payment_time;
+mod load_time;
 mod payment_attempts;
 mod payment_data_filled_count;
 mod payment_method_selected_count;
@@ -28,6 +29,7 @@ mod three_ds_method_unsuccessful_count;
 
 use authentication_unsuccessful_count::AuthenticationUnsuccessfulCount;
 use average_payment_time::AveragePaymentTime;
+use load_time::LoadTime;
 use payment_attempts::PaymentAttempts;
 use payment_data_filled_count::PaymentDataFilledCount;
 use payment_method_selected_count::PaymentMethodSelectedCount;
@@ -166,6 +168,18 @@ where
             }
             Self::AveragePaymentTime => {
                 AveragePaymentTime
+                    .load_metrics(
+                        dimensions,
+                        publishable_key,
+                        filters,
+                        granularity,
+                        time_range,
+                        pool,
+                    )
+                    .await
+            }
+            Self::LoadTime => {
+                LoadTime
                     .load_metrics(
                         dimensions,
                         publishable_key,

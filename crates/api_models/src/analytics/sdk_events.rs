@@ -84,6 +84,7 @@ pub enum SdkEventMetrics {
     PaymentMethodSelectedCount,
     PaymentDataFilledCount,
     AveragePaymentTime,
+    LoadTime,
 }
 
 #[derive(
@@ -136,6 +137,7 @@ pub mod metric_behaviour {
     pub struct PaymentMethodSelectedCount;
     pub struct PaymentDataFilledCount;
     pub struct AveragePaymentTime;
+    pub struct LoadTime;
 }
 
 impl From<SdkEventMetrics> for NameDescription {
@@ -215,7 +217,8 @@ impl PartialEq for SdkEventMetricsBucketIdentifier {
 pub struct SdkEventMetricsBucketValue {
     pub payment_attempts: Option<u64>,
     pub payment_methods_call_count: Option<u64>,
-    pub average_payment_time: Option<f64>,
+    pub average_payment_time: Option<u64>,
+    pub load_time: Option<u64>,
     pub sdk_rendered_count: Option<u64>,
     pub sdk_initiated_count: Option<u64>,
     pub payment_method_selected_count: Option<u64>,
