@@ -285,7 +285,7 @@ pub async fn modify_trackers(
         .update_payout(
             &payout_data.payouts,
             updated_payouts,
-            Some(&payout_data.payout_attempt),
+            &payout_data.payout_attempt,
             merchant_account.storage_scheme,
         )
         .await
@@ -311,7 +311,7 @@ pub async fn modify_trackers(
     payout_data.payout_attempt = db
         .insert_payout_attempt(
             payout_attempt_req,
-            Some(&payouts),
+            &payouts,
             merchant_account.storage_scheme,
         )
         .await

@@ -117,7 +117,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         &self,
         this: &Payouts,
         payout_update: PayoutsUpdate,
-        payout_attempt: Option<&PayoutAttempt>,
+        payout_attempt: &PayoutAttempt,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Payouts, StorageError> {
         match storage_scheme {
@@ -318,7 +318,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         &self,
         this: &Payouts,
         payout: PayoutsUpdate,
-        _payout_attempt: Option<&PayoutAttempt>,
+        _payout_attempt: &PayoutAttempt,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Payouts, StorageError> {
         let conn = pg_connection_write(self).await?;

@@ -1493,24 +1493,22 @@ impl PayoutAttemptInterface for KafkaStore {
         &self,
         this: &storage::PayoutAttempt,
         payout_attempt_update: storage::PayoutAttemptUpdate,
-        payouts: Option<&storage::Payouts>,
+        payouts: &storage::Payouts,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::PayoutAttempt, errors::DataStorageError> {
         let updated_payout_attempt = self
             .diesel_store
             .update_payout_attempt(this, payout_attempt_update, payouts, storage_scheme)
             .await?;
-        if let Some(payout) = payouts {
-            if let Err(err) = self
-                .kafka_producer
-                .log_payout(
-                    &KafkaPayout::from_storage(payout, &updated_payout_attempt),
-                    Some(KafkaPayout::from_storage(payout, this)),
-                )
-                .await
-            {
-                logger::error!(message="Failed to update analytics entry for Payouts {payout:?}\n{updated_payout_attempt:?}", error_message=?err);
-            };
+        if let Err(err) = self
+            .kafka_producer
+            .log_payout(
+                &KafkaPayout::from_storage(payouts, &updated_payout_attempt),
+                Some(KafkaPayout::from_storage(payouts, this)),
+            )
+            .await
+        {
+            logger::error!(message="Failed to update analytics entry for Payouts {payouts:?}\n{updated_payout_attempt:?}", error_message=?err);
         };
 
         Ok(updated_payout_attempt)
@@ -1519,24 +1517,22 @@ impl PayoutAttemptInterface for KafkaStore {
     async fn insert_payout_attempt(
         &self,
         payout_attempt: storage::PayoutAttemptNew,
-        payouts: Option<&storage::Payouts>,
+        payouts: &storage::Payouts,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::PayoutAttempt, errors::DataStorageError> {
         let payout_attempt_new = self
             .diesel_store
-            .insert_payout_attempt(payout_attempt, None, storage_scheme)
+            .insert_payout_attempt(payout_attempt, payouts, storage_scheme)
             .await?;
-        if let Some(payout) = payouts {
-            if let Err(err) = self
-                .kafka_producer
-                .log_payout(
-                    &KafkaPayout::from_storage(payout, &payout_attempt_new),
-                    None,
-                )
-                .await
-            {
-                logger::error!(message="Failed to add analytics entry for Payouts {payout:?}\n{payout_attempt_new:?}", error_message=?err);
-            };
+        if let Err(err) = self
+            .kafka_producer
+            .log_payout(
+                &KafkaPayout::from_storage(payouts, &payout_attempt_new),
+                None,
+            )
+            .await
+        {
+            logger::error!(message="Failed to add analytics entry for Payouts {payouts:?}\n{payout_attempt_new:?}", error_message=?err);
         };
 
         Ok(payout_attempt_new)
@@ -1578,24 +1574,22 @@ impl PayoutsInterface for KafkaStore {
         &self,
         this: &storage::Payouts,
         payout_update: storage::PayoutsUpdate,
-        payout_attempt: Option<&storage::PayoutAttempt>,
+        payout_attempt: &storage::PayoutAttempt,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::Payouts, errors::DataStorageError> {
         let payout = self
             .diesel_store
-            .update_payout(this, payout_update, None, storage_scheme)
+            .update_payout(this, payout_update, payout_attempt, storage_scheme)
             .await?;
-        if let Some(payout_attempt) = payout_attempt {
-            if let Err(err) = self
-                .kafka_producer
-                .log_payout(
-                    &KafkaPayout::from_storage(&payout, payout_attempt),
-                    Some(KafkaPayout::from_storage(this, payout_attempt)),
-                )
-                .await
-            {
-                logger::error!(message="Failed to update analytics entry for Payouts {payout:?}\n{payout_attempt:?}", error_message=?err);
-            };
+        if let Err(err) = self
+            .kafka_producer
+            .log_payout(
+                &KafkaPayout::from_storage(&payout, payout_attempt),
+                Some(KafkaPayout::from_storage(this, payout_attempt)),
+            )
+            .await
+        {
+            logger::error!(message="Failed to update analytics entry for Payouts {payout:?}\n{payout_attempt:?}", error_message=?err);
         };
         Ok(payout)
     }

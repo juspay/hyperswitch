@@ -26,7 +26,7 @@ impl PayoutsInterface for MockDb {
         &self,
         _this: &Payouts,
         _payout_update: PayoutsUpdate,
-        _payout_attempt: Option<&PayoutAttempt>,
+        _payout_attempt: &PayoutAttempt,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<Payouts, StorageError> {
         // TODO: Implement function for `MockDb`

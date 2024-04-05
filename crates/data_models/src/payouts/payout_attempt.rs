@@ -12,7 +12,7 @@ pub trait PayoutAttemptInterface {
     async fn insert_payout_attempt(
         &self,
         _payout_attempt: PayoutAttemptNew,
-        _payouts: Option<&Payouts>,
+        _payouts: &Payouts,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PayoutAttempt, errors::StorageError>;
 
@@ -20,7 +20,7 @@ pub trait PayoutAttemptInterface {
         &self,
         _this: &PayoutAttempt,
         _payout_attempt_update: PayoutAttemptUpdate,
-        _payouts: Option<&Payouts>,
+        _payouts: &Payouts,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PayoutAttempt, errors::StorageError>;
 

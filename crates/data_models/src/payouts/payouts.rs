@@ -28,7 +28,7 @@ pub trait PayoutsInterface {
         &self,
         _this: &Payouts,
         _payout: PayoutsUpdate,
-        _payout_attempt: Option<&PayoutAttempt>,
+        _payout_attempt: &PayoutAttempt,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Payouts, errors::StorageError>;
 

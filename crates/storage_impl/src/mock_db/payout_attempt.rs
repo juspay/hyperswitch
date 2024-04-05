@@ -18,7 +18,7 @@ impl PayoutAttemptInterface for MockDb {
         &self,
         _this: &PayoutAttempt,
         _payout_attempt_update: PayoutAttemptUpdate,
-        _payouts: Option<&Payouts>,
+        _payouts: &Payouts,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<PayoutAttempt, StorageError> {
         // TODO: Implement function for `MockDb`
@@ -28,7 +28,7 @@ impl PayoutAttemptInterface for MockDb {
     async fn insert_payout_attempt(
         &self,
         _payout_attempt: PayoutAttemptNew,
-        _payouts: Option<&Payouts>,
+        _payouts: &Payouts,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<PayoutAttempt, StorageError> {
         // TODO: Implement function for `MockDb`
