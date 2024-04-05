@@ -92,8 +92,8 @@ CREATE MATERIALIZED VIEW kafka_parse_payout TO payout (
     `return_url` Nullable(String),
     `entity_type` LowCardinality(String),
     `metadata` Nullable(String),
-    `created_at` DateTime CODEC(T64, LZ4),
-    `last_modified_at` DateTime CODEC(T64, LZ4),
+    `created_at` DateTime64(3),
+    `last_modified_at` DateTime64(3),
     `attempt_count` UInt16,
     `status` LowCardinality(String),
     `connector` Nullable(String),
@@ -104,6 +104,7 @@ CREATE MATERIALIZED VIEW kafka_parse_payout TO payout (
     `business_country` Nullable(LowCardinality(String)),
     `business_label` Nullable(String),
     `merchant_connector_id` Nullable(String),
+    `inserted_at` DateTime64(3),
     `sign_flag` Int8
 ) AS
 SELECT
@@ -135,7 +136,6 @@ SELECT
     business_country,
     business_label,
     merchant_connector_id,
-    sign_flag,
     now() as inserted_at,
     sign_flag
 FROM
