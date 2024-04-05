@@ -81,7 +81,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest {
                 let card = Card {
                     card_type,
                     name_on_card: item
-                        .get_optional_billing_combined_name()
+                        .get_optional_billing_full_name()
                         .unwrap_or(Secret::new("".to_string())),
                     account_number: ccard.card_number.clone(),
                     expire_month: ccard.card_exp_month.clone(),

@@ -239,7 +239,7 @@ impl
         let payment_data =
             match &item.router_data.request.payment_method_data {
                 domain::PaymentMethodData::Card(card) => {
-                    let card_holder_name = item.router_data.get_optional_billing_combined_name();
+                    let card_holder_name = item.router_data.get_optional_billing_full_name();
                     WorldlinePaymentMethod::CardPaymentMethodSpecificInput(Box::new(
                         make_card_request(&item.router_data.request, card, card_holder_name)?,
                     ))

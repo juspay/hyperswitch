@@ -118,7 +118,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest {
                 };
                 let bambora_card = BamboraCard {
                     name: item
-                        .get_optional_billing_combined_name()
+                        .get_optional_billing_full_name()
                         .unwrap_or(Secret::new("".to_string())),
                     number: req_card.card_number,
                     expiry_month: req_card.card_exp_month,

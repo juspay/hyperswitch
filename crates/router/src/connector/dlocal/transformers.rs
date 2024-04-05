@@ -127,7 +127,7 @@ impl TryFrom<&DlocalRouterData<&types::PaymentsAuthorizeRouterData>> for DlocalP
                     card: Some(Card {
                         holder_name: item
                             .router_data
-                            .get_optional_billing_combined_name()
+                            .get_optional_billing_full_name()
                             .unwrap_or(Secret::new("".to_string())),
                         number: ccard.card_number.clone(),
                         cvv: ccard.card_cvc.clone(),

@@ -100,7 +100,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest 
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let source = match item.request.payment_method_data.clone() {
             domain::PaymentMethodData::Card(card) => {
-                let card_holder_name = item.get_optional_billing_combined_name();
+                let card_holder_name = item.get_optional_billing_full_name();
                 Source::try_from((&card, card_holder_name))
             }
             domain::PaymentMethodData::Wallet(_)

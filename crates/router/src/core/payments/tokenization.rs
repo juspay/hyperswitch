@@ -138,7 +138,7 @@ where
                     .address
                     .get_payment_method_billing()
                     .and_then(|billing_details| billing_details.address.as_ref())
-                    .and_then(|address| address.get_combined_name());
+                    .and_then(|address| address.get_full_name());
 
                 let payment_method_create_request = helpers::get_payment_method_create_request(
                     Some(&resp.request.get_payment_method_data()),

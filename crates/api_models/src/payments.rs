@@ -2684,7 +2684,7 @@ pub struct AddressDetails {
 }
 
 impl AddressDetails {
-    pub fn get_combined_name(&self) -> Option<Secret<String>> {
+    pub fn get_full_name(&self) -> Option<Secret<String>> {
         match (self.first_name.as_ref(), self.last_name.as_ref()) {
             (Some(first_name), Some(last_name)) => Some(Secret::new(format!(
                 "{} {}",
@@ -4763,7 +4763,6 @@ mod billing_from_payment_method_data {
 
         let billing_address = card_payment_method_data.get_billing_address();
 
-        dbg!(&billing_address);
         let billing_address = billing_address.unwrap();
 
         assert_eq!(

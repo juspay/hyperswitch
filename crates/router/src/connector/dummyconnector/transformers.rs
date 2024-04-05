@@ -155,7 +155,7 @@ impl<const T: u8> TryFrom<&types::PaymentsAuthorizeRouterData>
             .payment_method_data
         {
             domain::PaymentMethodData::Card(ref req_card) => {
-                let card_holder_name = item.get_optional_billing_combined_name();
+                let card_holder_name = item.get_optional_billing_full_name();
                 Ok(PaymentMethodData::Card(DummyConnectorCard::try_from((
                     req_card.clone(),
                     card_holder_name,

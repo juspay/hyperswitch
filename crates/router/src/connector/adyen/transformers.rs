@@ -2570,8 +2570,7 @@ impl<'a>
                     domain::PaymentMethodData::Card(ref card) => {
                         let card_issuer = card.get_card_issuer()?;
                         let brand = CardBrand::try_from(&card_issuer)?;
-                        let card_holder_name =
-                            item.router_data.get_optional_billing_combined_name();
+                        let card_holder_name = item.router_data.get_optional_billing_full_name();
                         let adyen_card = AdyenCard {
                             payment_type: PaymentType::Scheme,
                             number: card.card_number.clone(),
@@ -2662,7 +2661,7 @@ impl<'a>
         let country_code = get_country_code(item.router_data.get_optional_billing());
         let additional_data = get_additional_data(item.router_data);
         let return_url = item.router_data.request.get_return_url()?;
-        let card_holder_name = item.router_data.get_optional_billing_combined_name();
+        let card_holder_name = item.router_data.get_optional_billing_full_name();
         let payment_method = AdyenPaymentMethod::try_from((card_data, card_holder_name))?;
         let shopper_email = item.router_data.request.email.clone();
         let shopper_name = get_shopper_name(item.router_data.get_optional_billing());

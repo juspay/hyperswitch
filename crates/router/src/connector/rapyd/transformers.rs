@@ -133,7 +133,7 @@ impl TryFrom<&RapydRouterData<&types::PaymentsAuthorizeRouterData>> for RapydPay
                         expiration_year: ccard.card_exp_year.to_owned(),
                         name: item
                             .router_data
-                            .get_optional_billing_combined_name()
+                            .get_optional_billing_full_name()
                             .to_owned()
                             .unwrap_or(Secret::new("".to_string())),
                         cvv: ccard.card_cvc.to_owned(),
