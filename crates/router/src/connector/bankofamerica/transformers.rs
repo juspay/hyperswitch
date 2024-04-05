@@ -287,36 +287,36 @@ impl TryFrom<&types::SetupMandateRouterData> for BankOfAmericaPaymentsRequest {
         match item.request.payment_method_data.clone() {
             domain::PaymentMethodData::Card(card_data) => Self::try_from((item, card_data)),
             domain::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                payments::WalletData::ApplePay(apple_pay_data) => {
+                domain::WalletData::ApplePay(apple_pay_data) => {
                     Self::try_from((item, apple_pay_data))
                 }
-                payments::WalletData::GooglePay(google_pay_data) => {
+                domain::WalletData::GooglePay(google_pay_data) => {
                     Self::try_from((item, google_pay_data))
                 }
-                payments::WalletData::AliPayQr(_)
-                | payments::WalletData::AliPayRedirect(_)
-                | payments::WalletData::AliPayHkRedirect(_)
-                | payments::WalletData::MomoRedirect(_)
-                | payments::WalletData::KakaoPayRedirect(_)
-                | payments::WalletData::GoPayRedirect(_)
-                | payments::WalletData::GcashRedirect(_)
-                | payments::WalletData::ApplePayRedirect(_)
-                | payments::WalletData::ApplePayThirdPartySdk(_)
-                | payments::WalletData::DanaRedirect {}
-                | payments::WalletData::GooglePayRedirect(_)
-                | payments::WalletData::GooglePayThirdPartySdk(_)
-                | payments::WalletData::MbWayRedirect(_)
-                | payments::WalletData::MobilePayRedirect(_)
-                | payments::WalletData::PaypalRedirect(_)
-                | payments::WalletData::PaypalSdk(_)
-                | payments::WalletData::SamsungPay(_)
-                | payments::WalletData::TwintRedirect {}
-                | payments::WalletData::VippsRedirect {}
-                | payments::WalletData::TouchNGoRedirect(_)
-                | payments::WalletData::WeChatPayRedirect(_)
-                | payments::WalletData::WeChatPayQr(_)
-                | payments::WalletData::CashappQr(_)
-                | payments::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
+                domain::WalletData::AliPayQr(_)
+                | domain::WalletData::AliPayRedirect(_)
+                | domain::WalletData::AliPayHkRedirect(_)
+                | domain::WalletData::MomoRedirect(_)
+                | domain::WalletData::KakaoPayRedirect(_)
+                | domain::WalletData::GoPayRedirect(_)
+                | domain::WalletData::GcashRedirect(_)
+                | domain::WalletData::ApplePayRedirect(_)
+                | domain::WalletData::ApplePayThirdPartySdk(_)
+                | domain::WalletData::DanaRedirect {}
+                | domain::WalletData::GooglePayRedirect(_)
+                | domain::WalletData::GooglePayThirdPartySdk(_)
+                | domain::WalletData::MbWayRedirect(_)
+                | domain::WalletData::MobilePayRedirect(_)
+                | domain::WalletData::PaypalRedirect(_)
+                | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::SamsungPay(_)
+                | domain::WalletData::TwintRedirect {}
+                | domain::WalletData::VippsRedirect {}
+                | domain::WalletData::TouchNGoRedirect(_)
+                | domain::WalletData::WeChatPayRedirect(_)
+                | domain::WalletData::WeChatPayQr(_)
+                | domain::WalletData::CashappQr(_)
+                | domain::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("BankOfAmerica"),
                 ))?,
             },
@@ -832,7 +832,7 @@ impl
     TryFrom<(
         &BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>,
         Box<ApplePayPredecryptData>,
-        payments::ApplePayWalletData,
+        domain::ApplePayWalletData,
     )> for BankOfAmericaPaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -840,7 +840,7 @@ impl
         (item, apple_pay_data, apple_pay_wallet_data): (
             &BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>,
             Box<ApplePayPredecryptData>,
-            payments::ApplePayWalletData,
+            domain::ApplePayWalletData,
         ),
     ) -> Result<Self, Self::Error> {
         let email = item.router_data.request.get_email()?;
@@ -887,14 +887,14 @@ impl
 impl
     TryFrom<(
         &BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>,
-        payments::GooglePayWalletData,
+        domain::GooglePayWalletData,
     )> for BankOfAmericaPaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (item, google_pay_data): (
             &BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>,
-            payments::GooglePayWalletData,
+            domain::GooglePayWalletData,
         ),
     ) -> Result<Self, Self::Error> {
         let email = item.router_data.request.get_email()?;
@@ -933,7 +933,7 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                 match item.router_data.request.payment_method_data.clone() {
                     domain::PaymentMethodData::Card(ccard) => Self::try_from((item, ccard)),
                     domain::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                        payments::WalletData::ApplePay(apple_pay_data) => {
+                        domain::WalletData::ApplePay(apple_pay_data) => {
                             match item.router_data.payment_method_token.clone() {
                                 Some(payment_method_token) => match payment_method_token {
                                     types::PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
@@ -998,34 +998,34 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                                 }
                             }
                         }
-                        payments::WalletData::GooglePay(google_pay_data) => {
+                        domain::WalletData::GooglePay(google_pay_data) => {
                             Self::try_from((item, google_pay_data))
                         }
 
-                        payments::WalletData::AliPayQr(_)
-                        | payments::WalletData::AliPayRedirect(_)
-                        | payments::WalletData::AliPayHkRedirect(_)
-                        | payments::WalletData::MomoRedirect(_)
-                        | payments::WalletData::KakaoPayRedirect(_)
-                        | payments::WalletData::GoPayRedirect(_)
-                        | payments::WalletData::GcashRedirect(_)
-                        | payments::WalletData::ApplePayRedirect(_)
-                        | payments::WalletData::ApplePayThirdPartySdk(_)
-                        | payments::WalletData::DanaRedirect {}
-                        | payments::WalletData::GooglePayRedirect(_)
-                        | payments::WalletData::GooglePayThirdPartySdk(_)
-                        | payments::WalletData::MbWayRedirect(_)
-                        | payments::WalletData::MobilePayRedirect(_)
-                        | payments::WalletData::PaypalRedirect(_)
-                        | payments::WalletData::PaypalSdk(_)
-                        | payments::WalletData::SamsungPay(_)
-                        | payments::WalletData::TwintRedirect {}
-                        | payments::WalletData::VippsRedirect {}
-                        | payments::WalletData::TouchNGoRedirect(_)
-                        | payments::WalletData::WeChatPayRedirect(_)
-                        | payments::WalletData::WeChatPayQr(_)
-                        | payments::WalletData::CashappQr(_)
-                        | payments::WalletData::SwishQr(_) => {
+                        domain::WalletData::AliPayQr(_)
+                        | domain::WalletData::AliPayRedirect(_)
+                        | domain::WalletData::AliPayHkRedirect(_)
+                        | domain::WalletData::MomoRedirect(_)
+                        | domain::WalletData::KakaoPayRedirect(_)
+                        | domain::WalletData::GoPayRedirect(_)
+                        | domain::WalletData::GcashRedirect(_)
+                        | domain::WalletData::ApplePayRedirect(_)
+                        | domain::WalletData::ApplePayThirdPartySdk(_)
+                        | domain::WalletData::DanaRedirect {}
+                        | domain::WalletData::GooglePayRedirect(_)
+                        | domain::WalletData::GooglePayThirdPartySdk(_)
+                        | domain::WalletData::MbWayRedirect(_)
+                        | domain::WalletData::MobilePayRedirect(_)
+                        | domain::WalletData::PaypalRedirect(_)
+                        | domain::WalletData::PaypalSdk(_)
+                        | domain::WalletData::SamsungPay(_)
+                        | domain::WalletData::TwintRedirect {}
+                        | domain::WalletData::VippsRedirect {}
+                        | domain::WalletData::TouchNGoRedirect(_)
+                        | domain::WalletData::WeChatPayRedirect(_)
+                        | domain::WalletData::WeChatPayQr(_)
+                        | domain::WalletData::CashappQr(_)
+                        | domain::WalletData::SwishQr(_) => {
                             Err(errors::ConnectorError::NotImplemented(
                                 utils::get_unimplemented_payment_method_error_message(
                                     "Bank of America",
@@ -2412,12 +2412,12 @@ impl TryFrom<(&types::SetupMandateRouterData, domain::Card)> for BankOfAmericaPa
     }
 }
 
-impl TryFrom<(&types::SetupMandateRouterData, payments::ApplePayWalletData)>
+impl TryFrom<(&types::SetupMandateRouterData, domain::ApplePayWalletData)>
     for BankOfAmericaPaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (item, apple_pay_data): (&types::SetupMandateRouterData, payments::ApplePayWalletData),
+        (item, apple_pay_data): (&types::SetupMandateRouterData, domain::ApplePayWalletData),
     ) -> Result<Self, Self::Error> {
         let order_information = OrderInformationWithBill::try_from(item)?;
         let client_reference_information = ClientReferenceInformation::from(item);
@@ -2470,18 +2470,12 @@ impl TryFrom<(&types::SetupMandateRouterData, payments::ApplePayWalletData)>
     }
 }
 
-impl
-    TryFrom<(
-        &types::SetupMandateRouterData,
-        payments::GooglePayWalletData,
-    )> for BankOfAmericaPaymentsRequest
+impl TryFrom<(&types::SetupMandateRouterData, domain::GooglePayWalletData)>
+    for BankOfAmericaPaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (item, google_pay_data): (
-            &types::SetupMandateRouterData,
-            payments::GooglePayWalletData,
-        ),
+        (item, google_pay_data): (&types::SetupMandateRouterData, domain::GooglePayWalletData),
     ) -> Result<Self, Self::Error> {
         let order_information = OrderInformationWithBill::try_from(item)?;
         let client_reference_information = ClientReferenceInformation::from(item);
@@ -2585,8 +2579,8 @@ impl TryFrom<&Box<ApplePayPredecryptData>> for PaymentInformation {
     }
 }
 
-impl From<&payments::ApplePayWalletData> for PaymentInformation {
-    fn from(apple_pay_data: &payments::ApplePayWalletData) -> Self {
+impl From<&domain::ApplePayWalletData> for PaymentInformation {
+    fn from(apple_pay_data: &domain::ApplePayWalletData) -> Self {
         Self::ApplePayToken(ApplePayTokenPaymentInformation {
             fluid_data: FluidData {
                 value: Secret::from(apple_pay_data.payment_data.clone()),
@@ -2598,8 +2592,8 @@ impl From<&payments::ApplePayWalletData> for PaymentInformation {
     }
 }
 
-impl From<&payments::GooglePayWalletData> for PaymentInformation {
-    fn from(google_pay_data: &payments::GooglePayWalletData) -> Self {
+impl From<&domain::GooglePayWalletData> for PaymentInformation {
+    fn from(google_pay_data: &domain::GooglePayWalletData) -> Self {
         Self::GooglePay(GooglePayPaymentInformation {
             fluid_data: FluidData {
                 value: Secret::from(

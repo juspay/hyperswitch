@@ -13,8 +13,8 @@ use crate::{
     core::{
         errors::{self, RouterResult},
         payment_methods::{
-            cards, transformers,
-            transformers::{StoreCardReq, StoreGenericReq, StoreLockerReq},
+            cards,
+            transformers::{self, StoreCardReq, StoreGenericReq, StoreLockerReq},
             vault,
         },
         payments::{
@@ -288,7 +288,7 @@ pub async fn save_payout_data_to_locker(
     // Store card_reference in payouts table
     let db = &*state.store;
     let updated_payout = storage::PayoutsUpdate::PayoutMethodIdUpdate {
-        payout_method_id: Some(stored_resp.card_reference.to_owned()),
+        payout_method_id: stored_resp.card_reference.to_owned(),
     };
     db.update_payout(
         &payout_data.payouts,
@@ -388,6 +388,7 @@ pub async fn save_payout_data_to_locker(
         None,
         card_details_encrypted,
         key_store,
+        None,
         None,
     )
     .await?;
