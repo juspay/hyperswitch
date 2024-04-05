@@ -754,18 +754,18 @@ impl TryFrom<&api_models::payments::BankRedirectData> for ZenPaymentsRequest {
     }
 }
 
-impl TryFrom<&api_models::payments::PayLaterData> for ZenPaymentsRequest {
+impl TryFrom<&domain::payments::PayLaterData> for ZenPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: &api_models::payments::PayLaterData) -> Result<Self, Self::Error> {
+    fn try_from(value: &domain::payments::PayLaterData) -> Result<Self, Self::Error> {
         match value {
-            api_models::payments::PayLaterData::KlarnaRedirect { .. }
-            | api_models::payments::PayLaterData::KlarnaSdk { .. }
-            | api_models::payments::PayLaterData::AffirmRedirect {}
-            | api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. }
-            | api_models::payments::PayLaterData::PayBrightRedirect {}
-            | api_models::payments::PayLaterData::WalleyRedirect {}
-            | api_models::payments::PayLaterData::AlmaRedirect {}
-            | api_models::payments::PayLaterData::AtomeRedirect {} => {
+            domain::payments::PayLaterData::KlarnaRedirect { .. }
+            | domain::payments::PayLaterData::KlarnaSdk { .. }
+            | domain::payments::PayLaterData::AffirmRedirect {}
+            | domain::payments::PayLaterData::AfterpayClearpayRedirect { .. }
+            | domain::payments::PayLaterData::PayBrightRedirect {}
+            | domain::payments::PayLaterData::WalleyRedirect {}
+            | domain::payments::PayLaterData::AlmaRedirect {}
+            | domain::payments::PayLaterData::AtomeRedirect {} => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Zen"),
                 )
