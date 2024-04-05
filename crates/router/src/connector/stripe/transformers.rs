@@ -2664,12 +2664,23 @@ impl<F, T>
                 item.response.id.clone(),
             ))
         } else {
+            let network_transaction_id = match item.response.latest_charge.clone() {
+                Some(StripeChargeEnum::ChargeObject(charge_object)) => charge_object
+                    .payment_method_details
+                    .and_then(|payment_method_details| match payment_method_details {
+                        StripePaymentMethodDetailsResponse::Card { card } => {
+                            card.network_transaction_id
+                        }
+                        _ => None,
+                    }),
+                _ => None,
+            };
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data,
                 mandate_reference,
                 connector_metadata,
-                network_txn_id: None,
+                network_txn_id: network_transaction_id,
                 connector_response_reference_id: Some(item.response.id.clone()),
                 incremental_authorization_allowed: None,
             })
