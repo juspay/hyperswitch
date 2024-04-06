@@ -327,7 +327,7 @@ pub async fn mandate_procedure<F, FData>(
 where
     FData: MandateBehaviour,
 {
-    let mut mandate_id_pm_id = MandateIdPmId{
+    let mut mandate_id_pm_id = MandateIdPmId {
         pm_id: None,
         mandate_ids: None,
     };
