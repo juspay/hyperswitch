@@ -292,6 +292,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::PaymentMethodDeleteFailed => {
                 AER::BadRequest(ApiError::new("IR", 25, "Cannot delete the default payment method", None))
             }
+            Self::InvalidCookie => {
+                AER::BadRequest(ApiError::new("IR", 26, "Invalid Cookie", None))
+            }
         }
     }
 }

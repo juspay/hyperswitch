@@ -4,6 +4,33 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.04.05.0
+
+### Features
+
+- **payout-events:** Add kafka events for payout analytics ([#4211](https://github.com/juspay/hyperswitch/pull/4211)) ([`bc25f3f`](https://github.com/juspay/hyperswitch/commit/bc25f3fa40e807cc92d2d53a2287b92eff727d3c))
+- **router:**
+  - Store `network_reference_id` against the `payment_method_id` in the `payment_method_table` ([#4041](https://github.com/juspay/hyperswitch/pull/4041)) ([`21e2d78`](https://github.com/juspay/hyperswitch/commit/21e2d78117a9e25708b8c6a2280f6a836ee86072))
+  - Use `NTID` in `MIT` payments if the `pg_agnostic_mit` config is enabled ([#4113](https://github.com/juspay/hyperswitch/pull/4113)) ([`b58d7a8`](https://github.com/juspay/hyperswitch/commit/b58d7a8e62eef9880f717731063101bf92af3f34))
+  - Add NTID flow for cybersource ([#4193](https://github.com/juspay/hyperswitch/pull/4193)) ([`071462f`](https://github.com/juspay/hyperswitch/commit/071462f2af8efeb16e48d351bbae68fd2fd64179))
+- **webhooks:** Allow manually retrying delivery of outgoing webhooks ([#4176](https://github.com/juspay/hyperswitch/pull/4176)) ([`63d2b68`](https://github.com/juspay/hyperswitch/commit/63d2b6855acee1adeae2efff10f424e056af0bcb))
+
+### Bug Fixes
+
+- **payouts:** Persist status updates in payouts table ([#4280](https://github.com/juspay/hyperswitch/pull/4280)) ([`02ffe7e`](https://github.com/juspay/hyperswitch/commit/02ffe7e48068a43d319d67e0e976420d201776db))
+
+### Refactors
+
+- **connector:**
+  - [Multisafepay] handle authorize and psync 2xx failure error response ([#4124](https://github.com/juspay/hyperswitch/pull/4124)) ([`9ebe0f4`](https://github.com/juspay/hyperswitch/commit/9ebe0f4371f13c7527972242424af2d926c84b5e))
+  - Add support for GooglePay recurring payments ([#4300](https://github.com/juspay/hyperswitch/pull/4300)) ([`622aac3`](https://github.com/juspay/hyperswitch/commit/622aac3015e95de55e83abd047b5c680ecd8d662))
+- **core:** Log the appropriate error message if the card fails to get saved in locker ([#4296](https://github.com/juspay/hyperswitch/pull/4296)) ([`9de3cdb`](https://github.com/juspay/hyperswitch/commit/9de3cdb7d37dd1d18c6a84368e70ceb52b7ae53a))
+- **payment_link:** Decouple shimmer css from main payment_link css for better performance ([#4286](https://github.com/juspay/hyperswitch/pull/4286)) ([`9453e8f`](https://github.com/juspay/hyperswitch/commit/9453e8fcfac49fc399343ee7c4c1598412b370c7))
+
+**Full Changelog:** [`2024.04.04.0...2024.04.05.0`](https://github.com/juspay/hyperswitch/compare/2024.04.04.0...2024.04.05.0)
+
+- - -
+
 ## 2024.04.04.0
 
 ### Features

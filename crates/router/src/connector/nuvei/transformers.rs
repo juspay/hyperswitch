@@ -829,18 +829,18 @@ impl<F>
                 }
             },
             domain::PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
-                payments::PayLaterData::KlarnaRedirect { .. } => {
+                domain::PayLaterData::KlarnaRedirect { .. } => {
                     get_pay_later_info(AlternativePaymentMethodType::Klarna, item)
                 }
-                payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
+                domain::PayLaterData::AfterpayClearpayRedirect { .. } => {
                     get_pay_later_info(AlternativePaymentMethodType::AfterPay, item)
                 }
-                payments::PayLaterData::KlarnaSdk { .. }
-                | payments::PayLaterData::AffirmRedirect {}
-                | payments::PayLaterData::PayBrightRedirect {}
-                | payments::PayLaterData::WalleyRedirect {}
-                | payments::PayLaterData::AlmaRedirect {}
-                | payments::PayLaterData::AtomeRedirect {} => {
+                domain::PayLaterData::KlarnaSdk { .. }
+                | domain::PayLaterData::AffirmRedirect {}
+                | domain::PayLaterData::PayBrightRedirect {}
+                | domain::PayLaterData::WalleyRedirect {}
+                | domain::PayLaterData::AlmaRedirect {}
+                | domain::PayLaterData::AtomeRedirect {} => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("nuvei"),
                     )
