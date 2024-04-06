@@ -19,12 +19,12 @@ use crate::{
         mandate,
         payment_methods::PaymentMethodRetrieve,
         payments::{
-            tokenization,
             self,
             helpers::{
                 self as payments_helpers,
                 update_additional_payment_data_with_connector_response_pm_data,
             },
+            tokenization,
             types::MultipleCaptureData,
             PaymentData,
         },
@@ -381,7 +381,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
     async fn save_pm_and_mandate<'b>(
         &'b self,
         _state: &AppState,
-        _router_data: &types::RouterData<F, types::PaymentsSessionData, types::PaymentsResponseData>,
+        _router_data: &types::RouterData<
+            F,
+            types::PaymentsSessionData,
+            types::PaymentsResponseData,
+        >,
         _connector: &api::ConnectorData,
         _maybe_customer: &Option<domain::Customer>,
         _call_connector_action: payments::CallConnectorAction,
@@ -427,7 +431,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
     async fn save_pm_and_mandate<'b>(
         &'b self,
         _state: &AppState,
-        _router_data: &types::RouterData<F, types::PaymentsCaptureData, types::PaymentsResponseData>,
+        _router_data: &types::RouterData<
+            F,
+            types::PaymentsCaptureData,
+            types::PaymentsResponseData,
+        >,
         _connector: &api::ConnectorData,
         _maybe_customer: &Option<domain::Customer>,
         _call_connector_action: payments::CallConnectorAction,
@@ -519,7 +527,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
     async fn save_pm_and_mandate<'b>(
         &'b self,
         _state: &AppState,
-        _router_data: &types::RouterData<F, types::PaymentsApproveData, types::PaymentsResponseData>,
+        _router_data: &types::RouterData<
+            F,
+            types::PaymentsApproveData,
+            types::PaymentsResponseData,
+        >,
         _connector: &api::ConnectorData,
         _maybe_customer: &Option<domain::Customer>,
         _call_connector_action: payments::CallConnectorAction,
