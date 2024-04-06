@@ -310,16 +310,27 @@ where
         .change_context(errors::ApiErrorResponse::MandateUpdateFailed)?;
     Ok(resp)
 }
+
+#[derive(Debug, Clone)]
+pub struct MandateIdPmId {
+    pm_id: Option<String>,
+    mandate_ids: Option<payments::MandateIds>,
+}
+
 pub async fn mandate_procedure<F, FData>(
     state: &AppState,
-    mut resp: types::RouterData<F, FData, types::PaymentsResponseData>,
+    resp: &types::RouterData<F, FData, types::PaymentsResponseData>,
     maybe_customer: &Option<domain::Customer>,
     pm_id: Option<String>,
     merchant_connector_id: Option<String>,
-) -> errors::RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
+) -> errors::RouterResult<MandateIdPmId>
 where
     FData: MandateBehaviour,
 {
+    let mut mandate_id_pm_id = MandateIdPmId{
+        pm_id: None,
+        mandate_ids: None,
+    };
     match resp.response {
         Err(_) => {}
         Ok(_) => match resp.request.get_mandate_id() {
@@ -368,12 +379,12 @@ where
                             mandate.connector,
                         )],
                     );
-                    resp.payment_method_id = Some(mandate.payment_method_id);
+                    mandate_id_pm_id.pm_id = Some(mandate.payment_method_id);
                 }
             }
             None => {
                 if resp.request.get_setup_mandate_details().is_some() {
-                    resp.payment_method_id = pm_id.clone();
+                    mandate_id_pm_id.pm_id = pm_id.clone();
                     let (mandate_reference, network_txn_id) = match resp.response.as_ref().ok() {
                         Some(types::PaymentsResponseData::TransactionResponse {
                             mandate_reference,
@@ -403,14 +414,14 @@ where
                         pm_id.get_required_value("payment_method_id")?,
                         mandate_ids,
                         network_txn_id,
-                        get_insensitive_payment_method_data_if_exists(&resp),
+                        get_insensitive_payment_method_data_if_exists(resp),
                         mandate_reference,
                         merchant_connector_id,
                     )? {
                         let connector = new_mandate_data.connector.clone();
                         logger::debug!("{:?}", new_mandate_data);
-                        resp.request
-                        .set_mandate_id(Some(api_models::payments::MandateIds {
+
+                        mandate_id_pm_id.mandate_ids = Some(api_models::payments::MandateIds {
                             mandate_id: Some(new_mandate_data.mandate_id.clone()),
                             mandate_reference_id: new_mandate_data
                                 .connector_mandate_ids
@@ -437,7 +448,8 @@ where
 
                                     }
                                 )))
-                        }));
+                        });
+
                         state
                             .store
                             .insert_mandate(new_mandate_data)
@@ -453,7 +465,7 @@ where
             }
         },
     }
-    Ok(resp)
+    Ok(mandate_id_pm_id)
 }
 
 #[instrument(skip(state))]

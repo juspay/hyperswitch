@@ -119,12 +119,13 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             resp.payment_method_status = payment_method_status;
             mandate::mandate_procedure(
                 state,
-                resp,
+                &resp,
                 maybe_customer,
                 pm_id,
                 connector.merchant_connector_id.clone(),
             )
-            .await
+            .await?;
+            Ok(resp)
         }
     }
 
@@ -259,14 +260,15 @@ impl types::SetupMandateRouterData {
                 resp.payment_method_id = pm_id.clone();
                 resp.payment_method_status = payment_method_status;
 
-                Ok(mandate::mandate_procedure(
+                mandate::mandate_procedure(
                     state,
-                    resp,
+                    &resp,
                     maybe_customer,
                     pm_id,
                     connector.merchant_connector_id.clone(),
                 )
-                .await?)
+                .await?;
+                Ok(resp)
             }
             _ => Ok(self.clone()),
         }

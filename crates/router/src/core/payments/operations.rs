@@ -212,6 +212,7 @@ pub trait UpdateTracker<F, D, Req, Ctx: PaymentMethodRetrieve>: Send {
 }
 
 #[async_trait]
+#[allow(clippy::too_many_arguments)]
 pub trait PostUpdateTracker<F, D, R>: Send {
     async fn update_tracker<'b>(
         &'b self,
@@ -235,6 +236,7 @@ pub trait PostUpdateTracker<F, D, R>: Send {
         connector_request: Option<services::Request>,
         key_store: &domain::MerchantKeyStore,
         payment_data: &mut D,
+        profile_id: Option<String>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Send + Sync;

@@ -297,6 +297,7 @@ where
                             None,
                             &key_store,
                             &mut payment_data,
+                            None,
                         )
                         .await?;
 
@@ -394,12 +395,13 @@ where
                             state,
                             &router_data,
                             &connector_data,
-                            &None,
+                            &customer,
                             call_connector_action,
                             &merchant_account,
                             None,
                             &key_store,
                             &mut payment_data,
+                            None,
                         )
                         .await?;
 

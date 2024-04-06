@@ -85,74 +85,78 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
 
     async fn save_pm_and_mandate<'b>(
         &'b self,
-        _state: &AppState,
+        state: &AppState,
         resp: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
-        _connector: &api::ConnectorData,
-        _maybe_customer: &Option<domain::Customer>,
+        connector: &api::ConnectorData,
+        maybe_customer: &Option<domain::Customer>,
         _call_connector_action: payments::CallConnectorAction,
-        _merchant_account: &domain::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
         _connector_request: Option<services::Request>,
-        _key_store: &domain::MerchantKeyStore,
-        _payment_data: &mut PaymentData<F>,
+        key_store: &domain::MerchantKeyStore,
+        payment_data: &mut PaymentData<F>,
+        profile_id: Option<String>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Send + Clone + Sync,
     {
         let is_mandate = &resp.request.setup_mandate_details.is_some();
-        // if *is_mandate {
-        //     let (payment_method_id, payment_method_status) =
-        //         Box::pin(tokenization::save_payment_method(
-        //             state,
-        //             connector,
-        //             resp.to_owned(),
-        //             maybe_customer,
-        //             merchant_account,
-        //             resp.request.payment_method_type,
-        //             key_store,
-        //             Some(resp.request.amount),
-        //             Some(resp.request.currency),
-        //         ))
-        //         .await?;
-        //
-        //     resp.payment_method_id = payment_method_id.clone();
-        //     resp.payment_method_status = payment_method_status;
-        //
-        //     Ok(mandate::mandate_procedure(
-        //         state,
-        //         resp,
-        //         maybe_customer,
-        //         payment_method_id,
-        //         connector.merchant_connector_id.clone(),
-        //     )
-        //     .await?);
-        // } else {
-        //     let response = resp.clone();
-        //
-        //     logger::info!("Call to save_payment_method in locker");
-        //
-        //     let pm = Box::pin(tokenization::save_payment_method(
-        //         state,
-        //         connector,
-        //         response,
-        //         maybe_customer,
-        //         merchant_account,
-        //         resp.request.payment_method_type,
-        //         key_store,
-        //         Some(resp.request.amount),
-        //         Some(resp.request.currency),
-        //     ))
-        //     .await;
-        //
-        //     match pm {
-        //         Ok((payment_method_id, payment_method_status)) => {
-        //             resp.payment_method_id = payment_method_id.clone();
-        //             resp.payment_method_status = payment_method_status;
-        //         }
-        //         Err(err) => logger::error!("Save pm to locker failed : {err:?}"),
-        //     }
-        //
-        //     // Ok(resp)
-        // }
+        if *is_mandate {
+            let (payment_method_id, _payment_method_status) =
+                Box::pin(tokenization::save_payment_method(
+                    state,
+                    connector,
+                    resp.to_owned(),
+                    maybe_customer,
+                    merchant_account,
+                    resp.request.payment_method_type,
+                    key_store,
+                    Some(resp.request.amount),
+                    Some(resp.request.currency),
+                    profile_id,
+                ))
+                .await?;
+
+            payment_data.payment_attempt.payment_method_id = payment_method_id.clone();
+            // resp.payment_method_status = payment_method_status;
+
+            let _mandate_id_pm_id = mandate::mandate_procedure(
+                state,
+                resp,
+                maybe_customer,
+                payment_method_id,
+                connector.merchant_connector_id.clone(),
+            )
+            .await?;
+            // update mandate as well as pm_id
+        } else {
+            let response = resp.clone();
+
+            logger::info!("Call to save_payment_method in locker");
+
+            let pm = Box::pin(tokenization::save_payment_method(
+                state,
+                connector,
+                response,
+                maybe_customer,
+                merchant_account,
+                resp.request.payment_method_type,
+                key_store,
+                Some(resp.request.amount),
+                Some(resp.request.currency),
+                profile_id,
+            ))
+            .await;
+
+            match pm {
+                Ok((payment_method_id, _payment_method_status)) => {
+                    payment_data.payment_attempt.payment_method_id = payment_method_id;
+                    // resp.payment_method_status = payment_method_status;
+                }
+                Err(err) => logger::error!("Save pm to locker failed : {err:?}"),
+            }
+
+            // Ok(resp)
+        }
         Ok(())
     }
 }
@@ -301,6 +305,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
         _connector_request: Option<services::Request>,
         _key_store: &domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
+        _profile_id: Option<String>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Send + Clone + Sync,
@@ -343,6 +348,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         _connector_request: Option<services::Request>,
         _key_store: &domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
+        _profile_id: Option<String>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Send + Clone + Sync,
@@ -393,6 +399,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
         _connector_request: Option<services::Request>,
         _key_store: &domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
+        _profile_id: Option<String>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Send + Clone + Sync,
@@ -443,6 +450,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
         _connector_request: Option<services::Request>,
         _key_store: &domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
+        _profile_id: Option<String>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Send + Clone + Sync,
@@ -488,6 +496,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
         _connector_request: Option<services::Request>,
         _key_store: &domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
+        _profile_id: Option<String>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Send + Clone + Sync,
@@ -539,6 +548,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
         _connector_request: Option<services::Request>,
         _key_store: &domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
+        _profile_id: Option<String>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Send + Clone + Sync,
@@ -584,6 +594,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> f
         _connector_request: Option<services::Request>,
         _key_store: &domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
+        _profile_id: Option<String>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Send + Clone + Sync,
@@ -644,6 +655,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         _connector_request: Option<services::Request>,
         _key_store: &domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
+        _profile_id: Option<String>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Send + Clone + Sync,
@@ -688,6 +700,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
         _connector_request: Option<services::Request>,
         _key_store: &domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
+        _profile_id: Option<String>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Send + Clone + Sync,
