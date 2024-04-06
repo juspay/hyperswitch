@@ -1246,12 +1246,13 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("The pg_agnostic config was not found in the DB")?;
 
-                if &pg_agnostic.config == "true" {
+                if &pg_agnostic.config == "true"
+                    && payment_data.payment_intent.setup_future_usage
+                        == Some(diesel_models::enums::FutureUsage::OffSession)
+                {
                     Some(network_transaction_id)
                 } else {
-                    logger::info!(
-                        "Skip storing network transaction id as pg_agnostic config is not enabled"
-                    );
+                    logger::info!("Skip storing network transaction id");
                     None
                 }
             } else {

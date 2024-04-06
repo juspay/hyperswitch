@@ -930,21 +930,21 @@ fn validate_shipping_address_against_payment_method(
     }
 }
 
-impl TryFrom<&api_models::payments::PayLaterData> for StripePaymentMethodType {
+impl TryFrom<&domain::payments::PayLaterData> for StripePaymentMethodType {
     type Error = errors::ConnectorError;
-    fn try_from(pay_later_data: &api_models::payments::PayLaterData) -> Result<Self, Self::Error> {
+    fn try_from(pay_later_data: &domain::payments::PayLaterData) -> Result<Self, Self::Error> {
         match pay_later_data {
-            api_models::payments::PayLaterData::KlarnaRedirect { .. } => Ok(Self::Klarna),
-            api_models::payments::PayLaterData::AffirmRedirect {} => Ok(Self::Affirm),
-            api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
+            domain::payments::PayLaterData::KlarnaRedirect { .. } => Ok(Self::Klarna),
+            domain::payments::PayLaterData::AffirmRedirect {} => Ok(Self::Affirm),
+            domain::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
                 Ok(Self::AfterpayClearpay)
             }
 
-            payments::PayLaterData::KlarnaSdk { .. }
-            | payments::PayLaterData::PayBrightRedirect {}
-            | payments::PayLaterData::WalleyRedirect {}
-            | payments::PayLaterData::AlmaRedirect {}
-            | payments::PayLaterData::AtomeRedirect {} => {
+            domain::PayLaterData::KlarnaSdk { .. }
+            | domain::PayLaterData::PayBrightRedirect {}
+            | domain::PayLaterData::WalleyRedirect {}
+            | domain::PayLaterData::AlmaRedirect {}
+            | domain::PayLaterData::AtomeRedirect {} => {
                 Err(errors::ConnectorError::NotImplemented(
                     connector_util::get_unimplemented_payment_method_error_message("stripe"),
                 ))
@@ -1039,17 +1039,15 @@ impl From<&payments::BankDebitData> for StripePaymentMethodType {
     }
 }
 
-impl TryFrom<(&api_models::payments::PayLaterData, StripePaymentMethodType)>
-    for StripeBillingAddress
-{
+impl TryFrom<(&domain::payments::PayLaterData, StripePaymentMethodType)> for StripeBillingAddress {
     type Error = errors::ConnectorError;
 
     fn try_from(
-        (pay_later_data, pm_type): (&api_models::payments::PayLaterData, StripePaymentMethodType),
+        (pay_later_data, pm_type): (&domain::payments::PayLaterData, StripePaymentMethodType),
     ) -> Result<Self, Self::Error> {
         match (pay_later_data, pm_type) {
             (
-                payments::PayLaterData::KlarnaRedirect {
+                domain::payments::PayLaterData::KlarnaRedirect {
                     billing_email,
                     billing_country,
                 },
@@ -1059,11 +1057,12 @@ impl TryFrom<(&api_models::payments::PayLaterData, StripePaymentMethodType)>
                 country: Some(billing_country.to_owned()),
                 ..Self::default()
             }),
-            (payments::PayLaterData::AffirmRedirect {}, StripePaymentMethodType::Affirm) => {
-                Ok(Self::default())
-            }
             (
-                payments::PayLaterData::AfterpayClearpayRedirect {
+                domain::payments::PayLaterData::AffirmRedirect {},
+                StripePaymentMethodType::Affirm,
+            ) => Ok(Self::default()),
+            (
+                domain::payments::PayLaterData::AfterpayClearpayRedirect {
                     billing_email,
                     billing_name,
                 },
@@ -2664,12 +2663,23 @@ impl<F, T>
                 item.response.id.clone(),
             ))
         } else {
+            let network_transaction_id = match item.response.latest_charge.clone() {
+                Some(StripeChargeEnum::ChargeObject(charge_object)) => charge_object
+                    .payment_method_details
+                    .and_then(|payment_method_details| match payment_method_details {
+                        StripePaymentMethodDetailsResponse::Card { card } => {
+                            card.network_transaction_id
+                        }
+                        _ => None,
+                    }),
+                _ => None,
+            };
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data,
                 mandate_reference,
                 connector_metadata,
-                network_txn_id: None,
+                network_txn_id: network_transaction_id,
                 connector_response_reference_id: Some(item.response.id.clone()),
                 incremental_authorization_allowed: None,
             })

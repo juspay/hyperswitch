@@ -1452,7 +1452,10 @@ pub async fn fulfill_payout(
                 .status
                 .unwrap_or(payout_attempt.status.to_owned());
             payout_data.payouts.status = status;
-            if payout_data.payouts.recurring && payout_data.payouts.payout_method_id.is_none() {
+            if payout_data.payouts.recurring
+                && payout_data.payouts.payout_method_id.is_none()
+                && !helpers::is_payout_err_state(status)
+            {
                 helpers::save_payout_data_to_locker(
                     state,
                     payout_data,
