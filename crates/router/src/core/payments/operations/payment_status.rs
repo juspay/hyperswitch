@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
-use router_env::{instrument, tracing};
+use router_env::{instrument, logger, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -399,17 +399,17 @@ async fn get_tracker_for_sync<
         .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
             id: profile_id.to_string(),
         })?;
-    let payment_method_info =
-        if let Some(ref payment_method_id) = payment_attempt.payment_method_id.clone() {
-            Some(
-                db.find_payment_method(payment_method_id)
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
-                    .attach_printable("error retrieving payment method from DB")?,
-            )
-        } else {
-            None
-        };
+
+    let payment_method_info = if let Some(ref payment_method_id) =
+        payment_attempt.payment_method_id.clone()
+    {
+        db.find_payment_method(payment_method_id)
+            .await
+            .map_err(|error| logger::info!("Error retrieving payment method from DB {:?}", error))
+            .ok()
+    } else {
+        None
+    };
 
     let merchant_id = payment_intent.merchant_id.clone();
     let authentication = payment_attempt.authentication_id.clone().async_map(|authentication_id| async move {
