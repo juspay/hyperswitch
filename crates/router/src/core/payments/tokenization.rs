@@ -15,7 +15,8 @@ use crate::{
     consts,
     core::{
         errors::{self, ConnectorErrorExt, RouterResult, StorageErrorExt},
-        mandate, payment_methods, payments,
+        mandate, payment_methods,
+        payments::{self, PaymentData},
     },
     logger,
     routes::{metrics, AppState},

@@ -311,7 +311,7 @@ where
     Ok(resp)
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Default)]
 pub struct MandateIdPmId {
     pm_id: Option<String>,
     mandate_ids: Option<payments::MandateIds>,
@@ -327,10 +327,10 @@ pub async fn mandate_procedure<F, FData>(
 where
     FData: MandateBehaviour,
 {
-    let mut mandate_id_pm_id = MandateIdPmId{
-        pm_id: None,
-        mandate_ids: None,
+    let mut mandate_id_pm_id = MandateIdPmId {
+        ..Default::default()
     };
+
     match resp.response {
         Err(_) => {}
         Ok(_) => match resp.request.get_mandate_id() {

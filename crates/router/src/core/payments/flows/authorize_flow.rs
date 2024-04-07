@@ -144,7 +144,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             //         Err(err) => logger::error!("Save pm to locker failed : {err:?}"),
             //     }
 
-                Ok(resp)
+            Ok(resp)
             // }
 
             // Async locker code (Commenting out the code for near future refactors)

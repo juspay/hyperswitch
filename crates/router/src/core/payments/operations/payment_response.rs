@@ -128,36 +128,73 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
             )
             .await?;
             // update mandate as well as pm_id
+            Ok(())
         } else {
+            //     let response = resp.clone();
+            //
+            //     logger::info!("Call to save_payment_method in locker");
+            //
+            //     let pm = Box::pin(tokenization::save_payment_method(
+            //         state,
+            //         connector,
+            //         response,
+            //         maybe_customer,
+            //         merchant_account,
+            //         resp.request.payment_method_type,
+            //         key_store,
+            //         Some(resp.request.amount),
+            //         Some(resp.request.currency),
+            //         profile_id,
+            //         payment_data,
+            //     ))
+            //     .await;
+            //
+            //     match pm {
+            //         Ok((payment_method_id, _payment_method_status)) => {
+            //             payment_data.payment_attempt.payment_method_id = payment_method_id;
+            //             // resp.payment_method_status = payment_method_status;
+            //         }
+            //         Err(err) => logger::error!("Save pm to locker failed : {err:?}"),
+            //     }
+            //
+            //     // Ok(resp)
+            // }
+            // Ok(())
+            let connector = connector.clone();
             let response = resp.clone();
+            let maybe_customer = maybe_customer.clone();
+            let merchant_account = merchant_account.clone();
+            let key_store = key_store.clone();
+            let state = state.clone();
 
             logger::info!("Call to save_payment_method in locker");
+            let _task_handle = tokio::spawn(
+                async move {
+                    logger::info!("Starting async call to save_payment_method in locker");
 
-            let pm = Box::pin(tokenization::save_payment_method(
-                state,
-                connector,
-                response,
-                maybe_customer,
-                merchant_account,
-                resp.request.payment_method_type,
-                key_store,
-                Some(resp.request.amount),
-                Some(resp.request.currency),
-                profile_id,
-            ))
-            .await;
+                    let result = Box::pin(tokenization::save_payment_method(
+                        &state,
+                        &connector,
+                        response,
+                        &maybe_customer,
+                        &merchant_account,
+                        resp.request.payment_method_type,
+                        &key_store,
+                        Some(resp.request.amount),
+                        Some(resp.request.currency),
+                        profile_id,
+                    ))
+                    .await;
 
-            match pm {
-                Ok((payment_method_id, _payment_method_status)) => {
-                    payment_data.payment_attempt.payment_method_id = payment_method_id;
-                    // resp.payment_method_status = payment_method_status;
+                    if let Err(err) = result {
+                        logger::error!("Asynchronously saving card in locker failed : {:?}", err);
+                    }
                 }
-                Err(err) => logger::error!("Save pm to locker failed : {err:?}"),
-            }
+                .in_current_span(),
+            );
 
-            // Ok(resp)
+            Ok(())
         }
-        Ok(())
     }
 }
 
