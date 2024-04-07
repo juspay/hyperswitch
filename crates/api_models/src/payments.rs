@@ -2031,7 +2031,7 @@ pub enum BankTransferData {
     Pix {},
     Pse {},
     LocalBankTransfer {
-        bank_code: Option<String>
+        bank_code: Option<String>,
     },
 }
 
@@ -2083,8 +2083,7 @@ impl GetAddressFromPaymentMethodData for BankTransferData {
                 phone: None,
                 email: Some(billing_details.email.clone()),
             }),
-            Self::LocalBankTransfer {..} 
-            | Self::Pix {} | Self::Pse {} => None,
+            Self::LocalBankTransfer { .. } | Self::Pix {} | Self::Pse {} => None,
         }
     }
 }
