@@ -227,8 +227,8 @@ pub trait PostUpdateTracker<F, D, R>: Send {
 
     async fn save_pm_and_mandate<'b>(
         &'b self,
-        state: &AppState,
-        resp: &types::RouterData<F, R, PaymentsResponseData>,
+        state: &'b AppState,
+        resp: &'b types::RouterData<F, R, PaymentsResponseData>,
         connector: &api::ConnectorData,
         maybe_customer: &Option<domain::Customer>,
         call_connector_action: payments::CallConnectorAction,

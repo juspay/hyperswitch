@@ -85,8 +85,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
 
     async fn save_pm_and_mandate<'b>(
         &'b self,
-        state: &AppState,
-        resp: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+        state: &'b AppState,
+        resp: &'b types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
         connector: &api::ConnectorData,
         maybe_customer: &Option<domain::Customer>,
         _call_connector_action: payments::CallConnectorAction,
@@ -171,6 +171,9 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
             let _task_handle = tokio::spawn(
                 async move {
                     logger::info!("Starting async call to save_payment_method in locker");
+                    let amount = response.request.amount.clone();
+                    let currency = response.request.currency;
+                    let payment_method_type = response.request.payment_method_type.clone();
 
                     let result = Box::pin(tokenization::save_payment_method(
                         &state,
@@ -178,10 +181,10 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
                         response,
                         &maybe_customer,
                         &merchant_account,
-                        resp.request.payment_method_type,
+                        payment_method_type,
                         &key_store,
-                        Some(resp.request.amount),
-                        Some(resp.request.currency),
+                        Some(amount),
+                        Some(currency),
                         profile_id,
                     ))
                     .await;
@@ -189,6 +192,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
                     if let Err(err) = result {
                         logger::error!("Asynchronously saving card in locker failed : {:?}", err);
                     }
+
+                    //TODO: update payment attempt with `payment_method_id`
                 }
                 .in_current_span(),
             );
@@ -329,8 +334,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
 
     async fn save_pm_and_mandate<'b>(
         &'b self,
-        _state: &AppState,
-        _router_data: &types::RouterData<
+        _state: &'b AppState,
+        _router_data: &'b types::RouterData<
             F,
             types::PaymentsIncrementalAuthorizationData,
             types::PaymentsResponseData,
@@ -376,8 +381,12 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
 
     async fn save_pm_and_mandate<'b>(
         &'b self,
-        _state: &AppState,
-        _router_data: &types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
+        _state: &'b AppState,
+        _router_data: &'b types::RouterData<
+            F,
+            types::PaymentsSyncData,
+            types::PaymentsResponseData,
+        >,
         _connector: &api::ConnectorData,
         _maybe_customer: &Option<domain::Customer>,
         _call_connector_action: payments::CallConnectorAction,
@@ -423,8 +432,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
 
     async fn save_pm_and_mandate<'b>(
         &'b self,
-        _state: &AppState,
-        _router_data: &types::RouterData<
+        _state: &'b AppState,
+        _router_data: &'b types::RouterData<
             F,
             types::PaymentsSessionData,
             types::PaymentsResponseData,
@@ -474,8 +483,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
 
     async fn save_pm_and_mandate<'b>(
         &'b self,
-        _state: &AppState,
-        _router_data: &types::RouterData<
+        _state: &'b AppState,
+        _router_data: &'b types::RouterData<
             F,
             types::PaymentsCaptureData,
             types::PaymentsResponseData,
@@ -524,8 +533,12 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
 
     async fn save_pm_and_mandate<'b>(
         &'b self,
-        _state: &AppState,
-        _router_data: &types::RouterData<F, types::PaymentsCancelData, types::PaymentsResponseData>,
+        _state: &'b AppState,
+        _router_data: &'b types::RouterData<
+            F,
+            types::PaymentsCancelData,
+            types::PaymentsResponseData,
+        >,
         _connector: &api::ConnectorData,
         _maybe_customer: &Option<domain::Customer>,
         _call_connector_action: payments::CallConnectorAction,
@@ -572,8 +585,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
 
     async fn save_pm_and_mandate<'b>(
         &'b self,
-        _state: &AppState,
-        _router_data: &types::RouterData<
+        _state: &'b AppState,
+        _router_data: &'b types::RouterData<
             F,
             types::PaymentsApproveData,
             types::PaymentsResponseData,
@@ -622,8 +635,12 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> f
 
     async fn save_pm_and_mandate<'b>(
         &'b self,
-        _state: &AppState,
-        _router_data: &types::RouterData<F, types::PaymentsRejectData, types::PaymentsResponseData>,
+        _state: &'b AppState,
+        _router_data: &'b types::RouterData<
+            F,
+            types::PaymentsRejectData,
+            types::PaymentsResponseData,
+        >,
         _connector: &api::ConnectorData,
         _maybe_customer: &Option<domain::Customer>,
         _call_connector_action: payments::CallConnectorAction,
@@ -679,8 +696,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
 
     async fn save_pm_and_mandate<'b>(
         &'b self,
-        _state: &AppState,
-        _router_data: &types::RouterData<
+        _state: &'b AppState,
+        _router_data: &'b types::RouterData<
             F,
             types::SetupMandateRequestData,
             types::PaymentsResponseData,
@@ -728,8 +745,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
 
     async fn save_pm_and_mandate<'b>(
         &'b self,
-        _state: &AppState,
-        _resp: &types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>,
+        _state: &'b AppState,
+        _resp: &'b types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>,
         _connector: &api::ConnectorData,
         _maybe_customer: &Option<domain::Customer>,
         _call_connector_action: payments::CallConnectorAction,
