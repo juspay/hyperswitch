@@ -46,7 +46,7 @@ pub async fn save_payment_method<F: Clone, FData>(
     profile_id: Option<String>,
 ) -> RouterResult<(Option<String>, Option<common_enums::PaymentMethodStatus>)>
 where
-     FData: mandate::MandateBehaviour + Clone,
+    FData: mandate::MandateBehaviour + Clone,
 {
     let mut pm_status = None;
     match resp.response {

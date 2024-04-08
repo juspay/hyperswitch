@@ -358,11 +358,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
     async fn save_pm_and_mandate<'b>(
         &'b self,
         _state: &'b AppState,
-        _router_data: types::RouterData<
-            F,
-            types::PaymentsSyncData,
-            types::PaymentsResponseData,
-        >,
+        _router_data: types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
         _merchant_account: &'b domain::MerchantAccount,
         _key_store: &'b domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
@@ -404,11 +400,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
     async fn save_pm_and_mandate<'b>(
         &'b self,
         _state: &'b AppState,
-        _router_data: types::RouterData<
-            F,
-            types::PaymentsSessionData,
-            types::PaymentsResponseData,
-        >,
+        _router_data: types::RouterData<F, types::PaymentsSessionData, types::PaymentsResponseData>,
         _merchant_account: &'b domain::MerchantAccount,
         _key_store: &'b domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
@@ -450,11 +442,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
     async fn save_pm_and_mandate<'b>(
         &'b self,
         _state: &'b AppState,
-        _router_data: types::RouterData<
-            F,
-            types::PaymentsCaptureData,
-            types::PaymentsResponseData,
-        >,
+        _router_data: types::RouterData<F, types::PaymentsCaptureData, types::PaymentsResponseData>,
         _merchant_account: &'b domain::MerchantAccount,
         _key_store: &'b domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
@@ -495,11 +483,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
     async fn save_pm_and_mandate<'b>(
         &'b self,
         _state: &'b AppState,
-        _router_data: types::RouterData<
-            F,
-            types::PaymentsCancelData,
-            types::PaymentsResponseData,
-        >,
+        _router_data: types::RouterData<F, types::PaymentsCancelData, types::PaymentsResponseData>,
         _merchant_account: &'b domain::MerchantAccount,
         _key_store: &'b domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
@@ -542,11 +526,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
     async fn save_pm_and_mandate<'b>(
         &'b self,
         _state: &'b AppState,
-        _router_data: types::RouterData<
-            F,
-            types::PaymentsApproveData,
-            types::PaymentsResponseData,
-        >,
+        _router_data: types::RouterData<F, types::PaymentsApproveData, types::PaymentsResponseData>,
         _merchant_account: &'b domain::MerchantAccount,
         _key_store: &'b domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
@@ -587,11 +567,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> f
     async fn save_pm_and_mandate<'b>(
         &'b self,
         _state: &'b AppState,
-        _router_data: types::RouterData<
-            F,
-            types::PaymentsRejectData,
-            types::PaymentsResponseData,
-        >,
+        _router_data: types::RouterData<F, types::PaymentsRejectData, types::PaymentsResponseData>,
         _merchant_account: &'b domain::MerchantAccount,
         _key_store: &'b domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
