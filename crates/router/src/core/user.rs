@@ -1173,7 +1173,7 @@ pub async fn create_merchant_account(
     Ok(ApplicationResponse::StatusOk)
 }
 
-pub async fn list_merchant_for_user(
+pub async fn list_merchants_for_user(
     state: AppState,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<Vec<user_api::UserMerchantAccount>> {
