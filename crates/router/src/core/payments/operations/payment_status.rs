@@ -400,16 +400,22 @@ async fn get_tracker_for_sync<
             id: profile_id.to_string(),
         })?;
 
-    let payment_method_info = if let Some(ref payment_method_id) =
-        payment_attempt.payment_method_id.clone()
-    {
-        db.find_payment_method(payment_method_id)
-            .await
-            .map_err(|error| logger::info!("Error retrieving payment method from DB {:?}", error))
-            .ok()
-    } else {
-        None
-    };
+    let payment_method_info =
+        if let Some(ref payment_method_id) = payment_attempt.payment_method_id.clone() {
+            match db.find_payment_method(payment_method_id).await {
+                Ok(payment_method) => Some(payment_method),
+                Err(error) => {
+                    if error.current_context().is_db_not_found() {
+                        logger::info!("Error retrieving payment method from DB {:?}", error);
+                        None
+                    } else {
+                        Err(error).change_context(errors::ApiErrorResponse::InternalServerError)?
+                    }
+                }
+            }
+        } else {
+            None
+        };
 
     let merchant_id = payment_intent.merchant_id.clone();
     let authentication = payment_attempt.authentication_id.clone().async_map(|authentication_id| async move {
