@@ -237,7 +237,7 @@ pub enum PaymentAttemptUpdate {
         cancellation_reason: Option<String>,
         updated_by: String,
     },
-    PaymentMethodDetailsUpdate{
+    PaymentMethodDetailsUpdate {
         payment_method_id: Option<String>,
         updated_by: String,
     },
