@@ -385,7 +385,6 @@ impl
                         | common_enums::PaymentMethodType::PayBright
                         | common_enums::PaymentMethodType::Paypal
                         | common_enums::PaymentMethodType::Pix
-                        | common_enums::PaymentMethodType::LocalBankTransfer
                         | common_enums::PaymentMethodType::PaySafeCard
                         | common_enums::PaymentMethodType::Przelewy24
                         | common_enums::PaymentMethodType::Pse
@@ -404,10 +403,11 @@ impl
                         | common_enums::PaymentMethodType::WeChatPay
                         | common_enums::PaymentMethodType::SevenEleven
                         | common_enums::PaymentMethodType::Lawson
+                        | common_enums::PaymentMethodType::LocalBankTransfer
                         | common_enums::PaymentMethodType::MiniStop
                         | common_enums::PaymentMethodType::FamilyMart
                         | common_enums::PaymentMethodType::Seicomart
-                        | common_enums::PaymentMethodType::PayEasy
+                        | common_enums::PaymentMethodType::PayEasy,
                     ) => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                         message: payment_method_type.to_string(),
                         connector: "klarna",
