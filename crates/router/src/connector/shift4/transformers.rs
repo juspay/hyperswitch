@@ -324,14 +324,14 @@ impl<T>
 impl<T>
     TryFrom<(
         &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
-        &payments::BankRedirectData,
+        &domain::BankRedirectData,
     )> for Shift4PaymentMethod
 {
     type Error = Error;
     fn try_from(
         (item, redirect_data): (
             &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
-            &payments::BankRedirectData,
+            &domain::BankRedirectData,
         ),
     ) -> Result<Self, Self::Error> {
         let flow = Flow::try_from(&item.request.router_return_url)?;
@@ -392,27 +392,27 @@ impl<T> TryFrom<&types::RouterData<T, types::CompleteAuthorizeData, types::Payme
     }
 }
 
-impl TryFrom<&payments::BankRedirectData> for PaymentMethodType {
+impl TryFrom<&domain::BankRedirectData> for PaymentMethodType {
     type Error = Error;
-    fn try_from(value: &payments::BankRedirectData) -> Result<Self, Self::Error> {
+    fn try_from(value: &domain::BankRedirectData) -> Result<Self, Self::Error> {
         match value {
-            payments::BankRedirectData::Eps { .. } => Ok(Self::Eps),
-            payments::BankRedirectData::Giropay { .. } => Ok(Self::Giropay),
-            payments::BankRedirectData::Ideal { .. } => Ok(Self::Ideal),
-            payments::BankRedirectData::Sofort { .. } => Ok(Self::Sofort),
-            payments::BankRedirectData::BancontactCard { .. }
-            | payments::BankRedirectData::Blik { .. }
-            | payments::BankRedirectData::Trustly { .. }
-            | payments::BankRedirectData::Przelewy24 { .. }
-            | payments::BankRedirectData::Bizum {}
-            | payments::BankRedirectData::Interac { .. }
-            | payments::BankRedirectData::OnlineBankingCzechRepublic { .. }
-            | payments::BankRedirectData::OnlineBankingFinland { .. }
-            | payments::BankRedirectData::OnlineBankingPoland { .. }
-            | payments::BankRedirectData::OnlineBankingSlovakia { .. }
-            | payments::BankRedirectData::OpenBankingUk { .. }
-            | payments::BankRedirectData::OnlineBankingFpx { .. }
-            | payments::BankRedirectData::OnlineBankingThailand { .. } => {
+            domain::BankRedirectData::Eps { .. } => Ok(Self::Eps),
+            domain::BankRedirectData::Giropay { .. } => Ok(Self::Giropay),
+            domain::BankRedirectData::Ideal { .. } => Ok(Self::Ideal),
+            domain::BankRedirectData::Sofort { .. } => Ok(Self::Sofort),
+            domain::BankRedirectData::BancontactCard { .. }
+            | domain::BankRedirectData::Blik { .. }
+            | domain::BankRedirectData::Trustly { .. }
+            | domain::BankRedirectData::Przelewy24 { .. }
+            | domain::BankRedirectData::Bizum {}
+            | domain::BankRedirectData::Interac { .. }
+            | domain::BankRedirectData::OnlineBankingCzechRepublic { .. }
+            | domain::BankRedirectData::OnlineBankingFinland { .. }
+            | domain::BankRedirectData::OnlineBankingPoland { .. }
+            | domain::BankRedirectData::OnlineBankingSlovakia { .. }
+            | domain::BankRedirectData::OpenBankingUk { .. }
+            | domain::BankRedirectData::OnlineBankingFpx { .. }
+            | domain::BankRedirectData::OnlineBankingThailand { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Shift4"),
                 )
