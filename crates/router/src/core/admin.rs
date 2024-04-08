@@ -1916,10 +1916,10 @@ pub(crate) fn validate_auth_and_metadata_type(
             zen::transformers::ZenAuthType::try_from(val)?;
             Ok(())
         }
-        api_enums::Connector::Zsl => {
-            zsl::transformers::ZslAuthType::try_from(val)?;
-            Ok(())
-        }
+        // api_enums::Connector::Zsl => {
+        //     zsl::transformers::ZslAuthType::try_from(val)?;
+        //     Ok(())
+        // } Added as template code for future usage
         api_enums::Connector::Signifyd => {
             signifyd::transformers::SignifydAuthType::try_from(val)?;
             Ok(())
