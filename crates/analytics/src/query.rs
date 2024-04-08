@@ -250,7 +250,7 @@ pub enum Aggregate<R> {
     Percentile {
         field: R,
         alias: Option<&'static str>,
-        percentile: Option<&'static u64>,
+        percentile: Option<&'static u8>,
     },
 }
 
