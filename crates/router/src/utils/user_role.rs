@@ -8,7 +8,7 @@ use router_env::logger;
 
 use crate::{
     consts,
-    core::errors::{UserErrors, UserResult},
+    core::errors::{StorageErrorExt, UserErrors, UserResult},
     routes::AppState,
     services::authorization::{self as authz, permissions::Permission, roles},
     types::domain,
@@ -139,4 +139,23 @@ pub async fn set_role_permissions_in_cache_if_required(
     .await
     .change_context(UserErrors::InternalServerError)
     .attach_printable("Error setting permissions in redis")
+}
+
+pub async fn get_multiple_role_info_for_user_roles(
+    state: &AppState,
+    user_roles: &Vec<UserRole>,
+) -> UserResult<Vec<roles::RoleInfo>> {
+    futures::future::try_join_all(user_roles.iter().map(|user_role| async {
+        let role = roles::RoleInfo::from_role_id(
+            state,
+            &user_role.role_id,
+            &user_role.merchant_id,
+            &user_role.org_id,
+        )
+        .await
+        .to_not_found_response(UserErrors::InternalServerError)
+        .attach_printable("Role for user role doesn't exist")?;
+        Ok::<_, error_stack::Report<UserErrors>>(role)
+    }))
+    .await
 }

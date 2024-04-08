@@ -7,7 +7,7 @@ use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 
 use crate::{
-    core::errors::{StorageError, StorageErrorExt, UserErrors, UserResult},
+    core::errors::{StorageError, UserErrors, UserResult},
     routes::AppState,
     services::{
         authentication::{AuthToken, UserFromToken},
@@ -134,33 +134,20 @@ pub fn get_verification_days_left(
     return Ok(None);
 }
 
-pub async fn get_multiple_merchant_details_with_status(
-    state: &AppState,
+pub fn get_multiple_merchant_details_with_status(
     user_roles: Vec<UserRole>,
     merchant_accounts: Vec<MerchantAccount>,
+    roles: Vec<RoleInfo>,
 ) -> UserResult<Vec<user_api::UserMerchantAccount>> {
     let merchant_account_map = merchant_accounts
         .into_iter()
         .map(|merchant_account| (merchant_account.merchant_id.clone(), merchant_account))
         .collect::<HashMap<_, _>>();
 
-    let role_map = futures::future::try_join_all(user_roles.iter().map(|user_role| async {
-        let role_info = roles::RoleInfo::from_role_id(
-            state,
-            &user_role.role_id,
-            &user_role.merchant_id,
-            &user_role.org_id,
-        )
-        .await
-        .to_not_found_response(UserErrors::InternalServerError)
-        .attach_printable("User exists but role doesn't")?;
-
-        Ok::<_, error_stack::Report<UserErrors>>(role_info)
-    }))
-    .await?
-    .into_iter()
-    .map(|role_info| (role_info.get_role_id().to_string(), role_info))
-    .collect::<HashMap<_, _>>();
+    let role_map = roles
+        .into_iter()
+        .map(|role_info| (role_info.get_role_id().to_string(), role_info))
+        .collect::<HashMap<_, _>>();
 
     user_roles
         .into_iter()

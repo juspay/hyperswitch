@@ -1194,13 +1194,15 @@ pub async fn list_merchants_for_user(
         .await
         .change_context(UserErrors::InternalServerError)?;
 
+    let roles =
+        utils::user_role::get_multiple_role_info_for_user_roles(&state, &user_roles).await?;
+
     Ok(ApplicationResponse::Json(
         utils::user::get_multiple_merchant_details_with_status(
-            &state,
             user_roles,
             merchant_accounts,
-        )
-        .await?,
+            roles,
+        )?,
     ))
 }
 

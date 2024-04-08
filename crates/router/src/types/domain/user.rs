@@ -892,12 +892,15 @@ impl SignInWithMultipleRolesStrategy {
             .await
             .change_context(UserErrors::InternalServerError)?;
 
+        let roles =
+            utils::user_role::get_multiple_role_info_for_user_roles(state, &self.user_roles)
+                .await?;
+
         let merchant_details = utils::user::get_multiple_merchant_details_with_status(
-            state,
             self.user_roles,
             merchant_accounts,
-        )
-        .await?;
+            roles,
+        )?;
 
         Ok(user_api::SignInResponse::MerchantSelect(
             user_api::MerchantSelectResponse {
