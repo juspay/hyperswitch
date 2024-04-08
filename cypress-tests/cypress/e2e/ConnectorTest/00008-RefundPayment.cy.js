@@ -29,7 +29,7 @@ describe("Card - Refund flow test", () => {
 
         it("create-payment-call-test", () => {
             let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
-            cy.createPaymentIntentTest(createPaymentBody, det.currency, "no_three_ds", "automatic", globalState);
+            cy.createPaymentIntentTest(createPaymentBody, det, "no_three_ds", "automatic", globalState);
         });
 
         it("payment_methods-call-test", () => {
@@ -57,7 +57,7 @@ describe("Card - Refund flow test", () => {
 
         it("create-payment-call-test", () => {
             let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
-            cy.createPaymentIntentTest(createPaymentBody, det.currency, "no_three_ds", "automatic", globalState);
+            cy.createPaymentIntentTest(createPaymentBody, det, "no_three_ds", "automatic", globalState);
         });
 
         it("payment_methods-call-test", () => {
@@ -138,7 +138,7 @@ describe("Card - Refund flow test", () => {
 
         it("create-payment-call-test", () => {
             let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
-            cy.createPaymentIntentTest(createPaymentBody, det.currency, "no_three_ds", "manual", globalState);
+            cy.createPaymentIntentTest(createPaymentBody, det, "no_three_ds", "manual", globalState);
         });
 
         it("payment_methods-call-test", () => {
@@ -181,7 +181,7 @@ describe("Card - Refund flow test", () => {
 
         it("create-payment-call-test", () => {
             let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
-            cy.createPaymentIntentTest(createPaymentBody, det.currency, "no_three_ds", "manual", globalState);
+            cy.createPaymentIntentTest(createPaymentBody, det, "no_three_ds", "manual", globalState);
         });
 
         it("payment_methods-call-test", () => {
@@ -222,13 +222,16 @@ describe("Card - Refund flow test", () => {
             let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
             cy.syncRefundCallTest(det, globalState);
         });
+        it("list-refund-call-test", () => {
+            cy.listRefundCallTest(globalState);
+        });
     });
 
     context("Card - Full Refund for partially captured No-3DS payment", () => {
 
         it("create-payment-call-test", () => {
             let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
-            cy.createPaymentIntentTest(createPaymentBody, det.currency, "no_three_ds", "manual", globalState);
+            cy.createPaymentIntentTest(createPaymentBody, det, "no_three_ds", "manual", globalState);
         });
 
         it("payment_methods-call-test", () => {
@@ -271,7 +274,7 @@ describe("Card - Refund flow test", () => {
 
         it("create-payment-call-test", () => {
             let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
-            cy.createPaymentIntentTest(createPaymentBody, det.currency, "no_three_ds", "manual", globalState);
+            cy.createPaymentIntentTest(createPaymentBody, det, "no_three_ds", "manual", globalState);
         });
     
         it("payment_methods-call-test", () => {
@@ -325,6 +328,16 @@ describe("Card - Refund flow test", () => {
 
         it("Confirm No 3DS MIT", () => {
             cy.mitForMandatesCallTest(mitConfirmBody, 7000, true, "automatic", globalState);
+        });
+
+        it("refund-call-test", () => {
+            let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
+            cy.refundCallTest(refundBody, 7000, det, globalState);
+        });
+        
+        it("sync-refund-call-test", () => {
+        let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
+        cy.syncRefundCallTest(det, globalState);
         });
     });
 
