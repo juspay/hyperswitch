@@ -634,18 +634,18 @@ impl TryFrom<&domain::payments::CardRedirectData> for PaypalPaymentsRequest {
     }
 }
 
-impl TryFrom<&api_models::payments::PayLaterData> for PaypalPaymentsRequest {
+impl TryFrom<&domain::PayLaterData> for PaypalPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: &api_models::payments::PayLaterData) -> Result<Self, Self::Error> {
+    fn try_from(value: &domain::PayLaterData) -> Result<Self, Self::Error> {
         match value {
-            api_models::payments::PayLaterData::KlarnaRedirect { .. }
-            | api_models::payments::PayLaterData::KlarnaSdk { .. }
-            | api_models::payments::PayLaterData::AffirmRedirect {}
-            | api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. }
-            | api_models::payments::PayLaterData::PayBrightRedirect {}
-            | api_models::payments::PayLaterData::WalleyRedirect {}
-            | api_models::payments::PayLaterData::AlmaRedirect {}
-            | api_models::payments::PayLaterData::AtomeRedirect {} => {
+            domain::PayLaterData::KlarnaRedirect { .. }
+            | domain::PayLaterData::KlarnaSdk { .. }
+            | domain::PayLaterData::AffirmRedirect {}
+            | domain::PayLaterData::AfterpayClearpayRedirect { .. }
+            | domain::PayLaterData::PayBrightRedirect {}
+            | domain::PayLaterData::WalleyRedirect {}
+            | domain::PayLaterData::AlmaRedirect {}
+            | domain::PayLaterData::AtomeRedirect {} => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),
                 )

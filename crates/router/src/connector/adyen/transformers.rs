@@ -2143,7 +2143,7 @@ pub fn check_required_field<'a, T>(
 
 impl<'a>
     TryFrom<(
-        &api::PayLaterData,
+        &domain::PayLaterData,
         &Option<api_enums::CountryAlpha2>,
         &Option<Email>,
         &Option<String>,
@@ -2156,7 +2156,7 @@ impl<'a>
     type Error = Error;
     fn try_from(
         value: (
-            &api::PayLaterData,
+            &domain::PayLaterData,
             &Option<api_enums::CountryAlpha2>,
             &Option<Email>,
             &Option<String>,
@@ -2177,7 +2177,7 @@ impl<'a>
             delivery_address,
         ) = value;
         match pay_later_data {
-            api_models::payments::PayLaterData::KlarnaRedirect { .. } => {
+            domain::payments::PayLaterData::KlarnaRedirect { .. } => {
                 let klarna = PmdForPaymentType {
                     payment_type: PaymentType::Klarna,
                 };
@@ -2187,7 +2187,7 @@ impl<'a>
 
                 Ok(AdyenPaymentMethod::AdyenKlarna(Box::new(klarna)))
             }
-            api_models::payments::PayLaterData::AffirmRedirect { .. } => {
+            domain::payments::PayLaterData::AffirmRedirect { .. } => {
                 check_required_field(shopper_email, "email")?;
                 check_required_field(shopper_name, "billing.first_name, billing.last_name")?;
                 check_required_field(telephone_number, "billing.phone")?;
@@ -2199,7 +2199,7 @@ impl<'a>
                     },
                 )))
             }
-            api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
+            domain::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
                 check_required_field(shopper_email, "email")?;
                 check_required_field(shopper_name, "billing.first_name, billing.last_name")?;
                 check_required_field(delivery_address, "shipping")?;
@@ -2221,7 +2221,7 @@ impl<'a>
                     })?
                 }
             }
-            api_models::payments::PayLaterData::PayBrightRedirect { .. } => {
+            domain::payments::PayLaterData::PayBrightRedirect { .. } => {
                 check_required_field(shopper_name, "billing.first_name, billing.last_name")?;
                 check_required_field(telephone_number, "billing.phone")?;
                 check_required_field(shopper_email, "email")?;
@@ -2230,13 +2230,13 @@ impl<'a>
                 check_required_field(country_code, "billing.country")?;
                 Ok(AdyenPaymentMethod::PayBright)
             }
-            api_models::payments::PayLaterData::WalleyRedirect { .. } => {
+            domain::payments::PayLaterData::WalleyRedirect { .. } => {
                 //[TODO: Line items specific sub-fields are mandatory]
                 check_required_field(telephone_number, "billing.phone")?;
                 check_required_field(shopper_email, "email")?;
                 Ok(AdyenPaymentMethod::Walley)
             }
-            api_models::payments::PayLaterData::AlmaRedirect { .. } => {
+            domain::payments::PayLaterData::AlmaRedirect { .. } => {
                 check_required_field(telephone_number, "billing.phone")?;
                 check_required_field(shopper_email, "email")?;
                 check_required_field(billing_address, "billing")?;
@@ -2247,14 +2247,14 @@ impl<'a>
                     },
                 )))
             }
-            api_models::payments::PayLaterData::AtomeRedirect { .. } => {
+            domain::payments::PayLaterData::AtomeRedirect { .. } => {
                 check_required_field(shopper_email, "email")?;
                 check_required_field(shopper_name, "billing.first_name, billing.last_name")?;
                 check_required_field(telephone_number, "billing.phone")?;
                 check_required_field(billing_address, "billing")?;
                 Ok(AdyenPaymentMethod::Atome)
             }
-            payments::PayLaterData::KlarnaSdk { .. } => {
+            domain::payments::PayLaterData::KlarnaSdk { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Adyen"),
                 )
@@ -3054,14 +3054,14 @@ impl<'a>
 impl<'a>
     TryFrom<(
         &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
-        &api::PayLaterData,
+        &domain::PayLaterData,
     )> for AdyenPaymentRequest<'a>
 {
     type Error = Error;
     fn try_from(
         value: (
             &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
-            &api::PayLaterData,
+            &domain::PayLaterData,
         ),
     ) -> Result<Self, Self::Error> {
         let (item, paylater_data) = value;
