@@ -112,7 +112,7 @@ where
 
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData, Ctx>,
-    FData: Send + Sync,
+    FData: Send + Sync + Clone,
     Ctx: PaymentMethodRetrieve,
 {
     let operation: BoxedOperation<'_, F, Req, Ctx> = Box::new(operation);
@@ -289,7 +289,7 @@ where
                         .to_post_update_tracker()?
                         .save_pm_and_mandate(
                             state,
-                            &router_data,
+                            router_data.clone(),
                             &merchant_account,
                             &key_store,
                             &mut payment_data,
@@ -388,7 +388,7 @@ where
                         .to_post_update_tracker()?
                         .save_pm_and_mandate(
                             state,
-                            &router_data,
+                            router_data.clone(),
                             &merchant_account,
                             &key_store,
                             &mut payment_data,
@@ -706,7 +706,7 @@ pub async fn payments_core<F, Res, Req, Op, FData, Ctx>(
 ) -> RouterResponse<Res>
 where
     F: Send + Clone + Sync,
-    FData: Send + Sync,
+    FData: Send + Sync + Clone,
     Op: Operation<F, Req, Ctx> + Send + Sync + Clone,
     Req: Debug + Authenticate + Clone,
     Res: transformers::ToResponse<PaymentData<F>, Op>,
@@ -1169,7 +1169,7 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest, Ctx>(
 ) -> RouterResult<router_types::RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
-    RouterDReq: Send + Sync,
+    RouterDReq: Send + Sync + Clone,
 
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,

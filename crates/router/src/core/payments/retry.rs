@@ -44,7 +44,7 @@ pub async fn do_gsm_actions<F, ApiRequest, FData, Ctx>(
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     F: Clone + Send + Sync,
-    FData: Send + Sync,
+    FData: Send + Sync + Clone,
     payments::PaymentResponse: operations::Operation<F, FData, Ctx>,
 
     payments::PaymentData<F>: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
@@ -277,7 +277,7 @@ pub async fn do_retry<F, ApiRequest, FData, Ctx>(
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     F: Clone + Send + Sync,
-    FData: Send + Sync,
+    FData: Send + Sync + Clone,
     payments::PaymentResponse: operations::Operation<F, FData, Ctx>,
 
     payments::PaymentData<F>: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,

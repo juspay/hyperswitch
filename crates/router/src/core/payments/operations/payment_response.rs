@@ -86,14 +86,15 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
     async fn save_pm_and_mandate<'b>(
         &'b self,
         state: &'b AppState,
-        resp: &'b types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+        resp: types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
         merchant_account: &'b domain::MerchantAccount,
         key_store: &'b domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
-        F: 'b + Send + Clone + Sync,
+        F: Send + Clone + Sync,
     {
+        let resp = resp.clone();
         let customer_id = payment_data.payment_intent.customer_id.clone();
         let profile_id = payment_data.payment_intent.profile_id.clone();
         let is_mandate = &resp.request.setup_mandate_details.is_some();
@@ -121,7 +122,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
 
             let _mandate_id_pm_id = mandate::mandate_procedure(
                 state,
-                resp,
+                &resp,
                 &Some(customer_id.clone().unwrap()),
                 payment_method_id,
                 merchant_connector_id.clone(),
@@ -144,7 +145,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
                 async move {
                     logger::info!("Starting async call to save_payment_method in locker");
                     let amount = response.request.amount.clone();
-                    let currency = response.request.currency;
+                    let currency = response.request.currency.clone();
                     let payment_method_type = response.request.payment_method_type.clone();
 
                     if let Some(customer_id) = customer_id {
@@ -315,7 +316,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
     async fn save_pm_and_mandate<'b>(
         &'b self,
         _state: &'b AppState,
-        _router_data: &'b types::RouterData<
+        _router_data: types::RouterData<
             F,
             types::PaymentsIncrementalAuthorizationData,
             types::PaymentsResponseData,
@@ -325,7 +326,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
         _payment_data: &mut PaymentData<F>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
-        F: 'b + Send + Clone + Sync,
+        F: Send + Clone + Sync,
     {
         Ok(())
     }
@@ -357,7 +358,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
     async fn save_pm_and_mandate<'b>(
         &'b self,
         _state: &'b AppState,
-        _router_data: &'b types::RouterData<
+        _router_data: types::RouterData<
             F,
             types::PaymentsSyncData,
             types::PaymentsResponseData,
@@ -367,7 +368,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         _payment_data: &mut PaymentData<F>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
-        F: 'b + Send + Clone + Sync,
+        F: Send + Clone + Sync,
     {
         Ok(())
     }
@@ -403,7 +404,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
     async fn save_pm_and_mandate<'b>(
         &'b self,
         _state: &'b AppState,
-        _router_data: &'b types::RouterData<
+        _router_data: types::RouterData<
             F,
             types::PaymentsSessionData,
             types::PaymentsResponseData,
@@ -413,7 +414,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
         _payment_data: &mut PaymentData<F>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
-        F: 'b + Send + Clone + Sync,
+        F: Send + Clone + Sync,
     {
         Ok(())
     }
@@ -449,7 +450,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
     async fn save_pm_and_mandate<'b>(
         &'b self,
         _state: &'b AppState,
-        _router_data: &'b types::RouterData<
+        _router_data: types::RouterData<
             F,
             types::PaymentsCaptureData,
             types::PaymentsResponseData,
@@ -459,7 +460,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
         _payment_data: &mut PaymentData<F>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
-        F: 'b + Send + Clone + Sync,
+        F: Send + Clone + Sync,
     {
         Ok(())
     }
@@ -494,7 +495,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
     async fn save_pm_and_mandate<'b>(
         &'b self,
         _state: &'b AppState,
-        _router_data: &'b types::RouterData<
+        _router_data: types::RouterData<
             F,
             types::PaymentsCancelData,
             types::PaymentsResponseData,
@@ -504,7 +505,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
         _payment_data: &mut PaymentData<F>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
-        F: 'b + Send + Clone + Sync,
+        F: Send + Clone + Sync,
     {
         Ok(())
     }
@@ -541,7 +542,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
     async fn save_pm_and_mandate<'b>(
         &'b self,
         _state: &'b AppState,
-        _router_data: &'b types::RouterData<
+        _router_data: types::RouterData<
             F,
             types::PaymentsApproveData,
             types::PaymentsResponseData,
@@ -551,7 +552,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
         _payment_data: &mut PaymentData<F>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
-        F: 'b + Send + Clone + Sync,
+        F: Send + Clone + Sync,
     {
         Ok(())
     }
@@ -586,7 +587,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> f
     async fn save_pm_and_mandate<'b>(
         &'b self,
         _state: &'b AppState,
-        _router_data: &'b types::RouterData<
+        _router_data: types::RouterData<
             F,
             types::PaymentsRejectData,
             types::PaymentsResponseData,
@@ -596,7 +597,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> f
         _payment_data: &mut PaymentData<F>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
-        F: 'b + Send + Clone + Sync,
+        F: Send + Clone + Sync,
     {
         Ok(())
     }
@@ -642,7 +643,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
     async fn save_pm_and_mandate<'b>(
         &'b self,
         _state: &'b AppState,
-        _router_data: &'b types::RouterData<
+        _router_data: types::RouterData<
             F,
             types::SetupMandateRequestData,
             types::PaymentsResponseData,
@@ -652,7 +653,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         _payment_data: &mut PaymentData<F>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
-        F: 'b + Send + Clone + Sync,
+        F: Send + Clone + Sync,
     {
         Ok(())
     }
@@ -686,13 +687,13 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     async fn save_pm_and_mandate<'b>(
         &'b self,
         _state: &'b AppState,
-        _resp: &'b types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>,
+        _resp: types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>,
         _merchant_account: &'b domain::MerchantAccount,
         _key_store: &'b domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
-        F: 'b + Send + Clone + Sync,
+        F: Send + Clone + Sync,
     {
         Ok(())
     }
