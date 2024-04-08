@@ -165,9 +165,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
                                 err
                             );
                         } else {
-                            if let Ok((pm_id, _pm_status)) = result {
-                                payment_data.payment_attempt.payment_method_id = pm_id;
-                            }
+                            //TODO: make a database call to update payment attempt
                         }
                     } else {
                         logger::error!("customer_id not found");
