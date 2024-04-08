@@ -1,4 +1,3 @@
-use api_models::payments;
 use common_utils::{
     crypto::{self, GenerateDigest},
     date_time,

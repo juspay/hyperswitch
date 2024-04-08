@@ -20,7 +20,7 @@ use crate::{
     services,
     types::{
         self,
-        api::{self, enums as api_enums},
+        api::enums as api_enums,
         domain,
         storage::enums as storage_enums,
         transformers::{ForeignFrom, ForeignTryFrom},
