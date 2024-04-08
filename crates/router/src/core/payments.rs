@@ -1347,6 +1347,7 @@ where
                 merchant_account,
                 connector_request,
                 key_store,
+                payment_data.payment_intent.profile_id.clone(),
             )
             .await
     } else {
@@ -1475,6 +1476,7 @@ where
             merchant_account,
             None,
             key_store,
+            payment_data.payment_intent.profile_id.clone(),
         );
 
         join_handlers.push(res);
@@ -2929,10 +2931,12 @@ where
             .attach_printable("Invalid connector name received")?;
 
         return decide_multiplex_connector_for_normal_or_recurring_payment(
+            &state,
             payment_data,
             routing_data,
             connector_data,
-        );
+        )
+        .await;
     }
 
     if let Some(ref routing_algorithm) = routing_data.routing_info.algorithm {
@@ -2983,10 +2987,12 @@ where
             .attach_printable("Invalid connector name received")?;
 
         return decide_multiplex_connector_for_normal_or_recurring_payment(
+            &state,
             payment_data,
             routing_data,
             connector_data,
-        );
+        )
+        .await;
     }
 
     route_connector_v1(
@@ -3001,7 +3007,8 @@ where
     .await
 }
 
-pub fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone>(
+pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone>(
+    state: &AppState,
     payment_data: &mut PaymentData<F>,
     routing_data: &mut storage::RoutingData,
     connectors: Vec<api::ConnectorData>,
@@ -3010,9 +3017,11 @@ pub fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone>(
         payment_data.payment_intent.setup_future_usage,
         payment_data.token_data.as_ref(),
         payment_data.recurring_details.as_ref(),
+        payment_data.payment_intent.off_session,
     ) {
-        (Some(storage_enums::FutureUsage::OffSession), Some(_), None)
-        | (None, None, Some(RecurringDetails::PaymentMethodId(_))) => {
+        (Some(storage_enums::FutureUsage::OffSession), Some(_), None, None)
+        | (None, None, Some(RecurringDetails::PaymentMethodId(_)), Some(true))
+        | (None, Some(_), None, Some(true)) => {
             logger::debug!("performing routing for token-based MIT flow");
 
             let payment_method_info = payment_data
@@ -3020,32 +3029,109 @@ pub fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone>(
                 .as_ref()
                 .get_required_value("payment_method_info")?;
 
-            let connector_mandate_details = payment_method_info
-            .connector_mandate_details
-            .clone()
-            .map(|details| {
-                details.parse_value::<storage::PaymentsMandateReference>("connector_mandate_details")
-            })
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("unable to deserialize connector mandate details")?
-            .get_required_value("connector_mandate_details")
-            .change_context(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
-            .attach_printable("no eligible connector found for token-based MIT flow since there were no connector mandate details")?;
+            let connector_mandate_details = &payment_method_info
+                .connector_mandate_details
+                .clone()
+                .map(|details| {
+                    details.parse_value::<storage::PaymentsMandateReference>(
+                        "connector_mandate_details",
+                    )
+                })
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("unable to deserialize connector mandate details")?;
+
+            let profile_id = payment_data
+                .payment_intent
+                .profile_id
+                .as_ref()
+                .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?;
+
+            let pg_agnostic = state
+                .store
+                .find_config_by_key_unwrap_or(
+                    &format!("pg_agnostic_mandate_{}", profile_id),
+                    Some("false".to_string()),
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("The pg_agnostic config was not found in the DB")?;
 
             let mut connector_choice = None;
+
             for connector_data in connectors {
-                if let Some(merchant_connector_id) = connector_data.merchant_connector_id.as_ref() {
-                    if let Some(mandate_reference_record) =
-                        connector_mandate_details.get(merchant_connector_id)
+                let merchant_connector_id = connector_data
+                    .merchant_connector_id
+                    .as_ref()
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+
+                if is_network_transaction_id_flow(
+                    state,
+                    &pg_agnostic.config,
+                    connector_data.connector_name,
+                    payment_method_info,
+                ) {
+                    logger::info!("using network_transaction_id for MIT flow");
+                    let network_transaction_id = payment_method_info
+                        .network_transaction_id
+                        .as_ref()
+                        .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+
+                    let mandate_reference_id =
+                        Some(payments_api::MandateReferenceId::NetworkMandateId(
+                            network_transaction_id.to_string(),
+                        ));
+
+                    connector_choice = Some((connector_data, mandate_reference_id.clone()));
+                    break;
+                } else if connector_mandate_details
+                    .clone()
+                    .map(|connector_mandate_details| {
+                        connector_mandate_details.contains_key(merchant_connector_id)
+                    })
+                    .unwrap_or(false)
+                {
+                    if let Some(merchant_connector_id) =
+                        connector_data.merchant_connector_id.as_ref()
                     {
-                        connector_choice = Some((connector_data, mandate_reference_record.clone()));
-                        break;
+                        if let Some(mandate_reference_record) = connector_mandate_details.clone()
+                        .get_required_value("connector_mandate_details")
+                            .change_context(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
+                            .attach_printable("no eligible connector found for token-based MIT flow since there were no connector mandate details")?
+                            .get(merchant_connector_id)
+                        {
+                            let mandate_reference_id =
+                                Some(payments_api::MandateReferenceId::ConnectorMandateId(
+                                    payments_api::ConnectorMandateReferenceId {
+                                        connector_mandate_id: Some(
+                                            mandate_reference_record.connector_mandate_id.clone(),
+                                        ),
+                                        payment_method_id: Some(
+                                            payment_method_info.payment_method_id.clone(),
+                                        ),
+                                        update_history: None,
+                                    },
+                                ));
+                            payment_data.recurring_mandate_payment_data =
+                                Some(RecurringMandatePaymentData {
+                                    payment_method_type: mandate_reference_record
+                                        .payment_method_type,
+                                    original_payment_authorized_amount: mandate_reference_record
+                                        .original_payment_authorized_amount,
+                                    original_payment_authorized_currency: mandate_reference_record
+                                        .original_payment_authorized_currency,
+                                });
+
+                            connector_choice = Some((connector_data, mandate_reference_id.clone()));
+                            break;
+                        }
                     }
+                } else {
+                    continue;
                 }
             }
 
-            let (chosen_connector_data, mandate_reference_record) = connector_choice
+            let (chosen_connector_data, mandate_reference_id) = connector_choice
                 .get_required_value("connector_choice")
                 .change_context(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
                 .attach_printable("no eligible connector found for token-based MIT payment")?;
@@ -3056,26 +3142,16 @@ pub fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone>(
                 routing_data.merchant_connector_id =
                     chosen_connector_data.merchant_connector_id.clone();
             }
+            routing_data.routed_through = Some(chosen_connector_data.connector_name.to_string());
+            #[cfg(feature = "connector_choice_mca_id")]
+            {
+                routing_data.merchant_connector_id =
+                    chosen_connector_data.merchant_connector_id.clone();
+            }
 
             payment_data.mandate_id = Some(payments_api::MandateIds {
                 mandate_id: None,
-                mandate_reference_id: Some(payments_api::MandateReferenceId::ConnectorMandateId(
-                    payments_api::ConnectorMandateReferenceId {
-                        connector_mandate_id: Some(
-                            mandate_reference_record.connector_mandate_id.clone(),
-                        ),
-                        payment_method_id: Some(payment_method_info.payment_method_id.clone()),
-                        update_history: None,
-                    },
-                )),
-            });
-
-            payment_data.recurring_mandate_payment_data = Some(RecurringMandatePaymentData {
-                payment_method_type: mandate_reference_record.payment_method_type,
-                original_payment_authorized_amount: mandate_reference_record
-                    .original_payment_authorized_amount,
-                original_payment_authorized_currency: mandate_reference_record
-                    .original_payment_authorized_currency,
+                mandate_reference_id,
             });
 
             Ok(api::ConnectorCallType::PreDetermined(chosen_connector_data))
@@ -3096,6 +3172,23 @@ pub fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone>(
             Ok(api::ConnectorCallType::Retryable(connectors))
         }
     }
+}
+
+pub fn is_network_transaction_id_flow(
+    state: &AppState,
+    pg_agnostic: &String,
+    connector: enums::Connector,
+    payment_method_info: &storage::PaymentMethod,
+) -> bool {
+    let ntid_supported_connectors = &state
+        .conf
+        .network_transaction_id_supported_connectors
+        .connector_list;
+
+    pg_agnostic == "true"
+        && payment_method_info.payment_method == Some(storage_enums::PaymentMethod::Card)
+        && ntid_supported_connectors.contains(&connector)
+        && payment_method_info.network_transaction_id.is_some()
 }
 
 pub fn should_add_task_to_process_tracker<F: Clone>(payment_data: &PaymentData<F>) -> bool {
@@ -3315,10 +3408,12 @@ where
     match transaction_data {
         TransactionData::Payment(payment_data) => {
             decide_multiplex_connector_for_normal_or_recurring_payment(
+                state,
                 payment_data,
                 routing_data,
                 connector_data,
             )
+            .await
         }
 
         #[cfg(feature = "payouts")]

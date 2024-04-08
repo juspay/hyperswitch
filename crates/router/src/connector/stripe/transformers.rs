@@ -136,6 +136,7 @@ pub struct PaymentIntentRequest {
     #[serde(flatten)]
     pub payment_data: Option<StripePaymentMethodData>,
     pub capture_method: StripeCaptureMethod,
+    #[serde(flatten)]
     pub payment_method_options: Option<StripePaymentMethodOptions>, // For mandate txns using network_txns_id, needs to be validated
     pub setup_future_usage: Option<enums::FutureUsage>,
     pub off_session: Option<bool>,
@@ -189,9 +190,9 @@ pub struct StripeCardData {
     #[serde(rename = "payment_method_data[card][exp_year]")]
     pub payment_method_data_card_exp_year: Secret<String>,
     #[serde(rename = "payment_method_data[card][cvc]")]
-    pub payment_method_data_card_cvc: Secret<String>,
+    pub payment_method_data_card_cvc: Option<Secret<String>>,
     #[serde(rename = "payment_method_options[card][request_three_d_secure]")]
-    pub payment_method_auth_type: Auth3ds,
+    pub payment_method_auth_type: Option<Auth3ds>,
 }
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripePayLaterData {
@@ -637,10 +638,11 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             enums::PaymentMethodType::Blik => Ok(Self::Blik),
             enums::PaymentMethodType::AliPay => Ok(Self::Alipay),
             enums::PaymentMethodType::Przelewy24 => Ok(Self::Przelewy24),
+            // Stripe expects PMT as Card for Recurring Mandates Payments
+            enums::PaymentMethodType::GooglePay => Ok(Self::Card),
             enums::PaymentMethodType::Boleto
             | enums::PaymentMethodType::CardRedirect
             | enums::PaymentMethodType::CryptoCurrency
-            | enums::PaymentMethodType::GooglePay
             | enums::PaymentMethodType::Multibanco
             | enums::PaymentMethodType::OnlineBankingFpx
             | enums::PaymentMethodType::Paypal
@@ -928,21 +930,21 @@ fn validate_shipping_address_against_payment_method(
     }
 }
 
-impl TryFrom<&api_models::payments::PayLaterData> for StripePaymentMethodType {
+impl TryFrom<&domain::payments::PayLaterData> for StripePaymentMethodType {
     type Error = errors::ConnectorError;
-    fn try_from(pay_later_data: &api_models::payments::PayLaterData) -> Result<Self, Self::Error> {
+    fn try_from(pay_later_data: &domain::payments::PayLaterData) -> Result<Self, Self::Error> {
         match pay_later_data {
-            api_models::payments::PayLaterData::KlarnaRedirect { .. } => Ok(Self::Klarna),
-            api_models::payments::PayLaterData::AffirmRedirect {} => Ok(Self::Affirm),
-            api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
+            domain::payments::PayLaterData::KlarnaRedirect { .. } => Ok(Self::Klarna),
+            domain::payments::PayLaterData::AffirmRedirect {} => Ok(Self::Affirm),
+            domain::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
                 Ok(Self::AfterpayClearpay)
             }
 
-            payments::PayLaterData::KlarnaSdk { .. }
-            | payments::PayLaterData::PayBrightRedirect {}
-            | payments::PayLaterData::WalleyRedirect {}
-            | payments::PayLaterData::AlmaRedirect {}
-            | payments::PayLaterData::AtomeRedirect {} => {
+            domain::PayLaterData::KlarnaSdk { .. }
+            | domain::PayLaterData::PayBrightRedirect {}
+            | domain::PayLaterData::WalleyRedirect {}
+            | domain::PayLaterData::AlmaRedirect {}
+            | domain::PayLaterData::AtomeRedirect {} => {
                 Err(errors::ConnectorError::NotImplemented(
                     connector_util::get_unimplemented_payment_method_error_message("stripe"),
                 ))
@@ -1037,17 +1039,15 @@ impl From<&payments::BankDebitData> for StripePaymentMethodType {
     }
 }
 
-impl TryFrom<(&api_models::payments::PayLaterData, StripePaymentMethodType)>
-    for StripeBillingAddress
-{
+impl TryFrom<(&domain::payments::PayLaterData, StripePaymentMethodType)> for StripeBillingAddress {
     type Error = errors::ConnectorError;
 
     fn try_from(
-        (pay_later_data, pm_type): (&api_models::payments::PayLaterData, StripePaymentMethodType),
+        (pay_later_data, pm_type): (&domain::payments::PayLaterData, StripePaymentMethodType),
     ) -> Result<Self, Self::Error> {
         match (pay_later_data, pm_type) {
             (
-                payments::PayLaterData::KlarnaRedirect {
+                domain::payments::PayLaterData::KlarnaRedirect {
                     billing_email,
                     billing_country,
                 },
@@ -1057,11 +1057,12 @@ impl TryFrom<(&api_models::payments::PayLaterData, StripePaymentMethodType)>
                 country: Some(billing_country.to_owned()),
                 ..Self::default()
             }),
-            (payments::PayLaterData::AffirmRedirect {}, StripePaymentMethodType::Affirm) => {
-                Ok(Self::default())
-            }
             (
-                payments::PayLaterData::AfterpayClearpayRedirect {
+                domain::payments::PayLaterData::AffirmRedirect {},
+                StripePaymentMethodType::Affirm,
+            ) => Ok(Self::default()),
+            (
+                domain::payments::PayLaterData::AfterpayClearpayRedirect {
                     billing_email,
                     billing_name,
                 },
@@ -1498,8 +1499,8 @@ impl TryFrom<(&domain::Card, Auth3ds)> for StripePaymentMethodData {
             payment_method_data_card_number: card.card_number.clone(),
             payment_method_data_card_exp_month: card.card_exp_month.clone(),
             payment_method_data_card_exp_year: card.card_exp_year.clone(),
-            payment_method_data_card_cvc: card.card_cvc.clone(),
-            payment_method_auth_type,
+            payment_method_data_card_cvc: Some(card.card_cvc.clone()),
+            payment_method_auth_type: Some(payment_method_auth_type),
         }))
     }
 }
@@ -1821,7 +1822,44 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                             network_transaction_id: Secret::new(network_transaction_id),
                         }),
                     });
-                    (None, None, StripeBillingAddress::default(), None)
+
+                    let payment_data = match item.request.payment_method_data {
+                        domain::payments::PaymentMethodData::Card(ref card) => {
+                            StripePaymentMethodData::Card(StripeCardData {
+                                payment_method_data_type: StripePaymentMethodType::Card,
+                                payment_method_data_card_number: card.card_number.clone(),
+                                payment_method_data_card_exp_month: card.card_exp_month.clone(),
+                                payment_method_data_card_exp_year: card.card_exp_year.clone(),
+                                payment_method_data_card_cvc: None,
+                                payment_method_auth_type: None,
+                            })
+                        }
+                        domain::payments::PaymentMethodData::CardRedirect(_)
+                        | domain::payments::PaymentMethodData::Wallet(_)
+                        | domain::payments::PaymentMethodData::PayLater(_)
+                        | domain::payments::PaymentMethodData::BankRedirect(_)
+                        | domain::payments::PaymentMethodData::BankDebit(_)
+                        | domain::payments::PaymentMethodData::BankTransfer(_)
+                        | domain::payments::PaymentMethodData::Crypto(_)
+                        | domain::payments::PaymentMethodData::MandatePayment
+                        | domain::payments::PaymentMethodData::Reward
+                        | domain::payments::PaymentMethodData::Upi(_)
+                        | domain::payments::PaymentMethodData::Voucher(_)
+                        | domain::payments::PaymentMethodData::GiftCard(_)
+                        | domain::payments::PaymentMethodData::CardToken(_) => {
+                            Err(errors::ConnectorError::NotSupported {
+                                message: "Network tokenization for payment method".to_string(),
+                                connector: "Stripe",
+                            })?
+                        }
+                    };
+
+                    (
+                        Some(payment_data),
+                        None,
+                        StripeBillingAddress::default(),
+                        None,
+                    )
                 }
                 _ => {
                     let (payment_method_data, payment_method_type, billing_address) =
@@ -2625,12 +2663,23 @@ impl<F, T>
                 item.response.id.clone(),
             ))
         } else {
+            let network_transaction_id = match item.response.latest_charge.clone() {
+                Some(StripeChargeEnum::ChargeObject(charge_object)) => charge_object
+                    .payment_method_details
+                    .and_then(|payment_method_details| match payment_method_details {
+                        StripePaymentMethodDetailsResponse::Card { card } => {
+                            card.network_transaction_id
+                        }
+                        _ => None,
+                    }),
+                _ => None,
+            };
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data,
                 mandate_reference,
                 connector_metadata,
-                network_txn_id: None,
+                network_txn_id: network_transaction_id,
                 connector_response_reference_id: Some(item.response.id.clone()),
                 incremental_authorization_allowed: None,
             })
@@ -3105,10 +3154,13 @@ impl TryFrom<&types::PaymentsCancelRouterData> for CancelRequest {
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 #[non_exhaustive]
 #[serde(rename_all = "snake_case")]
+#[serde(untagged)]
 pub enum StripePaymentMethodOptions {
     Card {
         mandate_options: Option<StripeMandateOptions>,
+        #[serde(rename = "payment_method_options[card][network_transaction_id]")]
         network_transaction_id: Option<Secret<String>>,
+        #[serde(flatten)]
         mit_exemption: Option<MitExemption>, // To be used for MIT mandate txns
     },
     Klarna {},
@@ -3139,6 +3191,7 @@ pub enum StripePaymentMethodOptions {
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct MitExemption {
+    #[serde(rename = "payment_method_options[card][mit_exemption][network_transaction_id]")]
     pub network_transaction_id: Secret<String>,
 }
 

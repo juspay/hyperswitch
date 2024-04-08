@@ -15464,11 +15464,6 @@
             "description": "If the payout was cancelled the reason provided here",
             "nullable": true
           },
-          "payout_token": {
-            "type": "string",
-            "description": "Provide a reference to a stored payout method",
-            "nullable": true
-          },
           "unified_code": {
             "type": "string",
             "description": "error code unified across the connectors is received here if there was an error while calling connector",
