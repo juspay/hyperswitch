@@ -4469,6 +4469,53 @@
           }
         ]
       }
+    },
+    "/events/{merchant_id_or_profile_id}/{event_id}/retry": {
+      "post": {
+        "tags": [
+          "Event"
+        ],
+        "summary": "Events - Manual Retry",
+        "description": "Events - Manual Retry\n\nManually retry the delivery of the specified Event.",
+        "operationId": "Manually retry the delivery of an Event",
+        "parameters": [
+          {
+            "name": "merchant_id_or_profile_id",
+            "in": "path",
+            "description": "The unique identifier for the Merchant Account or Business Profile",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "event_id",
+            "in": "path",
+            "description": "The unique identifier for the Event",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The delivery of the Event was attempted. Check the `response` field in the response payload to identify the status of the delivery attempt.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventRetrieveResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -7771,7 +7818,7 @@
           "default_payment_method_id": {
             "type": "string",
             "description": "The unique identifier of the Payment method",
-            "example": "card_rGK4Vi5iSW70MY7J2mIy",
+            "example": "card_rGK4Vi5iSW70MY7J2mIg",
             "nullable": true
           },
           "customer_id": {
@@ -11662,15 +11709,11 @@
       "OutgoingWebhookResponseContent": {
         "type": "object",
         "description": "The response information (headers, body and status code) received for the webhook sent.",
-        "required": [
-          "body",
-          "headers",
-          "status_code"
-        ],
         "properties": {
           "body": {
             "type": "string",
-            "description": "The response body received for the webhook sent."
+            "description": "The response body received for the webhook sent.",
+            "nullable": true
           },
           "headers": {
             "type": "array",
@@ -11697,14 +11740,22 @@
                 "content-length",
                 "1024"
               ]
-            ]
+            ],
+            "nullable": true
           },
           "status_code": {
             "type": "integer",
             "format": "int32",
             "description": "The HTTP status code for the webhook sent.",
             "example": 200,
+            "nullable": true,
             "minimum": 0
+          },
+          "error_message": {
+            "type": "string",
+            "description": "Error message in case any error occurred when trying to deliver the webhook.",
+            "example": 200,
+            "nullable": true
           }
         }
       },
@@ -12530,7 +12581,7 @@
           "payment_method_id": {
             "type": "string",
             "description": "The unique identifier of the Payment method",
-            "example": "card_rGK4Vi5iSW70MY7J2mIy"
+            "example": "card_rGK4Vi5iSW70MY7J2mIg"
           },
           "deleted": {
             "type": "boolean",
@@ -12656,7 +12707,7 @@
           "payment_method_id": {
             "type": "string",
             "description": "The unique identifier of the Payment method",
-            "example": "card_rGK4Vi5iSW70MY7J2mIy"
+            "example": "card_rGK4Vi5iSW70MY7J2mIg"
           },
           "payment_method": {
             "$ref": "#/components/schemas/PaymentMethod"
@@ -14762,6 +14813,14 @@
             "description": "Payment Fingerprint",
             "nullable": true
           },
+          "browser_info": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
+            "nullable": true
+          },
           "payment_method_id": {
             "type": "string",
             "description": "Payment Method Id",
@@ -15370,11 +15429,6 @@
           "cancellation_reason": {
             "type": "string",
             "description": "If the payout was cancelled the reason provided here",
-            "nullable": true
-          },
-          "payout_token": {
-            "type": "string",
-            "description": "Provide a reference to a stored payout method",
             "nullable": true
           },
           "unified_code": {
@@ -16356,7 +16410,7 @@
         "properties": {
           "payment_id": {
             "type": "string",
-            "description": "The payment id against which refund is to be intiated",
+            "description": "The payment id against which refund is to be initiated",
             "example": "pay_mbabizu24mvu3mela5njyhpit4",
             "maxLength": 30,
             "minLength": 30
@@ -16433,7 +16487,7 @@
           },
           "payment_id": {
             "type": "string",
-            "description": "The payment id against which refund is intiated"
+            "description": "The payment id against which refund is initiated"
           },
           "amount": {
             "type": "integer",

@@ -206,6 +206,8 @@ pub enum Flow {
     RoutingRetrieveConfig,
     /// Routing retrieve active config
     RoutingRetrieveActiveConfig,
+    /// Update connector agnostic mandate config
+    CreateConnectorAgnosticMandateConfig,
     /// Routing retrieve default config
     RoutingRetrieveDefaultConfig,
     /// Routing retrieve dictionary
@@ -396,6 +398,8 @@ pub enum Flow {
     WebhookEventInitialDeliveryAttemptList,
     /// List delivery attempts for a webhook event
     WebhookEventDeliveryAttemptList,
+    /// Manually retry the delivery for a webhook event
+    WebhookEventDeliveryRetry,
 }
 
 ///

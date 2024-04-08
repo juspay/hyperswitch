@@ -144,7 +144,7 @@ async fn should_void_authorized_payment() {
     assert_eq!(response.unwrap().status, enums::AttemptStatus::Pending); //shift4 doesn't allow voiding a payment
 }
 
-// Cards Negative scenerios
+// Cards Negative scenarios
 // Creates a payment with incorrect card number.
 #[actix_web::test]
 async fn should_fail_payment_for_incorrect_card_number() {

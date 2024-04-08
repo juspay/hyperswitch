@@ -54,6 +54,7 @@ impl Feature<api::Approve, types::PaymentsApproveData>
         _merchant_account: &domain::MerchantAccount,
         _connector_request: Option<services::Request>,
         _key_store: &domain::MerchantKeyStore,
+        _profile_id: Option<String>,
     ) -> RouterResult<Self> {
         Err(ApiErrorResponse::NotImplemented {
             message: NotImplementedMessage::Reason("Flow not supported".to_string()),

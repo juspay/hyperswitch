@@ -9,7 +9,6 @@ use api_models::{
 };
 #[cfg(not(feature = "business_profile_routing"))]
 use common_utils::ext_traits::{Encode, StringExt};
-#[cfg(not(feature = "business_profile_routing"))]
 use diesel_models::configs;
 #[cfg(feature = "business_profile_routing")]
 use diesel_models::routing_algorithm::RoutingAlgorithm;
@@ -805,6 +804,37 @@ pub async fn retrieve_linked_routing_config(
         metrics::ROUTING_RETRIEVE_LINK_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
         Ok(service_api::ApplicationResponse::Json(response))
     }
+}
+
+pub async fn upsert_connector_agnostic_mandate_config(
+    state: AppState,
+    business_profile_id: &str,
+    mandate_config: routing_types::DetailedConnectorChoice,
+) -> RouterResponse<routing_types::DetailedConnectorChoice> {
+    let key = helpers::get_pg_agnostic_mandate_config_key(business_profile_id);
+
+    let mandate_config_str = mandate_config.enabled.to_string();
+
+    let find_config = state
+        .store
+        .find_config_by_key_unwrap_or(&key, Some(mandate_config_str.clone()))
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("error saving pg agnostic mandate config to db")?;
+
+    if find_config.config != mandate_config_str {
+        let config_update = configs::ConfigUpdate::Update {
+            config: Some(mandate_config_str),
+        };
+        state
+            .store
+            .update_config_by_key(&key, config_update)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("error saving pg agnostic mandate config to db")?;
+    }
+
+    Ok(service_api::ApplicationResponse::Json(mandate_config))
 }
 
 pub async fn retrieve_default_routing_config_for_profiles(
