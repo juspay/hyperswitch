@@ -430,10 +430,7 @@ where
             } => {
                 format!(
                     "quantilesExact(0.{})({})[1]{}",
-                    percentile.map_or_else(
-                        || "50".to_owned(),
-                        |percentile| format!("{}", percentile.to_string())
-                    ),
+                    percentile.map_or_else(|| "50".to_owned(), |percentile| percentile.to_string()),
                     field
                         .to_sql(table_engine)
                         .attach_printable("Failed to percentile aggregate")?,
