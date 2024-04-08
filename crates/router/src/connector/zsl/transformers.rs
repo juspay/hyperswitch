@@ -82,7 +82,7 @@ impl TryFrom<&ZslRouterData<&types::PaymentsAuthorizeRouterData>> for ZslPayment
 // Auth Struct
 pub struct ZslAuthType {
     pub(super) api_key: Secret<String>,
-    pub(super) mer_id: Secret<String>
+    pub(super) mer_id: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for ZslAuthType {
@@ -91,7 +91,7 @@ impl TryFrom<&types::ConnectorAuthType> for ZslAuthType {
         match auth_type {
             types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 api_key: api_key.to_owned(),
-                mer_id: key1.to_owned()
+                mer_id: key1.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
