@@ -281,7 +281,9 @@ pub fn authenticate_pm_client_secret_and_check_expiry(
         .client_secret
         .clone()
         .get_required_value("client_secret")
-        .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
+        .change_context(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "client_secret",
+        })
         .attach_printable("client secret not found in db")?;
 
     if req_client_secret != &stored_client_secret {
