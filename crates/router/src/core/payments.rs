@@ -294,7 +294,6 @@ where
                             &merchant_account,
                             &key_store,
                             &mut payment_data,
-                            None,
                         )
                         .await?;
 
@@ -395,7 +394,6 @@ where
                             &merchant_account,
                             &key_store,
                             &mut payment_data,
-                            None,
                         )
                         .await?;
 

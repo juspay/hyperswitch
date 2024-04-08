@@ -91,12 +91,12 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
         merchant_account: &'b domain::MerchantAccount,
         key_store: &'b domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
-        profile_id: Option<String>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Send + Clone + Sync,
     {
         let customer_id = payment_data.payment_intent.customer_id.clone();
+        let profile_id = payment_data.payment_intent.profile_id.clone();
         let is_mandate = &resp.request.setup_mandate_details.is_some();
         if *is_mandate {
             let (payment_method_id, _payment_method_status) =
@@ -134,6 +134,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
             let key_store = key_store.clone();
             let state = state.clone();
             let customer_id = payment_data.payment_intent.customer_id.clone();
+            let profile_id = payment_data.payment_intent.profile_id.clone();
 
             logger::info!("Call to save_payment_method in locker");
             let _task_handle = tokio::spawn(
@@ -321,7 +322,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
         _merchant_account: &'b domain::MerchantAccount,
         _key_store: &'b domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
-        _profile_id: Option<String>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Send + Clone + Sync,
@@ -365,7 +365,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         _merchant_account: &'b domain::MerchantAccount,
         _key_store: &'b domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
-        _profile_id: Option<String>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Send + Clone + Sync,
@@ -413,7 +412,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
         _merchant_account: &'b domain::MerchantAccount,
         _key_store: &'b domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
-        _profile_id: Option<String>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Send + Clone + Sync,
@@ -461,7 +459,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
         _merchant_account: &'b domain::MerchantAccount,
         _key_store: &'b domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
-        _profile_id: Option<String>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Send + Clone + Sync,
@@ -508,7 +505,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
         _merchant_account: &'b domain::MerchantAccount,
         _key_store: &'b domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
-        _profile_id: Option<String>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Send + Clone + Sync,
@@ -557,7 +553,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
         _merchant_account: &'b domain::MerchantAccount,
         _key_store: &'b domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
-        _profile_id: Option<String>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Send + Clone + Sync,
@@ -604,7 +599,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> f
         _merchant_account: &'b domain::MerchantAccount,
         _key_store: &'b domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
-        _profile_id: Option<String>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Send + Clone + Sync,
@@ -662,7 +656,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         _merchant_account: &'b domain::MerchantAccount,
         _key_store: &'b domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
-        _profile_id: Option<String>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Send + Clone + Sync,
@@ -704,7 +697,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
         _merchant_account: &'b domain::MerchantAccount,
         _key_store: &'b domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
-        _profile_id: Option<String>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Send + Clone + Sync,

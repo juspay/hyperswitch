@@ -233,7 +233,6 @@ pub trait PostUpdateTracker<F, D, R>: Send {
         merchant_account: &'b domain::MerchantAccount,
         key_store: &'b domain::MerchantKeyStore,
         payment_data: &mut D,
-        profile_id: Option<String>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Send + Sync;
