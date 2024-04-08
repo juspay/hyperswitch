@@ -7162,11 +7162,11 @@
           "wise",
           "worldline",
           "worldpay",
-          "zen",
-          "zsl",
           "signifyd",
           "plaid",
-          "riskified"
+          "riskified",
+          "zen",
+          "zsl"
         ]
       },
       "ConnectorMetadata": {
