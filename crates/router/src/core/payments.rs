@@ -2621,14 +2621,9 @@ pub async fn get_payment_filters(
     merchant_connector_accounts
         .iter()
         .flat_map(|merchant_connector_account| {
-            merchant_connector_account
-                .payment_methods_enabled
-                .as_ref()
-                .map(|payment_methods_enabled| {
-                    (merchant_connector_account, payment_methods_enabled)
-                })
+            merchant_connector_account.payment_methods_enabled.as_ref()
         })
-        .for_each(|(_, payment_methods_enabled)| {
+        .map(|payment_methods_enabled| {
             payment_methods_enabled
                 .iter()
                 .filter_map(|payment_method_enabled| {
@@ -2637,15 +2632,18 @@ pub async fn get_payment_filters(
                         .as_ref()
                         .map(|types_vec| (payment_method_enabled.payment_method, types_vec.clone()))
                 })
-                .for_each(|(payment_method, payment_method_types_vec)| {
-                    let types_set = payment_method_types_map.entry(payment_method).or_default();
-
-                    types_set.extend(
+        })
+        .for_each(|payment_methods_enabled| {
+            payment_methods_enabled.for_each(|(payment_method, payment_method_types_vec)| {
+                payment_method_types_map
+                    .entry(payment_method)
+                    .or_default()
+                    .extend(
                         payment_method_types_vec
                             .iter()
                             .map(|p| p.payment_method_type),
                     );
-                });
+            });
         });
 
     Ok(services::ApplicationResponse::Json(

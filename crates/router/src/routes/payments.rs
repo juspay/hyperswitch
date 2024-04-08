@@ -944,7 +944,7 @@ pub async fn get_filters_for_payments(
     .await
 }
 
-#[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsFilters))]
 #[cfg(feature = "olap")]
 pub async fn get_payment_filters(
     state: web::Data<app::AppState>,
