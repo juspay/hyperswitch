@@ -297,7 +297,7 @@ pub async fn delete_sample_data(
     .await
 }
 
-pub async fn list_merchant_ids_for_user(
+pub async fn list_merchant_for_user(
     state: web::Data<AppState>,
     req: HttpRequest,
 ) -> HttpResponse {
@@ -307,7 +307,7 @@ pub async fn list_merchant_ids_for_user(
         state,
         &req,
         (),
-        |state, user, _| user_core::list_merchant_ids_for_user(state, user),
+        |state, user, _| user_core::list_merchant_for_user(state, user),
         &auth::DashboardNoPermissionAuth,
         api_locking::LockAction::NotApplicable,
     ))
