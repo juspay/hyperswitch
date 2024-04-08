@@ -146,7 +146,6 @@ impl<const T: u8>
 }
 
 default_imp_for_complete_authorize!(
-    connector::Zsl,
     connector::Aci,
     connector::Adyen,
     connector::Billwerk,
@@ -186,7 +185,8 @@ default_imp_for_complete_authorize!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 macro_rules! default_imp_for_webhook_source_verification {
     ($($path:ident::$connector:ident),*) => {
@@ -215,7 +215,6 @@ impl<const T: u8>
 {
 }
 default_imp_for_webhook_source_verification!(
-    connector::Zsl,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -270,7 +269,8 @@ default_imp_for_webhook_source_verification!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 macro_rules! default_imp_for_create_customer {
@@ -301,7 +301,6 @@ impl<const T: u8>
 }
 
 default_imp_for_create_customer!(
-    connector::Zsl,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -354,7 +353,8 @@ default_imp_for_create_customer!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 macro_rules! default_imp_for_connector_redirect_response {
@@ -387,7 +387,6 @@ impl<const T: u8> services::ConnectorRedirectResponse for connector::DummyConnec
 }
 
 default_imp_for_connector_redirect_response!(
-    connector::Zsl,
     connector::Aci,
     connector::Adyen,
     connector::Bitpay,
@@ -427,7 +426,8 @@ default_imp_for_connector_redirect_response!(
     connector::Volt,
     connector::Wise,
     connector::Worldline,
-    connector::Worldpay
+    connector::Worldpay,
+    connector::Zsl
 );
 
 macro_rules! default_imp_for_connector_request_id {
@@ -530,7 +530,6 @@ impl<const T: u8>
 }
 
 default_imp_for_accept_dispute!(
-    connector::Zsl,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -585,7 +584,8 @@ default_imp_for_accept_dispute!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 macro_rules! default_imp_for_file_upload {
@@ -638,7 +638,6 @@ impl<const T: u8>
 }
 
 default_imp_for_file_upload!(
-    connector::Zsl,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -692,7 +691,8 @@ default_imp_for_file_upload!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 macro_rules! default_imp_for_submit_evidence {
@@ -723,7 +723,6 @@ impl<const T: u8>
 }
 
 default_imp_for_submit_evidence!(
-    connector::Zsl,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -777,7 +776,8 @@ default_imp_for_submit_evidence!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 macro_rules! default_imp_for_defend_dispute {
@@ -808,7 +808,6 @@ impl<const T: u8>
 }
 
 default_imp_for_defend_dispute!(
-    connector::Zsl,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -863,7 +862,8 @@ default_imp_for_defend_dispute!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 macro_rules! default_imp_for_pre_processing_steps{
@@ -894,7 +894,6 @@ impl<const T: u8>
 }
 
 default_imp_for_pre_processing_steps!(
-    connector::Zsl,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -941,7 +940,8 @@ default_imp_for_pre_processing_steps!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 macro_rules! default_imp_for_payouts {
@@ -956,7 +956,6 @@ macro_rules! default_imp_for_payouts {
 impl<const T: u8> api::Payouts for connector::DummyConnector<T> {}
 
 default_imp_for_payouts!(
-    connector::Zsl,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1010,7 +1009,8 @@ default_imp_for_payouts!(
     connector::Volt,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 #[cfg(feature = "payouts")]
@@ -1042,7 +1042,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_create!(
-    connector::Zsl,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1096,7 +1095,8 @@ default_imp_for_payouts_create!(
     connector::Volt,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 #[cfg(feature = "payouts")]
@@ -1131,7 +1131,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_eligibility!(
-    connector::Zsl,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1185,7 +1184,8 @@ default_imp_for_payouts_eligibility!(
     connector::Volt,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 #[cfg(feature = "payouts")]
@@ -1217,7 +1217,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_fulfill!(
-    connector::Zsl,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1271,7 +1270,8 @@ default_imp_for_payouts_fulfill!(
     connector::Volt,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 #[cfg(feature = "payouts")]
@@ -1303,7 +1303,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_cancel!(
-    connector::Zsl,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1357,7 +1356,8 @@ default_imp_for_payouts_cancel!(
     connector::Volt,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 #[cfg(feature = "payouts")]
@@ -1389,7 +1389,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_quote!(
-    connector::Zsl,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1444,7 +1443,8 @@ default_imp_for_payouts_quote!(
     connector::Volt,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 #[cfg(feature = "payouts")]
@@ -1476,7 +1476,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient!(
-    connector::Zsl,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1531,7 +1530,8 @@ default_imp_for_payouts_recipient!(
     connector::Volt,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 macro_rules! default_imp_for_approve {
@@ -1562,7 +1562,6 @@ impl<const T: u8>
 }
 
 default_imp_for_approve!(
-    connector::Zsl,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1618,7 +1617,8 @@ default_imp_for_approve!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 macro_rules! default_imp_for_reject {
@@ -1649,7 +1649,6 @@ impl<const T: u8>
 }
 
 default_imp_for_reject!(
-    connector::Zsl,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1705,7 +1704,8 @@ default_imp_for_reject!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 macro_rules! default_imp_for_fraud_check {
@@ -1720,7 +1720,6 @@ macro_rules! default_imp_for_fraud_check {
 impl<const T: u8> api::FraudCheck for connector::DummyConnector<T> {}
 
 default_imp_for_fraud_check!(
-    connector::Zsl,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1774,7 +1773,8 @@ default_imp_for_fraud_check!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 #[cfg(feature = "frm")]
@@ -1807,7 +1807,6 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_sale!(
-    connector::Zsl,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1861,7 +1860,8 @@ default_imp_for_frm_sale!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 #[cfg(feature = "frm")]
@@ -1894,7 +1894,6 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_checkout!(
-    connector::Zsl,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1948,7 +1947,8 @@ default_imp_for_frm_checkout!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 #[cfg(feature = "frm")]
@@ -1981,7 +1981,6 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_transaction!(
-    connector::Zsl,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2035,7 +2034,8 @@ default_imp_for_frm_transaction!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 #[cfg(feature = "frm")]
@@ -2068,7 +2068,6 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_fulfillment!(
-    connector::Zsl,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2122,7 +2121,8 @@ default_imp_for_frm_fulfillment!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 #[cfg(feature = "frm")]
@@ -2155,7 +2155,6 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_record_return!(
-    connector::Zsl,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2209,7 +2208,8 @@ default_imp_for_frm_record_return!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 macro_rules! default_imp_for_incremental_authorization {
@@ -2240,7 +2240,6 @@ impl<const T: u8>
 }
 
 default_imp_for_incremental_authorization!(
-    connector::Zsl,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2295,7 +2294,8 @@ default_imp_for_incremental_authorization!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 macro_rules! default_imp_for_revoking_mandates {
@@ -2324,7 +2324,6 @@ impl<const T: u8>
 {
 }
 default_imp_for_revoking_mandates!(
-    connector::Zsl,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2378,7 +2377,8 @@ default_imp_for_revoking_mandates!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 macro_rules! default_imp_for_connector_authentication {
@@ -2449,7 +2449,6 @@ impl<const T: u8>
 {
 }
 default_imp_for_connector_authentication!(
-    connector::Zsl,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2504,5 +2503,6 @@ default_imp_for_connector_authentication!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );

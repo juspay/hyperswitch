@@ -126,10 +126,10 @@ pub enum Connector {
     Wise,
     Worldline,
     Worldpay,
-    Zen,
     Signifyd,
     Plaid,
     Riskified,
+    Zen,
     Zsl,
 }
 
