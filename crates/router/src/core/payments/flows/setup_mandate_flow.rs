@@ -64,71 +64,70 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         key_store: &domain::MerchantKeyStore,
         profile_id: Option<String>,
     ) -> RouterResult<Self> {
-        // ppkk correct this
-        // if let Some(mandate_id) = self
-        //     .request
-        //     .setup_mandate_details
-        //     .as_ref()
-        //     .and_then(|mandate_data| mandate_data.update_mandate_id.clone())
-        // {
-        //     Box::pin(self.update_mandate_flow(
-        //         state,
-        //         merchant_account,
-        //         mandate_id,
-        //         connector,
-        //         key_store,
-        //         call_connector_action,
-        //         &state.conf.mandates.update_mandate_supported,
-        //         connector_request,
-        //         maybe_customer,
-        //         profile_id,
-        //     ))
-        //     .await
-        // } else {
-        //     let connector_integration: services::BoxedConnectorIntegration<
-        //         '_,
-        //         api::SetupMandate,
-        //         types::SetupMandateRequestData,
-        //         types::PaymentsResponseData,
-        //     > = connector.connector.get_connector_integration();
-        //
-        //     let mut resp = services::execute_connector_processing_step(
-        //         state,
-        //         connector_integration,
-        //         &self,
-        //         call_connector_action.clone(),
-        //         connector_request,
-        //     )
-        //     .await
-        //     .to_setup_mandate_failed_response()?;
-        //
-        //     let (pm_id, payment_method_status) = Box::pin(tokenization::save_payment_method(
-        //         state,
-        //         connector,
-        //         resp.to_owned(),
-        //         maybe_customer,
-        //         merchant_account,
-        //         self.request.payment_method_type,
-        //         key_store,
-        //         resp.request.amount,
-        //         Some(resp.request.currency),
-        //         profile_id,
-        //     ))
-        //     .await?;
-        //
-        //     resp.payment_method_id = pm_id.clone();
-        //     resp.payment_method_status = payment_method_status;
-        //     mandate::mandate_procedure(
-        //         state,
-        //         &resp,
-        //         maybe_customer,
-        //         pm_id,
-        //         connector.merchant_connector_id.clone(),
-        //     )
-        //     .await?;
-        //     Ok(resp)
-        // }
-        Ok(self)
+        if let Some(mandate_id) = self
+            .request
+            .setup_mandate_details
+            .as_ref()
+            .and_then(|mandate_data| mandate_data.update_mandate_id.clone())
+        {
+            Box::pin(self.update_mandate_flow(
+                state,
+                merchant_account,
+                mandate_id,
+                connector,
+                key_store,
+                call_connector_action,
+                &state.conf.mandates.update_mandate_supported,
+                connector_request,
+                maybe_customer,
+                profile_id,
+            ))
+            .await
+        } else {
+            let connector_integration: services::BoxedConnectorIntegration<
+                '_,
+                api::SetupMandate,
+                types::SetupMandateRequestData,
+                types::PaymentsResponseData,
+            > = connector.connector.get_connector_integration();
+
+            let mut resp = services::execute_connector_processing_step(
+                state,
+                connector_integration,
+                &self,
+                call_connector_action.clone(),
+                connector_request,
+            )
+            .await
+            .to_setup_mandate_failed_response()?;
+
+            // let (pm_id, payment_method_status) = Box::pin(tokenization::save_payment_method(
+            //     state,
+            //     connector,
+            //     resp.to_owned(),
+            //     maybe_customer,
+            //     merchant_account,
+            //     self.request.payment_method_type,
+            //     key_store,
+            //     resp.request.amount,
+            //     Some(resp.request.currency),
+            //     profile_id,
+            // ))
+            // .await?;
+            //
+            // resp.payment_method_id = pm_id.clone();
+            // resp.payment_method_status = payment_method_status;
+            // mandate::mandate_procedure(
+            //     state,
+            //     &resp,
+            //     maybe_customer,
+            //     pm_id,
+            //     connector.merchant_connector_id.clone(),
+            // )
+            // .await?;
+            Ok(resp)
+        }
+        // Ok(self)
     }
 
     async fn add_access_token<'a>(

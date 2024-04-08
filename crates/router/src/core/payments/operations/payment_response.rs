@@ -81,6 +81,41 @@ impl<Ctx: PaymentMethodRetrieve> Operation<api::Authorize, types::PaymentsAuthor
         Ok(self)
     }
 }
+
+// impl<Ctx: PaymentMethodRetrieve> Operation<api::SetupMandate, types::SetupMandateRouterData, Ctx>
+//     for &PaymentResponse
+// {
+//     fn to_post_update_tracker(
+//         &self,
+//     ) -> RouterResult<
+//         &(dyn PostUpdateTracker<
+//             api::SetupMandate,
+//             PaymentData<api::SetupMandate>,
+//             types::SetupMandateRouterData,
+//         > + Send
+//               + Sync),
+//     > {
+//         Ok(*self)
+//     }
+// }
+//
+// impl<Ctx: PaymentMethodRetrieve> Operation<api::SetupMandate, types::SetupMandateRouterData, Ctx>
+//     for PaymentResponse
+// {
+//     fn to_post_update_tracker(
+//         &self,
+//     ) -> RouterResult<
+//         &(dyn PostUpdateTracker<
+//             api::SetupMandate,
+//             PaymentData<api::SetupMandate>,
+//             types::SetupMandateRouterData,
+//         > + Send
+//               + Sync),
+//     > {
+//         Ok(self)
+//     }
+// }
+
 #[async_trait]
 impl PostUpdateTracker<api::Authorize, PaymentData<api::Authorize>, types::PaymentsAuthorizeData>
     for PaymentResponse
@@ -168,10 +203,12 @@ where
             let profile_id = payment_data.payment_intent.profile_id.clone();
             let connector_name = payment_data.payment_attempt.connector.clone();
             let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
+            let payment_attempt = payment_data.payment_attempt.clone();
 
             let amount = cloned_router_data.request.amount.clone();
             let currency = cloned_router_data.request.currency.clone();
             let payment_method_type = cloned_router_data.request.payment_method_type.clone();
+            let storage_scheme = merchant_account.clone().storage_scheme;
 
             logger::info!("Call to save_payment_method in locker");
             let _task_handle = tokio::spawn(
@@ -201,6 +238,24 @@ where
                             );
                         } else {
                             //TODO: make a database call to update payment attempt
+                            if let Ok((payment_method_id, _pm_status)) = result {
+                                let payment_attempt_update =
+                                    storage::PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
+                                        payment_method_id,
+                                        updated_by: storage_scheme.clone().to_string(),
+                                    };
+                                let respond = state
+                                    .store
+                                    .update_payment_attempt_with_attempt_id(
+                                        payment_attempt,
+                                        payment_attempt_update,
+                                        storage_scheme.clone(),
+                                    )
+                                    .await;
+                                if let Err(err) = respond {
+                                    logger::error!("Error updating payment attempt: {:?}", err);
+                                };
+                            }
                         }
                     } else {
                         logger::error!("customer_id not found");
