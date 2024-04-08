@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use api_models::payments::{Address, AddressDetails};
+use api_models::payments::{Address, AddressDetails, PhoneDetails};
 use masking::Secret;
 use router::types::{self, storage::enums, PaymentAddress};
 
@@ -63,7 +63,10 @@ impl AdyenTest {
                         line2: Some(Secret::new("Harrison Street".to_string())),
                         ..Default::default()
                     }),
-                    phone: None,
+                    phone: Some(PhoneDetails {
+                        number: Some(Secret::new("8056594427".to_string())),
+                        country_code: Some("+351".to_string()),
+                    }),
                     email: None,
                 }),
                 None,

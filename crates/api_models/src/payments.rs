@@ -2183,7 +2183,7 @@ impl GetAddressFromPaymentMethodData for WalletData {
                 let phone = PhoneDetails {
                     // Portuguese country code, this payment method is applicable only in portugal
                     country_code: Some("+351".into()),
-                    number: Some(mb_way_redirect.telephone_number.clone()),
+                    number: mb_way_redirect.telephone_number.clone(),
                 };
 
                 Some(Address {
@@ -2308,7 +2308,7 @@ pub struct MobilePayRedirection {}
 pub struct MbWayRedirection {
     /// Telephone number of the shopper. Should be Portuguese phone number.
     #[schema(value_type = String)]
-    pub telephone_number: Secret<String>,
+    pub telephone_number: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

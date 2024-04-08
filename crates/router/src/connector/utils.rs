@@ -1119,6 +1119,7 @@ pub trait PhoneDetailsData {
     fn get_number(&self) -> Result<Secret<String>, Error>;
     fn get_country_code(&self) -> Result<String, Error>;
     fn get_number_with_country_code(&self) -> Result<Secret<String>, Error>;
+    fn get_number_with_hash_country_code(&self) -> Result<Secret<String>, Error>;
 }
 
 impl PhoneDetailsData for api::PhoneDetails {
@@ -1136,6 +1137,16 @@ impl PhoneDetailsData for api::PhoneDetails {
         let number = self.get_number()?;
         let country_code = self.get_country_code()?;
         Ok(Secret::new(format!("{}{}", country_code, number.peek())))
+    }
+    fn get_number_with_hash_country_code(&self) -> Result<Secret<String>, Error> {
+        let number = self.get_number()?;
+        let country_code = self.get_country_code()?;
+        let number_without_plus = country_code.trim_start_matches('+');
+        Ok(Secret::new(format!(
+            "{}#{}",
+            number_without_plus,
+            number.peek()
+        )))
     }
 }
 
