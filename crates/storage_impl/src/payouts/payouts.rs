@@ -55,7 +55,10 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
             MerchantStorageScheme::RedisKv => {
                 let merchant_id = new.merchant_id.clone();
                 let payout_id = new.payout_id.clone();
-                let key = PartitionKey::MerchantIdPayoutId{merchant_id : &merchant_id, payout_id: &payout_id};
+                let key = PartitionKey::MerchantIdPayoutId {
+                    merchant_id: &merchant_id,
+                    payout_id: &payout_id,
+                };
                 let key_str = key.to_string();
                 let field = format!("po_{}", new.payout_id);
                 let now = common_utils::date_time::now();
@@ -127,7 +130,10 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                     .await
             }
             MerchantStorageScheme::RedisKv => {
-                let key = PartitionKey::MerchantIdPayoutId{merchant_id : &this.merchant_id, payout_id: &this.payout_id};
+                let key = PartitionKey::MerchantIdPayoutId {
+                    merchant_id: &this.merchant_id,
+                    payout_id: &this.payout_id,
+                };
                 let key_str = key.to_string();
                 let field = format!("po_{}", this.payout_id);
 
@@ -186,7 +192,10 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => database_call().await,
             MerchantStorageScheme::RedisKv => {
-                let key = PartitionKey::MerchantIdPayoutId{merchant_id : merchant_id, payout_id: payout_id};
+                let key = PartitionKey::MerchantIdPayoutId {
+                    merchant_id: merchant_id,
+                    payout_id: payout_id,
+                };
                 let field = format!("po_{payout_id}");
                 Box::pin(utils::try_redis_get_else_try_database_get(
                     async {
@@ -234,7 +243,10 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                 }))
             }
             MerchantStorageScheme::RedisKv => {
-                let key = PartitionKey::MerchantIdPayoutId{merchant_id : merchant_id, payout_id: payout_id};
+                let key = PartitionKey::MerchantIdPayoutId {
+                    merchant_id: merchant_id,
+                    payout_id: payout_id,
+                };
                 let field = format!("po_{payout_id}");
                 Box::pin(utils::try_redis_get_else_try_database_get(
                     async {

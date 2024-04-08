@@ -39,7 +39,7 @@ pub enum PartitionKey<'a> {
     MerchantIdPayoutAttemptId {
         merchant_id: &'a str,
         payout_attempt_id: &'a str,
-    }
+    },
 }
 // PartitionKey::MerchantIdPaymentId {merchant_id, payment_id}
 impl<'a> std::fmt::Display for PartitionKey<'a> {
@@ -49,18 +49,19 @@ impl<'a> std::fmt::Display for PartitionKey<'a> {
                 merchant_id,
                 payment_id,
             } => f.write_str(&format!("mid_{merchant_id}_pid_{payment_id}")),
-            PartitionKey::CombinationKey { combination } => {
-                f.write_str(combination)
-            },
-            PartitionKey::MerchantIdCustomerId { merchant_id, customer_id} => {
-                f.write_str(&format!("mid_{merchant_id}_cust_{customer_id}"))
-            },
-            PartitionKey::MerchantIdPayoutId{ merchant_id, payout_id} => {
-                f.write_str(&format!("mid_{merchant_id}_po_{payout_id}"))
-            },
-            PartitionKey::MerchantIdPayoutAttemptId{ merchant_id, payout_attempt_id} => {
-                f.write_str(&format!("mid_{merchant_id}_poa_{payout_attempt_id}"))
-            },
+            PartitionKey::CombinationKey { combination } => f.write_str(combination),
+            PartitionKey::MerchantIdCustomerId {
+                merchant_id,
+                customer_id,
+            } => f.write_str(&format!("mid_{merchant_id}_cust_{customer_id}")),
+            PartitionKey::MerchantIdPayoutId {
+                merchant_id,
+                payout_id,
+            } => f.write_str(&format!("mid_{merchant_id}_po_{payout_id}")),
+            PartitionKey::MerchantIdPayoutAttemptId {
+                merchant_id,
+                payout_attempt_id,
+            } => f.write_str(&format!("mid_{merchant_id}_poa_{payout_attempt_id}")),
         }
     }
 }
@@ -126,7 +127,6 @@ where
     let operation = op.to_string();
 
     let ttl = store.ttl_for_kv;
-
 
     let result = async {
         match op {

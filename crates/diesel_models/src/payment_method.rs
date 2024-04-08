@@ -6,7 +6,7 @@ use time::PrimitiveDateTime;
 
 use crate::{encryption::Encryption, enums as storage_enums, schema::payment_methods};
 
-#[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable,Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
 #[diesel(table_name = payment_methods)]
 pub struct PaymentMethod {
     pub id: i32,
@@ -41,7 +41,9 @@ pub struct PaymentMethod {
     pub network_transaction_id: Option<String>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Insertable, router_derive::DebugAsDisplay,Serialize, Deserialize)]
+#[derive(
+    Clone, Debug, Eq, PartialEq, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize,
+)]
 #[diesel(table_name = payment_methods)]
 pub struct PaymentMethodNew {
     pub customer_id: String,
@@ -138,7 +140,9 @@ pub enum PaymentMethodUpdate {
     },
 }
 
-#[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay,Serialize, Deserialize)]
+#[derive(
+    Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay, Serialize, Deserialize,
+)]
 #[diesel(table_name = payment_methods)]
 pub struct PaymentMethodUpdateInternal {
     metadata: Option<serde_json::Value>,
@@ -156,8 +160,8 @@ impl PaymentMethodUpdateInternal {
         PaymentMethod { metadata, ..source }
     }
 
-    pub fn apply_changeset(self, source : PaymentMethod) -> PaymentMethod{
-        let Self{
+    pub fn apply_changeset(self, source: PaymentMethod) -> PaymentMethod {
+        let Self {
             metadata,
             payment_method_data,
             last_used_at,
@@ -166,13 +170,16 @@ impl PaymentMethodUpdateInternal {
             connector_mandate_details,
         } = self;
 
-        PaymentMethod{
+        PaymentMethod {
             metadata: metadata.map_or(source.metadata, |v| Some(v.into())),
-            payment_method_data : payment_method_data.map_or(source.payment_method_data, |v| Some(v)),
-            last_used_at : last_used_at.unwrap_or(source.last_used_at),
-            network_transaction_id: network_transaction_id.map_or(source.network_transaction_id, |v| Some(v)),
-            status : status.unwrap_or(source.status),
-            connector_mandate_details : connector_mandate_details.map_or(source.connector_mandate_details, |v| Some(v)),
+            payment_method_data: payment_method_data
+                .map_or(source.payment_method_data, |v| Some(v)),
+            last_used_at: last_used_at.unwrap_or(source.last_used_at),
+            network_transaction_id: network_transaction_id
+                .map_or(source.network_transaction_id, |v| Some(v)),
+            status: status.unwrap_or(source.status),
+            connector_mandate_details: connector_mandate_details
+                .map_or(source.connector_mandate_details, |v| Some(v)),
             ..source
         }
     }
@@ -241,8 +248,8 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
 }
 
 impl From<&PaymentMethodNew> for PaymentMethod {
-    fn from(payment_method_new : &PaymentMethodNew) -> Self{
-        Self{
+    fn from(payment_method_new: &PaymentMethodNew) -> Self {
+        Self {
             id: 0i32,
             customer_id: payment_method_new.customer_id.clone(),
             merchant_id: payment_method_new.merchant_id.clone(),
@@ -270,8 +277,7 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             connector_mandate_details: payment_method_new.connector_mandate_details.clone(),
             customer_acceptance: payment_method_new.customer_acceptance.clone(),
             status: payment_method_new.status.clone(),
-            network_transaction_id : payment_method_new.network_transaction_id.clone(),
-
+            network_transaction_id: payment_method_new.network_transaction_id.clone(),
         }
     }
 }

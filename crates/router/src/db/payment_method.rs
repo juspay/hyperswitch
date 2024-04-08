@@ -1,20 +1,18 @@
-use diesel_models::payment_method::PaymentMethodUpdateInternal;
-use error_stack::{report, ResultExt, IntoReport};
+use common_utils::fallback_reverse_lookup_not_found;
+use diesel_models::{kv, payment_method::PaymentMethodUpdateInternal};
+use error_stack::{report, IntoReport, ResultExt};
+use redis_interface::HsetnxReply;
 use router_env::{instrument, tracing};
+use storage_impl::redis::kv_store::{kv_wrapper, KvOperation, PartitionKey};
 
 use super::{MockDb, Store};
 use crate::{
     connection,
-    core::errors::{self, CustomResult, utils::RedisErrorExt},
+    core::errors::{self, utils::RedisErrorExt, CustomResult},
     db::reverse_lookup::ReverseLookupInterface,
     types::storage::{self, enums::MerchantStorageScheme},
     utils::db_utils,
 };
-
-use common_utils::fallback_reverse_lookup_not_found;
-use diesel_models::kv;
-use storage_impl::redis::kv_store::{kv_wrapper, KvOperation, PartitionKey};
-use redis_interface::HsetnxReply;
 
 #[async_trait::async_trait]
 pub trait PaymentMethodInterface {
@@ -72,7 +70,7 @@ pub trait PaymentMethodInterface {
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError>;
 }
 
-#[cfg(feature="kv_store")]
+#[cfg(feature = "kv_store")]
 #[async_trait::async_trait]
 impl PaymentMethodInterface for Store {
     #[instrument(skip_all)]
@@ -93,11 +91,14 @@ impl PaymentMethodInterface for Store {
             MerchantStorageScheme::RedisKv => {
                 let lookup_id = format!("payment_method_{}", payment_method_id);
                 let lookup = fallback_reverse_lookup_not_found!(
-                    self.get_lookup_by_lookup_id(&lookup_id, storage_scheme).await,
+                    self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
+                        .await,
                     database_call().await
                 );
 
-                let key = PartitionKey::CombinationKey {combination : &lookup.pk_id};
+                let key = PartitionKey::CombinationKey {
+                    combination: &lookup.pk_id,
+                };
 
                 Box::pin(db_utils::try_redis_get_else_try_database_get(
                     async {
@@ -109,7 +110,7 @@ impl PaymentMethodInterface for Store {
                         .await?
                         .try_into_hget()
                     },
-                    database_call
+                    database_call,
                 ))
                 .await
             }
@@ -124,9 +125,9 @@ impl PaymentMethodInterface for Store {
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         let database_call = || async {
-                storage::PaymentMethod::find_by_locker_id(&conn, locker_id)
-                    .await
-                    .map_err(|error| report!(errors::StorageError::from(error)))
+            storage::PaymentMethod::find_by_locker_id(&conn, locker_id)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))
         };
 
         match storage_scheme {
@@ -134,11 +135,14 @@ impl PaymentMethodInterface for Store {
             MerchantStorageScheme::RedisKv => {
                 let lookup_id = format!("payment_method_locker_{}", locker_id);
                 let lookup = fallback_reverse_lookup_not_found!(
-                    self.get_lookup_by_lookup_id(&lookup_id, storage_scheme).await,
+                    self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
+                        .await,
                     database_call().await
                 );
 
-                let key = PartitionKey::CombinationKey {combination : &lookup.pk_id};
+                let key = PartitionKey::CombinationKey {
+                    combination: &lookup.pk_id,
+                };
 
                 Box::pin(db_utils::try_redis_get_else_try_database_get(
                     async {
@@ -150,7 +154,7 @@ impl PaymentMethodInterface for Store {
                         .await?
                         .try_into_hget()
                     },
-                    database_call
+                    database_call,
                 ))
                 .await
             }
@@ -188,15 +192,17 @@ impl PaymentMethodInterface for Store {
                     .insert(&conn)
                     .await
                     .map_err(|error| report!(errors::StorageError::from(error)))
-            },
+            }
             MerchantStorageScheme::RedisKv => {
                 let merchant_id = payment_method_new.merchant_id.clone();
                 let customer_id = payment_method_new.customer_id.clone();
 
-                let key = PartitionKey::MerchantIdCustomerId{merchant_id : &merchant_id, customer_id: &customer_id};
+                let key = PartitionKey::MerchantIdCustomerId {
+                    merchant_id: &merchant_id,
+                    customer_id: &customer_id,
+                };
                 let key_str = key.to_string();
                 let field = format!("payment_method_id_{}", payment_method_new.payment_method_id);
-
 
                 let reverse_lookup_entry = |v: String| diesel_models::ReverseLookupNew {
                     sk_id: field.clone(),
@@ -206,25 +212,24 @@ impl PaymentMethodInterface for Store {
                     updated_by: storage_scheme.to_string(),
                 };
 
-                let lookup_id1 = format!("payment_method_{}", &payment_method_new.payment_method_id);
+                let lookup_id1 =
+                    format!("payment_method_{}", &payment_method_new.payment_method_id);
                 let mut reverse_lookups = vec![lookup_id1];
-                if let Some(locker_id) = &payment_method_new.locker_id{
+                if let Some(locker_id) = &payment_method_new.locker_id {
                     reverse_lookups.push(format!("payment_method_locker_{}", locker_id))
                 }
 
                 let results = reverse_lookups
                     .into_iter()
-                    .map(|v| 
-                        self.insert_reverse_lookup(reverse_lookup_entry(v), storage_scheme)
-                    );
-                
+                    .map(|v| self.insert_reverse_lookup(reverse_lookup_entry(v), storage_scheme));
+
                 futures::future::try_join_all(results).await?;
 
                 let storage_payment_method = (&payment_method_new).into();
 
                 let redis_entry = kv::TypedSql {
                     op: kv::DBOperation::Insert {
-                        insertable : kv::Insertable::PaymentMethod(payment_method_new),
+                        insertable: kv::Insertable::PaymentMethod(payment_method_new),
                     },
                 };
 
@@ -249,10 +254,8 @@ impl PaymentMethodInterface for Store {
                     Ok(HsetnxReply::KeySet) => Ok(storage_payment_method),
                     Err(er) => Err(er).change_context(errors::StorageError::KVError),
                 }
-
             }
         }
-        
     }
 
     #[instrument(skip_all)]
@@ -269,35 +272,43 @@ impl PaymentMethodInterface for Store {
                     .update_with_payment_method_id(&conn, payment_method_update.into())
                     .await
                     .map_err(|error| report!(errors::StorageError::from(error)))
-            },
+            }
             MerchantStorageScheme::RedisKv => {
                 let merchant_id = payment_method.merchant_id.clone();
                 let customer_id = payment_method.customer_id.clone();
-                let key = PartitionKey::MerchantIdCustomerId {merchant_id : &merchant_id, customer_id : &customer_id};
+                let key = PartitionKey::MerchantIdCustomerId {
+                    merchant_id: &merchant_id,
+                    customer_id: &customer_id,
+                };
                 let key_str = key.to_string();
                 let field = format!("payment_method_id_{}", payment_method.payment_method_id);
 
-                let p_update : diesel_models::PaymentMethodUpdateInternal = payment_method_update.into();
-                let updated_payment_method = p_update
-                    .clone()
-                    .apply_changeset(payment_method.clone());
-                
-                    let redis_value = serde_json::to_string(&updated_payment_method)
-                        .into_report()
-                        .change_context(errors::StorageError::SerializationFailed)?;
+                let p_update: diesel_models::PaymentMethodUpdateInternal =
+                    payment_method_update.into();
+                let updated_payment_method =
+                    p_update.clone().apply_changeset(payment_method.clone());
+
+                let redis_value = serde_json::to_string(&updated_payment_method)
+                    .into_report()
+                    .change_context(errors::StorageError::SerializationFailed)?;
 
                 let redis_entry = kv::TypedSql {
                     op: kv::DBOperation::Update {
-                        updatable: kv::Updateable::PaymentMethodUpdate(kv::PaymentMethodUpdateMems {
-                            orig: payment_method,
-                            update_data: p_update,
-                        }),
+                        updatable: kv::Updateable::PaymentMethodUpdate(
+                            kv::PaymentMethodUpdateMems {
+                                orig: payment_method,
+                                update_data: p_update,
+                            },
+                        ),
                     },
                 };
 
                 kv_wrapper::<(), _, _>(
                     self,
-                    KvOperation::<diesel_models::PaymentMethod>::Hset((&field, redis_value), redis_entry),
+                    KvOperation::<diesel_models::PaymentMethod>::Hset(
+                        (&field, redis_value),
+                        redis_entry,
+                    ),
                     key,
                 )
                 .await
@@ -364,7 +375,7 @@ impl PaymentMethodInterface for Store {
     }
 }
 
-#[cfg(not(feature="kv_store"))]
+#[cfg(not(feature = "kv_store"))]
 #[async_trait::async_trait]
 impl PaymentMethodInterface for Store {
     #[instrument(skip_all)]

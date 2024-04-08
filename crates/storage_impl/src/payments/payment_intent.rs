@@ -61,7 +61,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             MerchantStorageScheme::RedisKv => {
                 let merchant_id = new.merchant_id.clone();
                 let payment_id = new.payment_id.clone();
-                let key = PartitionKey::MerchantIdPaymentId{merchant_id : &merchant_id, payment_id : &payment_id};
+                let key = PartitionKey::MerchantIdPaymentId {
+                    merchant_id: &merchant_id,
+                    payment_id: &payment_id,
+                };
                 let key_str = key.to_string();
                 let field = format!("pi_{}", new.payment_id);
                 let created_intent = PaymentIntent {
@@ -156,8 +159,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             MerchantStorageScheme::RedisKv => {
                 let merchant_id = this.merchant_id.clone();
                 let payment_id = this.payment_id.clone();
-                let key = PartitionKey::MerchantIdPaymentId{merchant_id : &merchant_id, payment_id : &payment_id};
-                let key_str=  key.to_string();
+                let key = PartitionKey::MerchantIdPaymentId {
+                    merchant_id: &merchant_id,
+                    payment_id: &payment_id,
+                };
+                let key_str = key.to_string();
                 let field = format!("pi_{}", this.payment_id);
 
                 let diesel_intent_update = payment_intent_update.to_storage_model();
@@ -218,7 +224,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             MerchantStorageScheme::PostgresOnly => database_call().await,
 
             MerchantStorageScheme::RedisKv => {
-                let key = PartitionKey::MerchantIdPaymentId{merchant_id : merchant_id, payment_id : payment_id};
+                let key = PartitionKey::MerchantIdPaymentId {
+                    merchant_id: merchant_id,
+                    payment_id: payment_id,
+                };
                 let field = format!("pi_{payment_id}");
                 Box::pin(utils::try_redis_get_else_try_database_get(
                     async {

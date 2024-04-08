@@ -315,7 +315,9 @@ mod storage {
                         database_call().await
                     );
 
-                    let key = PartitionKey::CombinationKey{combination: &lookup.pk_id};
+                    let key = PartitionKey::CombinationKey {
+                        combination: &lookup.pk_id,
+                    };
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
                             kv_wrapper(
@@ -349,7 +351,10 @@ mod storage {
                 enums::MerchantStorageScheme::RedisKv => {
                     let merchant_id = new.merchant_id.clone();
                     let payment_id = new.payment_id.clone();
-                    let key = PartitionKey::MerchantIdPaymentId{merchant_id : &merchant_id, payment_id : &payment_id};
+                    let key = PartitionKey::MerchantIdPaymentId {
+                        merchant_id: &merchant_id,
+                        payment_id: &payment_id,
+                    };
                     let key_str = key.to_string();
                     // TODO: need to add an application generated payment attempt id to distinguish between multiple attempts for the same payment id
                     // Check for database presence as well Maybe use a read replica here ?
@@ -491,7 +496,9 @@ mod storage {
                         database_call().await
                     );
 
-                    let key = PartitionKey::CombinationKey{combination : &lookup.pk_id};
+                    let key = PartitionKey::CombinationKey {
+                        combination: &lookup.pk_id,
+                    };
 
                     let pattern = db_utils::generate_hscan_pattern_for_refund(&lookup.sk_id);
 
@@ -529,7 +536,10 @@ mod storage {
                 enums::MerchantStorageScheme::RedisKv => {
                     let merchant_id = this.merchant_id.clone();
                     let payment_id = this.payment_id.clone();
-                    let key = PartitionKey::MerchantIdPaymentId { merchant_id : &merchant_id, payment_id : &payment_id};
+                    let key = PartitionKey::MerchantIdPaymentId {
+                        merchant_id: &merchant_id,
+                        payment_id: &payment_id,
+                    };
                     let key_str = key.to_string();
                     let field = format!("pa_{}_ref_{}", &this.attempt_id, &this.refund_id);
                     let updated_refund = refund.clone().apply_changeset(this.clone());
@@ -588,7 +598,9 @@ mod storage {
                         database_call().await
                     );
 
-                    let key = PartitionKey::CombinationKey { combination : &lookup.pk_id};
+                    let key = PartitionKey::CombinationKey {
+                        combination: &lookup.pk_id,
+                    };
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
                             kv_wrapper(
@@ -636,7 +648,9 @@ mod storage {
                         database_call().await
                     );
 
-                    let key = PartitionKey::CombinationKey { combination : &lookup.pk_id};
+                    let key = PartitionKey::CombinationKey {
+                        combination: &lookup.pk_id,
+                    };
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
                             kv_wrapper(
@@ -674,7 +688,10 @@ mod storage {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
-                    let key = PartitionKey::MerchantIdPaymentId { merchant_id, payment_id};
+                    let key = PartitionKey::MerchantIdPaymentId {
+                        merchant_id,
+                        payment_id,
+                    };
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
                             kv_wrapper(

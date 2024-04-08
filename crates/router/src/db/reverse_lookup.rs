@@ -115,7 +115,12 @@ mod storage {
                     match kv_wrapper::<ReverseLookup, _, _>(
                         self,
                         KvOperation::SetNx(&created_rev_lookup, redis_entry),
-                        PartitionKey::CombinationKey{ combination : &format!("reverse_lookup_{}", &created_rev_lookup.lookup_id)},
+                        PartitionKey::CombinationKey {
+                            combination: &format!(
+                                "reverse_lookup_{}",
+                                &created_rev_lookup.lookup_id
+                            ),
+                        },
                     )
                     .await
                     .map_err(|err| err.to_redis_failed_response(&created_rev_lookup.lookup_id))?
@@ -153,7 +158,9 @@ mod storage {
                         kv_wrapper(
                             self,
                             KvOperation::<ReverseLookup>::Get,
-                            PartitionKey::CombinationKey{ combination : &format!("reverse_lookup_{id}")},
+                            PartitionKey::CombinationKey {
+                                combination: &format!("reverse_lookup_{id}"),
+                            },
                         )
                         .await?
                         .try_into_get()

@@ -335,7 +335,10 @@ mod storage {
             let address = match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => database_call().await,
                 MerchantStorageScheme::RedisKv => {
-                    let key = PartitionKey::MerchantIdPaymentId{merchant_id : merchant_id, payment_id : payment_id};
+                    let key = PartitionKey::MerchantIdPaymentId {
+                        merchant_id: merchant_id,
+                        payment_id: payment_id,
+                    };
                     let field = format!("add_{}", address_id);
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
@@ -407,7 +410,10 @@ mod storage {
                 }
                 MerchantStorageScheme::RedisKv => {
                     let merchant_id = address.merchant_id.clone();
-                    let key = PartitionKey::MerchantIdPaymentId{merchant_id : &merchant_id, payment_id : &payment_id};
+                    let key = PartitionKey::MerchantIdPaymentId {
+                        merchant_id: &merchant_id,
+                        payment_id: &payment_id,
+                    };
                     let field = format!("add_{}", address.address_id);
                     let updated_address = AddressUpdateInternal::from(address_update.clone())
                         .create_address(address.clone());
@@ -476,7 +482,10 @@ mod storage {
                         .await
                 }
                 MerchantStorageScheme::RedisKv => {
-                    let key = PartitionKey::MerchantIdPaymentId{merchant_id : &merchant_id, payment_id : payment_id};
+                    let key = PartitionKey::MerchantIdPaymentId {
+                        merchant_id: &merchant_id,
+                        payment_id: payment_id,
+                    };
                     let field = format!("add_{}", &address_new.address_id);
                     let created_address = diesel_models::Address {
                         id: Some(0i32),

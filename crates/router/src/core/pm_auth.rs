@@ -5,7 +5,7 @@ use api_models::{
     payment_methods::{self, BankAccountAccessCreds},
     payments::{AddressDetails, BankDebitBilling, BankDebitData, PaymentMethodData},
 };
-use common_enums::{PaymentMethodType, enums::MerchantStorageScheme};
+use common_enums::{enums::MerchantStorageScheme, PaymentMethodType};
 use hex;
 pub mod helpers;
 pub mod transformers;
@@ -455,7 +455,13 @@ async fn store_bank_details_in_payment_methods(
         };
     }
 
-    store_in_db(update_entries, new_entries, db, merchant_account.storage_scheme).await?;
+    store_in_db(
+        update_entries,
+        new_entries,
+        db,
+        merchant_account.storage_scheme,
+    )
+    .await?;
 
     Ok(())
 }
@@ -464,7 +470,7 @@ async fn store_in_db(
     update_entries: Vec<(storage::PaymentMethod, storage::PaymentMethodUpdate)>,
     new_entries: Vec<storage::PaymentMethodNew>,
     db: &dyn StorageInterface,
-    storage_scheme : MerchantStorageScheme,
+    storage_scheme: MerchantStorageScheme,
 ) -> RouterResult<()> {
     let update_entries_futures = update_entries
         .into_iter()
@@ -473,7 +479,7 @@ async fn store_in_db(
 
     let new_entries_futures = new_entries
         .into_iter()
-        .map(|pm_new| db.insert_payment_method(pm_new,storage_scheme))
+        .map(|pm_new| db.insert_payment_method(pm_new, storage_scheme))
         .collect::<Vec<_>>();
 
     let update_futures = futures::future::join_all(update_entries_futures);

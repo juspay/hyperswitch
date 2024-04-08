@@ -51,7 +51,10 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
             MerchantStorageScheme::RedisKv => {
                 let merchant_id = new_payout_attempt.merchant_id.clone();
                 let payout_attempt_id = new_payout_attempt.payout_id.clone();
-                let key = PartitionKey::MerchantIdPayoutAttemptId { merchant_id : &merchant_id, payout_attempt_id: &payout_attempt_id};
+                let key = PartitionKey::MerchantIdPayoutAttemptId {
+                    merchant_id: &merchant_id,
+                    payout_attempt_id: &payout_attempt_id,
+                };
                 let key_str = key.to_string();
                 let now = common_utils::date_time::now();
                 let created_attempt = PayoutAttempt {
@@ -138,7 +141,10 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                     .await
             }
             MerchantStorageScheme::RedisKv => {
-                let key = PartitionKey::MerchantIdPayoutAttemptId { merchant_id : &this.merchant_id, payout_attempt_id: &this.payout_id};
+                let key = PartitionKey::MerchantIdPayoutAttemptId {
+                    merchant_id: &this.merchant_id,
+                    payout_attempt_id: &this.payout_id,
+                };
                 let key_str = key.to_string();
                 let field = format!("poa_{}", this.payout_attempt_id);
 
@@ -210,7 +216,9 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                         )
                         .await
                 );
-                let key = PartitionKey::CombinationKey{ combination : &lookup.pk_id};
+                let key = PartitionKey::CombinationKey {
+                    combination: &lookup.pk_id,
+                };
                 Box::pin(utils::try_redis_get_else_try_database_get(
                     async {
                         kv_wrapper(

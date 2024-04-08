@@ -966,7 +966,7 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
     payment_data: &mut PaymentData<F>,
     attempt_status: common_enums::AttemptStatus,
     payment_response: Result<types::PaymentsResponseData, ErrorResponse>,
-    storage_scheme: enums::MerchantStorageScheme
+    storage_scheme: enums::MerchantStorageScheme,
 ) -> RouterResult<()> {
     if let Some(id) = &payment_data.payment_attempt.payment_method_id {
         let pm = state

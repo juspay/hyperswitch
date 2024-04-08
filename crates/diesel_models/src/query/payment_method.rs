@@ -172,5 +172,4 @@ impl PaymentMethod {
             result => result,
         }
     }
-
 }

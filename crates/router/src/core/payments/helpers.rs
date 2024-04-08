@@ -1688,7 +1688,7 @@ pub async fn retrieve_card_with_permanent_token(
     payment_intent: &PaymentIntent,
     card_token_data: Option<&CardToken>,
     merchant_key_store: &domain::MerchantKeyStore,
-    storage_scheme : enums::MerchantStorageScheme,
+    storage_scheme: enums::MerchantStorageScheme,
 ) -> RouterResult<api::PaymentMethodData> {
     let customer_id = payment_intent
         .customer_id
@@ -1829,7 +1829,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
     payment_data: &mut PaymentData<F>,
     merchant_key_store: &domain::MerchantKeyStore,
     customer: &Option<domain::Customer>,
-    storage_scheme : common_enums::enums::MerchantStorageScheme,
+    storage_scheme: common_enums::enums::MerchantStorageScheme,
 ) -> RouterResult<(
     BoxedOperation<'a, F, R, Ctx>,
     Option<api::PaymentMethodData>,
@@ -1862,7 +1862,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
                 &payment_data.payment_intent,
                 card_token_data.as_ref(),
                 customer,
-                storage_scheme
+                storage_scheme,
             )
             .await;
 
@@ -4106,7 +4106,7 @@ pub async fn get_payment_method_details_from_payment_token(
     payment_attempt: &PaymentAttempt,
     payment_intent: &PaymentIntent,
     key_store: &domain::MerchantKeyStore,
-    storage_scheme : enums::MerchantStorageScheme,
+    storage_scheme: enums::MerchantStorageScheme,
 ) -> RouterResult<Option<(api::PaymentMethodData, enums::PaymentMethod)>> {
     let hyperswitch_token = if let Some(token) = payment_attempt.payment_token.clone() {
         let redis_conn = state

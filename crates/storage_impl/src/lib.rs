@@ -13,12 +13,12 @@ pub mod errors;
 mod lookup;
 pub mod metrics;
 pub mod mock_db;
+pub mod payment_method;
 pub mod payments;
 #[cfg(feature = "payouts")]
 pub mod payouts;
 pub mod redis;
 pub mod refund;
-pub mod payment_method;
 mod reverse_lookup;
 mod utils;
 

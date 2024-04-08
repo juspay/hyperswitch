@@ -10,8 +10,7 @@ use crate::{
     payouts::{Payouts, PayoutsNew, PayoutsUpdate},
     refund::{Refund, RefundNew, RefundUpdate},
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
-    PaymentIntent, PgPooledConn,
-    PaymentMethod, PaymentMethodNew, PaymentMethodUpdateInternal,
+    PaymentIntent, PaymentMethod, PaymentMethodNew, PaymentMethodUpdateInternal, PgPooledConn,
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -114,7 +113,9 @@ impl DBOperation {
                     a.orig.update_with_attempt_id(conn, a.update_data).await?,
                 )),
                 Updateable::PaymentMethodUpdate(v) => DBResult::PaymentMethod(Box::new(
-                    v.orig.update_with_payment_method_id(conn, v.update_data).await?,
+                    v.orig
+                        .update_with_payment_method_id(conn, v.update_data)
+                        .await?,
                 )),
             },
         })
@@ -204,7 +205,7 @@ pub struct PayoutAttemptUpdateMems {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct PaymentMethodUpdateMems{
-    pub orig : PaymentMethod,
-    pub update_data: PaymentMethodUpdateInternal
+pub struct PaymentMethodUpdateMems {
+    pub orig: PaymentMethod,
+    pub update_data: PaymentMethodUpdateInternal,
 }

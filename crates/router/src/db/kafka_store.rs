@@ -1445,7 +1445,9 @@ impl PaymentMethodInterface for KafkaStore {
         m: storage::PaymentMethodNew,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
-        self.diesel_store.insert_payment_method(m, storage_scheme).await
+        self.diesel_store
+            .insert_payment_method(m, storage_scheme)
+            .await
     }
 
     async fn update_payment_method(

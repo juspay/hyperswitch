@@ -209,14 +209,21 @@ where
                     Some(duplication_check) => match duplication_check {
                         payment_methods::transformers::DataDuplicationCheck::Duplicated => {
                             let payment_method = {
-                                let existing_pm_by_pmid =
-                                    db.find_payment_method(&payment_method_id, merchant_account.storage_scheme).await;
+                                let existing_pm_by_pmid = db
+                                    .find_payment_method(
+                                        &payment_method_id,
+                                        merchant_account.storage_scheme,
+                                    )
+                                    .await;
 
                                 if let Err(err) = existing_pm_by_pmid {
                                     if err.current_context().is_db_not_found() {
                                         locker_id = Some(payment_method_id.clone());
                                         let existing_pm_by_locker_id = db
-                                            .find_payment_method_by_locker_id(&payment_method_id, merchant_account.storage_scheme)
+                                            .find_payment_method_by_locker_id(
+                                                &payment_method_id,
+                                                merchant_account.storage_scheme,
+                                            )
                                             .await;
 
                                         match &existing_pm_by_locker_id {
@@ -310,8 +317,12 @@ where
                         payment_methods::transformers::DataDuplicationCheck::MetaDataChanged => {
                             if let Some(card) = payment_method_create_request.card.clone() {
                                 let payment_method = {
-                                    let existing_pm_by_pmid =
-                                        db.find_payment_method(&payment_method_id, merchant_account.storage_scheme).await;
+                                    let existing_pm_by_pmid = db
+                                        .find_payment_method(
+                                            &payment_method_id,
+                                            merchant_account.storage_scheme,
+                                        )
+                                        .await;
 
                                     if let Err(err) = existing_pm_by_pmid {
                                         if err.current_context().is_db_not_found() {
@@ -473,10 +484,14 @@ where
                                         payment_method_data: pm_data_encrypted,
                                     };
 
-                                db.update_payment_method(existing_pm, pm_update, merchant_account.storage_scheme)
-                                    .await
-                                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                                    .attach_printable("Failed to add payment method in db")?;
+                                db.update_payment_method(
+                                    existing_pm,
+                                    pm_update,
+                                    merchant_account.storage_scheme,
+                                )
+                                .await
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable("Failed to add payment method in db")?;
                             }
                         }
                     },
