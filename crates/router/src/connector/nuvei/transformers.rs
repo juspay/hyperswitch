@@ -430,9 +430,9 @@ pub struct NuveiCardDetails {
     three_d: Option<ThreeD>,
 }
 
-impl TryFrom<payments::GooglePayWalletData> for NuveiPaymentsRequest {
+impl TryFrom<domain::GooglePayWalletData> for NuveiPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(gpay_data: payments::GooglePayWalletData) -> Result<Self, Self::Error> {
+    fn try_from(gpay_data: domain::GooglePayWalletData) -> Result<Self, Self::Error> {
         Ok(Self {
             payment_option: PaymentOption {
                 card: Some(Card {
@@ -452,8 +452,8 @@ impl TryFrom<payments::GooglePayWalletData> for NuveiPaymentsRequest {
         })
     }
 }
-impl From<payments::ApplePayWalletData> for NuveiPaymentsRequest {
-    fn from(apple_pay_data: payments::ApplePayWalletData) -> Self {
+impl From<domain::ApplePayWalletData> for NuveiPaymentsRequest {
+    fn from(apple_pay_data: domain::ApplePayWalletData) -> Self {
         Self {
             payment_option: PaymentOption {
                 card: Some(Card {
@@ -752,36 +752,36 @@ impl<F>
             domain::PaymentMethodData::Card(card) => get_card_info(item, &card),
             domain::PaymentMethodData::MandatePayment => Self::try_from(item),
             domain::PaymentMethodData::Wallet(wallet) => match wallet {
-                payments::WalletData::GooglePay(gpay_data) => Self::try_from(gpay_data),
-                payments::WalletData::ApplePay(apple_pay_data) => Ok(Self::from(apple_pay_data)),
-                payments::WalletData::PaypalRedirect(_) => Self::foreign_try_from((
+                domain::WalletData::GooglePay(gpay_data) => Self::try_from(gpay_data),
+                domain::WalletData::ApplePay(apple_pay_data) => Ok(Self::from(apple_pay_data)),
+                domain::WalletData::PaypalRedirect(_) => Self::foreign_try_from((
                     AlternativePaymentMethodType::Expresscheckout,
                     None,
                     item,
                 )),
-                payments::WalletData::AliPayQr(_)
-                | payments::WalletData::AliPayRedirect(_)
-                | payments::WalletData::AliPayHkRedirect(_)
-                | payments::WalletData::MomoRedirect(_)
-                | payments::WalletData::KakaoPayRedirect(_)
-                | payments::WalletData::GoPayRedirect(_)
-                | payments::WalletData::GcashRedirect(_)
-                | payments::WalletData::ApplePayRedirect(_)
-                | payments::WalletData::ApplePayThirdPartySdk(_)
-                | payments::WalletData::DanaRedirect {}
-                | payments::WalletData::GooglePayRedirect(_)
-                | payments::WalletData::GooglePayThirdPartySdk(_)
-                | payments::WalletData::MbWayRedirect(_)
-                | payments::WalletData::MobilePayRedirect(_)
-                | payments::WalletData::PaypalSdk(_)
-                | payments::WalletData::SamsungPay(_)
-                | payments::WalletData::TwintRedirect {}
-                | payments::WalletData::VippsRedirect {}
-                | payments::WalletData::TouchNGoRedirect(_)
-                | payments::WalletData::WeChatPayRedirect(_)
-                | payments::WalletData::CashappQr(_)
-                | payments::WalletData::SwishQr(_)
-                | payments::WalletData::WeChatPayQr(_) => {
+                domain::WalletData::AliPayQr(_)
+                | domain::WalletData::AliPayRedirect(_)
+                | domain::WalletData::AliPayHkRedirect(_)
+                | domain::WalletData::MomoRedirect(_)
+                | domain::WalletData::KakaoPayRedirect(_)
+                | domain::WalletData::GoPayRedirect(_)
+                | domain::WalletData::GcashRedirect(_)
+                | domain::WalletData::ApplePayRedirect(_)
+                | domain::WalletData::ApplePayThirdPartySdk(_)
+                | domain::WalletData::DanaRedirect {}
+                | domain::WalletData::GooglePayRedirect(_)
+                | domain::WalletData::GooglePayThirdPartySdk(_)
+                | domain::WalletData::MbWayRedirect(_)
+                | domain::WalletData::MobilePayRedirect(_)
+                | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::SamsungPay(_)
+                | domain::WalletData::TwintRedirect {}
+                | domain::WalletData::VippsRedirect {}
+                | domain::WalletData::TouchNGoRedirect(_)
+                | domain::WalletData::WeChatPayRedirect(_)
+                | domain::WalletData::CashappQr(_)
+                | domain::WalletData::SwishQr(_)
+                | domain::WalletData::WeChatPayQr(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("nuvei"),
                     )
@@ -829,18 +829,18 @@ impl<F>
                 }
             },
             domain::PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
-                payments::PayLaterData::KlarnaRedirect { .. } => {
+                domain::PayLaterData::KlarnaRedirect { .. } => {
                     get_pay_later_info(AlternativePaymentMethodType::Klarna, item)
                 }
-                payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
+                domain::PayLaterData::AfterpayClearpayRedirect { .. } => {
                     get_pay_later_info(AlternativePaymentMethodType::AfterPay, item)
                 }
-                payments::PayLaterData::KlarnaSdk { .. }
-                | payments::PayLaterData::AffirmRedirect {}
-                | payments::PayLaterData::PayBrightRedirect {}
-                | payments::PayLaterData::WalleyRedirect {}
-                | payments::PayLaterData::AlmaRedirect {}
-                | payments::PayLaterData::AtomeRedirect {} => {
+                domain::PayLaterData::KlarnaSdk { .. }
+                | domain::PayLaterData::AffirmRedirect {}
+                | domain::PayLaterData::PayBrightRedirect {}
+                | domain::PayLaterData::WalleyRedirect {}
+                | domain::PayLaterData::AlmaRedirect {}
+                | domain::PayLaterData::AtomeRedirect {} => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("nuvei"),
                     )

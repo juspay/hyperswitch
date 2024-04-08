@@ -6,7 +6,7 @@ use common_utils::{
     ext_traits::XmlExt,
     pii::{self, Email},
 };
-use error_stack::{Report, ResultExt};
+use error_stack::{report, Report, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -519,40 +519,35 @@ impl TryFrom<&domain::PaymentMethodData> for PaymentMethod {
         match &payment_method_data {
             domain::PaymentMethodData::Card(ref card) => Ok(Self::try_from(card)?),
             domain::PaymentMethodData::Wallet(ref wallet_type) => match wallet_type {
-                api_models::payments::WalletData::GooglePay(ref googlepay_data) => {
-                    Ok(Self::from(googlepay_data))
-                }
-                api_models::payments::WalletData::ApplePay(ref applepay_data) => {
-                    Ok(Self::from(applepay_data))
-                }
-                api_models::payments::WalletData::AliPayQr(_)
-                | api_models::payments::WalletData::AliPayRedirect(_)
-                | api_models::payments::WalletData::AliPayHkRedirect(_)
-                | api_models::payments::WalletData::MomoRedirect(_)
-                | api_models::payments::WalletData::KakaoPayRedirect(_)
-                | api_models::payments::WalletData::GoPayRedirect(_)
-                | api_models::payments::WalletData::GcashRedirect(_)
-                | api_models::payments::WalletData::ApplePayRedirect(_)
-                | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
-                | api_models::payments::WalletData::DanaRedirect {}
-                | api_models::payments::WalletData::GooglePayRedirect(_)
-                | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
-                | api_models::payments::WalletData::MbWayRedirect(_)
-                | api_models::payments::WalletData::MobilePayRedirect(_)
-                | api_models::payments::WalletData::PaypalRedirect(_)
-                | api_models::payments::WalletData::PaypalSdk(_)
-                | api_models::payments::WalletData::SamsungPay(_)
-                | api_models::payments::WalletData::TwintRedirect {}
-                | api_models::payments::WalletData::VippsRedirect {}
-                | api_models::payments::WalletData::TouchNGoRedirect(_)
-                | api_models::payments::WalletData::WeChatPayRedirect(_)
-                | api_models::payments::WalletData::WeChatPayQr(_)
-                | api_models::payments::WalletData::CashappQr(_)
-                | api_models::payments::WalletData::SwishQr(_) => {
-                    Err(errors::ConnectorError::NotImplemented(
+                domain::WalletData::GooglePay(ref googlepay_data) => Ok(Self::from(googlepay_data)),
+                domain::WalletData::ApplePay(ref applepay_data) => Ok(Self::from(applepay_data)),
+                domain::WalletData::AliPayQr(_)
+                | domain::WalletData::AliPayRedirect(_)
+                | domain::WalletData::AliPayHkRedirect(_)
+                | domain::WalletData::MomoRedirect(_)
+                | domain::WalletData::KakaoPayRedirect(_)
+                | domain::WalletData::GoPayRedirect(_)
+                | domain::WalletData::GcashRedirect(_)
+                | domain::WalletData::ApplePayRedirect(_)
+                | domain::WalletData::ApplePayThirdPartySdk(_)
+                | domain::WalletData::DanaRedirect {}
+                | domain::WalletData::GooglePayRedirect(_)
+                | domain::WalletData::GooglePayThirdPartySdk(_)
+                | domain::WalletData::MbWayRedirect(_)
+                | domain::WalletData::MobilePayRedirect(_)
+                | domain::WalletData::PaypalRedirect(_)
+                | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::SamsungPay(_)
+                | domain::WalletData::TwintRedirect {}
+                | domain::WalletData::VippsRedirect {}
+                | domain::WalletData::TouchNGoRedirect(_)
+                | domain::WalletData::WeChatPayRedirect(_)
+                | domain::WalletData::WeChatPayQr(_)
+                | domain::WalletData::CashappQr(_)
+                | domain::WalletData::SwishQr(_) => {
+                    Err(report!(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("nmi"),
-                    )
-                    .into())
+                    )))
                 }
             },
             domain::PaymentMethodData::CardRedirect(_)
@@ -592,8 +587,8 @@ impl TryFrom<&domain::payments::Card> for PaymentMethod {
     }
 }
 
-impl From<&api_models::payments::GooglePayWalletData> for PaymentMethod {
-    fn from(wallet_data: &api_models::payments::GooglePayWalletData) -> Self {
+impl From<&domain::GooglePayWalletData> for PaymentMethod {
+    fn from(wallet_data: &domain::GooglePayWalletData) -> Self {
         let gpay_data = GooglePayData {
             googlepay_payment_data: Secret::new(wallet_data.tokenization_data.token.clone()),
         };
@@ -601,8 +596,8 @@ impl From<&api_models::payments::GooglePayWalletData> for PaymentMethod {
     }
 }
 
-impl From<&api_models::payments::ApplePayWalletData> for PaymentMethod {
-    fn from(wallet_data: &api_models::payments::ApplePayWalletData) -> Self {
+impl From<&domain::ApplePayWalletData> for PaymentMethod {
+    fn from(wallet_data: &domain::ApplePayWalletData) -> Self {
         let apple_pay_data = ApplePayData {
             applepay_payment_data: Secret::new(wallet_data.payment_data.clone()),
         };
