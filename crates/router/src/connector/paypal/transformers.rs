@@ -1541,8 +1541,15 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaypalCaptureResponse>>
     fn try_from(
         item: types::PaymentsCaptureResponseRouterData<PaypalCaptureResponse>,
     ) -> Result<Self, Self::Error> {
-        let amount_captured = item.data.request.amount_to_capture;
         let status = storage_enums::AttemptStatus::from(item.response.status);
+        let amount_captured = match status {
+            storage_enums::AttemptStatus::Pending
+            | storage_enums::AttemptStatus::Authorized
+            | storage_enums::AttemptStatus::Failure
+            | storage_enums::AttemptStatus::CaptureFailed
+            | storage_enums::AttemptStatus::Voided => 0,
+            _ => item.data.request.amount_to_capture,
+        };
         let connector_payment_id: PaypalMeta =
             to_connector_meta(item.data.request.connector_meta.clone())?;
         Ok(Self {
