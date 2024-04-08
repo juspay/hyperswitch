@@ -1423,6 +1423,7 @@ pub enum PaymentMethodType {
     FamilyMart,
     Seicomart,
     PayEasy,
+    LocalBankTransfer,
 }
 
 /// Indicates the type of payment method. Eg: 'card', 'wallet', etc.

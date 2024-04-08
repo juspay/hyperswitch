@@ -232,10 +232,13 @@ impl TryFrom<&api_models::payments::BankTransferData> for Shift4PaymentMethod {
             | payments::BankTransferData::DanamonVaBankTransfer { .. }
             | payments::BankTransferData::MandiriVaBankTransfer { .. }
             | payments::BankTransferData::Pix {}
-            | payments::BankTransferData::Pse {} => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Shift4"),
-            )
-            .into()),
+            | payments::BankTransferData::Pse {}
+            | payments::BankTransferData::LocalBankTransfer { .. } => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Shift4"),
+                )
+                .into())
+            }
         }
     }
 }
