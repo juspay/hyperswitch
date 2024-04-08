@@ -297,10 +297,7 @@ pub async fn delete_sample_data(
     .await
 }
 
-pub async fn list_merchants_for_user(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-) -> HttpResponse {
+pub async fn list_merchants_for_user(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
     let flow = Flow::UserMerchantAccountList;
     Box::pin(api::server_wrap(
         flow,
