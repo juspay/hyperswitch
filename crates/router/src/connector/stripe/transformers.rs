@@ -705,6 +705,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::FamilyMart
             | enums::PaymentMethodType::Seicomart
             | enums::PaymentMethodType::PayEasy
+            | enums::PaymentMethodType::LocalBankTransfer
             | enums::PaymentMethodType::Walley => Err(errors::ConnectorError::NotImplemented(
                 connector_util::get_unimplemented_payment_method_error_message("stripe"),
             )
@@ -1413,6 +1414,7 @@ fn create_stripe_payment_method(
                 )
                 .into()),
                 payments::BankTransferData::Pse {}
+                | payments::BankTransferData::LocalBankTransfer { .. }
                 | payments::BankTransferData::PermataBankTransfer { .. }
                 | payments::BankTransferData::BcaBankTransfer { .. }
                 | payments::BankTransferData::BniVaBankTransfer { .. }
@@ -3266,6 +3268,7 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeCreditTransferSo
                     | payments::BankTransferData::CimbVaBankTransfer { .. }
                     | payments::BankTransferData::DanamonVaBankTransfer { .. }
                     | payments::BankTransferData::MandiriVaBankTransfer { .. }
+                    | payments::BankTransferData::LocalBankTransfer { .. }
                     | payments::BankTransferData::Pix { .. }
                     | payments::BankTransferData::Pse { .. } => {
                         Err(errors::ConnectorError::NotImplemented(
@@ -3723,6 +3726,7 @@ impl
                 | payments::BankTransferData::BriVaBankTransfer { .. }
                 | payments::BankTransferData::CimbVaBankTransfer { .. }
                 | payments::BankTransferData::DanamonVaBankTransfer { .. }
+                | payments::BankTransferData::LocalBankTransfer { .. }
                 | payments::BankTransferData::MandiriVaBankTransfer { .. } => {
                     Err(errors::ConnectorError::NotImplemented(
                         connector_util::get_unimplemented_payment_method_error_message("stripe"),

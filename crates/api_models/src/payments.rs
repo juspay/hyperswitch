@@ -1465,6 +1465,7 @@ impl GetPaymentMethodType for BankTransferData {
             Self::MandiriVaBankTransfer { .. } => api_enums::PaymentMethodType::MandiriVa,
             Self::Pix {} => api_enums::PaymentMethodType::Pix,
             Self::Pse {} => api_enums::PaymentMethodType::Pse,
+            Self::LocalBankTransfer { .. } => api_enums::PaymentMethodType::LocalBankTransfer,
         }
     }
 }
@@ -2029,6 +2030,9 @@ pub enum BankTransferData {
     },
     Pix {},
     Pse {},
+    LocalBankTransfer {
+        bank_code: Option<String>,
+    },
 }
 
 impl GetAddressFromPaymentMethodData for BankTransferData {
@@ -2079,7 +2083,7 @@ impl GetAddressFromPaymentMethodData for BankTransferData {
                 phone: None,
                 email: Some(billing_details.email.clone()),
             }),
-            Self::Pix {} | Self::Pse {} => None,
+            Self::LocalBankTransfer { .. } | Self::Pix {} | Self::Pse {} => None,
         }
     }
 }
