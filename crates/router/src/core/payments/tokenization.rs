@@ -41,6 +41,7 @@ pub async fn save_payment_method<F: Clone, FData>(
     key_store: &domain::MerchantKeyStore,
     amount: Option<i64>,
     currency: Option<storage_enums::Currency>,
+    profile_id: Option<String>,
 ) -> RouterResult<(Option<String>, Option<common_enums::PaymentMethodStatus>)>
 where
     FData: mandate::MandateBehaviour,
@@ -56,6 +57,42 @@ where
                 .get(&connector.connector_name.to_string())
                 .map(|token_filter| token_filter.long_lived_token)
                 .unwrap_or(false);
+
+            let network_transaction_id = match responses.clone() {
+                types::PaymentsResponseData::TransactionResponse { network_txn_id, .. } => {
+                    network_txn_id
+                }
+                _ => None,
+            };
+
+            let network_transaction_id =
+                if let Some(network_transaction_id) = network_transaction_id {
+                    let profile_id = profile_id
+                        .as_ref()
+                        .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?;
+
+                    let pg_agnostic = state
+                        .store
+                        .find_config_by_key_unwrap_or(
+                            &format!("pg_agnostic_mandate_{}", profile_id),
+                            Some("false".to_string()),
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("The pg_agnostic config was not found in the DB")?;
+
+                    if &pg_agnostic.config == "true"
+                        && resp.request.get_setup_future_usage()
+                            == Some(storage_enums::FutureUsage::OffSession)
+                    {
+                        Some(network_transaction_id)
+                    } else {
+                        logger::info!("Skip storing network transaction id");
+                        None
+                    }
+                } else {
+                    None
+                };
 
             let connector_token = if token_store {
                 let tokens = resp
@@ -255,6 +292,7 @@ where
                                             pm_data_encrypted,
                                             key_store,
                                             connector_mandate_details,
+                                            network_transaction_id,
                                         )
                                         .await
                                     } else {
@@ -337,6 +375,7 @@ where
                                                 customer_acceptance,
                                                 locker_id,
                                                 connector_mandate_details,
+                                                network_transaction_id,
                                             )
                                             .await
                                         } else {
@@ -459,6 +498,7 @@ where
                             pm_data_encrypted,
                             key_store,
                             connector_mandate_details,
+                            network_transaction_id,
                         )
                         .await?;
                     }

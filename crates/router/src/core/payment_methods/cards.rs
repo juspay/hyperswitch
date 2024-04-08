@@ -87,6 +87,7 @@ pub async fn create_payment_method(
     payment_method_data: Option<Encryption>,
     key_store: &domain::MerchantKeyStore,
     connector_mandate_details: Option<serde_json::Value>,
+    network_transaction_id: Option<String>,
 ) -> errors::CustomResult<storage::PaymentMethod, errors::ApiErrorResponse> {
     let customer = db
         .find_customer_by_customer_id_merchant_id(customer_id, merchant_id, key_store)
@@ -107,6 +108,7 @@ pub async fn create_payment_method(
             payment_method_data,
             connector_mandate_details,
             customer_acceptance: customer_acceptance.map(masking::Secret::new),
+            network_transaction_id: network_transaction_id.to_owned(),
             ..storage::PaymentMethodNew::default()
         })
         .await
@@ -204,6 +206,7 @@ pub async fn get_or_insert_payment_method(
                     resp.metadata.clone().map(|val| val.expose()),
                     None,
                     locker_id,
+                    None,
                     None,
                 )
                 .await
@@ -392,6 +395,7 @@ pub async fn add_payment_method(
                 None,
                 locker_id,
                 None,
+                None,
             )
             .await?;
         }
@@ -412,6 +416,7 @@ pub async fn insert_payment_method(
     customer_acceptance: Option<serde_json::Value>,
     locker_id: Option<String>,
     connector_mandate_details: Option<serde_json::Value>,
+    network_transaction_id: Option<String>,
 ) -> errors::RouterResult<diesel_models::PaymentMethod> {
     let pm_card_details = resp
         .card
@@ -430,6 +435,7 @@ pub async fn insert_payment_method(
         pm_data_encrypted,
         key_store,
         connector_mandate_details,
+        network_transaction_id,
     )
     .await
 }

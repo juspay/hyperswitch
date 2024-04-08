@@ -49,6 +49,7 @@ pub trait Feature<F, T> {
         merchant_account: &domain::MerchantAccount,
         connector_request: Option<services::Request>,
         key_store: &domain::MerchantKeyStore,
+        profile_id: Option<String>,
     ) -> RouterResult<Self>
     where
         Self: Sized,
