@@ -403,6 +403,7 @@ impl
                         | common_enums::PaymentMethodType::WeChatPay
                         | common_enums::PaymentMethodType::SevenEleven
                         | common_enums::PaymentMethodType::Lawson
+                        | common_enums::PaymentMethodType::LocalBankTransfer
                         | common_enums::PaymentMethodType::MiniStop
                         | common_enums::PaymentMethodType::FamilyMart
                         | common_enums::PaymentMethodType::Seicomart

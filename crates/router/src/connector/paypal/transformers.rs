@@ -1,4 +1,4 @@
-use api_models::{enums, payments::BankRedirectData};
+use api_models::enums;
 use base64::Engine;
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
@@ -280,10 +280,10 @@ fn get_address_info(
 }
 fn get_payment_source(
     item: &types::PaymentsAuthorizeRouterData,
-    bank_redirection_data: &BankRedirectData,
+    bank_redirection_data: &domain::BankRedirectData,
 ) -> Result<PaymentSourceItem, error_stack::Report<errors::ConnectorError>> {
     match bank_redirection_data {
-        BankRedirectData::Eps {
+        domain::BankRedirectData::Eps {
             billing_details,
             bank_name: _,
             country,
@@ -308,7 +308,7 @@ fn get_payment_source(
                 user_action: Some(UserAction::PayNow),
             },
         })),
-        BankRedirectData::Giropay {
+        domain::BankRedirectData::Giropay {
             billing_details,
             country,
             ..
@@ -333,7 +333,7 @@ fn get_payment_source(
                 user_action: Some(UserAction::PayNow),
             },
         })),
-        BankRedirectData::Ideal {
+        domain::BankRedirectData::Ideal {
             billing_details,
             bank_name: _,
             country,
@@ -358,7 +358,7 @@ fn get_payment_source(
                 user_action: Some(UserAction::PayNow),
             },
         })),
-        BankRedirectData::Sofort {
+        domain::BankRedirectData::Sofort {
             country,
             preferred_language: _,
             billing_details,
@@ -383,22 +383,24 @@ fn get_payment_source(
                 user_action: Some(UserAction::PayNow),
             },
         })),
-        BankRedirectData::BancontactCard { .. }
-        | BankRedirectData::Blik { .. }
-        | BankRedirectData::Przelewy24 { .. } => Err(errors::ConnectorError::NotImplemented(
-            utils::get_unimplemented_payment_method_error_message("Paypal"),
-        )
-        .into()),
-        BankRedirectData::Bizum {}
-        | BankRedirectData::Interac { .. }
-        | BankRedirectData::OnlineBankingCzechRepublic { .. }
-        | BankRedirectData::OnlineBankingFinland { .. }
-        | BankRedirectData::OnlineBankingPoland { .. }
-        | BankRedirectData::OnlineBankingSlovakia { .. }
-        | BankRedirectData::OpenBankingUk { .. }
-        | BankRedirectData::Trustly { .. }
-        | BankRedirectData::OnlineBankingFpx { .. }
-        | BankRedirectData::OnlineBankingThailand { .. } => {
+        domain::BankRedirectData::BancontactCard { .. }
+        | domain::BankRedirectData::Blik { .. }
+        | domain::BankRedirectData::Przelewy24 { .. } => {
+            Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Paypal"),
+            )
+            .into())
+        }
+        domain::BankRedirectData::Bizum {}
+        | domain::BankRedirectData::Interac { .. }
+        | domain::BankRedirectData::OnlineBankingCzechRepublic { .. }
+        | domain::BankRedirectData::OnlineBankingFinland { .. }
+        | domain::BankRedirectData::OnlineBankingPoland { .. }
+        | domain::BankRedirectData::OnlineBankingSlovakia { .. }
+        | domain::BankRedirectData::OpenBankingUk { .. }
+        | domain::BankRedirectData::Trustly { .. }
+        | domain::BankRedirectData::OnlineBankingFpx { .. }
+        | domain::BankRedirectData::OnlineBankingThailand { .. } => {
             Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Paypal"),
             ))?
@@ -688,7 +690,8 @@ impl TryFrom<&api_models::payments::BankTransferData> for PaypalPaymentsRequest 
             | api_models::payments::BankTransferData::DanamonVaBankTransfer { .. }
             | api_models::payments::BankTransferData::MandiriVaBankTransfer { .. }
             | api_models::payments::BankTransferData::Pix {}
-            | api_models::payments::BankTransferData::Pse {} => {
+            | api_models::payments::BankTransferData::Pse {}
+            | api_models::payments::BankTransferData::LocalBankTransfer { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),
                 )
