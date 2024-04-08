@@ -355,7 +355,7 @@ pub fn get_outgoing_webhook_retry_schedule_time(
 }
 
 /// Get the delay based on the retry count
-fn get_delay(retry_count: i32, vec: &[[i32; 2]]) -> Option<i32> {
+fn get_delay(retry_count: i32, vec: &[(i32, i32)]) -> Option<i32> {
     // Preferably, fix this by using unsigned ints
     if retry_count <= 0 {
         return None;
@@ -363,7 +363,7 @@ fn get_delay(retry_count: i32, vec: &[[i32; 2]]) -> Option<i32> {
 
     let mut cumulative_count = 0;
     let itervec = vec.iter();
-    for [frequency, count] in itervec {
+    for (frequency, count) in itervec {
         cumulative_count += count;
         if cumulative_count >= retry_count {
             return Some(frequency.to_owned());
@@ -412,7 +412,7 @@ mod tests {
 
     #[test]
     fn test_get_delay() {
-        let frequency_count = vec![[300, 10], [600, 5], [1800, 3], [3600, 2]];
+        let frequency_count = vec![(300, 10), (600, 5), (1800, 3), (3600, 2)];
 
         let retry_counts_and_expected_delays = [
             (-4, None),
