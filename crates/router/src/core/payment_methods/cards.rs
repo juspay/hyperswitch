@@ -335,15 +335,6 @@ pub async fn add_payment_method_data(
         authenticate_pm_client_secret_and_check_expiry(&client_secret, &payment_method)?;
 
     if client_secret_expired {
-        let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
-            status: Some(enums::PaymentMethodStatus::Inactive),
-        };
-
-        db.update_payment_method(payment_method, pm_update)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to add payment method in db")?;
-
         return Err((errors::ApiErrorResponse::ClientSecretExpired).into());
     };
 
