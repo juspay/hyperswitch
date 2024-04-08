@@ -230,11 +230,8 @@ pub trait PostUpdateTracker<F, D, R>: Send {
         state: &'b AppState,
         resp: &'b types::RouterData<F, R, PaymentsResponseData>,
         connector: &api::ConnectorData,
-        maybe_customer: &Option<domain::Customer>,
-        call_connector_action: payments::CallConnectorAction,
-        merchant_account: &domain::MerchantAccount,
-        connector_request: Option<services::Request>,
-        key_store: &domain::MerchantKeyStore,
+        merchant_account: &'b domain::MerchantAccount,
+        key_store: &'b domain::MerchantKeyStore,
         payment_data: &mut D,
         profile_id: Option<String>,
     ) -> CustomResult<(), errors::ApiErrorResponse>

@@ -88,17 +88,15 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
         state: &'b AppState,
         resp: &'b types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
         connector: &api::ConnectorData,
-        maybe_customer: &Option<domain::Customer>,
-        _call_connector_action: payments::CallConnectorAction,
-        merchant_account: &domain::MerchantAccount,
-        _connector_request: Option<services::Request>,
-        key_store: &domain::MerchantKeyStore,
+        merchant_account: &'b domain::MerchantAccount,
+        key_store: &'b domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
         profile_id: Option<String>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Send + Clone + Sync,
     {
+        let customer_id = payment_data.payment_intent.customer_id.clone();
         let is_mandate = &resp.request.setup_mandate_details.is_some();
         if *is_mandate {
             let (payment_method_id, _payment_method_status) =
@@ -106,7 +104,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
                     state,
                     connector,
                     resp.to_owned(),
-                    maybe_customer,
+                    customer_id.clone().unwrap(),
                     merchant_account,
                     resp.request.payment_method_type,
                     key_store,
@@ -122,7 +120,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
             let _mandate_id_pm_id = mandate::mandate_procedure(
                 state,
                 resp,
-                maybe_customer,
+                &Some(customer_id.clone().unwrap()),
                 payment_method_id,
                 connector.merchant_connector_id.clone(),
             )
@@ -130,42 +128,12 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
             // update mandate as well as pm_id
             Ok(())
         } else {
-            //     let response = resp.clone();
-            //
-            //     logger::info!("Call to save_payment_method in locker");
-            //
-            //     let pm = Box::pin(tokenization::save_payment_method(
-            //         state,
-            //         connector,
-            //         response,
-            //         maybe_customer,
-            //         merchant_account,
-            //         resp.request.payment_method_type,
-            //         key_store,
-            //         Some(resp.request.amount),
-            //         Some(resp.request.currency),
-            //         profile_id,
-            //         payment_data,
-            //     ))
-            //     .await;
-            //
-            //     match pm {
-            //         Ok((payment_method_id, _payment_method_status)) => {
-            //             payment_data.payment_attempt.payment_method_id = payment_method_id;
-            //             // resp.payment_method_status = payment_method_status;
-            //         }
-            //         Err(err) => logger::error!("Save pm to locker failed : {err:?}"),
-            //     }
-            //
-            //     // Ok(resp)
-            // }
-            // Ok(())
             let connector = connector.clone();
             let response = resp.clone();
-            let maybe_customer = maybe_customer.clone();
             let merchant_account = merchant_account.clone();
             let key_store = key_store.clone();
             let state = state.clone();
+            let customer_id = payment_data.payment_intent.customer_id.clone();
 
             logger::info!("Call to save_payment_method in locker");
             let _task_handle = tokio::spawn(
@@ -175,25 +143,34 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
                     let currency = response.request.currency;
                     let payment_method_type = response.request.payment_method_type.clone();
 
-                    let result = Box::pin(tokenization::save_payment_method(
-                        &state,
-                        &connector,
-                        response,
-                        &maybe_customer,
-                        &merchant_account,
-                        payment_method_type,
-                        &key_store,
-                        Some(amount),
-                        Some(currency),
-                        profile_id,
-                    ))
-                    .await;
+                    if let Some(customer_id) = customer_id {
+                        let result = Box::pin(tokenization::save_payment_method(
+                            &state,
+                            &connector,
+                            response,
+                            customer_id.clone().to_string(),
+                            &merchant_account,
+                            payment_method_type,
+                            &key_store,
+                            Some(amount),
+                            Some(currency),
+                            profile_id,
+                        ))
+                        .await;
 
-                    if let Err(err) = result {
-                        logger::error!("Asynchronously saving card in locker failed : {:?}", err);
+                        if let Err(err) = result {
+                            logger::error!(
+                                "Asynchronously saving card in locker failed : {:?}",
+                                err
+                            );
+                        } else {
+                            if let Ok((pm_id, _pm_status)) = result {
+                                payment_data.payment_attempt.payment_method_id = pm_id;
+                            }
+                        }
+                    } else {
+                        logger::error!("customer_id not found");
                     }
-
-                    //TODO: update payment attempt with `payment_method_id`
                 }
                 .in_current_span(),
             );
@@ -341,11 +318,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
             types::PaymentsResponseData,
         >,
         _connector: &api::ConnectorData,
-        _maybe_customer: &Option<domain::Customer>,
-        _call_connector_action: payments::CallConnectorAction,
-        _merchant_account: &domain::MerchantAccount,
-        _connector_request: Option<services::Request>,
-        _key_store: &domain::MerchantKeyStore,
+        _merchant_account: &'b domain::MerchantAccount,
+        _key_store: &'b domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
         _profile_id: Option<String>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
@@ -388,11 +362,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
             types::PaymentsResponseData,
         >,
         _connector: &api::ConnectorData,
-        _maybe_customer: &Option<domain::Customer>,
-        _call_connector_action: payments::CallConnectorAction,
-        _merchant_account: &domain::MerchantAccount,
-        _connector_request: Option<services::Request>,
-        _key_store: &domain::MerchantKeyStore,
+        _merchant_account: &'b domain::MerchantAccount,
+        _key_store: &'b domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
         _profile_id: Option<String>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
@@ -439,11 +410,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
             types::PaymentsResponseData,
         >,
         _connector: &api::ConnectorData,
-        _maybe_customer: &Option<domain::Customer>,
-        _call_connector_action: payments::CallConnectorAction,
-        _merchant_account: &domain::MerchantAccount,
-        _connector_request: Option<services::Request>,
-        _key_store: &domain::MerchantKeyStore,
+        _merchant_account: &'b domain::MerchantAccount,
+        _key_store: &'b domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
         _profile_id: Option<String>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
@@ -490,11 +458,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
             types::PaymentsResponseData,
         >,
         _connector: &api::ConnectorData,
-        _maybe_customer: &Option<domain::Customer>,
-        _call_connector_action: payments::CallConnectorAction,
-        _merchant_account: &domain::MerchantAccount,
-        _connector_request: Option<services::Request>,
-        _key_store: &domain::MerchantKeyStore,
+        _merchant_account: &'b domain::MerchantAccount,
+        _key_store: &'b domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
         _profile_id: Option<String>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
@@ -540,11 +505,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
             types::PaymentsResponseData,
         >,
         _connector: &api::ConnectorData,
-        _maybe_customer: &Option<domain::Customer>,
-        _call_connector_action: payments::CallConnectorAction,
-        _merchant_account: &domain::MerchantAccount,
-        _connector_request: Option<services::Request>,
-        _key_store: &domain::MerchantKeyStore,
+        _merchant_account: &'b domain::MerchantAccount,
+        _key_store: &'b domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
         _profile_id: Option<String>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
@@ -592,11 +554,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
             types::PaymentsResponseData,
         >,
         _connector: &api::ConnectorData,
-        _maybe_customer: &Option<domain::Customer>,
-        _call_connector_action: payments::CallConnectorAction,
-        _merchant_account: &domain::MerchantAccount,
-        _connector_request: Option<services::Request>,
-        _key_store: &domain::MerchantKeyStore,
+        _merchant_account: &'b domain::MerchantAccount,
+        _key_store: &'b domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
         _profile_id: Option<String>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
@@ -642,11 +601,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> f
             types::PaymentsResponseData,
         >,
         _connector: &api::ConnectorData,
-        _maybe_customer: &Option<domain::Customer>,
-        _call_connector_action: payments::CallConnectorAction,
-        _merchant_account: &domain::MerchantAccount,
-        _connector_request: Option<services::Request>,
-        _key_store: &domain::MerchantKeyStore,
+        _merchant_account: &'b domain::MerchantAccount,
+        _key_store: &'b domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
         _profile_id: Option<String>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
@@ -703,11 +659,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             types::PaymentsResponseData,
         >,
         _connector: &api::ConnectorData,
-        _maybe_customer: &Option<domain::Customer>,
-        _call_connector_action: payments::CallConnectorAction,
-        _merchant_account: &domain::MerchantAccount,
-        _connector_request: Option<services::Request>,
-        _key_store: &domain::MerchantKeyStore,
+        _merchant_account: &'b domain::MerchantAccount,
+        _key_store: &'b domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
         _profile_id: Option<String>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
@@ -748,11 +701,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
         _state: &'b AppState,
         _resp: &'b types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>,
         _connector: &api::ConnectorData,
-        _maybe_customer: &Option<domain::Customer>,
-        _call_connector_action: payments::CallConnectorAction,
-        _merchant_account: &domain::MerchantAccount,
-        _connector_request: Option<services::Request>,
-        _key_store: &domain::MerchantKeyStore,
+        _merchant_account: &'b domain::MerchantAccount,
+        _key_store: &'b domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
         _profile_id: Option<String>,
     ) -> CustomResult<(), errors::ApiErrorResponse>

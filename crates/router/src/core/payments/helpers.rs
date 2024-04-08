@@ -1207,7 +1207,7 @@ pub(crate) async fn get_payment_method_create_request(
     payment_method_data: Option<&domain::PaymentMethodData>,
     payment_method: Option<storage_enums::PaymentMethod>,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
-    customer: &domain::Customer,
+    customer_id: &Option<String>,
 ) -> RouterResult<api::PaymentMethodCreate> {
     match payment_method_data {
         Some(pm_data) => match payment_method {
@@ -1224,7 +1224,6 @@ pub(crate) async fn get_payment_method_create_request(
                         card_issuer: card.card_issuer.clone(),
                         card_type: card.card_type.clone(),
                     };
-                    let customer_id = customer.customer_id.clone();
                     let payment_method_request = api::PaymentMethodCreate {
                         payment_method,
                         payment_method_type,
@@ -1236,7 +1235,7 @@ pub(crate) async fn get_payment_method_create_request(
                         wallet: None,
                         card: Some(card_detail),
                         metadata: None,
-                        customer_id: Some(customer_id),
+                        customer_id: customer_id.clone(),
                         card_network: card
                             .card_network
                             .as_ref()
@@ -1256,7 +1255,7 @@ pub(crate) async fn get_payment_method_create_request(
                         wallet: None,
                         card: None,
                         metadata: None,
-                        customer_id: Some(customer.customer_id.to_owned()),
+                        customer_id: customer_id.clone(),
                         card_network: None,
                     };
 
@@ -2540,7 +2539,7 @@ pub fn generate_mandate(
     payment_id: String,
     connector: String,
     setup_mandate_details: Option<MandateData>,
-    customer: &Option<domain::Customer>,
+    customer_id: &Option<String>,
     payment_method_id: String,
     connector_mandate_id: Option<pii::SecretSerdeValue>,
     network_txn_id: Option<String>,
@@ -2548,8 +2547,8 @@ pub fn generate_mandate(
     mandate_reference: Option<MandateReference>,
     merchant_connector_id: Option<String>,
 ) -> CustomResult<Option<storage::MandateNew>, errors::ApiErrorResponse> {
-    match (setup_mandate_details, customer) {
-        (Some(data), Some(cus)) => {
+    match (setup_mandate_details, customer_id) {
+        (Some(data), Some(cus_id)) => {
             let mandate_id = utils::generate_id(consts::ID_LENGTH, "man");
 
             // The construction of the mandate new must be visible
@@ -2560,7 +2559,7 @@ pub fn generate_mandate(
                 .get_required_value("customer_acceptance")?;
             new_mandate
                 .set_mandate_id(mandate_id)
-                .set_customer_id(cus.customer_id.clone())
+                .set_customer_id(cus_id.clone())
                 .set_merchant_id(merchant_id)
                 .set_original_payment_id(Some(payment_id))
                 .set_payment_method_id(payment_method_id)

@@ -320,7 +320,7 @@ pub struct MandateIdPmId {
 pub async fn mandate_procedure<F, FData>(
     state: &AppState,
     resp: &types::RouterData<F, FData, types::PaymentsResponseData>,
-    maybe_customer: &Option<domain::Customer>,
+    customer_id: &Option<String>,
     pm_id: Option<String>,
     merchant_connector_id: Option<String>,
 ) -> errors::RouterResult<MandateIdPmId>
@@ -410,7 +410,7 @@ where
                         resp.payment_id.clone(),
                         resp.connector.clone(),
                         resp.request.get_setup_mandate_details().cloned(),
-                        maybe_customer,
+                        customer_id,
                         pm_id.get_required_value("payment_method_id")?,
                         mandate_ids,
                         network_txn_id,

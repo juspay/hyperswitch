@@ -36,7 +36,7 @@ pub async fn save_payment_method<F: Clone, FData>(
     state: &AppState,
     connector: &api::ConnectorData,
     resp: types::RouterData<F, FData, types::PaymentsResponseData>,
-    maybe_customer: &Option<domain::Customer>,
+    customer_id: String,
     merchant_account: &domain::MerchantAccount,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     key_store: &domain::MerchantKeyStore,
@@ -164,16 +164,14 @@ where
             .attach_printable("Unable to serialize customer acceptance to value")?;
 
             let pm_id = if customer_acceptance.is_some() {
-                let customer = maybe_customer.to_owned().get_required_value("customer")?;
                 let payment_method_create_request = helpers::get_payment_method_create_request(
                     Some(&resp.request.get_payment_method_data()),
                     Some(resp.payment_method),
                     payment_method_type,
-                    &customer,
+                    &Some(customer_id.clone()),
                 )
                 .await?;
                 let merchant_id = &merchant_account.merchant_id;
-
                 let (mut resp, duplication_check) = if !state.conf.locker.locker_enabled {
                     skip_saving_card_in_locker(
                         merchant_account,
@@ -284,7 +282,7 @@ where
                                         payment_methods::cards::create_payment_method(
                                             db,
                                             &payment_method_create_request,
-                                            &customer.customer_id,
+                                            customer_id.as_str(),
                                             &resp.payment_method_id,
                                             locker_id,
                                             merchant_id,
@@ -371,7 +369,7 @@ where
                                                 payment_method_create_request.clone(),
                                                 key_store,
                                                 &merchant_account.merchant_id,
-                                                &customer.customer_id,
+                                                &customer_id.as_str(),
                                                 resp.metadata.clone().map(|val| val.expose()),
                                                 customer_acceptance,
                                                 locker_id,
@@ -393,7 +391,7 @@ where
 
                                 payment_methods::cards::delete_card_from_locker(
                                     state,
-                                    &customer.customer_id,
+                                    &customer_id.as_str(),
                                     merchant_id,
                                     existing_pm
                                         .locker_id
@@ -406,7 +404,7 @@ where
                                     state,
                                     payment_method_create_request,
                                     &card,
-                                    customer.customer_id.clone(),
+                                    customer_id.clone(),
                                     merchant_account,
                                     api::enums::LockerChoice::HyperswitchCardVault,
                                     Some(
@@ -490,7 +488,7 @@ where
                         payment_methods::cards::create_payment_method(
                             db,
                             &payment_method_create_request,
-                            &customer.customer_id,
+                            &customer_id.as_str(),
                             &resp.payment_method_id,
                             locker_id,
                             merchant_id,
