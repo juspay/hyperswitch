@@ -280,8 +280,8 @@ cards = [
     "stripe",
     "threedsecureio",
     "worldpay",
-    "zsl",
     "zen",
+    "zsl",
 ]
 
 # Scheduler settings provides a point to modify the behaviour of scheduler flow.
