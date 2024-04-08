@@ -2,11 +2,9 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use common_enums::AttemptStatus;
-use common_utils::request::RequestContent;
 use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
-use transformers as multisafepay;
+use transformers as ebanx;
 
 use crate::{
     configs::settings,
@@ -21,35 +19,63 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        storage::enums,
-        ErrorResponse, Response,
+        ErrorResponse, RequestContent, Response,
     },
     utils::BytesExt,
 };
 
 #[derive(Debug, Clone)]
-pub struct Multisafepay;
+pub struct Ebanx;
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Multisafepay
+impl api::Payment for Ebanx {}
+impl api::PaymentSession for Ebanx {}
+impl api::ConnectorAccessToken for Ebanx {}
+impl api::MandateSetup for Ebanx {}
+impl api::PaymentAuthorize for Ebanx {}
+impl api::PaymentSync for Ebanx {}
+impl api::PaymentCapture for Ebanx {}
+impl api::PaymentVoid for Ebanx {}
+impl api::Refund for Ebanx {}
+impl api::RefundExecute for Ebanx {}
+impl api::RefundSync for Ebanx {}
+impl api::PaymentToken for Ebanx {}
+
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for Ebanx
+{
+    // Not Implemented (R)
+}
+
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Ebanx
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {
     fn build_headers(
         &self,
-        _req: &types::RouterData<Flow, Request, Response>,
+        req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        Ok(vec![])
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            self.get_content_type().to_string().into(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
     }
 }
 
-impl ConnectorCommon for Multisafepay {
+impl ConnectorCommon for Ebanx {
     fn id(&self) -> &'static str {
-        "multisafepay"
+        "ebanx"
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        api::CurrencyUnit::Minor
+        api::CurrencyUnit::Base
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -57,18 +83,18 @@ impl ConnectorCommon for Multisafepay {
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
-        connectors.multisafepay.base_url.as_ref()
+        connectors.ebanx.base_url.as_ref()
     }
 
     fn get_auth_header(
         &self,
         auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth = multisafepay::MultisafepayAuthType::try_from(auth_type)
+        let auth = ebanx::EbanxAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.api_key.into_masked(),
+            auth.api_key.expose().into_masked(),
         )])
     }
 
@@ -77,192 +103,51 @@ impl ConnectorCommon for Multisafepay {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: multisafepay::MultisafepayErrorResponse = res
-            .response
-            .parse_struct("MultisafepayErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: ebanx::EbanxErrorResponse =
+            res.response
+                .parse_struct("EbanxErrorResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        event_builder.map(|i| i.set_error_response_body(&response));
+        event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        let attempt_status = Option::<AttemptStatus>::from(response.clone());
-
-        Ok(ErrorResponse::from((
-            Some(response.error_code.to_string()),
-            Some(response.error_info.clone()),
-            Some(response.error_info),
-            res.status_code,
-            attempt_status,
-            None,
-        )))
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: response.code,
+            message: response.message,
+            reason: response.reason,
+            attempt_status: None,
+            connector_transaction_id: None,
+        })
     }
 }
 
-impl ConnectorValidation for Multisafepay {
-    fn validate_capture_method(
-        &self,
-        capture_method: Option<enums::CaptureMethod>,
-        _pmt: Option<enums::PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            enums::CaptureMethod::Automatic => Ok(()),
-            enums::CaptureMethod::Manual
-            | enums::CaptureMethod::ManualMultiple
-            | enums::CaptureMethod::Scheduled => Err(errors::ConnectorError::NotImplemented(
-                format!("{} for {}", capture_method, self.id()),
-            )
-            .into()),
-        }
-    }
+impl ConnectorValidation for Ebanx {
+    //TODO: implement functions when support enabled
 }
 
-impl api::Payment for Multisafepay {}
-
-impl api::PaymentToken for Multisafepay {}
-
-impl
-    ConnectorIntegration<
-        api::PaymentMethodToken,
-        types::PaymentMethodTokenizationData,
-        types::PaymentsResponseData,
-    > for Multisafepay
+impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
+    for Ebanx
 {
-    // Not Implemented (R)
+    //TODO: implement sessions flow
 }
 
-impl api::MandateSetup for Multisafepay {}
+impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
+    for Ebanx
+{
+}
+
 impl
     ConnectorIntegration<
         api::SetupMandate,
         types::SetupMandateRequestData,
         types::PaymentsResponseData,
-    > for Multisafepay
-{
-    fn build_request(
-        &self,
-        _req: &types::RouterData<
-            api::SetupMandate,
-            types::SetupMandateRequestData,
-            types::PaymentsResponseData,
-        >,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented(
-            "Setup Mandate flow for Multisafepay".to_string(),
-        )
-        .into())
-    }
-}
-
-impl api::PaymentVoid for Multisafepay {}
-
-impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
-    for Multisafepay
+    > for Ebanx
 {
 }
-
-impl api::ConnectorAccessToken for Multisafepay {}
-
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-    for Multisafepay
-{
-}
-
-impl api::PaymentSync for Multisafepay {}
-impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
-    for Multisafepay
-{
-    fn get_headers(
-        &self,
-        req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        let url = self.base_url(connectors);
-        let api_key = multisafepay::MultisafepayAuthType::try_from(&req.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?
-            .api_key
-            .expose();
-        let ord_id = req.connector_request_reference_id.clone();
-        Ok(format!("{url}v1/json/orders/{ord_id}?api_key={api_key}"))
-    }
-
-    fn build_request(
-        &self,
-        req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Get)
-                .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
-                .build(),
-        ))
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
-
-    fn handle_response(
-        &self,
-        data: &types::PaymentsSyncRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: multisafepay::MultisafepayAuthResponse = res
-            .response
-            .parse_struct("multisafepay PaymentsResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
-    }
-}
-
-impl api::PaymentCapture for Multisafepay {}
-impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
-    for Multisafepay
-{
-}
-
-impl api::PaymentSession for Multisafepay {}
-
-impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
-    for Multisafepay
-{
-    //TODO: implement sessions flow
-}
-
-impl api::PaymentAuthorize for Multisafepay {}
 
 impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
-    for Multisafepay
+    for Ebanx
 {
     fn get_headers(
         &self,
@@ -278,15 +163,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_url(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        connectors: &settings::Connectors,
+        _req: &types::PaymentsAuthorizeRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let url = self.base_url(connectors);
-        let api_key = multisafepay::MultisafepayAuthType::try_from(&req.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?
-            .api_key
-            .expose();
-        Ok(format!("{url}v1/json/orders?api_key={api_key}"))
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn get_request_body(
@@ -294,14 +174,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = multisafepay::MultisafepayRouterData::try_from((
+        let connector_router_data = ebanx::EbanxRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.amount,
             req,
         ))?;
-        let connector_req =
-            multisafepay::MultisafepayPaymentsRequest::try_from(&connector_router_data)?;
+        let connector_req = ebanx::EbanxPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -333,20 +212,17 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: multisafepay::MultisafepayAuthResponse = res
+        let response: ebanx::EbanxPaymentsResponse = res
             .response
-            .parse_struct("MultisafepayPaymentsResponse")
+            .parse_struct("Ebanx PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -358,13 +234,157 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     }
 }
 
-impl api::Refund for Multisafepay {}
-impl api::RefundExecute for Multisafepay {}
-impl api::RefundSync for Multisafepay {}
-
-impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
-    for Multisafepay
+impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
+    for Ebanx
 {
+    fn get_headers(
+        &self,
+        req: &types::PaymentsSyncRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &types::PaymentsSyncRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PaymentsSyncRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Get)
+                .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsSyncRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
+        let response: ebanx::EbanxPaymentsResponse = res
+            .response
+            .parse_struct("ebanx PaymentsSyncResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
+    for Ebanx
+{
+    fn get_headers(
+        &self,
+        req: &types::PaymentsCaptureRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &types::PaymentsCaptureRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+    }
+
+    fn get_request_body(
+        &self,
+        _req: &types::PaymentsCaptureRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PaymentsCaptureRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::PaymentsCaptureType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::PaymentsCaptureType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsCaptureRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
+        let response: ebanx::EbanxPaymentsResponse = res
+            .response
+            .parse_struct("Ebanx PaymentsCaptureResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
+    for Ebanx
+{
+}
+
+impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData> for Ebanx {
     fn get_headers(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
@@ -379,18 +399,10 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 
     fn get_url(
         &self,
-        req: &types::RefundsRouterData<api::Execute>,
-        connectors: &settings::Connectors,
+        _req: &types::RefundsRouterData<api::Execute>,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let url = self.base_url(connectors);
-        let api_key = multisafepay::MultisafepayAuthType::try_from(&req.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?
-            .api_key
-            .expose();
-        let ord_id = req.connector_request_reference_id.clone();
-        Ok(format!(
-            "{url}v1/json/orders/{ord_id}/refunds?api_key={api_key}"
-        ))
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn get_request_body(
@@ -398,14 +410,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = multisafepay::MultisafepayRouterData::try_from((
+        let connector_router_data = ebanx::EbanxRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.refund_amount,
             req,
         ))?;
-        let connector_req = multisafepay::MultisafepayRefundRequest::try_from(&connector_req)?;
-
+        let connector_req = ebanx::EbanxRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -434,9 +445,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        let response: multisafepay::MultisafepayRefundResponse = res
+        let response: ebanx::RefundResponse = res
             .response
-            .parse_struct("multisafepay RefundResponse")
+            .parse_struct("ebanx RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -445,7 +456,6 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseDeserializationFailed)
     }
 
     fn get_error_response(
@@ -457,9 +467,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     }
 }
 
-impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>
-    for Multisafepay
-{
+impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Ebanx {
     fn get_headers(
         &self,
         req: &types::RefundSyncRouterData,
@@ -474,18 +482,10 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
     fn get_url(
         &self,
-        req: &types::RefundSyncRouterData,
-        connectors: &settings::Connectors,
+        _req: &types::RefundSyncRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let url = self.base_url(connectors);
-        let api_key = multisafepay::MultisafepayAuthType::try_from(&req.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?
-            .api_key
-            .expose();
-        let ord_id = req.connector_request_reference_id.clone();
-        Ok(format!(
-            "{url}v1/json/orders/{ord_id}/refunds?api_key={api_key}"
-        ))
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn build_request(
@@ -499,6 +499,9 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
+                .set_body(types::RefundSyncType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -509,9 +512,9 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
-        let response: multisafepay::MultisafepayRefundResponse = res
+        let response: ebanx::RefundResponse = res
             .response
-            .parse_struct("multisafepay RefundResponse")
+            .parse_struct("ebanx RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -520,7 +523,6 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseDeserializationFailed)
     }
 
     fn get_error_response(
@@ -533,11 +535,11 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 }
 
 #[async_trait::async_trait]
-impl api::IncomingWebhook for Multisafepay {
+impl api::IncomingWebhook for Ebanx {
     fn get_webhook_object_reference_id(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
+    ) -> CustomResult<api::webhooks::ObjectReferenceId, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
@@ -545,7 +547,7 @@ impl api::IncomingWebhook for Multisafepay {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Ok(api::IncomingWebhookEvent::EventNotSupported)
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_resource_object(

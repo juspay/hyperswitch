@@ -126,6 +126,10 @@ pub enum PaymentMethodUpdate {
     LastUsedUpdate {
         last_used_at: PrimitiveDateTime,
     },
+    NetworkTransactionIdAndStatusUpdate {
+        network_transaction_id: Option<String>,
+        status: Option<storage_enums::PaymentMethodStatus>,
+    },
     StatusUpdate {
         status: Option<storage_enums::PaymentMethodStatus>,
     },
@@ -140,6 +144,7 @@ pub struct PaymentMethodUpdateInternal {
     metadata: Option<serde_json::Value>,
     payment_method_data: Option<Encryption>,
     last_used_at: Option<PrimitiveDateTime>,
+    network_transaction_id: Option<String>,
     status: Option<storage_enums::PaymentMethodStatus>,
     connector_mandate_details: Option<serde_json::Value>,
 }
@@ -159,6 +164,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 metadata,
                 payment_method_data: None,
                 last_used_at: None,
+                network_transaction_id: None,
                 status: None,
                 connector_mandate_details: None,
             },
@@ -168,6 +174,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 metadata: None,
                 payment_method_data,
                 last_used_at: None,
+                network_transaction_id: None,
                 status: None,
                 connector_mandate_details: None,
             },
@@ -175,13 +182,26 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 metadata: None,
                 payment_method_data: None,
                 last_used_at: Some(last_used_at),
+                network_transaction_id: None,
                 status: None,
+                connector_mandate_details: None,
+            },
+            PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
+                network_transaction_id,
+                status,
+            } => Self {
+                metadata: None,
+                payment_method_data: None,
+                last_used_at: None,
+                network_transaction_id,
+                status,
                 connector_mandate_details: None,
             },
             PaymentMethodUpdate::StatusUpdate { status } => Self {
                 metadata: None,
                 payment_method_data: None,
                 last_used_at: None,
+                network_transaction_id: None,
                 status,
                 connector_mandate_details: None,
             },
@@ -193,6 +213,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_used_at: None,
                 status: None,
                 connector_mandate_details,
+                network_transaction_id: None,
             },
         }
     }

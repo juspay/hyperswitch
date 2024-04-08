@@ -30,6 +30,7 @@ pub struct ConnectorAuthentication {
     pub dlocal: Option<SignatureKey>,
     #[cfg(feature = "dummy_connector")]
     pub dummyconnector: Option<HeaderKey>,
+    pub ebanx: Option<HeaderKey>,
     pub fiserv: Option<SignatureKey>,
     pub forte: Option<MultiAuthKey>,
     pub globalpay: Option<BodyKey>,
