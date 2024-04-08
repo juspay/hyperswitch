@@ -409,7 +409,9 @@ async fn get_tracker_for_sync<
                         logger::info!("Payment Method not found in db {:?}", error);
                         None
                     } else {
-                        Err(error).change_context(errors::ApiErrorResponse::InternalServerError)?
+                        Err(error)
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Error retrieving payment method from db")?
                     }
                 }
             }
