@@ -230,25 +230,25 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
     }
 }
 
-impl TryFrom<&api_models::payments::BankRedirectData> for PaymentMethodData {
+impl TryFrom<&domain::BankRedirectData> for PaymentMethodData {
     type Error = Error;
-    fn try_from(value: &api_models::payments::BankRedirectData) -> Result<Self, Self::Error> {
+    fn try_from(value: &domain::BankRedirectData) -> Result<Self, Self::Error> {
         match value {
-            api_models::payments::BankRedirectData::Eps { .. } => Ok(Self::Eps),
-            api_models::payments::BankRedirectData::Giropay { .. } => Ok(Self::Giropay),
-            api_models::payments::BankRedirectData::Ideal { .. } => {
+            domain::BankRedirectData::Eps { .. } => Ok(Self::Eps),
+            domain::BankRedirectData::Giropay { .. } => Ok(Self::Giropay),
+            domain::BankRedirectData::Ideal { .. } => {
                 Ok(Self::Ideal(Box::new(IdealMethodData {
                     // To do if possible this should be from the payment request
                     issuer: None,
                 })))
             }
-            api_models::payments::BankRedirectData::Sofort { .. } => Ok(Self::Sofort),
-            api_models::payments::BankRedirectData::Przelewy24 {
+            domain::BankRedirectData::Sofort { .. } => Ok(Self::Sofort),
+            domain::BankRedirectData::Przelewy24 {
                 billing_details, ..
             } => Ok(Self::Przelewy24(Box::new(Przelewy24MethodData {
                 billing_email: billing_details.email.clone(),
             }))),
-            api_models::payments::BankRedirectData::BancontactCard { .. } => Ok(Self::Bancontact),
+            domain::BankRedirectData::BancontactCard { .. } => Ok(Self::Bancontact),
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
@@ -325,16 +325,16 @@ impl TryFrom<&types::TokenizationRouterData> for MollieCardTokenRequest {
 
 fn get_payment_method_for_wallet(
     item: &types::PaymentsAuthorizeRouterData,
-    wallet_data: &api_models::payments::WalletData,
+    wallet_data: &domain::WalletData,
 ) -> Result<PaymentMethodData, Error> {
     match wallet_data {
-        api_models::payments::WalletData::PaypalRedirect { .. } => {
+        domain::WalletData::PaypalRedirect { .. } => {
             Ok(PaymentMethodData::Paypal(Box::new(PaypalMethodData {
                 billing_address: get_billing_details(item)?,
                 shipping_address: get_shipping_details(item)?,
             })))
         }
-        api_models::payments::WalletData::ApplePay(applepay_wallet_data) => {
+        domain::WalletData::ApplePay(applepay_wallet_data) => {
             Ok(PaymentMethodData::Applepay(Box::new(ApplePayMethodData {
                 apple_pay_payment_token: Secret::new(applepay_wallet_data.payment_data.to_owned()),
             })))

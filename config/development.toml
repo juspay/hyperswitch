@@ -108,6 +108,7 @@ cards = [
     "cybersource",
     "dlocal",
     "dummyconnector",
+    "ebanx",
     "fiserv",
     "forte",
     "globalpay",
@@ -181,6 +182,7 @@ cryptopay.base_url = "https://business-sandbox.cryptopay.me"
 cybersource.base_url = "https://apitest.cybersource.com/"
 dlocal.base_url = "https://sandbox.dlocal.com/"
 dummyconnector.base_url = "http://localhost:8080/dummy-connector"
+ebanx.base_url = "https://sandbox.ebanxpay.com/"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
 forte.base_url = "https://sandbox.forte.net/api/v3"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
@@ -511,6 +513,9 @@ bank_redirect.giropay = { connector_list = "adyen,globalpay" }
 card.credit = { connector_list = "cybersource" }
 card.debit = { connector_list = "cybersource" }
 
+[network_transaction_id_supported_connectors]
+connector_list = "stripe,adyen,cybersource"
+
 [connector_request_reference_id_config]
 merchant_ids_send_payment_id_as_connector_request_id = []
 
@@ -556,6 +561,7 @@ connector_logs_topic = "hyperswitch-connector-api-events"
 outgoing_webhook_logs_topic = "hyperswitch-outgoing-webhook-events"
 dispute_analytics_topic = "hyperswitch-dispute-events"
 audit_events_topic = "hyperswitch-audit-events"
+payout_analytics_topic = "hyperswitch-payout-events"
 
 [analytics]
 source = "sqlx"
