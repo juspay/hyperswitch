@@ -2204,6 +2204,7 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::CimbVa
                 | api_enums::PaymentMethodType::DanamonVa
                 | api_enums::PaymentMethodType::MandiriVa
+                | api_enums::PaymentMethodType::LocalBankTransfer
         ),
         api_enums::PaymentMethod::BankDebit => matches!(
             payment_method_type,
