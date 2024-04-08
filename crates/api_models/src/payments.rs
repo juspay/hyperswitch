@@ -39,7 +39,7 @@ pub struct BankData {
 
 #[derive(serde::Deserialize)]
 pub struct BankCodeInformation {
-    pub bank_name: api_enums::BankNames,
+    pub bank_name: common_enums::BankNames,
     pub connector_codes: Vec<ConnectorCode>,
 }
 
@@ -51,7 +51,7 @@ pub struct ConnectorCode {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
 pub struct BankCodeResponse {
-    pub bank_name: Vec<api_enums::BankNames>,
+    pub bank_name: Vec<common_enums::BankNames>,
     pub eligible_connectors: Vec<String>,
 }
 
@@ -1571,7 +1571,7 @@ pub struct AdditionalCardInfo {
 pub enum AdditionalPaymentData {
     Card(Box<AdditionalCardInfo>),
     BankRedirect {
-        bank_name: Option<api_enums::BankNames>,
+        bank_name: Option<common_enums::BankNames>,
     },
     Wallet {
         apple_pay: Option<ApplepayPaymentMethod>,
@@ -1622,7 +1622,7 @@ pub enum BankRedirectData {
 
         /// The hyperswitch bank code for eps
         #[schema(value_type = BankNames, example = "triodos_bank")]
-        bank_name: Option<api_enums::BankNames>,
+        bank_name: Option<common_enums::BankNames>,
 
         /// The country for bank payment
         #[schema(value_type = CountryAlpha2, example = "US")]
@@ -1651,7 +1651,7 @@ pub enum BankRedirectData {
 
         /// The hyperswitch bank code for ideal
         #[schema(value_type = BankNames, example = "abn_amro")]
-        bank_name: Option<api_enums::BankNames>,
+        bank_name: Option<common_enums::BankNames>,
 
         /// The country for bank payment
         #[schema(value_type = CountryAlpha2, example = "US")]
@@ -1668,7 +1668,7 @@ pub enum BankRedirectData {
     OnlineBankingCzechRepublic {
         // Issuer banks
         #[schema(value_type = BankNames)]
-        issuer: api_enums::BankNames,
+        issuer: common_enums::BankNames,
     },
     OnlineBankingFinland {
         // Shopper Email
@@ -1678,17 +1678,17 @@ pub enum BankRedirectData {
     OnlineBankingPoland {
         // Issuer banks
         #[schema(value_type = BankNames)]
-        issuer: api_enums::BankNames,
+        issuer: common_enums::BankNames,
     },
     OnlineBankingSlovakia {
         // Issuer value corresponds to the bank
         #[schema(value_type = BankNames)]
-        issuer: api_enums::BankNames,
+        issuer: common_enums::BankNames,
     },
     OpenBankingUk {
         // Issuer banks
         #[schema(value_type = BankNames)]
-        issuer: Option<api_enums::BankNames>,
+        issuer: Option<common_enums::BankNames>,
         /// The country for bank payment
         #[schema(value_type = CountryAlpha2, example = "US")]
         country: Option<api_enums::CountryAlpha2>,
@@ -1696,7 +1696,7 @@ pub enum BankRedirectData {
     Przelewy24 {
         //Issuer banks
         #[schema(value_type = Option<BankNames>)]
-        bank_name: Option<api_enums::BankNames>,
+        bank_name: Option<common_enums::BankNames>,
 
         // The billing details for bank redirect
         billing_details: BankRedirectBilling,
@@ -1721,11 +1721,11 @@ pub enum BankRedirectData {
     OnlineBankingFpx {
         // Issuer banks
         #[schema(value_type = BankNames)]
-        issuer: api_enums::BankNames,
+        issuer: common_enums::BankNames,
     },
     OnlineBankingThailand {
         #[schema(value_type = BankNames)]
-        issuer: api_enums::BankNames,
+        issuer: common_enums::BankNames,
     },
 }
 
