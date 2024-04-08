@@ -163,13 +163,13 @@ pub struct ConnectorConfig {
     pub wise_payout: Option<ConnectorTomlConfig>,
     pub worldline: Option<ConnectorTomlConfig>,
     pub worldpay: Option<ConnectorTomlConfig>,
-    pub zen: Option<ConnectorTomlConfig>,
-    pub zsl: Option<ConnectorTomlConfig>,
     pub square: Option<ConnectorTomlConfig>,
     pub stax: Option<ConnectorTomlConfig>,
     pub dummy_connector: Option<ConnectorTomlConfig>,
     pub stripe_test: Option<ConnectorTomlConfig>,
     pub paypal_test: Option<ConnectorTomlConfig>,
+    pub zen: Option<ConnectorTomlConfig>,
+    pub zsl: Option<ConnectorTomlConfig>,
 }
 
 impl ConnectorConfig {

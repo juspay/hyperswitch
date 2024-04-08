@@ -7179,10 +7179,10 @@
           "wise",
           "worldline",
           "worldpay",
-          "zen",
           "signifyd",
           "plaid",
           "riskified",
+          "zen",
           "zsl"
         ]
       },
@@ -16903,7 +16903,6 @@
         "type": "string",
         "description": "Connectors eligible for payments routing",
         "enum": [
-          "zsl",
           "phonypay",
           "fauxpay",
           "pretendpay",
@@ -16962,7 +16961,8 @@
           "wise",
           "worldline",
           "worldpay",
-          "zen"
+          "zen",
+          "zsl"
         ]
       },
       "RoutingAlgorithm": {
