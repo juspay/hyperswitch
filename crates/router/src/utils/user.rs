@@ -176,12 +176,12 @@ pub async fn get_multiple_merchant_details_with_status(
                 .attach_printable("Role info for user role doesn't exist")?;
 
             Ok(user_api::UserMerchantAccount {
-                merchant_id: user_role.merchant_id.clone(),
+                merchant_id: user_role.merchant_id,
                 merchant_name: merchant_account.merchant_name.clone(),
                 is_active: user_role.status == UserStatus::Active,
-                role_id: user_role.role_id.clone(),
+                role_id: user_role.role_id,
                 role_name: role_info.get_role_name().to_string(),
-                org_id: user_role.org_id.clone(),
+                org_id: user_role.org_id,
             })
         })
         .collect()
