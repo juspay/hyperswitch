@@ -87,7 +87,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
         &'b self,
         state: &'b AppState,
         resp: &'b types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
-        connector: &api::ConnectorData,
         merchant_account: &'b domain::MerchantAccount,
         key_store: &'b domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
@@ -98,11 +97,14 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
         let customer_id = payment_data.payment_intent.customer_id.clone();
         let profile_id = payment_data.payment_intent.profile_id.clone();
         let is_mandate = &resp.request.setup_mandate_details.is_some();
+        let connector_name = payment_data.payment_attempt.connector.clone();
+        let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
         if *is_mandate {
             let (payment_method_id, _payment_method_status) =
                 Box::pin(tokenization::save_payment_method(
                     state,
-                    connector,
+                    connector_name.unwrap(),
+                    merchant_connector_id.clone(),
                     resp.to_owned(),
                     customer_id.clone().unwrap(),
                     merchant_account,
@@ -122,19 +124,20 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
                 resp,
                 &Some(customer_id.clone().unwrap()),
                 payment_method_id,
-                connector.merchant_connector_id.clone(),
+                merchant_connector_id.clone(),
             )
             .await?;
             // update mandate as well as pm_id
             Ok(())
         } else {
-            let connector = connector.clone();
             let response = resp.clone();
             let merchant_account = merchant_account.clone();
             let key_store = key_store.clone();
             let state = state.clone();
             let customer_id = payment_data.payment_intent.customer_id.clone();
             let profile_id = payment_data.payment_intent.profile_id.clone();
+            let connector_name = payment_data.payment_attempt.connector.clone();
+            let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
 
             logger::info!("Call to save_payment_method in locker");
             let _task_handle = tokio::spawn(
@@ -147,7 +150,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
                     if let Some(customer_id) = customer_id {
                         let result = Box::pin(tokenization::save_payment_method(
                             &state,
-                            &connector,
+                            connector_name.unwrap(),
+                            merchant_connector_id,
                             response,
                             customer_id.clone().to_string(),
                             &merchant_account,
@@ -316,7 +320,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
             types::PaymentsIncrementalAuthorizationData,
             types::PaymentsResponseData,
         >,
-        _connector: &api::ConnectorData,
         _merchant_account: &'b domain::MerchantAccount,
         _key_store: &'b domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
@@ -359,7 +362,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
             types::PaymentsSyncData,
             types::PaymentsResponseData,
         >,
-        _connector: &api::ConnectorData,
         _merchant_account: &'b domain::MerchantAccount,
         _key_store: &'b domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
@@ -406,7 +408,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
             types::PaymentsSessionData,
             types::PaymentsResponseData,
         >,
-        _connector: &api::ConnectorData,
         _merchant_account: &'b domain::MerchantAccount,
         _key_store: &'b domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
@@ -453,7 +454,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
             types::PaymentsCaptureData,
             types::PaymentsResponseData,
         >,
-        _connector: &api::ConnectorData,
         _merchant_account: &'b domain::MerchantAccount,
         _key_store: &'b domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
@@ -499,7 +499,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
             types::PaymentsCancelData,
             types::PaymentsResponseData,
         >,
-        _connector: &api::ConnectorData,
         _merchant_account: &'b domain::MerchantAccount,
         _key_store: &'b domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
@@ -547,7 +546,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
             types::PaymentsApproveData,
             types::PaymentsResponseData,
         >,
-        _connector: &api::ConnectorData,
         _merchant_account: &'b domain::MerchantAccount,
         _key_store: &'b domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
@@ -593,7 +591,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> f
             types::PaymentsRejectData,
             types::PaymentsResponseData,
         >,
-        _connector: &api::ConnectorData,
         _merchant_account: &'b domain::MerchantAccount,
         _key_store: &'b domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
@@ -650,7 +647,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             types::SetupMandateRequestData,
             types::PaymentsResponseData,
         >,
-        _connector: &api::ConnectorData,
         _merchant_account: &'b domain::MerchantAccount,
         _key_store: &'b domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
@@ -691,7 +687,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
         &'b self,
         _state: &'b AppState,
         _resp: &'b types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>,
-        _connector: &api::ConnectorData,
         _merchant_account: &'b domain::MerchantAccount,
         _key_store: &'b domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,

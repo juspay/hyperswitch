@@ -337,6 +337,10 @@ pub enum PaymentAttemptUpdate {
         error_message: Option<Option<String>>,
         updated_by: String,
     },
+    PaymentMethodDetailsUpdate {
+        payment_method_id: Option<String>,
+        updated_by: String,
+    },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
         cancellation_reason: Option<String>,

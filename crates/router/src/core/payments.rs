@@ -290,7 +290,6 @@ where
                         .save_pm_and_mandate(
                             state,
                             &router_data,
-                            &connector,
                             &merchant_account,
                             &key_store,
                             &mut payment_data,
@@ -390,7 +389,6 @@ where
                         .save_pm_and_mandate(
                             state,
                             &router_data,
-                            &connector_data,
                             &merchant_account,
                             &key_store,
                             &mut payment_data,

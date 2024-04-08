@@ -34,7 +34,8 @@ use crate::{
 #[allow(clippy::too_many_arguments)]
 pub async fn save_payment_method<F: Clone, FData>(
     state: &AppState,
-    connector: &api::ConnectorData,
+    connector_name: String,
+    merchant_connector_id: Option<String>,
     resp: types::RouterData<F, FData, types::PaymentsResponseData>,
     customer_id: String,
     merchant_account: &domain::MerchantAccount,
@@ -55,7 +56,7 @@ where
                 .conf
                 .tokenization
                 .0
-                .get(&connector.connector_name.to_string())
+                .get(&connector_name.to_string())
                 .map(|token_filter| token_filter.long_lived_token)
                 .unwrap_or(false);
 
@@ -108,7 +109,7 @@ where
                         })?
                     }
                 };
-                Some((connector, token))
+                Some((connector_name, token))
             } else {
                 None
             };
@@ -152,7 +153,7 @@ where
                     payment_method_type,
                     amount,
                     currency,
-                    connector.merchant_connector_id.clone(),
+                    merchant_connector_id.clone(),
                     connector_mandate_id.clone(),
                 )
             } else {
@@ -264,7 +265,7 @@ where
                                                 payment_method_type,
                                                 amount,
                                                 currency,
-                                                connector.merchant_connector_id.clone(),
+                                                merchant_connector_id.clone(),
                                                 connector_mandate_id.clone(),
                                             )
                                             .await?;
@@ -349,7 +350,7 @@ where
                                                     payment_method_type,
                                                     amount,
                                                     currency,
-                                                    connector.merchant_connector_id.clone(),
+                                                    merchant_connector_id.clone(),
                                                     connector_mandate_id.clone(),
                                                 )
                                                 .await?;
@@ -649,7 +650,7 @@ pub async fn save_in_locker(
 
 pub fn create_payment_method_metadata(
     metadata: Option<&pii::SecretSerdeValue>,
-    connector_token: Option<(&api::ConnectorData, String)>,
+    connector_token: Option<(String, String)>,
 ) -> RouterResult<Option<serde_json::Value>> {
     let mut meta = match metadata {
         None => serde_json::Map::new(),
@@ -664,7 +665,7 @@ pub fn create_payment_method_metadata(
     };
     Ok(connector_token.and_then(|connector_and_token| {
         meta.insert(
-            connector_and_token.0.connector_name.to_string(),
+            connector_and_token.0,
             serde_json::Value::String(connector_and_token.1),
         )
     }))

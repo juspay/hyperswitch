@@ -229,7 +229,6 @@ pub trait PostUpdateTracker<F, D, R>: Send {
         &'b self,
         state: &'b AppState,
         resp: &'b types::RouterData<F, R, PaymentsResponseData>,
-        connector: &api::ConnectorData,
         merchant_account: &'b domain::MerchantAccount,
         key_store: &'b domain::MerchantKeyStore,
         payment_data: &mut D,
