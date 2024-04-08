@@ -25,7 +25,7 @@ use crate::{
     consts,
     core::{
         errors::{self, ApiErrorResponse, CustomResult},
-        payments::{PaymentData, RecurringMandatePaymentData},
+        payments::{types::AuthenticationData, PaymentData, RecurringMandatePaymentData},
     },
     pii::PeekInterface,
     types::{
@@ -499,6 +499,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_tax_on_surcharge_amount(&self) -> Option<i64>;
     fn get_total_surcharge_amount(&self) -> Option<i64>;
     fn get_metadata_as_object(&self) -> Option<pii::SecretSerdeValue>;
+    fn get_authentication_data(&self) -> Result<AuthenticationData, Error>;
 }
 
 pub trait PaymentMethodTokenizationRequestData {
@@ -645,6 +646,12 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
                 | serde_json::Value::Array(_) => None,
                 serde_json::Value::Object(_) => Some(meta_data),
             })
+    }
+
+    fn get_authentication_data(&self) -> Result<AuthenticationData, Error> {
+        self.authentication_data
+            .clone()
+            .ok_or_else(missing_field_err("authentication_data"))
     }
 }
 
