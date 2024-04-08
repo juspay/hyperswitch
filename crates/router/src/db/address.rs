@@ -275,7 +275,7 @@ mod storage {
     use error_stack::{report, ResultExt};
     use redis_interface::HsetnxReply;
     use router_env::{instrument, tracing};
-    use storage_impl::redis::kv_store::{kv_wrapper, KvOperation};
+    use storage_impl::redis::kv_store::{kv_wrapper, KvOperation, PartitionKey};
 
     use super::AddressInterface;
     use crate::{
@@ -335,7 +335,7 @@ mod storage {
             let address = match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => database_call().await,
                 MerchantStorageScheme::RedisKv => {
-                    let key = format!("mid_{}_pid_{}", merchant_id, payment_id);
+                    let key = PartitionKey::MerchantIdPaymentId{merchant_id : merchant_id, payment_id : payment_id};
                     let field = format!("add_{}", address_id);
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
@@ -406,7 +406,8 @@ mod storage {
                         .await
                 }
                 MerchantStorageScheme::RedisKv => {
-                    let key = format!("mid_{}_pid_{}", address.merchant_id.clone(), payment_id);
+                    let merchant_id = address.merchant_id.clone();
+                    let key = PartitionKey::MerchantIdPaymentId{merchant_id : &merchant_id, payment_id : &payment_id};
                     let field = format!("add_{}", address.address_id);
                     let updated_address = AddressUpdateInternal::from(address_update.clone())
                         .create_address(address.clone());
@@ -430,7 +431,7 @@ mod storage {
                             (&field, redis_value),
                             redis_entry,
                         ),
-                        &key,
+                        key,
                     )
                     .await
                     .change_context(errors::StorageError::KVError)?
@@ -475,7 +476,7 @@ mod storage {
                         .await
                 }
                 MerchantStorageScheme::RedisKv => {
-                    let key = format!("mid_{}_pid_{}", merchant_id, payment_id);
+                    let key = PartitionKey::MerchantIdPaymentId{merchant_id : &merchant_id, payment_id : payment_id};
                     let field = format!("add_{}", &address_new.address_id);
                     let created_address = diesel_models::Address {
                         id: Some(0i32),
@@ -513,7 +514,7 @@ mod storage {
                             &created_address,
                             redis_entry,
                         ),
-                        &key,
+                        key,
                     )
                     .await
                     .change_context(errors::StorageError::KVError)?

@@ -1380,9 +1380,10 @@ impl PaymentMethodInterface for KafkaStore {
     async fn find_payment_method(
         &self,
         payment_method_id: &str,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
         self.diesel_store
-            .find_payment_method(payment_method_id)
+            .find_payment_method(payment_method_id, storage_scheme)
             .await
     }
 
@@ -1432,26 +1433,29 @@ impl PaymentMethodInterface for KafkaStore {
     async fn find_payment_method_by_locker_id(
         &self,
         locker_id: &str,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
         self.diesel_store
-            .find_payment_method_by_locker_id(locker_id)
+            .find_payment_method_by_locker_id(locker_id, storage_scheme)
             .await
     }
 
     async fn insert_payment_method(
         &self,
         m: storage::PaymentMethodNew,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
-        self.diesel_store.insert_payment_method(m).await
+        self.diesel_store.insert_payment_method(m, storage_scheme).await
     }
 
     async fn update_payment_method(
         &self,
         payment_method: storage::PaymentMethod,
         payment_method_update: storage::PaymentMethodUpdate,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
         self.diesel_store
-            .update_payment_method(payment_method, payment_method_update)
+            .update_payment_method(payment_method, payment_method_update, storage_scheme)
             .await
     }
 

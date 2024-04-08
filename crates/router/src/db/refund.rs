@@ -275,7 +275,7 @@ mod storage {
     use error_stack::{report, ResultExt};
     use redis_interface::HsetnxReply;
     use router_env::{instrument, tracing};
-    use storage_impl::redis::kv_store::{kv_wrapper, KvOperation};
+    use storage_impl::redis::kv_store::{kv_wrapper, KvOperation, PartitionKey};
 
     use super::RefundInterface;
     use crate::{
@@ -315,7 +315,7 @@ mod storage {
                         database_call().await
                     );
 
-                    let key = &lookup.pk_id;
+                    let key = PartitionKey::CombinationKey{combination: &lookup.pk_id};
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
                             kv_wrapper(
@@ -347,7 +347,10 @@ mod storage {
                         .map_err(|error| report!(errors::StorageError::from(error)))
                 }
                 enums::MerchantStorageScheme::RedisKv => {
-                    let key = format!("mid_{}_pid_{}", new.merchant_id, new.payment_id);
+                    let merchant_id = new.merchant_id.clone();
+                    let payment_id = new.payment_id.clone();
+                    let key = PartitionKey::MerchantIdPaymentId{merchant_id : &merchant_id, payment_id : &payment_id};
+                    let key_str = key.to_string();
                     // TODO: need to add an application generated payment attempt id to distinguish between multiple attempts for the same payment id
                     // Check for database presence as well Maybe use a read replica here ?
                     let created_refund = storage_types::Refund {
@@ -398,7 +401,7 @@ mod storage {
                                 "ref_ref_id_{}_{}",
                                 created_refund.merchant_id, created_refund.refund_id
                             ),
-                            pk_id: key.clone(),
+                            pk_id: key_str.clone(),
                             source: "refund".to_string(),
                             updated_by: storage_scheme.to_string(),
                         },
@@ -409,7 +412,7 @@ mod storage {
                                 "ref_inter_ref_{}_{}",
                                 created_refund.merchant_id, created_refund.internal_reference_id
                             ),
-                            pk_id: key.clone(),
+                            pk_id: key_str.clone(),
                             source: "refund".to_string(),
                             updated_by: storage_scheme.to_string(),
                         },
@@ -424,7 +427,7 @@ mod storage {
                                 connector_refund_id,
                                 created_refund.connector
                             ),
-                            pk_id: key.clone(),
+                            pk_id: key_str.clone(),
                             source: "refund".to_string(),
                             updated_by: storage_scheme.to_string(),
                         })
@@ -442,10 +445,10 @@ mod storage {
                             &created_refund,
                             redis_entry,
                         ),
-                        &key,
+                        key,
                     )
                     .await
-                    .map_err(|err| err.to_redis_failed_response(&key))?
+                    .map_err(|err| err.to_redis_failed_response(&key_str))?
                     .try_into_hsetnx()
                     {
                         Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
@@ -488,7 +491,7 @@ mod storage {
                         database_call().await
                     );
 
-                    let key = &lookup.pk_id;
+                    let key = PartitionKey::CombinationKey{combination : &lookup.pk_id};
 
                     let pattern = db_utils::generate_hscan_pattern_for_refund(&lookup.sk_id);
 
@@ -524,7 +527,10 @@ mod storage {
                         .map_err(|error| report!(errors::StorageError::from(error)))
                 }
                 enums::MerchantStorageScheme::RedisKv => {
-                    let key = format!("mid_{}_pid_{}", this.merchant_id, this.payment_id);
+                    let merchant_id = this.merchant_id.clone();
+                    let payment_id = this.payment_id.clone();
+                    let key = PartitionKey::MerchantIdPaymentId { merchant_id : &merchant_id, payment_id : &payment_id};
+                    let key_str = key.to_string();
                     let field = format!("pa_{}_ref_{}", &this.attempt_id, &this.refund_id);
                     let updated_refund = refund.clone().apply_changeset(this.clone());
 
@@ -547,10 +553,10 @@ mod storage {
                             (&field, redis_value),
                             redis_entry,
                         ),
-                        &key,
+                        key,
                     )
                     .await
-                    .map_err(|err| err.to_redis_failed_response(&key))?
+                    .map_err(|err| err.to_redis_failed_response(&key_str))?
                     .try_into_hset()
                     .change_context(errors::StorageError::KVError)?;
 
@@ -582,7 +588,7 @@ mod storage {
                         database_call().await
                     );
 
-                    let key = &lookup.pk_id;
+                    let key = PartitionKey::CombinationKey { combination : &lookup.pk_id};
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
                             kv_wrapper(
@@ -630,7 +636,7 @@ mod storage {
                         database_call().await
                     );
 
-                    let key = &lookup.pk_id;
+                    let key = PartitionKey::CombinationKey { combination : &lookup.pk_id};
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
                             kv_wrapper(
@@ -668,7 +674,7 @@ mod storage {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
-                    let key = format!("mid_{merchant_id}_pid_{payment_id}");
+                    let key = PartitionKey::MerchantIdPaymentId { merchant_id, payment_id};
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
                             kv_wrapper(

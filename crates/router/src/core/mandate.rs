@@ -43,7 +43,7 @@ pub async fn get_mandate(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
     Ok(services::ApplicationResponse::Json(
-        mandates::MandateResponse::from_db_mandate(&state, key_store, mandate).await?,
+        mandates::MandateResponse::from_db_mandate(&state, key_store, mandate, merchant_account.storage_scheme).await?,
     ))
 }
 
@@ -226,7 +226,7 @@ pub async fn get_customer_mandates(
         let mut response_vec = Vec::with_capacity(mandates.len());
         for mandate in mandates {
             response_vec.push(
-                mandates::MandateResponse::from_db_mandate(&state, key_store.clone(), mandate)
+                mandates::MandateResponse::from_db_mandate(&state, key_store.clone(), mandate, merchant_account.storage_scheme)
                     .await?,
             );
         }
@@ -471,7 +471,7 @@ pub async fn retrieve_mandates_list(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to retrieve mandates")?;
     let mandates_list = future::try_join_all(mandates.into_iter().map(|mandate| {
-        mandates::MandateResponse::from_db_mandate(&state, key_store.clone(), mandate)
+        mandates::MandateResponse::from_db_mandate(&state, key_store.clone(), mandate, merchant_account.storage_scheme)
     }))
     .await?;
     Ok(services::ApplicationResponse::Json(mandates_list))

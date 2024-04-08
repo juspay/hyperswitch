@@ -201,7 +201,7 @@ pub async fn payment_method_retrieve_api(
         state,
         &req,
         payload,
-        |state, auth, pm| cards::retrieve_payment_method(state, pm, auth.key_store),
+        |state, auth, pm| cards::retrieve_payment_method(state, pm, auth.key_store, auth.merchant_account),
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -319,6 +319,7 @@ pub async fn default_payment_method_set_api(
                 auth.key_store,
                 &customer_id,
                 default_payment_method.payment_method_id,
+                auth.merchant_account.storage_scheme,
             )
         },
         &*ephemeral_auth,

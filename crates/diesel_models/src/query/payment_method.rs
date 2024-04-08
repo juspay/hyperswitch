@@ -151,7 +151,7 @@ impl PaymentMethod {
     pub async fn update_with_payment_method_id(
         self,
         conn: &PgPooledConn,
-        payment_method: payment_method::PaymentMethodUpdate,
+        payment_method: payment_method::PaymentMethodUpdateInternal,
     ) -> StorageResult<Self> {
         match generics::generic_update_with_unique_predicate_get_result::<
             <Self as HasTable>::Table,
@@ -172,4 +172,5 @@ impl PaymentMethod {
             result => result,
         }
     }
+
 }

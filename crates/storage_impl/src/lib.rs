@@ -18,6 +18,7 @@ pub mod payments;
 pub mod payouts;
 pub mod redis;
 pub mod refund;
+pub mod payment_method;
 mod reverse_lookup;
 mod utils;
 
@@ -358,6 +359,15 @@ impl UniqueConstraints for diesel_models::PayoutAttempt {
     }
     fn table_name(&self) -> &str {
         "PayoutAttempt"
+    }
+}
+
+impl UniqueConstraints for diesel_models::PaymentMethod {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!("paymentmethod_{}", self.payment_method_id)]
+    }
+    fn table_name(&self) -> &str {
+        "PaymentMethod"
     }
 }
 
