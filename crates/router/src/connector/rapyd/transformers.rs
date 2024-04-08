@@ -143,11 +143,11 @@ impl TryFrom<&RapydRouterData<&types::PaymentsAuthorizeRouterData>> for RapydPay
             }
             domain::PaymentMethodData::Wallet(ref wallet_data) => {
                 let digital_wallet = match wallet_data {
-                    api_models::payments::WalletData::GooglePay(data) => Some(RapydWallet {
+                    domain::WalletData::GooglePay(data) => Some(RapydWallet {
                         payment_type: "google_pay".to_string(),
                         token: Some(Secret::new(data.tokenization_data.token.to_owned())),
                     }),
-                    api_models::payments::WalletData::ApplePay(data) => Some(RapydWallet {
+                    domain::WalletData::ApplePay(data) => Some(RapydWallet {
                         payment_type: "apple_pay".to_string(),
                         token: Some(Secret::new(data.payment_data.to_string())),
                     }),
@@ -357,7 +357,7 @@ pub struct RefundResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RefundResponseData {
-    //Some field related to forign exchange and split payment can be added as and when implemented
+    //Some field related to foreign exchange and split payment can be added as and when implemented
     pub id: String,
     pub payment: String,
     pub amount: i64,

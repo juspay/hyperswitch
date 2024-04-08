@@ -460,8 +460,6 @@ pub struct PayoutAttemptResponse {
     pub connector_transaction_id: Option<String>,
     /// If the payout was cancelled the reason provided here
     pub cancellation_reason: Option<String>,
-    /// Provide a reference to a stored payout method
-    pub payout_token: Option<String>,
     /// error code unified across the connectors is received here if there was an error while calling connector
     pub unified_code: Option<String>,
     /// error message unified across the connectors is received here if there was an error while calling connector

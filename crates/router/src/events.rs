@@ -26,6 +26,7 @@ pub enum EventType {
     OutgoingWebhookLogs,
     Dispute,
     AuditEvent,
+    Payout,
 }
 
 #[derive(Debug, Default, Deserialize, Clone)]
@@ -39,6 +40,7 @@ pub enum EventsConfig {
     Logs,
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone)]
 pub enum EventsHandler {
     Kafka(KafkaProducer),
