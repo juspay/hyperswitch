@@ -213,7 +213,7 @@ pub trait UpdateTracker<F, D, Req, Ctx: PaymentMethodRetrieve>: Send {
 
 #[async_trait]
 #[allow(clippy::too_many_arguments)]
-pub trait PostUpdateTracker<F, D, R>: Send {
+pub trait PostUpdateTracker<F, D, R: Send>: Send {
     async fn update_tracker<'b>(
         &'b self,
         db: &'b AppState,
@@ -223,18 +223,24 @@ pub trait PostUpdateTracker<F, D, R>: Send {
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<D>
     where
-        F: 'b + Send;
+        F: 'b + Send + Sync,
+        R: 'b + Send + Sync;
 
     async fn save_pm_and_mandate<'b>(
-        &'b self,
-        state: &'b AppState,
+        &self,
+        _state: &AppState,
         resp: types::RouterData<F, R, PaymentsResponseData>,
-        merchant_account: &'b domain::MerchantAccount,
-        key_store: &'b domain::MerchantKeyStore,
-        payment_data: &mut D,
-    ) -> CustomResult<(), errors::ApiErrorResponse>
+        _merchant_account: &domain::MerchantAccount,
+        _key_store: &domain::MerchantKeyStore,
+        _payment_data: &'b PaymentData<F>,
+    ) -> CustomResult<types::RouterData<F, R, PaymentsResponseData>, errors::ApiErrorResponse>
     where
-        F: Send + Sync;
+        F: Clone + Send + Sync,
+        PaymentData<F>: Send,
+        R: 'b + Clone + Send + Sync,
+    {
+        Ok(resp)
+    }
 }
 
 #[async_trait]
