@@ -560,7 +560,7 @@ impl From<api_models::payments::BankRedirectData> for BankRedirectData {
                 card_exp_month,
                 card_exp_year,
                 card_holder_name,
-                billing_details: Self::map_billing_details(billing_details),
+                billing_details: billing_details.map(BankRedirectBilling::from),
             },
             api_models::payments::BankRedirectData::Bizum {} => Self::Bizum {},
             api_models::payments::BankRedirectData::Blik { blik_code } => Self::Blik { blik_code },
@@ -569,7 +569,7 @@ impl From<api_models::payments::BankRedirectData> for BankRedirectData {
                 bank_name,
                 country,
             } => Self::Eps {
-                billing_details: Self::map_billing_details(billing_details),
+                billing_details: billing_details.map(BankRedirectBilling::from),
                 bank_name,
                 country,
             },
@@ -579,7 +579,7 @@ impl From<api_models::payments::BankRedirectData> for BankRedirectData {
                 bank_account_iban,
                 country,
             } => Self::Giropay {
-                billing_details: Self::map_billing_details(billing_details),
+                billing_details: billing_details.map(BankRedirectBilling::from),
                 bank_account_bic,
                 bank_account_iban,
                 country,
@@ -589,7 +589,7 @@ impl From<api_models::payments::BankRedirectData> for BankRedirectData {
                 bank_name,
                 country,
             } => Self::Ideal {
-                billing_details: Self::map_billing_details(billing_details),
+                billing_details: billing_details.map(BankRedirectBilling::from),
                 bank_name,
                 country,
             },
@@ -626,7 +626,7 @@ impl From<api_models::payments::BankRedirectData> for BankRedirectData {
                 country,
                 preferred_language,
             } => Self::Sofort {
-                billing_details: Self::map_billing_details(billing_details),
+                billing_details: billing_details.map(BankRedirectBilling::from),
                 country,
                 preferred_language,
             },
@@ -643,13 +643,11 @@ impl From<api_models::payments::BankRedirectData> for BankRedirectData {
     }
 }
 
-impl BankRedirectData {
-    fn map_billing_details(
-        billing_details: Option<api_models::payments::BankRedirectBilling>,
-    ) -> Option<BankRedirectBilling> {
-        billing_details.map(|billing| BankRedirectBilling {
+impl From<api_models::payments::BankRedirectBilling> for BankRedirectBilling {
+    fn from(billing: api_models::payments::BankRedirectBilling) -> Self {
+        Self {
             billing_name: billing.billing_name,
             email: billing.email,
-        })
+        }
     }
 }
