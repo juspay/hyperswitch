@@ -538,8 +538,8 @@ pub struct Connectors {
     pub wise: ConnectorParams,
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
-    pub zsl: ConnectorParams,
     pub zen: ConnectorParams,
+    pub zsl: ConnectorParams,
 }
 
 #[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
