@@ -46,7 +46,7 @@ where
         query_builder
             .add_select_column(Aggregate::Percentile {
                 field: "latency",
-                alias: Some("median_latency"),
+                alias: Some("count"),
                 percentile: Some(&50),
             })
             .switch()?;
