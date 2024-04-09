@@ -1,0 +1,1 @@
+ALTER TABLE payouts DROP COLUMN confirm;
