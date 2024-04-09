@@ -30,13 +30,35 @@ use crate::{
     utils::{generate_id, OptionExt},
 };
 
+pub struct SavePaymentMethodData<Req> {
+    request: Req,
+    response: Result<types::PaymentsResponseData, types::ErrorResponse>,
+    payment_method_token: Option<types::PaymentMethodToken>,
+    payment_method: PaymentMethod,
+    attempt_status: common_enums::AttemptStatus,
+}
+
+impl<F, Req: Clone> From<&types::RouterData<F, Req, types::PaymentsResponseData>>
+    for SavePaymentMethodData<Req>
+{
+    fn from(router_data: &types::RouterData<F, Req, types::PaymentsResponseData>) -> Self {
+        Self {
+            request: router_data.request.clone(),
+            response: router_data.response.clone(),
+            payment_method_token: router_data.payment_method_token.clone(),
+            payment_method: router_data.payment_method.clone(),
+            attempt_status: router_data.status.clone(),
+        }
+    }
+}
+
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
-pub async fn save_payment_method<F: Clone, FData>(
+pub async fn save_payment_method<FData>(
     state: &AppState,
     connector_name: String,
     merchant_connector_id: Option<String>,
-    resp: types::RouterData<F, FData, types::PaymentsResponseData>,
+    save_payment_method_data: SavePaymentMethodData<FData>,
     customer_id: String,
     merchant_account: &domain::MerchantAccount,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
@@ -49,7 +71,7 @@ where
     FData: mandate::MandateBehaviour + Clone,
 {
     let mut pm_status = None;
-    match resp.response {
+    match save_payment_method_data.response {
         Ok(responses) => {
             let db = &*state.store;
             let token_store = state
@@ -60,9 +82,9 @@ where
                 .map(|token_filter| token_filter.long_lived_token)
                 .unwrap_or(false);
 
-            let network_transaction_id = match responses.clone() {
+            let network_transaction_id = match &responses {
                 types::PaymentsResponseData::TransactionResponse { network_txn_id, .. } => {
-                    network_txn_id
+                    network_txn_id.clone()
                 }
                 _ => None,
             };
@@ -84,7 +106,7 @@ where
                         .attach_printable("The pg_agnostic config was not found in the DB")?;
 
                     if &pg_agnostic.config == "true"
-                        && resp.request.get_setup_future_usage()
+                        && save_payment_method_data.request.get_setup_future_usage()
                             == Some(storage_enums::FutureUsage::OffSession)
                     {
                         Some(network_transaction_id)
@@ -97,7 +119,7 @@ where
                 };
 
             let connector_token = if token_store {
-                let tokens = resp
+                let tokens = save_payment_method_data
                     .payment_method_token
                     .to_owned()
                     .get_required_value("payment_token")?;
@@ -114,12 +136,12 @@ where
                 None
             };
 
-            let mandate_data_customer_acceptance = resp
+            let mandate_data_customer_acceptance = save_payment_method_data
                 .request
                 .get_setup_mandate_details()
                 .and_then(|mandate_data| mandate_data.customer_acceptance.clone());
 
-            let customer_acceptance = resp
+            let customer_acceptance = save_payment_method_data
                 .request
                 .get_customer_acceptance()
                 .or(mandate_data_customer_acceptance.clone().map(From::from))
@@ -141,8 +163,11 @@ where
                 }
                 _ => None,
             };
-            let check_for_mit_mandates = resp.request.get_setup_mandate_details().is_none()
-                && resp
+            let check_for_mit_mandates = save_payment_method_data
+                .request
+                .get_setup_mandate_details()
+                .is_none()
+                && save_payment_method_data
                     .request
                     .get_setup_future_usage()
                     .map(|future_usage| future_usage == storage_enums::FutureUsage::OffSession)
@@ -166,8 +191,8 @@ where
 
             let pm_id = if customer_acceptance.is_some() {
                 let payment_method_create_request = helpers::get_payment_method_create_request(
-                    Some(&resp.request.get_payment_method_data()),
-                    Some(resp.payment_method),
+                    Some(&save_payment_method_data.request.get_payment_method_data()),
+                    Some(save_payment_method_data.payment_method),
                     payment_method_type,
                     &Some(customer_id.clone()),
                 )
@@ -180,7 +205,9 @@ where
                     )
                     .await?
                 } else {
-                    pm_status = Some(common_enums::PaymentMethodStatus::from(resp.status));
+                    pm_status = Some(common_enums::PaymentMethodStatus::from(
+                        save_payment_method_data.attempt_status,
+                    ));
                     Box::pin(save_in_locker(
                         state,
                         merchant_account,

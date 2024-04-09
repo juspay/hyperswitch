@@ -289,7 +289,7 @@ where
                         .to_post_update_tracker()?
                         .save_pm_and_mandate(
                             state,
-                            router_data.clone(),
+                            &router_data,
                             &merchant_account,
                             &key_store,
                             &mut payment_data,
@@ -388,7 +388,7 @@ where
                         .to_post_update_tracker()?
                         .save_pm_and_mandate(
                             state,
-                            router_data.clone(),
+                            &router_data,
                             &merchant_account,
                             &key_store,
                             &mut payment_data,

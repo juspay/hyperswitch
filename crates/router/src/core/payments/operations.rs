@@ -223,23 +223,20 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<D>
     where
-        F: 'b + Send + Sync,
-        R: 'b + Send + Sync;
+        F: 'b + Send + Sync;
 
     async fn save_pm_and_mandate<'b>(
         &self,
         _state: &AppState,
-        resp: types::RouterData<F, R, PaymentsResponseData>,
+        _resp: &types::RouterData<F, R, PaymentsResponseData>,
         _merchant_account: &domain::MerchantAccount,
         _key_store: &domain::MerchantKeyStore,
-        _payment_data: &'b PaymentData<F>,
-    ) -> CustomResult<types::RouterData<F, R, PaymentsResponseData>, errors::ApiErrorResponse>
+        payment_data: &mut PaymentData<F>,
+    ) -> CustomResult<(), errors::ApiErrorResponse>
     where
-        F: Clone + Send + Sync,
-        PaymentData<F>: Send,
-        R: 'b + Clone + Send + Sync,
+        F: 'b + Send + Sync,
     {
-        Ok(resp)
+        Ok(())
     }
 }
 

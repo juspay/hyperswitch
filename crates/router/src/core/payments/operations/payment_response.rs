@@ -44,92 +44,28 @@ use crate::{
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
 #[operation(
     operations = "post_update_tracker",
-    flow = "sync_data, cancel_data, capture_data, complete_authorize_data, approve_data, reject_data, setup_mandate_data, session_data,incremental_authorization_data"
+    flow = "sync_data, cancel_data, authorize_data, capture_data, complete_authorize_data, approve_data, reject_data, setup_mandate_data, session_data,incremental_authorization_data"
 )]
 pub struct PaymentResponse;
 
-impl<Ctx: PaymentMethodRetrieve> Operation<api::Authorize, types::PaymentsAuthorizeData, Ctx>
-    for &PaymentResponse
-{
-    fn to_post_update_tracker(
-        &self,
-    ) -> RouterResult<
-        &(dyn PostUpdateTracker<
-            api::Authorize,
-            PaymentData<api::Authorize>,
-            types::PaymentsAuthorizeData,
-        > + Send
-              + Sync),
-    > {
-        Ok(*self)
-    }
-}
-
-impl<Ctx: PaymentMethodRetrieve> Operation<api::Authorize, types::PaymentsAuthorizeData, Ctx>
-    for PaymentResponse
-{
-    fn to_post_update_tracker(
-        &self,
-    ) -> RouterResult<
-        &(dyn PostUpdateTracker<
-            api::Authorize,
-            PaymentData<api::Authorize>,
-            types::PaymentsAuthorizeData,
-        > + Send
-              + Sync),
-    > {
-        Ok(self)
-    }
-}
-
-// impl<Ctx: PaymentMethodRetrieve> Operation<api::SetupMandate, types::SetupMandateRouterData, Ctx>
-//     for &PaymentResponse
-// {
-//     fn to_post_update_tracker(
-//         &self,
-//     ) -> RouterResult<
-//         &(dyn PostUpdateTracker<
-//             api::SetupMandate,
-//             PaymentData<api::SetupMandate>,
-//             types::SetupMandateRouterData,
-//         > + Send
-//               + Sync),
-//     > {
-//         Ok(*self)
-//     }
-// }
-//
-// impl<Ctx: PaymentMethodRetrieve> Operation<api::SetupMandate, types::SetupMandateRouterData, Ctx>
-//     for PaymentResponse
-// {
-//     fn to_post_update_tracker(
-//         &self,
-//     ) -> RouterResult<
-//         &(dyn PostUpdateTracker<
-//             api::SetupMandate,
-//             PaymentData<api::SetupMandate>,
-//             types::SetupMandateRouterData,
-//         > + Send
-//               + Sync),
-//     > {
-//         Ok(self)
-//     }
-// }
-
 #[async_trait]
-impl PostUpdateTracker<api::Authorize, PaymentData<api::Authorize>, types::PaymentsAuthorizeData>
+impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData>
     for PaymentResponse
 {
     async fn update_tracker<'b>(
         &'b self,
         db: &'b AppState,
         payment_id: &api::PaymentIdType,
-        mut payment_data: PaymentData<api::Authorize>,
-        router_data: types::PaymentsAuthorizeRouterData,
+        mut payment_data: PaymentData<F>,
+        router_data: types::RouterData<
+            F,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> RouterResult<PaymentData<api::Authorize>>
-where
-        // F: 'b + Send,
+    ) -> RouterResult<PaymentData<F>>
+    where
+        F: 'b,
     {
         payment_data.mandate_id = payment_data
             .mandate_id
@@ -150,16 +86,15 @@ where
     async fn save_pm_and_mandate<'b>(
         &self,
         state: &AppState,
-        resp: types::PaymentsAuthorizeRouterData,
+        resp: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
-        payment_data: &'b PaymentData<api::Authorize>,
-    ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ApiErrorResponse>
-where
-        // F: Clone + Send + Sync,
-        // PaymentData<F>: Send,
+        payment_data: &mut PaymentData<F>,
+    ) -> CustomResult<(), errors::ApiErrorResponse>
+    where
+        F: 'b + Clone + Send + Sync,
     {
-        let cloned_router_data = resp.clone();
+        let save_payment_data = tokenization::SavePaymentMethodData::from(resp);
         let customer_id = payment_data.payment_intent.customer_id.clone();
         let profile_id = payment_data.payment_intent.profile_id.clone();
         let is_mandate = &resp.request.setup_mandate_details.is_some();
@@ -171,7 +106,7 @@ where
                     state,
                     connector_name.unwrap(),
                     merchant_connector_id.clone(),
-                    cloned_router_data,
+                    save_payment_data,
                     customer_id.clone().unwrap(),
                     merchant_account,
                     resp.request.payment_method_type,
@@ -182,7 +117,7 @@ where
                 ))
                 .await?;
 
-            // payment_data.payment_attempt.payment_method_id = payment_method_id.clone();
+            payment_data.payment_attempt.payment_method_id = payment_method_id.clone();
             // resp.payment_method_status = payment_method_status;
 
             let _mandate_id_pm_id = mandate::mandate_procedure(
@@ -194,8 +129,9 @@ where
             )
             .await?;
             // update mandate as well as pm_id
-            Ok(resp)
+            Ok(())
         } else {
+            let save_payment_data = tokenization::SavePaymentMethodData::from(resp);
             let merchant_account = merchant_account.clone();
             let key_store = key_store.clone();
             let state = state.clone();
@@ -205,9 +141,9 @@ where
             let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
             let payment_attempt = payment_data.payment_attempt.clone();
 
-            let amount = cloned_router_data.request.amount.clone();
-            let currency = cloned_router_data.request.currency.clone();
-            let payment_method_type = cloned_router_data.request.payment_method_type.clone();
+            let amount = resp.request.amount.clone();
+            let currency = resp.request.currency.clone();
+            let payment_method_type = resp.request.payment_method_type.clone();
             let storage_scheme = merchant_account.clone().storage_scheme;
 
             logger::info!("Call to save_payment_method in locker");
@@ -220,7 +156,7 @@ where
                             &state,
                             connector_name.unwrap(),
                             merchant_connector_id,
-                            cloned_router_data,
+                            save_payment_data,
                             customer_id.clone().to_string(),
                             &merchant_account,
                             payment_method_type,
@@ -264,7 +200,7 @@ where
                 .in_current_span(),
             );
 
-            Ok(resp)
+            Ok(())
         }
     }
 }
