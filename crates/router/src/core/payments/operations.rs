@@ -234,7 +234,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         payment_data: &mut PaymentData<F>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
-        F: 'b + Send + Sync,
+        F: 'b + Clone + Send + Sync,
     {
         Ok(())
     }
