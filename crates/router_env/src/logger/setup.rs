@@ -351,7 +351,7 @@ fn get_envfilter(
                 .zip(std::iter::repeat(filter_log_level.into_level().into()))
                 .fold(
                     EnvFilter::default().add_directive(default_log_level.into_level().into()),
-                    |env_filter, (target, directive)| {
+                    |env_filter, (_target, directive)| {
                         // Safety: This is a hardcoded basic filtering directive. If even the basic
                         // filter is wrong, it's better to panic.
                         #[allow(clippy::expect_used)]

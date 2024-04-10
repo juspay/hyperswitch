@@ -130,7 +130,7 @@ mod storage{
                             kv_wrapper(self, KvOperation::<diesel_models::Customer>::HGet(&field),key)
                                 .await?
                                 .try_into_hget()
-                                .map(|ok_res| Some(ok_res))
+                                .map(Some)
                         },
                         database_call,
                     ))
@@ -393,7 +393,8 @@ mod storage{
     use error_stack::{report, ResultExt};
     use futures::future::try_join_all;
     use masking::PeekInterface;
-
+    use router_env::{instrument, tracing};
+    use super::CustomerInterface;
     use crate::{
         connection,
         core::{
@@ -407,138 +408,64 @@ mod storage{
             },
             storage::{self as storage_types, enums::MerchantStorageScheme},
         },
-        utils::db_utils
+        services::Store,
     };
 
     #[async_trait::async_trait]
     impl CustomerInterface for Store {
     #[instrument(skip_all)]
-    async fn find_customer_optional_by_customer_id_merchant_id(
-        &self,
-        customer_id: &str,
-        merchant_id: &str,
-        key_store: &domain::MerchantKeyStore,
-        _storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<Option<domain::Customer>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
-        let maybe_customer: Option<domain::Customer> =
-            storage_types::Customer::find_optional_by_customer_id_merchant_id(
-                &conn,
-                customer_id,
-                merchant_id,
-            )
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))?
-            .async_map(|c| async {
-                c.convert(key_store.key.get_inner())
-                    .await
-                    .change_context(errors::StorageError::DecryptionError)
-            })
-            .await
-            .transpose()?;
-        maybe_customer.map_or(Ok(None), |customer| {
-            // in the future, once #![feature(is_some_and)] is stable, we can make this more concise:
-            // `if customer.name.is_some_and(|ref name| name == REDACTED) ...`
-            match customer.name {
-                Some(ref name) if name.peek() == REDACTED => {
-                    Err(errors::StorageError::CustomerRedacted)?
-                }
-                _ => Ok(Some(customer)),
-            }
-        })
-    }
-
-    #[instrument(skip_all)]
-    async fn update_customer_by_customer_id_merchant_id(
-        &self,
-        customer_id: String,
-        merchant_id: String,
-        customer: storage_types::CustomerUpdate,
-        key_store: &domain::MerchantKeyStore,
-        _storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<domain::Customer, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        storage_types::Customer::update_by_customer_id_merchant_id(
-            &conn,
-            customer_id,
-            merchant_id,
-            customer.into(),
-        )
-        .await
-        .map_err(|error| report!(errors::StorageError::from(error)))
-        .async_and_then(|c| async {
-            c.convert(key_store.key.get_inner())
+        async fn find_customer_optional_by_customer_id_merchant_id(
+            &self,
+            customer_id: &str,
+            merchant_id: &str,
+            key_store: &domain::MerchantKeyStore,
+            _storage_scheme: MerchantStorageScheme,
+        ) -> CustomResult<Option<domain::Customer>, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            let maybe_customer: Option<domain::Customer> =
+                storage_types::Customer::find_optional_by_customer_id_merchant_id(
+                    &conn,
+                    customer_id,
+                    merchant_id,
+                )
                 .await
-                .change_context(errors::StorageError::DecryptionError)
-        })
-        .await
-    }
-
-    #[instrument(skip_all)]
-    async fn find_customer_by_customer_id_merchant_id(
-        &self,
-        customer_id: &str,
-        merchant_id: &str,
-        key_store: &domain::MerchantKeyStore,
-        _storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<domain::Customer, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
-        let customer: domain::Customer =
-            storage_types::Customer::find_by_customer_id_merchant_id(&conn, customer_id, merchant_id)
-                .await
-                .map_err(|error| report!(errors::StorageError::from(error)))
-                .async_and_then(|c| async {
+                .map_err(|error| report!(errors::StorageError::from(error)))?
+                .async_map(|c| async {
                     c.convert(key_store.key.get_inner())
                         .await
                         .change_context(errors::StorageError::DecryptionError)
                 })
-                .await?;
-        match customer.name {
-            Some(ref name) if name.peek() == REDACTED => {
-                Err(errors::StorageError::CustomerRedacted)?
-            }
-            _ => Ok(customer),
+                .await
+                .transpose()?;
+            maybe_customer.map_or(Ok(None), |customer| {
+                // in the future, once #![feature(is_some_and)] is stable, we can make this more concise:
+                // `if customer.name.is_some_and(|ref name| name == REDACTED) ...`
+                match customer.name {
+                    Some(ref name) if name.peek() == REDACTED => {
+                        Err(errors::StorageError::CustomerRedacted)?
+                    }
+                    _ => Ok(Some(customer)),
+                }
+            })
         }
-    }
 
-    #[instrument(skip_all)]
-    async fn list_customers_by_merchant_id(
-        &self,
-        merchant_id: &str,
-        key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<Vec<domain::Customer>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
-
-        let encrypted_customers = storage_types::Customer::list_by_merchant_id(&conn, merchant_id)
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))?;
-
-        let customers = try_join_all(encrypted_customers.into_iter().map(
-            |encrypted_customer| async {
-                encrypted_customer
-                    .convert(key_store.key.get_inner())
-                    .await
-                    .change_context(errors::StorageError::DecryptionError)
-            },
-        ))
-        .await?;
-
-        Ok(customers)
-    }
-
-    #[instrument(skip_all)]
-    async fn insert_customer(
-        &self,
-        customer_data: domain::Customer,
-        key_store: &domain::MerchantKeyStore,
-        _storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<domain::Customer, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        customer_data
-            .construct_new()
-            .await
-            .change_context(errors::StorageError::EncryptionError)?
-            .insert(&conn)
+        #[instrument(skip_all)]
+        async fn update_customer_by_customer_id_merchant_id(
+            &self,
+            customer_id: String,
+            merchant_id: String,
+            _customer: domain::Customer,
+            customer_update: storage_types::CustomerUpdate,
+            key_store: &domain::MerchantKeyStore,
+            _storage_scheme: MerchantStorageScheme,
+        ) -> CustomResult<domain::Customer, errors::StorageError> {
+            let conn = connection::pg_connection_write(self).await?;
+            storage_types::Customer::update_by_customer_id_merchant_id(
+                &conn,
+                customer_id,
+                merchant_id,
+                customer_update.into(),
+            )
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
             .async_and_then(|c| async {
@@ -547,19 +474,94 @@ mod storage{
                     .change_context(errors::StorageError::DecryptionError)
             })
             .await
-    }
+        }
 
-    #[instrument(skip_all)]
-    async fn delete_customer_by_customer_id_merchant_id(
-        &self,
-        customer_id: &str,
-        merchant_id: &str,
-    ) -> CustomResult<bool, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        storage_types::Customer::delete_by_customer_id_merchant_id(&conn, customer_id, merchant_id)
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
-    }
+        #[instrument(skip_all)]
+        async fn find_customer_by_customer_id_merchant_id(
+            &self,
+            customer_id: &str,
+            merchant_id: &str,
+            key_store: &domain::MerchantKeyStore,
+            _storage_scheme: MerchantStorageScheme,
+        ) -> CustomResult<domain::Customer, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            let customer: domain::Customer =
+                storage_types::Customer::find_by_customer_id_merchant_id(&conn, customer_id, merchant_id)
+                    .await
+                    .map_err(|error| report!(errors::StorageError::from(error)))
+                    .async_and_then(|c| async {
+                        c.convert(key_store.key.get_inner())
+                            .await
+                            .change_context(errors::StorageError::DecryptionError)
+                    })
+                    .await?;
+            match customer.name {
+                Some(ref name) if name.peek() == REDACTED => {
+                    Err(errors::StorageError::CustomerRedacted)?
+                }
+                _ => Ok(customer),
+            }
+        }
+
+        #[instrument(skip_all)]
+        async fn list_customers_by_merchant_id(
+            &self,
+            merchant_id: &str,
+            key_store: &domain::MerchantKeyStore,
+        ) -> CustomResult<Vec<domain::Customer>, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+
+            let encrypted_customers = storage_types::Customer::list_by_merchant_id(&conn, merchant_id)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))?;
+
+            let customers = try_join_all(encrypted_customers.into_iter().map(
+                |encrypted_customer| async {
+                    encrypted_customer
+                        .convert(key_store.key.get_inner())
+                        .await
+                        .change_context(errors::StorageError::DecryptionError)
+                },
+            ))
+            .await?;
+
+            Ok(customers)
+        }
+
+        #[instrument(skip_all)]
+        async fn insert_customer(
+            &self,
+            customer_data: domain::Customer,
+            key_store: &domain::MerchantKeyStore,
+            _storage_scheme: MerchantStorageScheme,
+        ) -> CustomResult<domain::Customer, errors::StorageError> {
+            let conn = connection::pg_connection_write(self).await?;
+            customer_data
+                .construct_new()
+                .await
+                .change_context(errors::StorageError::EncryptionError)?
+                .insert(&conn)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))
+                .async_and_then(|c| async {
+                    c.convert(key_store.key.get_inner())
+                        .await
+                        .change_context(errors::StorageError::DecryptionError)
+                })
+                .await
+        }
+
+        #[instrument(skip_all)]
+        async fn delete_customer_by_customer_id_merchant_id(
+            &self,
+            customer_id: &str,
+            merchant_id: &str,
+        ) -> CustomResult<bool, errors::StorageError> {
+            let conn = connection::pg_connection_write(self).await?;
+            storage_types::Customer::delete_by_customer_id_merchant_id(&conn, customer_id, merchant_id)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))
+        }
     }
 }
 

@@ -91,16 +91,16 @@ impl CustomerUpdateInternal {
         } = self;
 
         Customer {
-            name : name.map_or(source.name, |v| Some(v)),
-            email : email.map_or(source.email, |v| Some(v)),
-            phone : phone.map_or(source.phone, |v| Some(v)),
-            description : description.map_or(source.description, |v| Some(v)),
-            phone_country_code : phone_country_code.map_or(source.phone_country_code, |v| Some(v)),
-            metadata : metadata.map_or(source.metadata, |v| Some(v)),
-            modified_at : common_utils::date_time::now(), // does update always calculate modified at ?
-            connector_customer : connector_customer.map_or(source.connector_customer, |v| Some(v)),
-            address_id : address_id.map_or(source.address_id, |v| Some(v)),
-            default_payment_method_id : default_payment_method_id.flatten().map_or(source.default_payment_method_id, |v| Some(v)),
+            name : name.map_or(source.name, Some),
+            email : email.map_or(source.email, Some),
+            phone : phone.map_or(source.phone, Some),
+            description : description.map_or(source.description, Some),
+            phone_country_code : phone_country_code.map_or(source.phone_country_code, Some),
+            metadata : metadata.map_or(source.metadata, Some),
+            modified_at : common_utils::date_time::now(),
+            connector_customer : connector_customer.map_or(source.connector_customer, Some),
+            address_id : address_id.map_or(source.address_id, Some),
+            default_payment_method_id : default_payment_method_id.flatten().map_or(source.default_payment_method_id, Some),
             ..source
         }
     }

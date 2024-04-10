@@ -3308,7 +3308,7 @@ pub async fn set_default_payment_method(
         .attach_printable("Failed to update the default payment method id for the customer")?;
     let resp = CustomerDefaultPaymentMethodResponse {
         default_payment_method_id: updated_customer_details.default_payment_method_id,
-        customer_id: customer_id,
+        customer_id,
         payment_method_type: payment_method.payment_method_type,
         payment_method: payment_method.payment_method,
     };
