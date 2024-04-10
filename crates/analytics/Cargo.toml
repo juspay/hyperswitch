@@ -37,5 +37,5 @@ serde_json = "1.0.115"
 sqlx = { version = "0.7.3", features = ["postgres", "runtime-tokio", "runtime-tokio-native-tls", "time", "bigdecimal"] }
 strum = { version = "0.26.2", features = ["derive"] }
 thiserror = "1.0.58"
-time = { version = "0.3.34", features = ["serde", "serde-well-known", "std"] }
+time = { version = "0.3.35", features = ["serde", "serde-well-known", "std"] }
 tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"] }

@@ -23,15 +23,13 @@ pub mod validation;
 
 /// Date-time utilities.
 pub mod date_time {
-    use std::{marker::PhantomData, num::NonZeroU8};
+    use std::{marker::PhantomData, num::NonZeroU8, time::Instant};
 
     use masking::{Deserialize, Serialize};
-    #[cfg(feature = "async_ext")]
-    use time::Instant;
     use time::{
         format_description::{
             well_known::iso8601::{Config, EncodedConfig, Iso8601, TimePrecision},
-            FormatItem,
+            BorrowedFormatItem,
         },
         OffsetDateTime, PrimitiveDateTime,
     };
@@ -68,7 +66,7 @@ pub mod date_time {
     ) -> (T, f64) {
         let start = Instant::now();
         let result = block().await;
-        (result, start.elapsed().as_seconds_f64() * 1000f64)
+        (result, start.elapsed().as_secs_f64() * 1000f64)
     }
 
     /// Return the given date and time in UTC with the given format Eg: format: YYYYMMDDHHmmss Eg: 20191105081132
@@ -76,7 +74,7 @@ pub mod date_time {
         date: PrimitiveDateTime,
         format: DateFormat,
     ) -> Result<String, time::error::Format> {
-        let format = <&[FormatItem<'_>]>::from(format);
+        let format = <&[BorrowedFormatItem<'_>]>::from(format);
         date.format(&format)
     }
 
@@ -90,7 +88,7 @@ pub mod date_time {
         now().assume_utc().format(&Iso8601::<ISO_CONFIG>)
     }
 
-    impl From<DateFormat> for &[FormatItem<'_>] {
+    impl From<DateFormat> for &[BorrowedFormatItem<'_>] {
         fn from(format: DateFormat) -> Self {
             match format {
                 DateFormat::YYYYMMDDHHmmss => time::macros::format_description!("[year repr:full][month padding:zero repr:numerical][day padding:zero][hour padding:zero repr:24][minute padding:zero][second padding:zero]"),

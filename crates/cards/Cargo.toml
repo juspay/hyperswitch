@@ -14,7 +14,7 @@ error-stack = "0.4.1"
 luhn = "1.0.1"
 serde = { version = "1.0.197", features = ["derive"] }
 thiserror = "1.0.58"
-time = "0.3.34"
+time = "0.3.35"
 
 # First party crates
 common_utils = { version = "0.1.0", path = "../common_utils" }
