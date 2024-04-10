@@ -4755,10 +4755,8 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, AdyenPayoutResponse>>
         let status = payout_eligible.map_or(
             {
                 response.result_code.map_or(
-                    response
-                        .response
-                        .map(storage_enums::PayoutStatus::foreign_from),
-                    |rc| Some(storage_enums::PayoutStatus::foreign_from(rc)),
+                    response.response.map(storage_enums::PayoutStatus::from),
+                    |rc| Some(storage_enums::PayoutStatus::from(rc)),
                 )
             },
             |pe| {
@@ -4775,6 +4773,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, AdyenPayoutResponse>>
                 status,
                 connector_payout_id: response.psp_reference,
                 payout_eligible,
+                should_add_next_step_to_process_tracker: false,
             }),
             ..item.data
         })
@@ -4782,8 +4781,8 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, AdyenPayoutResponse>>
 }
 
 #[cfg(feature = "payouts")]
-impl ForeignFrom<AdyenStatus> for storage_enums::PayoutStatus {
-    fn foreign_from(adyen_status: AdyenStatus) -> Self {
+impl From<AdyenStatus> for storage_enums::PayoutStatus {
+    fn from(adyen_status: AdyenStatus) -> Self {
         match adyen_status {
             AdyenStatus::Authorised | AdyenStatus::PayoutConfirmReceived => Self::Success,
             AdyenStatus::Cancelled | AdyenStatus::PayoutDeclineReceived => Self::Cancelled,

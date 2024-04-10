@@ -15464,6 +15464,7 @@
         "type": "string",
         "enum": [
           "adyen",
+          "stripe",
           "wise"
         ]
       },
@@ -16067,6 +16068,10 @@
           "force_sync": {
             "type": "boolean",
             "nullable": true
+          },
+          "merchant_id": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -16089,6 +16094,11 @@
             "default": false,
             "example": true,
             "nullable": true
+          },
+          "merchant_id": {
+            "type": "string",
+            "description": "The identifier for the Merchant Account.",
+            "nullable": true
           }
         }
       },
@@ -16102,7 +16112,8 @@
           "ineligible",
           "requires_creation",
           "requires_payout_method_data",
-          "requires_fulfillment"
+          "requires_fulfillment",
+          "requires_vendor_account_creation"
         ]
       },
       "PayoutType": {

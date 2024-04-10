@@ -68,7 +68,8 @@ pub async fn payouts_retrieve(
 ) -> HttpResponse {
     let payout_retrieve_request = payout_types::PayoutRetrieveRequest {
         payout_id: path.into_inner(),
-        force_sync: query_params.force_sync,
+        force_sync: query_params.force_sync.to_owned(),
+        merchant_id: query_params.merchant_id.to_owned(),
     };
     let flow = Flow::PayoutsRetrieve;
     Box::pin(api::server_wrap(

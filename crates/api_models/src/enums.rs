@@ -313,6 +313,7 @@ pub enum AuthenticationConnectors {
 #[strum(serialize_all = "snake_case")]
 pub enum PayoutConnectors {
     Adyen,
+    Stripe,
     Wise,
 }
 
@@ -321,6 +322,7 @@ impl From<PayoutConnectors> for RoutableConnectors {
     fn from(value: PayoutConnectors) -> Self {
         match value {
             PayoutConnectors::Adyen => Self::Adyen,
+            PayoutConnectors::Stripe => Self::Stripe,
             PayoutConnectors::Wise => Self::Wise,
         }
     }
@@ -331,6 +333,7 @@ impl From<PayoutConnectors> for Connector {
     fn from(value: PayoutConnectors) -> Self {
         match value {
             PayoutConnectors::Adyen => Self::Adyen,
+            PayoutConnectors::Stripe => Self::Stripe,
             PayoutConnectors::Wise => Self::Wise,
         }
     }
@@ -342,6 +345,7 @@ impl TryFrom<Connector> for PayoutConnectors {
     fn try_from(value: Connector) -> Result<Self, Self::Error> {
         match value {
             Connector::Adyen => Ok(Self::Adyen),
+            Connector::Stripe => Ok(Self::Stripe),
             Connector::Wise => Ok(Self::Wise),
             _ => Err(format!("Invalid payout connector {}", value)),
         }

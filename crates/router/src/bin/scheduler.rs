@@ -263,6 +263,23 @@ impl ProcessTrackerWorkflows<routes::AppState> for WorkflowRunner {
                 storage::ProcessTrackerRunner::OutgoingWebhookRetryWorkflow => Ok(Box::new(
                     workflows::outgoing_webhook_retry::OutgoingWebhookRetryWorkflow,
                 )),
+                storage::ProcessTrackerRunner::StripeAttachAccountWorkflow => {
+                    #[cfg(feature = "payouts")]
+                    {
+                        Ok(Box::new(
+                            workflows::stripe_attach_external_account::StripeAttachAccountWorkflow,
+                        ))
+                    }
+                    #[cfg(not(feature = "payouts"))]
+                    {
+                        Err(
+                            error_stack::report!(ProcessTrackerError::UnexpectedFlow),
+                        )
+                        .attach_printable(
+                            "Cannot run Stripe external account workflow when payouts feature is disabled",
+                        )
+                    }
+                }
             }
         };
 

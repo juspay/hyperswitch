@@ -209,6 +209,7 @@ pub enum ProcessTrackerRunner {
     DeleteTokenizeDataWorkflow,
     ApiKeyExpiryWorkflow,
     OutgoingWebhookRetryWorkflow,
+    StripeAttachAccountWorkflow,
 }
 
 #[cfg(test)]
