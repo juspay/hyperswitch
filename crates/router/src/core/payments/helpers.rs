@@ -52,7 +52,9 @@ use crate::{
             self,
             types::{self, AsyncLift},
         },
-        storage::{self, enums as storage_enums, ephemeral_key, CustomerUpdate::Update},
+        storage::{
+            self, enums as storage_enums, ephemeral_key, CardTokenData, CustomerUpdate::Update,
+        },
         transformers::{ForeignFrom, ForeignTryFrom},
         ErrorResponse, MandateReference, RouterData,
     },
@@ -1850,6 +1852,25 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
     if let Some(cvc) = payment_data.card_cvc.clone() {
         if let Some(token_data) = card_token_data.as_mut() {
             token_data.card_cvc = Some(cvc);
+        }
+    }
+
+    if payment_data.token_data.is_none() {
+        if let Some(payment_method_info) = &payment_data.payment_method_info {
+            if payment_method_info.payment_method == storage_enums::PaymentMethod::Card {
+                payment_data.token_data =
+                    Some(storage::PaymentTokenData::PermanentCard(CardTokenData {
+                        payment_method_id: Some(payment_method_info.payment_method_id.clone()),
+                        locker_id: payment_method_info
+                            .locker_id
+                            .clone()
+                            .or(Some(payment_method_info.payment_method_id.clone())),
+                        token: payment_method_info
+                            .locker_id
+                            .clone()
+                            .unwrap_or(payment_method_info.payment_method_id.clone()),
+                    }));
+            }
         }
     }
 
