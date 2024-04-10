@@ -62,6 +62,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         merchant_account: &domain::MerchantAccount,
         connector_request: Option<services::Request>,
         key_store: &domain::MerchantKeyStore,
+        profile_id: Option<String>,
     ) -> RouterResult<Self> {
         if let Some(mandate_id) = self
             .request
@@ -79,6 +80,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                 &state.conf.mandates.update_mandate_supported,
                 connector_request,
                 maybe_customer,
+                profile_id,
             ))
             .await
         } else {
@@ -109,6 +111,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                 key_store,
                 resp.request.amount,
                 Some(resp.request.currency),
+                profile_id,
             ))
             .await?;
 
@@ -217,6 +220,7 @@ impl types::SetupMandateRouterData {
         call_connector_action: payments::CallConnectorAction,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
+        profile_id: Option<String>,
     ) -> RouterResult<Self> {
         match confirm {
             Some(true) => {
@@ -248,6 +252,7 @@ impl types::SetupMandateRouterData {
                     key_store,
                     resp.request.amount,
                     Some(resp.request.currency),
+                    profile_id,
                 ))
                 .await?;
 
@@ -278,6 +283,7 @@ impl types::SetupMandateRouterData {
         supported_connectors_for_update_mandate: &settings::SupportedPaymentMethodsForMandate,
         connector_request: Option<services::Request>,
         maybe_customer: &Option<domain::Customer>,
+        profile_id: Option<String>,
     ) -> RouterResult<Self> {
         let payment_method_type = self.request.payment_method_type;
 
@@ -336,6 +342,7 @@ impl types::SetupMandateRouterData {
                 key_store,
                 resp.request.amount,
                 Some(resp.request.currency),
+                profile_id,
             ))
             .await?
             .0;
@@ -429,7 +436,7 @@ impl mandate::MandateBehaviour for types::SetupMandateRequestData {
         self.mandate_id = new_mandate_id;
     }
 
-    fn get_payment_method_data(&self) -> api_models::payments::PaymentMethodData {
+    fn get_payment_method_data(&self) -> domain::payments::PaymentMethodData {
         self.payment_method_data.clone()
     }
 

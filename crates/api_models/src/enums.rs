@@ -35,7 +35,7 @@ pub enum RoutingAlgorithm {
     ToSchema,
     serde::Deserialize,
     serde::Serialize,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     strum::EnumIter,
     strum::Display,
     strum::EnumString,
@@ -78,7 +78,7 @@ pub enum Connector {
     Authorizedotnet,
     Bambora,
     Bankofamerica,
-    // Billwerk, Added as template code for future usage
+    Billwerk,
     Bitpay,
     Bluesnap,
     Boku,
@@ -89,6 +89,7 @@ pub enum Connector {
     Cryptopay,
     Cybersource,
     Dlocal,
+    // Ebanx,
     Fiserv,
     Forte,
     Globalpay,
@@ -166,7 +167,7 @@ impl Connector {
             | Self::Authorizedotnet
             | Self::Bambora
             | Self::Bankofamerica
-            // | Self::Billwerk Added as template code for future usage
+            | Self::Billwerk
             | Self::Bitpay
             | Self::Bluesnap
             | Self::Boku
@@ -223,7 +224,7 @@ impl Connector {
             | Self::Authorizedotnet
             | Self::Bambora
             | Self::Bankofamerica
-            // | Self::Billwerk Added as template for future usage
+            | Self::Billwerk
             | Self::Bitpay
             | Self::Bluesnap
             | Self::Boku

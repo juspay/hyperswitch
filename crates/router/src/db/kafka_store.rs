@@ -1546,9 +1546,20 @@ impl PayoutsInterface for KafkaStore {
         payout_update: storage::PayoutsUpdate,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::Payouts, errors::DataStorageError> {
-        self.diesel_store
+        let payout = self
+            .diesel_store
             .update_payout(this, payout_update, storage_scheme)
+            .await?;
+
+        if let Err(er) = self
+            .kafka_producer
+            .log_payout(&payout, Some(this.clone()))
             .await
+        {
+            logger::error!(message="Failed to add analytics entry for Payout {payout:?}", error_message=?er);
+        };
+
+        Ok(payout)
     }
 
     async fn insert_payout(
@@ -1556,9 +1567,16 @@ impl PayoutsInterface for KafkaStore {
         payout: storage::PayoutsNew,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::Payouts, errors::DataStorageError> {
-        self.diesel_store
+        let payout = self
+            .diesel_store
             .insert_payout(payout, storage_scheme)
-            .await
+            .await?;
+
+        if let Err(er) = self.kafka_producer.log_payout(&payout, None).await {
+            logger::error!(message="Failed to add analytics entry for Payout {payout:?}", error_message=?er);
+        };
+
+        Ok(payout)
     }
 
     async fn find_optional_payout_by_merchant_id_payout_id(
@@ -1590,8 +1608,14 @@ impl PayoutsInterface for KafkaStore {
         merchant_id: &str,
         filters: &data_models::payouts::PayoutFetchConstraints,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<Vec<(storage::Payouts, storage::PayoutAttempt)>, errors::DataStorageError>
-    {
+    ) -> CustomResult<
+        Vec<(
+            storage::Payouts,
+            storage::PayoutAttempt,
+            diesel_models::Customer,
+        )>,
+        errors::DataStorageError,
+    > {
         self.diesel_store
             .filter_payouts_and_attempts(merchant_id, filters, storage_scheme)
             .await
