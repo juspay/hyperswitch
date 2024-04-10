@@ -31,5 +31,6 @@ impl StreamData {
 
         Self::deserialize(iter)
             .change_context(errors::ParsingError::StructParseFailure("StreamData"))
+            .attach_printable(|| format!("Unable to parse {hashmap:?} to StreamData"))
     }
 }
