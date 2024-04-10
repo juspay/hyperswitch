@@ -44,7 +44,6 @@ pub enum RoutingAlgorithm {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum Connector {
-    Netcetera,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
     #[strum(serialize = "phonypay")]
@@ -101,6 +100,7 @@ pub enum Connector {
     Klarna,
     Mollie,
     Multisafepay,
+    Netcetera,
     Nexinets,
     Nmi,
     Noon,

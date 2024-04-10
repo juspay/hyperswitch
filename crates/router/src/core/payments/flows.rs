@@ -146,7 +146,6 @@ impl<const T: u8>
 }
 
 default_imp_for_complete_authorize!(
-    connector::Netcetera,
     connector::Aci,
     connector::Adyen,
     connector::Billwerk,
@@ -166,6 +165,7 @@ default_imp_for_complete_authorize!(
     connector::Iatapay,
     connector::Klarna,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Noon,
     connector::Opayo,

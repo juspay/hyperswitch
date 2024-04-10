@@ -1699,10 +1699,6 @@ pub(crate) fn validate_auth_and_metadata_type(
     use crate::connector::*;
 
     match connector_name {
-        api_enums::Connector::Netcetera => {
-            netcetera::transformers::NetceteraAuthType::try_from(val)?;
-            Ok(())
-        }
         #[cfg(feature = "dummy_connector")]
         api_enums::Connector::DummyConnector1
         | api_enums::Connector::DummyConnector2
@@ -1826,6 +1822,10 @@ pub(crate) fn validate_auth_and_metadata_type(
         }
         api_enums::Connector::Multisafepay => {
             multisafepay::transformers::MultisafepayAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Netcetera => {
+            netcetera::transformers::NetceteraAuthType::try_from(val)?;
             Ok(())
         }
         api_enums::Connector::Nexinets => {
