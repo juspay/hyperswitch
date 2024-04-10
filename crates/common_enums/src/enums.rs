@@ -2,6 +2,7 @@ use std::num::{ParseFloatError, TryFromIntError};
 
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+
 #[doc(hidden)]
 pub mod diesel_exports {
     pub use super::{
@@ -166,7 +167,7 @@ pub enum RoutableConnectors {
     Worldline,
     Worldpay,
     Zen,
-    Zsl,
+    // Zsl, Added as template code for future usage
 }
 
 impl AttemptStatus {

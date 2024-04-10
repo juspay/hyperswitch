@@ -815,84 +815,84 @@ impl From<WebhookEventStatus> for api_models::webhooks::IncomingWebhookEvent {
     }
 }
 
-impl TryFrom<&api_models::enums::BankNames> for StripeBankNames {
+impl TryFrom<&common_enums::enums::BankNames> for StripeBankNames {
     type Error = errors::ConnectorError;
-    fn try_from(bank: &api_models::enums::BankNames) -> Result<Self, Self::Error> {
+    fn try_from(bank: &common_enums::enums::BankNames) -> Result<Self, Self::Error> {
         Ok(match bank {
-            api_models::enums::BankNames::AbnAmro => Self::AbnAmro,
-            api_models::enums::BankNames::ArzteUndApothekerBank => Self::ArzteUndApothekerBank,
-            api_models::enums::BankNames::AsnBank => Self::AsnBank,
-            api_models::enums::BankNames::AustrianAnadiBankAg => Self::AustrianAnadiBankAg,
-            api_models::enums::BankNames::BankAustria => Self::BankAustria,
-            api_models::enums::BankNames::BankhausCarlSpangler => Self::BankhausCarlSpangler,
-            api_models::enums::BankNames::BankhausSchelhammerUndSchatteraAg => {
+            common_enums::enums::BankNames::AbnAmro => Self::AbnAmro,
+            common_enums::enums::BankNames::ArzteUndApothekerBank => Self::ArzteUndApothekerBank,
+            common_enums::enums::BankNames::AsnBank => Self::AsnBank,
+            common_enums::enums::BankNames::AustrianAnadiBankAg => Self::AustrianAnadiBankAg,
+            common_enums::enums::BankNames::BankAustria => Self::BankAustria,
+            common_enums::enums::BankNames::BankhausCarlSpangler => Self::BankhausCarlSpangler,
+            common_enums::enums::BankNames::BankhausSchelhammerUndSchatteraAg => {
                 Self::BankhausSchelhammerUndSchatteraAg
             }
-            api_models::enums::BankNames::BawagPskAg => Self::BawagPskAg,
-            api_models::enums::BankNames::BksBankAg => Self::BksBankAg,
-            api_models::enums::BankNames::BrullKallmusBankAg => Self::BrullKallmusBankAg,
-            api_models::enums::BankNames::BtvVierLanderBank => Self::BtvVierLanderBank,
-            api_models::enums::BankNames::Bunq => Self::Bunq,
-            api_models::enums::BankNames::CapitalBankGraweGruppeAg => {
+            common_enums::enums::BankNames::BawagPskAg => Self::BawagPskAg,
+            common_enums::enums::BankNames::BksBankAg => Self::BksBankAg,
+            common_enums::enums::BankNames::BrullKallmusBankAg => Self::BrullKallmusBankAg,
+            common_enums::enums::BankNames::BtvVierLanderBank => Self::BtvVierLanderBank,
+            common_enums::enums::BankNames::Bunq => Self::Bunq,
+            common_enums::enums::BankNames::CapitalBankGraweGruppeAg => {
                 Self::CapitalBankGraweGruppeAg
             }
-            api_models::enums::BankNames::Citi => Self::CitiHandlowy,
-            api_models::enums::BankNames::Dolomitenbank => Self::Dolomitenbank,
-            api_models::enums::BankNames::EasybankAg => Self::EasybankAg,
-            api_models::enums::BankNames::ErsteBankUndSparkassen => Self::ErsteBankUndSparkassen,
-            api_models::enums::BankNames::Handelsbanken => Self::Handelsbanken,
-            api_models::enums::BankNames::HypoAlpeadriabankInternationalAg => {
+            common_enums::enums::BankNames::Citi => Self::CitiHandlowy,
+            common_enums::enums::BankNames::Dolomitenbank => Self::Dolomitenbank,
+            common_enums::enums::BankNames::EasybankAg => Self::EasybankAg,
+            common_enums::enums::BankNames::ErsteBankUndSparkassen => Self::ErsteBankUndSparkassen,
+            common_enums::enums::BankNames::Handelsbanken => Self::Handelsbanken,
+            common_enums::enums::BankNames::HypoAlpeadriabankInternationalAg => {
                 Self::HypoAlpeadriabankInternationalAg
             }
 
-            api_models::enums::BankNames::HypoNoeLbFurNiederosterreichUWien => {
+            common_enums::enums::BankNames::HypoNoeLbFurNiederosterreichUWien => {
                 Self::HypoNoeLbFurNiederosterreichUWien
             }
-            api_models::enums::BankNames::HypoOberosterreichSalzburgSteiermark => {
+            common_enums::enums::BankNames::HypoOberosterreichSalzburgSteiermark => {
                 Self::HypoOberosterreichSalzburgSteiermark
             }
-            api_models::enums::BankNames::HypoTirolBankAg => Self::HypoTirolBankAg,
-            api_models::enums::BankNames::HypoVorarlbergBankAg => Self::HypoVorarlbergBankAg,
-            api_models::enums::BankNames::HypoBankBurgenlandAktiengesellschaft => {
+            common_enums::enums::BankNames::HypoTirolBankAg => Self::HypoTirolBankAg,
+            common_enums::enums::BankNames::HypoVorarlbergBankAg => Self::HypoVorarlbergBankAg,
+            common_enums::enums::BankNames::HypoBankBurgenlandAktiengesellschaft => {
                 Self::HypoBankBurgenlandAktiengesellschaft
             }
-            api_models::enums::BankNames::Ing => Self::Ing,
-            api_models::enums::BankNames::Knab => Self::Knab,
-            api_models::enums::BankNames::MarchfelderBank => Self::MarchfelderBank,
-            api_models::enums::BankNames::OberbankAg => Self::OberbankAg,
-            api_models::enums::BankNames::RaiffeisenBankengruppeOsterreich => {
+            common_enums::enums::BankNames::Ing => Self::Ing,
+            common_enums::enums::BankNames::Knab => Self::Knab,
+            common_enums::enums::BankNames::MarchfelderBank => Self::MarchfelderBank,
+            common_enums::enums::BankNames::OberbankAg => Self::OberbankAg,
+            common_enums::enums::BankNames::RaiffeisenBankengruppeOsterreich => {
                 Self::RaiffeisenBankengruppeOsterreich
             }
-            api_models::enums::BankNames::Rabobank => Self::Rabobank,
-            api_models::enums::BankNames::Regiobank => Self::Regiobank,
-            api_models::enums::BankNames::Revolut => Self::Revolut,
-            api_models::enums::BankNames::SnsBank => Self::SnsBank,
-            api_models::enums::BankNames::TriodosBank => Self::TriodosBank,
-            api_models::enums::BankNames::VanLanschot => Self::VanLanschot,
-            api_models::enums::BankNames::Moneyou => Self::Moneyou,
-            api_models::enums::BankNames::SchoellerbankAg => Self::SchoellerbankAg,
-            api_models::enums::BankNames::SpardaBankWien => Self::SpardaBankWien,
-            api_models::enums::BankNames::VolksbankGruppe => Self::VolksbankGruppe,
-            api_models::enums::BankNames::VolkskreditbankAg => Self::VolkskreditbankAg,
-            api_models::enums::BankNames::VrBankBraunau => Self::VrBankBraunau,
-            api_models::enums::BankNames::PlusBank => Self::PlusBank,
-            api_models::enums::BankNames::EtransferPocztowy24 => Self::EtransferPocztowy24,
-            api_models::enums::BankNames::BankiSpbdzielcze => Self::BankiSpbdzielcze,
-            api_models::enums::BankNames::BankNowyBfgSa => Self::BankNowyBfgSa,
-            api_models::enums::BankNames::GetinBank => Self::GetinBank,
-            api_models::enums::BankNames::Blik => Self::Blik,
-            api_models::enums::BankNames::NoblePay => Self::NoblePay,
-            api_models::enums::BankNames::IdeaBank => Self::IdeaBank,
-            api_models::enums::BankNames::EnveloBank => Self::EnveloBank,
-            api_models::enums::BankNames::NestPrzelew => Self::NestPrzelew,
-            api_models::enums::BankNames::MbankMtransfer => Self::MbankMtransfer,
-            api_models::enums::BankNames::Inteligo => Self::Inteligo,
-            api_models::enums::BankNames::PbacZIpko => Self::PbacZIpko,
-            api_models::enums::BankNames::BnpParibas => Self::BnpParibas,
-            api_models::enums::BankNames::BankPekaoSa => Self::BankPekaoSa,
-            api_models::enums::BankNames::VolkswagenBank => Self::VolkswagenBank,
-            api_models::enums::BankNames::AliorBank => Self::AliorBank,
-            api_models::enums::BankNames::Boz => Self::Boz,
+            common_enums::enums::BankNames::Rabobank => Self::Rabobank,
+            common_enums::enums::BankNames::Regiobank => Self::Regiobank,
+            common_enums::enums::BankNames::Revolut => Self::Revolut,
+            common_enums::enums::BankNames::SnsBank => Self::SnsBank,
+            common_enums::enums::BankNames::TriodosBank => Self::TriodosBank,
+            common_enums::enums::BankNames::VanLanschot => Self::VanLanschot,
+            common_enums::enums::BankNames::Moneyou => Self::Moneyou,
+            common_enums::enums::BankNames::SchoellerbankAg => Self::SchoellerbankAg,
+            common_enums::enums::BankNames::SpardaBankWien => Self::SpardaBankWien,
+            common_enums::enums::BankNames::VolksbankGruppe => Self::VolksbankGruppe,
+            common_enums::enums::BankNames::VolkskreditbankAg => Self::VolkskreditbankAg,
+            common_enums::enums::BankNames::VrBankBraunau => Self::VrBankBraunau,
+            common_enums::enums::BankNames::PlusBank => Self::PlusBank,
+            common_enums::enums::BankNames::EtransferPocztowy24 => Self::EtransferPocztowy24,
+            common_enums::enums::BankNames::BankiSpbdzielcze => Self::BankiSpbdzielcze,
+            common_enums::enums::BankNames::BankNowyBfgSa => Self::BankNowyBfgSa,
+            common_enums::enums::BankNames::GetinBank => Self::GetinBank,
+            common_enums::enums::BankNames::Blik => Self::Blik,
+            common_enums::enums::BankNames::NoblePay => Self::NoblePay,
+            common_enums::enums::BankNames::IdeaBank => Self::IdeaBank,
+            common_enums::enums::BankNames::EnveloBank => Self::EnveloBank,
+            common_enums::enums::BankNames::NestPrzelew => Self::NestPrzelew,
+            common_enums::enums::BankNames::MbankMtransfer => Self::MbankMtransfer,
+            common_enums::enums::BankNames::Inteligo => Self::Inteligo,
+            common_enums::enums::BankNames::PbacZIpko => Self::PbacZIpko,
+            common_enums::enums::BankNames::BnpParibas => Self::BnpParibas,
+            common_enums::enums::BankNames::BankPekaoSa => Self::BankPekaoSa,
+            common_enums::enums::BankNames::VolkswagenBank => Self::VolkswagenBank,
+            common_enums::enums::BankNames::AliorBank => Self::AliorBank,
+            common_enums::enums::BankNames::Boz => Self::Boz,
 
             _ => Err(errors::ConnectorError::NotImplemented(
                 connector_util::get_unimplemented_payment_method_error_message("stripe"),
@@ -954,31 +954,31 @@ impl TryFrom<&domain::payments::PayLaterData> for StripePaymentMethodType {
     }
 }
 
-impl TryFrom<&payments::BankRedirectData> for StripePaymentMethodType {
+impl TryFrom<&domain::BankRedirectData> for StripePaymentMethodType {
     type Error = errors::ConnectorError;
-    fn try_from(bank_redirect_data: &payments::BankRedirectData) -> Result<Self, Self::Error> {
+    fn try_from(bank_redirect_data: &domain::BankRedirectData) -> Result<Self, Self::Error> {
         match bank_redirect_data {
-            payments::BankRedirectData::Giropay { .. } => Ok(Self::Giropay),
-            payments::BankRedirectData::Ideal { .. } => Ok(Self::Ideal),
-            payments::BankRedirectData::Sofort { .. } => Ok(Self::Sofort),
-            payments::BankRedirectData::BancontactCard { .. } => Ok(Self::Bancontact),
-            payments::BankRedirectData::Przelewy24 { .. } => Ok(Self::Przelewy24),
-            payments::BankRedirectData::Eps { .. } => Ok(Self::Eps),
-            payments::BankRedirectData::Blik { .. } => Ok(Self::Blik),
-            payments::BankRedirectData::OnlineBankingFpx { .. } => {
+            domain::BankRedirectData::Giropay { .. } => Ok(Self::Giropay),
+            domain::BankRedirectData::Ideal { .. } => Ok(Self::Ideal),
+            domain::BankRedirectData::Sofort { .. } => Ok(Self::Sofort),
+            domain::BankRedirectData::BancontactCard { .. } => Ok(Self::Bancontact),
+            domain::BankRedirectData::Przelewy24 { .. } => Ok(Self::Przelewy24),
+            domain::BankRedirectData::Eps { .. } => Ok(Self::Eps),
+            domain::BankRedirectData::Blik { .. } => Ok(Self::Blik),
+            domain::BankRedirectData::OnlineBankingFpx { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     connector_util::get_unimplemented_payment_method_error_message("stripe"),
                 ))
             }
-            payments::BankRedirectData::Bizum {}
-            | payments::BankRedirectData::Interac { .. }
-            | payments::BankRedirectData::OnlineBankingCzechRepublic { .. }
-            | payments::BankRedirectData::OnlineBankingFinland { .. }
-            | payments::BankRedirectData::OnlineBankingPoland { .. }
-            | payments::BankRedirectData::OnlineBankingSlovakia { .. }
-            | payments::BankRedirectData::OnlineBankingThailand { .. }
-            | payments::BankRedirectData::OpenBankingUk { .. }
-            | payments::BankRedirectData::Trustly { .. } => {
+            domain::BankRedirectData::Bizum {}
+            | domain::BankRedirectData::Interac { .. }
+            | domain::BankRedirectData::OnlineBankingCzechRepublic { .. }
+            | domain::BankRedirectData::OnlineBankingFinland { .. }
+            | domain::BankRedirectData::OnlineBankingPoland { .. }
+            | domain::BankRedirectData::OnlineBankingSlovakia { .. }
+            | domain::BankRedirectData::OnlineBankingThailand { .. }
+            | domain::BankRedirectData::OpenBankingUk { .. }
+            | domain::BankRedirectData::Trustly { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     connector_util::get_unimplemented_payment_method_error_message("stripe"),
                 ))
@@ -1109,17 +1109,17 @@ impl From<&payments::BankDebitBilling> for StripeBillingAddress {
     }
 }
 
-impl TryFrom<(&payments::BankRedirectData, Option<bool>)> for StripeBillingAddress {
+impl TryFrom<(&domain::BankRedirectData, Option<bool>)> for StripeBillingAddress {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
         (bank_redirection_data, is_customer_initiated_mandate_payment): (
-            &payments::BankRedirectData,
+            &domain::BankRedirectData,
             Option<bool>,
         ),
     ) -> Result<Self, Self::Error> {
         match bank_redirection_data {
-            payments::BankRedirectData::Eps {
+            domain::BankRedirectData::Eps {
                 billing_details, ..
             } => Ok({
                 let billing_data = billing_details.clone().ok_or(
@@ -1134,7 +1134,7 @@ impl TryFrom<(&payments::BankRedirectData, Option<bool>)> for StripeBillingAddre
                     ..Self::default()
                 }
             }),
-            payments::BankRedirectData::Giropay {
+            domain::BankRedirectData::Giropay {
                 billing_details, ..
             } => Ok(Self {
                 name: Some(
@@ -1147,19 +1147,19 @@ impl TryFrom<(&payments::BankRedirectData, Option<bool>)> for StripeBillingAddre
                 ),
                 ..Self::default()
             }),
-            payments::BankRedirectData::Ideal {
+            domain::BankRedirectData::Ideal {
                 billing_details, ..
             } => Ok(get_stripe_sepa_dd_mandate_billing_details(
                 billing_details,
                 is_customer_initiated_mandate_payment,
             )?),
-            payments::BankRedirectData::Przelewy24 {
+            domain::BankRedirectData::Przelewy24 {
                 billing_details, ..
             } => Ok(Self {
                 email: billing_details.email.clone(),
                 ..Self::default()
             }),
-            payments::BankRedirectData::BancontactCard {
+            domain::BankRedirectData::BancontactCard {
                 billing_details, ..
             } => {
                 let billing_details = billing_details.as_ref().ok_or(
@@ -1189,24 +1189,24 @@ impl TryFrom<(&payments::BankRedirectData, Option<bool>)> for StripeBillingAddre
                     ..Self::default()
                 })
             }
-            payments::BankRedirectData::Sofort {
+            domain::BankRedirectData::Sofort {
                 billing_details, ..
             } => Ok(get_stripe_sepa_dd_mandate_billing_details(
                 billing_details,
                 is_customer_initiated_mandate_payment,
             )?),
 
-            payments::BankRedirectData::Bizum {}
-            | payments::BankRedirectData::Blik { .. }
-            | payments::BankRedirectData::Interac { .. }
-            | payments::BankRedirectData::OnlineBankingCzechRepublic { .. }
-            | payments::BankRedirectData::OnlineBankingFinland { .. }
-            | payments::BankRedirectData::OnlineBankingPoland { .. }
-            | payments::BankRedirectData::OnlineBankingSlovakia { .. }
-            | payments::BankRedirectData::Trustly { .. }
-            | payments::BankRedirectData::OnlineBankingFpx { .. }
-            | payments::BankRedirectData::OnlineBankingThailand { .. }
-            | payments::BankRedirectData::OpenBankingUk { .. } => Ok(Self::default()),
+            domain::BankRedirectData::Bizum {}
+            | domain::BankRedirectData::Blik { .. }
+            | domain::BankRedirectData::Interac { .. }
+            | domain::BankRedirectData::OnlineBankingCzechRepublic { .. }
+            | domain::BankRedirectData::OnlineBankingFinland { .. }
+            | domain::BankRedirectData::OnlineBankingPoland { .. }
+            | domain::BankRedirectData::OnlineBankingSlovakia { .. }
+            | domain::BankRedirectData::Trustly { .. }
+            | domain::BankRedirectData::OnlineBankingFpx { .. }
+            | domain::BankRedirectData::OnlineBankingThailand { .. }
+            | domain::BankRedirectData::OpenBankingUk { .. } => Ok(Self::default()),
         }
     }
 }
@@ -1610,17 +1610,17 @@ impl TryFrom<(&domain::WalletData, Option<types::PaymentMethodToken>)> for Strip
     }
 }
 
-impl TryFrom<&payments::BankRedirectData> for StripePaymentMethodData {
+impl TryFrom<&domain::BankRedirectData> for StripePaymentMethodData {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(bank_redirect_data: &payments::BankRedirectData) -> Result<Self, Self::Error> {
+    fn try_from(bank_redirect_data: &domain::BankRedirectData) -> Result<Self, Self::Error> {
         let payment_method_data_type = StripePaymentMethodType::try_from(bank_redirect_data)?;
         match bank_redirect_data {
-            payments::BankRedirectData::BancontactCard { .. } => Ok(Self::BankRedirect(
+            domain::BankRedirectData::BancontactCard { .. } => Ok(Self::BankRedirect(
                 StripeBankRedirectData::StripeBancontactCard(Box::new(StripeBancontactCard {
                     payment_method_data_type,
                 })),
             )),
-            payments::BankRedirectData::Blik { blik_code } => Ok(Self::BankRedirect(
+            domain::BankRedirectData::Blik { blik_code } => Ok(Self::BankRedirect(
                 StripeBankRedirectData::StripeBlik(Box::new(StripeBlik {
                     payment_method_data_type,
                     code: Secret::new(blik_code.clone().ok_or(
@@ -1630,7 +1630,7 @@ impl TryFrom<&payments::BankRedirectData> for StripePaymentMethodData {
                     )?),
                 })),
             )),
-            payments::BankRedirectData::Eps { bank_name, .. } => Ok(Self::BankRedirect(
+            domain::BankRedirectData::Eps { bank_name, .. } => Ok(Self::BankRedirect(
                 StripeBankRedirectData::StripeEps(Box::new(StripeEps {
                     payment_method_data_type,
                     bank_name: bank_name
@@ -1638,12 +1638,12 @@ impl TryFrom<&payments::BankRedirectData> for StripePaymentMethodData {
                         .transpose()?,
                 })),
             )),
-            payments::BankRedirectData::Giropay { .. } => Ok(Self::BankRedirect(
+            domain::BankRedirectData::Giropay { .. } => Ok(Self::BankRedirect(
                 StripeBankRedirectData::StripeGiropay(Box::new(StripeGiropay {
                     payment_method_data_type,
                 })),
             )),
-            payments::BankRedirectData::Ideal { bank_name, .. } => {
+            domain::BankRedirectData::Ideal { bank_name, .. } => {
                 let bank_name = bank_name
                     .map(|bank_name| StripeBankNames::try_from(&bank_name))
                     .transpose()?;
@@ -1654,7 +1654,7 @@ impl TryFrom<&payments::BankRedirectData> for StripePaymentMethodData {
                     }),
                 )))
             }
-            payments::BankRedirectData::Przelewy24 { bank_name, .. } => {
+            domain::BankRedirectData::Przelewy24 { bank_name, .. } => {
                 let bank_name = bank_name
                     .map(|bank_name| StripeBankNames::try_from(&bank_name))
                     .transpose()?;
@@ -1665,7 +1665,7 @@ impl TryFrom<&payments::BankRedirectData> for StripePaymentMethodData {
                     })),
                 ))
             }
-            payments::BankRedirectData::Sofort {
+            domain::BankRedirectData::Sofort {
                 country,
                 preferred_language,
                 ..
@@ -1678,21 +1678,21 @@ impl TryFrom<&payments::BankRedirectData> for StripePaymentMethodData {
                     preferred_language: preferred_language.clone(),
                 }),
             ))),
-            payments::BankRedirectData::OnlineBankingFpx { .. } => {
+            domain::BankRedirectData::OnlineBankingFpx { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     connector_util::get_unimplemented_payment_method_error_message("stripe"),
                 )
                 .into())
             }
-            payments::BankRedirectData::Bizum {}
-            | payments::BankRedirectData::Interac { .. }
-            | payments::BankRedirectData::OnlineBankingCzechRepublic { .. }
-            | payments::BankRedirectData::OnlineBankingFinland { .. }
-            | payments::BankRedirectData::OnlineBankingPoland { .. }
-            | payments::BankRedirectData::OnlineBankingSlovakia { .. }
-            | payments::BankRedirectData::OnlineBankingThailand { .. }
-            | payments::BankRedirectData::OpenBankingUk { .. }
-            | payments::BankRedirectData::Trustly { .. } => {
+            domain::BankRedirectData::Bizum {}
+            | domain::BankRedirectData::Interac { .. }
+            | domain::BankRedirectData::OnlineBankingCzechRepublic { .. }
+            | domain::BankRedirectData::OnlineBankingFinland { .. }
+            | domain::BankRedirectData::OnlineBankingPoland { .. }
+            | domain::BankRedirectData::OnlineBankingSlovakia { .. }
+            | domain::BankRedirectData::OnlineBankingThailand { .. }
+            | domain::BankRedirectData::OpenBankingUk { .. }
+            | domain::BankRedirectData::Trustly { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     connector_util::get_unimplemented_payment_method_error_message("stripe"),
                 )
@@ -3847,7 +3847,7 @@ pub struct Evidence {
 
 // Mandates for bank redirects - ideal and sofort happens through sepa direct debit in stripe
 fn get_stripe_sepa_dd_mandate_billing_details(
-    billing_details: &Option<payments::BankRedirectBilling>,
+    billing_details: &Option<domain::BankRedirectBilling>,
     is_customer_initiated_mandate_payment: Option<bool>,
 ) -> Result<StripeBillingAddress, errors::ConnectorError> {
     let billing_name = billing_details
