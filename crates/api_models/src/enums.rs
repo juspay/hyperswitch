@@ -266,7 +266,7 @@ impl Connector {
             | Self::Worldline
             | Self::Worldpay
             | Self::Zen
-            | Self::Zsl
+            // | Self::Zsl, Added as template code for future usage
             | Self::Signifyd
             | Self::Plaid
             | Self::Riskified
