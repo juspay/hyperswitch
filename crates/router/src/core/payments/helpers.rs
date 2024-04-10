@@ -469,6 +469,18 @@ pub async fn get_token_pm_type_mandate_details(
                                 errors::ApiErrorResponse::PaymentMethodNotFound,
                             )?;
 
+                        let customer_id = request
+                            .customer_id
+                            .clone()
+                            .get_required_value("customer_id")?;
+
+                        verify_mandate_details_for_recurring_payments(
+                            &payment_method_info.merchant_id,
+                            &merchant_account.merchant_id,
+                            &payment_method_info.customer_id,
+                            &customer_id,
+                        )?;
+
                         (
                             None,
                             Some(payment_method_info.payment_method),
@@ -869,6 +881,7 @@ pub fn validate_mandate(
 pub fn validate_recurring_details_and_token(
     recurring_details: &Option<RecurringDetails>,
     payment_token: &Option<String>,
+    mandate_id: &Option<String>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     utils::when(
         recurring_details.is_some() && payment_token.is_some(),
@@ -879,6 +892,12 @@ pub fn validate_recurring_details_and_token(
             }))
         },
     )?;
+
+    utils::when(recurring_details.is_some() && mandate_id.is_some(), || {
+        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+            message: "Expected one out of recurring_details and mandate_id but got both".into()
+        }))
+    })?;
 
     Ok(())
 }
@@ -1080,6 +1099,24 @@ pub fn verify_mandate_details(
     )
 }
 
+pub fn verify_mandate_details_for_recurring_payments(
+    mandate_merchant_id: &str,
+    merchant_id: &str,
+    mandate_customer_id: &str,
+    customer_id: &str,
+) -> RouterResult<()> {
+    if mandate_merchant_id != merchant_id {
+        Err(report!(errors::ApiErrorResponse::MandateNotFound))?
+    }
+    if mandate_customer_id != customer_id {
+        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+            message: "customer_id must match mandate customer_id".into()
+        }))?
+    }
+
+    Ok(())
+}
+
 #[instrument(skip_all)]
 pub fn payment_attempt_status_fsm(
     payment_method_data: &Option<api::payments::PaymentMethodDataRequest>,
@@ -1171,6 +1208,7 @@ pub(crate) async fn get_payment_method_create_request(
     payment_method: Option<storage_enums::PaymentMethod>,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     customer: &domain::Customer,
+    billing_name: Option<masking::Secret<String>>,
 ) -> RouterResult<api::PaymentMethodCreate> {
     match payment_method_data {
         Some(pm_data) => match payment_method {
@@ -1180,7 +1218,7 @@ pub(crate) async fn get_payment_method_create_request(
                         card_number: card.card_number.clone(),
                         card_exp_month: card.card_exp_month.clone(),
                         card_exp_year: card.card_exp_year.clone(),
-                        card_holder_name: card.card_holder_name.clone(),
+                        card_holder_name: billing_name,
                         nick_name: card.nick_name.clone(),
                         card_issuing_country: card.card_issuing_country.clone(),
                         card_network: card.card_network.clone(),
@@ -2167,6 +2205,7 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::CimbVa
                 | api_enums::PaymentMethodType::DanamonVa
                 | api_enums::PaymentMethodType::MandiriVa
+                | api_enums::PaymentMethodType::LocalBankTransfer
         ),
         api_enums::PaymentMethod::BankDebit => matches!(
             payment_method_type,
@@ -3680,7 +3719,7 @@ pub struct ApplePayHeader {
 
 impl ApplePayData {
     pub fn token_json(
-        wallet_data: api_models::payments::WalletData,
+        wallet_data: domain::WalletData,
     ) -> CustomResult<Self, errors::ConnectorError> {
         let json_wallet_data: Self = connector::utils::WalletData::get_wallet_token_as_json(
             &wallet_data,

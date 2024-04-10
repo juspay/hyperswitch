@@ -438,6 +438,10 @@ impl Routing {
                     })),
             )
             .service(
+                web::resource("/business_profile/{business_profile_id}/configs/pg_agnostic_mit")
+                    .route(web::post().to(cloud_routing::upsert_connector_agnostic_mandate_config)),
+            )
+            .service(
                 web::resource("/default")
                     .route(web::get().to(|state, req| {
                         cloud_routing::routing_retrieve_default_config(
@@ -1243,8 +1247,15 @@ impl WebhookEvents {
             .app_data(web::Data::new(config))
             .service(web::resource("").route(web::get().to(list_initial_webhook_delivery_attempts)))
             .service(
-                web::resource("/{event_id}/attempts")
-                    .route(web::get().to(list_webhook_delivery_attempts)),
+                web::scope("/{event_id}")
+                    .service(
+                        web::resource("attempts")
+                            .route(web::get().to(list_webhook_delivery_attempts)),
+                    )
+                    .service(
+                        web::resource("retry")
+                            .route(web::post().to(retry_webhook_delivery_attempt)),
+                    ),
             )
     }
 }

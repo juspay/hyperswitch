@@ -7,7 +7,7 @@ use serial_test::serial;
 
 use crate::{
     connector_auth,
-    utils::{self, ConnectorActions},
+    utils::{self, ConnectorActions, PaymentInfo},
 };
 
 struct Rapyd;
@@ -46,7 +46,6 @@ async fn should_only_authorize_payment() {
                     card_number: cards::CardNumber::from_str("4111111111111111").unwrap(),
                     card_exp_month: Secret::new("02".to_string()),
                     card_exp_year: Secret::new("2024".to_string()),
-                    card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
                     card_cvc: Secret::new("123".to_string()),
                     card_issuer: None,
                     card_network: None,
@@ -58,7 +57,7 @@ async fn should_only_authorize_payment() {
                 capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
                 ..utils::PaymentAuthorizeType::default().0
             }),
-            None,
+            Some(PaymentInfo::with_default_billing_name()),
         )
         .await
         .unwrap();
@@ -74,7 +73,6 @@ async fn should_authorize_and_capture_payment() {
                     card_number: cards::CardNumber::from_str("4111111111111111").unwrap(),
                     card_exp_month: Secret::new("02".to_string()),
                     card_exp_year: Secret::new("2024".to_string()),
-                    card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
                     card_cvc: Secret::new("123".to_string()),
                     card_issuer: None,
                     card_network: None,
@@ -85,7 +83,7 @@ async fn should_authorize_and_capture_payment() {
                 }),
                 ..utils::PaymentAuthorizeType::default().0
             }),
-            None,
+            Some(PaymentInfo::with_default_billing_name()),
         )
         .await
         .unwrap();
@@ -95,7 +93,10 @@ async fn should_authorize_and_capture_payment() {
 #[actix_web::test]
 async fn should_capture_already_authorized_payment() {
     let connector = Rapyd {};
-    let authorize_response = connector.authorize_payment(None, None).await.unwrap();
+    let authorize_response = connector
+        .authorize_payment(None, Some(PaymentInfo::with_default_billing_name()))
+        .await
+        .unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
     let txn_id = utils::get_connector_transaction_id(authorize_response.response);
     let response: OptionFuture<_> = txn_id
@@ -114,7 +115,10 @@ async fn should_capture_already_authorized_payment() {
 #[serial]
 async fn voiding_already_authorized_payment_fails() {
     let connector = Rapyd {};
-    let authorize_response = connector.authorize_payment(None, None).await.unwrap();
+    let authorize_response = connector
+        .authorize_payment(None, Some(PaymentInfo::with_default_billing_name()))
+        .await
+        .unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
     let txn_id = utils::get_connector_transaction_id(authorize_response.response);
     let response: OptionFuture<_> = txn_id

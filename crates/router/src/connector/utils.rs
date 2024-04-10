@@ -88,6 +88,8 @@ pub trait RouterData {
 
     fn get_optional_billing(&self) -> Option<&api::Address>;
     fn get_optional_shipping(&self) -> Option<&api::Address>;
+
+    fn get_optional_billing_full_name(&self) -> Option<Secret<String>>;
     fn get_optional_billing_line1(&self) -> Option<Secret<String>>;
     fn get_optional_billing_line2(&self) -> Option<Secret<String>>;
     fn get_optional_billing_city(&self) -> Option<String>;
@@ -351,6 +353,12 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
         self.recurring_mandate_payment_data
             .to_owned()
             .ok_or_else(missing_field_err("recurring_mandate_payment_data"))
+    }
+
+    fn get_optional_billing_full_name(&self) -> Option<Secret<String>> {
+        self.get_optional_billing()
+            .and_then(|billing_details| billing_details.address.as_ref())
+            .and_then(|billing_address| billing_address.get_optional_full_name())
     }
 
     #[cfg(feature = "payouts")]
@@ -856,8 +864,8 @@ pub struct GpayTokenizationData {
     pub token: Secret<String>,
 }
 
-impl From<api_models::payments::GooglePayWalletData> for GooglePayWalletData {
-    fn from(data: api_models::payments::GooglePayWalletData) -> Self {
+impl From<domain::GooglePayWalletData> for GooglePayWalletData {
+    fn from(data: domain::GooglePayWalletData) -> Self {
         Self {
             pm_type: data.pm_type,
             description: data.description,
@@ -1019,7 +1027,7 @@ pub trait WalletData {
     fn get_encoded_wallet_token(&self) -> Result<String, Error>;
 }
 
-impl WalletData for api::WalletData {
+impl WalletData for domain::WalletData {
     fn get_wallet_token(&self) -> Result<Secret<String>, Error> {
         match self {
             Self::GooglePay(data) => Ok(Secret::new(data.tokenization_data.token.clone())),
@@ -1060,7 +1068,7 @@ pub trait ApplePay {
     fn get_applepay_decoded_payment_data(&self) -> Result<Secret<String>, Error>;
 }
 
-impl ApplePay for payments::ApplePayWalletData {
+impl ApplePay for domain::ApplePayWalletData {
     fn get_applepay_decoded_payment_data(&self) -> Result<Secret<String>, Error> {
         let token = Secret::new(
             String::from_utf8(
@@ -1107,7 +1115,7 @@ pub trait CryptoData {
     fn get_pay_currency(&self) -> Result<String, Error>;
 }
 
-impl CryptoData for api::CryptoData {
+impl CryptoData for domain::CryptoData {
     fn get_pay_currency(&self) -> Result<String, Error> {
         self.pay_currency
             .clone()
@@ -1235,7 +1243,7 @@ pub trait BankRedirectBillingData {
     fn get_billing_name(&self) -> Result<Secret<String>, Error>;
 }
 
-impl BankRedirectBillingData for payments::BankRedirectBilling {
+impl BankRedirectBillingData for domain::BankRedirectBilling {
     fn get_billing_name(&self) -> Result<Secret<String>, Error> {
         self.billing_name
             .clone()
@@ -1913,6 +1921,39 @@ pub fn is_refund_failure(status: enums::RefundStatus) -> bool {
         common_enums::RefundStatus::ManualReview
         | common_enums::RefundStatus::Pending
         | common_enums::RefundStatus::Success => false,
+    }
+}
+
+impl
+    From<(
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        u16,
+        Option<enums::AttemptStatus>,
+        Option<String>,
+    )> for types::ErrorResponse
+{
+    fn from(
+        (code, message, reason, http_code, attempt_status, connector_transaction_id): (
+            Option<String>,
+            Option<String>,
+            Option<String>,
+            u16,
+            Option<enums::AttemptStatus>,
+            Option<String>,
+        ),
+    ) -> Self {
+        Self {
+            code: code.unwrap_or(consts::NO_ERROR_CODE.to_string()),
+            message: message
+                .clone()
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            reason,
+            status_code: http_code,
+            attempt_status,
+            connector_transaction_id,
+        }
     }
 }
 

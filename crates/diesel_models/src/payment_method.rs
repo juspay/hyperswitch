@@ -38,6 +38,7 @@ pub struct PaymentMethod {
     pub connector_mandate_details: Option<serde_json::Value>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::PaymentMethodStatus,
+    pub network_transaction_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Insertable, router_derive::DebugAsDisplay)]
@@ -69,6 +70,7 @@ pub struct PaymentMethodNew {
     pub connector_mandate_details: Option<serde_json::Value>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::PaymentMethodStatus,
+    pub network_transaction_id: Option<String>,
 }
 
 impl Default for PaymentMethodNew {
@@ -102,6 +104,7 @@ impl Default for PaymentMethodNew {
             connector_mandate_details: Option::default(),
             customer_acceptance: Option::default(),
             status: storage_enums::PaymentMethodStatus::Active,
+            network_transaction_id: Option::default(),
         }
     }
 }
@@ -123,8 +126,15 @@ pub enum PaymentMethodUpdate {
     LastUsedUpdate {
         last_used_at: PrimitiveDateTime,
     },
+    NetworkTransactionIdAndStatusUpdate {
+        network_transaction_id: Option<String>,
+        status: Option<storage_enums::PaymentMethodStatus>,
+    },
     StatusUpdate {
         status: Option<storage_enums::PaymentMethodStatus>,
+    },
+    ConnectorMandateDetailsUpdate {
+        connector_mandate_details: Option<serde_json::Value>,
     },
 }
 
@@ -134,7 +144,9 @@ pub struct PaymentMethodUpdateInternal {
     metadata: Option<serde_json::Value>,
     payment_method_data: Option<Encryption>,
     last_used_at: Option<PrimitiveDateTime>,
+    network_transaction_id: Option<String>,
     status: Option<storage_enums::PaymentMethodStatus>,
+    connector_mandate_details: Option<serde_json::Value>,
 }
 
 impl PaymentMethodUpdateInternal {
@@ -152,7 +164,9 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 metadata,
                 payment_method_data: None,
                 last_used_at: None,
+                network_transaction_id: None,
                 status: None,
+                connector_mandate_details: None,
             },
             PaymentMethodUpdate::PaymentMethodDataUpdate {
                 payment_method_data,
@@ -160,19 +174,46 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 metadata: None,
                 payment_method_data,
                 last_used_at: None,
+                network_transaction_id: None,
                 status: None,
+                connector_mandate_details: None,
             },
             PaymentMethodUpdate::LastUsedUpdate { last_used_at } => Self {
                 metadata: None,
                 payment_method_data: None,
                 last_used_at: Some(last_used_at),
+                network_transaction_id: None,
                 status: None,
+                connector_mandate_details: None,
+            },
+            PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
+                network_transaction_id,
+                status,
+            } => Self {
+                metadata: None,
+                payment_method_data: None,
+                last_used_at: None,
+                network_transaction_id,
+                status,
+                connector_mandate_details: None,
             },
             PaymentMethodUpdate::StatusUpdate { status } => Self {
                 metadata: None,
                 payment_method_data: None,
                 last_used_at: None,
+                network_transaction_id: None,
                 status,
+                connector_mandate_details: None,
+            },
+            PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
+                connector_mandate_details,
+            } => Self {
+                metadata: None,
+                payment_method_data: None,
+                last_used_at: None,
+                status: None,
+                connector_mandate_details,
+                network_transaction_id: None,
             },
         }
     }

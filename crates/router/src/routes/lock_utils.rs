@@ -137,7 +137,8 @@ impl From<Flow> for ApiIdentifier {
             Flow::FrmFulfillment
             | Flow::IncomingWebhookReceive
             | Flow::WebhookEventInitialDeliveryAttemptList
-            | Flow::WebhookEventDeliveryAttemptList => Self::Webhooks,
+            | Flow::WebhookEventDeliveryAttemptList
+            | Flow::WebhookEventDeliveryRetry => Self::Webhooks,
 
             Flow::ApiKeyCreate
             | Flow::ApiKeyRetrieve
@@ -225,6 +226,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ReconTokenRequest
             | Flow::ReconServiceRequest
             | Flow::ReconVerifyToken => Self::Recon,
+            Flow::CreateConnectorAgnosticMandateConfig => Self::Routing,
         }
     }
 }

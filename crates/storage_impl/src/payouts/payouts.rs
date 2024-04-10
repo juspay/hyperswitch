@@ -2,13 +2,23 @@
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 use common_utils::ext_traits::Encode;
 #[cfg(feature = "olap")]
-use data_models::payouts::{payout_attempt::PayoutAttempt, PayoutFetchConstraints};
+use data_models::payouts::PayoutFetchConstraints;
 use data_models::{
     errors::StorageError,
-    payouts::payouts::{Payouts, PayoutsInterface, PayoutsNew, PayoutsUpdate},
+    payouts::{
+        payout_attempt::PayoutAttempt,
+        payouts::{Payouts, PayoutsInterface, PayoutsNew, PayoutsUpdate},
+    },
 };
 #[cfg(feature = "olap")]
 use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
+#[cfg(feature = "olap")]
+use diesel_models::{
+    customers::Customer as DieselCustomer,
+    payout_attempt::PayoutAttempt as DieselPayoutAttempt,
+    query::generics::db_metrics,
+    schema::{customers::dsl as cust_dsl, payout_attempt::dsl as poa_dsl, payouts::dsl as po_dsl},
+};
 use diesel_models::{
     enums::MerchantStorageScheme,
     kv,
@@ -16,12 +26,6 @@ use diesel_models::{
         Payouts as DieselPayouts, PayoutsNew as DieselPayoutsNew,
         PayoutsUpdate as DieselPayoutsUpdate,
     },
-};
-#[cfg(feature = "olap")]
-use diesel_models::{
-    payout_attempt::PayoutAttempt as DieselPayoutAttempt,
-    query::generics::db_metrics,
-    schema::{payout_attempt::dsl as poa_dsl, payouts::dsl as po_dsl},
 };
 use error_stack::ResultExt;
 use redis_interface::HsetnxReply;
@@ -114,12 +118,13 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         &self,
         this: &Payouts,
         payout_update: PayoutsUpdate,
+        payout_attempt: &PayoutAttempt,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Payouts, StorageError> {
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
-                    .update_payout(this, payout_update, storage_scheme)
+                    .update_payout(this, payout_update, payout_attempt, storage_scheme)
                     .await
             }
             MerchantStorageScheme::RedisKv => {
@@ -270,7 +275,8 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         merchant_id: &str,
         filters: &PayoutFetchConstraints,
         storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<(Payouts, PayoutAttempt)>, StorageError> {
+    ) -> error_stack::Result<Vec<(Payouts, PayoutAttempt, diesel_models::Customer)>, StorageError>
+    {
         self.router_store
             .filter_payouts_and_attempts(merchant_id, filters, storage_scheme)
             .await
@@ -314,6 +320,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         &self,
         this: &Payouts,
         payout: PayoutsUpdate,
+        _payout_attempt: &PayoutAttempt,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Payouts, StorageError> {
         let conn = pg_connection_write(self).await?;
@@ -485,7 +492,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         merchant_id: &str,
         filters: &PayoutFetchConstraints,
         storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<(Payouts, PayoutAttempt)>, StorageError> {
+    ) -> error_stack::Result<Vec<(Payouts, PayoutAttempt, DieselCustomer)>, StorageError> {
         use common_utils::errors::ReportSwitchExt;
 
         let conn = connection::pg_connection_read(self).await.switch()?;
@@ -494,6 +501,10 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
             .inner_join(
                 diesel_models::schema::payout_attempt::table
                     .on(poa_dsl::payout_id.eq(po_dsl::payout_id)),
+            )
+            .inner_join(
+                diesel_models::schema::customers::table
+                    .on(cust_dsl::customer_id.eq(po_dsl::customer_id)),
             )
             .filter(po_dsl::merchant_id.eq(merchant_id.to_owned()))
             .order(po_dsl::created_at.desc())
@@ -585,15 +596,16 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         logger::debug!(filter = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
 
         query
-            .get_results_async::<(DieselPayouts, DieselPayoutAttempt)>(conn)
+            .get_results_async::<(DieselPayouts, DieselPayoutAttempt, DieselCustomer)>(conn)
             .await
             .map(|results| {
                 results
                     .into_iter()
-                    .map(|(pi, pa)| {
+                    .map(|(pi, pa, c)| {
                         (
                             Payouts::from_storage_model(pi),
                             PayoutAttempt::from_storage_model(pa),
+                            c,
                         )
                     })
                     .collect()
@@ -765,6 +777,7 @@ impl DataModelExt for PayoutsUpdate {
             Self::AttemptCountUpdate { attempt_count } => {
                 DieselPayoutsUpdate::AttemptCountUpdate { attempt_count }
             }
+            Self::StatusUpdate { status } => DieselPayoutsUpdate::StatusUpdate { status },
         }
     }
 
