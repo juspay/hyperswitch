@@ -612,6 +612,7 @@ pub enum StripePaymentMethodType {
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
+#[allow(dead_code)]
 pub enum StripeCreditTransferTypes {
     AchCreditTransfer,
     Multibanco,
