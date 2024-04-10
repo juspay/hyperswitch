@@ -10,7 +10,7 @@ use crate::{
     payouts::{Payouts, PayoutsNew, PayoutsUpdate},
     refund::{Refund, RefundNew, RefundUpdate},
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
-    PaymentIntent, PaymentMethod, PaymentMethodNew, PaymentMethodUpdateInternal, PgPooledConn,
+    PaymentIntent, PaymentMethod, PaymentMethodNew, PaymentMethodUpdateInternal, PgPooledConn,Mandate, MandateNew, MandateUpdateInternal,
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -38,6 +38,7 @@ impl DBOperation {
                 Insertable::PayoutAttempt(_) => "payout_attempt",
                 Insertable::ReverseLookUp(_) => "reverse_lookup",
                 Insertable::PaymentMethod(_) => "payment_method",
+                Insertable::Mandate(_) => "mandate",
             },
             Self::Update { updatable } => match updatable {
                 Updateable::PaymentIntentUpdate(_) => "payment_intent",
@@ -47,6 +48,7 @@ impl DBOperation {
                 Updateable::PayoutsUpdate(_) => "payouts",
                 Updateable::PayoutAttemptUpdate(_) => "payout_attempt",
                 Updateable::PaymentMethodUpdate(_) => "payment_method",
+                Updateable::MandateUpdate(_) => " mandate",
             },
         }
     }
@@ -62,6 +64,7 @@ pub enum DBResult {
     Payouts(Box<Payouts>),
     PayoutAttempt(Box<PayoutAttempt>),
     PaymentMethod(Box<PaymentMethod>),
+    Mandate(Box<Mandate>),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -92,6 +95,7 @@ impl DBOperation {
                 Insertable::PaymentMethod(rev) => {
                     DBResult::PaymentMethod(Box::new(rev.insert(conn).await?))
                 }
+                Insertable::Mandate(m) => DBResult::Mandate(Box::new(m.insert(conn).await?)),
             },
             Self::Update { updatable } => match updatable {
                 Updateable::PaymentIntentUpdate(a) => {
@@ -116,6 +120,15 @@ impl DBOperation {
                     v.orig
                         .update_with_payment_method_id(conn, v.update_data)
                         .await?,
+                )),
+                Updateable::MandateUpdate(m) => DBResult::Mandate(Box::new(
+                    Mandate::update_by_merchant_id_mandate_id(
+                        conn,
+                        &m.orig.merchant_id,
+                        &m.orig.mandate_id,
+                        m.update_data,
+                    )
+                    .await?,
                 )),
             },
         })
@@ -154,6 +167,7 @@ pub enum Insertable {
     Payouts(PayoutsNew),
     PayoutAttempt(PayoutAttemptNew),
     PaymentMethod(PaymentMethodNew),
+    Mandate(MandateNew),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -166,6 +180,7 @@ pub enum Updateable {
     PayoutsUpdate(PayoutsUpdateMems),
     PayoutAttemptUpdate(PayoutAttemptUpdateMems),
     PaymentMethodUpdate(PaymentMethodUpdateMems),
+    MandateUpdate(MandateUpdateMems),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -208,4 +223,10 @@ pub struct PayoutAttemptUpdateMems {
 pub struct PaymentMethodUpdateMems {
     pub orig: PaymentMethod,
     pub update_data: PaymentMethodUpdateInternal,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MandateUpdateMems {
+    pub orig: Mandate,
+    pub update_data: MandateUpdateInternal,
 }

@@ -651,9 +651,10 @@ impl MandateInterface for KafkaStore {
         &self,
         merchant_id: &str,
         mandate_id: &str,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::Mandate, errors::StorageError> {
         self.diesel_store
-            .find_mandate_by_merchant_id_mandate_id(merchant_id, mandate_id)
+            .find_mandate_by_merchant_id_mandate_id(merchant_id, mandate_id, storage_scheme)
             .await
     }
 
@@ -661,9 +662,14 @@ impl MandateInterface for KafkaStore {
         &self,
         merchant_id: &str,
         connector_mandate_id: &str,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::Mandate, errors::StorageError> {
         self.diesel_store
-            .find_mandate_by_merchant_id_connector_mandate_id(merchant_id, connector_mandate_id)
+            .find_mandate_by_merchant_id_connector_mandate_id(
+                merchant_id,
+                connector_mandate_id,
+                storage_scheme,
+            )
             .await
     }
 
@@ -681,10 +687,18 @@ impl MandateInterface for KafkaStore {
         &self,
         merchant_id: &str,
         mandate_id: &str,
-        mandate: storage::MandateUpdate,
+        mandate_update: storage::MandateUpdate,
+        mandate: storage::Mandate,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::Mandate, errors::StorageError> {
         self.diesel_store
-            .update_mandate_by_merchant_id_mandate_id(merchant_id, mandate_id, mandate)
+            .update_mandate_by_merchant_id_mandate_id(
+                merchant_id,
+                mandate_id,
+                mandate_update,
+                mandate,
+                storage_scheme,
+            )
             .await
     }
 
@@ -701,8 +715,11 @@ impl MandateInterface for KafkaStore {
     async fn insert_mandate(
         &self,
         mandate: storage::MandateNew,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::Mandate, errors::StorageError> {
-        self.diesel_store.insert_mandate(mandate).await
+        self.diesel_store
+            .insert_mandate(mandate, storage_scheme)
+            .await
     }
 }
 

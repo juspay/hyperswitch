@@ -11,6 +11,7 @@ pub mod connection;
 pub mod database;
 pub mod errors;
 mod lookup;
+pub mod mandate;
 pub mod metrics;
 pub mod mock_db;
 pub mod payment_method;
@@ -371,6 +372,14 @@ impl UniqueConstraints for diesel_models::PaymentMethod {
     }
 }
 
+impl UniqueConstraints for diesel_models::Mandate {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!("mand_{}_{}", self.merchant_id, self.mandate_id)]
+    }
+    fn table_name(&self) -> &str {
+        "Mandate"
+    }
+}
 #[cfg(not(feature = "payouts"))]
 impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {}
 #[cfg(not(feature = "payouts"))]

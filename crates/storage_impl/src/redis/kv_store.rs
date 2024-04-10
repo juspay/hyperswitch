@@ -40,6 +40,10 @@ pub enum PartitionKey<'a> {
         merchant_id: &'a str,
         payout_attempt_id: &'a str,
     },
+    MerchantIdMandateId {
+        merchant_id : &'a str,
+        mandate_id : &'a str,
+    }
 }
 // PartitionKey::MerchantIdPaymentId {merchant_id, payment_id}
 impl<'a> std::fmt::Display for PartitionKey<'a> {
@@ -62,6 +66,10 @@ impl<'a> std::fmt::Display for PartitionKey<'a> {
                 merchant_id,
                 payout_attempt_id,
             } => f.write_str(&format!("mid_{merchant_id}_poa_{payout_attempt_id}")),
+            PartitionKey::MerchantIdMandateId {
+                merchant_id,
+                mandate_id,
+            } => f.write_str(&format!("mid_{merchant_id}_mandate_{mandate_id}")),
         }
     }
 }
