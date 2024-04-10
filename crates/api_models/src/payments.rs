@@ -39,7 +39,7 @@ pub struct BankData {
 
 #[derive(serde::Deserialize)]
 pub struct BankCodeInformation {
-    pub bank_name: api_enums::BankNames,
+    pub bank_name: common_enums::BankNames,
     pub connector_codes: Vec<ConnectorCode>,
 }
 
@@ -51,7 +51,7 @@ pub struct ConnectorCode {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
 pub struct BankCodeResponse {
-    pub bank_name: Vec<api_enums::BankNames>,
+    pub bank_name: Vec<common_enums::BankNames>,
     pub eligible_connectors: Vec<String>,
 }
 
@@ -1292,26 +1292,14 @@ pub trait GetAddressFromPaymentMethodData {
 impl GetAddressFromPaymentMethodData for PaymentMethodData {
     fn get_billing_address(&self) -> Option<Address> {
         match self {
-            Self::Card(card_data) => {
-                card_data
-                    .card_holder_name
-                    .as_ref()
-                    .map(|card_holder_name| Address {
-                        address: Some(AddressDetails {
-                            first_name: Some(card_holder_name.clone()),
-                            ..AddressDetails::default()
-                        }),
-                        email: None,
-                        phone: None,
-                    })
-            }
+            Self::Card(_) => None,
             Self::CardRedirect(_) => None,
-            Self::Wallet(wallet_data) => wallet_data.get_billing_address(),
-            Self::PayLater(pay_later_data) => pay_later_data.get_billing_address(),
-            Self::BankRedirect(bank_redirect_data) => bank_redirect_data.get_billing_address(),
-            Self::BankDebit(bank_debit_data) => bank_debit_data.get_billing_address(),
-            Self::BankTransfer(bank_transfer_data) => bank_transfer_data.get_billing_address(),
-            Self::Voucher(voucher_data) => voucher_data.get_billing_address(),
+            Self::Wallet(_) => None,
+            Self::PayLater(_) => None,
+            Self::BankRedirect(_) => None,
+            Self::BankDebit(_) => None,
+            Self::BankTransfer(_) => None,
+            Self::Voucher(_) => None,
             Self::Crypto(_)
             | Self::Reward
             | Self::Upi(_)
@@ -1477,6 +1465,7 @@ impl GetPaymentMethodType for BankTransferData {
             Self::MandiriVaBankTransfer { .. } => api_enums::PaymentMethodType::MandiriVa,
             Self::Pix {} => api_enums::PaymentMethodType::Pix,
             Self::Pse {} => api_enums::PaymentMethodType::Pse,
+            Self::LocalBankTransfer { .. } => api_enums::PaymentMethodType::LocalBankTransfer,
         }
     }
 }
@@ -1583,7 +1572,7 @@ pub struct AdditionalCardInfo {
 pub enum AdditionalPaymentData {
     Card(Box<AdditionalCardInfo>),
     BankRedirect {
-        bank_name: Option<api_enums::BankNames>,
+        bank_name: Option<common_enums::BankNames>,
     },
     Wallet {
         apple_pay: Option<ApplepayPaymentMethod>,
@@ -1634,7 +1623,7 @@ pub enum BankRedirectData {
 
         /// The hyperswitch bank code for eps
         #[schema(value_type = BankNames, example = "triodos_bank")]
-        bank_name: Option<api_enums::BankNames>,
+        bank_name: Option<common_enums::BankNames>,
 
         /// The country for bank payment
         #[schema(value_type = CountryAlpha2, example = "US")]
@@ -1663,7 +1652,7 @@ pub enum BankRedirectData {
 
         /// The hyperswitch bank code for ideal
         #[schema(value_type = BankNames, example = "abn_amro")]
-        bank_name: Option<api_enums::BankNames>,
+        bank_name: Option<common_enums::BankNames>,
 
         /// The country for bank payment
         #[schema(value_type = CountryAlpha2, example = "US")]
@@ -1680,7 +1669,7 @@ pub enum BankRedirectData {
     OnlineBankingCzechRepublic {
         // Issuer banks
         #[schema(value_type = BankNames)]
-        issuer: api_enums::BankNames,
+        issuer: common_enums::BankNames,
     },
     OnlineBankingFinland {
         // Shopper Email
@@ -1690,17 +1679,17 @@ pub enum BankRedirectData {
     OnlineBankingPoland {
         // Issuer banks
         #[schema(value_type = BankNames)]
-        issuer: api_enums::BankNames,
+        issuer: common_enums::BankNames,
     },
     OnlineBankingSlovakia {
         // Issuer value corresponds to the bank
         #[schema(value_type = BankNames)]
-        issuer: api_enums::BankNames,
+        issuer: common_enums::BankNames,
     },
     OpenBankingUk {
         // Issuer banks
         #[schema(value_type = BankNames)]
-        issuer: Option<api_enums::BankNames>,
+        issuer: Option<common_enums::BankNames>,
         /// The country for bank payment
         #[schema(value_type = CountryAlpha2, example = "US")]
         country: Option<api_enums::CountryAlpha2>,
@@ -1708,7 +1697,7 @@ pub enum BankRedirectData {
     Przelewy24 {
         //Issuer banks
         #[schema(value_type = Option<BankNames>)]
-        bank_name: Option<api_enums::BankNames>,
+        bank_name: Option<common_enums::BankNames>,
 
         // The billing details for bank redirect
         billing_details: BankRedirectBilling,
@@ -1733,11 +1722,11 @@ pub enum BankRedirectData {
     OnlineBankingFpx {
         // Issuer banks
         #[schema(value_type = BankNames)]
-        issuer: api_enums::BankNames,
+        issuer: common_enums::BankNames,
     },
     OnlineBankingThailand {
         #[schema(value_type = BankNames)]
-        issuer: api_enums::BankNames,
+        issuer: common_enums::BankNames,
     },
 }
 
@@ -2041,6 +2030,9 @@ pub enum BankTransferData {
     },
     Pix {},
     Pse {},
+    LocalBankTransfer {
+        bank_code: Option<String>,
+    },
 }
 
 impl GetAddressFromPaymentMethodData for BankTransferData {
@@ -2091,7 +2083,7 @@ impl GetAddressFromPaymentMethodData for BankTransferData {
                 phone: None,
                 email: Some(billing_details.email.clone()),
             }),
-            Self::Pix {} | Self::Pse {} => None,
+            Self::LocalBankTransfer { .. } | Self::Pix {} | Self::Pse {} => None,
         }
     }
 }
@@ -2597,6 +2589,21 @@ pub struct Address {
     pub email: Option<Email>,
 }
 
+impl Address {
+    /// Unify the address, giving priority to `self` when details are present in both
+    pub fn unify_address(self, other: Option<&Self>) -> Self {
+        let other_address_details = other.and_then(|address| address.address.as_ref());
+        Self {
+            address: self
+                .address
+                .map(|address| address.unify_address_details(other_address_details))
+                .or(other_address_details.cloned()),
+            email: self.email.or(other.and_then(|other| other.email.clone())),
+            phone: self.phone.or(other.and_then(|other| other.phone.clone())),
+        }
+    }
+}
+
 // used by customers also, could be moved outside
 /// Address details
 #[derive(Clone, Default, Debug, Eq, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
@@ -2637,6 +2644,32 @@ pub struct AddressDetails {
     /// The last name for the address
     #[schema(value_type = Option<String>, max_length = 255, example = "Doe")]
     pub last_name: Option<Secret<String>>,
+}
+
+impl AddressDetails {
+    pub fn unify_address_details(self, other: Option<&Self>) -> Self {
+        if let Some(other) = other {
+            let (first_name, last_name) = if self.first_name.is_some() {
+                (self.first_name, self.last_name)
+            } else {
+                (other.first_name.clone(), other.last_name.clone())
+            };
+
+            Self {
+                first_name,
+                last_name,
+                city: self.city.or(other.city.clone()),
+                country: self.country.or(other.country),
+                line1: self.line1.or(other.line1.clone()),
+                line2: self.line2.or(other.line2.clone()),
+                line3: self.line3.or(other.line3.clone()),
+                zip: self.zip.or(other.zip.clone()),
+                state: self.state.or(other.state.clone()),
+            }
+        } else {
+            self
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, ToSchema, serde::Deserialize, serde::Serialize)]
@@ -3156,6 +3189,10 @@ pub struct PaymentsResponse {
 
     /// Payment Fingerprint
     pub fingerprint: Option<String>,
+
+    #[schema(value_type = Option<BrowserInformation>)]
+    /// The browser information used for this payment
+    pub browser_info: Option<serde_json::Value>,
 
     /// Payment Method Id
     pub payment_method_id: Option<String>,
@@ -4351,12 +4388,12 @@ pub struct PaymentLinkInitiateRequest {
 
 #[derive(Debug, serde::Serialize)]
 #[serde(untagged)]
-pub enum PaymentLinkData {
-    PaymentLinkDetails(PaymentLinkDetails),
+pub enum PaymentLinkData<'a> {
+    PaymentLinkDetails(&'a PaymentLinkDetails),
     PaymentLinkStatusDetails(PaymentLinkStatusDetails),
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, Clone)]
 pub struct PaymentLinkDetails {
     pub amount: String,
     pub currency: api_enums::Currency,

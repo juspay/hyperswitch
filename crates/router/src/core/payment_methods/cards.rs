@@ -87,6 +87,7 @@ pub async fn create_payment_method(
     payment_method_data: Option<Encryption>,
     key_store: &domain::MerchantKeyStore,
     connector_mandate_details: Option<serde_json::Value>,
+    network_transaction_id: Option<String>,
 ) -> errors::CustomResult<storage::PaymentMethod, errors::ApiErrorResponse> {
     let customer = db
         .find_customer_by_customer_id_merchant_id(customer_id, merchant_id, key_store)
@@ -107,6 +108,7 @@ pub async fn create_payment_method(
             payment_method_data,
             connector_mandate_details,
             customer_acceptance: customer_acceptance.map(masking::Secret::new),
+            network_transaction_id: network_transaction_id.to_owned(),
             ..storage::PaymentMethodNew::default()
         })
         .await
@@ -204,6 +206,7 @@ pub async fn get_or_insert_payment_method(
                     resp.metadata.clone().map(|val| val.expose()),
                     None,
                     locker_id,
+                    None,
                     None,
                 )
                 .await
@@ -392,6 +395,7 @@ pub async fn add_payment_method(
                 None,
                 locker_id,
                 None,
+                None,
             )
             .await?;
         }
@@ -412,6 +416,7 @@ pub async fn insert_payment_method(
     customer_acceptance: Option<serde_json::Value>,
     locker_id: Option<String>,
     connector_mandate_details: Option<serde_json::Value>,
+    network_transaction_id: Option<String>,
 ) -> errors::RouterResult<diesel_models::PaymentMethod> {
     let pm_card_details = resp
         .card
@@ -430,6 +435,7 @@ pub async fn insert_payment_method(
         pm_data_encrypted,
         key_store,
         connector_mandate_details,
+        network_transaction_id,
     )
     .await
 }
@@ -846,6 +852,20 @@ pub async fn update_payment_method(
     Ok(())
 }
 
+pub async fn update_payment_method_connector_mandate_details(
+    db: &dyn db::StorageInterface,
+    pm: payment_method::PaymentMethod,
+    connector_mandate_details: Option<serde_json::Value>,
+) -> errors::CustomResult<(), errors::VaultError> {
+    let pm_update = payment_method::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
+        connector_mandate_details,
+    };
+
+    db.update_payment_method(pm, pm_update)
+        .await
+        .change_context(errors::VaultError::UpdateInPaymentMethodDataTableFailed)?;
+    Ok(())
+}
 #[instrument(skip_all)]
 pub async fn get_card_from_hs_locker<'a>(
     state: &'a routes::AppState,
@@ -1107,10 +1127,11 @@ pub async fn mock_delete_card<'a>(
 //------------------------------------------------------------------------------
 pub fn get_banks(
     state: &routes::AppState,
-    pm_type: api_enums::PaymentMethodType,
+    pm_type: common_enums::enums::PaymentMethodType,
     connectors: Vec<String>,
 ) -> Result<Vec<BankCodeResponse>, errors::ApiErrorResponse> {
-    let mut bank_names_hm: HashMap<String, HashSet<api_enums::BankNames>> = HashMap::new();
+    let mut bank_names_hm: HashMap<String, HashSet<common_enums::enums::BankNames>> =
+        HashMap::new();
 
     if matches!(
         pm_type,
@@ -1276,7 +1297,7 @@ pub async fn list_payment_methods(
             Some(api::MandateTransactionType::RecurringMandateTransaction)
         } else if pa.mandate_details.is_some()
             || setup_future_usage
-                .map(|future_usage| future_usage == api_enums::FutureUsage::OffSession)
+                .map(|future_usage| future_usage == common_enums::enums::FutureUsage::OffSession)
                 .unwrap_or(false)
         {
             Some(api::MandateTransactionType::NewMandateTransaction)

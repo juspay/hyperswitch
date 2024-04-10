@@ -202,6 +202,7 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Becs
                 | PaymentMethodType::ClassicReward
                 | PaymentMethodType::Pse
+                | PaymentMethodType::LocalBankTransfer
                 | PaymentMethodType::Efecty
                 | PaymentMethodType::PagoEfectivo
                 | PaymentMethodType::RedCompra

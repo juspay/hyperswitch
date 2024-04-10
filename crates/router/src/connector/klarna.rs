@@ -1,7 +1,6 @@
 pub mod transformers;
 use std::fmt::Debug;
 
-use api_models::payments as api_payments;
 use common_utils::request::RequestContent;
 use error_stack::{report, ResultExt};
 use transformers as klarna;
@@ -21,7 +20,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon},
-        storage::enums as storage_enums,
+        domain,
     },
     utils::BytesExt,
 };
@@ -307,128 +306,129 @@ impl
             .ok_or_else(connector_utils::missing_field_err("payment_method_type"))?;
 
         match payment_method_data {
-            api_payments::PaymentMethodData::PayLater(api_payments::PayLaterData::KlarnaSdk {
-                token,
-            }) => match (payment_experience, payment_method_type) {
-                (
-                    storage_enums::PaymentExperience::InvokeSdkClient,
-                    storage_enums::PaymentMethodType::Klarna,
-                ) => Ok(format!(
-                    "{}payments/v1/authorizations/{}/order",
-                    self.base_url(connectors),
-                    token
-                )),
-                (
-                    storage_enums::PaymentExperience::DisplayQrCode
-                    | storage_enums::PaymentExperience::DisplayWaitScreen
-                    | storage_enums::PaymentExperience::InvokePaymentApp
-                    | storage_enums::PaymentExperience::InvokeSdkClient
-                    | storage_enums::PaymentExperience::LinkWallet
-                    | storage_enums::PaymentExperience::OneClick
-                    | storage_enums::PaymentExperience::RedirectToUrl,
-                    api_models::enums::PaymentMethodType::Ach
-                    | api_models::enums::PaymentMethodType::Affirm
-                    | api_models::enums::PaymentMethodType::AfterpayClearpay
-                    | api_models::enums::PaymentMethodType::Alfamart
-                    | api_models::enums::PaymentMethodType::AliPay
-                    | api_models::enums::PaymentMethodType::AliPayHk
-                    | api_models::enums::PaymentMethodType::Alma
-                    | api_models::enums::PaymentMethodType::ApplePay
-                    | api_models::enums::PaymentMethodType::Atome
-                    | api_models::enums::PaymentMethodType::Bacs
-                    | api_models::enums::PaymentMethodType::BancontactCard
-                    | api_models::enums::PaymentMethodType::Becs
-                    | api_models::enums::PaymentMethodType::Benefit
-                    | api_models::enums::PaymentMethodType::Bizum
-                    | api_models::enums::PaymentMethodType::Blik
-                    | api_models::enums::PaymentMethodType::Boleto
-                    | api_models::enums::PaymentMethodType::BcaBankTransfer
-                    | api_models::enums::PaymentMethodType::BniVa
-                    | api_models::enums::PaymentMethodType::BriVa
-                    | api_models::enums::PaymentMethodType::CardRedirect
-                    | api_models::enums::PaymentMethodType::CimbVa
-                    | api_models::enums::PaymentMethodType::ClassicReward
-                    | api_models::enums::PaymentMethodType::Credit
-                    | api_models::enums::PaymentMethodType::CryptoCurrency
-                    | api_models::enums::PaymentMethodType::Cashapp
-                    | api_models::enums::PaymentMethodType::Dana
-                    | api_models::enums::PaymentMethodType::DanamonVa
-                    | api_models::enums::PaymentMethodType::Debit
-                    | api_models::enums::PaymentMethodType::Efecty
-                    | api_models::enums::PaymentMethodType::Eps
-                    | api_models::enums::PaymentMethodType::Evoucher
-                    | api_models::enums::PaymentMethodType::Giropay
-                    | api_models::enums::PaymentMethodType::Givex
-                    | api_models::enums::PaymentMethodType::GooglePay
-                    | api_models::enums::PaymentMethodType::GoPay
-                    | api_models::enums::PaymentMethodType::Gcash
-                    | api_models::enums::PaymentMethodType::Ideal
-                    | api_models::enums::PaymentMethodType::Interac
-                    | api_models::enums::PaymentMethodType::Indomaret
-                    | api_models::enums::PaymentMethodType::Klarna
-                    | api_models::enums::PaymentMethodType::KakaoPay
-                    | api_models::enums::PaymentMethodType::MandiriVa
-                    | api_models::enums::PaymentMethodType::Knet
-                    | api_models::enums::PaymentMethodType::MbWay
-                    | api_models::enums::PaymentMethodType::MobilePay
-                    | api_models::enums::PaymentMethodType::Momo
-                    | api_models::enums::PaymentMethodType::MomoAtm
-                    | api_models::enums::PaymentMethodType::Multibanco
-                    | api_models::enums::PaymentMethodType::OnlineBankingThailand
-                    | api_models::enums::PaymentMethodType::OnlineBankingCzechRepublic
-                    | api_models::enums::PaymentMethodType::OnlineBankingFinland
-                    | api_models::enums::PaymentMethodType::OnlineBankingFpx
-                    | api_models::enums::PaymentMethodType::OnlineBankingPoland
-                    | api_models::enums::PaymentMethodType::OnlineBankingSlovakia
-                    | api_models::enums::PaymentMethodType::Oxxo
-                    | api_models::enums::PaymentMethodType::PagoEfectivo
-                    | api_models::enums::PaymentMethodType::PermataBankTransfer
-                    | api_models::enums::PaymentMethodType::OpenBankingUk
-                    | api_models::enums::PaymentMethodType::PayBright
-                    | api_models::enums::PaymentMethodType::Paypal
-                    | api_models::enums::PaymentMethodType::Pix
-                    | api_models::enums::PaymentMethodType::PaySafeCard
-                    | api_models::enums::PaymentMethodType::Przelewy24
-                    | api_models::enums::PaymentMethodType::Pse
-                    | api_models::enums::PaymentMethodType::RedCompra
-                    | api_models::enums::PaymentMethodType::RedPagos
-                    | api_models::enums::PaymentMethodType::SamsungPay
-                    | api_models::enums::PaymentMethodType::Sepa
-                    | api_models::enums::PaymentMethodType::Sofort
-                    | api_models::enums::PaymentMethodType::Swish
-                    | api_models::enums::PaymentMethodType::TouchNGo
-                    | api_models::enums::PaymentMethodType::Trustly
-                    | api_models::enums::PaymentMethodType::Twint
-                    | api_models::enums::PaymentMethodType::UpiCollect
-                    | api_models::enums::PaymentMethodType::Vipps
-                    | api_models::enums::PaymentMethodType::Walley
-                    | api_models::enums::PaymentMethodType::WeChatPay
-                    | api_models::enums::PaymentMethodType::SevenEleven
-                    | api_models::enums::PaymentMethodType::Lawson
-                    | api_models::enums::PaymentMethodType::MiniStop
-                    | api_models::enums::PaymentMethodType::FamilyMart
-                    | api_models::enums::PaymentMethodType::Seicomart
-                    | api_models::enums::PaymentMethodType::PayEasy,
-                ) => Err(error_stack::report!(errors::ConnectorError::NotSupported {
-                    message: payment_method_type.to_string(),
-                    connector: "klarna",
-                })),
-            },
+            domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaSdk { token }) => {
+                match (payment_experience, payment_method_type) {
+                    (
+                        common_enums::PaymentExperience::InvokeSdkClient,
+                        common_enums::PaymentMethodType::Klarna,
+                    ) => Ok(format!(
+                        "{}payments/v1/authorizations/{}/order",
+                        self.base_url(connectors),
+                        token
+                    )),
+                    (
+                        common_enums::PaymentExperience::DisplayQrCode
+                        | common_enums::PaymentExperience::DisplayWaitScreen
+                        | common_enums::PaymentExperience::InvokePaymentApp
+                        | common_enums::PaymentExperience::InvokeSdkClient
+                        | common_enums::PaymentExperience::LinkWallet
+                        | common_enums::PaymentExperience::OneClick
+                        | common_enums::PaymentExperience::RedirectToUrl,
+                        common_enums::PaymentMethodType::Ach
+                        | common_enums::PaymentMethodType::Affirm
+                        | common_enums::PaymentMethodType::AfterpayClearpay
+                        | common_enums::PaymentMethodType::Alfamart
+                        | common_enums::PaymentMethodType::AliPay
+                        | common_enums::PaymentMethodType::AliPayHk
+                        | common_enums::PaymentMethodType::Alma
+                        | common_enums::PaymentMethodType::ApplePay
+                        | common_enums::PaymentMethodType::Atome
+                        | common_enums::PaymentMethodType::Bacs
+                        | common_enums::PaymentMethodType::BancontactCard
+                        | common_enums::PaymentMethodType::Becs
+                        | common_enums::PaymentMethodType::Benefit
+                        | common_enums::PaymentMethodType::Bizum
+                        | common_enums::PaymentMethodType::Blik
+                        | common_enums::PaymentMethodType::Boleto
+                        | common_enums::PaymentMethodType::BcaBankTransfer
+                        | common_enums::PaymentMethodType::BniVa
+                        | common_enums::PaymentMethodType::BriVa
+                        | common_enums::PaymentMethodType::CardRedirect
+                        | common_enums::PaymentMethodType::CimbVa
+                        | common_enums::PaymentMethodType::ClassicReward
+                        | common_enums::PaymentMethodType::Credit
+                        | common_enums::PaymentMethodType::CryptoCurrency
+                        | common_enums::PaymentMethodType::Cashapp
+                        | common_enums::PaymentMethodType::Dana
+                        | common_enums::PaymentMethodType::DanamonVa
+                        | common_enums::PaymentMethodType::Debit
+                        | common_enums::PaymentMethodType::Efecty
+                        | common_enums::PaymentMethodType::Eps
+                        | common_enums::PaymentMethodType::Evoucher
+                        | common_enums::PaymentMethodType::Giropay
+                        | common_enums::PaymentMethodType::Givex
+                        | common_enums::PaymentMethodType::GooglePay
+                        | common_enums::PaymentMethodType::GoPay
+                        | common_enums::PaymentMethodType::Gcash
+                        | common_enums::PaymentMethodType::Ideal
+                        | common_enums::PaymentMethodType::Interac
+                        | common_enums::PaymentMethodType::Indomaret
+                        | common_enums::PaymentMethodType::Klarna
+                        | common_enums::PaymentMethodType::KakaoPay
+                        | common_enums::PaymentMethodType::MandiriVa
+                        | common_enums::PaymentMethodType::Knet
+                        | common_enums::PaymentMethodType::MbWay
+                        | common_enums::PaymentMethodType::MobilePay
+                        | common_enums::PaymentMethodType::Momo
+                        | common_enums::PaymentMethodType::MomoAtm
+                        | common_enums::PaymentMethodType::Multibanco
+                        | common_enums::PaymentMethodType::OnlineBankingThailand
+                        | common_enums::PaymentMethodType::OnlineBankingCzechRepublic
+                        | common_enums::PaymentMethodType::OnlineBankingFinland
+                        | common_enums::PaymentMethodType::OnlineBankingFpx
+                        | common_enums::PaymentMethodType::OnlineBankingPoland
+                        | common_enums::PaymentMethodType::OnlineBankingSlovakia
+                        | common_enums::PaymentMethodType::Oxxo
+                        | common_enums::PaymentMethodType::PagoEfectivo
+                        | common_enums::PaymentMethodType::PermataBankTransfer
+                        | common_enums::PaymentMethodType::OpenBankingUk
+                        | common_enums::PaymentMethodType::PayBright
+                        | common_enums::PaymentMethodType::Paypal
+                        | common_enums::PaymentMethodType::Pix
+                        | common_enums::PaymentMethodType::PaySafeCard
+                        | common_enums::PaymentMethodType::Przelewy24
+                        | common_enums::PaymentMethodType::Pse
+                        | common_enums::PaymentMethodType::RedCompra
+                        | common_enums::PaymentMethodType::RedPagos
+                        | common_enums::PaymentMethodType::SamsungPay
+                        | common_enums::PaymentMethodType::Sepa
+                        | common_enums::PaymentMethodType::Sofort
+                        | common_enums::PaymentMethodType::Swish
+                        | common_enums::PaymentMethodType::TouchNGo
+                        | common_enums::PaymentMethodType::Trustly
+                        | common_enums::PaymentMethodType::Twint
+                        | common_enums::PaymentMethodType::UpiCollect
+                        | common_enums::PaymentMethodType::Vipps
+                        | common_enums::PaymentMethodType::Walley
+                        | common_enums::PaymentMethodType::WeChatPay
+                        | common_enums::PaymentMethodType::SevenEleven
+                        | common_enums::PaymentMethodType::Lawson
+                        | common_enums::PaymentMethodType::LocalBankTransfer
+                        | common_enums::PaymentMethodType::MiniStop
+                        | common_enums::PaymentMethodType::FamilyMart
+                        | common_enums::PaymentMethodType::Seicomart
+                        | common_enums::PaymentMethodType::PayEasy,
+                    ) => Err(error_stack::report!(errors::ConnectorError::NotSupported {
+                        message: payment_method_type.to_string(),
+                        connector: "klarna",
+                    })),
+                }
+            }
 
-            api_payments::PaymentMethodData::Card(_)
-            | api_payments::PaymentMethodData::CardRedirect(_)
-            | api_payments::PaymentMethodData::Wallet(_)
-            | api_payments::PaymentMethodData::PayLater(_)
-            | api_payments::PaymentMethodData::BankRedirect(_)
-            | api_payments::PaymentMethodData::BankDebit(_)
-            | api_payments::PaymentMethodData::BankTransfer(_)
-            | api_payments::PaymentMethodData::Crypto(_)
-            | api_payments::PaymentMethodData::MandatePayment
-            | api_payments::PaymentMethodData::Reward
-            | api_payments::PaymentMethodData::Upi(_)
-            | api_payments::PaymentMethodData::Voucher(_)
-            | api_payments::PaymentMethodData::GiftCard(_)
-            | api_payments::PaymentMethodData::CardToken(_) => Err(error_stack::report!(
+            domain::PaymentMethodData::Card(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => Err(error_stack::report!(
                 errors::ConnectorError::MismatchedPaymentData
             )),
         }

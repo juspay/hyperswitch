@@ -46,7 +46,7 @@ pub async fn retrieve_payment_link(
     Ok(services::ApplicationResponse::Json(response))
 }
 
-pub async fn intiate_payment_link_flow(
+pub async fn initiate_payment_link_flow(
     state: AppState,
     merchant_account: domain::MerchantAccount,
     merchant_id: String,
@@ -187,7 +187,7 @@ pub async fn intiate_payment_link_flow(
             return_url: return_url.clone(),
         };
         let js_script = get_js_script(
-            api_models::payments::PaymentLinkData::PaymentLinkStatusDetails(payment_details),
+            &api_models::payments::PaymentLinkData::PaymentLinkStatusDetails(payment_details),
         )?;
         let payment_link_error_data = services::PaymentLinkStatusData {
             js_script,
@@ -215,13 +215,17 @@ pub async fn intiate_payment_link_flow(
         sdk_layout: payment_link_config.sdk_layout.clone(),
     };
 
-    let js_script = get_js_script(api_models::payments::PaymentLinkData::PaymentLinkDetails(
-        payment_details,
+    let js_script = get_js_script(&api_models::payments::PaymentLinkData::PaymentLinkDetails(
+        &payment_details,
     ))?;
+
+    let html_meta_tags = get_meta_tags_html(payment_details);
+
     let payment_link_data = services::PaymentLinkFormData {
         js_script,
         sdk_url: state.conf.payment_link.sdk_url.clone(),
         css_script,
+        html_meta_tags,
     };
     Ok(services::ApplicationResponse::PaymentLinkForm(Box::new(
         services::api::PaymentLinkAction::PaymentLinkFormData(payment_link_data),
@@ -232,8 +236,10 @@ pub async fn intiate_payment_link_flow(
 The get_js_script function is used to inject dynamic value to payment_link sdk, which is unique to every payment.
 */
 
-fn get_js_script(payment_details: api_models::payments::PaymentLinkData) -> RouterResult<String> {
-    let payment_details_str = serde_json::to_string(&payment_details)
+fn get_js_script(
+    payment_details: &api_models::payments::PaymentLinkData<'_>,
+) -> RouterResult<String> {
+    let payment_details_str = serde_json::to_string(payment_details)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to serialize PaymentLinkData")?;
     Ok(format!("window.__PAYMENT_DETAILS = {payment_details_str};"))
@@ -245,6 +251,15 @@ fn get_color_scheme_css(payment_link_config: api_models::admin::PaymentLinkConfi
         ":root {{
       --primary-color: {background_primary_color};
     }}"
+    )
+}
+
+fn get_meta_tags_html(payment_details: api_models::payments::PaymentLinkDetails) -> String {
+    format!(
+        r#"<meta property="og:title" content="Payment request from {0}"/>
+        <meta property="og:description" content="{1}"/>"#,
+        payment_details.merchant_name,
+        payment_details.merchant_description.unwrap_or_default()
     )
 }
 
@@ -562,7 +577,7 @@ pub async fn get_payment_link_status(
         return_url,
     };
     let js_script = get_js_script(
-        api_models::payments::PaymentLinkData::PaymentLinkStatusDetails(payment_details),
+        &api_models::payments::PaymentLinkData::PaymentLinkStatusDetails(payment_details),
     )?;
     let payment_link_status_data = services::PaymentLinkStatusData {
         js_script,
