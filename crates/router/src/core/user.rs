@@ -1190,7 +1190,7 @@ pub async fn create_merchant_account(
     Ok(ApplicationResponse::StatusOk)
 }
 
-pub async fn list_merchant_ids_for_user(
+pub async fn list_merchants_for_user(
     state: AppState,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<Vec<user_api::UserMerchantAccount>> {
@@ -1211,8 +1211,15 @@ pub async fn list_merchant_ids_for_user(
         .await
         .change_context(UserErrors::InternalServerError)?;
 
+    let roles =
+        utils::user_role::get_multiple_role_info_for_user_roles(&state, &user_roles).await?;
+
     Ok(ApplicationResponse::Json(
-        utils::user::get_multiple_merchant_details_with_status(user_roles, merchant_accounts)?,
+        utils::user::get_multiple_merchant_details_with_status(
+            user_roles,
+            merchant_accounts,
+            roles,
+        )?,
     ))
 }
 

@@ -591,14 +591,11 @@ pub async fn upsert_connector_agnostic_mandate_config(
                 mandate_config,
             ))
         },
-        #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::ApiKeyAuth,
             &auth::JWTAuth(Permission::RoutingWrite),
             req.headers(),
         ),
-        #[cfg(feature = "release")]
-        &auth::JWTAuth(Permission::RoutingWrite),
         api_locking::LockAction::NotApplicable,
     ))
     .await
