@@ -1852,18 +1852,20 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
 
     if payment_data.token_data.is_none() {
         if let Some(payment_method_info) = &payment_data.payment_method_info {
-            payment_data.token_data =
-                Some(storage::PaymentTokenData::PermanentCard(CardTokenData {
-                    payment_method_id: Some(payment_method_info.payment_method_id.clone()),
-                    locker_id: payment_method_info
-                        .locker_id
-                        .clone()
-                        .or(Some(payment_method_info.payment_method_id.clone())),
-                    token: payment_method_info
-                        .locker_id
-                        .clone()
-                        .unwrap_or(payment_method_info.payment_method_id.clone()),
-                }));
+            if payment_method_info.payment_method == storage_enums::PaymentMethod::Card {
+                payment_data.token_data =
+                    Some(storage::PaymentTokenData::PermanentCard(CardTokenData {
+                        payment_method_id: Some(payment_method_info.payment_method_id.clone()),
+                        locker_id: payment_method_info
+                            .locker_id
+                            .clone()
+                            .or(Some(payment_method_info.payment_method_id.clone())),
+                        token: payment_method_info
+                            .locker_id
+                            .clone()
+                            .unwrap_or(payment_method_info.payment_method_id.clone()),
+                    }));
+            }
         }
     }
 
