@@ -1610,11 +1610,11 @@ macro_rules! default_imp_for_approve {
             api::Approve,
             types::PaymentsApproveData,
             types::PaymentsResponseData,
-            > for $path::$connector
-            {}
-        )*
-        };
-    }
+        > for $path::$connector
+        {}
+    )*
+    };
+}
 
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::PaymentApprove for connector::DummyConnector<T> {}
@@ -1688,19 +1688,19 @@ default_imp_for_approve!(
 );
 
 macro_rules! default_imp_for_reject {
-                ($($path:ident::$connector:ident),*) => {
-                    $(
-                        impl api::PaymentReject for $path::$connector {}
-                        impl
-                        services::ConnectorIntegration<
-                        api::Reject,
-                        types::PaymentsRejectData,
-                        types::PaymentsResponseData,
-                    > for $path::$connector
-                    {}
-                )*
-                };
-            }
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl api::PaymentReject for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+            api::Reject,
+            types::PaymentsRejectData,
+            types::PaymentsResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
 
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::PaymentReject for connector::DummyConnector<T> {}
