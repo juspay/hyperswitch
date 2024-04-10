@@ -72,7 +72,7 @@ impl
         let response = match item.response {
             NetceteraPreAuthenticationResponse::Success(pre_authn_response) => {
                 // if card is not enrolled for 3ds, card_range will be None
-                let card_range = pre_authn_response.get_card_range_if_avalable();
+                let card_range = pre_authn_response.get_card_range_if_available();
                 let maximum_supported_3ds_version = card_range
                     .as_ref()
                     .map(|card_range| card_range.highest_common_supported_version.clone())
@@ -221,7 +221,7 @@ pub struct NetceteraPreAuthenticationResponseData {
 }
 
 impl NetceteraPreAuthenticationResponseData {
-    pub fn get_card_range_if_avalable(&self) -> Option<CardRange> {
+    pub fn get_card_range_if_available(&self) -> Option<CardRange> {
         let card_range = self
             .card_ranges
             .iter()
