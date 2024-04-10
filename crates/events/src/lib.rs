@@ -62,7 +62,7 @@ where
 }
 
 /// intermediary structure to build events with in-place info.
-#[must_use]
+#[must_use = "make sure to call `emit` or `try_emit` to actually emit the event"]
 pub struct EventBuilder<T, A, E, D>
 where
     A: MessagingInterface<MessageClass = T>,
@@ -107,7 +107,6 @@ where
     }
 
     /// Emit the event.
-    #[must_use = "make sure to call `emit` to actually emit the event"]
     pub fn try_emit(self) -> Result<(), EventsError> {
         let ts = self.event.timestamp();
         self.message_sink
