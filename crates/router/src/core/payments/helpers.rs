@@ -430,7 +430,7 @@ pub async fn get_token_pm_type_mandate_details(
             request.payment_token.to_owned(),
             request.payment_method,
             request.payment_method_type,
-            Some(mandate_data.clone().get_required_value("mandate_data")?),
+            mandate_data.clone(),
             None,
             None,
             None,
@@ -493,29 +493,37 @@ pub async fn get_token_pm_type_mandate_details(
                     }
                 },
                 None => {
-                    let mandate_id = request
-                        .mandate_id
-                        .clone()
-                        .get_required_value("mandate_id")?;
-                    let mandate_generic_data = get_token_for_recurring_mandate(
-                        state,
-                        request,
-                        merchant_account,
-                        merchant_key_store,
-                        mandate_id,
-                    )
-                    .await?;
-                    (
-                        mandate_generic_data.token,
-                        mandate_generic_data.payment_method,
-                        mandate_generic_data
-                            .payment_method_type
-                            .or(request.payment_method_type),
-                        None,
-                        mandate_generic_data.recurring_mandate_payment_data,
-                        mandate_generic_data.mandate_connector,
-                        None,
-                    )
+                    if let Some(mandate_id) = request.mandate_id.clone() {
+                        let mandate_generic_data = get_token_for_recurring_mandate(
+                            state,
+                            request,
+                            merchant_account,
+                            merchant_key_store,
+                            mandate_id,
+                        )
+                        .await?;
+                        (
+                            mandate_generic_data.token,
+                            mandate_generic_data.payment_method,
+                            mandate_generic_data
+                                .payment_method_type
+                                .or(request.payment_method_type),
+                            None,
+                            mandate_generic_data.recurring_mandate_payment_data,
+                            mandate_generic_data.mandate_connector,
+                            None,
+                        )
+                    } else {
+                        (
+                            request.payment_token.to_owned(),
+                            request.payment_method,
+                            request.payment_method_type,
+                            None,
+                            None,
+                            None,
+                            None,
+                        )
+                    }
                 }
             }
         }
