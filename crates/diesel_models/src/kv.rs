@@ -10,7 +10,8 @@ use crate::{
     payouts::{Payouts, PayoutsNew, PayoutsUpdate},
     refund::{Refund, RefundNew, RefundUpdate},
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
-    PaymentIntent, PaymentMethod, PaymentMethodNew, PaymentMethodUpdateInternal, PgPooledConn,Mandate, MandateNew, MandateUpdateInternal,
+    Mandate, MandateNew, MandateUpdateInternal, PaymentIntent, PaymentMethod, PaymentMethodNew,
+    PaymentMethodUpdateInternal, PgPooledConn,
 };
 
 #[derive(Debug, Serialize, Deserialize)]

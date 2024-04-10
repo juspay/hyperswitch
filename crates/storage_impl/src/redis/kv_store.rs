@@ -41,9 +41,9 @@ pub enum PartitionKey<'a> {
         payout_attempt_id: &'a str,
     },
     MerchantIdMandateId {
-        merchant_id : &'a str,
-        mandate_id : &'a str,
-    }
+        merchant_id: &'a str,
+        mandate_id: &'a str,
+    },
 }
 // PartitionKey::MerchantIdPaymentId {merchant_id, payment_id}
 impl<'a> std::fmt::Display for PartitionKey<'a> {
