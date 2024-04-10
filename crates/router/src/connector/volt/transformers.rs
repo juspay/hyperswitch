@@ -88,7 +88,7 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
             domain::PaymentMethodData::BankRedirect(ref bank_redirect) => match bank_redirect {
-                api_models::payments::BankRedirectData::OpenBankingUk { .. } => {
+                domain::BankRedirectData::OpenBankingUk { .. } => {
                     let amount = item.amount;
                     let currency_code = item.router_data.request.currency;
                     let merchant_internal_reference =
@@ -118,22 +118,22 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
                         transaction_type,
                     })
                 }
-                api_models::payments::BankRedirectData::BancontactCard { .. }
-                | api_models::payments::BankRedirectData::Bizum {}
-                | api_models::payments::BankRedirectData::Blik { .. }
-                | api_models::payments::BankRedirectData::Eps { .. }
-                | api_models::payments::BankRedirectData::Giropay { .. }
-                | api_models::payments::BankRedirectData::Ideal { .. }
-                | api_models::payments::BankRedirectData::Interac { .. }
-                | api_models::payments::BankRedirectData::OnlineBankingCzechRepublic { .. }
-                | api_models::payments::BankRedirectData::OnlineBankingFinland { .. }
-                | api_models::payments::BankRedirectData::OnlineBankingPoland { .. }
-                | api_models::payments::BankRedirectData::OnlineBankingSlovakia { .. }
-                | api_models::payments::BankRedirectData::Przelewy24 { .. }
-                | api_models::payments::BankRedirectData::Sofort { .. }
-                | api_models::payments::BankRedirectData::Trustly { .. }
-                | api_models::payments::BankRedirectData::OnlineBankingFpx { .. }
-                | api_models::payments::BankRedirectData::OnlineBankingThailand { .. } => {
+                domain::BankRedirectData::BancontactCard { .. }
+                | domain::BankRedirectData::Bizum {}
+                | domain::BankRedirectData::Blik { .. }
+                | domain::BankRedirectData::Eps { .. }
+                | domain::BankRedirectData::Giropay { .. }
+                | domain::BankRedirectData::Ideal { .. }
+                | domain::BankRedirectData::Interac { .. }
+                | domain::BankRedirectData::OnlineBankingCzechRepublic { .. }
+                | domain::BankRedirectData::OnlineBankingFinland { .. }
+                | domain::BankRedirectData::OnlineBankingPoland { .. }
+                | domain::BankRedirectData::OnlineBankingSlovakia { .. }
+                | domain::BankRedirectData::Przelewy24 { .. }
+                | domain::BankRedirectData::Sofort { .. }
+                | domain::BankRedirectData::Trustly { .. }
+                | domain::BankRedirectData::OnlineBankingFpx { .. }
+                | domain::BankRedirectData::OnlineBankingThailand { .. } => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("Volt"),
                     )

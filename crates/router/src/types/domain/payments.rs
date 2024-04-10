@@ -11,7 +11,7 @@ pub enum PaymentMethodData {
     CardRedirect(CardRedirectData),
     Wallet(WalletData),
     PayLater(PayLaterData),
-    BankRedirect(api_models::payments::BankRedirectData),
+    BankRedirect(BankRedirectData),
     BankDebit(api_models::payments::BankDebitData),
     BankTransfer(Box<api_models::payments::BankTransferData>),
     Crypto(api_models::payments::CryptoData),
@@ -48,7 +48,6 @@ pub struct Card {
     pub card_number: cards::CardNumber,
     pub card_exp_month: Secret<String>,
     pub card_exp_year: Secret<String>,
-    pub card_holder_name: Option<Secret<String>>,
     pub card_cvc: Secret<String>,
     pub card_issuer: Option<String>,
     pub card_network: Option<common_enums::CardNetwork>,
@@ -240,7 +239,7 @@ pub struct ApplepayPaymentMethod {
     pub pm_type: String,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 
 pub enum BankRedirectData {
     BancontactCard {
@@ -310,7 +309,7 @@ pub enum BankRedirectData {
     },
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct BankRedirectBilling {
     pub billing_name: Option<Secret<String>>,
     pub email: Option<Email>,
@@ -332,7 +331,7 @@ impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
                 Self::PayLater(From::from(pay_later_data))
             }
             api_models::payments::PaymentMethodData::BankRedirect(bank_redirect_data) => {
-                Self::BankRedirect(bank_redirect_data)
+                Self::BankRedirect(From::from(bank_redirect_data))
             }
             api_models::payments::PaymentMethodData::BankDebit(bank_debit_data) => {
                 Self::BankDebit(bank_debit_data)
@@ -365,7 +364,7 @@ impl From<api_models::payments::Card> for Card {
             card_number,
             card_exp_month,
             card_exp_year,
-            card_holder_name,
+            card_holder_name: _,
             card_cvc,
             card_issuer,
             card_network,
@@ -379,7 +378,6 @@ impl From<api_models::payments::Card> for Card {
             card_number,
             card_exp_month,
             card_exp_year,
-            card_holder_name,
             card_cvc,
             card_issuer,
             card_network,
@@ -537,6 +535,112 @@ impl From<api_models::payments::PayLaterData> for PayLaterData {
             api_models::payments::PayLaterData::WalleyRedirect {} => Self::WalleyRedirect {},
             api_models::payments::PayLaterData::AlmaRedirect {} => Self::AlmaRedirect {},
             api_models::payments::PayLaterData::AtomeRedirect {} => Self::AtomeRedirect {},
+        }
+    }
+}
+
+impl From<api_models::payments::BankRedirectData> for BankRedirectData {
+    fn from(value: api_models::payments::BankRedirectData) -> Self {
+        match value {
+            api_models::payments::BankRedirectData::BancontactCard {
+                card_number,
+                card_exp_month,
+                card_exp_year,
+                card_holder_name,
+                billing_details,
+            } => Self::BancontactCard {
+                card_number,
+                card_exp_month,
+                card_exp_year,
+                card_holder_name,
+                billing_details: billing_details.map(BankRedirectBilling::from),
+            },
+            api_models::payments::BankRedirectData::Bizum {} => Self::Bizum {},
+            api_models::payments::BankRedirectData::Blik { blik_code } => Self::Blik { blik_code },
+            api_models::payments::BankRedirectData::Eps {
+                billing_details,
+                bank_name,
+                country,
+            } => Self::Eps {
+                billing_details: billing_details.map(BankRedirectBilling::from),
+                bank_name,
+                country,
+            },
+            api_models::payments::BankRedirectData::Giropay {
+                billing_details,
+                bank_account_bic,
+                bank_account_iban,
+                country,
+            } => Self::Giropay {
+                billing_details: billing_details.map(BankRedirectBilling::from),
+                bank_account_bic,
+                bank_account_iban,
+                country,
+            },
+            api_models::payments::BankRedirectData::Ideal {
+                billing_details,
+                bank_name,
+                country,
+            } => Self::Ideal {
+                billing_details: billing_details.map(BankRedirectBilling::from),
+                bank_name,
+                country,
+            },
+            api_models::payments::BankRedirectData::Interac { country, email } => {
+                Self::Interac { country, email }
+            }
+            api_models::payments::BankRedirectData::OnlineBankingCzechRepublic { issuer } => {
+                Self::OnlineBankingCzechRepublic { issuer }
+            }
+            api_models::payments::BankRedirectData::OnlineBankingFinland { email } => {
+                Self::OnlineBankingFinland { email }
+            }
+            api_models::payments::BankRedirectData::OnlineBankingPoland { issuer } => {
+                Self::OnlineBankingPoland { issuer }
+            }
+            api_models::payments::BankRedirectData::OnlineBankingSlovakia { issuer } => {
+                Self::OnlineBankingSlovakia { issuer }
+            }
+            api_models::payments::BankRedirectData::OpenBankingUk { issuer, country } => {
+                Self::OpenBankingUk { issuer, country }
+            }
+            api_models::payments::BankRedirectData::Przelewy24 {
+                bank_name,
+                billing_details,
+            } => Self::Przelewy24 {
+                bank_name,
+                billing_details: BankRedirectBilling {
+                    billing_name: billing_details.billing_name,
+                    email: billing_details.email,
+                },
+            },
+            api_models::payments::BankRedirectData::Sofort {
+                billing_details,
+                country,
+                preferred_language,
+            } => Self::Sofort {
+                billing_details: billing_details.map(BankRedirectBilling::from),
+                country,
+                preferred_language,
+            },
+            api_models::payments::BankRedirectData::Trustly { country } => {
+                Self::Trustly { country }
+            }
+            api_models::payments::BankRedirectData::OnlineBankingFpx { issuer } => {
+                Self::OnlineBankingFpx { issuer }
+            }
+            api_models::payments::BankRedirectData::OnlineBankingThailand { issuer } => {
+                Self::OnlineBankingThailand { issuer }
+            }
+        }
+    }
+}
+
+impl From<api_models::payments::BankRedirectBilling> for BankRedirectBilling {
+    fn from(billing: api_models::payments::BankRedirectBilling) -> Self {
+        Self {
+            billing_name: billing.billing_name,
+            email: billing.email,
         }
     }
 }

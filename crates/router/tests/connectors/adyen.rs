@@ -61,7 +61,9 @@ impl AdyenTest {
                         zip: Some(Secret::new("94122".to_string())),
                         line1: Some(Secret::new("1467".to_string())),
                         line2: Some(Secret::new("Harrison Street".to_string())),
-                        ..Default::default()
+                        line3: None,
+                        first_name: Some(Secret::new("John".to_string())),
+                        last_name: Some(Secret::new("Dough".to_string())),
                     }),
                     phone: Some(PhoneDetails {
                         number: Some(Secret::new("8056594427".to_string())),
@@ -141,7 +143,6 @@ impl AdyenTest {
                 card_number: cards::CardNumber::from_str(card_number).unwrap(),
                 card_exp_month: Secret::new(card_exp_month.to_string()),
                 card_exp_year: Secret::new(card_exp_year.to_string()),
-                card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
                 card_cvc: Secret::new(card_cvc.to_string()),
                 card_issuer: None,
                 card_network: None,
