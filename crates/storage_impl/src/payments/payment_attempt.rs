@@ -645,8 +645,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             MerchantStorageScheme::PostgresOnly => database_call().await,
             MerchantStorageScheme::RedisKv => {
                 let key = PartitionKey::MerchantIdPaymentId {
-                    merchant_id: merchant_id,
-                    payment_id: payment_id,
+                    merchant_id,
+                    payment_id,
                 };
                 let pattern = "pa_*";
 
@@ -697,8 +697,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             MerchantStorageScheme::PostgresOnly => database_call().await,
             MerchantStorageScheme::RedisKv => {
                 let key = PartitionKey::MerchantIdPaymentId {
-                    merchant_id: merchant_id,
-                    payment_id: payment_id,
+                    merchant_id,
+                    payment_id,
                 };
                 let pattern = "pa_*";
 
@@ -813,8 +813,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             }
             MerchantStorageScheme::RedisKv => {
                 let key = PartitionKey::MerchantIdPaymentId {
-                    merchant_id: merchant_id,
-                    payment_id: payment_id,
+                    merchant_id,
+                    payment_id,
                 };
                 let field = format!("pa_{attempt_id}");
                 Box::pin(try_redis_get_else_try_database_get(
@@ -976,8 +976,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             }
             MerchantStorageScheme::RedisKv => {
                 let key = PartitionKey::MerchantIdPaymentId {
-                    merchant_id: merchant_id,
-                    payment_id: payment_id,
+                    merchant_id,
+                    payment_id,
                 };
                 Box::pin(try_redis_get_else_try_database_get(
                     async {

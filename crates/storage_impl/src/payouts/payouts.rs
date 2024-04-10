@@ -193,8 +193,8 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
             MerchantStorageScheme::PostgresOnly => database_call().await,
             MerchantStorageScheme::RedisKv => {
                 let key = PartitionKey::MerchantIdPayoutId {
-                    merchant_id: merchant_id,
-                    payout_id: payout_id,
+                    merchant_id,
+                    payout_id,
                 };
                 let field = format!("po_{payout_id}");
                 Box::pin(utils::try_redis_get_else_try_database_get(
@@ -244,8 +244,8 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
             }
             MerchantStorageScheme::RedisKv => {
                 let key = PartitionKey::MerchantIdPayoutId {
-                    merchant_id: merchant_id,
-                    payout_id: payout_id,
+                    merchant_id,
+                    payout_id,
                 };
                 let field = format!("po_{payout_id}");
                 Box::pin(utils::try_redis_get_else_try_database_get(

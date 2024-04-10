@@ -225,8 +225,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
 
             MerchantStorageScheme::RedisKv => {
                 let key = PartitionKey::MerchantIdPaymentId {
-                    merchant_id: merchant_id,
-                    payment_id: payment_id,
+                    merchant_id,
+                    payment_id,
                 };
                 let field = format!("pi_{payment_id}");
                 Box::pin(utils::try_redis_get_else_try_database_get(
