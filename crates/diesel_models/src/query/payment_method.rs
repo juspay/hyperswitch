@@ -161,7 +161,7 @@ impl PaymentMethod {
         >(
             conn,
             dsl::payment_method_id.eq(self.payment_method_id.to_owned()),
-            payment_method::PaymentMethodUpdateInternal::from(payment_method),
+            payment_method,
         )
         .await
         {

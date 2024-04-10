@@ -173,13 +173,13 @@ impl PaymentMethodUpdateInternal {
         PaymentMethod {
             metadata: metadata.map_or(source.metadata, |v| Some(v.into())),
             payment_method_data: payment_method_data
-                .map_or(source.payment_method_data, |v| Some(v)),
+                .map_or(source.payment_method_data,Some),
             last_used_at: last_used_at.unwrap_or(source.last_used_at),
             network_transaction_id: network_transaction_id
-                .map_or(source.network_transaction_id, |v| Some(v)),
+                .map_or(source.network_transaction_id, Some),
             status: status.unwrap_or(source.status),
             connector_mandate_details: connector_mandate_details
-                .map_or(source.connector_mandate_details, |v| Some(v)),
+                .map_or(source.connector_mandate_details, Some),
             ..source
         }
     }
@@ -262,21 +262,21 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             issuer_name: payment_method_new.issuer_name.clone(),
             issuer_country: payment_method_new.issuer_country.clone(),
             payer_country: payment_method_new.payer_country.clone(),
-            is_stored: payment_method_new.is_stored.clone(),
+            is_stored: payment_method_new.is_stored,
             swift_code: payment_method_new.swift_code.clone(),
             direct_debit_token: payment_method_new.direct_debit_token.clone(),
-            created_at: payment_method_new.created_at.clone(),
-            last_modified: payment_method_new.last_modified.clone(),
-            payment_method: payment_method_new.payment_method.clone(),
-            payment_method_type: payment_method_new.payment_method_type.clone(),
+            created_at: payment_method_new.created_at,
+            last_modified: payment_method_new.last_modified,
+            payment_method: payment_method_new.payment_method,
+            payment_method_type: payment_method_new.payment_method_type,
             payment_method_issuer: payment_method_new.payment_method_issuer.clone(),
             payment_method_issuer_code: payment_method_new.payment_method_issuer_code.clone(),
             metadata: payment_method_new.metadata.clone(),
             payment_method_data: payment_method_new.payment_method_data.clone(),
-            last_used_at: payment_method_new.last_used_at.clone(),
+            last_used_at: payment_method_new.last_used_at,
             connector_mandate_details: payment_method_new.connector_mandate_details.clone(),
             customer_acceptance: payment_method_new.customer_acceptance.clone(),
-            status: payment_method_new.status.clone(),
+            status: payment_method_new.status,
             network_transaction_id: payment_method_new.network_transaction_id.clone(),
         }
     }

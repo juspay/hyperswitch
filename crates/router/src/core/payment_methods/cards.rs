@@ -89,7 +89,7 @@ pub async fn create_payment_method(
     key_store: &domain::MerchantKeyStore,
     connector_mandate_details: Option<serde_json::Value>,
     network_transaction_id: Option<String>,
-    storage_scheme: enums::MerchantStorageScheme,
+    storage_scheme: MerchantStorageScheme,
 ) -> errors::CustomResult<storage::PaymentMethod, errors::ApiErrorResponse> {
     let customer = db
         .find_customer_by_customer_id_merchant_id(customer_id, merchant_id, key_store)
