@@ -1,7 +1,6 @@
 use common_utils::pii::{self, Email};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 
 // We need to derive Serialize and Deserialize because some parts of payment method data are being
 // stored in the database as serde_json::Value
@@ -65,7 +64,7 @@ pub enum CardRedirectData {
     CardRedirect {},
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub enum PayLaterData {
     KlarnaRedirect {
         billing_email: Email,
@@ -85,7 +84,7 @@ pub enum PayLaterData {
     AtomeRedirect {},
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 
 pub enum WalletData {
     AliPayQr(Box<AliPayQr>),
@@ -116,14 +115,14 @@ pub enum WalletData {
     SwishQr(SwishQrData),
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 
 pub struct SamsungPayWalletData {
     /// The encrypted payment token from Samsung
     pub token: Secret<String>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 
 pub struct GooglePayWalletData {
     /// The type of payment method
@@ -136,67 +135,67 @@ pub struct GooglePayWalletData {
     pub tokenization_data: GpayTokenizationData,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct ApplePayRedirectData {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct GooglePayRedirectData {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct GooglePayThirdPartySdkData {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct ApplePayThirdPartySdkData {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct WeChatPayRedirection {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct WeChatPay {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct WeChatPayQr {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct CashappQr {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct PaypalRedirection {
     /// paypal's email address
     pub email: Option<Email>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct AliPayQr {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct AliPayRedirection {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct AliPayHkRedirection {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct MomoRedirection {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct KakaoPayRedirection {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct GoPayRedirection {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct GcashRedirection {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct MobilePayRedirection {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct MbWayRedirection {
     /// Telephone number of the shopper. Should be Portuguese phone number.
     pub telephone_number: Secret<String>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 
 pub struct GooglePayPaymentMethodInfo {
     /// The name of the card network
@@ -205,19 +204,19 @@ pub struct GooglePayPaymentMethodInfo {
     pub card_details: String,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct PayPalWalletData {
     /// Token generated for the Apple pay
     pub token: String,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct TouchNGoRedirection {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct SwishQrData {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct GpayTokenizationData {
     /// The type of the token
     pub token_type: String,
@@ -225,7 +224,7 @@ pub struct GpayTokenizationData {
     pub token: String,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct ApplePayWalletData {
     /// The payment data of Apple pay
     pub payment_data: String,
@@ -235,14 +234,14 @@ pub struct ApplePayWalletData {
     pub transaction_identifier: String,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct ApplepayPaymentMethod {
     pub display_name: String,
     pub network: String,
     pub pm_type: String,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 
 pub enum BankRedirectData {
     BancontactCard {
@@ -312,26 +311,25 @@ pub enum BankRedirectData {
     },
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct BankRedirectBilling {
     pub billing_name: Option<Secret<String>>,
     pub email: Option<Email>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct CryptoData {
     pub pay_currency: Option<String>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct UpiData {
-    #[schema(value_type = Option<String>, example = "successtest@iata")]
     pub vpa_id: Option<Secret<String, pii::UpiVpaMaskingStrategy>>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum VoucherData {
     Boleto(Box<BoletoVoucherData>),
@@ -350,137 +348,105 @@ pub enum VoucherData {
     PayEasy(Box<JCSVoucherData>),
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct BoletoVoucherData {
     /// The shopper's social security number
-    #[schema(value_type = Option<String>)]
     pub social_security_number: Option<Secret<String>>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct AlfamartVoucherData {
     /// The billing first name for Alfamart
-    #[schema(value_type = String, example = "Jane")]
     pub first_name: Secret<String>,
     /// The billing second name for Alfamart
-    #[schema(value_type = String, example = "Doe")]
     pub last_name: Option<Secret<String>>,
     /// The Email ID for Alfamart
-    #[schema(value_type = String, example = "example@me.com")]
     pub email: Email,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct IndomaretVoucherData {
     /// The billing first name for Alfamart
-    #[schema(value_type = String, example = "Jane")]
     pub first_name: Secret<String>,
     /// The billing second name for Alfamart
-    #[schema(value_type = String, example = "Doe")]
     pub last_name: Option<Secret<String>>,
     /// The Email ID for Alfamart
-    #[schema(value_type = String, example = "example@me.com")]
     pub email: Email,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct JCSVoucherData {
     /// The billing first name for Japanese convenience stores
-    #[schema(value_type = String, example = "Jane")]
     pub first_name: Secret<String>,
     /// The billing second name Japanese convenience stores
-    #[schema(value_type = String, example = "Doe")]
     pub last_name: Option<Secret<String>>,
     /// The Email ID for Japanese convenience stores
-    #[schema(value_type = String, example = "example@me.com")]
     pub email: Email,
     /// The telephone number for Japanese convenience stores
-    #[schema(value_type = String, example = "9999999999")]
     pub phone_number: String,
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum GiftCardData {
     Givex(GiftCardDetails),
     PaySafeCard {},
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub struct GiftCardDetails {
     /// The gift card number
-    #[schema(value_type = String)]
     pub number: Secret<String>,
     /// The card verification code.
-    #[schema(value_type = String)]
     pub cvc: Secret<String>,
 }
 
-#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, Default)]
+#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, Default)]
 #[serde(rename_all = "snake_case")]
 pub struct CardToken {
     /// The card holder's name
-    #[schema(value_type = String, example = "John Test")]
     pub card_holder_name: Option<Secret<String>>,
 
     /// The CVC number for the card
-    #[schema(value_type = Option<String>)]
     pub card_cvc: Option<Secret<String>>,
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum BankDebitData {
     AchBankDebit {
         billing_details: BankDebitBilling,
-        #[schema(value_type = String, example = "000123456789")]
         account_number: Secret<String>,
-        #[schema(value_type = String, example = "110000000")]
         routing_number: Secret<String>,
-        #[schema(value_type = String, example = "John Test")]
         card_holder_name: Option<Secret<String>>,
-        #[schema(value_type = String, example = "John Doe")]
         bank_account_holder_name: Option<Secret<String>>,
-        #[schema(value_type = String, example = "ACH")]
         bank_name: Option<common_enums::BankNames>,
-        #[schema(value_type = String, example = "Checking")]
         bank_type: Option<common_enums::BankType>,
-        #[schema(value_type = String, example = "Personal")]
         bank_holder_type: Option<common_enums::BankHolderType>,
     },
     SepaBankDebit {
         billing_details: BankDebitBilling,
-        #[schema(value_type = String, example = "DE89370400440532013000")]
         iban: Secret<String>,
-        #[schema(value_type = String, example = "A. Schneider")]
         bank_account_holder_name: Option<Secret<String>>,
     },
     BecsBankDebit {
         billing_details: BankDebitBilling,
-        #[schema(value_type = String, example = "000123456")]
         account_number: Secret<String>,
-        #[schema(value_type = String, example = "000000")]
         bsb_number: Secret<String>,
-        #[schema(value_type = Option<String>, example = "A. Schneider")]
         bank_account_holder_name: Option<Secret<String>>,
     },
     BacsBankDebit {
         billing_details: BankDebitBilling,
-        #[schema(value_type = String, example = "00012345")]
         account_number: Secret<String>,
-        #[schema(value_type = String, example = "108800")]
         sort_code: Secret<String>,
-        #[schema(value_type = String, example = "A. Schneider")]
         bank_account_holder_name: Option<Secret<String>>,
     },
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Eq, PartialEq)]
 pub struct BankDebitBilling {
-    #[schema(value_type = String, example = "John Doe")]
     pub name: Secret<String>,
-    #[schema(value_type = String, example = "example@example.com")]
     pub email: Email,
     pub address: Option<api_models::payments::AddressDetails>,
 }
