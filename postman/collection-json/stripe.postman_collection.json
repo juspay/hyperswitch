@@ -13426,7 +13426,7 @@
                           "language": "json"
                         }
                       },
-                      "raw": "{\"payment_method\":\"pay_later\",\"payment_method_type\":\"klarna\",\"payment_experience\":\"redirect_to_url\",\"payment_method_data\":{\"pay_later\":{\"klarna_redirect\":{\"issuer_name\":\"stripe\",\"billing_email\":\"arjun.karthik@juspay.in\",\"billing_country\":\"US\"}}},\"client_secret\":\"{{client_secret}}\"}"
+                      "raw": "{\"payment_method\":\"pay_later\",\"payment_method_type\":\"klarna\",\"payment_experience\":\"redirect_to_url\",\"payment_method_data\":{\"pay_later\":{\"klarna_redirect\":{\"issuer_name\":\"stripe\",\"billing_email\":\"arjun.karthik@juspay.in\",\"billing_country\":\"US\"}}},\"billing\": {\"address\": {\"line1\": \"1467\",\"line2\": \"Harrison Street\",\"line3\": \"Harrison Street\",\"city\": \"San Fransico\",\"state\": \"California\",\"zip\": \"94122\",\"country\": \"US\",\"first_name\": \"sundari\"},\"email\": \"narayan@example.com\"},\"client_secret\":\"{{client_secret}}\"}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id/confirm",
@@ -13856,7 +13856,7 @@
                           "language": "json"
                         }
                       },
-                      "raw": "{\"payment_method\":\"pay_later\",\"payment_method_type\":\"afterpay_clearpay\",\"payment_experience\":\"redirect_to_url\",\"payment_method_data\":{\"pay_later\":{\"afterpay_clearpay_redirect\":{\"billing_name\":\"Akshaya\",\"billing_email\":\"example@example.com\"}}},\"client_secret\":\"{{client_secret}}\"}"
+                      "raw": "{\"payment_method\":\"pay_later\",\"payment_method_type\":\"afterpay_clearpay\",\"payment_experience\":\"redirect_to_url\",\"payment_method_data\":{\"pay_later\":{\"afterpay_clearpay_redirect\":{\"billing_name\":\"Akshaya\",\"billing_email\":\"example@example.com\"}}},\"billing\": {\"address\": {\"line1\": \"1467\",\"line2\": \"Harrison Street\",\"line3\": \"Harrison Street\",\"city\": \"San Fransico\",\"state\": \"California\",\"zip\": \"94122\",\"country\": \"US\",\"first_name\": \"sundari\"},\"email\": \"narayan@example.com\"},\"client_secret\":\"{{client_secret}}\"}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id/confirm",
