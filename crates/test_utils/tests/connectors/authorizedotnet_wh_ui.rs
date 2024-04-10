@@ -13,7 +13,7 @@ impl SeleniumTest for AuthorizedotnetSeleniumTest {
 
 async fn should_make_webhook(web_driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = AuthorizedotnetSeleniumTest {};
-    let amount = rand::thread_rng().gen_range(50..1000); //This connector detects it as fradulent payment if the same amount is used for multiple payments so random amount is passed for testing(
+    let amount = rand::thread_rng().gen_range(50..1000); //This connector detects it as fraudulent payment if the same amount is used for multiple payments so random amount is passed for testing(
     conn.make_webhook_test(
         web_driver,
         &format!("{CHEKOUT_BASE_URL}/saved/227?amount={amount}"),

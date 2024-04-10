@@ -328,6 +328,9 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
             })?;
         let meta: ThreeDSecureIoConnectorMetaData =
             to_connector_meta(request.pre_authentication_data.connector_metadata.clone())?;
+
+        let card_holder_name = billing_address.get_optional_full_name();
+
         Ok(Self {
             ds_start_protocol_version: meta.ds_start_protocol_version.clone(),
             ds_end_protocol_version: meta.ds_end_protocol_version.clone(),
@@ -452,7 +455,7 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
                 }),
                 DeviceChannel::Browser => None,
             },
-            cardholder_name: card_details.card_holder_name,
+            cardholder_name: card_holder_name,
             email: request.email.clone(),
         })
     }

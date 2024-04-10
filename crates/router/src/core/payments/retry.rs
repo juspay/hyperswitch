@@ -376,7 +376,7 @@ where
                         .connector_response_reference_id
                         .clone(),
                     authentication_type: None,
-                    payment_method_id: Some(router_data.payment_method_id),
+                    payment_method_id: router_data.payment_method_id,
                     mandate_id: payment_data
                         .mandate_id
                         .clone()
