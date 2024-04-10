@@ -8,9 +8,9 @@ use crate::{disputes, enums as api_enums, mandates, payments, refunds};
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum IncomingWebhookEvent {
-    /// Authorization + Capture failure
-    PaymentIntentFailure,
     /// Authorization + Capture success
+    PaymentIntentFailure,
+    /// Authorization + Capture failure
     PaymentIntentSuccess,
     PaymentIntentProcessing,
     PaymentIntentPartiallyFunded,
