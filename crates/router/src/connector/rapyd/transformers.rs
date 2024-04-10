@@ -4,7 +4,7 @@ use time::PrimitiveDateTime;
 use url::Url;
 
 use crate::{
-    connector::utils::PaymentsAuthorizeRequestData,
+    connector::utils::{PaymentsAuthorizeRequestData, RouterData},
     consts,
     core::errors,
     pii::Secret,
@@ -131,8 +131,9 @@ impl TryFrom<&RapydRouterData<&types::PaymentsAuthorizeRouterData>> for RapydPay
                         number: ccard.card_number.to_owned(),
                         expiration_month: ccard.card_exp_month.to_owned(),
                         expiration_year: ccard.card_exp_year.to_owned(),
-                        name: ccard
-                            .card_holder_name
+                        name: item
+                            .router_data
+                            .get_optional_billing_full_name()
                             .to_owned()
                             .unwrap_or(Secret::new("".to_string())),
                         cvv: ccard.card_cvc.to_owned(),
