@@ -355,15 +355,14 @@ pub fn get_outgoing_webhook_retry_schedule_time(
 }
 
 /// Get the delay based on the retry count
-fn get_delay(retry_count: i32, vec: &[(i32, i32)]) -> Option<i32> {
+fn get_delay(retry_count: i32, frequencies: &[(i32, i32)]) -> Option<i32> {
     // Preferably, fix this by using unsigned ints
     if retry_count <= 0 {
         return None;
     }
 
     let mut cumulative_count = 0;
-    let itervec = vec.iter();
-    for (frequency, count) in itervec {
+    for (frequency, count) in frequencies {
         cumulative_count += count;
         if cumulative_count >= retry_count {
             return Some(frequency.to_owned());
