@@ -150,6 +150,7 @@ where
             &mut payment_data,
             customer_details,
             &key_store,
+            merchant_account.storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
@@ -3490,6 +3491,7 @@ pub async fn payment_external_authentication(
                     customer_id,
                     &merchant_account.merchant_id,
                     &key_store,
+                    storage_scheme
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)

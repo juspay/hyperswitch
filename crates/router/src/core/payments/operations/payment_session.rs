@@ -300,6 +300,7 @@ where
         payment_data: &mut PaymentData<F>,
         request: Option<payments::CustomerDetails>,
         key_store: &domain::MerchantKeyStore,
+        storage_scheme: common_enums::enums::MerchantStorageScheme,
     ) -> errors::CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsSessionRequest, Ctx>,
@@ -314,6 +315,7 @@ where
             request,
             &key_store.merchant_id,
             key_store,
+            storage_scheme
         )
         .await
     }

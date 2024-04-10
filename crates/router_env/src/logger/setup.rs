@@ -348,18 +348,14 @@ fn get_envfilter(
 
             workspace_members
                 .drain()
-                .zip(std::iter::repeat(filter_log_level.into_level()))
+                .zip(std::iter::repeat(filter_log_level.into_level().into()))
                 .fold(
                     EnvFilter::default().add_directive(default_log_level.into_level().into()),
-                    |env_filter, (target, level)| {
+                    |env_filter, (target, directive)| {
                         // Safety: This is a hardcoded basic filtering directive. If even the basic
                         // filter is wrong, it's better to panic.
                         #[allow(clippy::expect_used)]
-                        env_filter.add_directive(
-                            format!("{target}={level}")
-                                .parse()
-                                .expect("Invalid EnvFilter directive format"),
-                        )
+                        env_filter.add_directive(directive)
                     },
                 )
         })

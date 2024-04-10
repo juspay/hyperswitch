@@ -21,6 +21,7 @@ pub mod redis;
 pub mod refund;
 mod reverse_lookup;
 mod utils;
+pub mod customers;
 
 use common_utils::errors::CustomResult;
 #[cfg(not(feature = "payouts"))]
@@ -371,6 +372,15 @@ impl UniqueConstraints for diesel_models::PaymentMethod {
     }
 }
 
+impl UniqueConstraints for diesel_models::Customer{
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!("customer_{}_{}", self.customer_id, self.merchant_id)]
+    }
+    fn table_name(&self) -> &str {
+        "Customer"
+    } 
+}
+
 #[cfg(not(feature = "payouts"))]
 impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {}
 #[cfg(not(feature = "payouts"))]
@@ -379,3 +389,4 @@ impl<T: DatabaseStore> PayoutAttemptInterface for RouterStore<T> {}
 impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {}
 #[cfg(not(feature = "payouts"))]
 impl<T: DatabaseStore> PayoutsInterface for RouterStore<T> {}
+
