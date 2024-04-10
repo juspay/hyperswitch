@@ -10,6 +10,7 @@ use transformers as zsl;
 
 use crate::{
     configs::settings,
+    connector::utils as connector_utils,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
     headers,
@@ -25,7 +26,6 @@ use crate::{
         ErrorResponse, RequestContent, Response,
     },
     utils::BytesExt,
-    connector::utils as connector_utils,
 };
 
 #[derive(Debug, Clone)]
@@ -43,7 +43,6 @@ impl api::Refund for Zsl {}
 impl api::RefundExecute for Zsl {}
 impl api::RefundSync for Zsl {}
 impl api::PaymentToken for Zsl {}
-
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Zsl
 where
@@ -91,9 +90,8 @@ impl ConnectorCommon for Zsl {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response = 
-        serde_urlencoded::from_bytes::<zsl::ZslErrorResponse>(&res.response)
-        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response = serde_urlencoded::from_bytes::<zsl::ZslErrorResponse>(&res.response)
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -129,7 +127,6 @@ impl ConnectorValidation for Zsl {
     }
 }
 
-
 impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
     for Zsl
 {
@@ -150,7 +147,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         _req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(self.base_url(connectors).to_string())
+        Ok(format!("{}ecp", self.base_url(connectors).to_string()))
     }
 
     fn get_request_body(
@@ -196,9 +193,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response =
-            serde_urlencoded::from_bytes::<zsl::ZslPaymentsResponse>(&res.response)
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response = serde_urlencoded::from_bytes::<zsl::ZslPaymentsResponse>(&res.response)
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i: &mut ConnectorEvent| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -263,8 +259,6 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         })
     }
 }
-
-
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Zsl

@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{self as connector_utils},
+    consts,
     core::errors,
     services,
     types::{self, domain, storage::enums},
@@ -55,7 +56,7 @@ impl TryFrom<&types::ConnectorAuthType> for ZslAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 api_key: api_key.to_owned(),
                 merchant_id: key1.clone(),
             }),
@@ -83,7 +84,7 @@ pub struct ZslPaymentsRequest {
     country: api_models::enums::CountryAlpha2,
     verno: String,
     service_code: ServiceCode,
-    cust_tag: Option<String>,
+    cust_tag: String,
     #[serde(flatten)]
     payment_method: ZslPaymentMethods,
     name: Option<Secret<String>>,
@@ -189,8 +190,7 @@ impl TryFrom<&ZslRouterData<&types::PaymentsAuthorizeRouterData>> for ZslPayment
                     connector_utils::get_unimplemented_payment_method_error_message(
                         item.router_data.connector.as_str(),
                     ),
-                )
-                )
+                ))
             }
         }?;
         let auth_type = ZslAuthType::try_from(&item.router_data.connector_auth_type)?;
@@ -246,7 +246,7 @@ impl TryFrom<&ZslRouterData<&types::PaymentsAuthorizeRouterData>> for ZslPayment
                 broswer_data.language.as_ref().map(|language| {
                     language
                         .split_once('-')
-                        .map_or(language.to_uppercase(),|(lang, _)| lang.to_uppercase())
+                        .map_or(language.to_uppercase(), |(lang, _)| lang.to_uppercase())
                 })
             })
             .ok_or(errors::ConnectorError::MissingRequiredField {
@@ -258,12 +258,28 @@ impl TryFrom<&ZslRouterData<&types::PaymentsAuthorizeRouterData>> for ZslPayment
                 field_name: "router_return_url",
             },
         )?;
-        let webhook_url = 
-         item.router_data.request.webhook_url.clone().ok_or(
+        let webhook_url = item.router_data.request.webhook_url.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
                 field_name: "webhook_url",
             },
         )?;
+
+        let cust_tag = item
+            .router_data
+            .customer_id
+            .clone()
+            .map(|customer_id| {
+                let cust_id = customer_id.replace("_", "").replace("-", "");
+                let id_len = cust_id.len();
+                if id_len > 10 {
+                    (&cust_id[id_len - 10 .. id_len]).to_string()
+                } else {
+                    cust_id
+                }
+            })
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "customer_id",
+            })?;
 
         Ok(Self {
             process_type: ProcessType::PaymentRequest,
@@ -288,7 +304,7 @@ impl TryFrom<&ZslRouterData<&types::PaymentsAuthorizeRouterData>> for ZslPayment
             family_name,
             tel_phone,
             email,
-            cust_tag: Some(" ".to_string()),
+            cust_tag,
             opt_1: None,
             opt_2: None,
             opt_3: None,
@@ -316,7 +332,7 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, ZslPaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        if item.response.status.eq("0")  && !item.response.txn_url.is_empty() {
+        if item.response.status.eq("0") && !item.response.txn_url.is_empty() {
             let auth_type = ZslAuthType::try_from(&item.data.connector_auth_type)?;
             let key: Secret<String> = auth_type.api_key;
             let mer_id = auth_type.merchant_id;
@@ -330,17 +346,14 @@ impl<F, T>
                     key: key.expose(),
                 },
             )?;
-            let signature_check =
-                calculated_signature.clone().eq(&item.response.signature);
 
-            if signature_check {
-                // TODO: Implement check for process_type and process_code
+            if calculated_signature.clone().eq(&item.response.signature) {
                 let decoded_redirect_url_bytes: Vec<u8> = base64::engine::general_purpose::STANDARD
-                .decode(item.response.txn_url.clone())
-                .change_context(errors::ConnectorError::RequestEncodingFailed.into())?;
+                    .decode(item.response.txn_url.clone())
+                    .change_context(errors::ConnectorError::RequestEncodingFailed.into())?;
 
                 let redirect_url = String::from_utf8(decoded_redirect_url_bytes)
-                .change_context(errors::ConnectorError::RequestEncodingFailed.into())?;
+                    .change_context(errors::ConnectorError::RequestEncodingFailed.into())?;
 
                 Ok(Self {
                     status: enums::AttemptStatus::AuthenticationPending, // Redirect is always expected after success response
@@ -362,14 +375,13 @@ impl<F, T>
                     ..item.data
                 })
             } else {
-                let error_reason =
-                    ZslResponseStatus::try_from(item.response.status.clone())?.to_string();
+                // When the signature check fails
                 Ok(Self {
                     status: enums::AttemptStatus::Failure,
                     response: Err(types::ErrorResponse {
-                        code: item.response.status.clone(),
-                        message: error_reason.clone(),
-                        reason: Some(error_reason.clone()),
+                        code: consts::NO_ERROR_CODE.to_string(),
+                        message: "Invalid Signature".to_string(),
+                        reason: Some("Invalid Signature".to_string()),
                         status_code: item.http_code,
                         attempt_status: Some(enums::AttemptStatus::Failure),
                         connector_transaction_id: Some(item.response.mer_ref.clone()),
@@ -421,6 +433,7 @@ pub struct ZslWebhookResponse {
 impl types::transformers::ForeignFrom<String> for api_models::webhooks::IncomingWebhookEvent {
     fn foreign_from(status: String) -> Self {
         match status.as_str() {
+            //any response with status != 0 are a failed deposit transaction
             "0" => api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess,
             _ => api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure,
         }
@@ -487,7 +500,6 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ZslWebhookResponse, T, types::Pa
         }
     }
 }
-
 
 impl TryFrom<String> for ZslResponseStatus {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -888,10 +900,9 @@ pub enum ZslResponseStatus {
     DepositTimeout,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ZslErrorResponse {
-    pub status: String
+    pub status: String,
 }
 
 pub enum ZslSignatureType {
@@ -942,8 +953,7 @@ pub fn calculate_signature(
             mer_id,
             key,
         } => {
-             format!("{status}{txn_url}{mer_ref}{mer_id}{key}")
-
+            format!("{status}{txn_url}{mer_ref}{mer_id}{key}")
         }
         ZslSignatureType::WebhookSignature {
             status,
