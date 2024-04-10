@@ -1115,7 +1115,7 @@ pub trait CryptoData {
     fn get_pay_currency(&self) -> Result<String, Error>;
 }
 
-impl CryptoData for api::CryptoData {
+impl CryptoData for domain::CryptoData {
     fn get_pay_currency(&self) -> Result<String, Error> {
         self.pay_currency
             .clone()

@@ -1,4 +1,4 @@
-use common_utils::pii::Email;
+use common_utils::pii::{self, Email};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -14,13 +14,13 @@ pub enum PaymentMethodData {
     BankRedirect(BankRedirectData),
     BankDebit(api_models::payments::BankDebitData),
     BankTransfer(Box<api_models::payments::BankTransferData>),
-    Crypto(api_models::payments::CryptoData),
+    Crypto(CryptoData),
     MandatePayment,
     Reward,
-    Upi(api_models::payments::UpiData),
-    Voucher(api_models::payments::VoucherData),
-    GiftCard(Box<api_models::payments::GiftCardData>),
-    CardToken(api_models::payments::CardToken),
+    Upi(UpiData),
+    Voucher(VoucherData),
+    GiftCard(Box<GiftCardData>),
+    CardToken(CardToken),
 }
 
 impl PaymentMethodData {
@@ -318,6 +318,117 @@ pub struct BankRedirectBilling {
     pub email: Option<Email>,
 }
 
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct CryptoData {
+    pub pay_currency: Option<String>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct UpiData {
+    #[schema(value_type = Option<String>, example = "successtest@iata")]
+    pub vpa_id: Option<Secret<String, pii::UpiVpaMaskingStrategy>>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum VoucherData {
+    Boleto(Box<BoletoVoucherData>),
+    Efecty,
+    PagoEfectivo,
+    RedCompra,
+    RedPagos,
+    Alfamart(Box<AlfamartVoucherData>),
+    Indomaret(Box<IndomaretVoucherData>),
+    Oxxo,
+    SevenEleven(Box<JCSVoucherData>),
+    Lawson(Box<JCSVoucherData>),
+    MiniStop(Box<JCSVoucherData>),
+    FamilyMart(Box<JCSVoucherData>),
+    Seicomart(Box<JCSVoucherData>),
+    PayEasy(Box<JCSVoucherData>),
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct BoletoVoucherData {
+    /// The shopper's social security number
+    #[schema(value_type = Option<String>)]
+    pub social_security_number: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct AlfamartVoucherData {
+    /// The billing first name for Alfamart
+    #[schema(value_type = String, example = "Jane")]
+    pub first_name: Secret<String>,
+    /// The billing second name for Alfamart
+    #[schema(value_type = String, example = "Doe")]
+    pub last_name: Option<Secret<String>>,
+    /// The Email ID for Alfamart
+    #[schema(value_type = String, example = "example@me.com")]
+    pub email: Email,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct IndomaretVoucherData {
+    /// The billing first name for Alfamart
+    #[schema(value_type = String, example = "Jane")]
+    pub first_name: Secret<String>,
+    /// The billing second name for Alfamart
+    #[schema(value_type = String, example = "Doe")]
+    pub last_name: Option<Secret<String>>,
+    /// The Email ID for Alfamart
+    #[schema(value_type = String, example = "example@me.com")]
+    pub email: Email,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct JCSVoucherData {
+    /// The billing first name for Japanese convenience stores
+    #[schema(value_type = String, example = "Jane")]
+    pub first_name: Secret<String>,
+    /// The billing second name Japanese convenience stores
+    #[schema(value_type = String, example = "Doe")]
+    pub last_name: Option<Secret<String>>,
+    /// The Email ID for Japanese convenience stores
+    #[schema(value_type = String, example = "example@me.com")]
+    pub email: Email,
+    /// The telephone number for Japanese convenience stores
+    #[schema(value_type = String, example = "9999999999")]
+    pub phone_number: String,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum GiftCardData {
+    Givex(GiftCardDetails),
+    PaySafeCard {},
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub struct GiftCardDetails {
+    /// The gift card number
+    #[schema(value_type = String)]
+    pub number: Secret<String>,
+    /// The card verification code.
+    #[schema(value_type = String)]
+    pub cvc: Secret<String>,
+}
+
+#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, Default)]
+#[serde(rename_all = "snake_case")]
+pub struct CardToken {
+    /// The card holder's name
+    #[schema(value_type = String, example = "John Test")]
+    pub card_holder_name: Option<Secret<String>>,
+
+    /// The CVC number for the card
+    #[schema(value_type = Option<String>)]
+    pub card_cvc: Option<Secret<String>>,
+}
+
 impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
     fn from(api_model_payment_method_data: api_models::payments::PaymentMethodData) -> Self {
         match api_model_payment_method_data {
@@ -343,19 +454,21 @@ impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
                 Self::BankTransfer(bank_transfer_data)
             }
             api_models::payments::PaymentMethodData::Crypto(crypto_data) => {
-                Self::Crypto(crypto_data)
+                Self::Crypto(From::from(crypto_data))
             }
             api_models::payments::PaymentMethodData::MandatePayment => Self::MandatePayment,
             api_models::payments::PaymentMethodData::Reward => Self::Reward,
-            api_models::payments::PaymentMethodData::Upi(upi_data) => Self::Upi(upi_data),
+            api_models::payments::PaymentMethodData::Upi(upi_data) => {
+                Self::Upi(From::from(upi_data))
+            }
             api_models::payments::PaymentMethodData::Voucher(voucher_data) => {
-                Self::Voucher(voucher_data)
+                Self::Voucher(From::from(voucher_data))
             }
             api_models::payments::PaymentMethodData::GiftCard(gift_card) => {
-                Self::GiftCard(gift_card)
+                Self::GiftCard(Box::new(From::from(*gift_card)))
             }
             api_models::payments::PaymentMethodData::CardToken(card_token) => {
-                Self::CardToken(card_token)
+                Self::CardToken(From::from(card_token))
             }
         }
     }
@@ -646,6 +759,89 @@ impl From<api_models::payments::BankRedirectBilling> for BankRedirectBilling {
         Self {
             billing_name: billing.billing_name,
             email: billing.email,
+        }
+    }
+}
+
+impl From<api_models::payments::CryptoData> for CryptoData {
+    fn from(value: api_models::payments::CryptoData) -> Self {
+        let api_models::payments::CryptoData { pay_currency } = value;
+        Self { pay_currency }
+    }
+}
+
+impl From<api_models::payments::UpiData> for UpiData {
+    fn from(value: api_models::payments::UpiData) -> Self {
+        let api_models::payments::UpiData { vpa_id } = value;
+        Self { vpa_id }
+    }
+}
+
+impl From<api_models::payments::VoucherData> for VoucherData {
+    fn from(value: api_models::payments::VoucherData) -> Self {
+        match value {
+            api_models::payments::VoucherData::Boleto(boleto_data) => {
+                Self::Boleto(Box::new(BoletoVoucherData {
+                    social_security_number: boleto_data.social_security_number,
+                }))
+            }
+            api_models::payments::VoucherData::Alfamart(alfamart_data) => {
+                Self::Alfamart(Box::new(AlfamartVoucherData {
+                    first_name: alfamart_data.first_name,
+                    last_name: alfamart_data.last_name,
+                    email: alfamart_data.email,
+                }))
+            }
+            api_models::payments::VoucherData::Indomaret(indomaret_data) => {
+                Self::Indomaret(Box::new(IndomaretVoucherData {
+                    first_name: indomaret_data.first_name,
+                    last_name: indomaret_data.last_name,
+                    email: indomaret_data.email,
+                }))
+            }
+            api_models::payments::VoucherData::SevenEleven(jcs_data)
+            | api_models::payments::VoucherData::Lawson(jcs_data)
+            | api_models::payments::VoucherData::MiniStop(jcs_data)
+            | api_models::payments::VoucherData::FamilyMart(jcs_data)
+            | api_models::payments::VoucherData::Seicomart(jcs_data)
+            | api_models::payments::VoucherData::PayEasy(jcs_data) => {
+                Self::SevenEleven(Box::new(JCSVoucherData {
+                    first_name: jcs_data.first_name,
+                    last_name: jcs_data.last_name,
+                    email: jcs_data.email,
+                    phone_number: jcs_data.phone_number,
+                }))
+            }
+            api_models::payments::VoucherData::Efecty => Self::Efecty,
+            api_models::payments::VoucherData::PagoEfectivo => Self::PagoEfectivo,
+            api_models::payments::VoucherData::RedCompra => Self::RedCompra,
+            api_models::payments::VoucherData::RedPagos => Self::RedPagos,
+            api_models::payments::VoucherData::Oxxo => Self::Oxxo,
+        }
+    }
+}
+
+impl From<api_models::payments::GiftCardData> for GiftCardData {
+    fn from(value: api_models::payments::GiftCardData) -> Self {
+        match value {
+            api_models::payments::GiftCardData::Givex(details) => Self::Givex(GiftCardDetails {
+                number: details.number,
+                cvc: details.cvc,
+            }),
+            api_models::payments::GiftCardData::PaySafeCard {} => Self::PaySafeCard {},
+        }
+    }
+}
+
+impl From<api_models::payments::CardToken> for CardToken {
+    fn from(value: api_models::payments::CardToken) -> Self {
+        let api_models::payments::CardToken {
+            card_holder_name,
+            card_cvc,
+        } = value;
+        Self {
+            card_holder_name,
+            card_cvc,
         }
     }
 }

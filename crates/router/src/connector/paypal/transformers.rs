@@ -701,39 +701,36 @@ impl TryFrom<&api_models::payments::BankTransferData> for PaypalPaymentsRequest 
     }
 }
 
-impl TryFrom<&api_models::payments::VoucherData> for PaypalPaymentsRequest {
+impl TryFrom<&domain::VoucherData> for PaypalPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: &api_models::payments::VoucherData) -> Result<Self, Self::Error> {
+    fn try_from(value: &domain::VoucherData) -> Result<Self, Self::Error> {
         match value {
-            api_models::payments::VoucherData::Boleto(_)
-            | api_models::payments::VoucherData::Efecty
-            | api_models::payments::VoucherData::PagoEfectivo
-            | api_models::payments::VoucherData::RedCompra
-            | api_models::payments::VoucherData::RedPagos
-            | api_models::payments::VoucherData::Alfamart(_)
-            | api_models::payments::VoucherData::Indomaret(_)
-            | api_models::payments::VoucherData::Oxxo
-            | api_models::payments::VoucherData::SevenEleven(_)
-            | api_models::payments::VoucherData::Lawson(_)
-            | api_models::payments::VoucherData::MiniStop(_)
-            | api_models::payments::VoucherData::FamilyMart(_)
-            | api_models::payments::VoucherData::Seicomart(_)
-            | api_models::payments::VoucherData::PayEasy(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Paypal"),
-                )
-                .into())
-            }
+            domain::VoucherData::Boleto(_)
+            | domain::VoucherData::Efecty
+            | domain::VoucherData::PagoEfectivo
+            | domain::VoucherData::RedCompra
+            | domain::VoucherData::RedPagos
+            | domain::VoucherData::Alfamart(_)
+            | domain::VoucherData::Indomaret(_)
+            | domain::VoucherData::Oxxo
+            | domain::VoucherData::SevenEleven(_)
+            | domain::VoucherData::Lawson(_)
+            | domain::VoucherData::MiniStop(_)
+            | domain::VoucherData::FamilyMart(_)
+            | domain::VoucherData::Seicomart(_)
+            | domain::VoucherData::PayEasy(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Paypal"),
+            )
+            .into()),
         }
     }
 }
 
-impl TryFrom<&api_models::payments::GiftCardData> for PaypalPaymentsRequest {
+impl TryFrom<&domain::GiftCardData> for PaypalPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: &api_models::payments::GiftCardData) -> Result<Self, Self::Error> {
+    fn try_from(value: &domain::GiftCardData) -> Result<Self, Self::Error> {
         match value {
-            api_models::payments::GiftCardData::Givex(_)
-            | api_models::payments::GiftCardData::PaySafeCard {} => {
+            domain::GiftCardData::Givex(_) | domain::GiftCardData::PaySafeCard {} => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),
                 )
