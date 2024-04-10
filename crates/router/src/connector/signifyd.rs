@@ -498,7 +498,7 @@ impl
         req: &frm_types::FrmFulfillmentRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let req_obj = signifyd::FrmFullfillmentSignifydRequest::try_from(req)?;
+        let req_obj = signifyd::FrmFulfillmentSignifydRequest::try_from(req)?;
         Ok(RequestContent::Json(Box::new(req_obj.clone())))
     }
 
@@ -530,9 +530,9 @@ impl
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<frm_types::FrmFulfillmentRouterData, errors::ConnectorError> {
-        let response: signifyd::FrmFullfillmentSignifydApiResponse = res
+        let response: signifyd::FrmFulfillmentSignifydApiResponse = res
             .response
-            .parse_struct("FrmFullfillmentSignifydApiResponse Sale")
+            .parse_struct("FrmFulfillmentSignifydApiResponse Sale")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);

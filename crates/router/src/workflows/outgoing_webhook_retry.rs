@@ -120,7 +120,7 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
                     &key_store,
                     event,
                     request_content,
-                    storage::enums::WebhookDeliveryAttempt::AutomaticRetry,
+                    delivery_attempt,
                     None,
                     Some(process),
                 )
@@ -174,7 +174,7 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
                             &key_store,
                             event,
                             request_content,
-                            storage::enums::WebhookDeliveryAttempt::AutomaticRetry,
+                            delivery_attempt,
                             Some(content),
                             Some(process),
                         )

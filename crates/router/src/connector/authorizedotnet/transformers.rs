@@ -1283,55 +1283,49 @@ impl TryFrom<AuthorizedotnetWebhookObjectId> for AuthorizedotnetSyncResponse {
 }
 
 fn get_wallet_data(
-    wallet_data: &api_models::payments::WalletData,
+    wallet_data: &domain::WalletData,
     return_url: &Option<String>,
 ) -> CustomResult<PaymentDetails, errors::ConnectorError> {
     match wallet_data {
-        api_models::payments::WalletData::GooglePay(_) => {
-            Ok(PaymentDetails::OpaqueData(WalletDetails {
-                data_descriptor: WalletMethod::Googlepay,
-                data_value: Secret::new(wallet_data.get_encoded_wallet_token()?),
-            }))
-        }
-        api_models::payments::WalletData::ApplePay(applepay_token) => {
+        domain::WalletData::GooglePay(_) => Ok(PaymentDetails::OpaqueData(WalletDetails {
+            data_descriptor: WalletMethod::Googlepay,
+            data_value: Secret::new(wallet_data.get_encoded_wallet_token()?),
+        })),
+        domain::WalletData::ApplePay(applepay_token) => {
             Ok(PaymentDetails::OpaqueData(WalletDetails {
                 data_descriptor: WalletMethod::Applepay,
                 data_value: Secret::new(applepay_token.payment_data.clone()),
             }))
         }
-        api_models::payments::WalletData::PaypalRedirect(_) => {
-            Ok(PaymentDetails::PayPal(PayPalDetails {
-                success_url: return_url.to_owned(),
-                cancel_url: return_url.to_owned(),
-            }))
-        }
-        api_models::payments::WalletData::AliPayQr(_)
-        | api_models::payments::WalletData::AliPayRedirect(_)
-        | api_models::payments::WalletData::AliPayHkRedirect(_)
-        | api_models::payments::WalletData::MomoRedirect(_)
-        | api_models::payments::WalletData::KakaoPayRedirect(_)
-        | api_models::payments::WalletData::GoPayRedirect(_)
-        | api_models::payments::WalletData::GcashRedirect(_)
-        | api_models::payments::WalletData::ApplePayRedirect(_)
-        | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
-        | api_models::payments::WalletData::DanaRedirect {}
-        | api_models::payments::WalletData::GooglePayRedirect(_)
-        | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
-        | api_models::payments::WalletData::MbWayRedirect(_)
-        | api_models::payments::WalletData::MobilePayRedirect(_)
-        | api_models::payments::WalletData::PaypalSdk(_)
-        | api_models::payments::WalletData::SamsungPay(_)
-        | api_models::payments::WalletData::TwintRedirect {}
-        | api_models::payments::WalletData::VippsRedirect {}
-        | api_models::payments::WalletData::TouchNGoRedirect(_)
-        | api_models::payments::WalletData::WeChatPayRedirect(_)
-        | api_models::payments::WalletData::WeChatPayQr(_)
-        | api_models::payments::WalletData::CashappQr(_)
-        | api_models::payments::WalletData::SwishQr(_) => {
-            Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
-            ))?
-        }
+        domain::WalletData::PaypalRedirect(_) => Ok(PaymentDetails::PayPal(PayPalDetails {
+            success_url: return_url.to_owned(),
+            cancel_url: return_url.to_owned(),
+        })),
+        domain::WalletData::AliPayQr(_)
+        | domain::WalletData::AliPayRedirect(_)
+        | domain::WalletData::AliPayHkRedirect(_)
+        | domain::WalletData::MomoRedirect(_)
+        | domain::WalletData::KakaoPayRedirect(_)
+        | domain::WalletData::GoPayRedirect(_)
+        | domain::WalletData::GcashRedirect(_)
+        | domain::WalletData::ApplePayRedirect(_)
+        | domain::WalletData::ApplePayThirdPartySdk(_)
+        | domain::WalletData::DanaRedirect {}
+        | domain::WalletData::GooglePayRedirect(_)
+        | domain::WalletData::GooglePayThirdPartySdk(_)
+        | domain::WalletData::MbWayRedirect(_)
+        | domain::WalletData::MobilePayRedirect(_)
+        | domain::WalletData::PaypalSdk(_)
+        | domain::WalletData::SamsungPay(_)
+        | domain::WalletData::TwintRedirect {}
+        | domain::WalletData::VippsRedirect {}
+        | domain::WalletData::TouchNGoRedirect(_)
+        | domain::WalletData::WeChatPayRedirect(_)
+        | domain::WalletData::WeChatPayQr(_)
+        | domain::WalletData::CashappQr(_)
+        | domain::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
+            utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
+        ))?,
     }
 }
 

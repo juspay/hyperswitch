@@ -413,8 +413,11 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         payment_attempt.payment_method = payment_method.or(payment_attempt.payment_method);
         payment_attempt.browser_info = browser_info;
-        payment_attempt.payment_method_type =
-            payment_method_type.or(payment_attempt.payment_method_type);
+        payment_attempt.payment_method_type = payment_method_type
+            .or(payment_attempt.payment_method_type)
+            .or(payment_method_info
+                .as_ref()
+                .and_then(|pm_info| pm_info.payment_method_type));
 
         payment_attempt.payment_experience = request
             .payment_experience
@@ -1206,6 +1209,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
         helpers::validate_recurring_details_and_token(
             &request.recurring_details,
             &request.payment_token,
+            &request.mandate_id,
         )?;
 
         let payment_id = request
