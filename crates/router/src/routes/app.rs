@@ -58,6 +58,11 @@ pub use crate::{
 };
 
 #[derive(Clone)]
+pub struct ReqState {
+    pub event_context: events::EventContext<crate::events::EventType, EventsHandler>,
+}
+
+#[derive(Clone)]
 pub struct AppState {
     pub flow_name: String,
     pub store: Box<dyn StorageInterface>,
@@ -238,6 +243,12 @@ impl AppState {
             api_client,
         ))
         .await
+    }
+
+    pub fn get_req_state(&self) -> ReqState {
+        ReqState {
+            event_context: events::EventContext::new(self.event_handler.clone()),
+        }
     }
 }
 
@@ -1139,7 +1150,9 @@ impl User {
                 web::resource("/create_merchant")
                     .route(web::post().to(user_merchant_account_create)),
             )
-            .service(web::resource("/switch/list").route(web::get().to(list_merchant_ids_for_user)))
+            // TODO: Remove this endpoint once migration to /merchants/list is done
+            .service(web::resource("/switch/list").route(web::get().to(list_merchants_for_user)))
+            .service(web::resource("/merchants/list").route(web::get().to(list_merchants_for_user)))
             .service(web::resource("/permission_info").route(web::get().to(get_authorization_info)))
             .service(web::resource("/update").route(web::post().to(update_user_account_details)))
             .service(

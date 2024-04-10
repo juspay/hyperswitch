@@ -46,7 +46,7 @@ pub async fn card_iin_info(
         state,
         &req,
         payload,
-        |state, auth, req| cards_info::retrieve_card_info(state, auth.merchant_account, req),
+        |state, auth, req, _| cards_info::retrieve_card_info(state, auth.merchant_account, req),
         &*auth,
         api_locking::LockAction::NotApplicable,
     )
