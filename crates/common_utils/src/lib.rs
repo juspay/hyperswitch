@@ -23,7 +23,10 @@ pub mod validation;
 
 /// Date-time utilities.
 pub mod date_time {
-    use std::{marker::PhantomData, num::NonZeroU8, time::Instant};
+    use std::{marker::PhantomData, num::NonZeroU8};
+
+    #[cfg(feature = "async_ext")]
+    use std::time::Instant;
 
     use masking::{Deserialize, Serialize};
     use time::{
