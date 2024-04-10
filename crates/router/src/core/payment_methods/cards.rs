@@ -1127,10 +1127,11 @@ pub async fn mock_delete_card<'a>(
 //------------------------------------------------------------------------------
 pub fn get_banks(
     state: &routes::AppState,
-    pm_type: api_enums::PaymentMethodType,
+    pm_type: common_enums::enums::PaymentMethodType,
     connectors: Vec<String>,
 ) -> Result<Vec<BankCodeResponse>, errors::ApiErrorResponse> {
-    let mut bank_names_hm: HashMap<String, HashSet<api_enums::BankNames>> = HashMap::new();
+    let mut bank_names_hm: HashMap<String, HashSet<common_enums::enums::BankNames>> =
+        HashMap::new();
 
     if matches!(
         pm_type,
@@ -1296,7 +1297,7 @@ pub async fn list_payment_methods(
             Some(api::MandateTransactionType::RecurringMandateTransaction)
         } else if pa.mandate_details.is_some()
             || setup_future_usage
-                .map(|future_usage| future_usage == api_enums::FutureUsage::OffSession)
+                .map(|future_usage| future_usage == common_enums::enums::FutureUsage::OffSession)
                 .unwrap_or(false)
         {
             Some(api::MandateTransactionType::NewMandateTransaction)

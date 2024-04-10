@@ -21,7 +21,7 @@ use api_models::{
 use common_utils::{ext_traits::AsyncExt, pii, types::Surcharge};
 use data_models::mandates::{CustomerAcceptance, MandateData};
 use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use futures::future::join_all;
 use helpers::ApplePayData;
 use masking::Secret;
@@ -1347,6 +1347,7 @@ where
                 merchant_account,
                 connector_request,
                 key_store,
+                payment_data.payment_intent.profile_id.clone(),
             )
             .await
     } else {
@@ -1475,6 +1476,7 @@ where
             merchant_account,
             None,
             key_store,
+            payment_data.payment_intent.profile_id.clone(),
         );
 
         join_handlers.push(res);
@@ -2208,6 +2210,7 @@ pub mod payment_address {
             self.unified_payment_method_billing.as_ref()
         }
 
+        /// Unify the billing details from `payment_method_data.[payment_method_data].billing details`.
         pub fn unify_with_payment_method_data_billing(
             self,
             payment_method_data_billing: Option<api::Address>,
@@ -3069,6 +3072,7 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
                     connector_data.connector_name,
                     payment_method_info,
                 ) {
+                    logger::info!("using network_transaction_id for MIT flow");
                     let network_transaction_id = payment_method_info
                         .network_transaction_id
                         .as_ref()
@@ -3097,6 +3101,17 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
                             .attach_printable("no eligible connector found for token-based MIT flow since there were no connector mandate details")?
                             .get(merchant_connector_id)
                         {
+                            common_utils::fp_utils::when(
+                                mandate_reference_record
+                                    .original_payment_authorized_currency
+                                    .map(|mandate_currency| mandate_currency != payment_data.currency)
+                                    .unwrap_or(false),
+                                || {
+                                    Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
+                                        reason: "cross currency mandates not supported".into()
+                                    }))
+                                },
+                            )?;
                             let mandate_reference_id =
                                 Some(payments_api::MandateReferenceId::ConnectorMandateId(
                                     payments_api::ConnectorMandateReferenceId {

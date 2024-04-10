@@ -28,6 +28,7 @@ pub enum EventType {
     OutgoingWebhookLogs,
     Dispute,
     AuditEvent,
+    #[cfg(feature = "payouts")]
     Payout,
 }
 
