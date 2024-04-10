@@ -228,6 +228,7 @@ volt.base_url = "https://api.sandbox.volt.io/"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
+zsl.base_url = "https://api.sitoffalb.net/"
 zen.base_url = "https://api.zen-test.com/"
 zen.secondary_base_url = "https://secure.zen-test.com/"
 
@@ -280,6 +281,7 @@ cards = [
     "threedsecureio",
     "worldpay",
     "zen",
+    "zsl",
 ]
 
 # Scheduler settings provides a point to modify the behaviour of scheduler flow.

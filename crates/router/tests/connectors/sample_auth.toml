@@ -206,3 +206,9 @@ api_key="API Key"
 
 [ebanx]
 api_key="API Key"
+
+
+[zsl]
+api_key="API Key"
+key1= "Merchant id"
+

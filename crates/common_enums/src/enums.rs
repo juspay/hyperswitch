@@ -167,6 +167,7 @@ pub enum RoutableConnectors {
     Worldline,
     Worldpay,
     Zen,
+    // Zsl, Added as template code for future usage
 }
 
 impl AttemptStatus {

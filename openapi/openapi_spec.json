@@ -7179,10 +7179,10 @@
           "wise",
           "worldline",
           "worldpay",
-          "zen",
           "signifyd",
           "plaid",
-          "riskified"
+          "riskified",
+          "zen"
         ]
       },
       "ConnectorMetadata": {
