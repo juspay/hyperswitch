@@ -149,7 +149,7 @@ pub async fn get_connector_choice(
     }
 }
 
-// #[instrument(skip_all)]
+#[instrument(skip_all)]
 pub async fn make_connector_decision(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
@@ -251,7 +251,7 @@ pub async fn make_connector_decision(
     }
 }
 
-// #[instrument(skip_all)]
+#[instrument(skip_all)]
 pub async fn payouts_core(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
@@ -285,7 +285,7 @@ pub async fn payouts_core(
     .await
 }
 
-// #[instrument(skip_all)]
+#[instrument(skip_all)]
 pub async fn payouts_create_core(
     state: AppState,
     merchant_account: domain::MerchantAccount,
@@ -460,7 +460,7 @@ pub async fn payouts_update_core(
     response_handler(&merchant_account, &payout_data).await
 }
 
-// #[instrument(skip_all)]
+#[instrument(skip_all)]
 pub async fn payouts_retrieve_core(
     state: AppState,
     merchant_account: domain::MerchantAccount,
@@ -478,7 +478,7 @@ pub async fn payouts_retrieve_core(
     response_handler(&merchant_account, &payout_data).await
 }
 
-// #[instrument(skip_all)]
+#[instrument(skip_all)]
 pub async fn payouts_cancel_core(
     state: AppState,
     merchant_account: domain::MerchantAccount,
@@ -572,7 +572,7 @@ pub async fn payouts_cancel_core(
     response_handler(&merchant_account, &payout_data).await
 }
 
-// #[instrument(skip_all)]
+#[instrument(skip_all)]
 pub async fn payouts_fulfill_core(
     state: AppState,
     merchant_account: domain::MerchantAccount,
