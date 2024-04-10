@@ -6242,6 +6242,23 @@
                 "type": "object"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "local_bank_transfer"
+            ],
+            "properties": {
+              "local_bank_transfer": {
+                "type": "object",
+                "properties": {
+                  "bank_code": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
           }
         ]
       },
@@ -12902,7 +12919,8 @@
           "mini_stop",
           "family_mart",
           "seicomart",
-          "pay_easy"
+          "pay_easy",
+          "local_bank_transfer"
         ]
       },
       "PaymentMethodUpdate": {
@@ -15460,11 +15478,6 @@
           "cancellation_reason": {
             "type": "string",
             "description": "If the payout was cancelled the reason provided here",
-            "nullable": true
-          },
-          "payout_token": {
-            "type": "string",
-            "description": "Provide a reference to a stored payout method",
             "nullable": true
           },
           "unified_code": {

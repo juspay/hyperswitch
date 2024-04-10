@@ -2,20 +2,51 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, PaymentsAuthorizeRequestData, RouterData},
+    connector::utils::PaymentsAuthorizeRequestData,
     core::errors,
     types::{self, api, domain, storage::enums},
 };
 
+//TODO: Fill the struct with respective fields
+pub struct EbanxRouterData<T> {
+    pub amount: i64, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub router_data: T,
+}
+
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for EbanxRouterData<T>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (_currency_unit, _currency, amount, item): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        //Todo :  use utils to convert the amount to the type of amount that a connector accepts
+        Ok(Self {
+            amount,
+            router_data: item,
+        })
+    }
+}
+
+//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct OpayoPaymentsRequest {
+pub struct EbanxPaymentsRequest {
     amount: i64,
-    card: OpayoCard,
+    card: EbanxCard,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct OpayoCard {
-    name: Secret<String>,
+pub struct EbanxCard {
     number: cards::CardNumber,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
@@ -23,54 +54,37 @@ pub struct OpayoCard {
     complete: bool,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for OpayoPaymentsRequest {
+impl TryFrom<&EbanxRouterData<&types::PaymentsAuthorizeRouterData>> for EbanxPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        match item.request.payment_method_data.clone() {
-            domain::PaymentMethodData::Card(req_card) => {
-                let card = OpayoCard {
-                    name: item
-                        .get_optional_billing_full_name()
-                        .unwrap_or(Secret::new("".to_string())),
+    fn try_from(
+        item: &EbanxRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        match item.router_data.request.payment_method_data.clone() {
+            domain::payments::PaymentMethodData::Card(req_card) => {
+                let card = EbanxCard {
                     number: req_card.card_number,
                     expiry_month: req_card.card_exp_month,
                     expiry_year: req_card.card_exp_year,
                     cvc: req_card.card_cvc,
-                    complete: item.request.is_auto_capture()?,
+                    complete: item.router_data.request.is_auto_capture()?,
                 };
                 Ok(Self {
-                    amount: item.request.amount,
+                    amount: item.amount.to_owned(),
                     card,
                 })
             }
-            domain::PaymentMethodData::CardRedirect(_)
-            | domain::PaymentMethodData::Wallet(_)
-            | domain::PaymentMethodData::PayLater(_)
-            | domain::PaymentMethodData::BankRedirect(_)
-            | domain::PaymentMethodData::BankDebit(_)
-            | domain::PaymentMethodData::BankTransfer(_)
-            | domain::PaymentMethodData::Crypto(_)
-            | domain::PaymentMethodData::MandatePayment
-            | domain::PaymentMethodData::Reward
-            | domain::PaymentMethodData::Upi(_)
-            | domain::PaymentMethodData::Voucher(_)
-            | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::CardToken(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Opayo"),
-                )
-                .into())
-            }
+            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
     }
 }
 
+//TODO: Fill the struct with respective fields
 // Auth Struct
-pub struct OpayoAuthType {
+pub struct EbanxAuthType {
     pub(super) api_key: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for OpayoAuthType {
+impl TryFrom<&types::ConnectorAuthType> for EbanxAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
@@ -82,51 +96,50 @@ impl TryFrom<&types::ConnectorAuthType> for OpayoAuthType {
     }
 }
 // PaymentsResponse
+//TODO: Append the remaining status flags
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
-pub enum OpayoPaymentStatus {
+pub enum EbanxPaymentStatus {
     Succeeded,
     Failed,
     #[default]
     Processing,
 }
 
-impl From<OpayoPaymentStatus> for enums::AttemptStatus {
-    fn from(item: OpayoPaymentStatus) -> Self {
+impl From<EbanxPaymentStatus> for enums::AttemptStatus {
+    fn from(item: EbanxPaymentStatus) -> Self {
         match item {
-            OpayoPaymentStatus::Succeeded => Self::Charged,
-            OpayoPaymentStatus::Failed => Self::Failure,
-            OpayoPaymentStatus::Processing => Self::Authorizing,
+            EbanxPaymentStatus::Succeeded => Self::Charged,
+            EbanxPaymentStatus::Failed => Self::Failure,
+            EbanxPaymentStatus::Processing => Self::Authorizing,
         }
     }
 }
 
+//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct OpayoPaymentsResponse {
-    status: OpayoPaymentStatus,
+pub struct EbanxPaymentsResponse {
+    status: EbanxPaymentStatus,
     id: String,
-    transaction_id: String,
 }
 
 impl<F, T>
-    TryFrom<types::ResponseRouterData<F, OpayoPaymentsResponse, T, types::PaymentsResponseData>>
+    TryFrom<types::ResponseRouterData<F, EbanxPaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, OpayoPaymentsResponse, T, types::PaymentsResponseData>,
+        item: types::ResponseRouterData<F, EbanxPaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.response.transaction_id.clone(),
-                ),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: Some(item.response.transaction_id),
+                connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
             }),
             ..item.data
@@ -134,18 +147,19 @@ impl<F, T>
     }
 }
 
+//TODO: Fill the struct with respective fields
 // REFUND :
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
-pub struct OpayoRefundRequest {
+pub struct EbanxRefundRequest {
     pub amount: i64,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for OpayoRefundRequest {
+impl<F> TryFrom<&EbanxRouterData<&types::RefundsRouterData<F>>> for EbanxRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(item: &EbanxRouterData<&types::RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.request.refund_amount,
+            amount: item.amount.to_owned(),
         })
     }
 }
@@ -172,6 +186,7 @@ impl From<RefundStatus> for enums::RefundStatus {
     }
 }
 
+//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {
     id: String,
@@ -212,8 +227,9 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
+//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct OpayoErrorResponse {
+pub struct EbanxErrorResponse {
     pub status_code: u16,
     pub code: String,
     pub message: String,
