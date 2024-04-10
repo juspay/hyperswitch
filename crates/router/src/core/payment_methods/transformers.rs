@@ -1,9 +1,6 @@
 use std::str::FromStr;
 
-use api_models::{
-    enums as api_enums,
-    payment_methods::{Card, CardDetailUpdate},
-};
+use api_models::{enums as api_enums, payment_methods::Card};
 use common_utils::{
     ext_traits::{Encode, StringExt},
     pii::Email,
@@ -19,7 +16,7 @@ use crate::{
     headers,
     pii::{prelude::*, Secret},
     services::{api as services, encryption},
-    types::{api, storage, transformers::ForeignFrom},
+    types::{api, storage},
     utils::OptionExt,
 };
 
@@ -45,31 +42,6 @@ pub struct StoreGenericReq<'a> {
     pub merchant_customer_id: String,
     #[serde(rename = "enc_card_data")]
     pub enc_data: String,
-}
-
-impl ForeignFrom<(Card, CardDetailUpdate)> for api::CardDetail {
-    fn foreign_from(value: (Card, CardDetailUpdate)) -> Self {
-        let (card_detail_from_locker, card_detail_update) = value;
-        Self {
-            card_number: card_detail_from_locker.card_number,
-            card_exp_month: card_detail_update
-                .card_exp_month
-                .unwrap_or(card_detail_from_locker.card_exp_month),
-            card_exp_year: card_detail_update
-                .card_exp_year
-                .unwrap_or(card_detail_from_locker.card_exp_year),
-            card_holder_name: card_detail_update
-                .card_holder_name
-                .or(card_detail_from_locker.name_on_card),
-            nick_name: card_detail_update
-                .nick_name
-                .or(card_detail_from_locker.nick_name.map(Secret::new)),
-            card_issuing_country: None,
-            card_network: None,
-            card_issuer: None,
-            card_type: None,
-        }
-    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]

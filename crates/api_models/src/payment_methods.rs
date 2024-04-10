@@ -154,6 +154,34 @@ pub struct CardDetailUpdate {
     pub nick_name: Option<masking::Secret<String>>,
 }
 
+impl CardDetailUpdate {
+    pub fn apply(&self, card_data_from_locker: Card) -> CardDetail {
+        CardDetail {
+            card_number: card_data_from_locker.card_number,
+            card_exp_month: self
+                .card_exp_month
+                .clone()
+                .unwrap_or(card_data_from_locker.card_exp_month),
+            card_exp_year: self
+                .card_exp_year
+                .clone()
+                .unwrap_or(card_data_from_locker.card_exp_year),
+            card_holder_name: self
+                .card_holder_name
+                .clone()
+                .or(card_data_from_locker.name_on_card),
+            nick_name: self
+                .nick_name
+                .clone()
+                .or(card_data_from_locker.nick_name.map(masking::Secret::new)),
+            card_issuing_country: None,
+            card_network: None,
+            card_issuer: None,
+            card_type: None,
+        }
+    }
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentMethodResponse {
     /// Unique identifier for a merchant

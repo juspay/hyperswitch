@@ -65,7 +65,7 @@ use crate::{
             types::{decrypt, encrypt_optional, AsyncLift},
         },
         storage::{self, enums, PaymentMethodListContext, PaymentTokenData},
-        transformers::{ForeignFrom, ForeignInto},
+        transformers::ForeignFrom,
     },
     utils::{self, ConnectorResponseExt, OptionExt},
 };
@@ -515,8 +515,7 @@ pub async fn update_customer_payment_method(
                 )?;
             }
 
-            let updated_card_details: api::CardDetail =
-                (card_data_from_locker.clone(), card_update.clone()).foreign_into();
+            let updated_card_details = card_update.apply(card_data_from_locker.clone());
 
             // Construct new payment method object from request
             let new_pm = api::PaymentMethodCreate {
