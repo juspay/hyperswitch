@@ -32,6 +32,8 @@ use super::{
     user::{sample_data::BatchSampleDataInterface, UserInterface},
     user_role::UserRoleInterface,
 };
+#[cfg(feature = "payouts")]
+use crate::services::kafka::payout::KafkaPayout;
 use crate::{
     core::errors::{self, ProcessTrackerError},
     db::{
@@ -1497,21 +1499,49 @@ impl PayoutAttemptInterface for KafkaStore {
         &self,
         this: &storage::PayoutAttempt,
         payout_attempt_update: storage::PayoutAttemptUpdate,
+        payouts: &storage::Payouts,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::PayoutAttempt, errors::DataStorageError> {
-        self.diesel_store
-            .update_payout_attempt(this, payout_attempt_update, storage_scheme)
+        let updated_payout_attempt = self
+            .diesel_store
+            .update_payout_attempt(this, payout_attempt_update, payouts, storage_scheme)
+            .await?;
+        if let Err(err) = self
+            .kafka_producer
+            .log_payout(
+                &KafkaPayout::from_storage(payouts, &updated_payout_attempt),
+                Some(KafkaPayout::from_storage(payouts, this)),
+            )
             .await
+        {
+            logger::error!(message="Failed to update analytics entry for Payouts {payouts:?}\n{updated_payout_attempt:?}", error_message=?err);
+        };
+
+        Ok(updated_payout_attempt)
     }
 
     async fn insert_payout_attempt(
         &self,
         payout_attempt: storage::PayoutAttemptNew,
+        payouts: &storage::Payouts,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::PayoutAttempt, errors::DataStorageError> {
-        self.diesel_store
-            .insert_payout_attempt(payout_attempt, storage_scheme)
+        let payout_attempt_new = self
+            .diesel_store
+            .insert_payout_attempt(payout_attempt, payouts, storage_scheme)
+            .await?;
+        if let Err(err) = self
+            .kafka_producer
+            .log_payout(
+                &KafkaPayout::from_storage(payouts, &payout_attempt_new),
+                None,
+            )
             .await
+        {
+            logger::error!(message="Failed to add analytics entry for Payouts {payouts:?}\n{payout_attempt_new:?}", error_message=?err);
+        };
+
+        Ok(payout_attempt_new)
     }
 
     async fn get_filters_for_payouts(
@@ -1550,21 +1580,23 @@ impl PayoutsInterface for KafkaStore {
         &self,
         this: &storage::Payouts,
         payout_update: storage::PayoutsUpdate,
+        payout_attempt: &storage::PayoutAttempt,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::Payouts, errors::DataStorageError> {
         let payout = self
             .diesel_store
-            .update_payout(this, payout_update, storage_scheme)
+            .update_payout(this, payout_update, payout_attempt, storage_scheme)
             .await?;
-
-        if let Err(er) = self
+        if let Err(err) = self
             .kafka_producer
-            .log_payout(&payout, Some(this.clone()))
+            .log_payout(
+                &KafkaPayout::from_storage(&payout, payout_attempt),
+                Some(KafkaPayout::from_storage(this, payout_attempt)),
+            )
             .await
         {
-            logger::error!(message="Failed to add analytics entry for Payout {payout:?}", error_message=?er);
+            logger::error!(message="Failed to update analytics entry for Payouts {payout:?}\n{payout_attempt:?}", error_message=?err);
         };
-
         Ok(payout)
     }
 
@@ -1573,16 +1605,9 @@ impl PayoutsInterface for KafkaStore {
         payout: storage::PayoutsNew,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::Payouts, errors::DataStorageError> {
-        let payout = self
-            .diesel_store
+        self.diesel_store
             .insert_payout(payout, storage_scheme)
-            .await?;
-
-        if let Err(er) = self.kafka_producer.log_payout(&payout, None).await {
-            logger::error!(message="Failed to add analytics entry for Payout {payout:?}", error_message=?er);
-        };
-
-        Ok(payout)
+            .await
     }
 
     async fn find_optional_payout_by_merchant_id_payout_id(
