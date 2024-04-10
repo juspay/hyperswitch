@@ -298,6 +298,7 @@ pub async fn find_payment_intent_from_mandate_id_type(
             .find_mandate_by_merchant_id_mandate_id(
                 &merchant_account.merchant_id,
                 mandate_id.as_str(),
+                merchant_account.storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?,
@@ -305,6 +306,7 @@ pub async fn find_payment_intent_from_mandate_id_type(
             .find_mandate_by_merchant_id_connector_mandate_id(
                 &merchant_account.merchant_id,
                 connector_mandate_id.as_str(),
+                merchant_account.storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?,
