@@ -1822,13 +1822,11 @@ fn build_shopper_reference(customer_id: &Option<String>, merchant_id: String) ->
         .map(|c_id| format!("{}_{}", merchant_id, c_id))
 }
 
-impl<'a> TryFrom<&api_models::payments::BankDebitData> for AdyenPaymentMethod<'a> {
+impl<'a> TryFrom<&domain::BankDebitData> for AdyenPaymentMethod<'a> {
     type Error = Error;
-    fn try_from(
-        bank_debit_data: &api_models::payments::BankDebitData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(bank_debit_data: &domain::BankDebitData) -> Result<Self, Self::Error> {
         match bank_debit_data {
-            payments::BankDebitData::AchBankDebit {
+            domain::BankDebitData::AchBankDebit {
                 account_number,
                 routing_number,
                 card_holder_name,
@@ -1845,7 +1843,7 @@ impl<'a> TryFrom<&api_models::payments::BankDebitData> for AdyenPaymentMethod<'a
                     )?,
                 },
             ))),
-            payments::BankDebitData::SepaBankDebit {
+            domain::BankDebitData::SepaBankDebit {
                 iban,
                 bank_account_holder_name,
                 ..
@@ -1859,7 +1857,7 @@ impl<'a> TryFrom<&api_models::payments::BankDebitData> for AdyenPaymentMethod<'a
                     iban_number: iban.clone(),
                 },
             ))),
-            payments::BankDebitData::BacsBankDebit {
+            domain::BankDebitData::BacsBankDebit {
                 account_number,
                 sort_code,
                 bank_account_holder_name,
@@ -1876,7 +1874,7 @@ impl<'a> TryFrom<&api_models::payments::BankDebitData> for AdyenPaymentMethod<'a
                     )?,
                 },
             ))),
-            payments::BankDebitData::BecsBankDebit { .. } => {
+            domain::BankDebitData::BecsBankDebit { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Adyen"),
                 )
@@ -2685,7 +2683,7 @@ impl<'a>
 impl<'a>
     TryFrom<(
         &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
-        &api_models::payments::BankDebitData,
+        &domain::BankDebitData,
     )> for AdyenPaymentRequest<'a>
 {
     type Error = Error;
@@ -2693,7 +2691,7 @@ impl<'a>
     fn try_from(
         value: (
             &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
-            &api_models::payments::BankDebitData,
+            &domain::BankDebitData,
         ),
     ) -> Result<Self, Self::Error> {
         let (item, bank_debit_data) = value;
