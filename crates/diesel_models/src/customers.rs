@@ -1,9 +1,12 @@
 use common_utils::pii;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use time::PrimitiveDateTime;
+
 use crate::{encryption::Encryption, schema::customers};
 
-#[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay, serde::Deserialize, serde::Serialize)]
+#[derive(
+    Clone, Debug, Insertable, router_derive::DebugAsDisplay, serde::Deserialize, serde::Serialize,
+)]
 #[diesel(table_name = customers)]
 pub struct CustomerNew {
     pub customer_id: String,
@@ -20,23 +23,23 @@ pub struct CustomerNew {
     pub address_id: Option<String>,
 }
 
-impl From<CustomerNew> for Customer{
-    fn from(customer_new: CustomerNew) -> Self{
-        Self{
-            id : 0i32,
-            customer_id : customer_new.customer_id,
-            merchant_id : customer_new.merchant_id,
+impl From<CustomerNew> for Customer {
+    fn from(customer_new: CustomerNew) -> Self {
+        Self {
+            id: 0i32,
+            customer_id: customer_new.customer_id,
+            merchant_id: customer_new.merchant_id,
             name: customer_new.name,
-            email : customer_new.email,
+            email: customer_new.email,
             phone: customer_new.phone,
             phone_country_code: customer_new.phone_country_code,
-            description : customer_new.description,
-            created_at : customer_new.created_at,
-            metadata : customer_new.metadata,
-            connector_customer : customer_new.connector_customer,
-            modified_at : customer_new.modified_at,
-            address_id : customer_new.address_id,
-            default_payment_method_id : None 
+            description: customer_new.description,
+            created_at: customer_new.created_at,
+            metadata: customer_new.metadata,
+            connector_customer: customer_new.connector_customer,
+            modified_at: customer_new.modified_at,
+            address_id: customer_new.address_id,
+            default_payment_method_id: None,
         }
     }
 }
@@ -60,7 +63,15 @@ pub struct Customer {
     pub default_payment_method_id: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay, serde::Deserialize, serde::Serialize)]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    AsChangeset,
+    router_derive::DebugAsDisplay,
+    serde::Deserialize,
+    serde::Serialize,
+)]
 #[diesel(table_name = customers)]
 pub struct CustomerUpdateInternal {
     pub name: Option<Encryption>,
@@ -76,7 +87,7 @@ pub struct CustomerUpdateInternal {
 }
 
 impl CustomerUpdateInternal {
-    pub fn apply_changeset(self, source : Customer) -> Customer{
+    pub fn apply_changeset(self, source: Customer) -> Customer {
         let Self {
             name,
             email,
@@ -91,16 +102,18 @@ impl CustomerUpdateInternal {
         } = self;
 
         Customer {
-            name : name.map_or(source.name, Some),
-            email : email.map_or(source.email, Some),
-            phone : phone.map_or(source.phone, Some),
-            description : description.map_or(source.description, Some),
-            phone_country_code : phone_country_code.map_or(source.phone_country_code, Some),
-            metadata : metadata.map_or(source.metadata, Some),
-            modified_at : common_utils::date_time::now(),
-            connector_customer : connector_customer.map_or(source.connector_customer, Some),
-            address_id : address_id.map_or(source.address_id, Some),
-            default_payment_method_id : default_payment_method_id.flatten().map_or(source.default_payment_method_id, Some),
+            name: name.map_or(source.name, Some),
+            email: email.map_or(source.email, Some),
+            phone: phone.map_or(source.phone, Some),
+            description: description.map_or(source.description, Some),
+            phone_country_code: phone_country_code.map_or(source.phone_country_code, Some),
+            metadata: metadata.map_or(source.metadata, Some),
+            modified_at: common_utils::date_time::now(),
+            connector_customer: connector_customer.map_or(source.connector_customer, Some),
+            address_id: address_id.map_or(source.address_id, Some),
+            default_payment_method_id: default_payment_method_id
+                .flatten()
+                .map_or(source.default_payment_method_id, Some),
             ..source
         }
     }

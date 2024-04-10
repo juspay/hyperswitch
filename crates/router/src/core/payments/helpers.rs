@@ -1292,7 +1292,7 @@ pub async fn get_customer_from_details<F: Clone>(
                     &c_id,
                     merchant_id,
                     merchant_key_store,
-                    storage_scheme
+                    storage_scheme,
                 )
                 .await?;
             payment_data.email = payment_data.email.clone().or_else(|| {
@@ -1554,7 +1554,8 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, Ctx>(
                     .change_context(errors::StorageError::SerializationFailed)
                     .attach_printable("Failed while encrypting Customer while insert")?;
                     metrics::CUSTOMER_CREATED.add(&metrics::CONTEXT, 1, &[]);
-                    db.insert_customer(new_customer, key_store, storage_scheme).await
+                    db.insert_customer(new_customer, key_store, storage_scheme)
+                        .await
                 }
             })
         }

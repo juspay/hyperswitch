@@ -474,7 +474,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
             request,
             &key_store.merchant_id,
             key_store,
-            storage_scheme
+            storage_scheme,
         )
         .await
     }

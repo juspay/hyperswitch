@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     address::{Address, AddressNew, AddressUpdateInternal},
+    customers::{Customer, CustomerNew, CustomerUpdateInternal},
     errors,
     payment_attempt::{PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate},
     payment_intent::{PaymentIntentNew, PaymentIntentUpdate},
@@ -10,7 +11,7 @@ use crate::{
     payouts::{Payouts, PayoutsNew, PayoutsUpdate},
     refund::{Refund, RefundNew, RefundUpdate},
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
-    PaymentIntent, PaymentMethod, PaymentMethodNew, PaymentMethodUpdateInternal, PgPooledConn,customers::{CustomerNew, CustomerUpdateInternal, Customer},
+    PaymentIntent, PaymentMethod, PaymentMethodNew, PaymentMethodUpdateInternal, PgPooledConn,
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -85,7 +86,9 @@ impl DBOperation {
                 }
                 Insertable::Refund(a) => DBResult::Refund(Box::new(a.insert(conn).await?)),
                 Insertable::Address(addr) => DBResult::Address(Box::new(addr.insert(conn).await?)),
-                Insertable::Customer(cust) => DBResult::Customer(Box::new(cust.insert(conn).await?)),
+                Insertable::Customer(cust) => {
+                    DBResult::Customer(Box::new(cust.insert(conn).await?))
+                }
                 Insertable::ReverseLookUp(rev) => {
                     DBResult::ReverseLookUp(Box::new(rev.insert(conn).await?))
                 }
@@ -121,9 +124,15 @@ impl DBOperation {
                         .update_with_payment_method_id(conn, v.update_data)
                         .await?,
                 )),
-                Updateable::CustomerUpdate(cust) => {
-                    DBResult::Customer(Box::new(Customer::update_by_customer_id_merchant_id(conn,cust.orig.customer_id.clone(), cust.orig.merchant_id.clone(), cust.update_data).await?))
-                }
+                Updateable::CustomerUpdate(cust) => DBResult::Customer(Box::new(
+                    Customer::update_by_customer_id_merchant_id(
+                        conn,
+                        cust.orig.customer_id.clone(),
+                        cust.orig.merchant_id.clone(),
+                        cust.update_data,
+                    )
+                    .await?,
+                )),
             },
         })
     }
@@ -178,9 +187,9 @@ pub enum Updateable {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct CustomerUpdateMems{
-    pub orig : Customer,
-    pub update_data: CustomerUpdateInternal
+pub struct CustomerUpdateMems {
+    pub orig: Customer,
+    pub update_data: CustomerUpdateInternal,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -45,7 +45,12 @@ pub async fn create_customer(
     // Consider a scenario where the address is inserted and then when inserting the customer,
     // it errors out, now the address that was inserted is not deleted
     match db
-        .find_customer_by_customer_id_merchant_id(customer_id, merchant_id, &key_store, merchant_account.storage_scheme)
+        .find_customer_by_customer_id_merchant_id(
+            customer_id,
+            merchant_id,
+            &key_store,
+            merchant_account.storage_scheme,
+        )
         .await
     {
         Err(err) => {
@@ -189,14 +194,15 @@ pub async fn delete_customer(
 ) -> errors::CustomerResponse<customers::CustomerDeleteResponse> {
     let db = &state.store;
 
-    let customer_orig = db.find_customer_by_customer_id_merchant_id(
-        &req.customer_id,
-        &merchant_account.merchant_id,
-        &key_store,
-        merchant_account.storage_scheme,
-    )
-    .await
-    .switch()?;
+    let customer_orig = db
+        .find_customer_by_customer_id_merchant_id(
+            &req.customer_id,
+            &merchant_account.merchant_id,
+            &key_store,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .switch()?;
 
     let customer_mandates = db
         .find_mandate_by_merchant_id_customer_id(&merchant_account.merchant_id, &req.customer_id)
@@ -440,7 +446,7 @@ pub async fn update_customer(
             .switch()
             .attach_printable("Failed while encrypting while updating customer")?,
             &key_store,
-            merchant_account.storage_scheme
+            merchant_account.storage_scheme,
         )
         .await
         .switch()?;

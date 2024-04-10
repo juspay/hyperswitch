@@ -315,7 +315,7 @@ where
             request,
             &key_store.merchant_id,
             key_store,
-            storage_scheme
+            storage_scheme,
         )
         .await
     }
