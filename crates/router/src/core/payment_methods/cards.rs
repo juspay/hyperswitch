@@ -249,17 +249,20 @@ pub async fn add_payment_method(
             )),
         },
         api_enums::PaymentMethod::Card => match req.card.clone() {
-            Some(card) => add_card_to_locker(
-                &state,
-                req.clone(),
-                &card,
-                &customer_id,
-                merchant_account,
-                None,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Add Card Failed"),
+            Some(card) => {
+                helpers::validate_card_expiry(&card.card_exp_month, &card.card_exp_year)?;
+                add_card_to_locker(
+                    &state,
+                    req.clone(),
+                    &card,
+                    &customer_id,
+                    merchant_account,
+                    None,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Add Card Failed")
+            }
             _ => Ok(store_default_payment_method(
                 &req,
                 &customer_id,
