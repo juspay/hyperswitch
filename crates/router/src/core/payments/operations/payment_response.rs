@@ -867,6 +867,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         &mut payment_data,
         router_data.status,
         router_data.response.clone(),
+        storage_scheme,
     )
     .await?;
     let m_db = state.clone().store;
@@ -965,11 +966,12 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
     payment_data: &mut PaymentData<F>,
     attempt_status: common_enums::AttemptStatus,
     payment_response: Result<types::PaymentsResponseData, ErrorResponse>,
+    storage_scheme: enums::MerchantStorageScheme,
 ) -> RouterResult<()> {
     if let Some(id) = &payment_data.payment_attempt.payment_method_id {
         let pm = state
             .store
-            .find_payment_method(id)
+            .find_payment_method(id, storage_scheme)
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
@@ -1036,7 +1038,7 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
 
         state
             .store
-            .update_payment_method(pm, pm_update)
+            .update_payment_method(pm, pm_update, storage_scheme)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to update payment method in db")?;

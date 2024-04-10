@@ -463,7 +463,7 @@ pub async fn get_token_pm_type_mandate_details(
                     RecurringDetails::PaymentMethodId(payment_method_id) => {
                         let payment_method_info = state
                             .store
-                            .find_payment_method(payment_method_id)
+                            .find_payment_method(payment_method_id, merchant_account.storage_scheme)
                             .await
                             .to_not_found_response(
                                 errors::ApiErrorResponse::PaymentMethodNotFound,
@@ -597,7 +597,7 @@ pub async fn get_token_for_recurring_mandate(
     )?;
 
     let payment_method = db
-        .find_payment_method(payment_method_id.as_str())
+        .find_payment_method(payment_method_id.as_str(), merchant_account.storage_scheme)
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
@@ -1688,6 +1688,8 @@ pub async fn retrieve_card_with_permanent_token(
     payment_method_id: &str,
     payment_intent: &PaymentIntent,
     card_token_data: Option<&CardToken>,
+    _merchant_key_store: &domain::MerchantKeyStore,
+    storage_scheme: enums::MerchantStorageScheme,
 ) -> RouterResult<api::PaymentMethodData> {
     let customer_id = payment_intent
         .customer_id
@@ -1733,20 +1735,21 @@ pub async fn retrieve_card_with_permanent_token(
         card_issuing_country: None,
         bank_code: None,
     };
-    cards::update_last_used_at(payment_method_id, state).await?;
+    cards::update_last_used_at(payment_method_id, state, storage_scheme).await?;
     Ok(api::PaymentMethodData::Card(api_card))
 }
 
 pub async fn retrieve_payment_method_from_db_with_token_data(
     state: &AppState,
     token_data: &storage::PaymentTokenData,
+    storage_scheme: storage::enums::MerchantStorageScheme,
 ) -> RouterResult<Option<storage::PaymentMethod>> {
     match token_data {
         storage::PaymentTokenData::PermanentCard(data) => {
             if let Some(ref payment_method_id) = data.payment_method_id {
                 state
                     .store
-                    .find_payment_method(payment_method_id)
+                    .find_payment_method(payment_method_id, storage_scheme)
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
                     .attach_printable("error retrieving payment method from DB")
@@ -1758,7 +1761,7 @@ pub async fn retrieve_payment_method_from_db_with_token_data(
 
         storage::PaymentTokenData::WalletToken(data) => state
             .store
-            .find_payment_method(&data.payment_method_id)
+            .find_payment_method(&data.payment_method_id, storage_scheme)
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
             .attach_printable("error retrieveing payment method from DB")
@@ -1827,6 +1830,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
     payment_data: &mut PaymentData<F>,
     merchant_key_store: &domain::MerchantKeyStore,
     customer: &Option<domain::Customer>,
+    storage_scheme: common_enums::enums::MerchantStorageScheme,
 ) -> RouterResult<(
     BoxedOperation<'a, F, R, Ctx>,
     Option<api::PaymentMethodData>,
@@ -1859,6 +1863,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
                 &payment_data.payment_intent,
                 card_token_data.as_ref(),
                 customer,
+                storage_scheme,
             )
             .await;
 
@@ -4103,6 +4108,7 @@ pub async fn get_payment_method_details_from_payment_token(
     payment_attempt: &PaymentAttempt,
     payment_intent: &PaymentIntent,
     key_store: &domain::MerchantKeyStore,
+    storage_scheme: enums::MerchantStorageScheme,
 ) -> RouterResult<Option<(api::PaymentMethodData, enums::PaymentMethod)>> {
     let hyperswitch_token = if let Some(token) = payment_attempt.payment_token.clone() {
         let redis_conn = state
@@ -4184,6 +4190,8 @@ pub async fn get_payment_method_details_from_payment_token(
                 .unwrap_or(&card_token.token),
             payment_intent,
             None,
+            key_store,
+            storage_scheme,
         )
         .await
         .map(|card| Some((card, enums::PaymentMethod::Card))),
@@ -4197,6 +4205,8 @@ pub async fn get_payment_method_details_from_payment_token(
                 .unwrap_or(&card_token.token),
             payment_intent,
             None,
+            key_store,
+            storage_scheme,
         )
         .await
         .map(|card| Some((card, enums::PaymentMethod::Card))),
