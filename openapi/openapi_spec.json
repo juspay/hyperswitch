@@ -7123,7 +7123,6 @@
         "type": "string",
         "description": "A connector is an integration to fulfill payments",
         "enum": [
-          "netcetera",
           "phonypay",
           "fauxpay",
           "pretendpay",
@@ -7158,6 +7157,7 @@
           "klarna",
           "mollie",
           "multisafepay",
+          "netcetera",
           "nexinets",
           "nmi",
           "noon",
