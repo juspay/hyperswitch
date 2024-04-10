@@ -596,10 +596,9 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
                 .is_some()
     }
     fn get_webhook_url(&self) -> Result<String, Error> {
-        Ok("https://ed45-13-232-74-226.ngrok-free.app/webhooks/merchant_1712757353/mca_y3G5f8NNL8lzmGWQfbap".to_owned())
-        // self.webhook_url
-        //     .clone()
-        //     .ok_or_else(missing_field_err("webhook_url"))
+        self.webhook_url
+            .clone()
+            .ok_or_else(missing_field_err("webhook_url"))
     }
     fn get_router_return_url(&self) -> Result<String, Error> {
         self.router_return_url
