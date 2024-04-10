@@ -299,9 +299,8 @@ impl<T>
             number: card.card_number.clone(),
             exp_month: card.card_exp_month.clone(),
             exp_year: card.card_exp_year.clone(),
-            cardholder_name: card
-                .card_holder_name
-                .clone()
+            cardholder_name: item
+                .get_optional_billing_full_name()
                 .unwrap_or(Secret::new("".to_string())),
         };
         if item.is_three_ds() {

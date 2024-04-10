@@ -241,7 +241,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                 match item.request.payment_method_data.clone() {
                     domain::PaymentMethodData::Card(req_card) => {
                         Ok(NoonPaymentData::Card(NoonCard {
-                            name_on_card: req_card.card_holder_name.clone(),
+                            name_on_card: item.get_optional_billing_full_name(),
                             number_plain: req_card.card_number.clone(),
                             expiry_month: req_card.card_exp_month.clone(),
                             expiry_year: req_card.get_expiry_year_4_digit(),

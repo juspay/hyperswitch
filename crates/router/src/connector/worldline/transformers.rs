@@ -236,35 +236,36 @@ impl
             >,
         >,
     ) -> Result<Self, Self::Error> {
-        let payment_data = match &item.router_data.request.payment_method_data {
-            domain::PaymentMethodData::Card(card) => {
-                WorldlinePaymentMethod::CardPaymentMethodSpecificInput(Box::new(make_card_request(
-                    &item.router_data.request,
-                    card,
-                )?))
-            }
-            domain::PaymentMethodData::BankRedirect(bank_redirect) => {
-                WorldlinePaymentMethod::RedirectPaymentMethodSpecificInput(Box::new(
-                    make_bank_redirect_request(&item.router_data.request, bank_redirect)?,
-                ))
-            }
-            domain::PaymentMethodData::CardRedirect(_)
-            | domain::PaymentMethodData::Wallet(_)
-            | domain::PaymentMethodData::PayLater(_)
-            | domain::PaymentMethodData::BankDebit(_)
-            | domain::PaymentMethodData::BankTransfer(_)
-            | domain::PaymentMethodData::Crypto(_)
-            | domain::PaymentMethodData::MandatePayment
-            | domain::PaymentMethodData::Reward
-            | domain::PaymentMethodData::Upi(_)
-            | domain::PaymentMethodData::Voucher(_)
-            | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::CardToken(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("worldline"),
-                ))?
-            }
-        };
+        let payment_data =
+            match &item.router_data.request.payment_method_data {
+                domain::PaymentMethodData::Card(card) => {
+                    let card_holder_name = item.router_data.get_optional_billing_full_name();
+                    WorldlinePaymentMethod::CardPaymentMethodSpecificInput(Box::new(
+                        make_card_request(&item.router_data.request, card, card_holder_name)?,
+                    ))
+                }
+                domain::PaymentMethodData::BankRedirect(bank_redirect) => {
+                    WorldlinePaymentMethod::RedirectPaymentMethodSpecificInput(Box::new(
+                        make_bank_redirect_request(&item.router_data.request, bank_redirect)?,
+                    ))
+                }
+                domain::PaymentMethodData::CardRedirect(_)
+                | domain::PaymentMethodData::Wallet(_)
+                | domain::PaymentMethodData::PayLater(_)
+                | domain::PaymentMethodData::BankDebit(_)
+                | domain::PaymentMethodData::BankTransfer(_)
+                | domain::PaymentMethodData::Crypto(_)
+                | domain::PaymentMethodData::MandatePayment
+                | domain::PaymentMethodData::Reward
+                | domain::PaymentMethodData::Upi(_)
+                | domain::PaymentMethodData::Voucher(_)
+                | domain::PaymentMethodData::GiftCard(_)
+                | domain::PaymentMethodData::CardToken(_) => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("worldline"),
+                    ))?
+                }
+            };
 
         let billing_address = item.router_data.get_billing()?;
 
@@ -343,6 +344,7 @@ impl TryFrom<&common_enums::enums::BankNames> for WorldlineBic {
 fn make_card_request(
     req: &PaymentsAuthorizeData,
     ccard: &domain::Card,
+    card_holder_name: Option<Secret<String>>,
 ) -> Result<CardPaymentMethod, error_stack::Report<errors::ConnectorError>> {
     let expiry_year = ccard.card_exp_year.peek();
     let secret_value = format!(
@@ -355,10 +357,7 @@ fn make_card_request(
     let expiry_date: Secret<String> = Secret::new(secret_value);
     let card = Card {
         card_number: ccard.card_number.clone(),
-        cardholder_name: ccard
-            .card_holder_name
-            .clone()
-            .unwrap_or(Secret::new("".to_string())),
+        cardholder_name: card_holder_name.unwrap_or(Secret::new("".to_string())),
         cvv: ccard.card_cvc.clone(),
         expiry_date,
     };
