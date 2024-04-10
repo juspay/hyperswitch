@@ -1,6 +1,9 @@
 use std::str::FromStr;
 
-use api_models::{enums as api_enums, payment_methods::CardDetailUpdate};
+use api_models::{
+    enums as api_enums,
+    payment_methods::{Card, CardDetailUpdate},
+};
 use common_utils::{
     ext_traits::{Encode, StringExt},
     pii::Email,
@@ -42,17 +45,6 @@ pub struct StoreGenericReq<'a> {
     pub merchant_customer_id: String,
     #[serde(rename = "enc_card_data")]
     pub enc_data: String,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct Card {
-    pub card_number: cards::CardNumber,
-    pub name_on_card: Option<Secret<String>>,
-    pub card_exp_month: Secret<String>,
-    pub card_exp_year: Secret<String>,
-    pub card_brand: Option<String>,
-    pub card_isin: Option<String>,
-    pub nick_name: Option<String>,
 }
 
 impl ForeignFrom<(Card, CardDetailUpdate)> for api::CardDetail {

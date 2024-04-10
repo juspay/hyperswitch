@@ -262,6 +262,17 @@ pub struct BankAccountConnectorDetails {
 pub enum BankAccountAccessCreds {
     AccessToken(masking::Secret<String>),
 }
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct Card {
+    pub card_number: CardNumber,
+    pub name_on_card: Option<masking::Secret<String>>,
+    pub card_exp_month: masking::Secret<String>,
+    pub card_exp_year: masking::Secret<String>,
+    pub card_brand: Option<String>,
+    pub card_isin: Option<String>,
+    pub nick_name: Option<String>,
+}
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct CardDetailFromLocker {
     pub scheme: Option<String>,
