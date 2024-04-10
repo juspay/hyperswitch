@@ -78,12 +78,6 @@ impl ConnectorCommon for Zsl {
         connectors.zsl.base_url.as_ref()
     }
 
-    fn get_auth_header(
-        &self,
-        _auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        Ok(vec![])
-    }
 
     fn build_error_response(
         &self,
@@ -125,6 +119,10 @@ impl ConnectorValidation for Zsl {
             ),
         }
     }
+
+    fn is_webhook_source_verification_mandatory(&self) -> bool {
+        true
+    }
 }
 
 impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
@@ -147,7 +145,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         _req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}ecp", self.base_url(connectors).to_string()))
+        Ok(format!("{}ecp", self.base_url(connectors)))
     }
 
     fn get_request_body(

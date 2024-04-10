@@ -96,6 +96,10 @@ pub trait RouterData {
     fn get_optional_billing_state(&self) -> Option<Secret<String>>;
     fn get_optional_billing_first_name(&self) -> Option<Secret<String>>;
     fn get_optional_billing_last_name(&self) -> Option<Secret<String>>;
+    fn get_optional_billing_phone_number(&self) -> Option<Secret<String>>;
+    fn get_optional_billing_email(&self) -> Option<Email>;
+
+
 }
 
 pub trait PaymentResponseRouterData {
@@ -298,6 +302,26 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             })
     }
 
+    fn get_optional_billing_phone_number(&self) -> Option<Secret<String>> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .phone
+                    .and_then(|phone_data| phone_data.number)
+            })
+    }
+
+    fn get_optional_billing_email(&self) -> Option<Email> {
+        self.address
+        .get_payment_method_billing()
+        .and_then(|billing_address| {
+            billing_address
+                .clone()
+                .email
+        })
+    }
     fn to_connector_meta<T>(&self) -> Result<T, Error>
     where
         T: serde::de::DeserializeOwned,
@@ -572,9 +596,10 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
                 .is_some()
     }
     fn get_webhook_url(&self) -> Result<String, Error> {
-        self.webhook_url
-            .clone()
-            .ok_or_else(missing_field_err("webhook_url"))
+        Ok("https://ed45-13-232-74-226.ngrok-free.app/webhooks/merchant_1712757353/mca_y3G5f8NNL8lzmGWQfbap".to_owned())
+        // self.webhook_url
+        //     .clone()
+        //     .ok_or_else(missing_field_err("webhook_url"))
     }
     fn get_router_return_url(&self) -> Result<String, Error> {
         self.router_return_url

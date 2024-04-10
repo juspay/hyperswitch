@@ -2236,6 +2236,7 @@ pub mod payment_address {
         pub fn get_payment_billing(&self) -> Option<&api::Address> {
             self.billing.as_ref()
         }
+
     }
 }
 
