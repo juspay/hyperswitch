@@ -252,20 +252,20 @@ impl ForeignFrom<(NexinetsPaymentStatus, NexinetsTransactionType)> for enums::At
     }
 }
 
-impl TryFrom<&api_models::enums::BankNames> for NexinetsBIC {
+impl TryFrom<&common_enums::enums::BankNames> for NexinetsBIC {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(bank: &api_models::enums::BankNames) -> Result<Self, Self::Error> {
+    fn try_from(bank: &common_enums::enums::BankNames) -> Result<Self, Self::Error> {
         match bank {
-            api_models::enums::BankNames::AbnAmro => Ok(Self::AbnAmro),
-            api_models::enums::BankNames::AsnBank => Ok(Self::AsnBank),
-            api_models::enums::BankNames::Bunq => Ok(Self::Bunq),
-            api_models::enums::BankNames::Ing => Ok(Self::Ing),
-            api_models::enums::BankNames::Knab => Ok(Self::Knab),
-            api_models::enums::BankNames::Rabobank => Ok(Self::Rabobank),
-            api_models::enums::BankNames::Regiobank => Ok(Self::Regiobank),
-            api_models::enums::BankNames::SnsBank => Ok(Self::SnsBank),
-            api_models::enums::BankNames::TriodosBank => Ok(Self::TriodosBank),
-            api_models::enums::BankNames::VanLanschot => Ok(Self::VanLanschot),
+            common_enums::enums::BankNames::AbnAmro => Ok(Self::AbnAmro),
+            common_enums::enums::BankNames::AsnBank => Ok(Self::AsnBank),
+            common_enums::enums::BankNames::Bunq => Ok(Self::Bunq),
+            common_enums::enums::BankNames::Ing => Ok(Self::Ing),
+            common_enums::enums::BankNames::Knab => Ok(Self::Knab),
+            common_enums::enums::BankNames::Rabobank => Ok(Self::Rabobank),
+            common_enums::enums::BankNames::Regiobank => Ok(Self::Regiobank),
+            common_enums::enums::BankNames::SnsBank => Ok(Self::SnsBank),
+            common_enums::enums::BankNames::TriodosBank => Ok(Self::TriodosBank),
+            common_enums::enums::BankNames::VanLanschot => Ok(Self::VanLanschot),
             _ => Err(errors::ConnectorError::FlowNotSupported {
                 flow: bank.to_string(),
                 connector: "Nexinets".to_string(),
@@ -580,11 +580,9 @@ fn get_payment_details_and_product(
         )),
         PaymentMethodData::Wallet(wallet) => Ok(get_wallet_details(wallet)?),
         PaymentMethodData::BankRedirect(bank_redirect) => match bank_redirect {
-            api_models::payments::BankRedirectData::Eps { .. } => Ok((None, NexinetsProduct::Eps)),
-            api_models::payments::BankRedirectData::Giropay { .. } => {
-                Ok((None, NexinetsProduct::Giropay))
-            }
-            api_models::payments::BankRedirectData::Ideal { bank_name, .. } => Ok((
+            domain::BankRedirectData::Eps { .. } => Ok((None, NexinetsProduct::Eps)),
+            domain::BankRedirectData::Giropay { .. } => Ok((None, NexinetsProduct::Giropay)),
+            domain::BankRedirectData::Ideal { bank_name, .. } => Ok((
                 Some(NexinetsPaymentDetails::BankRedirects(Box::new(
                     NexinetsBankRedirects {
                         bic: bank_name
@@ -594,22 +592,20 @@ fn get_payment_details_and_product(
                 ))),
                 NexinetsProduct::Ideal,
             )),
-            api_models::payments::BankRedirectData::Sofort { .. } => {
-                Ok((None, NexinetsProduct::Sofort))
-            }
-            api_models::payments::BankRedirectData::BancontactCard { .. }
-            | api_models::payments::BankRedirectData::Blik { .. }
-            | api_models::payments::BankRedirectData::Bizum { .. }
-            | api_models::payments::BankRedirectData::Interac { .. }
-            | api_models::payments::BankRedirectData::OnlineBankingCzechRepublic { .. }
-            | api_models::payments::BankRedirectData::OnlineBankingFinland { .. }
-            | api_models::payments::BankRedirectData::OnlineBankingPoland { .. }
-            | api_models::payments::BankRedirectData::OnlineBankingSlovakia { .. }
-            | api_models::payments::BankRedirectData::OpenBankingUk { .. }
-            | api_models::payments::BankRedirectData::Przelewy24 { .. }
-            | api_models::payments::BankRedirectData::Trustly { .. }
-            | api_models::payments::BankRedirectData::OnlineBankingFpx { .. }
-            | api_models::payments::BankRedirectData::OnlineBankingThailand { .. } => {
+            domain::BankRedirectData::Sofort { .. } => Ok((None, NexinetsProduct::Sofort)),
+            domain::BankRedirectData::BancontactCard { .. }
+            | domain::BankRedirectData::Blik { .. }
+            | domain::BankRedirectData::Bizum { .. }
+            | domain::BankRedirectData::Interac { .. }
+            | domain::BankRedirectData::OnlineBankingCzechRepublic { .. }
+            | domain::BankRedirectData::OnlineBankingFinland { .. }
+            | domain::BankRedirectData::OnlineBankingPoland { .. }
+            | domain::BankRedirectData::OnlineBankingSlovakia { .. }
+            | domain::BankRedirectData::OpenBankingUk { .. }
+            | domain::BankRedirectData::Przelewy24 { .. }
+            | domain::BankRedirectData::Trustly { .. }
+            | domain::BankRedirectData::OnlineBankingFpx { .. }
+            | domain::BankRedirectData::OnlineBankingThailand { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("nexinets"),
                 ))?

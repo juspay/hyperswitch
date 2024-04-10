@@ -2,10 +2,13 @@
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 use common_utils::ext_traits::Encode;
 #[cfg(feature = "olap")]
-use data_models::payouts::{payout_attempt::PayoutAttempt, PayoutFetchConstraints};
+use data_models::payouts::PayoutFetchConstraints;
 use data_models::{
     errors::StorageError,
-    payouts::payouts::{Payouts, PayoutsInterface, PayoutsNew, PayoutsUpdate},
+    payouts::{
+        payout_attempt::PayoutAttempt,
+        payouts::{Payouts, PayoutsInterface, PayoutsNew, PayoutsUpdate},
+    },
 };
 #[cfg(feature = "olap")]
 use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
@@ -115,12 +118,13 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         &self,
         this: &Payouts,
         payout_update: PayoutsUpdate,
+        payout_attempt: &PayoutAttempt,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Payouts, StorageError> {
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
-                    .update_payout(this, payout_update, storage_scheme)
+                    .update_payout(this, payout_update, payout_attempt, storage_scheme)
                     .await
             }
             MerchantStorageScheme::RedisKv => {
@@ -316,6 +320,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         &self,
         this: &Payouts,
         payout: PayoutsUpdate,
+        _payout_attempt: &PayoutAttempt,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Payouts, StorageError> {
         let conn = pg_connection_write(self).await?;

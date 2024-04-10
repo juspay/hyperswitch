@@ -171,6 +171,7 @@ pub async fn make_payout_method_data<'a>(
                 db.update_payout_attempt(
                     &payout_data.payout_attempt,
                     updated_payout_attempt,
+                    &payout_data.payouts,
                     storage_scheme,
                 )
                 .await
@@ -554,6 +555,7 @@ pub async fn save_payout_data_to_locker(
     db.update_payout(
         &payout_data.payouts,
         updated_payout,
+        payout_attempt,
         merchant_account.storage_scheme,
     )
     .await

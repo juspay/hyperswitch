@@ -164,11 +164,18 @@ where
 
             let pm_id = if customer_acceptance.is_some() {
                 let customer = maybe_customer.to_owned().get_required_value("customer")?;
+                let billing_name = resp
+                    .address
+                    .get_payment_method_billing()
+                    .and_then(|billing_details| billing_details.address.as_ref())
+                    .and_then(|address| address.get_optional_full_name());
+
                 let payment_method_create_request = helpers::get_payment_method_create_request(
                     Some(&resp.request.get_payment_method_data()),
                     Some(resp.payment_method),
                     payment_method_type,
                     &customer,
+                    billing_name,
                 )
                 .await?;
                 let merchant_id = &merchant_account.merchant_id;
@@ -541,7 +548,7 @@ async fn skip_saving_card_in_locker(
     let card_isin = payment_method_request
         .card
         .clone()
-        .map(|c: api_models::payment_methods::CardDetail| c.card_number.get_card_isin());
+        .map(|c| c.card_number.get_card_isin());
 
     match payment_method_request.card.clone() {
         Some(card) => {

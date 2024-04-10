@@ -4,6 +4,25 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.04.10.0
+
+### Features
+
+- **connector:** [Ebanx] Template for ebanx payout ([#4141](https://github.com/juspay/hyperswitch/pull/4141)) ([`ed186a5`](https://github.com/juspay/hyperswitch/commit/ed186a5a9343c1d735749eb9ec90cb0d0f6094cd))
+- **router:** Add local bank transfer payment method ([#4294](https://github.com/juspay/hyperswitch/pull/4294)) ([`06440eb`](https://github.com/juspay/hyperswitch/commit/06440eb6400adf166b203d7e4f587c1e2d5fe4f8))
+
+### Bug Fixes
+
+- **psync:** Log the error if payment method retrieve fails in the `psync flow` ([#4321](https://github.com/juspay/hyperswitch/pull/4321)) ([`5b89209`](https://github.com/juspay/hyperswitch/commit/5b89209b6f48691ee5ae2f9ede0d913abc9105f9))
+
+### Refactors
+
+- **payment_methods:** Add BankRedirect payment method data to new domain type to be used in connector module ([#4175](https://github.com/juspay/hyperswitch/pull/4175)) ([`e0e8437`](https://github.com/juspay/hyperswitch/commit/e0e843715cd02ac8b2eff2f645fe8471551ee914))
+
+**Full Changelog:** [`2024.04.08.0...2024.04.10.0`](https://github.com/juspay/hyperswitch/compare/2024.04.08.0...2024.04.10.0)
+
+- - -
+
 ## 2024.04.08.0
 
 ### Features
