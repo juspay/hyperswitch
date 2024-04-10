@@ -191,7 +191,7 @@ Cypress.Commands.add("confirmCallTest", (confirmBody, details, confirm, globalSt
   confirmBody.payment_method_data.card = details.card;
   confirmBody.confirm = confirm;
   confirmBody.client_secret = globalState.get("clientSecret");
-  confirmBody.customer_acceptance=details.customer_acceptance;
+  confirmBody.customer_acceptance = details.customer_acceptance;
 
   cy.request({
     method: "POST",
@@ -286,13 +286,11 @@ Cypress.Commands.add("createConfirmPaymentTest", (createConfirmPaymentBody, deta
 });
 
 Cypress.Commands.add("saveCardConfirmCallTest", (confirmBody,det,globalState) => {
-
-  // RequestBodyUtils.setCardNo(confirmBody, details.card);
   const paymentIntentID = globalState.get("paymentID");
   confirmBody.card_cvc = det.card.card_cvc;
   confirmBody.payment_token = globalState.get("paymentToken");
   confirmBody.client_secret = globalState.get("clientSecret");
-  console.log("conf connn ->" + globalState.get("connectorId"));
+  console.log("conf conn ->" + globalState.get("connectorId"));
   cy.request({
     method: "POST",
     url: `${globalState.get("baseUrl")}/payments/${paymentIntentID}/confirm`,

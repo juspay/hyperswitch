@@ -22,7 +22,7 @@ export const connectorDetails = {
         "paymentSyncStatus": "succeeded",
         "refundStatus": "succeeded",
         "refundSyncStatus": "succeeded",
-        "customer_acceptance":null,
+        "customer_acceptance": null,
         "setup_future_usage": "on_session",
     },
     "No3DS": {
@@ -32,7 +32,7 @@ export const connectorDetails = {
         "paymentSyncStatus": "succeeded",
         "refundStatus": "succeeded",
         "refundSyncStatus": "succeeded",
-        "customer_acceptance":null,
+        "customer_acceptance": null,
         "setup_future_usage": "on_session",
     },
     "MandateSingleUse3DS": {
@@ -42,7 +42,7 @@ export const connectorDetails = {
         "paymentSyncStatus": "succeeded",
         "refundStatus": "succeeded",
         "refundSyncStatus": "succeeded",
-        "customer_acceptance":null,
+        "customer_acceptance": null,
         "setup_future_usage": "on_session",
         "mandate_type": {
             "single_use": {
@@ -58,7 +58,7 @@ export const connectorDetails = {
         "paymentSyncStatus": "succeeded",
         "refundStatus": "succeeded",
         "refundSyncStatus": "succeeded",
-        "customer_acceptance":null,
+        "customer_acceptance": null,
         "setup_future_usage": "on_session",
         "mandate_type": {
             "single_use": {
@@ -74,7 +74,7 @@ export const connectorDetails = {
         "paymentSyncStatus": "succeeded",
         "refundStatus": "succeeded",
         "refundSyncStatus": "succeeded",
-        "customer_acceptance":null,
+        "customer_acceptance": null,
         "setup_future_usage": "on_session",
         "mandate_type": {
             "multi_use": {
@@ -90,7 +90,7 @@ export const connectorDetails = {
         "paymentSyncStatus": "succeeded",
         "refundStatus": "succeeded",
         "refundSyncStatus": "succeeded",
-        "customer_acceptance":null,
+        "customer_acceptance": null,
         "setup_future_usage": "on_session",
         "mandate_type": {
             "multi_use": {

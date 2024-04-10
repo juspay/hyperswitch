@@ -94,7 +94,7 @@ describe("Card - NoThreeDS payment flow test", () => {
         
       });
 
-    context("Save card for NoThreeDS manual partial capture payment- Create+Confirm", () => {
+    context("Save card for NoThreeDS manual partial capture payment- Create + Confirm", () => {
         it("customer-create-call-test", () => {
               cy.createCustomerCallTest(customerCreateBody, globalState); 
         });
