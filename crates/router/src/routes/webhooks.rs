@@ -26,7 +26,7 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
         state,
         &req,
         WebhookBytes(body),
-        |state, auth, payload| {
+        |state, auth, payload, _| {
             webhooks::webhooks_wrapper::<W, Oss>(
                 &flow,
                 state.to_owned(),

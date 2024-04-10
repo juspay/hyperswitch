@@ -35,7 +35,6 @@ pub async fn customer_create(
         _,
         _,
         _,
-        _,
         types::CreateCustomerResponse,
         errors::StripeErrorCode,
         _,
@@ -44,7 +43,7 @@ pub async fn customer_create(
         state.into_inner(),
         &req,
         create_cust_req,
-        |state, auth, req| {
+        |state, auth, req, _| {
             customers::create_customer(state, auth.merchant_account, auth.key_store, req)
         },
         &auth::ApiKeyAuth,
@@ -70,7 +69,6 @@ pub async fn customer_retrieve(
         _,
         _,
         _,
-        _,
         types::CustomerRetrieveResponse,
         errors::StripeErrorCode,
         _,
@@ -79,7 +77,7 @@ pub async fn customer_retrieve(
         state.into_inner(),
         &req,
         payload,
-        |state, auth, req| {
+        |state, auth, req, _| {
             customers::retrieve_customer(state, auth.merchant_account, auth.key_store, req)
         },
         &auth::ApiKeyAuth,
@@ -114,7 +112,6 @@ pub async fn customer_update(
         _,
         _,
         _,
-        _,
         types::CustomerUpdateResponse,
         errors::StripeErrorCode,
         _,
@@ -123,7 +120,7 @@ pub async fn customer_update(
         state.into_inner(),
         &req,
         cust_update_req,
-        |state, auth, req| {
+        |state, auth, req, _| {
             customers::update_customer(state, auth.merchant_account, req, auth.key_store)
         },
         &auth::ApiKeyAuth,
@@ -149,7 +146,6 @@ pub async fn customer_delete(
         _,
         _,
         _,
-        _,
         types::CustomerDeleteResponse,
         errors::StripeErrorCode,
         _,
@@ -158,7 +154,7 @@ pub async fn customer_delete(
         state.into_inner(),
         &req,
         payload,
-        |state, auth, req| {
+        |state, auth, req, _| {
             customers::delete_customer(state, auth.merchant_account, req, auth.key_store)
         },
         &auth::ApiKeyAuth,
@@ -183,7 +179,6 @@ pub async fn list_customer_payment_method_api(
         _,
         _,
         _,
-        _,
         types::CustomerPaymentMethodListResponse,
         errors::StripeErrorCode,
         _,
@@ -192,7 +187,7 @@ pub async fn list_customer_payment_method_api(
         state.into_inner(),
         &req,
         payload,
-        |state, auth, req| {
+        |state, auth, req, _| {
             cards::do_list_customer_pm_fetch_customer_if_not_passed(
                 state,
                 auth.merchant_account,
