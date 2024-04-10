@@ -42,8 +42,6 @@ export const connectorDetails = {
         "paymentSyncStatus": "succeeded",
         "refundStatus": "pending",
         "refundSyncStatus": "pending",
-        "customer_acceptance":null,
-        "setup_future_usage": "on_session",
         "mandate_type": {
             "single_use": {
                 "amount": 8000,
@@ -58,8 +56,6 @@ export const connectorDetails = {
         "paymentSyncStatus": "succeeded",
         "refundStatus": "pending",
         "refundSyncStatus": "pending",
-        "customer_acceptance":null,
-        "setup_future_usage": "on_session",
         "mandate_type": {
             "single_use": {
                 "amount": 8000,
@@ -74,8 +70,6 @@ export const connectorDetails = {
         "paymentSyncStatus": "succeeded",
         "refundStatus": "pending",
         "refundSyncStatus": "pending",
-        "customer_acceptance":null,
-        "setup_future_usage": "on_session",
         "mandate_type": {
             "multi_use": {
                 "amount": 8000,
@@ -90,8 +84,6 @@ export const connectorDetails = {
         "paymentSyncStatus": "succeeded",
         "refundStatus": "pending",
         "refundSyncStatus": "pending",
-        "customer_acceptance":null,
-        "setup_future_usage": "on_session",
         "mandate_type": {
             "multi_use": {
                 "amount": 8000,

@@ -6,7 +6,8 @@ import captureBody from "../../fixtures/capture-flow-body.json";
 import getConnectorDetails from "../ConnectorUtils/utils";
 import State from "../../utils/State";
 let globalState;
-describe("Card - NoThreeDS payment flow test", () => {  
+
+describe("Card - SaveCard payment flow test", () => {  
 
     before("seed global state",  () => {
       
@@ -83,7 +84,6 @@ describe("Card - NoThreeDS payment flow test", () => {
         
         it("capture-call-test", () => {
             let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
-            console.log("det -> " + det.card);
             cy.captureCallTest(captureBody, 6500, det.paymentSuccessfulStatus, globalState);
         });       
 
@@ -122,7 +122,6 @@ describe("Card - NoThreeDS payment flow test", () => {
         
         it("capture-call-test", () => {
             let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
-            console.log("det -> " + det.card);
             cy.captureCallTest(captureBody, 5500, det.paymentSuccessfulStatus, globalState);
         });            
       });

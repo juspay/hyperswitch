@@ -26,7 +26,7 @@
 
 // commands.js or your custom support file
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
-import ConnectorAuthDetails from "/Users/gnanasundarig/Documents/JuspayCode/hs-test-automation/creds.json";
+import ConnectorAuthDetails from "../../creds.json";
 
 
 
@@ -330,6 +330,7 @@ Cypress.Commands.add("createConfirmPaymentTest", (createConfirmPaymentBody, deta
   });
 });
 
+// This is consequent saved card payment confirm call test(Using payment token)
 Cypress.Commands.add("saveCardConfirmCallTest", (confirmBody,det,globalState) => {
   const paymentIntentID = globalState.get("paymentID");
   confirmBody.card_cvc = det.card.card_cvc;
@@ -787,5 +788,4 @@ Cypress.Commands.add("listRefundCallTest", (globalState) => {
     expect(response.body.data).to.be.an('array').and.not.empty;
   
     });
-    // expect(response.body.mandate_id).to.equal(mandate_id);
-});
+  });

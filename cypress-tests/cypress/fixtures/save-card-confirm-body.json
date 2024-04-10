@@ -2,5 +2,5 @@
     "client_secret": "{{client_secret}}",
     "payment_method": "card",
     "payment_token": "{{payment_token}}",
-    "card_cvc": "737"
+    "card_cvc": "card_cvc"
 }
