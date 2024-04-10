@@ -14884,6 +14884,13 @@
               }
             ],
             "nullable": true
+          },
+          "updated": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Date time at which payment was updated",
+            "example": "2022-09-10T10:11:12Z",
+            "nullable": true
           }
         }
       },

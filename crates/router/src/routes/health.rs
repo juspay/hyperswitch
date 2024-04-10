@@ -33,7 +33,7 @@ pub async fn deep_health_check(
         state,
         &request,
         (),
-        |state, _, _| deep_health_check_func(state),
+        |state, _, _, _| deep_health_check_func(state),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
