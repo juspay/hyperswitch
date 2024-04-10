@@ -201,7 +201,9 @@ pub async fn payment_method_retrieve_api(
         state,
         &req,
         payload,
-        |state, auth, pm, _| cards::retrieve_payment_method(state, pm, auth.key_store,  auth.merchant_account),
+        |state, auth, pm, _| {
+            cards::retrieve_payment_method(state, pm, auth.key_store, auth.merchant_account)
+        },
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))
