@@ -155,6 +155,17 @@ pub async fn perform_post_authentication<F: Clone + Send>(
     Ok(())
 }
 
+fn get_payment_id_from_pre_authentication_flow_input<F: Clone + Send>(
+    pre_authentication_flow_input: &types::PreAuthenthenticationFlowInput<'_, F>,
+) -> Option<String> {
+    match pre_authentication_flow_input {
+        types::PreAuthenthenticationFlowInput::PaymentAuthNFlow { payment_data, .. } => {
+            Some(payment_data.payment_intent.payment_id.clone())
+        }
+        _ => None,
+    }
+}
+
 pub async fn perform_pre_authentication<F: Clone + Send>(
     state: &AppState,
     authentication_connector_name: String,
@@ -163,10 +174,13 @@ pub async fn perform_pre_authentication<F: Clone + Send>(
     three_ds_connector_account: payments_core::helpers::MerchantConnectorAccountType,
     payment_connector_account: payments_core::helpers::MerchantConnectorAccountType,
 ) -> CustomResult<(), ApiErrorResponse> {
+    let payment_id = get_payment_id_from_pre_authentication_flow_input(&authentication_flow_input);
     let authentication = utils::create_new_authentication(
         state,
         business_profile.merchant_id.clone(),
         authentication_connector_name.clone(),
+        business_profile.profile_id.clone(),
+        payment_id,
     )
     .await?;
     match authentication_flow_input {

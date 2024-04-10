@@ -144,6 +144,8 @@ pub async fn create_new_authentication(
     state: &AppState,
     merchant_id: String,
     authentication_connector: String,
+    profile_id: String,
+    payment_id: Option<String>,
 ) -> RouterResult<storage::Authentication> {
     let authentication_id =
         common_utils::generate_id_with_default_len(consts::AUTHENTICATION_ID_PREFIX);
@@ -176,6 +178,8 @@ pub async fn create_new_authentication(
         acs_trans_id: None,
         three_dsserver_trans_id: None,
         acs_signed_content: None,
+        profile_id,
+        payment_id,
     };
     state
         .store

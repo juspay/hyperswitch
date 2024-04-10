@@ -321,6 +321,97 @@ pub async fn find_payment_intent_from_mandate_id_type(
     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
 }
 
+pub async fn find_mca_from_authentication_id_type(
+    db: &dyn StorageInterface,
+    authentication_id_type: webhooks::AuthenticationIdType,
+    merchant_account: &domain::MerchantAccount,
+    connector_name: &str,
+    key_store: &domain::MerchantKeyStore,
+) -> CustomResult<domain::MerchantConnectorAccount, errors::ApiErrorResponse> {
+    let authentication = match authentication_id_type {
+        webhooks::AuthenticationIdType::AuthenticationId(authentication_id) => db
+            .find_authentication_by_merchant_id_authentication_id(
+                merchant_account.merchant_id.clone(),
+                authentication_id,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?,
+        webhooks::AuthenticationIdType::ConnectorAuthenticationId(connector_authentication_id) => {
+            db.find_authentication_by_merchant_id_connector_authentication_id(
+                merchant_account.merchant_id.clone(),
+                connector_authentication_id,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?
+        }
+    };
+    let profile_id = authentication.profile_id;
+    db.find_merchant_connector_account_by_profile_id_connector_name(
+        &profile_id,
+        connector_name,
+        key_store,
+    )
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+        id: format!("profile_id {profile_id} and connector_name {connector_name}"),
+    })
+}
+
+pub async fn get_mca_from_payment_intent(
+    db: &dyn StorageInterface,
+    merchant_account: &domain::MerchantAccount,
+    payment_intent: PaymentIntent,
+    key_store: &domain::MerchantKeyStore,
+    connector_name: &str,
+) -> CustomResult<domain::MerchantConnectorAccount, errors::ApiErrorResponse> {
+    let payment_attempt = db
+        .find_payment_attempt_by_attempt_id_merchant_id(
+            &payment_intent.active_attempt.get_id(),
+            &merchant_account.merchant_id,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    match payment_attempt.merchant_connector_id {
+        Some(merchant_connector_id) => db
+            .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                &merchant_account.merchant_id,
+                &merchant_connector_id,
+                key_store,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: merchant_connector_id,
+            }),
+        None => {
+            let profile_id = utils::get_profile_id_from_business_details(
+                payment_intent.business_country,
+                payment_intent.business_label.as_ref(),
+                merchant_account,
+                payment_intent.profile_id.as_ref(),
+                db,
+                false,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("profile_id is not set in payment_intent")?;
+
+            db.find_merchant_connector_account_by_profile_id_connector_name(
+                &profile_id,
+                connector_name,
+                key_store,
+            )
+            .await
+            .to_not_found_response(
+                errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                    id: format!("profile_id {profile_id} and connector_name {connector_name}"),
+                },
+            )
+        }
+    }
+}
+
 pub async fn get_mca_from_object_reference_id(
     db: &dyn StorageInterface,
     object_reference_id: webhooks::ObjectReferenceId,
@@ -328,8 +419,6 @@ pub async fn get_mca_from_object_reference_id(
     connector_name: &str,
     key_store: &domain::MerchantKeyStore,
 ) -> CustomResult<domain::MerchantConnectorAccount, errors::ApiErrorResponse> {
-    let merchant_id = merchant_account.merchant_id.clone();
-
     match merchant_account.default_profile.as_ref() {
         Some(profile_id) => db
             .find_merchant_connector_account_by_profile_id_connector_name(
@@ -341,78 +430,56 @@ pub async fn get_mca_from_object_reference_id(
             .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                 id: format!("profile_id {profile_id} and connector_name {connector_name}"),
             }),
-        _ => {
-            let payment_intent = match object_reference_id {
-                webhooks::ObjectReferenceId::PaymentId(payment_id_type) => {
+        _ => match object_reference_id {
+            webhooks::ObjectReferenceId::PaymentId(payment_id_type) => {
+                get_mca_from_payment_intent(
+                    db,
+                    merchant_account,
                     find_payment_intent_from_payment_id_type(db, payment_id_type, merchant_account)
-                        .await?
-                }
-                webhooks::ObjectReferenceId::RefundId(refund_id_type) => {
+                        .await?,
+                    key_store,
+                    connector_name,
+                )
+                .await
+            }
+            webhooks::ObjectReferenceId::RefundId(refund_id_type) => {
+                get_mca_from_payment_intent(
+                    db,
+                    merchant_account,
                     find_payment_intent_from_refund_id_type(
                         db,
                         refund_id_type,
                         merchant_account,
                         connector_name,
                     )
-                    .await?
-                }
-                webhooks::ObjectReferenceId::MandateId(mandate_id_type) => {
-                    find_payment_intent_from_mandate_id_type(db, mandate_id_type, merchant_account)
-                        .await?
-                }
-            };
-
-            let payment_attempt = db
-                .find_payment_attempt_by_attempt_id_merchant_id(
-                    &payment_intent.active_attempt.get_id(),
-                    &merchant_id,
-                    merchant_account.storage_scheme,
+                    .await?,
+                    key_store,
+                    connector_name,
                 )
                 .await
-                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
-            match payment_attempt.merchant_connector_id {
-                Some(merchant_connector_id) => db
-                    .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                        &merchant_id,
-                        &merchant_connector_id,
-                        key_store,
-                    )
-                    .await
-                    .to_not_found_response(
-                        errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                            id: merchant_connector_id,
-                        },
-                    ),
-                None => {
-                    let profile_id = utils::get_profile_id_from_business_details(
-                        payment_intent.business_country,
-                        payment_intent.business_label.as_ref(),
-                        merchant_account,
-                        payment_intent.profile_id.as_ref(),
-                        db,
-                        false,
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("profile_id is not set in payment_intent")?;
-
-                    db.find_merchant_connector_account_by_profile_id_connector_name(
-                        &profile_id,
-                        connector_name,
-                        key_store,
-                    )
-                    .await
-                    .to_not_found_response(
-                        errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                            id: format!(
-                                "profile_id {profile_id} and connector_name {connector_name}"
-                            ),
-                        },
-                    )
-                }
             }
-        }
+            webhooks::ObjectReferenceId::MandateId(mandate_id_type) => {
+                get_mca_from_payment_intent(
+                    db,
+                    merchant_account,
+                    find_payment_intent_from_mandate_id_type(db, mandate_id_type, merchant_account)
+                        .await?,
+                    key_store,
+                    connector_name,
+                )
+                .await
+            }
+            webhooks::ObjectReferenceId::ExternalAuthenticationID(authentication_id_type) => {
+                find_mca_from_authentication_id_type(
+                    db,
+                    authentication_id_type,
+                    merchant_account,
+                    connector_name,
+                    key_store,
+                )
+                .await
+            }
+        },
     }
 }
 

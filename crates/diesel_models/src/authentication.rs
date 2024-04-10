@@ -40,6 +40,8 @@ pub struct Authentication {
     pub acs_trans_id: Option<String>,
     pub three_ds_server_trans_id: Option<String>,
     pub acs_signed_content: Option<String>,
+    pub profile_id: String,
+    pub payment_id: Option<String>,
 }
 
 impl Authentication {
@@ -82,6 +84,8 @@ pub struct AuthenticationNew {
     pub acs_trans_id: Option<String>,
     pub three_dsserver_trans_id: Option<String>,
     pub acs_signed_content: Option<String>,
+    pub profile_id: String,
+    pub payment_id: Option<String>,
 }
 
 #[derive(Debug)]
