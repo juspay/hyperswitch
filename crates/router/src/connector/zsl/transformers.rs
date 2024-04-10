@@ -250,7 +250,7 @@ impl TryFrom<&ZslRouterData<&types::PaymentsAuthorizeRouterData>> for ZslPayment
             .customer_id
             .clone()
             .and_then(|customer_id| {
-                let cust_id = customer_id.replace('_', "").replace('-', "");
+                let cust_id = customer_id.replace(['_', '-'], "");
                 let id_len = cust_id.len();
                 if id_len > 10 {
                     cust_id.get(id_len - 10..id_len).map(|id| id.to_string())
@@ -929,7 +929,7 @@ pub fn calculate_signature(
         EncodingType::MD5 => hex::encode(
             common_utils::crypto::Md5
                 .generate_digest(message)
-                .change_context(errors::ConnectorError::RequestEncodingFailed.into())?,
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?,
         ),
         EncodingType::Sha1 => {
             hex::encode(digest::digest(&digest::SHA1_FOR_LEGACY_USE_ONLY, message))
