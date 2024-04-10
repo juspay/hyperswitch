@@ -143,7 +143,7 @@ pub async fn set_role_permissions_in_cache_if_required(
 
 pub async fn get_multiple_role_info_for_user_roles(
     state: &AppState,
-    user_roles: &Vec<UserRole>,
+    user_roles: &[UserRole],
 ) -> UserResult<Vec<roles::RoleInfo>> {
     futures::future::try_join_all(user_roles.iter().map(|user_role| async {
         let role = roles::RoleInfo::from_role_id(
