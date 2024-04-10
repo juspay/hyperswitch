@@ -167,7 +167,7 @@ pub enum RoutableConnectors {
     Worldline,
     Worldpay,
     Zen,
-    Zsl
+    Zsl,
 }
 
 impl AttemptStatus {

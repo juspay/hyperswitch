@@ -100,8 +100,6 @@ pub trait RouterData {
     fn get_optional_billing_last_name(&self) -> Option<Secret<String>>;
     fn get_optional_billing_phone_number(&self) -> Option<Secret<String>>;
     fn get_optional_billing_email(&self) -> Option<Email>;
-
-
 }
 
 pub trait PaymentResponseRouterData {
@@ -317,12 +315,8 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
 
     fn get_optional_billing_email(&self) -> Option<Email> {
         self.address
-        .get_payment_method_billing()
-        .and_then(|billing_address| {
-            billing_address
-                .clone()
-                .email
-        })
+            .get_payment_method_billing()
+            .and_then(|billing_address| billing_address.clone().email)
     }
     fn to_connector_meta<T>(&self) -> Result<T, Error>
     where

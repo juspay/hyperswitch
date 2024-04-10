@@ -78,7 +78,6 @@ impl ConnectorCommon for Zsl {
         connectors.zsl.base_url.as_ref()
     }
 
-
     fn build_error_response(
         &self,
         res: Response,

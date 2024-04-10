@@ -8,7 +8,7 @@ use ring::digest;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self as connector_utils, RouterData, PaymentsAuthorizeRequestData},
+    connector::utils::{self as connector_utils, PaymentsAuthorizeRequestData, RouterData},
     consts,
     core::errors,
     services,
@@ -17,10 +17,9 @@ use crate::{
 
 mod auth_error {
     pub const INVALID_SIGNATURE: &str = "INVALID_SIGNATURE";
-    
 }
 mod zsl_version {
-    pub const VERSION_1 : &str = "1";
+    pub const VERSION_1: &str = "1";
 }
 
 pub const ZSL_VERSION: &str = "1";
@@ -98,7 +97,7 @@ pub struct ZslPaymentsRequest {
     name: Option<Secret<String>>,
     family_name: Option<Secret<String>>,
     tel_phone: Option<Secret<String>>,
-    email: Option<Email>
+    email: Option<Email>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -224,10 +223,11 @@ impl TryFrom<&ZslRouterData<&types::PaymentsAuthorizeRouterData>> for ZslPayment
         let family_name = item.router_data.get_optional_billing_last_name();
         let router_url = item.router_data.request.get_router_return_url()?;
         let webhook_url = item.router_data.request.get_webhook_url()?;
-        let billing_country = item.router_data.get_optional_billing_country()
-        .ok_or(errors::ConnectorError::MissingRequiredField {
-            field_name: "billing.address.country",
-        })?;
+        let billing_country = item.router_data.get_optional_billing_country().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "billing.address.country",
+            },
+        )?;
 
         let lang = item
             .router_data
@@ -285,7 +285,7 @@ impl TryFrom<&ZslRouterData<&types::PaymentsAuthorizeRouterData>> for ZslPayment
             family_name,
             tel_phone,
             email,
-            cust_tag
+            cust_tag,
         })
     }
 }
@@ -426,21 +426,21 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ZslWebhookResponse, T, types::Pa
         item: types::ResponseRouterData<F, ZslWebhookResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         if item.response.status == "0" {
-                Ok(Self {
-                    status: enums::AttemptStatus::Charged,
-                    response: Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::ConnectorTransactionId(
-                            item.response.mer_ref.clone(),
-                        ),
-                        redirection_data: None,
-                        mandate_reference: None,
-                        connector_metadata: None,
-                        network_txn_id: None,
-                        connector_response_reference_id: Some(item.response.mer_ref.clone()),
-                        incremental_authorization_allowed: None,
-                    }),
-                    ..item.data
-                })
+            Ok(Self {
+                status: enums::AttemptStatus::Charged,
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        item.response.mer_ref.clone(),
+                    ),
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: Some(item.response.mer_ref.clone()),
+                    incremental_authorization_allowed: None,
+                }),
+                ..item.data
+            })
         } else {
             let error_reason =
                 ZslResponseStatus::try_from(item.response.status.clone())?.to_string();
@@ -580,9 +580,7 @@ impl TryFrom<String> for ZslResponseStatus {
             "10029" => Ok(Self::PspResponseMerRefNotMatchWithRequestMerRef),
             "10030" => Ok(Self::PspResponseMerIdNotMatchWithRequestMerId),
             "10031" => Ok(Self::UpdateDepositFailAfterResponse),
-            "10032" => {
-                Ok(Self::UpdateUsedLimitTransactionCountFailAfterSuccessResponse)
-            }
+            "10032" => Ok(Self::UpdateUsedLimitTransactionCountFailAfterSuccessResponse),
             "10033" => Ok(Self::UpdateCustomerLastDepositRecordAfterSuccessResponse),
             "10034" => Ok(Self::CreateDepositFail),
             "10035" => Ok(Self::CreateDepositMsgFail),
