@@ -20,7 +20,8 @@ use crate::{
     services,
     types::{
         self,
-        api::{self, enums as api_enums},
+        api::enums as api_enums,
+        domain,
         storage::enums as storage_enums,
         transformers::{ForeignFrom, ForeignTryFrom},
         PaymentsAuthorizeData,
@@ -745,13 +746,13 @@ impl TryFrom<&Box<payments::JCSVoucherData>> for JCSVoucherData {
     }
 }
 
-impl TryFrom<&api_enums::BankNames> for OnlineBankingCzechRepublicBanks {
+impl TryFrom<&common_enums::BankNames> for OnlineBankingCzechRepublicBanks {
     type Error = Error;
-    fn try_from(bank_name: &api_enums::BankNames) -> Result<Self, Self::Error> {
+    fn try_from(bank_name: &common_enums::BankNames) -> Result<Self, Self::Error> {
         match bank_name {
-            api::enums::BankNames::KomercniBanka => Ok(Self::KB),
-            api::enums::BankNames::CeskaSporitelna => Ok(Self::CS),
-            api::enums::BankNames::PlatnoscOnlineKartaPlatnicza => Ok(Self::C),
+            common_enums::BankNames::KomercniBanka => Ok(Self::KB),
+            common_enums::BankNames::CeskaSporitelna => Ok(Self::CS),
+            common_enums::BankNames::PlatnoscOnlineKartaPlatnicza => Ok(Self::C),
             _ => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             ))?,
@@ -808,29 +809,29 @@ pub enum OnlineBankingPolandBanks {
     ETransferPocztowy24,
 }
 
-impl TryFrom<&api_enums::BankNames> for OnlineBankingPolandBanks {
+impl TryFrom<&common_enums::BankNames> for OnlineBankingPolandBanks {
     type Error = Error;
-    fn try_from(bank_name: &api_enums::BankNames) -> Result<Self, Self::Error> {
+    fn try_from(bank_name: &common_enums::BankNames) -> Result<Self, Self::Error> {
         match bank_name {
-            api_models::enums::BankNames::BlikPSP => Ok(Self::BlikPSP),
-            api_models::enums::BankNames::PlaceZIPKO => Ok(Self::PlaceZIPKO),
-            api_models::enums::BankNames::MBank => Ok(Self::MBank),
-            api_models::enums::BankNames::PayWithING => Ok(Self::PayWithING),
-            api_models::enums::BankNames::SantanderPrzelew24 => Ok(Self::SantanderPrzelew24),
-            api_models::enums::BankNames::BankPEKAOSA => Ok(Self::BankPEKAOSA),
-            api_models::enums::BankNames::BankMillennium => Ok(Self::BankMillennium),
-            api_models::enums::BankNames::PayWithAliorBank => Ok(Self::PayWithAliorBank),
-            api_models::enums::BankNames::BankiSpoldzielcze => Ok(Self::BankiSpoldzielcze),
-            api_models::enums::BankNames::PayWithInteligo => Ok(Self::PayWithInteligo),
-            api_models::enums::BankNames::BNPParibasPoland => Ok(Self::BNPParibasPoland),
-            api_models::enums::BankNames::BankNowySA => Ok(Self::BankNowySA),
-            api_models::enums::BankNames::CreditAgricole => Ok(Self::CreditAgricole),
-            api_models::enums::BankNames::PayWithBOS => Ok(Self::PayWithBOS),
-            api_models::enums::BankNames::PayWithCitiHandlowy => Ok(Self::PayWithCitiHandlowy),
-            api_models::enums::BankNames::PayWithPlusBank => Ok(Self::PayWithPlusBank),
-            api_models::enums::BankNames::ToyotaBank => Ok(Self::ToyotaBank),
-            api_models::enums::BankNames::VeloBank => Ok(Self::VeloBank),
-            api_models::enums::BankNames::ETransferPocztowy24 => Ok(Self::ETransferPocztowy24),
+            common_enums::BankNames::BlikPSP => Ok(Self::BlikPSP),
+            common_enums::BankNames::PlaceZIPKO => Ok(Self::PlaceZIPKO),
+            common_enums::BankNames::MBank => Ok(Self::MBank),
+            common_enums::BankNames::PayWithING => Ok(Self::PayWithING),
+            common_enums::BankNames::SantanderPrzelew24 => Ok(Self::SantanderPrzelew24),
+            common_enums::BankNames::BankPEKAOSA => Ok(Self::BankPEKAOSA),
+            common_enums::BankNames::BankMillennium => Ok(Self::BankMillennium),
+            common_enums::BankNames::PayWithAliorBank => Ok(Self::PayWithAliorBank),
+            common_enums::BankNames::BankiSpoldzielcze => Ok(Self::BankiSpoldzielcze),
+            common_enums::BankNames::PayWithInteligo => Ok(Self::PayWithInteligo),
+            common_enums::BankNames::BNPParibasPoland => Ok(Self::BNPParibasPoland),
+            common_enums::BankNames::BankNowySA => Ok(Self::BankNowySA),
+            common_enums::BankNames::CreditAgricole => Ok(Self::CreditAgricole),
+            common_enums::BankNames::PayWithBOS => Ok(Self::PayWithBOS),
+            common_enums::BankNames::PayWithCitiHandlowy => Ok(Self::PayWithCitiHandlowy),
+            common_enums::BankNames::PayWithPlusBank => Ok(Self::PayWithPlusBank),
+            common_enums::BankNames::ToyotaBank => Ok(Self::ToyotaBank),
+            common_enums::BankNames::VeloBank => Ok(Self::VeloBank),
+            common_enums::BankNames::ETransferPocztowy24 => Ok(Self::ETransferPocztowy24),
             _ => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             ))?,
@@ -873,15 +874,15 @@ pub enum OnlineBankingSlovakiaBanks {
     Viamo,
 }
 
-impl TryFrom<&api_enums::BankNames> for OnlineBankingSlovakiaBanks {
+impl TryFrom<&common_enums::BankNames> for OnlineBankingSlovakiaBanks {
     type Error = Error;
-    fn try_from(bank_name: &api_enums::BankNames) -> Result<Self, Self::Error> {
+    fn try_from(bank_name: &common_enums::BankNames) -> Result<Self, Self::Error> {
         match bank_name {
-            api::enums::BankNames::EPlatbyVUB => Ok(Self::Vub),
-            api::enums::BankNames::PostovaBanka => Ok(Self::Posto),
-            api::enums::BankNames::SporoPay => Ok(Self::Sporo),
-            api::enums::BankNames::TatraPay => Ok(Self::Tatra),
-            api::enums::BankNames::Viamo => Ok(Self::Viamo),
+            common_enums::BankNames::EPlatbyVUB => Ok(Self::Vub),
+            common_enums::BankNames::PostovaBanka => Ok(Self::Posto),
+            common_enums::BankNames::SporoPay => Ok(Self::Sporo),
+            common_enums::BankNames::TatraPay => Ok(Self::Tatra),
+            common_enums::BankNames::Viamo => Ok(Self::Viamo),
             _ => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             ))?,
@@ -889,28 +890,28 @@ impl TryFrom<&api_enums::BankNames> for OnlineBankingSlovakiaBanks {
     }
 }
 
-impl TryFrom<&api_enums::BankNames> for OnlineBankingFpxIssuer {
+impl TryFrom<&common_enums::BankNames> for OnlineBankingFpxIssuer {
     type Error = Error;
-    fn try_from(bank_name: &api_enums::BankNames) -> Result<Self, Self::Error> {
+    fn try_from(bank_name: &common_enums::BankNames) -> Result<Self, Self::Error> {
         match bank_name {
-            api::enums::BankNames::AffinBank => Ok(Self::FpxAbb),
-            api::enums::BankNames::AgroBank => Ok(Self::FpxAgrobank),
-            api::enums::BankNames::AllianceBank => Ok(Self::FpxAbmb),
-            api::enums::BankNames::AmBank => Ok(Self::FpxAmb),
-            api::enums::BankNames::BankIslam => Ok(Self::FpxBimb),
-            api::enums::BankNames::BankMuamalat => Ok(Self::FpxBmmb),
-            api::enums::BankNames::BankRakyat => Ok(Self::FpxBkrm),
-            api::enums::BankNames::BankSimpananNasional => Ok(Self::FpxBsn),
-            api::enums::BankNames::CimbBank => Ok(Self::FpxCimbclicks),
-            api::enums::BankNames::HongLeongBank => Ok(Self::FpxHlb),
-            api::enums::BankNames::HsbcBank => Ok(Self::FpxHsbc),
-            api::enums::BankNames::KuwaitFinanceHouse => Ok(Self::FpxKfh),
-            api::enums::BankNames::Maybank => Ok(Self::FpxMb2u),
-            api::enums::BankNames::OcbcBank => Ok(Self::FpxOcbc),
-            api::enums::BankNames::PublicBank => Ok(Self::FpxPbb),
-            api::enums::BankNames::RhbBank => Ok(Self::FpxRhb),
-            api::enums::BankNames::StandardCharteredBank => Ok(Self::FpxScb),
-            api::enums::BankNames::UobBank => Ok(Self::FpxUob),
+            common_enums::BankNames::AffinBank => Ok(Self::FpxAbb),
+            common_enums::BankNames::AgroBank => Ok(Self::FpxAgrobank),
+            common_enums::BankNames::AllianceBank => Ok(Self::FpxAbmb),
+            common_enums::BankNames::AmBank => Ok(Self::FpxAmb),
+            common_enums::BankNames::BankIslam => Ok(Self::FpxBimb),
+            common_enums::BankNames::BankMuamalat => Ok(Self::FpxBmmb),
+            common_enums::BankNames::BankRakyat => Ok(Self::FpxBkrm),
+            common_enums::BankNames::BankSimpananNasional => Ok(Self::FpxBsn),
+            common_enums::BankNames::CimbBank => Ok(Self::FpxCimbclicks),
+            common_enums::BankNames::HongLeongBank => Ok(Self::FpxHlb),
+            common_enums::BankNames::HsbcBank => Ok(Self::FpxHsbc),
+            common_enums::BankNames::KuwaitFinanceHouse => Ok(Self::FpxKfh),
+            common_enums::BankNames::Maybank => Ok(Self::FpxMb2u),
+            common_enums::BankNames::OcbcBank => Ok(Self::FpxOcbc),
+            common_enums::BankNames::PublicBank => Ok(Self::FpxPbb),
+            common_enums::BankNames::RhbBank => Ok(Self::FpxRhb),
+            common_enums::BankNames::StandardCharteredBank => Ok(Self::FpxScb),
+            common_enums::BankNames::UobBank => Ok(Self::FpxUob),
             _ => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             ))?,
@@ -918,15 +919,15 @@ impl TryFrom<&api_enums::BankNames> for OnlineBankingFpxIssuer {
     }
 }
 
-impl TryFrom<&api_enums::BankNames> for OnlineBankingThailandIssuer {
+impl TryFrom<&common_enums::BankNames> for OnlineBankingThailandIssuer {
     type Error = Error;
-    fn try_from(bank_name: &api_enums::BankNames) -> Result<Self, Self::Error> {
+    fn try_from(bank_name: &common_enums::BankNames) -> Result<Self, Self::Error> {
         match bank_name {
-            api::enums::BankNames::BangkokBank => Ok(Self::Bangkokbank),
-            api::enums::BankNames::KrungsriBank => Ok(Self::Krungsribank),
-            api::enums::BankNames::KrungThaiBank => Ok(Self::Krungthaibank),
-            api::enums::BankNames::TheSiamCommercialBank => Ok(Self::Siamcommercialbank),
-            api::enums::BankNames::KasikornBank => Ok(Self::Kbank),
+            common_enums::BankNames::BangkokBank => Ok(Self::Bangkokbank),
+            common_enums::BankNames::KrungsriBank => Ok(Self::Krungsribank),
+            common_enums::BankNames::KrungThaiBank => Ok(Self::Krungthaibank),
+            common_enums::BankNames::TheSiamCommercialBank => Ok(Self::Siamcommercialbank),
+            common_enums::BankNames::KasikornBank => Ok(Self::Kbank),
             _ => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             ))?,
@@ -934,157 +935,159 @@ impl TryFrom<&api_enums::BankNames> for OnlineBankingThailandIssuer {
     }
 }
 
-impl TryFrom<&api_enums::BankNames> for OpenBankingUKIssuer {
+impl TryFrom<&common_enums::BankNames> for OpenBankingUKIssuer {
     type Error = Error;
-    fn try_from(bank_name: &api_enums::BankNames) -> Result<Self, Self::Error> {
+    fn try_from(bank_name: &common_enums::BankNames) -> Result<Self, Self::Error> {
         match bank_name {
-            api::enums::BankNames::OpenBankSuccess => Ok(Self::RedirectSuccess),
-            api::enums::BankNames::OpenBankFailure => Ok(Self::RedirectFailure),
-            api::enums::BankNames::OpenBankCancelled => Ok(Self::RedirectCancelled),
-            api::enums::BankNames::Aib => Ok(Self::Aib),
-            api::enums::BankNames::BankOfScotland => Ok(Self::BankOfScotland),
-            api::enums::BankNames::Barclays => Ok(Self::Barclays),
-            api::enums::BankNames::DanskeBank => Ok(Self::DanskeBank),
-            api::enums::BankNames::FirstDirect => Ok(Self::FirstDirect),
-            api::enums::BankNames::FirstTrust => Ok(Self::FirstTrust),
-            api::enums::BankNames::HsbcBank => Ok(Self::HsbcBank),
-            api::enums::BankNames::Halifax => Ok(Self::Halifax),
-            api::enums::BankNames::Lloyds => Ok(Self::Lloyds),
-            api::enums::BankNames::Monzo => Ok(Self::Monzo),
-            api::enums::BankNames::NatWest => Ok(Self::NatWest),
-            api::enums::BankNames::NationwideBank => Ok(Self::NationwideBank),
-            api::enums::BankNames::Revolut => Ok(Self::Revolut),
-            api::enums::BankNames::RoyalBankOfScotland => Ok(Self::RoyalBankOfScotland),
-            api::enums::BankNames::SantanderPrzelew24 => Ok(Self::SantanderPrzelew24),
-            api::enums::BankNames::Starling => Ok(Self::Starling),
-            api::enums::BankNames::TsbBank => Ok(Self::TsbBank),
-            api::enums::BankNames::TescoBank => Ok(Self::TescoBank),
-            api::enums::BankNames::UlsterBank => Ok(Self::UlsterBank),
-            enums::BankNames::AmericanExpress
-            | enums::BankNames::AffinBank
-            | enums::BankNames::AgroBank
-            | enums::BankNames::AllianceBank
-            | enums::BankNames::AmBank
-            | enums::BankNames::BankOfAmerica
-            | enums::BankNames::BankIslam
-            | enums::BankNames::BankMuamalat
-            | enums::BankNames::BankRakyat
-            | enums::BankNames::BankSimpananNasional
-            | enums::BankNames::BlikPSP
-            | enums::BankNames::CapitalOne
-            | enums::BankNames::Chase
-            | enums::BankNames::Citi
-            | enums::BankNames::CimbBank
-            | enums::BankNames::Discover
-            | enums::BankNames::NavyFederalCreditUnion
-            | enums::BankNames::PentagonFederalCreditUnion
-            | enums::BankNames::SynchronyBank
-            | enums::BankNames::WellsFargo
-            | enums::BankNames::AbnAmro
-            | enums::BankNames::AsnBank
-            | enums::BankNames::Bunq
-            | enums::BankNames::Handelsbanken
-            | enums::BankNames::HongLeongBank
-            | enums::BankNames::Ing
-            | enums::BankNames::Knab
-            | enums::BankNames::KuwaitFinanceHouse
-            | enums::BankNames::Moneyou
-            | enums::BankNames::Rabobank
-            | enums::BankNames::Regiobank
-            | enums::BankNames::SnsBank
-            | enums::BankNames::TriodosBank
-            | enums::BankNames::VanLanschot
-            | enums::BankNames::ArzteUndApothekerBank
-            | enums::BankNames::AustrianAnadiBankAg
-            | enums::BankNames::BankAustria
-            | enums::BankNames::Bank99Ag
-            | enums::BankNames::BankhausCarlSpangler
-            | enums::BankNames::BankhausSchelhammerUndSchatteraAg
-            | enums::BankNames::BankMillennium
-            | enums::BankNames::BankPEKAOSA
-            | enums::BankNames::BawagPskAg
-            | enums::BankNames::BksBankAg
-            | enums::BankNames::BrullKallmusBankAg
-            | enums::BankNames::BtvVierLanderBank
-            | enums::BankNames::CapitalBankGraweGruppeAg
-            | enums::BankNames::CeskaSporitelna
-            | enums::BankNames::Dolomitenbank
-            | enums::BankNames::EasybankAg
-            | enums::BankNames::EPlatbyVUB
-            | enums::BankNames::ErsteBankUndSparkassen
-            | enums::BankNames::FrieslandBank
-            | enums::BankNames::HypoAlpeadriabankInternationalAg
-            | enums::BankNames::HypoNoeLbFurNiederosterreichUWien
-            | enums::BankNames::HypoOberosterreichSalzburgSteiermark
-            | enums::BankNames::HypoTirolBankAg
-            | enums::BankNames::HypoVorarlbergBankAg
-            | enums::BankNames::HypoBankBurgenlandAktiengesellschaft
-            | enums::BankNames::KomercniBanka
-            | enums::BankNames::MBank
-            | enums::BankNames::MarchfelderBank
-            | enums::BankNames::Maybank
-            | enums::BankNames::OberbankAg
-            | enums::BankNames::OsterreichischeArzteUndApothekerbank
-            | enums::BankNames::OcbcBank
-            | enums::BankNames::PayWithING
-            | enums::BankNames::PlaceZIPKO
-            | enums::BankNames::PlatnoscOnlineKartaPlatnicza
-            | enums::BankNames::PosojilnicaBankEGen
-            | enums::BankNames::PostovaBanka
-            | enums::BankNames::PublicBank
-            | enums::BankNames::RaiffeisenBankengruppeOsterreich
-            | enums::BankNames::RhbBank
-            | enums::BankNames::SchelhammerCapitalBankAg
-            | enums::BankNames::StandardCharteredBank
-            | enums::BankNames::SchoellerbankAg
-            | enums::BankNames::SpardaBankWien
-            | enums::BankNames::SporoPay
-            | enums::BankNames::TatraPay
-            | enums::BankNames::Viamo
-            | enums::BankNames::VolksbankGruppe
-            | enums::BankNames::VolkskreditbankAg
-            | enums::BankNames::VrBankBraunau
-            | enums::BankNames::UobBank
-            | enums::BankNames::PayWithAliorBank
-            | enums::BankNames::BankiSpoldzielcze
-            | enums::BankNames::PayWithInteligo
-            | enums::BankNames::BNPParibasPoland
-            | enums::BankNames::BankNowySA
-            | enums::BankNames::CreditAgricole
-            | enums::BankNames::PayWithBOS
-            | enums::BankNames::PayWithCitiHandlowy
-            | enums::BankNames::PayWithPlusBank
-            | enums::BankNames::ToyotaBank
-            | enums::BankNames::VeloBank
-            | enums::BankNames::ETransferPocztowy24
-            | enums::BankNames::PlusBank
-            | enums::BankNames::EtransferPocztowy24
-            | enums::BankNames::BankiSpbdzielcze
-            | enums::BankNames::BankNowyBfgSa
-            | enums::BankNames::GetinBank
-            | enums::BankNames::Blik
-            | enums::BankNames::NoblePay
-            | enums::BankNames::IdeaBank
-            | enums::BankNames::EnveloBank
-            | enums::BankNames::NestPrzelew
-            | enums::BankNames::MbankMtransfer
-            | enums::BankNames::Inteligo
-            | enums::BankNames::PbacZIpko
-            | enums::BankNames::BnpParibas
-            | enums::BankNames::BankPekaoSa
-            | enums::BankNames::VolkswagenBank
-            | enums::BankNames::AliorBank
-            | enums::BankNames::Boz
-            | enums::BankNames::BangkokBank
-            | enums::BankNames::KrungsriBank
-            | enums::BankNames::KrungThaiBank
-            | enums::BankNames::TheSiamCommercialBank
-            | enums::BankNames::Yoursafe
-            | enums::BankNames::N26
-            | enums::BankNames::NationaleNederlanden
-            | enums::BankNames::KasikornBank => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Adyen"),
-            ))?,
+            common_enums::BankNames::OpenBankSuccess => Ok(Self::RedirectSuccess),
+            common_enums::BankNames::OpenBankFailure => Ok(Self::RedirectFailure),
+            common_enums::BankNames::OpenBankCancelled => Ok(Self::RedirectCancelled),
+            common_enums::BankNames::Aib => Ok(Self::Aib),
+            common_enums::BankNames::BankOfScotland => Ok(Self::BankOfScotland),
+            common_enums::BankNames::Barclays => Ok(Self::Barclays),
+            common_enums::BankNames::DanskeBank => Ok(Self::DanskeBank),
+            common_enums::BankNames::FirstDirect => Ok(Self::FirstDirect),
+            common_enums::BankNames::FirstTrust => Ok(Self::FirstTrust),
+            common_enums::BankNames::HsbcBank => Ok(Self::HsbcBank),
+            common_enums::BankNames::Halifax => Ok(Self::Halifax),
+            common_enums::BankNames::Lloyds => Ok(Self::Lloyds),
+            common_enums::BankNames::Monzo => Ok(Self::Monzo),
+            common_enums::BankNames::NatWest => Ok(Self::NatWest),
+            common_enums::BankNames::NationwideBank => Ok(Self::NationwideBank),
+            common_enums::BankNames::Revolut => Ok(Self::Revolut),
+            common_enums::BankNames::RoyalBankOfScotland => Ok(Self::RoyalBankOfScotland),
+            common_enums::BankNames::SantanderPrzelew24 => Ok(Self::SantanderPrzelew24),
+            common_enums::BankNames::Starling => Ok(Self::Starling),
+            common_enums::BankNames::TsbBank => Ok(Self::TsbBank),
+            common_enums::BankNames::TescoBank => Ok(Self::TescoBank),
+            common_enums::BankNames::UlsterBank => Ok(Self::UlsterBank),
+            common_enums::BankNames::AmericanExpress
+            | common_enums::BankNames::AffinBank
+            | common_enums::BankNames::AgroBank
+            | common_enums::BankNames::AllianceBank
+            | common_enums::BankNames::AmBank
+            | common_enums::BankNames::BankOfAmerica
+            | common_enums::BankNames::BankIslam
+            | common_enums::BankNames::BankMuamalat
+            | common_enums::BankNames::BankRakyat
+            | common_enums::BankNames::BankSimpananNasional
+            | common_enums::BankNames::BlikPSP
+            | common_enums::BankNames::CapitalOne
+            | common_enums::BankNames::Chase
+            | common_enums::BankNames::Citi
+            | common_enums::BankNames::CimbBank
+            | common_enums::BankNames::Discover
+            | common_enums::BankNames::NavyFederalCreditUnion
+            | common_enums::BankNames::PentagonFederalCreditUnion
+            | common_enums::BankNames::SynchronyBank
+            | common_enums::BankNames::WellsFargo
+            | common_enums::BankNames::AbnAmro
+            | common_enums::BankNames::AsnBank
+            | common_enums::BankNames::Bunq
+            | common_enums::BankNames::Handelsbanken
+            | common_enums::BankNames::HongLeongBank
+            | common_enums::BankNames::Ing
+            | common_enums::BankNames::Knab
+            | common_enums::BankNames::KuwaitFinanceHouse
+            | common_enums::BankNames::Moneyou
+            | common_enums::BankNames::Rabobank
+            | common_enums::BankNames::Regiobank
+            | common_enums::BankNames::SnsBank
+            | common_enums::BankNames::TriodosBank
+            | common_enums::BankNames::VanLanschot
+            | common_enums::BankNames::ArzteUndApothekerBank
+            | common_enums::BankNames::AustrianAnadiBankAg
+            | common_enums::BankNames::BankAustria
+            | common_enums::BankNames::Bank99Ag
+            | common_enums::BankNames::BankhausCarlSpangler
+            | common_enums::BankNames::BankhausSchelhammerUndSchatteraAg
+            | common_enums::BankNames::BankMillennium
+            | common_enums::BankNames::BankPEKAOSA
+            | common_enums::BankNames::BawagPskAg
+            | common_enums::BankNames::BksBankAg
+            | common_enums::BankNames::BrullKallmusBankAg
+            | common_enums::BankNames::BtvVierLanderBank
+            | common_enums::BankNames::CapitalBankGraweGruppeAg
+            | common_enums::BankNames::CeskaSporitelna
+            | common_enums::BankNames::Dolomitenbank
+            | common_enums::BankNames::EasybankAg
+            | common_enums::BankNames::EPlatbyVUB
+            | common_enums::BankNames::ErsteBankUndSparkassen
+            | common_enums::BankNames::FrieslandBank
+            | common_enums::BankNames::HypoAlpeadriabankInternationalAg
+            | common_enums::BankNames::HypoNoeLbFurNiederosterreichUWien
+            | common_enums::BankNames::HypoOberosterreichSalzburgSteiermark
+            | common_enums::BankNames::HypoTirolBankAg
+            | common_enums::BankNames::HypoVorarlbergBankAg
+            | common_enums::BankNames::HypoBankBurgenlandAktiengesellschaft
+            | common_enums::BankNames::KomercniBanka
+            | common_enums::BankNames::MBank
+            | common_enums::BankNames::MarchfelderBank
+            | common_enums::BankNames::Maybank
+            | common_enums::BankNames::OberbankAg
+            | common_enums::BankNames::OsterreichischeArzteUndApothekerbank
+            | common_enums::BankNames::OcbcBank
+            | common_enums::BankNames::PayWithING
+            | common_enums::BankNames::PlaceZIPKO
+            | common_enums::BankNames::PlatnoscOnlineKartaPlatnicza
+            | common_enums::BankNames::PosojilnicaBankEGen
+            | common_enums::BankNames::PostovaBanka
+            | common_enums::BankNames::PublicBank
+            | common_enums::BankNames::RaiffeisenBankengruppeOsterreich
+            | common_enums::BankNames::RhbBank
+            | common_enums::BankNames::SchelhammerCapitalBankAg
+            | common_enums::BankNames::StandardCharteredBank
+            | common_enums::BankNames::SchoellerbankAg
+            | common_enums::BankNames::SpardaBankWien
+            | common_enums::BankNames::SporoPay
+            | common_enums::BankNames::TatraPay
+            | common_enums::BankNames::Viamo
+            | common_enums::BankNames::VolksbankGruppe
+            | common_enums::BankNames::VolkskreditbankAg
+            | common_enums::BankNames::VrBankBraunau
+            | common_enums::BankNames::UobBank
+            | common_enums::BankNames::PayWithAliorBank
+            | common_enums::BankNames::BankiSpoldzielcze
+            | common_enums::BankNames::PayWithInteligo
+            | common_enums::BankNames::BNPParibasPoland
+            | common_enums::BankNames::BankNowySA
+            | common_enums::BankNames::CreditAgricole
+            | common_enums::BankNames::PayWithBOS
+            | common_enums::BankNames::PayWithCitiHandlowy
+            | common_enums::BankNames::PayWithPlusBank
+            | common_enums::BankNames::ToyotaBank
+            | common_enums::BankNames::VeloBank
+            | common_enums::BankNames::ETransferPocztowy24
+            | common_enums::BankNames::PlusBank
+            | common_enums::BankNames::EtransferPocztowy24
+            | common_enums::BankNames::BankiSpbdzielcze
+            | common_enums::BankNames::BankNowyBfgSa
+            | common_enums::BankNames::GetinBank
+            | common_enums::BankNames::Blik
+            | common_enums::BankNames::NoblePay
+            | common_enums::BankNames::IdeaBank
+            | common_enums::BankNames::EnveloBank
+            | common_enums::BankNames::NestPrzelew
+            | common_enums::BankNames::MbankMtransfer
+            | common_enums::BankNames::Inteligo
+            | common_enums::BankNames::PbacZIpko
+            | common_enums::BankNames::BnpParibas
+            | common_enums::BankNames::BankPekaoSa
+            | common_enums::BankNames::VolkswagenBank
+            | common_enums::BankNames::AliorBank
+            | common_enums::BankNames::Boz
+            | common_enums::BankNames::BangkokBank
+            | common_enums::BankNames::KrungsriBank
+            | common_enums::BankNames::KrungThaiBank
+            | common_enums::BankNames::TheSiamCommercialBank
+            | common_enums::BankNames::Yoursafe
+            | common_enums::BankNames::N26
+            | common_enums::BankNames::NationaleNederlanden
+            | common_enums::BankNames::KasikornBank => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Adyen"),
+                ))?
+            }
         }
     }
 }
@@ -1425,58 +1428,48 @@ pub enum OpenBankingUKIssuer {
 
 pub struct AdyenTestBankNames<'a>(&'a str);
 
-impl<'a> TryFrom<&api_enums::BankNames> for AdyenTestBankNames<'a> {
+impl<'a> TryFrom<&common_enums::BankNames> for AdyenTestBankNames<'a> {
     type Error = Error;
-    fn try_from(bank: &api_enums::BankNames) -> Result<Self, Self::Error> {
+    fn try_from(bank: &common_enums::BankNames) -> Result<Self, Self::Error> {
         Ok(match bank {
-            api_models::enums::BankNames::AbnAmro => Self("1121"),
-            api_models::enums::BankNames::AsnBank => Self("1151"),
-            api_models::enums::BankNames::Bunq => Self("1152"),
-            api_models::enums::BankNames::Ing => Self("1154"),
-            api_models::enums::BankNames::Knab => Self("1155"),
-            api_models::enums::BankNames::N26 => Self("1156"),
-            api_models::enums::BankNames::NationaleNederlanden => Self("1157"),
-            api_models::enums::BankNames::Rabobank => Self("1157"),
-            api_models::enums::BankNames::Regiobank => Self("1158"),
-            api_models::enums::BankNames::Revolut => Self("1159"),
-            api_models::enums::BankNames::SnsBank => Self("1159"),
-            api_models::enums::BankNames::TriodosBank => Self("1159"),
-            api_models::enums::BankNames::VanLanschot => Self("1159"),
-            api_models::enums::BankNames::Yoursafe => Self("1159"),
-            api_models::enums::BankNames::BankAustria => {
-                Self("e6819e7a-f663-414b-92ec-cf7c82d2f4e5")
-            }
-            api_models::enums::BankNames::BawagPskAg => {
-                Self("ba7199cc-f057-42f2-9856-2378abf21638")
-            }
-            api_models::enums::BankNames::Dolomitenbank => {
-                Self("d5d5b133-1c0d-4c08-b2be-3c9b116dc326")
-            }
-            api_models::enums::BankNames::EasybankAg => {
-                Self("eff103e6-843d-48b7-a6e6-fbd88f511b11")
-            }
-            api_models::enums::BankNames::ErsteBankUndSparkassen => {
+            common_enums::BankNames::AbnAmro => Self("1121"),
+            common_enums::BankNames::AsnBank => Self("1151"),
+            common_enums::BankNames::Bunq => Self("1152"),
+            common_enums::BankNames::Ing => Self("1154"),
+            common_enums::BankNames::Knab => Self("1155"),
+            common_enums::BankNames::N26 => Self("1156"),
+            common_enums::BankNames::NationaleNederlanden => Self("1157"),
+            common_enums::BankNames::Rabobank => Self("1157"),
+            common_enums::BankNames::Regiobank => Self("1158"),
+            common_enums::BankNames::Revolut => Self("1159"),
+            common_enums::BankNames::SnsBank => Self("1159"),
+            common_enums::BankNames::TriodosBank => Self("1159"),
+            common_enums::BankNames::VanLanschot => Self("1159"),
+            common_enums::BankNames::Yoursafe => Self("1159"),
+            common_enums::BankNames::BankAustria => Self("e6819e7a-f663-414b-92ec-cf7c82d2f4e5"),
+            common_enums::BankNames::BawagPskAg => Self("ba7199cc-f057-42f2-9856-2378abf21638"),
+            common_enums::BankNames::Dolomitenbank => Self("d5d5b133-1c0d-4c08-b2be-3c9b116dc326"),
+            common_enums::BankNames::EasybankAg => Self("eff103e6-843d-48b7-a6e6-fbd88f511b11"),
+            common_enums::BankNames::ErsteBankUndSparkassen => {
                 Self("3fdc41fc-3d3d-4ee3-a1fe-cd79cfd58ea3")
             }
-            api_models::enums::BankNames::HypoTirolBankAg => {
+            common_enums::BankNames::HypoTirolBankAg => {
                 Self("6765e225-a0dc-4481-9666-e26303d4f221")
             }
-            api_models::enums::BankNames::PosojilnicaBankEGen => {
+            common_enums::BankNames::PosojilnicaBankEGen => {
                 Self("65ef4682-4944-499f-828f-5d74ad288376")
             }
-            api_models::enums::BankNames::RaiffeisenBankengruppeOsterreich => {
+            common_enums::BankNames::RaiffeisenBankengruppeOsterreich => {
                 Self("ee9fc487-ebe0-486c-8101-17dce5141a67")
             }
-            api_models::enums::BankNames::SchoellerbankAg => {
+            common_enums::BankNames::SchoellerbankAg => {
                 Self("1190c4d1-b37a-487e-9355-e0a067f54a9f")
             }
-            api_models::enums::BankNames::SpardaBankWien => {
-                Self("8b0bfeea-fbb0-4337-b3a1-0e25c0f060fc")
-            }
-            api_models::enums::BankNames::VolksbankGruppe => {
+            common_enums::BankNames::SpardaBankWien => Self("8b0bfeea-fbb0-4337-b3a1-0e25c0f060fc"),
+            common_enums::BankNames::VolksbankGruppe => {
                 Self("e2e97aaa-de4c-4e18-9431-d99790773433")
             }
-            api_models::enums::BankNames::VolkskreditbankAg => {
+            common_enums::BankNames::VolkskreditbankAg => {
                 Self("4a0a975b-0594-4b40-9068-39f77b3a91f9")
             }
             _ => Err(errors::ConnectorError::NotImplemented(
@@ -1488,24 +1481,24 @@ impl<'a> TryFrom<&api_enums::BankNames> for AdyenTestBankNames<'a> {
 
 pub struct AdyenBankNames<'a>(&'a str);
 
-impl<'a> TryFrom<&api_enums::BankNames> for AdyenBankNames<'a> {
+impl<'a> TryFrom<&common_enums::BankNames> for AdyenBankNames<'a> {
     type Error = Error;
-    fn try_from(bank: &api_enums::BankNames) -> Result<Self, Self::Error> {
+    fn try_from(bank: &common_enums::BankNames) -> Result<Self, Self::Error> {
         Ok(match bank {
-            api_models::enums::BankNames::AbnAmro => Self("0031"),
-            api_models::enums::BankNames::AsnBank => Self("0761"),
-            api_models::enums::BankNames::Bunq => Self("0802"),
-            api_models::enums::BankNames::Ing => Self("0721"),
-            api_models::enums::BankNames::Knab => Self("0801"),
-            api_models::enums::BankNames::N26 => Self("0807"),
-            api_models::enums::BankNames::NationaleNederlanden => Self("0808"),
-            api_models::enums::BankNames::Rabobank => Self("0021"),
-            api_models::enums::BankNames::Regiobank => Self("0771"),
-            api_models::enums::BankNames::Revolut => Self("0805"),
-            api_models::enums::BankNames::SnsBank => Self("0751"),
-            api_models::enums::BankNames::TriodosBank => Self("0511"),
-            api_models::enums::BankNames::VanLanschot => Self("0161"),
-            api_models::enums::BankNames::Yoursafe => Self("0806"),
+            common_enums::BankNames::AbnAmro => Self("0031"),
+            common_enums::BankNames::AsnBank => Self("0761"),
+            common_enums::BankNames::Bunq => Self("0802"),
+            common_enums::BankNames::Ing => Self("0721"),
+            common_enums::BankNames::Knab => Self("0801"),
+            common_enums::BankNames::N26 => Self("0807"),
+            common_enums::BankNames::NationaleNederlanden => Self("0808"),
+            common_enums::BankNames::Rabobank => Self("0021"),
+            common_enums::BankNames::Regiobank => Self("0771"),
+            common_enums::BankNames::Revolut => Self("0805"),
+            common_enums::BankNames::SnsBank => Self("0751"),
+            common_enums::BankNames::TriodosBank => Self("0511"),
+            common_enums::BankNames::VanLanschot => Self("0161"),
+            common_enums::BankNames::Yoursafe => Self("0806"),
             _ => Err(errors::ConnectorError::NotSupported {
                 message: String::from("BankRedirect"),
                 connector: "Adyen",
@@ -1553,38 +1546,38 @@ impl<'a> TryFrom<&AdyenRouterData<&types::PaymentsAuthorizeRouterData>>
         {
             Some(mandate_ref) => AdyenPaymentRequest::try_from((item, mandate_ref)),
             None => match item.router_data.request.payment_method_data {
-                api_models::payments::PaymentMethodData::Card(ref card) => {
+                domain::PaymentMethodData::Card(ref card) => {
                     AdyenPaymentRequest::try_from((item, card))
                 }
-                api_models::payments::PaymentMethodData::Wallet(ref wallet) => {
+                domain::PaymentMethodData::Wallet(ref wallet) => {
                     AdyenPaymentRequest::try_from((item, wallet))
                 }
-                api_models::payments::PaymentMethodData::PayLater(ref pay_later) => {
+                domain::PaymentMethodData::PayLater(ref pay_later) => {
                     AdyenPaymentRequest::try_from((item, pay_later))
                 }
-                api_models::payments::PaymentMethodData::BankRedirect(ref bank_redirect) => {
+                domain::PaymentMethodData::BankRedirect(ref bank_redirect) => {
                     AdyenPaymentRequest::try_from((item, bank_redirect))
                 }
-                api_models::payments::PaymentMethodData::BankDebit(ref bank_debit) => {
+                domain::PaymentMethodData::BankDebit(ref bank_debit) => {
                     AdyenPaymentRequest::try_from((item, bank_debit))
                 }
-                api_models::payments::PaymentMethodData::BankTransfer(ref bank_transfer) => {
+                domain::PaymentMethodData::BankTransfer(ref bank_transfer) => {
                     AdyenPaymentRequest::try_from((item, bank_transfer.as_ref()))
                 }
-                api_models::payments::PaymentMethodData::CardRedirect(ref card_redirect_data) => {
+                domain::PaymentMethodData::CardRedirect(ref card_redirect_data) => {
                     AdyenPaymentRequest::try_from((item, card_redirect_data))
                 }
-                api_models::payments::PaymentMethodData::Voucher(ref voucher_data) => {
+                domain::PaymentMethodData::Voucher(ref voucher_data) => {
                     AdyenPaymentRequest::try_from((item, voucher_data))
                 }
-                api_models::payments::PaymentMethodData::GiftCard(ref gift_card_data) => {
+                domain::PaymentMethodData::GiftCard(ref gift_card_data) => {
                     AdyenPaymentRequest::try_from((item, gift_card_data.as_ref()))
                 }
-                payments::PaymentMethodData::Crypto(_)
-                | payments::PaymentMethodData::MandatePayment
-                | payments::PaymentMethodData::Reward
-                | payments::PaymentMethodData::Upi(_)
-                | payments::PaymentMethodData::CardToken(_) => {
+                domain::PaymentMethodData::Crypto(_)
+                | domain::PaymentMethodData::MandatePayment
+                | domain::PaymentMethodData::Reward
+                | domain::PaymentMethodData::Upi(_)
+                | domain::PaymentMethodData::CardToken(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("Adyen"),
                     ))?
@@ -1598,7 +1591,7 @@ impl<'a> TryFrom<&types::PaymentsPreProcessingRouterData> for AdyenBalanceReques
     type Error = Error;
     fn try_from(item: &types::PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
         let payment_method = match &item.request.payment_method_data {
-            Some(payments::PaymentMethodData::GiftCard(gift_card_data)) => {
+            Some(domain::PaymentMethodData::GiftCard(gift_card_data)) => {
                 match gift_card_data.as_ref() {
                     payments::GiftCardData::Givex(gift_card_data) => {
                         let balance_pm = BalancePmData {
@@ -1962,9 +1955,9 @@ impl<'a> TryFrom<&api_models::payments::GiftCardData> for AdyenPaymentMethod<'a>
     }
 }
 
-impl<'a> TryFrom<&api::Card> for AdyenPaymentMethod<'a> {
+impl<'a> TryFrom<&domain::Card> for AdyenPaymentMethod<'a> {
     type Error = Error;
-    fn try_from(card: &api::Card) -> Result<Self, Self::Error> {
+    fn try_from(card: &domain::Card) -> Result<Self, Self::Error> {
         let adyen_card = AdyenCard {
             payment_type: PaymentType::Scheme,
             number: card.card_number.clone(),
@@ -2032,18 +2025,18 @@ impl TryFrom<&utils::CardIssuer> for CardBrand {
     }
 }
 
-impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
+impl<'a> TryFrom<&domain::WalletData> for AdyenPaymentMethod<'a> {
     type Error = Error;
-    fn try_from(wallet_data: &api::WalletData) -> Result<Self, Self::Error> {
+    fn try_from(wallet_data: &domain::WalletData) -> Result<Self, Self::Error> {
         match wallet_data {
-            api_models::payments::WalletData::GooglePay(data) => {
+            domain::WalletData::GooglePay(data) => {
                 let gpay_data = AdyenGPay {
                     payment_type: PaymentType::Googlepay,
                     google_pay_token: Secret::new(data.tokenization_data.token.to_owned()),
                 };
                 Ok(AdyenPaymentMethod::Gpay(Box::new(gpay_data)))
             }
-            api_models::payments::WalletData::ApplePay(data) => {
+            domain::WalletData::ApplePay(data) => {
                 let apple_pay_data = AdyenApplePay {
                     payment_type: PaymentType::Applepay,
                     apple_pay_token: Secret::new(data.payment_data.to_string()),
@@ -2051,79 +2044,77 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
 
                 Ok(AdyenPaymentMethod::ApplePay(Box::new(apple_pay_data)))
             }
-            api_models::payments::WalletData::PaypalRedirect(_) => {
+            domain::WalletData::PaypalRedirect(_) => {
                 let wallet = PmdForPaymentType {
                     payment_type: PaymentType::Paypal,
                 };
                 Ok(AdyenPaymentMethod::AdyenPaypal(Box::new(wallet)))
             }
-            api_models::payments::WalletData::AliPayRedirect(_) => {
+            domain::WalletData::AliPayRedirect(_) => {
                 let alipay_data = PmdForPaymentType {
                     payment_type: PaymentType::Alipay,
                 };
                 Ok(AdyenPaymentMethod::AliPay(Box::new(alipay_data)))
             }
-            api_models::payments::WalletData::AliPayHkRedirect(_) => {
+            domain::WalletData::AliPayHkRedirect(_) => {
                 let alipay_hk_data = PmdForPaymentType {
                     payment_type: PaymentType::AlipayHk,
                 };
                 Ok(AdyenPaymentMethod::AliPayHk(Box::new(alipay_hk_data)))
             }
-            api_models::payments::WalletData::GoPayRedirect(_) => {
+            domain::WalletData::GoPayRedirect(_) => {
                 let go_pay_data = GoPayData {};
                 Ok(AdyenPaymentMethod::GoPay(Box::new(go_pay_data)))
             }
-            api_models::payments::WalletData::KakaoPayRedirect(_) => {
+            domain::WalletData::KakaoPayRedirect(_) => {
                 let kakao_pay_data = KakaoPayData {};
                 Ok(AdyenPaymentMethod::Kakaopay(Box::new(kakao_pay_data)))
             }
-            api_models::payments::WalletData::GcashRedirect(_) => {
+            domain::WalletData::GcashRedirect(_) => {
                 let gcash_data = GcashData {};
                 Ok(AdyenPaymentMethod::Gcash(Box::new(gcash_data)))
             }
-            api_models::payments::WalletData::MomoRedirect(_) => {
+            domain::WalletData::MomoRedirect(_) => {
                 let momo_data = MomoData {};
                 Ok(AdyenPaymentMethod::Momo(Box::new(momo_data)))
             }
-            api_models::payments::WalletData::TouchNGoRedirect(_) => {
+            domain::WalletData::TouchNGoRedirect(_) => {
                 let touch_n_go_data = TouchNGoData {};
                 Ok(AdyenPaymentMethod::TouchNGo(Box::new(touch_n_go_data)))
             }
-            api_models::payments::WalletData::MbWayRedirect(data) => {
+            domain::WalletData::MbWayRedirect(data) => {
                 let mbway_data = MbwayData {
                     payment_type: PaymentType::Mbway,
                     telephone_number: data.telephone_number.clone(),
                 };
                 Ok(AdyenPaymentMethod::Mbway(Box::new(mbway_data)))
             }
-            api_models::payments::WalletData::MobilePayRedirect(_) => {
+            domain::WalletData::MobilePayRedirect(_) => {
                 let data = PmdForPaymentType {
                     payment_type: PaymentType::MobilePay,
                 };
                 Ok(AdyenPaymentMethod::MobilePay(Box::new(data)))
             }
-            api_models::payments::WalletData::WeChatPayRedirect(_) => {
-                Ok(AdyenPaymentMethod::WeChatPayWeb)
-            }
-            api_models::payments::WalletData::SamsungPay(samsung_data) => {
+            domain::WalletData::WeChatPayRedirect(_) => Ok(AdyenPaymentMethod::WeChatPayWeb),
+            domain::WalletData::SamsungPay(samsung_data) => {
                 let data = SamsungPayPmData {
                     payment_type: PaymentType::Samsungpay,
                     samsung_pay_token: samsung_data.token.to_owned(),
                 };
                 Ok(AdyenPaymentMethod::SamsungPay(Box::new(data)))
             }
-            api_models::payments::WalletData::TwintRedirect { .. } => Ok(AdyenPaymentMethod::Twint),
-            api_models::payments::WalletData::VippsRedirect { .. } => Ok(AdyenPaymentMethod::Vipps),
-            api_models::payments::WalletData::DanaRedirect { .. } => Ok(AdyenPaymentMethod::Dana),
-            api_models::payments::WalletData::SwishQr(_) => Ok(AdyenPaymentMethod::Swish),
-            payments::WalletData::AliPayQr(_)
-            | payments::WalletData::ApplePayRedirect(_)
-            | payments::WalletData::ApplePayThirdPartySdk(_)
-            | payments::WalletData::GooglePayRedirect(_)
-            | payments::WalletData::GooglePayThirdPartySdk(_)
-            | payments::WalletData::PaypalSdk(_)
-            | payments::WalletData::WeChatPayQr(_)
-            | payments::WalletData::CashappQr(_) => Err(errors::ConnectorError::NotImplemented(
+            domain::WalletData::TwintRedirect { .. } => Ok(AdyenPaymentMethod::Twint),
+            domain::WalletData::VippsRedirect { .. } => Ok(AdyenPaymentMethod::Vipps),
+            domain::WalletData::DanaRedirect { .. } => Ok(AdyenPaymentMethod::Dana),
+            domain::WalletData::SwishQr(_) => Ok(AdyenPaymentMethod::Swish),
+            domain::WalletData::AliPayQr(_)
+            | domain::WalletData::ApplePayRedirect(_)
+            | domain::WalletData::ApplePayThirdPartySdk(_)
+            | domain::WalletData::GooglePayRedirect(_)
+            | domain::WalletData::GooglePayThirdPartySdk(_)
+            | domain::WalletData::PaypalSdk(_)
+            | domain::WalletData::WeChatPayQr(_)
+            | domain::WalletData::CashappQr(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             )
             .into()),
@@ -2144,7 +2135,7 @@ pub fn check_required_field<'a, T>(
 
 impl<'a>
     TryFrom<(
-        &api::PayLaterData,
+        &domain::PayLaterData,
         &Option<api_enums::CountryAlpha2>,
         &Option<Email>,
         &Option<String>,
@@ -2157,7 +2148,7 @@ impl<'a>
     type Error = Error;
     fn try_from(
         value: (
-            &api::PayLaterData,
+            &domain::PayLaterData,
             &Option<api_enums::CountryAlpha2>,
             &Option<Email>,
             &Option<String>,
@@ -2178,7 +2169,7 @@ impl<'a>
             delivery_address,
         ) = value;
         match pay_later_data {
-            api_models::payments::PayLaterData::KlarnaRedirect { .. } => {
+            domain::payments::PayLaterData::KlarnaRedirect { .. } => {
                 let klarna = PmdForPaymentType {
                     payment_type: PaymentType::Klarna,
                 };
@@ -2188,7 +2179,7 @@ impl<'a>
 
                 Ok(AdyenPaymentMethod::AdyenKlarna(Box::new(klarna)))
             }
-            api_models::payments::PayLaterData::AffirmRedirect { .. } => {
+            domain::payments::PayLaterData::AffirmRedirect { .. } => {
                 check_required_field(shopper_email, "email")?;
                 check_required_field(shopper_name, "billing.first_name, billing.last_name")?;
                 check_required_field(telephone_number, "billing.phone")?;
@@ -2200,7 +2191,7 @@ impl<'a>
                     },
                 )))
             }
-            api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
+            domain::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
                 check_required_field(shopper_email, "email")?;
                 check_required_field(shopper_name, "billing.first_name, billing.last_name")?;
                 check_required_field(delivery_address, "shipping")?;
@@ -2222,7 +2213,7 @@ impl<'a>
                     })?
                 }
             }
-            api_models::payments::PayLaterData::PayBrightRedirect { .. } => {
+            domain::payments::PayLaterData::PayBrightRedirect { .. } => {
                 check_required_field(shopper_name, "billing.first_name, billing.last_name")?;
                 check_required_field(telephone_number, "billing.phone")?;
                 check_required_field(shopper_email, "email")?;
@@ -2231,13 +2222,13 @@ impl<'a>
                 check_required_field(country_code, "billing.country")?;
                 Ok(AdyenPaymentMethod::PayBright)
             }
-            api_models::payments::PayLaterData::WalleyRedirect { .. } => {
+            domain::payments::PayLaterData::WalleyRedirect { .. } => {
                 //[TODO: Line items specific sub-fields are mandatory]
                 check_required_field(telephone_number, "billing.phone")?;
                 check_required_field(shopper_email, "email")?;
                 Ok(AdyenPaymentMethod::Walley)
             }
-            api_models::payments::PayLaterData::AlmaRedirect { .. } => {
+            domain::payments::PayLaterData::AlmaRedirect { .. } => {
                 check_required_field(telephone_number, "billing.phone")?;
                 check_required_field(shopper_email, "email")?;
                 check_required_field(billing_address, "billing")?;
@@ -2248,14 +2239,14 @@ impl<'a>
                     },
                 )))
             }
-            api_models::payments::PayLaterData::AtomeRedirect { .. } => {
+            domain::payments::PayLaterData::AtomeRedirect { .. } => {
                 check_required_field(shopper_email, "email")?;
                 check_required_field(shopper_name, "billing.first_name, billing.last_name")?;
                 check_required_field(telephone_number, "billing.phone")?;
                 check_required_field(billing_address, "billing")?;
                 Ok(AdyenPaymentMethod::Atome)
             }
-            payments::PayLaterData::KlarnaSdk { .. } => {
+            domain::payments::PayLaterData::KlarnaSdk { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Adyen"),
                 )
@@ -2265,15 +2256,13 @@ impl<'a>
     }
 }
 
-impl<'a> TryFrom<(&api_models::payments::BankRedirectData, Option<bool>)>
-    for AdyenPaymentMethod<'a>
-{
+impl<'a> TryFrom<(&domain::BankRedirectData, Option<bool>)> for AdyenPaymentMethod<'a> {
     type Error = Error;
     fn try_from(
-        (bank_redirect_data, test_mode): (&api_models::payments::BankRedirectData, Option<bool>),
+        (bank_redirect_data, test_mode): (&domain::BankRedirectData, Option<bool>),
     ) -> Result<Self, Self::Error> {
         match bank_redirect_data {
-            api_models::payments::BankRedirectData::BancontactCard {
+            domain::BankRedirectData::BancontactCard {
                 card_number,
                 card_exp_month,
                 card_exp_year,
@@ -2309,12 +2298,12 @@ impl<'a> TryFrom<(&api_models::payments::BankRedirectData, Option<bool>)>
                         .clone(),
                 },
             ))),
-            api_models::payments::BankRedirectData::Bizum { .. } => {
+            domain::BankRedirectData::Bizum { .. } => {
                 Ok(AdyenPaymentMethod::Bizum(Box::new(PmdForPaymentType {
                     payment_type: PaymentType::Bizum,
                 })))
             }
-            api_models::payments::BankRedirectData::Blik { blik_code } => {
+            domain::BankRedirectData::Blik { blik_code } => {
                 Ok(AdyenPaymentMethod::Blik(Box::new(BlikRedirectionData {
                     payment_type: PaymentType::Blik,
                     blik_code: Secret::new(blik_code.clone().ok_or(
@@ -2324,8 +2313,8 @@ impl<'a> TryFrom<(&api_models::payments::BankRedirectData, Option<bool>)>
                     )?),
                 })))
             }
-            api_models::payments::BankRedirectData::Eps { bank_name, .. } => Ok(
-                AdyenPaymentMethod::Eps(Box::new(BankRedirectionWithIssuer {
+            domain::BankRedirectData::Eps { bank_name, .. } => Ok(AdyenPaymentMethod::Eps(
+                Box::new(BankRedirectionWithIssuer {
                     payment_type: PaymentType::Eps,
                     issuer: Some(
                         AdyenTestBankNames::try_from(&bank_name.ok_or(
@@ -2335,14 +2324,14 @@ impl<'a> TryFrom<(&api_models::payments::BankRedirectData, Option<bool>)>
                         )?)?
                         .0,
                     ),
-                })),
-            ),
-            api_models::payments::BankRedirectData::Giropay { .. } => {
+                }),
+            )),
+            domain::BankRedirectData::Giropay { .. } => {
                 Ok(AdyenPaymentMethod::Giropay(Box::new(PmdForPaymentType {
                     payment_type: PaymentType::Giropay,
                 })))
             }
-            api_models::payments::BankRedirectData::Ideal { bank_name, .. } => {
+            domain::BankRedirectData::Ideal { bank_name, .. } => {
                 let issuer = if test_mode.unwrap_or(true) {
                     Some(
                         AdyenTestBankNames::try_from(&bank_name.ok_or(
@@ -2369,7 +2358,7 @@ impl<'a> TryFrom<(&api_models::payments::BankRedirectData, Option<bool>)>
                     },
                 )))
             }
-            api_models::payments::BankRedirectData::OnlineBankingCzechRepublic { issuer } => {
+            domain::BankRedirectData::OnlineBankingCzechRepublic { issuer } => {
                 Ok(AdyenPaymentMethod::OnlineBankingCzechRepublic(Box::new(
                     OnlineBankingCzechRepublicData {
                         payment_type: PaymentType::OnlineBankingCzechRepublic,
@@ -2377,34 +2366,34 @@ impl<'a> TryFrom<(&api_models::payments::BankRedirectData, Option<bool>)>
                     },
                 )))
             }
-            api_models::payments::BankRedirectData::OnlineBankingFinland { .. } => Ok(
+            domain::BankRedirectData::OnlineBankingFinland { .. } => Ok(
                 AdyenPaymentMethod::OnlineBankingFinland(Box::new(PmdForPaymentType {
                     payment_type: PaymentType::OnlineBankingFinland,
                 })),
             ),
-            api_models::payments::BankRedirectData::OnlineBankingPoland { issuer } => Ok(
+            domain::BankRedirectData::OnlineBankingPoland { issuer } => Ok(
                 AdyenPaymentMethod::OnlineBankingPoland(Box::new(OnlineBankingPolandData {
                     payment_type: PaymentType::OnlineBankingPoland,
                     issuer: OnlineBankingPolandBanks::try_from(issuer)?,
                 })),
             ),
-            api_models::payments::BankRedirectData::OnlineBankingSlovakia { issuer } => Ok(
+            domain::BankRedirectData::OnlineBankingSlovakia { issuer } => Ok(
                 AdyenPaymentMethod::OnlineBankingSlovakia(Box::new(OnlineBankingSlovakiaData {
                     payment_type: PaymentType::OnlineBankingSlovakia,
                     issuer: OnlineBankingSlovakiaBanks::try_from(issuer)?,
                 })),
             ),
-            api_models::payments::BankRedirectData::OnlineBankingFpx { issuer } => Ok(
+            domain::BankRedirectData::OnlineBankingFpx { issuer } => Ok(
                 AdyenPaymentMethod::OnlineBankingFpx(Box::new(OnlineBankingFpxData {
                     issuer: OnlineBankingFpxIssuer::try_from(issuer)?,
                 })),
             ),
-            api_models::payments::BankRedirectData::OnlineBankingThailand { issuer } => Ok(
+            domain::BankRedirectData::OnlineBankingThailand { issuer } => Ok(
                 AdyenPaymentMethod::OnlineBankingThailand(Box::new(OnlineBankingThailandData {
                     issuer: OnlineBankingThailandIssuer::try_from(issuer)?,
                 })),
             ),
-            api_models::payments::BankRedirectData::OpenBankingUk { issuer, .. } => Ok(
+            domain::BankRedirectData::OpenBankingUk { issuer, .. } => Ok(
                 AdyenPaymentMethod::OpenBankingUK(Box::new(OpenBankingUKData {
                     issuer: match issuer {
                         Some(bank_name) => OpenBankingUKIssuer::try_from(bank_name)?,
@@ -2414,12 +2403,10 @@ impl<'a> TryFrom<(&api_models::payments::BankRedirectData, Option<bool>)>
                     },
                 })),
             ),
-            api_models::payments::BankRedirectData::Sofort { .. } => Ok(AdyenPaymentMethod::Sofort),
-            api_models::payments::BankRedirectData::Trustly { .. } => {
-                Ok(AdyenPaymentMethod::Trustly)
-            }
-            payments::BankRedirectData::Interac { .. }
-            | payments::BankRedirectData::Przelewy24 { .. } => {
+            domain::BankRedirectData::Sofort { .. } => Ok(AdyenPaymentMethod::Sofort),
+            domain::BankRedirectData::Trustly { .. } => Ok(AdyenPaymentMethod::Trustly),
+            domain::BankRedirectData::Interac { .. }
+            | domain::BankRedirectData::Przelewy24 { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Adyen"),
                 )
@@ -2497,6 +2484,7 @@ impl<'a> TryFrom<&api_models::payments::BankTransferData> for AdyenPaymentMethod
             | api_models::payments::BankTransferData::SepaBankTransfer { .. }
             | api_models::payments::BankTransferData::BacsBankTransfer { .. }
             | api_models::payments::BankTransferData::MultibancoBankTransfer { .. }
+            | api_models::payments::BankTransferData::LocalBankTransfer { .. }
             | payments::BankTransferData::Pse {} => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             )
@@ -2505,16 +2493,16 @@ impl<'a> TryFrom<&api_models::payments::BankTransferData> for AdyenPaymentMethod
     }
 }
 
-impl<'a> TryFrom<&api_models::payments::CardRedirectData> for AdyenPaymentMethod<'a> {
+impl<'a> TryFrom<&domain::payments::CardRedirectData> for AdyenPaymentMethod<'a> {
     type Error = Error;
     fn try_from(
-        card_redirect_data: &api_models::payments::CardRedirectData,
+        card_redirect_data: &domain::payments::CardRedirectData,
     ) -> Result<Self, Self::Error> {
         match card_redirect_data {
-            payments::CardRedirectData::Knet {} => Ok(AdyenPaymentMethod::Knet),
-            payments::CardRedirectData::Benefit {} => Ok(AdyenPaymentMethod::Benefit),
-            payments::CardRedirectData::MomoAtm {} => Ok(AdyenPaymentMethod::MomoAtm),
-            payments::CardRedirectData::CardRedirect {} => {
+            domain::CardRedirectData::Knet {} => Ok(AdyenPaymentMethod::Knet),
+            domain::CardRedirectData::Benefit {} => Ok(AdyenPaymentMethod::Benefit),
+            domain::CardRedirectData::MomoAtm {} => Ok(AdyenPaymentMethod::MomoAtm),
+            domain::CardRedirectData::CardRedirect {} => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Adyen"),
                 )
@@ -2566,7 +2554,7 @@ impl<'a>
             }
             payments::MandateReferenceId::NetworkMandateId(network_mandate_id) => {
                 match item.router_data.request.payment_method_data {
-                    api::PaymentMethodData::Card(ref card) => {
+                    domain::PaymentMethodData::Card(ref card) => {
                         let card_issuer = card.get_card_issuer()?;
                         let brand = CardBrand::try_from(&card_issuer)?;
                         let adyen_card = AdyenCard {
@@ -2581,19 +2569,19 @@ impl<'a>
                         };
                         Ok(AdyenPaymentMethod::AdyenCard(Box::new(adyen_card)))
                     }
-                    payments::PaymentMethodData::CardRedirect(_)
-                    | payments::PaymentMethodData::Wallet(_)
-                    | payments::PaymentMethodData::PayLater(_)
-                    | payments::PaymentMethodData::BankRedirect(_)
-                    | payments::PaymentMethodData::BankDebit(_)
-                    | payments::PaymentMethodData::BankTransfer(_)
-                    | payments::PaymentMethodData::Crypto(_)
-                    | payments::PaymentMethodData::MandatePayment
-                    | payments::PaymentMethodData::Reward
-                    | payments::PaymentMethodData::Upi(_)
-                    | payments::PaymentMethodData::Voucher(_)
-                    | payments::PaymentMethodData::GiftCard(_)
-                    | api::PaymentMethodData::CardToken(_) => {
+                    domain::PaymentMethodData::CardRedirect(_)
+                    | domain::PaymentMethodData::Wallet(_)
+                    | domain::PaymentMethodData::PayLater(_)
+                    | domain::PaymentMethodData::BankRedirect(_)
+                    | domain::PaymentMethodData::BankDebit(_)
+                    | domain::PaymentMethodData::BankTransfer(_)
+                    | domain::PaymentMethodData::Crypto(_)
+                    | domain::PaymentMethodData::MandatePayment
+                    | domain::PaymentMethodData::Reward
+                    | domain::PaymentMethodData::Upi(_)
+                    | domain::PaymentMethodData::Voucher(_)
+                    | domain::PaymentMethodData::GiftCard(_)
+                    | domain::PaymentMethodData::CardToken(_) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: "Network tokenization for payment method".to_string(),
                             connector: "Adyen",
@@ -2633,14 +2621,14 @@ impl<'a>
 impl<'a>
     TryFrom<(
         &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
-        &api::Card,
+        &domain::Card,
     )> for AdyenPaymentRequest<'a>
 {
     type Error = Error;
     fn try_from(
         value: (
             &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
-            &api::Card,
+            &domain::Card,
         ),
     ) -> Result<Self, Self::Error> {
         let (item, card_data) = value;
@@ -2903,14 +2891,14 @@ impl<'a>
 impl<'a>
     TryFrom<(
         &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
-        &api_models::payments::BankRedirectData,
+        &domain::BankRedirectData,
     )> for AdyenPaymentRequest<'a>
 {
     type Error = Error;
     fn try_from(
         value: (
             &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
-            &api_models::payments::BankRedirectData,
+            &domain::BankRedirectData,
         ),
     ) -> Result<Self, Self::Error> {
         let (item, bank_redirect_data) = value;
@@ -2960,22 +2948,20 @@ fn get_redirect_extra_details(
     item: &types::PaymentsAuthorizeRouterData,
 ) -> Result<(Option<String>, Option<api_enums::CountryAlpha2>), errors::ConnectorError> {
     match item.request.payment_method_data {
-        api_models::payments::PaymentMethodData::BankRedirect(ref redirect_data) => {
-            match redirect_data {
-                api_models::payments::BankRedirectData::Sofort {
-                    country,
-                    preferred_language,
-                    ..
-                } => Ok((preferred_language.clone(), *country)),
-                api_models::payments::BankRedirectData::OpenBankingUk { country, .. } => {
-                    let country = country.ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "country",
-                    })?;
-                    Ok((None, Some(country)))
-                }
-                _ => Ok((None, None)),
+        domain::PaymentMethodData::BankRedirect(ref redirect_data) => match redirect_data {
+            domain::BankRedirectData::Sofort {
+                country,
+                preferred_language,
+                ..
+            } => Ok((preferred_language.clone(), *country)),
+            domain::BankRedirectData::OpenBankingUk { country, .. } => {
+                let country = country.ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "country",
+                })?;
+                Ok((None, Some(country)))
             }
-        }
+            _ => Ok((None, None)),
+        },
         _ => Ok((None, None)),
     }
 }
@@ -3001,14 +2987,14 @@ fn get_shopper_email(
 impl<'a>
     TryFrom<(
         &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
-        &api::WalletData,
+        &domain::WalletData,
     )> for AdyenPaymentRequest<'a>
 {
     type Error = Error;
     fn try_from(
         value: (
             &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
-            &api::WalletData,
+            &domain::WalletData,
         ),
     ) -> Result<Self, Self::Error> {
         let (item, wallet_data) = value;
@@ -3056,14 +3042,14 @@ impl<'a>
 impl<'a>
     TryFrom<(
         &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
-        &api::PayLaterData,
+        &domain::PayLaterData,
     )> for AdyenPaymentRequest<'a>
 {
     type Error = Error;
     fn try_from(
         value: (
             &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
-            &api::PayLaterData,
+            &domain::PayLaterData,
         ),
     ) -> Result<Self, Self::Error> {
         let (item, paylater_data) = value;
@@ -3131,14 +3117,14 @@ impl<'a>
 impl<'a>
     TryFrom<(
         &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
-        &api_models::payments::CardRedirectData,
+        &domain::payments::CardRedirectData,
     )> for AdyenPaymentRequest<'a>
 {
     type Error = Error;
     fn try_from(
         value: (
             &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
-            &api_models::payments::CardRedirectData,
+            &domain::payments::CardRedirectData,
         ),
     ) -> Result<Self, Self::Error> {
         let (item, card_redirect_data) = value;
