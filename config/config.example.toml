@@ -185,6 +185,7 @@ cryptopay.base_url = "https://business-sandbox.cryptopay.me"
 cybersource.base_url = "https://apitest.cybersource.com/"
 dlocal.base_url = "https://sandbox.dlocal.com/"
 dummyconnector.base_url = "http://localhost:8080/dummy-connector"
+ebanx.base_url = "https://sandbox.ebanxpay.com/"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
 forte.base_url = "https://sandbox.forte.net/api/v3"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
@@ -384,7 +385,7 @@ slack_invite_url = "https://www.example.com/"   # Slack invite url for hyperswit
 discord_invite_url = "https://www.example.com/" # Discord invite url for hyperswitch
 
 [mandates.supported_payment_methods]
-card.credit = { connector_list = "stripe,adyen,cybersource" }           # Mandate supported payment method type and connector for card
+card.credit = { connector_list = "stripe,adyen,cybersource,bankofamerica"}           # Mandate supported payment method type and connector for card
 wallet.paypal = { connector_list = "adyen" }                            # Mandate supported payment method type and connector for wallets
 pay_later.klarna = { connector_list = "adyen" }                         # Mandate supported payment method type and connector for pay_later
 bank_debit.ach = { connector_list = "gocardless" }                      # Mandate supported payment method type and connector for bank_debit
@@ -392,7 +393,8 @@ bank_debit.becs = { connector_list = "gocardless" }                     # Mandat
 bank_debit.sepa = { connector_list = "gocardless" }                     # Mandate supported payment method type and connector for bank_debit
 bank_redirect.ideal = { connector_list = "stripe,adyen,globalpay" }     # Mandate supported payment method type and connector for bank_redirect
 bank_redirect.sofort = { connector_list = "stripe,adyen,globalpay" }
-wallet.apple_pay = { connector_list = "stripe,adyen,cybersource,noon" }
+wallet.apple_pay = { connector_list = "stripe,adyen,cybersource,noon,bankofamerica" }
+wallet.google_pay = { connector_list = "bankofamerica"}
 bank_redirect.giropay = { connector_list = "adyen,globalpay" }
 
 
@@ -568,6 +570,7 @@ connector_logs_topic = "topic"        # Kafka topic to be used for connector api
 outgoing_webhook_logs_topic = "topic" # Kafka topic to be used for outgoing webhook events
 dispute_analytics_topic = "topic"     # Kafka topic to be used for Dispute events
 audit_events_topic = "topic"          # Kafka topic to be used for Payment Audit events
+payout_analytics_topic = "topic"      # Kafka topic to be used for Payout events
 
 # File storage configuration
 [file_storage]

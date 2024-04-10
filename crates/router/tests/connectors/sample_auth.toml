@@ -206,3 +206,7 @@ api_key="API Key"
 
 [netcetera]
 api_key="API Key"
+
+
+[ebanx]
+api_key="API Key"

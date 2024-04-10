@@ -260,6 +260,11 @@ pub enum ApiErrorResponse {
     CurrencyConversionFailed,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_25", message = "Cannot delete the default payment method")]
     PaymentMethodDeleteFailed,
+    #[error(
+        error_type = ErrorType::InvalidRequestError, code = "IR_26",
+        message = "Invalid Cookie"
+    )]
+    InvalidCookie,
 }
 
 impl PTError for ApiErrorResponse {

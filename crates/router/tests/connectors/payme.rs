@@ -95,7 +95,6 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
             card_cvc: Secret::new("123".to_string()),
             card_exp_month: Secret::new("10".to_string()),
             card_exp_year: Secret::new("2025".to_string()),
-            card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
             ..utils::CCardType::default().0
         }),
         amount: 1000,
@@ -363,7 +362,7 @@ async fn should_sync_refund() {
     );
 }
 
-// Cards Negative scenerios
+// Cards Negative scenarios
 // Creates a payment with incorrect CVC.
 #[actix_web::test]
 async fn should_fail_payment_for_incorrect_cvc() {
