@@ -1549,9 +1549,29 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaypalCaptureResponse>>
             storage_enums::AttemptStatus::Pending
             | storage_enums::AttemptStatus::Authorized
             | storage_enums::AttemptStatus::Failure
+            | enums::AttemptStatus::RouterDeclined
+            | enums::AttemptStatus::AuthenticationFailed
             | storage_enums::AttemptStatus::CaptureFailed
+            | enums::AttemptStatus::Started
+            | enums::AttemptStatus::AuthenticationPending
+            | enums::AttemptStatus::AuthenticationSuccessful
+            | enums::AttemptStatus::AuthorizationFailed
+            | enums::AttemptStatus::Authorizing
+            | enums::AttemptStatus::VoidInitiated
+            | enums::AttemptStatus::CodInitiated
+            | enums::AttemptStatus::CaptureInitiated
+            | enums::AttemptStatus::VoidFailed
+            | enums::AttemptStatus::AutoRefunded
+            | enums::AttemptStatus::Unresolved
+            | enums::AttemptStatus::PaymentMethodAwaited
+            | enums::AttemptStatus::ConfirmationAwaited
+            | enums::AttemptStatus::DeviceDataCollectionPending
             | storage_enums::AttemptStatus::Voided => 0,
-            _ => item.data.request.amount_to_capture,
+            enums::AttemptStatus::Charged
+            | enums::AttemptStatus::PartialCharged
+            | enums::AttemptStatus::PartialChargedAndChargeable => {
+                item.data.request.amount_to_capture
+            }
         };
         let connector_payment_id: PaypalMeta =
             to_connector_meta(item.data.request.connector_meta.clone())?;
