@@ -45,7 +45,7 @@ use crate::{
     },
     logger,
     routes::{
-        app::AppStateInfo,
+        app::{AppStateInfo, ReqState},
         metrics::{self, request as metrics_request},
         AppState,
     },
@@ -943,23 +943,27 @@ pub enum AuthFlow {
     Merchant,
 }
 
-#[instrument(skip(request, payload, state, func, api_auth), fields(merchant_id))]
-pub async fn server_wrap_util<'a, 'b, A, U, T, Q, F, Fut, E, OErr>(
+#[allow(clippy::too_many_arguments)]
+#[instrument(
+    skip(request, payload, state, func, api_auth, request_state),
+    fields(merchant_id)
+)]
+pub async fn server_wrap_util<'a, 'b, U, T, Q, F, Fut, E, OErr>(
     flow: &'a impl router_env::types::FlowMetric,
-    state: web::Data<A>,
+    state: web::Data<AppState>,
+    request_state: ReqState,
     request: &'a HttpRequest,
     payload: T,
     func: F,
-    api_auth: &dyn AuthenticateAndFetch<U, A>,
+    api_auth: &dyn AuthenticateAndFetch<U, AppState>,
     lock_action: api_locking::LockAction,
 ) -> CustomResult<ApplicationResponse<Q>, OErr>
 where
-    F: Fn(A, U, T) -> Fut,
+    F: Fn(AppState, U, T, ReqState) -> Fut,
     'b: 'a,
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a + ApiEventMetric,
     T: Debug + Serialize + ApiEventMetric,
-    A: AppStateInfo + Clone,
     E: ErrorSwitch<OErr> + error_stack::Context,
     OErr: ResponseError + error_stack::Context + Serialize,
     errors::ApiErrorResponse: ErrorSwitch<OErr>,
@@ -969,9 +973,9 @@ where
         .attach_printable("Unable to extract request id from request")
         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?;
 
-    let mut request_state = state.get_ref().clone();
+    let mut app_state = state.get_ref().clone();
 
-    request_state.add_request_id(request_id);
+    app_state.add_request_id(request_id);
     let start_instant = Instant::now();
     let serialized_request = masking::masked_serialize(&payload)
         .attach_printable("Failed to serialize json request")
@@ -981,7 +985,7 @@ where
 
     // Currently auth failures are not recorded as API events
     let (auth_out, auth_type) = api_auth
-        .authenticate_and_fetch(request.headers(), &request_state)
+        .authenticate_and_fetch(request.headers(), &app_state)
         .await
         .switch()?;
 
@@ -990,23 +994,23 @@ where
         .unwrap_or("MERCHANT_ID_NOT_FOUND")
         .to_string();
 
-    request_state.add_merchant_id(Some(merchant_id.clone()));
+    app_state.add_merchant_id(Some(merchant_id.clone()));
 
-    request_state.add_flow_name(flow.to_string());
+    app_state.add_flow_name(flow.to_string());
 
     tracing::Span::current().record("merchant_id", &merchant_id);
 
     let output = {
         lock_action
             .clone()
-            .perform_locking_action(&request_state, merchant_id.to_owned())
+            .perform_locking_action(&app_state, merchant_id.to_owned())
             .await
             .switch()?;
-        let res = func(request_state.clone(), auth_out, payload)
+        let res = func(app_state.clone(), auth_out, payload, request_state)
             .await
             .switch();
         lock_action
-            .free_lock_action(&request_state, merchant_id.to_owned())
+            .free_lock_action(&app_state, merchant_id.to_owned())
             .await
             .switch()?;
         res
@@ -1082,24 +1086,24 @@ where
     skip(request, state, func, api_auth, payload),
     fields(request_method, request_url_path, status_code)
 )]
-pub async fn server_wrap<'a, A, T, U, Q, F, Fut, E>(
+pub async fn server_wrap<'a, T, U, Q, F, Fut, E>(
     flow: impl router_env::types::FlowMetric,
-    state: web::Data<A>,
+    state: web::Data<AppState>,
     request: &'a HttpRequest,
     payload: T,
     func: F,
-    api_auth: &dyn AuthenticateAndFetch<U, A>,
+    api_auth: &dyn AuthenticateAndFetch<U, AppState>,
     lock_action: api_locking::LockAction,
 ) -> HttpResponse
 where
-    F: Fn(A, U, T) -> Fut,
+    F: Fn(AppState, U, T, ReqState) -> Fut,
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + ApiEventMetric + 'a,
     T: Debug + Serialize + ApiEventMetric,
-    A: AppStateInfo + Clone,
     ApplicationResponse<Q>: Debug,
     E: ErrorSwitch<api_models::errors::types::ApiErrorResponse> + error_stack::Context,
 {
+    let req_state = state.get_req_state();
     let request_method = request.method().as_str();
     let url_path = request.path();
 
@@ -1136,6 +1140,7 @@ where
         server_wrap_util(
             &flow,
             state.clone(),
+            req_state,
             request,
             payload,
             func,
