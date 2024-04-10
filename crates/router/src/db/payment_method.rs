@@ -1,17 +1,11 @@
-use common_utils::fallback_reverse_lookup_not_found;
-use diesel_models::{kv, payment_method::PaymentMethodUpdateInternal};
-use error_stack::{report, ResultExt};
-use redis_interface::HsetnxReply;
-use router_env::{instrument, tracing};
-use storage_impl::redis::kv_store::{kv_wrapper, KvOperation, PartitionKey};
+use diesel_models::{payment_method::PaymentMethodUpdateInternal};
+use error_stack::{ResultExt};
 
-use super::{MockDb, Store};
+
+use super::MockDb;
 use crate::{
-    connection,
-    core::errors::{self, utils::RedisErrorExt, CustomResult},
-    db::reverse_lookup::ReverseLookupInterface,
-    types::storage::{self, enums::MerchantStorageScheme},
-    utils::db_utils,
+    core::errors::{self, CustomResult},
+    types::storage::{self as storage_types, enums::MerchantStorageScheme},
 };
 
 #[async_trait::async_trait]
@@ -20,20 +14,20 @@ pub trait PaymentMethodInterface {
         &self,
         payment_method_id: &str,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<storage::PaymentMethod, errors::StorageError>;
+    ) -> CustomResult<storage_types::PaymentMethod, errors::StorageError>;
 
     async fn find_payment_method_by_locker_id(
         &self,
         locker_id: &str,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<storage::PaymentMethod, errors::StorageError>;
+    ) -> CustomResult<storage_types::PaymentMethod, errors::StorageError>;
 
     async fn find_payment_method_by_customer_id_merchant_id_list(
         &self,
         customer_id: &str,
         merchant_id: &str,
         limit: Option<i64>,
-    ) -> CustomResult<Vec<storage::PaymentMethod>, errors::StorageError>;
+    ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError>;
 
     async fn find_payment_method_by_customer_id_merchant_id_status(
         &self,
@@ -41,7 +35,7 @@ pub trait PaymentMethodInterface {
         merchant_id: &str,
         status: common_enums::PaymentMethodStatus,
         limit: Option<i64>,
-    ) -> CustomResult<Vec<storage::PaymentMethod>, errors::StorageError>;
+    ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError>;
 
     async fn get_payment_method_count_by_customer_id_merchant_id_status(
         &self,
@@ -52,36 +46,53 @@ pub trait PaymentMethodInterface {
 
     async fn insert_payment_method(
         &self,
-        payment_method_new: storage::PaymentMethodNew,
+        payment_method_new: storage_types::PaymentMethodNew,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<storage::PaymentMethod, errors::StorageError>;
+    ) -> CustomResult<storage_types::PaymentMethod, errors::StorageError>;
 
     async fn update_payment_method(
         &self,
-        payment_method: storage::PaymentMethod,
-        payment_method_update: storage::PaymentMethodUpdate,
+        payment_method: storage_types::PaymentMethod,
+        payment_method_update: storage_types::PaymentMethodUpdate,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<storage::PaymentMethod, errors::StorageError>;
+    ) -> CustomResult<storage_types::PaymentMethod, errors::StorageError>;
 
     async fn delete_payment_method_by_merchant_id_payment_method_id(
         &self,
         merchant_id: &str,
         payment_method_id: &str,
-    ) -> CustomResult<storage::PaymentMethod, errors::StorageError>;
+    ) -> CustomResult<storage_types::PaymentMethod, errors::StorageError>;
 }
 
 #[cfg(feature = "kv_store")]
-#[async_trait::async_trait]
-impl PaymentMethodInterface for Store {
+mod storage {
+    use diesel_models::{kv, PaymentMethodUpdateInternal};
+    use router_env::{instrument, tracing};
+    use storage_impl::redis::kv_store::{kv_wrapper, KvOperation, PartitionKey};
+    use common_utils::fallback_reverse_lookup_not_found;
+    use redis_interface::HsetnxReply;
+    use crate::{
+        connection,
+        db::reverse_lookup::ReverseLookupInterface,
+        core::errors::{utils::RedisErrorExt, self, CustomResult},
+        utils::db_utils,
+        types::storage::{self as storage_types, enums::MerchantStorageScheme},
+        services::Store,
+    };
+    use error_stack::{report,ResultExt};
+    use super::PaymentMethodInterface;
+
+    #[async_trait::async_trait]
+    impl PaymentMethodInterface for Store {
     #[instrument(skip_all)]
     async fn find_payment_method(
         &self,
         payment_method_id: &str,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
+    ) -> CustomResult<storage_types::PaymentMethod, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         let database_call = || async {
-            storage::PaymentMethod::find_by_payment_method_id(&conn, payment_method_id)
+            storage_types::PaymentMethod::find_by_payment_method_id(&conn, payment_method_id)
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
         };
@@ -104,7 +115,7 @@ impl PaymentMethodInterface for Store {
                     async {
                         kv_wrapper(
                             self,
-                            KvOperation::<storage::PaymentMethod>::HGet(&lookup.sk_id),
+                            KvOperation::<storage_types::PaymentMethod>::HGet(&lookup.sk_id),
                             key,
                         )
                         .await?
@@ -122,10 +133,10 @@ impl PaymentMethodInterface for Store {
         &self,
         locker_id: &str,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
+    ) -> CustomResult<storage_types::PaymentMethod, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         let database_call = || async {
-            storage::PaymentMethod::find_by_locker_id(&conn, locker_id)
+            storage_types::PaymentMethod::find_by_locker_id(&conn, locker_id)
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
         };
@@ -148,7 +159,7 @@ impl PaymentMethodInterface for Store {
                     async {
                         kv_wrapper(
                             self,
-                            KvOperation::<storage::PaymentMethod>::HGet(&lookup.sk_id),
+                            KvOperation::<storage_types::PaymentMethod>::HGet(&lookup.sk_id),
                             key,
                         )
                         .await?
@@ -169,7 +180,7 @@ impl PaymentMethodInterface for Store {
         status: common_enums::PaymentMethodStatus,
     ) -> CustomResult<i64, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::PaymentMethod::get_count_by_customer_id_merchant_id_status(
+        storage_types::PaymentMethod::get_count_by_customer_id_merchant_id_status(
             &conn,
             customer_id,
             merchant_id,
@@ -182,9 +193,9 @@ impl PaymentMethodInterface for Store {
     #[instrument(skip_all)]
     async fn insert_payment_method(
         &self,
-        payment_method_new: storage::PaymentMethodNew,
+        payment_method_new: storage_types::PaymentMethodNew,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
+    ) -> CustomResult<storage_types::PaymentMethod, errors::StorageError> {
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 let conn = connection::pg_connection_write(self).await?;
@@ -261,10 +272,10 @@ impl PaymentMethodInterface for Store {
     #[instrument(skip_all)]
     async fn update_payment_method(
         &self,
-        payment_method: storage::PaymentMethod,
-        payment_method_update: storage::PaymentMethodUpdate,
+        payment_method: storage_types::PaymentMethod,
+        payment_method_update: storage_types::PaymentMethodUpdate,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
+    ) -> CustomResult<storage_types::PaymentMethod, errors::StorageError> {
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 let conn = connection::pg_connection_write(self).await?;
@@ -325,9 +336,9 @@ impl PaymentMethodInterface for Store {
         customer_id: &str,
         merchant_id: &str,
         limit: Option<i64>,
-    ) -> CustomResult<Vec<storage::PaymentMethod>, errors::StorageError> {
+    ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::PaymentMethod::find_by_customer_id_merchant_id(
+        storage_types::PaymentMethod::find_by_customer_id_merchant_id(
             &conn,
             customer_id,
             merchant_id,
@@ -344,9 +355,9 @@ impl PaymentMethodInterface for Store {
         merchant_id: &str,
         status: common_enums::PaymentMethodStatus,
         limit: Option<i64>,
-    ) -> CustomResult<Vec<storage::PaymentMethod>, errors::StorageError> {
+    ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::PaymentMethod::find_by_customer_id_merchant_id_status(
+        storage_types::PaymentMethod::find_by_customer_id_merchant_id_status(
             &conn,
             customer_id,
             merchant_id,
@@ -361,9 +372,9 @@ impl PaymentMethodInterface for Store {
         &self,
         merchant_id: &str,
         payment_method_id: &str,
-    ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
+    ) -> CustomResult<storage_types::PaymentMethod, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::PaymentMethod::delete_by_merchant_id_payment_method_id(
+        storage_types::PaymentMethod::delete_by_merchant_id_payment_method_id(
             &conn,
             merchant_id,
             payment_method_id,
@@ -371,19 +382,30 @@ impl PaymentMethodInterface for Store {
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
     }
+    }
 }
 
 #[cfg(not(feature = "kv_store"))]
-#[async_trait::async_trait]
-impl PaymentMethodInterface for Store {
+mod storage {
+    use router_env::{instrument, tracing};
+    use crate::{
+        connection,
+        types::storage::{self as storage_types, enums::MerchantStorageScheme},
+        core::errors::{self, CustomResult},
+        services::Store,
+    };
+    use error_stack::{report};
+    use super::PaymentMethodInterface;
+    #[async_trait::async_trait]
+    impl PaymentMethodInterface for Store {
     #[instrument(skip_all)]
     async fn find_payment_method(
         &self,
         payment_method_id: &str,
         _storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
+    ) -> CustomResult<storage_types::PaymentMethod, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::PaymentMethod::find_by_payment_method_id(&conn, payment_method_id)
+        storage_types::PaymentMethod::find_by_payment_method_id(&conn, payment_method_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -393,9 +415,9 @@ impl PaymentMethodInterface for Store {
         &self,
         locker_id: &str,
         _storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
+    ) -> CustomResult<storage_types::PaymentMethod, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::PaymentMethod::find_by_locker_id(&conn, locker_id)
+        storage_types::PaymentMethod::find_by_locker_id(&conn, locker_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -408,7 +430,7 @@ impl PaymentMethodInterface for Store {
         status: common_enums::PaymentMethodStatus,
     ) -> CustomResult<i64, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::PaymentMethod::get_count_by_customer_id_merchant_id_status(
+        storage_types::PaymentMethod::get_count_by_customer_id_merchant_id_status(
             &conn,
             customer_id,
             merchant_id,
@@ -421,9 +443,9 @@ impl PaymentMethodInterface for Store {
     #[instrument(skip_all)]
     async fn insert_payment_method(
         &self,
-        payment_method_new: storage::PaymentMethodNew,
+        payment_method_new: storage_types::PaymentMethodNew,
         _storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
+    ) -> CustomResult<storage_types::PaymentMethod, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         payment_method_new
             .insert(&conn)
@@ -434,10 +456,10 @@ impl PaymentMethodInterface for Store {
     #[instrument(skip_all)]
     async fn update_payment_method(
         &self,
-        payment_method: storage::PaymentMethod,
-        payment_method_update: storage::PaymentMethodUpdate,
+        payment_method: storage_types::PaymentMethod,
+        payment_method_update: storage_types::PaymentMethodUpdate,
         _storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
+    ) -> CustomResult<storage_types::PaymentMethod, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         payment_method
             .update_with_payment_method_id(&conn, payment_method_update.into())
@@ -451,9 +473,9 @@ impl PaymentMethodInterface for Store {
         customer_id: &str,
         merchant_id: &str,
         limit: Option<i64>,
-    ) -> CustomResult<Vec<storage::PaymentMethod>, errors::StorageError> {
+    ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::PaymentMethod::find_by_customer_id_merchant_id(
+        storage_types::PaymentMethod::find_by_customer_id_merchant_id(
             &conn,
             customer_id,
             merchant_id,
@@ -470,9 +492,9 @@ impl PaymentMethodInterface for Store {
         merchant_id: &str,
         status: common_enums::PaymentMethodStatus,
         limit: Option<i64>,
-    ) -> CustomResult<Vec<storage::PaymentMethod>, errors::StorageError> {
+    ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::PaymentMethod::find_by_customer_id_merchant_id_status(
+        storage_types::PaymentMethod::find_by_customer_id_merchant_id_status(
             &conn,
             customer_id,
             merchant_id,
@@ -487,15 +509,16 @@ impl PaymentMethodInterface for Store {
         &self,
         merchant_id: &str,
         payment_method_id: &str,
-    ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
+    ) -> CustomResult<storage_types::PaymentMethod, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::PaymentMethod::delete_by_merchant_id_payment_method_id(
+        storage_types::PaymentMethod::delete_by_merchant_id_payment_method_id(
             &conn,
             merchant_id,
             payment_method_id,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
+    }
     }
 }
 
@@ -505,7 +528,7 @@ impl PaymentMethodInterface for MockDb {
         &self,
         payment_method_id: &str,
         _storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
+    ) -> CustomResult<storage_types::PaymentMethod, errors::StorageError> {
         let payment_methods = self.payment_methods.lock().await;
         let payment_method = payment_methods
             .iter()
@@ -525,7 +548,7 @@ impl PaymentMethodInterface for MockDb {
         &self,
         locker_id: &str,
         _storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
+    ) -> CustomResult<storage_types::PaymentMethod, errors::StorageError> {
         let payment_methods = self.payment_methods.lock().await;
         let payment_method = payment_methods
             .iter()
@@ -561,12 +584,12 @@ impl PaymentMethodInterface for MockDb {
 
     async fn insert_payment_method(
         &self,
-        payment_method_new: storage::PaymentMethodNew,
+        payment_method_new: storage_types::PaymentMethodNew,
         _storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
+    ) -> CustomResult<storage_types::PaymentMethod, errors::StorageError> {
         let mut payment_methods = self.payment_methods.lock().await;
 
-        let payment_method = storage::PaymentMethod {
+        let payment_method = storage_types::PaymentMethod {
             id: i32::try_from(payment_methods.len())
                 .change_context(errors::StorageError::MockDbError)?,
             customer_id: payment_method_new.customer_id,
@@ -606,9 +629,9 @@ impl PaymentMethodInterface for MockDb {
         customer_id: &str,
         merchant_id: &str,
         _limit: Option<i64>,
-    ) -> CustomResult<Vec<storage::PaymentMethod>, errors::StorageError> {
+    ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError> {
         let payment_methods = self.payment_methods.lock().await;
-        let payment_methods_found: Vec<storage::PaymentMethod> = payment_methods
+        let payment_methods_found: Vec<storage_types::PaymentMethod> = payment_methods
             .iter()
             .filter(|pm| pm.customer_id == customer_id && pm.merchant_id == merchant_id)
             .cloned()
@@ -630,9 +653,9 @@ impl PaymentMethodInterface for MockDb {
         merchant_id: &str,
         status: common_enums::PaymentMethodStatus,
         _limit: Option<i64>,
-    ) -> CustomResult<Vec<storage::PaymentMethod>, errors::StorageError> {
+    ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError> {
         let payment_methods = self.payment_methods.lock().await;
-        let payment_methods_found: Vec<storage::PaymentMethod> = payment_methods
+        let payment_methods_found: Vec<storage_types::PaymentMethod> = payment_methods
             .iter()
             .filter(|pm| {
                 pm.customer_id == customer_id
@@ -656,7 +679,7 @@ impl PaymentMethodInterface for MockDb {
         &self,
         merchant_id: &str,
         payment_method_id: &str,
-    ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
+    ) -> CustomResult<storage_types::PaymentMethod, errors::StorageError> {
         let mut payment_methods = self.payment_methods.lock().await;
         match payment_methods.iter().position(|pm| {
             pm.merchant_id == merchant_id && pm.payment_method_id == payment_method_id
@@ -674,10 +697,10 @@ impl PaymentMethodInterface for MockDb {
 
     async fn update_payment_method(
         &self,
-        payment_method: storage::PaymentMethod,
-        payment_method_update: storage::PaymentMethodUpdate,
+        payment_method: storage_types::PaymentMethod,
+        payment_method_update: storage_types::PaymentMethodUpdate,
         _storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
+    ) -> CustomResult<storage_types::PaymentMethod, errors::StorageError> {
         let pm_update_res = self
             .payment_methods
             .lock()

@@ -269,7 +269,7 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             payment_method: payment_method_new.payment_method,
             payment_method_type: payment_method_new.payment_method_type,
             payment_method_issuer: payment_method_new.payment_method_issuer.clone(),
-            payment_method_issuer_code: payment_method_new.payment_method_issuer_code.clone(),
+            payment_method_issuer_code: payment_method_new.payment_method_issuer_code,
             metadata: payment_method_new.metadata.clone(),
             payment_method_data: payment_method_new.payment_method_data.clone(),
             last_used_at: payment_method_new.last_used_at,
