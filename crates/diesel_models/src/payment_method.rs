@@ -172,8 +172,7 @@ impl PaymentMethodUpdateInternal {
 
         PaymentMethod {
             metadata: metadata.map_or(source.metadata, |v| Some(v.into())),
-            payment_method_data: payment_method_data
-                .map_or(source.payment_method_data,Some),
+            payment_method_data: payment_method_data.map_or(source.payment_method_data, Some),
             last_used_at: last_used_at.unwrap_or(source.last_used_at),
             network_transaction_id: network_transaction_id
                 .map_or(source.network_transaction_id, Some),

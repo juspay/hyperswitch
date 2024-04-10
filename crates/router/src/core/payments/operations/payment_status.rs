@@ -403,7 +403,10 @@ async fn get_tracker_for_sync<
 
     let payment_method_info =
         if let Some(ref payment_method_id) = payment_attempt.payment_method_id.clone() {
-            match db.find_payment_method(payment_method_id, storage_scheme).await {
+            match db
+                .find_payment_method(payment_method_id, storage_scheme)
+                .await
+            {
                 Ok(payment_method) => Some(payment_method),
                 Err(error) => {
                     if error.current_context().is_db_not_found() {

@@ -283,8 +283,7 @@ impl PaymentMethodInterface for Store {
                 let key_str = key.to_string();
                 let field = format!("payment_method_id_{}", payment_method.payment_method_id);
 
-                let p_update: PaymentMethodUpdateInternal =
-                    payment_method_update.into();
+                let p_update: PaymentMethodUpdateInternal = payment_method_update.into();
                 let updated_payment_method =
                     p_update.clone().apply_changeset(payment_method.clone());
 
@@ -381,7 +380,7 @@ impl PaymentMethodInterface for Store {
     async fn find_payment_method(
         &self,
         payment_method_id: &str,
-        _storage_scheme: MerchantStorageScheme
+        _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::PaymentMethod::find_by_payment_method_id(&conn, payment_method_id)
@@ -423,7 +422,7 @@ impl PaymentMethodInterface for Store {
     async fn insert_payment_method(
         &self,
         payment_method_new: storage::PaymentMethodNew,
-        _storage_scheme: MerchantStorageScheme
+        _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         payment_method_new
@@ -437,7 +436,7 @@ impl PaymentMethodInterface for Store {
         &self,
         payment_method: storage::PaymentMethod,
         payment_method_update: storage::PaymentMethodUpdate,
-        _storage_scheme: MerchantStorageScheme
+        _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         payment_method
