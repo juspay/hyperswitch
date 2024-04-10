@@ -7,7 +7,8 @@ use router_env::{instrument, tracing, Flow, Tag};
 use crate::{
     compatibility::{stripe::errors, wrap},
     core::{api_locking::GetLockingInput, payment_methods::Oss, payments},
-    logger, routes,
+    logger,
+    routes::{self, payments::get_or_generate_payment_id},
     services::{api, authentication as auth},
     types::api as api_types,
 };
@@ -26,15 +27,19 @@ pub async fn payment_intents_create(
         Ok(p) => p,
         Err(err) => return api::log_and_return_error_response(err),
     };
+
     tracing::Span::current().record("payment_id", &payload.id.clone().unwrap_or_default());
 
     logger::info!(tag = ?Tag::CompatibilityLayerRequest, payload = ?payload);
 
-    let create_payment_req: payment_types::PaymentsRequest = match payload.try_into() {
+    let mut create_payment_req: payment_types::PaymentsRequest = match payload.try_into() {
         Ok(req) => req,
         Err(err) => return api::log_and_return_error_response(err),
     };
 
+    if let Err(err) = get_or_generate_payment_id(&mut create_payment_req) {
+        return api::log_and_return_error_response(err);
+    }
     let flow = Flow::PaymentsCreate;
     let locking_action = create_payment_req.get_locking_input(flow.clone());
     Box::pin(wrap::compatibility_api_wrap::<
