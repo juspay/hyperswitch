@@ -1898,6 +1898,19 @@ pub fn is_refund_failure(status: enums::RefundStatus) -> bool {
     }
 }
 
+pub fn get_card_details(
+    payment_method_data: domain::PaymentMethodData,
+    connector_name: &'static str,
+) -> Result<domain::payments::Card, errors::ConnectorError> {
+    match payment_method_data {
+        domain::PaymentMethodData::Card(details) => Ok(details),
+        _ => Err(errors::ConnectorError::NotSupported {
+            message: SELECTED_PAYMENT_METHOD.to_string(),
+            connector: connector_name,
+        })?,
+    }
+}
+
 #[cfg(test)]
 mod error_code_error_message_tests {
     #![allow(clippy::unwrap_used)]
