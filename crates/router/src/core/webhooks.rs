@@ -409,6 +409,7 @@ pub async fn get_or_update_dispute_object(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn external_authentication_incoming_webhook_flow<Ctx: PaymentMethodRetrieve>(
     state: AppState,
     merchant_account: domain::MerchantAccount,
@@ -1742,7 +1743,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
                 key_store,
                 webhook_details,
                 source_verified,
-                *connector,
+                connector,
                 &request_details,
                 event_type,
             ))
@@ -1782,7 +1783,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
                     source_verified,
                     event_type,
                     &request_details,
-                    *connector,
+                    connector,
                     object_ref_id,
                     business_profile,
                 ))
@@ -1859,12 +1860,12 @@ fn get_connector_by_connector_name(
     state: &AppState,
     connector_name: &str,
     merchant_connector_id: Option<String>,
-) -> CustomResult<(Box<&'static (dyn api::Connector + Sync)>, String), errors::ApiErrorResponse> {
+) -> CustomResult<(&'static (dyn api::Connector + Sync), String), errors::ApiErrorResponse> {
     let authentication_connector =
-        api_models::enums::convert_authentication_connector(&connector_name);
+        api_models::enums::convert_authentication_connector(connector_name);
     let (connector, connector_name) = if authentication_connector.is_some() {
         let authentication_connector_data =
-            api::AuthenticationConnectorData::get_connector_by_name(&connector_name)?;
+            api::AuthenticationConnectorData::get_connector_by_name(connector_name)?;
         (
             authentication_connector_data.connector,
             authentication_connector_data.connector_name.to_string(),
@@ -1872,7 +1873,7 @@ fn get_connector_by_connector_name(
     } else {
         let connector_data = api::ConnectorData::get_connector_by_name(
             &state.conf.connectors,
-            &connector_name,
+            connector_name,
             api::GetToken::Connector,
             merchant_connector_id,
         )
@@ -1885,7 +1886,7 @@ fn get_connector_by_connector_name(
             connector_data.connector_name.to_string(),
         )
     };
-    Ok((connector, connector_name))
+    Ok((*connector, connector_name))
 }
 
 /// This function fetches the merchant connector account ( if the url used is /{merchant_connector_id})
@@ -1898,7 +1899,7 @@ async fn fetch_optional_mca_and_connector(
 ) -> CustomResult<
     (
         Option<domain::MerchantConnectorAccount>,
-        Box<&'static (dyn api::Connector + Sync)>,
+        &'static (dyn api::Connector + Sync),
         String,
     ),
     errors::ApiErrorResponse,
@@ -1919,7 +1920,7 @@ async fn fetch_optional_mca_and_connector(
                 "error while fetching merchant_connector_account from connector_id",
             )?;
         let (connector, connector_name) = get_connector_by_connector_name(
-            &state,
+            state,
             &mca.connector_name,
             Some(mca.merchant_connector_id.clone()),
         )?;
@@ -1928,7 +1929,7 @@ async fn fetch_optional_mca_and_connector(
     } else {
         // Merchant connector account is already being queried, it is safe to set connector id as None
         let (connector, connector_name) =
-            get_connector_by_connector_name(&state, &connector_name_or_mca_id, None)?;
+            get_connector_by_connector_name(state, connector_name_or_mca_id, None)?;
         Ok((None, connector, connector_name))
     }
 }
