@@ -272,7 +272,7 @@ impl TryFrom<&ZslRouterData<&types::PaymentsAuthorizeRouterData>> for ZslPayment
                 let cust_id = customer_id.replace("_", "").replace("-", "");
                 let id_len = cust_id.len();
                 if id_len > 10 {
-                    (&cust_id[id_len - 10 .. id_len]).to_string()
+                    (&cust_id[id_len - 10..id_len]).to_string()
                 } else {
                     cust_id
                 }
