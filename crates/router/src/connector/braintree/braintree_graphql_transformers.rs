@@ -868,8 +868,8 @@ impl TryFrom<&types::TokenizationRouterData> for BraintreeTokenRequest {
                         expiration_year: card_data.card_exp_year,
                         expiration_month: card_data.card_exp_month,
                         cvv: card_data.card_cvc,
-                        cardholder_name: card_data
-                            .card_holder_name
+                        cardholder_name: item
+                            .get_optional_billing_full_name()
                             .unwrap_or(Secret::new("".to_string())),
                     },
                 };
