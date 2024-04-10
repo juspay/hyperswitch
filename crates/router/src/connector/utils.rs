@@ -98,6 +98,7 @@ pub trait RouterData {
     fn get_optional_billing_state(&self) -> Option<Secret<String>>;
     fn get_optional_billing_first_name(&self) -> Option<Secret<String>>;
     fn get_optional_billing_last_name(&self) -> Option<Secret<String>>;
+    fn get_email(&self) -> Result<Email, Error>;
 }
 
 pub trait PaymentResponseRouterData {
@@ -298,6 +299,12 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
                     .address
                     .and_then(|billing_address_details| billing_address_details.last_name)
             })
+    }
+    fn get_email(&self) -> Result<Email, Error> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|bill| bill.email.clone())
+            .ok_or_else(missing_field_err("email"))
     }
 
     fn to_connector_meta<T>(&self) -> Result<T, Error>
@@ -1238,6 +1245,16 @@ impl AddressDetailsData for api::AddressDetails {
         }
     }
 }
+
+// pub trait EmailData {
+//     fn get_email(&self) -> Result<Email, Error>;
+// }
+
+// impl EmailData for Email{
+//  fn get_email(&self) -> Result<Email, Error> {
+//         self.email.clone().ok_or_else(missing_field_err("email"))
+//     }
+// }
 
 pub trait BankRedirectBillingData {
     fn get_billing_name(&self) -> Result<Secret<String>, Error>;

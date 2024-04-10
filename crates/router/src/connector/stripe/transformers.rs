@@ -1040,40 +1040,36 @@ impl From<&payments::BankDebitData> for StripePaymentMethodType {
     }
 }
 
-impl TryFrom<(&domain::payments::PayLaterData, StripePaymentMethodType)> for StripeBillingAddress {
-    type Error = errors::ConnectorError;
+impl
+    TryFrom<(
+        Option<&types::PaymentsAuthorizeRouterData>,
+        StripePaymentMethodType,
+    )> for StripeBillingAddress
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        (pay_later_data, pm_type): (&domain::payments::PayLaterData, StripePaymentMethodType),
+        (item, pm_type): (
+            Option<&types::PaymentsAuthorizeRouterData>,
+            StripePaymentMethodType,
+        ),
     ) -> Result<Self, Self::Error> {
-        match (pay_later_data, pm_type) {
-            (
-                domain::payments::PayLaterData::KlarnaRedirect {
-                    billing_email,
-                    billing_country,
-                },
-                StripePaymentMethodType::Klarna,
-            ) => Ok(Self {
-                email: Some(billing_email.to_owned()),
-                country: Some(billing_country.to_owned()),
-                ..Self::default()
-            }),
-            (
-                domain::payments::PayLaterData::AffirmRedirect {},
-                StripePaymentMethodType::Affirm,
-            ) => Ok(Self::default()),
-            (
-                domain::payments::PayLaterData::AfterpayClearpayRedirect {
-                    billing_email,
-                    billing_name,
-                },
-                StripePaymentMethodType::AfterpayClearpay,
-            ) => Ok(Self {
-                email: Some(billing_email.to_owned()),
-                name: Some(billing_name.to_owned()),
-                ..Self::default()
-            }),
-            _ => Err(errors::ConnectorError::MismatchedPaymentData),
+        match item {
+            Some(item) => match pm_type {
+                StripePaymentMethodType::Klarna => Ok(Self {
+                    email: Some(item.get_email()?),
+                    country: item.get_optional_billing_country(),
+                    ..Self::default()
+                }),
+                StripePaymentMethodType::Affirm => Ok(Self::default()),
+                StripePaymentMethodType::AfterpayClearpay => Ok(Self {
+                    email: Some(item.get_email()?),
+                    name: item.get_optional_billing_full_name(),
+                    ..Self::default()
+                }),
+                _ => Err(errors::ConnectorError::MismatchedPaymentData.into()),
+            },
+            None => Err(errors::ConnectorError::MismatchedPaymentData.into()),
         }
     }
 }
@@ -1279,6 +1275,7 @@ fn create_stripe_payment_method(
     payment_method_token: Option<types::PaymentMethodToken>,
     is_customer_initiated_mandate_payment: Option<bool>,
     billing_address: StripeBillingAddress,
+    item: Option<&types::PaymentsAuthorizeRouterData>,
 ) -> Result<
     (
         StripePaymentMethodData,
@@ -1301,7 +1298,7 @@ fn create_stripe_payment_method(
         }
         domain::PaymentMethodData::PayLater(pay_later_data) => {
             let stripe_pm_type = StripePaymentMethodType::try_from(pay_later_data)?;
-            let billing_address = StripeBillingAddress::try_from((pay_later_data, stripe_pm_type))?;
+            let billing_address = StripeBillingAddress::try_from((item, stripe_pm_type))?;
             Ok((
                 StripePaymentMethodData::PayLater(StripePayLaterData {
                     payment_method_data_type: stripe_pm_type,
@@ -1872,7 +1869,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                             Some(connector_util::PaymentsAuthorizeRequestData::is_customer_initiated_mandate_payment(
                                 &item.request,
                             )),
-                            billing_address
+                            billing_address, Some(item)
                         )?;
 
                     validate_shipping_address_against_payment_method(
@@ -2084,6 +2081,7 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
             item.payment_method_token.clone(),
             None,
             StripeBillingAddress::default(),
+            None,
         )?;
         Ok(Self {
             token_data: payment_data.0,
