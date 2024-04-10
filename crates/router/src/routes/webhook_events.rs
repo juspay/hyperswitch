@@ -32,7 +32,7 @@ pub async fn list_initial_webhook_delivery_attempts(
         state,
         &req,
         request_internal,
-        |state, _, request_internal| {
+        |state, _, request_internal, _| {
             webhook_events::list_initial_delivery_attempts(
                 state,
                 request_internal.merchant_id_or_profile_id,
@@ -71,7 +71,7 @@ pub async fn list_webhook_delivery_attempts(
         state,
         &req,
         request_internal,
-        |state, _, request_internal| {
+        |state, _, request_internal, _| {
             webhook_events::list_delivery_attempts(
                 state,
                 request_internal.merchant_id_or_profile_id,
@@ -110,7 +110,7 @@ pub async fn retry_webhook_delivery_attempt(
         state,
         &req,
         request_internal,
-        |state, _, request_internal| {
+        |state, _, request_internal, _| {
             webhook_events::retry_delivery_attempt(
                 state,
                 request_internal.merchant_id_or_profile_id,

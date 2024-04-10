@@ -347,12 +347,17 @@ pub async fn payouts_update_core(
         entity_type: req.entity_type.unwrap_or(payouts.entity_type),
         metadata: req.metadata.clone().or(payouts.metadata.clone()),
         status: Some(status),
-        profile_id: Some(payout_attempt.profile_id),
+        profile_id: Some(payout_attempt.profile_id.clone()),
     };
 
     let db = &*state.store;
     payout_data.payouts = db
-        .update_payout(&payouts, updated_payouts, merchant_account.storage_scheme)
+        .update_payout(
+            &payouts,
+            updated_payouts,
+            &payout_attempt,
+            merchant_account.storage_scheme,
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error updating payouts")?;
@@ -385,6 +390,7 @@ pub async fn payouts_update_core(
                 .update_payout_attempt(
                     &payout_attempt,
                     updated_payout_attempt,
+                    &payout_data.payouts,
                     merchant_account.storage_scheme,
                 )
                 .await
@@ -517,6 +523,7 @@ pub async fn payouts_cancel_core(
             .update_payout_attempt(
                 &payout_attempt,
                 updated_payout_attempt,
+                &payout_data.payouts,
                 merchant_account.storage_scheme,
             )
             .await
@@ -527,6 +534,7 @@ pub async fn payouts_cancel_core(
             .update_payout(
                 &payout_data.payouts,
                 storage::PayoutsUpdate::StatusUpdate { status },
+                &payout_data.payout_attempt,
                 merchant_account.storage_scheme,
             )
             .await
@@ -867,6 +875,7 @@ pub async fn call_connector_payout(
         db.update_payout_attempt(
             &payout_data.payout_attempt,
             updated_payout_attempt,
+            payouts,
             merchant_account.storage_scheme,
         )
         .await
@@ -1128,6 +1137,7 @@ pub async fn check_payout_eligibility(
                 .update_payout_attempt(
                     payout_attempt,
                     updated_payout_attempt,
+                    &payout_data.payouts,
                     merchant_account.storage_scheme,
                 )
                 .await
@@ -1137,6 +1147,7 @@ pub async fn check_payout_eligibility(
                 .update_payout(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
+                    &payout_data.payout_attempt,
                     merchant_account.storage_scheme,
                 )
                 .await
@@ -1163,6 +1174,7 @@ pub async fn check_payout_eligibility(
                 .update_payout_attempt(
                     &payout_data.payout_attempt,
                     updated_payout_attempt,
+                    &payout_data.payouts,
                     merchant_account.storage_scheme,
                 )
                 .await
@@ -1172,6 +1184,7 @@ pub async fn check_payout_eligibility(
                 .update_payout(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
+                    &payout_data.payout_attempt,
                     merchant_account.storage_scheme,
                 )
                 .await
@@ -1246,6 +1259,7 @@ pub async fn create_payout(
                 .update_payout_attempt(
                     payout_attempt,
                     updated_payout_attempt,
+                    &payout_data.payouts,
                     merchant_account.storage_scheme,
                 )
                 .await
@@ -1255,6 +1269,7 @@ pub async fn create_payout(
                 .update_payout(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
+                    &payout_data.payout_attempt,
                     merchant_account.storage_scheme,
                 )
                 .await
@@ -1281,6 +1296,7 @@ pub async fn create_payout(
                 .update_payout_attempt(
                     &payout_data.payout_attempt,
                     updated_payout_attempt,
+                    &payout_data.payouts,
                     merchant_account.storage_scheme,
                 )
                 .await
@@ -1290,6 +1306,7 @@ pub async fn create_payout(
                 .update_payout(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
+                    &payout_data.payout_attempt,
                     merchant_account.storage_scheme,
                 )
                 .await
@@ -1357,6 +1374,7 @@ pub async fn cancel_payout(
                 .update_payout_attempt(
                     &payout_data.payout_attempt,
                     updated_payout_attempt,
+                    &payout_data.payouts,
                     merchant_account.storage_scheme,
                 )
                 .await
@@ -1366,6 +1384,7 @@ pub async fn cancel_payout(
                 .update_payout(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
+                    &payout_data.payout_attempt,
                     merchant_account.storage_scheme,
                 )
                 .await
@@ -1385,6 +1404,7 @@ pub async fn cancel_payout(
                 .update_payout_attempt(
                     &payout_data.payout_attempt,
                     updated_payout_attempt,
+                    &payout_data.payouts,
                     merchant_account.storage_scheme,
                 )
                 .await
@@ -1394,6 +1414,7 @@ pub async fn cancel_payout(
                 .update_payout(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
+                    &payout_data.payout_attempt,
                     merchant_account.storage_scheme,
                 )
                 .await
@@ -1479,6 +1500,7 @@ pub async fn fulfill_payout(
                 .update_payout_attempt(
                     payout_attempt,
                     updated_payout_attempt,
+                    &payout_data.payouts,
                     merchant_account.storage_scheme,
                 )
                 .await
@@ -1488,6 +1510,7 @@ pub async fn fulfill_payout(
                 .update_payout(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
+                    &payout_data.payout_attempt,
                     merchant_account.storage_scheme,
                 )
                 .await
@@ -1514,6 +1537,7 @@ pub async fn fulfill_payout(
                 .update_payout_attempt(
                     &payout_data.payout_attempt,
                     updated_payout_attempt,
+                    &payout_data.payouts,
                     merchant_account.storage_scheme,
                 )
                 .await
@@ -1523,6 +1547,7 @@ pub async fn fulfill_payout(
                 .update_payout(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
+                    &payout_data.payout_attempt,
                     merchant_account.storage_scheme,
                 )
                 .await
@@ -1730,7 +1755,11 @@ pub async fn payout_create_db_entries(
         ..Default::default()
     };
     let payout_attempt = db
-        .insert_payout_attempt(payout_attempt_req, merchant_account.storage_scheme)
+        .insert_payout_attempt(
+            payout_attempt_req,
+            &payouts,
+            merchant_account.storage_scheme,
+        )
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayout {
             payout_id: payout_id.to_owned(),

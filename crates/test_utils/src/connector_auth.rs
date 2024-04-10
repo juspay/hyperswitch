@@ -69,6 +69,7 @@ pub struct ConnectorAuthentication {
     pub worldpay: Option<BodyKey>,
     pub worldline: Option<SignatureKey>,
     pub zen: Option<HeaderKey>,
+    pub zsl: Option<BodyKey>,
     pub automation_configs: Option<AutomationConfigs>,
 }
 
