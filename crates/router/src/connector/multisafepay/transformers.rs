@@ -349,12 +349,10 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                     utils::get_unimplemented_payment_method_error_message("multisafepay"),
                 ))?,
             }),
-            domain::PaymentMethodData::PayLater(
-                api_models::payments::PayLaterData::KlarnaRedirect {
-                    billing_email: _,
-                    billing_country: _,
-                },
-            ) => Some(Gateway::Klarna),
+            domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaRedirect {
+                billing_email: _,
+                billing_country: _,
+            }) => Some(Gateway::Klarna),
             domain::PaymentMethodData::MandatePayment => None,
             domain::PaymentMethodData::CardRedirect(_)
             | domain::PaymentMethodData::PayLater(_)
@@ -482,20 +480,19 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
             domain::PaymentMethodData::PayLater(ref paylater) => {
                 Some(GatewayInfo::PayLater(PayLaterInfo {
                     email: Some(match paylater {
-                        api_models::payments::PayLaterData::KlarnaRedirect {
-                            billing_email,
-                            ..
-                        } => billing_email.clone(),
-                        api_models::payments::PayLaterData::KlarnaSdk { token: _ }
-                        | api_models::payments::PayLaterData::AffirmRedirect {}
-                        | api_models::payments::PayLaterData::AfterpayClearpayRedirect {
+                        domain::PayLaterData::KlarnaRedirect { billing_email, .. } => {
+                            billing_email.clone()
+                        }
+                        domain::PayLaterData::KlarnaSdk { token: _ }
+                        | domain::PayLaterData::AffirmRedirect {}
+                        | domain::PayLaterData::AfterpayClearpayRedirect {
                             billing_email: _,
                             billing_name: _,
                         }
-                        | api_models::payments::PayLaterData::PayBrightRedirect {}
-                        | api_models::payments::PayLaterData::WalleyRedirect {}
-                        | api_models::payments::PayLaterData::AlmaRedirect {}
-                        | api_models::payments::PayLaterData::AtomeRedirect {} => {
+                        | domain::PayLaterData::PayBrightRedirect {}
+                        | domain::PayLaterData::WalleyRedirect {}
+                        | domain::PayLaterData::AlmaRedirect {}
+                        | domain::PayLaterData::AtomeRedirect {} => {
                             Err(errors::ConnectorError::NotImplemented(
                                 utils::get_unimplemented_payment_method_error_message(
                                     "multisafepay",

@@ -41,6 +41,7 @@ pub async fn save_payment_method<F: Clone, FData>(
     key_store: &domain::MerchantKeyStore,
     amount: Option<i64>,
     currency: Option<storage_enums::Currency>,
+    profile_id: Option<String>,
 ) -> RouterResult<(Option<String>, Option<common_enums::PaymentMethodStatus>)>
 where
     FData: mandate::MandateBehaviour,
@@ -63,6 +64,35 @@ where
                 }
                 _ => None,
             };
+
+            let network_transaction_id =
+                if let Some(network_transaction_id) = network_transaction_id {
+                    let profile_id = profile_id
+                        .as_ref()
+                        .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?;
+
+                    let pg_agnostic = state
+                        .store
+                        .find_config_by_key_unwrap_or(
+                            &format!("pg_agnostic_mandate_{}", profile_id),
+                            Some("false".to_string()),
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("The pg_agnostic config was not found in the DB")?;
+
+                    if &pg_agnostic.config == "true"
+                        && resp.request.get_setup_future_usage()
+                            == Some(storage_enums::FutureUsage::OffSession)
+                    {
+                        Some(network_transaction_id)
+                    } else {
+                        logger::info!("Skip storing network transaction id");
+                        None
+                    }
+                } else {
+                    None
+                };
 
             let connector_token = if token_store {
                 let tokens = resp
@@ -134,11 +164,18 @@ where
 
             let pm_id = if customer_acceptance.is_some() {
                 let customer = maybe_customer.to_owned().get_required_value("customer")?;
+                let billing_name = resp
+                    .address
+                    .get_payment_method_billing()
+                    .and_then(|billing_details| billing_details.address.as_ref())
+                    .and_then(|address| address.get_optional_full_name());
+
                 let payment_method_create_request = helpers::get_payment_method_create_request(
                     Some(&resp.request.get_payment_method_data()),
                     Some(resp.payment_method),
                     payment_method_type,
                     &customer,
+                    billing_name,
                 )
                 .await?;
                 let merchant_id = &merchant_account.merchant_id;
@@ -511,7 +548,7 @@ async fn skip_saving_card_in_locker(
     let card_isin = payment_method_request
         .card
         .clone()
-        .map(|c: api_models::payment_methods::CardDetail| c.card_number.get_card_isin());
+        .map(|c| c.card_number.get_card_isin());
 
     match payment_method_request.card.clone() {
         Some(card) => {

@@ -88,6 +88,7 @@ impl ForeignFrom<diesel_models::PaymentMethod> for payment_methods::PaymentMetho
             payment_experience: None,
             metadata: item.metadata,
             created: Some(item.created_at),
+            #[cfg(feature = "payouts")]
             bank_transfer: None,
             last_used_at: None,
             client_secret: item.client_secret,
@@ -477,6 +478,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::CimbVa
             | api_enums::PaymentMethodType::DanamonVa
             | api_enums::PaymentMethodType::MandiriVa
+            | api_enums::PaymentMethodType::LocalBankTransfer
             | api_enums::PaymentMethodType::Pix => Self::BankTransfer,
             api_enums::PaymentMethodType::Givex | api_enums::PaymentMethodType::PaySafeCard => {
                 Self::GiftCard

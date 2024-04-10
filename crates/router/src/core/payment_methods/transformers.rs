@@ -27,6 +27,15 @@ pub enum StoreLockerReq<'a> {
     LockerGeneric(StoreGenericReq<'a>),
 }
 
+impl StoreLockerReq<'_> {
+    pub fn update_requestor_card_reference(&mut self, card_reference: Option<String>) {
+        match self {
+            Self::LockerCard(c) => c.requestor_card_reference = card_reference,
+            Self::LockerGeneric(_) => (),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct StoreCardReq<'a> {
     pub merchant_id: &'a str,

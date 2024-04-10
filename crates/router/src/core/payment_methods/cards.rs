@@ -123,7 +123,7 @@ pub async fn create_payment_method(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to add payment method in db")?;
 
-    if customer.default_payment_method_id.is_none() {
+    if customer.default_payment_method_id.is_none() && req.payment_method.is_some() {
         let _ = set_default_payment_method(
             db,
             merchant_id.to_string(),
@@ -239,7 +239,12 @@ pub async fn get_client_secret_or_add_payment_method(
     let merchant_id = &merchant_account.merchant_id;
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
 
-    if req.card.is_some() || req.bank_transfer.is_some() || req.wallet.is_some() {
+    #[cfg(not(feature = "payouts"))]
+    let condition = req.card.is_some();
+    #[cfg(feature = "payouts")]
+    let condition = req.card.is_some() || req.bank_transfer.is_some() || req.wallet.is_some();
+
+    if condition {
         add_payment_method(state, req, merchant_account, key_store).await
     } else {
         let payment_method_id = generate_id(consts::ID_LENGTH, "pm");
@@ -276,7 +281,9 @@ pub fn authenticate_pm_client_secret_and_check_expiry(
         .client_secret
         .clone()
         .get_required_value("client_secret")
-        .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
+        .change_context(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "client_secret",
+        })
         .attach_printable("client secret not found in db")?;
 
     if req_client_secret != &stored_client_secret {
@@ -323,20 +330,19 @@ pub async fn add_payment_method_data(
     }
 
     let customer_id = payment_method.customer_id.clone();
+    let customer = db
+        .find_customer_by_customer_id_merchant_id(
+            customer_id.as_str(),
+            &merchant_account.merchant_id,
+            &key_store,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
     let client_secret_expired =
         authenticate_pm_client_secret_and_check_expiry(&client_secret, &payment_method)?;
 
     if client_secret_expired {
-        let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
-            status: Some(enums::PaymentMethodStatus::Inactive),
-        };
-
-        db.update_payment_method(payment_method, pm_update)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to add payment method in db")?;
-
         return Err((errors::ApiErrorResponse::ClientSecretExpired).into());
     };
 
@@ -372,7 +378,7 @@ pub async fn add_payment_method_data(
                         return Ok(services::ApplicationResponse::Json(pm_resp));
                     } else {
                         let locker_id = pm_resp.payment_method_id.clone();
-                        pm_resp.payment_method_id = pm_id;
+                        pm_resp.payment_method_id = pm_id.clone();
                         pm_resp.client_secret = Some(client_secret.clone());
 
                         let card_isin = card.card_number.clone().get_card_isin();
@@ -415,6 +421,18 @@ pub async fn add_payment_method_data(
                             .change_context(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable("Failed to add payment method in db")?;
 
+                        if customer.default_payment_method_id.is_none() {
+                            let _ = set_default_payment_method(
+                                db,
+                                merchant_account.merchant_id.clone(),
+                                key_store.clone(),
+                                customer_id.as_str(),
+                               pm_id,
+                            )
+                            .await
+                            .map_err(|err| logger::error!(error=?err,"Failed to set the payment method as default"));
+                        }
+
                         return Ok(services::ApplicationResponse::Json(pm_resp));
                     }
                 }
@@ -449,6 +467,7 @@ pub async fn add_payment_method(
     let payment_method = req.payment_method.get_required_value("payment_method")?;
 
     let response = match payment_method {
+        #[cfg(feature = "payouts")]
         api_enums::PaymentMethod::BankTransfer => match req.bank_transfer.clone() {
             Some(bank) => add_bank_to_locker(
                 &state,
@@ -1346,10 +1365,11 @@ pub async fn mock_delete_card<'a>(
 //------------------------------------------------------------------------------
 pub fn get_banks(
     state: &routes::AppState,
-    pm_type: api_enums::PaymentMethodType,
+    pm_type: common_enums::enums::PaymentMethodType,
     connectors: Vec<String>,
 ) -> Result<Vec<BankCodeResponse>, errors::ApiErrorResponse> {
-    let mut bank_names_hm: HashMap<String, HashSet<api_enums::BankNames>> = HashMap::new();
+    let mut bank_names_hm: HashMap<String, HashSet<common_enums::enums::BankNames>> =
+        HashMap::new();
 
     if matches!(
         pm_type,
@@ -1542,7 +1562,7 @@ pub async fn list_payment_methods(
             Some(api::MandateTransactionType::RecurringMandateTransaction)
         } else if pa.mandate_details.is_some()
             || setup_future_usage
-                .map(|future_usage| future_usage == api_enums::FutureUsage::OffSession)
+                .map(|future_usage| future_usage == common_enums::enums::FutureUsage::OffSession)
                 .unwrap_or(false)
         {
             Some(api::MandateTransactionType::NewMandateTransaction)
@@ -3513,6 +3533,9 @@ pub async fn set_default_payment_method(
         .find_payment_method(&payment_method_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+    let pm = payment_method
+        .payment_method
+        .get_required_value("payment_method")?;
 
     utils::when(
         payment_method.customer_id != customer_id || payment_method.merchant_id != merchant_id,
@@ -3547,10 +3570,6 @@ pub async fn set_default_payment_method(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update the default payment method id for the customer")?;
-
-    let pm = payment_method
-        .payment_method
-        .get_required_value("payment_method")?;
 
     let resp = CustomerDefaultPaymentMethodResponse {
         default_payment_method_id: updated_customer_details.default_payment_method_id,

@@ -2,6 +2,7 @@ use std::num::{ParseFloatError, TryFromIntError};
 
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+
 #[doc(hidden)]
 pub mod diesel_exports {
     pub use super::{
@@ -127,6 +128,7 @@ pub enum RoutableConnectors {
     Cryptopay,
     Cybersource,
     Dlocal,
+    // Ebanx,
     Fiserv,
     Forte,
     Globalpay,
@@ -1423,6 +1425,7 @@ pub enum PaymentMethodType {
     FamilyMart,
     Seicomart,
     PayEasy,
+    LocalBankTransfer,
 }
 
 /// Indicates the type of payment method. Eg: 'card', 'wallet', etc.

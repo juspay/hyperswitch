@@ -53,7 +53,7 @@ where
         Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
     })?;
 
-    let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
+    let test_mode = merchant_connector_account.is_test_mode_on();
 
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
@@ -883,23 +883,23 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
 }
 
 #[cfg(feature = "payouts")]
-impl ForeignFrom<(storage::Payouts, storage::PayoutAttempt)> for api::PayoutCreateResponse {
-    fn foreign_from(item: (storage::Payouts, storage::PayoutAttempt)) -> Self {
-        let payout = item.0;
-        let payout_attempt = item.1;
+impl ForeignFrom<(storage::Payouts, storage::PayoutAttempt, domain::Customer)>
+    for api::PayoutCreateResponse
+{
+    fn foreign_from(item: (storage::Payouts, storage::PayoutAttempt, domain::Customer)) -> Self {
+        let (payout, payout_attempt, customer) = item;
         let attempt = PayoutAttemptResponse {
             attempt_id: payout_attempt.payout_attempt_id,
             status: payout_attempt.status,
             amount: payout.amount,
             currency: Some(payout.destination_currency),
             connector: payout_attempt.connector.clone(),
-            error_code: payout_attempt.error_code,
-            error_message: payout_attempt.error_message,
+            error_code: payout_attempt.error_code.clone(),
+            error_message: payout_attempt.error_message.clone(),
             payment_method: Some(payout.payout_type),
             payout_method_type: None,
             connector_transaction_id: Some(payout_attempt.connector_payout_id),
             cancellation_reason: None,
-            payout_token: payout_attempt.payout_token,
             unified_code: None,
             unified_message: None,
         };
@@ -907,20 +907,31 @@ impl ForeignFrom<(storage::Payouts, storage::PayoutAttempt)> for api::PayoutCrea
         Self {
             payout_id: payout.payout_id,
             merchant_id: payout.merchant_id,
-            status: payout.status,
             amount: payout.amount,
-            created: Some(payout.created_at),
             currency: payout.destination_currency,
-            description: payout.description,
-            metadata: payout.metadata,
-            customer_id: payout.customer_id,
             connector: payout_attempt.connector,
             payout_type: payout.payout_type,
-            business_label: payout_attempt.business_label,
+            customer_id: customer.customer_id,
+            auto_fulfill: payout.auto_fulfill,
+            email: customer.email,
+            name: customer.name,
+            phone: customer.phone,
+            phone_country_code: customer.phone_country_code,
+            return_url: payout.return_url,
             business_country: payout_attempt.business_country,
+            business_label: payout_attempt.business_label,
+            description: payout.description,
+            entity_type: payout.entity_type,
             recurring: payout.recurring,
+            metadata: payout.metadata,
+            status: payout_attempt.status,
+            error_message: payout_attempt.error_message,
+            error_code: payout_attempt.error_code,
+            profile_id: payout.profile_id,
+            created: Some(payout.created_at),
             attempts: Some(attempts),
-            ..Default::default()
+            billing: None,
+            client_secret: None,
         }
     }
 }

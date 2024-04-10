@@ -53,6 +53,7 @@ impl Feature<api::Void, types::PaymentsCancelData>
         _merchant_account: &domain::MerchantAccount,
         connector_request: Option<services::Request>,
         _key_store: &domain::MerchantKeyStore,
+        _profile_id: Option<String>,
     ) -> RouterResult<Self> {
         metrics::PAYMENT_CANCEL_COUNT.add(
             &metrics::CONTEXT,
