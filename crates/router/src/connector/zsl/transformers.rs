@@ -663,10 +663,9 @@ impl TryFrom<String> for ZslResponseStatus {
     }
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, strum::Display)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, strum::Display)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ZslResponseStatus {
-    #[default]
     Normal,
     InternalError,
     BreakDownMessageError,
