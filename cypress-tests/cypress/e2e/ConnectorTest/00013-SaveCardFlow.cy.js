@@ -11,7 +11,6 @@ describe("Card - NoThreeDS payment flow test", () => {
     before("seed global state",  () => {
       
       cy.task('getGlobalState').then((state) => {
-        // visit non same-origin url https://www.cypress-dx.com
         globalState = new State(state);
         console.log("seeding globalState -> " + JSON.stringify(globalState));
       })
@@ -29,7 +28,6 @@ describe("Card - NoThreeDS payment flow test", () => {
       });
   
       it("create+confirm-payment-call-test", () => {
-        console.log("confirm -> " + globalState.get("connectorId"));
         let det = getConnectorDetails(globalState.get("connectorId"))["SaveCardUseNo3DS"];
         cy.createConfirmPaymentTest( createConfirmPaymentBody, det,"no_three_ds", "automatic", globalState);
       });
@@ -60,7 +58,6 @@ describe("Card - NoThreeDS payment flow test", () => {
         });
     
         it("create+confirm-payment-call-test", () => {
-          console.log("confirm -> " + globalState.get("connectorId"));
           let det = getConnectorDetails(globalState.get("connectorId"))["SaveCardUseNo3DS"];
           cy.createConfirmPaymentTest( createConfirmPaymentBody, det,"no_three_ds", "automatic", globalState);
         });
@@ -100,7 +97,6 @@ describe("Card - NoThreeDS payment flow test", () => {
         });
     
         it("create+confirm-payment-call-test", () => {
-          console.log("confirm -> " + globalState.get("connectorId"));
           let det = getConnectorDetails(globalState.get("connectorId"))["SaveCardUseNo3DS"];
           cy.createConfirmPaymentTest( createConfirmPaymentBody, det,"no_three_ds", "automatic", globalState);
         });

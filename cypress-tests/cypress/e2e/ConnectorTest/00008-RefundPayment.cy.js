@@ -316,10 +316,9 @@ describe("Card - Refund flow test", () => {
     context("Card - Full Refund for Create + Confirm Automatic CIT and MIT payment flow test", () => {
 
         it("Confirm No 3DS CIT", () => {
-            console.log("confirm -> " + globalState.get("connectorId"));
             let det = getConnectorDetails(globalState.get("connectorId"))["MandateMultiUseNo3DS"];
             console.log("det -> " + det.card);
-            cy.citForMandatesCallTest(citConfirmBody, det, true, "automatic", globalState);
+            cy.citForMandatesCallTest(citConfirmBody, 7000, det, true, "automatic", "new_mandate", globalState);
         });
 
         it("Confirm No 3DS MIT", () => {

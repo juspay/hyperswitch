@@ -26,7 +26,7 @@
 
 // commands.js or your custom support file
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
-import ConnectorAuthDetails from "../../../.github/secrets/creds.json";
+import ConnectorAuthDetails from "/Users/gnanasundarig/Documents/JuspayCode/hs-test-automation/creds.json";
 
 
 
@@ -46,6 +46,13 @@ Cypress.Commands.add("merchantCreateCallTest", (merchantCreateBody, globalState)
     },
     body: merchantCreateBody,
   }).then((response) => {
+
+    const xRequestId = response.headers['x-request-id'];
+    if (xRequestId) {
+      cy.task('cli_log', "x-request-id ->> " + xRequestId);
+    } else {
+      cy.task('cli_log', "x-request-id is not available in the response headers");
+    }
     // Handle the response as needed
     console.log(response.body);
     globalState.set("publishableKey", response.body.publishable_key);
@@ -63,6 +70,13 @@ Cypress.Commands.add("apiKeyCreateTest", (apiKeyCreateBody, globalState) => {
     },
     body: apiKeyCreateBody,
   }).then((response) => {
+
+    const xRequestId = response.headers['x-request-id'];
+    if (xRequestId) {
+      cy.task('cli_log', "x-request-id ->> " + xRequestId);
+    } else {
+      cy.task('cli_log', "x-request-id is not available in the response headers");
+    }
     // Handle the response as needed
     console.log(response.body);
     globalState.set("apiKey", response.body.api_key);
@@ -124,6 +138,13 @@ Cypress.Commands.add("createCustomerCallTest", (customerCreateBody, globalState)
     },
     body: customerCreateBody,
   }).then((response) => {
+
+    const xRequestId = response.headers['x-request-id'];
+    if (xRequestId) {
+      cy.task('cli_log', "x-request-id ->> " + xRequestId);
+    } else {
+      cy.task('cli_log', "x-request-id is not available in the response headers");
+    }
     // Handle the response as needed
     console.log(response);
 
@@ -151,6 +172,12 @@ Cypress.Commands.add("createPaymentIntentTest", (request, det, authentication_ty
     },
     body: request,
   }).then((response) => {
+    const xRequestId = response.headers['x-request-id'];
+    if (xRequestId) {
+      cy.task('cli_log', "x-request-id ->> " + xRequestId);
+    } else {
+      cy.task('cli_log', "x-request-id is not available in the response headers");
+    }
     expect(response.headers["content-type"]).to.include("application/json");
     expect(response.body).to.have.property("client_secret");
     const clientSecret = response.body.client_secret;
@@ -176,6 +203,12 @@ Cypress.Commands.add("paymentMethodsCallTest", (globalState) => {
       "api-key": globalState.get("publishableKey"),
     },
   }).then((response) => {
+    const xRequestId = response.headers['x-request-id'];
+    if (xRequestId) {
+      cy.task('cli_log', "x-request-id ->> " + xRequestId);
+    } else {
+      cy.task('cli_log', "x-request-id is not available in the response headers");
+    }
     console.log(response);
     expect(response.headers["content-type"]).to.include("application/json");
     expect(response.body).to.have.property("redirect_url");
@@ -202,6 +235,12 @@ Cypress.Commands.add("confirmCallTest", (confirmBody, details, confirm, globalSt
     },
     body: confirmBody,
   }).then((response) => {
+    const xRequestId = response.headers['x-request-id'];
+    if (xRequestId) {
+      cy.task('cli_log', "x-request-id ->> " + xRequestId);
+    } else {
+      cy.task('cli_log', "x-request-id is not available in the response headers");
+    }
     expect(response.headers["content-type"]).to.include("application/json");
     console.log(response.body);
     globalState.set("paymentID", paymentIntentID);
@@ -253,6 +292,12 @@ Cypress.Commands.add("createConfirmPaymentTest", (createConfirmPaymentBody, deta
     },
     body: createConfirmPaymentBody,
   }).then((response) => {
+    const xRequestId = response.headers['x-request-id'];
+    if (xRequestId) {
+      cy.task('cli_log', "x-request-id ->> " + xRequestId);
+    } else {
+      cy.task('cli_log', "x-request-id is not available in the response headers");
+    }
     expect(response.headers["content-type"]).to.include("application/json");
     expect(response.body).to.have.property("status");
     console.log(response.body);
@@ -301,6 +346,12 @@ Cypress.Commands.add("saveCardConfirmCallTest", (confirmBody,det,globalState) =>
     body: confirmBody,
   })
   .then((response) => {
+    const xRequestId = response.headers['x-request-id'];
+    if (xRequestId) {
+      cy.task('cli_log', "x-request-id ->> " + xRequestId);
+    } else {
+      cy.task('cli_log', "x-request-id is not available in the response headers");
+    }
     expect(response.headers["content-type"]).to.include("application/json");
     console.log(response.body);
     globalState.set("paymentID", paymentIntentID);
@@ -349,6 +400,12 @@ Cypress.Commands.add("captureCallTest", (requestBody, amount_to_capture, payment
     },
     body: requestBody,
   }).then((response) => {
+    const xRequestId = response.headers['x-request-id'];
+    if (xRequestId) {
+      cy.task('cli_log', "x-request-id ->> " + xRequestId);
+    } else {
+      cy.task('cli_log', "x-request-id is not available in the response headers");
+    }
     expect(response.headers["content-type"]).to.include("application/json");
     expect(response.body.payment_id).to.equal(payment_id);
     console.log(response.body);
@@ -383,6 +440,12 @@ Cypress.Commands.add("voidCallTest", (requestBody, globalState) => {
     },
     body: requestBody,
   }).then((response) => {
+    const xRequestId = response.headers['x-request-id'];
+    if (xRequestId) {
+      cy.task('cli_log', "x-request-id ->> " + xRequestId);
+    } else {
+      cy.task('cli_log', "x-request-id is not available in the response headers");
+    }
     expect(response.headers["content-type"]).to.include("application/json");
     expect(response.body.payment_id).to.equal(payment_id);
     expect(response.body.amount).to.equal(globalState.get("paymentAmount"));
@@ -404,6 +467,12 @@ Cypress.Commands.add("retrievePaymentCallTest", (globalState) => {
       "api-key": globalState.get("apiKey"),
     },
   }).then((response) => {
+    const xRequestId = response.headers['x-request-id'];
+    if (xRequestId) {
+      cy.task('cli_log', "x-request-id ->> " + xRequestId);
+    } else {
+      cy.task('cli_log', "x-request-id is not available in the response headers");
+    }
     expect(response.headers["content-type"]).to.include("application/json");
     console.log(response.body);
     expect(response.body.payment_id).to.equal(payment_id);
@@ -426,6 +495,12 @@ Cypress.Commands.add("refundCallTest", (requestBody, refund_amount, det, globalS
     },
     body: requestBody
   }).then((response) => {
+    const xRequestId = response.headers['x-request-id'];
+    if (xRequestId) {
+      cy.task('cli_log', "x-request-id ->> " + xRequestId);
+    } else {
+      cy.task('cli_log', "x-request-id is not available in the response headers");
+    }
     expect(response.headers["content-type"]).to.include("application/json");
     console.log(response.body);
     globalState.set("refundId", response.body.refund_id);
@@ -445,15 +520,22 @@ Cypress.Commands.add("syncRefundCallTest", (det, globalState) => {
       "api-key": globalState.get("apiKey"),
     },
   }).then((response) => {
+    const xRequestId = response.headers['x-request-id'];
+    if (xRequestId) {
+      cy.task('cli_log', "x-request-id ->> " + xRequestId);
+    } else {
+      cy.task('cli_log', "x-request-id is not available in the response headers");
+    }
     expect(response.headers["content-type"]).to.include("application/json");
     console.log(response.body);
     expect(response.body.status).to.equal(det.refundSyncStatus);
   });
 });
 
-Cypress.Commands.add("citForMandatesCallTest", (requestBody,amount, details, confirm, capture_method, globalState) => {
+Cypress.Commands.add("citForMandatesCallTest", (requestBody,amount, details, confirm, capture_method, payment_type, globalState) => {
 
   requestBody.payment_method_data.card = details.card;
+  requestBody.payment_type=payment_type;
   requestBody.confirm = confirm;
   requestBody.amount = amount;
   requestBody.currency = details.currency;
@@ -470,6 +552,12 @@ Cypress.Commands.add("citForMandatesCallTest", (requestBody,amount, details, con
     },
     body: requestBody,
   }).then((response) => {
+    const xRequestId = response.headers['x-request-id'];
+    if (xRequestId) {
+      cy.task('cli_log', "x-request-id ->> " + xRequestId);
+    } else {
+      cy.task('cli_log', "x-request-id is not available in the response headers");
+    }
     expect(response.headers["content-type"]).to.include("application/json");
     expect(response.body).to.have.property("mandate_id");
     console.log(response.body);
@@ -521,6 +609,12 @@ Cypress.Commands.add("mitForMandatesCallTest", (requestBody, amount, confirm, ca
     },
     body: requestBody,
   }).then((response) => {
+    const xRequestId = response.headers['x-request-id'];
+    if (xRequestId) {
+      cy.task('cli_log', "x-request-id ->> " + xRequestId);
+    } else {
+      cy.task('cli_log', "x-request-id is not available in the response headers");
+    }
     expect(response.headers["content-type"]).to.include("application/json");
     globalState.set("paymentID", response.body.payment_id);
     console.log(response.body);
@@ -567,6 +661,12 @@ Cypress.Commands.add("listMandateCallTest", (globalState) => {
       "api-key": globalState.get("apiKey"),
     },
   }).then((response) => {
+    const xRequestId = response.headers['x-request-id'];
+    if (xRequestId) {
+      cy.task('cli_log', "x-request-id ->> " + xRequestId);
+    } else {
+      cy.task('cli_log', "x-request-id is not available in the response headers");
+    }
     expect(response.headers["content-type"]).to.include("application/json");
     console.log(response.body);
     let i = 0;
@@ -589,6 +689,12 @@ Cypress.Commands.add("revokeMandateCallTest", (globalState) => {
     },
     failOnStatusCode: false
   }).then((response) => {
+    const xRequestId = response.headers['x-request-id'];
+    if (xRequestId) {
+      cy.task('cli_log', "x-request-id ->> " + xRequestId);
+    } else {
+      cy.task('cli_log', "x-request-id is not available in the response headers");
+    }
     expect(response.headers["content-type"]).to.include("application/json");
     console.log(response.body);
     if (response.body.status === 200) {
@@ -641,6 +747,12 @@ Cypress.Commands.add("listCustomerPMCallTest", (globalState) => {
       "api-key": globalState.get("apiKey"),
     },
   }).then((response) => {
+    const xRequestId = response.headers['x-request-id'];
+    if (xRequestId) {
+      cy.task('cli_log', "x-request-id ->> " + xRequestId);
+    } else {
+      cy.task('cli_log', "x-request-id is not available in the response headers");
+    }
     expect(response.headers["content-type"]).to.include("application/json");
     console.log(response.body);
     if (response.body.customer_payment_methods[0]?.payment_token) {
@@ -664,6 +776,12 @@ Cypress.Commands.add("listRefundCallTest", (globalState) => {
     },
     body:{"offset":0}
   }).then((response) => {
+    const xRequestId = response.headers['x-request-id'];
+    if (xRequestId) {
+      cy.task('cli_log', "x-request-id ->> " + xRequestId);
+    } else {
+      cy.task('cli_log', "x-request-id is not available in the response headers");
+    }
     expect(response.headers["content-type"]).to.include("application/json");
     console.log(response.body);
     expect(response.body.data).to.be.an('array').and.not.empty;
