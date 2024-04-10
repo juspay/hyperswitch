@@ -234,8 +234,8 @@ impl TryFrom<&ZslRouterData<&types::PaymentsAuthorizeRouterData>> for ZslPayment
             .request
             .browser_info
             .as_ref()
-            .and_then(|broswer_data| {
-                broswer_data.language.as_ref().map(|language| {
+            .and_then(|browser_data| {
+                browser_data.language.as_ref().map(|language| {
                     language
                         .split_once('-')
                         .map_or(language.to_uppercase(), |(lang, _)| lang.to_uppercase())
