@@ -10,7 +10,7 @@ impl utils::Connector for ZslTest {
         use router::connector::Zsl;
         types::api::ConnectorData {
             connector: Box::new(&Zsl),
-            connector_name: types::Connector::DummyConnector1,
+            connector_name: types::Connector::Adyen,
             // Added as Dummy connector as template code is added for future usage
             get_token: types::api::GetToken::Connector,
             merchant_connector_id: None,
