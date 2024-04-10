@@ -463,9 +463,9 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                 let payment_source = Some(PaymentSourceItem::Card(CardRequest {
                     billing_address: get_address_info(item.router_data.get_optional_billing())?,
                     expiry,
-                    name: ccard
-                        .card_holder_name
-                        .clone()
+                    name: item
+                        .router_data
+                        .get_optional_billing_full_name()
                         .unwrap_or(Secret::new("".to_string())),
                     number: Some(ccard.card_number.clone()),
                     security_code: Some(ccard.card_cvc.clone()),
@@ -657,14 +657,14 @@ impl TryFrom<&domain::PayLaterData> for PaypalPaymentsRequest {
     }
 }
 
-impl TryFrom<&api_models::payments::BankDebitData> for PaypalPaymentsRequest {
+impl TryFrom<&domain::BankDebitData> for PaypalPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: &api_models::payments::BankDebitData) -> Result<Self, Self::Error> {
+    fn try_from(value: &domain::BankDebitData) -> Result<Self, Self::Error> {
         match value {
-            api_models::payments::BankDebitData::AchBankDebit { .. }
-            | api_models::payments::BankDebitData::SepaBankDebit { .. }
-            | api_models::payments::BankDebitData::BecsBankDebit { .. }
-            | api_models::payments::BankDebitData::BacsBankDebit { .. } => {
+            domain::BankDebitData::AchBankDebit { .. }
+            | domain::BankDebitData::SepaBankDebit { .. }
+            | domain::BankDebitData::BecsBankDebit { .. }
+            | domain::BankDebitData::BacsBankDebit { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),
                 )
@@ -701,39 +701,36 @@ impl TryFrom<&api_models::payments::BankTransferData> for PaypalPaymentsRequest 
     }
 }
 
-impl TryFrom<&api_models::payments::VoucherData> for PaypalPaymentsRequest {
+impl TryFrom<&domain::VoucherData> for PaypalPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: &api_models::payments::VoucherData) -> Result<Self, Self::Error> {
+    fn try_from(value: &domain::VoucherData) -> Result<Self, Self::Error> {
         match value {
-            api_models::payments::VoucherData::Boleto(_)
-            | api_models::payments::VoucherData::Efecty
-            | api_models::payments::VoucherData::PagoEfectivo
-            | api_models::payments::VoucherData::RedCompra
-            | api_models::payments::VoucherData::RedPagos
-            | api_models::payments::VoucherData::Alfamart(_)
-            | api_models::payments::VoucherData::Indomaret(_)
-            | api_models::payments::VoucherData::Oxxo
-            | api_models::payments::VoucherData::SevenEleven(_)
-            | api_models::payments::VoucherData::Lawson(_)
-            | api_models::payments::VoucherData::MiniStop(_)
-            | api_models::payments::VoucherData::FamilyMart(_)
-            | api_models::payments::VoucherData::Seicomart(_)
-            | api_models::payments::VoucherData::PayEasy(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Paypal"),
-                )
-                .into())
-            }
+            domain::VoucherData::Boleto(_)
+            | domain::VoucherData::Efecty
+            | domain::VoucherData::PagoEfectivo
+            | domain::VoucherData::RedCompra
+            | domain::VoucherData::RedPagos
+            | domain::VoucherData::Alfamart(_)
+            | domain::VoucherData::Indomaret(_)
+            | domain::VoucherData::Oxxo
+            | domain::VoucherData::SevenEleven(_)
+            | domain::VoucherData::Lawson(_)
+            | domain::VoucherData::MiniStop(_)
+            | domain::VoucherData::FamilyMart(_)
+            | domain::VoucherData::Seicomart(_)
+            | domain::VoucherData::PayEasy(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Paypal"),
+            )
+            .into()),
         }
     }
 }
 
-impl TryFrom<&api_models::payments::GiftCardData> for PaypalPaymentsRequest {
+impl TryFrom<&domain::GiftCardData> for PaypalPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: &api_models::payments::GiftCardData) -> Result<Self, Self::Error> {
+    fn try_from(value: &domain::GiftCardData) -> Result<Self, Self::Error> {
         match value {
-            api_models::payments::GiftCardData::Givex(_)
-            | api_models::payments::GiftCardData::PaySafeCard {} => {
+            domain::GiftCardData::Givex(_) | domain::GiftCardData::PaySafeCard {} => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),
                 )
@@ -1544,8 +1541,35 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaypalCaptureResponse>>
     fn try_from(
         item: types::PaymentsCaptureResponseRouterData<PaypalCaptureResponse>,
     ) -> Result<Self, Self::Error> {
-        let amount_captured = item.data.request.amount_to_capture;
         let status = storage_enums::AttemptStatus::from(item.response.status);
+        let amount_captured = match status {
+            storage_enums::AttemptStatus::Pending
+            | storage_enums::AttemptStatus::Authorized
+            | storage_enums::AttemptStatus::Failure
+            | storage_enums::AttemptStatus::RouterDeclined
+            | storage_enums::AttemptStatus::AuthenticationFailed
+            | storage_enums::AttemptStatus::CaptureFailed
+            | storage_enums::AttemptStatus::Started
+            | storage_enums::AttemptStatus::AuthenticationPending
+            | storage_enums::AttemptStatus::AuthenticationSuccessful
+            | storage_enums::AttemptStatus::AuthorizationFailed
+            | storage_enums::AttemptStatus::Authorizing
+            | storage_enums::AttemptStatus::VoidInitiated
+            | storage_enums::AttemptStatus::CodInitiated
+            | storage_enums::AttemptStatus::CaptureInitiated
+            | storage_enums::AttemptStatus::VoidFailed
+            | storage_enums::AttemptStatus::AutoRefunded
+            | storage_enums::AttemptStatus::Unresolved
+            | storage_enums::AttemptStatus::PaymentMethodAwaited
+            | storage_enums::AttemptStatus::ConfirmationAwaited
+            | storage_enums::AttemptStatus::DeviceDataCollectionPending
+            | storage_enums::AttemptStatus::Voided => 0,
+            storage_enums::AttemptStatus::Charged
+            | storage_enums::AttemptStatus::PartialCharged
+            | storage_enums::AttemptStatus::PartialChargedAndChargeable => {
+                item.data.request.amount_to_capture
+            }
+        };
         let connector_payment_id: PaypalMeta =
             to_connector_meta(item.data.request.connector_meta.clone())?;
         Ok(Self {

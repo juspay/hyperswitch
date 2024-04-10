@@ -243,24 +243,24 @@ impl TryFrom<&api_models::payments::BankTransferData> for Shift4PaymentMethod {
     }
 }
 
-impl TryFrom<&api_models::payments::VoucherData> for Shift4PaymentMethod {
+impl TryFrom<&domain::VoucherData> for Shift4PaymentMethod {
     type Error = Error;
-    fn try_from(voucher_data: &api_models::payments::VoucherData) -> Result<Self, Self::Error> {
+    fn try_from(voucher_data: &domain::VoucherData) -> Result<Self, Self::Error> {
         match voucher_data {
-            payments::VoucherData::Boleto(_)
-            | payments::VoucherData::Efecty
-            | payments::VoucherData::PagoEfectivo
-            | payments::VoucherData::RedCompra
-            | payments::VoucherData::RedPagos
-            | payments::VoucherData::Alfamart(_)
-            | payments::VoucherData::Indomaret(_)
-            | payments::VoucherData::Oxxo
-            | payments::VoucherData::SevenEleven(_)
-            | payments::VoucherData::Lawson(_)
-            | payments::VoucherData::MiniStop(_)
-            | payments::VoucherData::FamilyMart(_)
-            | payments::VoucherData::Seicomart(_)
-            | payments::VoucherData::PayEasy(_) => Err(errors::ConnectorError::NotImplemented(
+            domain::VoucherData::Boleto(_)
+            | domain::VoucherData::Efecty
+            | domain::VoucherData::PagoEfectivo
+            | domain::VoucherData::RedCompra
+            | domain::VoucherData::RedPagos
+            | domain::VoucherData::Alfamart(_)
+            | domain::VoucherData::Indomaret(_)
+            | domain::VoucherData::Oxxo
+            | domain::VoucherData::SevenEleven(_)
+            | domain::VoucherData::Lawson(_)
+            | domain::VoucherData::MiniStop(_)
+            | domain::VoucherData::FamilyMart(_)
+            | domain::VoucherData::Seicomart(_)
+            | domain::VoucherData::PayEasy(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Shift4"),
             )
             .into()),
@@ -268,11 +268,11 @@ impl TryFrom<&api_models::payments::VoucherData> for Shift4PaymentMethod {
     }
 }
 
-impl TryFrom<&api_models::payments::GiftCardData> for Shift4PaymentMethod {
+impl TryFrom<&domain::GiftCardData> for Shift4PaymentMethod {
     type Error = Error;
-    fn try_from(gift_card_data: &api_models::payments::GiftCardData) -> Result<Self, Self::Error> {
+    fn try_from(gift_card_data: &domain::GiftCardData) -> Result<Self, Self::Error> {
         match gift_card_data {
-            payments::GiftCardData::Givex(_) | payments::GiftCardData::PaySafeCard {} => {
+            domain::GiftCardData::Givex(_) | domain::GiftCardData::PaySafeCard {} => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Shift4"),
                 )
@@ -299,9 +299,8 @@ impl<T>
             number: card.card_number.clone(),
             exp_month: card.card_exp_month.clone(),
             exp_year: card.card_exp_year.clone(),
-            cardholder_name: card
-                .card_holder_name
-                .clone()
+            cardholder_name: item
+                .get_optional_billing_full_name()
                 .unwrap_or(Secret::new("".to_string())),
         };
         if item.is_three_ds() {

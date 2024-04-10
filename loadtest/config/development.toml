@@ -131,6 +131,7 @@ worldpay.base_url = "https://try.access.worldpay.com/"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
 zen.base_url = "https://api.zen-test.com/"
 zen.secondary_base_url = "https://secure.zen-test.com/"
+zsl.base_url = "https://api.sitoffalb.net/"
 
 [pm_filters.default]
 apple_pay = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,DK,EE,FO,FI,FR,GE,DE,GR,GL,GG,HU,IS,IE,IM,IT,KZ,JE,LV,LI,LT,LU,MT,MD,MC,ME,NL,NO,PL,PT,RO,SM,RS,SK,SI,ES,SE,CH,UA,GB,AR,CO,CR,BR,MX,PE,BH,IL,JO,KW,PS,QA,SA,AE,CA,UM,US,KR,VN,MA,ZA,VA,CL,SV,GT,HN,PA", currency = "AED,AUD,CHF,CAD,EUR,GBP,HKD,SGD,USD" }
@@ -191,6 +192,7 @@ cards = [
     "worldline",
     "worldpay",
     "zen",
+    "zsl",
 ]
 
 [pm_filters.volt]

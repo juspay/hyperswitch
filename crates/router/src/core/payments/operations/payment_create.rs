@@ -13,7 +13,7 @@ use diesel_models::{ephemeral_key, PaymentMethod};
 use error_stack::{self, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 use router_derive::PaymentOperation;
-use router_env::{instrument, tracing};
+use router_env::{instrument, logger, tracing};
 use time::PrimitiveDateTime;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
@@ -494,7 +494,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         &'a self,
         state: &'a AppState,
         payment_data: &mut PaymentData<F>,
-        _storage_scheme: enums::MerchantStorageScheme,
+        storage_scheme: enums::MerchantStorageScheme,
         merchant_key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
     ) -> RouterResult<(
@@ -508,6 +508,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
             payment_data,
             merchant_key_store,
             customer,
+            storage_scheme,
         )
         .await
     }
@@ -793,12 +794,20 @@ impl PaymentCreate {
                         key_store.key.get_inner().peek(),
                     )
                     .await
-                    .change_context(errors::StorageError::DecryptionError)
-                    .attach_printable("unable to decrypt card details")
+                    .map_err(|err| logger::error!("Failed to decrypt card details: {:?}", err))
                     .ok()
                     .flatten()
                     .map(|x| x.into_inner().expose())
-                    .and_then(|v| serde_json::from_value::<PaymentMethodsData>(v).ok())
+                    .and_then(|v| {
+                        serde_json::from_value::<PaymentMethodsData>(v)
+                            .map_err(|err| {
+                                logger::error!(
+                                    "Unable to deserialize payment methods data: {:?}",
+                                    err
+                                )
+                            })
+                            .ok()
+                    })
                     .and_then(|pmd| match pmd {
                         PaymentMethodsData::Card(crd) => Some(api::CardDetailFromLocker::from(crd)),
                         _ => None,

@@ -275,7 +275,7 @@ where
         &'a self,
         state: &'a AppState,
         payment_data: &mut PaymentData<F>,
-        _storage_scheme: enums::MerchantStorageScheme,
+        storage_scheme: enums::MerchantStorageScheme,
         merchant_key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
     ) -> RouterResult<(
@@ -289,6 +289,7 @@ where
             payment_data,
             merchant_key_store,
             customer,
+            storage_scheme,
         )
         .await
     }

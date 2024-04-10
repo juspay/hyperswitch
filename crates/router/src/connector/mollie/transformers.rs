@@ -254,11 +254,11 @@ impl TryFrom<&domain::BankRedirectData> for PaymentMethodData {
     }
 }
 
-impl TryFrom<&api_models::payments::BankDebitData> for PaymentMethodData {
+impl TryFrom<&domain::BankDebitData> for PaymentMethodData {
     type Error = Error;
-    fn try_from(value: &api_models::payments::BankDebitData) -> Result<Self, Self::Error> {
+    fn try_from(value: &domain::BankDebitData) -> Result<Self, Self::Error> {
         match value {
-            api_models::payments::BankDebitData::SepaBankDebit {
+            domain::BankDebitData::SepaBankDebit {
                 bank_account_holder_name,
                 iban,
                 ..
@@ -289,9 +289,8 @@ impl TryFrom<&types::TokenizationRouterData> for MollieCardTokenRequest {
         match item.request.payment_method_data.clone() {
             domain::PaymentMethodData::Card(ccard) => {
                 let auth = MollieAuthType::try_from(&item.connector_auth_type)?;
-                let card_holder = ccard
-                    .card_holder_name
-                    .clone()
+                let card_holder = item
+                    .get_optional_billing_full_name()
                     .unwrap_or(Secret::new("".to_string()));
                 let card_number = ccard.card_number.clone();
                 let card_expiry_date =

@@ -247,6 +247,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Worldline => Self::Worldline,
             api_enums::Connector::Worldpay => Self::Worldpay,
             api_enums::Connector::Zen => Self::Zen,
+            // api_enums::Connector::Zsl => Self::Zsl, Added as template code for future usage
             #[cfg(feature = "dummy_connector")]
             api_enums::Connector::DummyConnector1 => Self::DummyConnector1,
             #[cfg(feature = "dummy_connector")]

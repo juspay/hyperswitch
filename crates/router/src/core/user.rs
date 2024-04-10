@@ -15,7 +15,7 @@ use super::errors::{StorageErrorExt, UserErrors, UserResponse, UserResult};
 use crate::services::email::types as email_types;
 use crate::{
     consts,
-    routes::AppState,
+    routes::{app::ReqState, AppState},
     services::{authentication as auth, authorization::roles, ApplicationResponse},
     types::{domain, transformers::ForeignInto},
     utils,
@@ -429,6 +429,7 @@ pub async fn invite_user(
     state: AppState,
     request: user_api::InviteUserRequest,
     user_from_token: auth::UserFromToken,
+    req_state: ReqState,
 ) -> UserResponse<user_api::InviteUserResponse> {
     let inviter_user = state
         .store
@@ -571,6 +572,9 @@ pub async fn invite_user(
         let is_email_sent;
         #[cfg(feature = "email")]
         {
+            // Doing this to avoid clippy lints
+            // will add actual usage for this later
+            let _ = req_state.clone();
             let email_contents = email_types::InviteUser {
                 recipient_email: invitee_email,
                 user_name: domain::UserName::new(new_user.get_name())?,
@@ -603,6 +607,7 @@ pub async fn invite_user(
                 state.clone(),
                 invited_user_token,
                 set_metadata_request,
+                req_state,
             )
             .await?;
         }
@@ -624,6 +629,7 @@ pub async fn invite_multiple_user(
     state: AppState,
     user_from_token: auth::UserFromToken,
     requests: Vec<user_api::InviteUserRequest>,
+    req_state: ReqState,
 ) -> UserResponse<Vec<InviteMultipleUserResponse>> {
     if requests.len() > 10 {
         return Err(report!(UserErrors::MaxInvitationsError))
@@ -631,7 +637,7 @@ pub async fn invite_multiple_user(
     }
 
     let responses = futures::future::join_all(requests.iter().map(|request| async {
-        match handle_invitation(&state, &user_from_token, request).await {
+        match handle_invitation(&state, &user_from_token, request, &req_state).await {
             Ok(response) => response,
             Err(error) => InviteMultipleUserResponse {
                 email: request.email.clone(),
@@ -650,6 +656,7 @@ async fn handle_invitation(
     state: &AppState,
     user_from_token: &auth::UserFromToken,
     request: &user_api::InviteUserRequest,
+    req_state: &ReqState,
 ) -> UserResult<InviteMultipleUserResponse> {
     let inviter_user = user_from_token.get_user_from_db(state).await?;
 
@@ -688,7 +695,7 @@ async fn handle_invitation(
         .err()
         .unwrap_or(false)
     {
-        handle_new_user_invitation(state, user_from_token, request).await
+        handle_new_user_invitation(state, user_from_token, request, req_state.clone()).await
     } else {
         Err(UserErrors::InternalServerError.into())
     }
@@ -770,6 +777,7 @@ async fn handle_new_user_invitation(
     state: &AppState,
     user_from_token: &auth::UserFromToken,
     request: &user_api::InviteUserRequest,
+    req_state: ReqState,
 ) -> UserResult<InviteMultipleUserResponse> {
     let new_user = domain::NewUser::try_from((request.clone(), user_from_token.clone()))?;
 
@@ -810,6 +818,9 @@ async fn handle_new_user_invitation(
     let is_email_sent;
     #[cfg(feature = "email")]
     {
+        // TODO: Adding this to avoid clippy lints
+        // Will be adding actual usage for this variable later
+        let _ = req_state.clone();
         let invitee_email = domain::UserEmail::from_pii_email(request.email.clone())?;
         let email_contents = email_types::InviteUser {
             recipient_email: invitee_email,
@@ -840,8 +851,13 @@ async fn handle_new_user_invitation(
         };
 
         let set_metadata_request = SetMetaDataRequest::IsChangePasswordRequired;
-        dashboard_metadata::set_metadata(state.clone(), invited_user_token, set_metadata_request)
-            .await?;
+        dashboard_metadata::set_metadata(
+            state.clone(),
+            invited_user_token,
+            set_metadata_request,
+            req_state,
+        )
+        .await?;
     }
 
     Ok(InviteMultipleUserResponse {
@@ -861,6 +877,7 @@ pub async fn resend_invite(
     state: AppState,
     user_from_token: auth::UserFromToken,
     request: user_api::ReInviteUserRequest,
+    _req_state: ReqState,
 ) -> UserResponse<()> {
     let invitee_email = domain::UserEmail::from_pii_email(request.email)?;
     let user: domain::UserFromStorage = state
@@ -1173,7 +1190,7 @@ pub async fn create_merchant_account(
     Ok(ApplicationResponse::StatusOk)
 }
 
-pub async fn list_merchant_ids_for_user(
+pub async fn list_merchants_for_user(
     state: AppState,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<Vec<user_api::UserMerchantAccount>> {
@@ -1194,8 +1211,15 @@ pub async fn list_merchant_ids_for_user(
         .await
         .change_context(UserErrors::InternalServerError)?;
 
+    let roles =
+        utils::user_role::get_multiple_role_info_for_user_roles(&state, &user_roles).await?;
+
     Ok(ApplicationResponse::Json(
-        utils::user::get_multiple_merchant_details_with_status(user_roles, merchant_accounts)?,
+        utils::user::get_multiple_merchant_details_with_status(
+            user_roles,
+            merchant_accounts,
+            roles,
+        )?,
     ))
 }
 
@@ -1203,6 +1227,7 @@ pub async fn get_user_details_in_merchant_account(
     state: AppState,
     user_from_token: auth::UserFromToken,
     request: user_api::GetUserDetailsRequest,
+    _req_state: ReqState,
 ) -> UserResponse<user_api::GetUserDetailsResponse> {
     let required_user = utils::user::get_user_from_db_by_email(&state, request.email.try_into()?)
         .await
@@ -1451,6 +1476,7 @@ pub async fn update_user_details(
     state: AppState,
     user_token: auth::UserFromToken,
     req: user_api::UpdateUserAccountDetailsRequest,
+    _req_state: ReqState,
 ) -> UserResponse<()> {
     let user: domain::UserFromStorage = state
         .store

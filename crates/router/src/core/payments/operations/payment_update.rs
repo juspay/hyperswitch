@@ -500,7 +500,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         &'a self,
         state: &'a AppState,
         payment_data: &mut PaymentData<F>,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
+        storage_scheme: storage_enums::MerchantStorageScheme,
         merchant_key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
     ) -> RouterResult<(
@@ -514,6 +514,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
             payment_data,
             merchant_key_store,
             customer,
+            storage_scheme,
         )
         .await
     }
