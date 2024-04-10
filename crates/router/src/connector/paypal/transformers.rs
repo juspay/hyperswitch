@@ -1549,27 +1549,27 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaypalCaptureResponse>>
             storage_enums::AttemptStatus::Pending
             | storage_enums::AttemptStatus::Authorized
             | storage_enums::AttemptStatus::Failure
-            | enums::AttemptStatus::RouterDeclined
-            | enums::AttemptStatus::AuthenticationFailed
+            | storage_enums::AttemptStatus::RouterDeclined
+            | storage_enums::AttemptStatus::AuthenticationFailed
             | storage_enums::AttemptStatus::CaptureFailed
-            | enums::AttemptStatus::Started
-            | enums::AttemptStatus::AuthenticationPending
-            | enums::AttemptStatus::AuthenticationSuccessful
-            | enums::AttemptStatus::AuthorizationFailed
-            | enums::AttemptStatus::Authorizing
-            | enums::AttemptStatus::VoidInitiated
-            | enums::AttemptStatus::CodInitiated
-            | enums::AttemptStatus::CaptureInitiated
-            | enums::AttemptStatus::VoidFailed
-            | enums::AttemptStatus::AutoRefunded
-            | enums::AttemptStatus::Unresolved
-            | enums::AttemptStatus::PaymentMethodAwaited
-            | enums::AttemptStatus::ConfirmationAwaited
-            | enums::AttemptStatus::DeviceDataCollectionPending
+            | storage_enums::AttemptStatus::Started
+            | storage_enums::AttemptStatus::AuthenticationPending
+            | storage_enums::AttemptStatus::AuthenticationSuccessful
+            | storage_enums::AttemptStatus::AuthorizationFailed
+            | storage_enums::AttemptStatus::Authorizing
+            | storage_enums::AttemptStatus::VoidInitiated
+            | storage_enums::AttemptStatus::CodInitiated
+            | storage_enums::AttemptStatus::CaptureInitiated
+            | storage_enums::AttemptStatus::VoidFailed
+            | storage_enums::AttemptStatus::AutoRefunded
+            | storage_enums::AttemptStatus::Unresolved
+            | storage_enums::AttemptStatus::PaymentMethodAwaited
+            | storage_enums::AttemptStatus::ConfirmationAwaited
+            | storage_enums::AttemptStatus::DeviceDataCollectionPending
             | storage_enums::AttemptStatus::Voided => 0,
-            enums::AttemptStatus::Charged
-            | enums::AttemptStatus::PartialCharged
-            | enums::AttemptStatus::PartialChargedAndChargeable => {
+            storage_enums::AttemptStatus::Charged
+            | storage_enums::AttemptStatus::PartialCharged
+            | storage_enums::AttemptStatus::PartialChargedAndChargeable => {
                 item.data.request.amount_to_capture
             }
         };
