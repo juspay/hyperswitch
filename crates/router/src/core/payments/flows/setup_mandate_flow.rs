@@ -188,20 +188,6 @@ impl TryFrom<types::SetupMandateRequestData> for types::ConnectorCustomerData {
 
 #[allow(clippy::too_many_arguments)]
 impl types::SetupMandateRouterData {
-    //     pub async fn decide_flow<'a, 'b>(
-    //         &'b self,
-    //         _state: &'a AppState,
-    //         _connector: &api::ConnectorData,
-    //         _maybe_customer: &Option<domain::Customer>,
-    //         _confirm: Option<bool>,
-    //         _call_connector_action: payments::CallConnectorAction,
-    //         _merchant_account: &domain::MerchantAccount,
-    //         _key_store: &domain::MerchantKeyStore,
-    //         _profile_id: Option<String>,
-    //     ) -> RouterResult<Self> {
-    //         Ok(self.clone())
-    //     }
-    //
     async fn update_mandate_flow(
         self,
         state: &AppState,
