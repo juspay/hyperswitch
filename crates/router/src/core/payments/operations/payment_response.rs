@@ -94,14 +94,28 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         F: 'b + Clone + Send + Sync,
     {
         let save_payment_data = tokenization::SavePaymentMethodData::from(resp);
-        let customer_id = payment_data.payment_intent.customer_id.clone().ok_or_else(|| {
-            logger::error!("Missing required Param customer_id");
-            errors::ApiErrorResponse::MissingRequiredField { field_name: "customer_id" }})?;
+        let customer_id = payment_data
+            .payment_intent
+            .customer_id
+            .clone()
+            .ok_or_else(|| {
+                logger::error!("Missing required Param customer_id");
+                errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "customer_id",
+                }
+            })?;
         let profile_id = payment_data.payment_intent.profile_id.clone();
         let is_mandate = &resp.request.setup_mandate_details.is_some();
-        let connector_name = payment_data.payment_attempt.connector.clone().ok_or_else(|| {
-            logger::error!("Missing required Param connector_name");
-            errors::ApiErrorResponse::MissingRequiredField { field_name: "connector_name" }})?;
+        let connector_name = payment_data
+            .payment_attempt
+            .connector
+            .clone()
+            .ok_or_else(|| {
+                logger::error!("Missing required Param connector_name");
+                errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "connector_name",
+                }
+            })?;
         let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
         let billing_name = resp
             .address
@@ -143,9 +157,17 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             let state = state.clone();
             let customer_id = payment_data.payment_intent.customer_id.clone();
             let profile_id = payment_data.payment_intent.profile_id.clone();
-            let connector_name = payment_data.payment_attempt.connector.clone().ok_or_else(|| {
-                logger::error!("Missing required Param connector_name");
-                errors::ApiErrorResponse::MissingRequiredField { field_name: "connector_name" }})?;
+            let connector_name =
+                payment_data
+                    .payment_attempt
+                    .connector
+                    .clone()
+                    .ok_or_else(|| {
+                        logger::error!("Missing required Param connector_name");
+                        errors::ApiErrorResponse::MissingRequiredField {
+                            field_name: "connector_name",
+                        }
+                    })?;
             let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
             let payment_attempt = payment_data.payment_attempt.clone();
 
@@ -584,13 +606,27 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             .and_then(|billing_details| billing_details.address.as_ref())
             .and_then(|address| address.get_optional_full_name());
         let save_payment_data = tokenization::SavePaymentMethodData::from(resp);
-        let customer_id = payment_data.payment_intent.customer_id.clone().ok_or_else(|| {
-            logger::error!("Missing required Param customer_id");
-            errors::ApiErrorResponse::MissingRequiredField { field_name: "customer_id" }})?;
+        let customer_id = payment_data
+            .payment_intent
+            .customer_id
+            .clone()
+            .ok_or_else(|| {
+                logger::error!("Missing required Param customer_id");
+                errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "customer_id",
+                }
+            })?;
         let profile_id = payment_data.payment_intent.profile_id.clone();
-        let connector_name = payment_data.payment_attempt.connector.clone().ok_or_else(|| {
-            logger::error!("Missing required Param connector_name");
-            errors::ApiErrorResponse::MissingRequiredField { field_name: "connector_name" }})?;
+        let connector_name = payment_data
+            .payment_attempt
+            .connector
+            .clone()
+            .ok_or_else(|| {
+                logger::error!("Missing required Param connector_name");
+                errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "connector_name",
+                }
+            })?;
         let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
         let (payment_method_id, _payment_method_status) =
             Box::pin(tokenization::save_payment_method(
