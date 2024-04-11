@@ -223,18 +223,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
     for Zsl
 {
-    fn build_request(
-        &self,
-        _req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotSupported {
-            message: "Psync".to_owned(),
-            connector: "Zsl",
-        }
-        .into())
-    }
-
     fn handle_response(
         &self,
         data: &types::PaymentsSyncRouterData,

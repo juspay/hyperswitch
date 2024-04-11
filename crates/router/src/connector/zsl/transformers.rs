@@ -22,8 +22,6 @@ mod zsl_version {
     pub const VERSION_1: &str = "1";
 }
 
-pub const ZSL_VERSION: &str = "1";
-
 pub struct ZslRouterData<T> {
     pub amount: String,
     pub router_data: T,
