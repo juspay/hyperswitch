@@ -311,26 +311,16 @@ where
     Ok(resp)
 }
 
-#[derive(Clone, Debug, Default)]
-pub struct MandateIdPmId {
-    pm_id: Option<String>,
-    mandate_ids: Option<payments::MandateIds>,
-}
-
 pub async fn mandate_procedure<F, FData>(
     state: &AppState,
     resp: &types::RouterData<F, FData, types::PaymentsResponseData>,
     customer_id: &Option<String>,
     pm_id: Option<String>,
     merchant_connector_id: Option<String>,
-) -> errors::RouterResult<MandateIdPmId>
+) -> errors::RouterResult<()>
 where
     FData: MandateBehaviour,
 {
-    let mut mandate_id_pm_id = MandateIdPmId {
-        ..Default::default()
-    };
-
     match resp.response {
         Err(_) => {}
         Ok(_) => match resp.request.get_mandate_id() {
@@ -379,12 +369,10 @@ where
                             mandate.connector,
                         )],
                     );
-                    mandate_id_pm_id.pm_id = Some(mandate.payment_method_id);
                 }
             }
             None => {
                 if resp.request.get_setup_mandate_details().is_some() {
-                    mandate_id_pm_id.pm_id = pm_id.clone();
                     let (mandate_reference, network_txn_id) = match resp.response.as_ref().ok() {
                         Some(types::PaymentsResponseData::TransactionResponse {
                             mandate_reference,
@@ -421,34 +409,36 @@ where
                         let connector = new_mandate_data.connector.clone();
                         logger::debug!("{:?}", new_mandate_data);
 
-                        mandate_id_pm_id.mandate_ids = Some(api_models::payments::MandateIds {
-                            mandate_id: Some(new_mandate_data.mandate_id.clone()),
-                            mandate_reference_id: new_mandate_data
-                                .connector_mandate_ids
-                                .clone()
-                            .map(|ids| {
-                                Some(ids)
-                                    .parse_value::<api_models::payments::ConnectorMandateReferenceId>(
-                                        "ConnectorMandateId",
-                                    )
-                                    .change_context(errors::ApiErrorResponse::MandateDeserializationFailed)
-                            })
-                            .transpose()?
-                            .map_or(
-                                new_mandate_data.network_transaction_id.clone().map(|id| {
-                                    api_models::payments::MandateReferenceId::NetworkMandateId(
-                                        id,
-                                    )
-                                }),
-                                |connector_id| Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                                    api_models::payments::ConnectorMandateReferenceId {
-                                        connector_mandate_id: connector_id.connector_mandate_id,
-                                        payment_method_id: connector_id.payment_method_id,
-                                        update_history:None,
-
-                                    }
-                                )))
-                        });
+                        // For GooglePay Mandates
+                        // resp.request
+                        //     .set_mandate_id(Some(api_models::payments::MandateIds {
+                        //         mandate_id: Some(new_mandate_data.mandate_id.clone()),
+                        //         mandate_reference_id: new_mandate_data
+                        //             .connector_mandate_ids
+                        //             .clone()
+                        //         .map(|ids| {
+                        //             Some(ids)
+                        //                 .parse_value::<api_models::payments::ConnectorMandateReferenceId>(
+                        //                     "ConnectorMandateId",
+                        //                 )
+                        //                 .change_context(errors::ApiErrorResponse::MandateDeserializationFailed)
+                        //         })
+                        //         .transpose()?
+                        //         .map_or(
+                        //             new_mandate_data.network_transaction_id.clone().map(|id| {
+                        //                 api_models::payments::MandateReferenceId::NetworkMandateId(
+                        //                     id,
+                        //                 )
+                        //             }),
+                        //             |connector_id| Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
+                        //                 api_models::payments::ConnectorMandateReferenceId {
+                        //                     connector_mandate_id: connector_id.connector_mandate_id,
+                        //                     payment_method_id: connector_id.payment_method_id,
+                        //                     update_history:None,
+                        //
+                        //                 }
+                        //             )))
+                        //     }));
 
                         state
                             .store
@@ -465,7 +455,7 @@ where
             }
         },
     }
-    Ok(mandate_id_pm_id)
+    Ok(())
 }
 
 #[instrument(skip(state))]

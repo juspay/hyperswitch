@@ -30,7 +30,6 @@ use crate::{
     core::{
         errors::{self, CustomResult, RouterResult},
         payment_methods::PaymentMethodRetrieve,
-        payments,
     },
     db::StorageInterface,
     routes::AppState,
@@ -231,7 +230,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         _resp: &types::RouterData<F, R, PaymentsResponseData>,
         _merchant_account: &domain::MerchantAccount,
         _key_store: &domain::MerchantKeyStore,
-        payment_data: &mut PaymentData<F>,
+        _payment_data: &mut PaymentData<F>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
