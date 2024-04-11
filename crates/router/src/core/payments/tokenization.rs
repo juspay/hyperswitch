@@ -45,8 +45,8 @@ impl<F, Req: Clone> From<&types::RouterData<F, Req, types::PaymentsResponseData>
             request: router_data.request.clone(),
             response: router_data.response.clone(),
             payment_method_token: router_data.payment_method_token.clone(),
-            payment_method: router_data.payment_method.clone(),
-            attempt_status: router_data.status.clone(),
+            payment_method: router_data.payment_method,
+            attempt_status: router_data.status,
         }
     }
 }
@@ -396,7 +396,7 @@ where
                                                 payment_method_create_request.clone(),
                                                 key_store,
                                                 &merchant_account.merchant_id,
-                                                &customer_id.as_str(),
+                                                customer_id.as_str(),
                                                 resp.metadata.clone().map(|val| val.expose()),
                                                 customer_acceptance,
                                                 locker_id,
@@ -418,7 +418,7 @@ where
 
                                 payment_methods::cards::delete_card_from_locker(
                                     state,
-                                    &customer_id.as_str(),
+                                    customer_id.as_str(),
                                     merchant_id,
                                     existing_pm
                                         .locker_id
@@ -515,7 +515,7 @@ where
                         payment_methods::cards::create_payment_method(
                             db,
                             &payment_method_create_request,
-                            &customer_id.as_str(),
+                            customer_id.as_str(),
                             &resp.payment_method_id,
                             locker_id,
                             merchant_id,

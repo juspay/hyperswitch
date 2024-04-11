@@ -94,19 +94,23 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         F: 'b + Clone + Send + Sync,
     {
         let save_payment_data = tokenization::SavePaymentMethodData::from(resp);
-        let customer_id = payment_data.payment_intent.customer_id.clone();
+        let customer_id = payment_data.payment_intent.customer_id.clone().ok_or_else(|| {
+            logger::error!("Missing required Param customer_id");
+            errors::ApiErrorResponse::MissingRequiredField { field_name: "customer_id" }})?;
         let profile_id = payment_data.payment_intent.profile_id.clone();
         let is_mandate = &resp.request.setup_mandate_details.is_some();
-        let connector_name = payment_data.payment_attempt.connector.clone();
+        let connector_name = payment_data.payment_attempt.connector.clone().ok_or_else(|| {
+            logger::error!("Missing required Param connector_name");
+            errors::ApiErrorResponse::MissingRequiredField { field_name: "connector_name" }})?;
         let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
         if *is_mandate {
             let (payment_method_id, _payment_method_status) =
                 Box::pin(tokenization::save_payment_method(
                     state,
-                    connector_name.unwrap(),
+                    connector_name,
                     merchant_connector_id.clone(),
                     save_payment_data,
-                    customer_id.clone().unwrap(),
+                    customer_id.clone(),
                     merchant_account,
                     resp.request.payment_method_type,
                     key_store,
@@ -118,8 +122,8 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
 
             mandate::mandate_procedure(
                 state,
-                &resp,
-                &Some(customer_id.clone().unwrap()),
+                resp,
+                &Some(customer_id.clone()),
                 payment_method_id.clone(),
                 merchant_connector_id.clone(),
             )
@@ -133,13 +137,15 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             let state = state.clone();
             let customer_id = payment_data.payment_intent.customer_id.clone();
             let profile_id = payment_data.payment_intent.profile_id.clone();
-            let connector_name = payment_data.payment_attempt.connector.clone();
+            let connector_name = payment_data.payment_attempt.connector.clone().ok_or_else(|| {
+                logger::error!("Missing required Param connector_name");
+                errors::ApiErrorResponse::MissingRequiredField { field_name: "connector_name" }})?;
             let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
             let payment_attempt = payment_data.payment_attempt.clone();
 
-            let amount = resp.request.amount.clone();
-            let currency = resp.request.currency.clone();
-            let payment_method_type = resp.request.payment_method_type.clone();
+            let amount = resp.request.amount;
+            let currency = resp.request.currency;
+            let payment_method_type = resp.request.payment_method_type;
             let storage_scheme = merchant_account.clone().storage_scheme;
 
             logger::info!("Call to save_payment_method in locker");
@@ -150,7 +156,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                     if let Some(customer_id) = customer_id {
                         let result = Box::pin(tokenization::save_payment_method(
                             &state,
-                            connector_name.unwrap(),
+                            connector_name,
                             merchant_connector_id,
                             save_payment_data,
                             customer_id.clone().to_string(),
@@ -168,25 +174,23 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                                 "Asynchronously saving card in locker failed : {:?}",
                                 err
                             );
-                        } else {
-                            if let Ok((payment_method_id, _pm_status)) = result {
-                                let payment_attempt_update =
-                                    storage::PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
-                                        payment_method_id,
-                                        updated_by: storage_scheme.clone().to_string(),
-                                    };
-                                let respond = state
-                                    .store
-                                    .update_payment_attempt_with_attempt_id(
-                                        payment_attempt,
-                                        payment_attempt_update,
-                                        storage_scheme.clone(),
-                                    )
-                                    .await;
-                                if let Err(err) = respond {
-                                    logger::error!("Error updating payment attempt: {:?}", err);
+                        } else if let Ok((payment_method_id, _pm_status)) = result {
+                            let payment_attempt_update =
+                                storage::PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
+                                    payment_method_id,
+                                    updated_by: storage_scheme.clone().to_string(),
                                 };
-                            }
+                            let respond = state
+                                .store
+                                .update_payment_attempt_with_attempt_id(
+                                    payment_attempt,
+                                    payment_attempt_update,
+                                    storage_scheme,
+                                )
+                                .await;
+                            if let Err(err) = respond {
+                                logger::error!("Error updating payment attempt: {:?}", err);
+                            };
                         }
                     } else {
                         logger::error!("customer_id not found");
@@ -562,17 +566,21 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         F: 'b + Clone + Send + Sync,
     {
         let save_payment_data = tokenization::SavePaymentMethodData::from(resp);
-        let customer_id = payment_data.payment_intent.customer_id.clone();
+        let customer_id = payment_data.payment_intent.customer_id.clone().ok_or_else(|| {
+            logger::error!("Missing required Param customer_id");
+            errors::ApiErrorResponse::MissingRequiredField { field_name: "customer_id" }})?;
         let profile_id = payment_data.payment_intent.profile_id.clone();
-        let connector_name = payment_data.payment_attempt.connector.clone();
+        let connector_name = payment_data.payment_attempt.connector.clone().ok_or_else(|| {
+            logger::error!("Missing required Param connector_name");
+            errors::ApiErrorResponse::MissingRequiredField { field_name: "connector_name" }})?;
         let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
         let (payment_method_id, _payment_method_status) =
             Box::pin(tokenization::save_payment_method(
                 state,
-                connector_name.unwrap(),
+                connector_name,
                 merchant_connector_id.clone(),
                 save_payment_data,
-                customer_id.clone().unwrap(),
+                customer_id.clone(),
                 merchant_account,
                 resp.request.payment_method_type,
                 key_store,
@@ -584,8 +592,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
 
         mandate::mandate_procedure(
             state,
-            &resp,
-            &Some(customer_id.clone().unwrap()),
+            resp,
+            &Some(customer_id),
             payment_method_id.clone(),
             merchant_connector_id.clone(),
         )
