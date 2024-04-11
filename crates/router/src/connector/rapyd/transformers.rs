@@ -289,6 +289,7 @@ pub struct ResponseData {
     pub paid: Option<bool>,
     pub failure_code: Option<String>,
     pub failure_message: Option<String>,
+    pub merchant_reference_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -492,6 +493,7 @@ impl<F, T>
                                 network_txn_id: None,
                                 connector_response_reference_id: None,
                                 incremental_authorization_allowed: None,
+                                merchant_reference_id: None,
                             }),
                         )
                     }
