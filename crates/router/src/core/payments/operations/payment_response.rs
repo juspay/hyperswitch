@@ -103,6 +103,11 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             logger::error!("Missing required Param connector_name");
             errors::ApiErrorResponse::MissingRequiredField { field_name: "connector_name" }})?;
         let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
+        let billing_name = resp
+            .address
+            .get_payment_method_billing()
+            .and_then(|billing_details| billing_details.address.as_ref())
+            .and_then(|address| address.get_optional_full_name());
         if *is_mandate {
             let (payment_method_id, _payment_method_status) =
                 Box::pin(tokenization::save_payment_method(
@@ -117,6 +122,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                     Some(resp.request.amount),
                     Some(resp.request.currency),
                     profile_id,
+                    billing_name,
                 ))
                 .await?;
 
@@ -147,6 +153,11 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             let currency = resp.request.currency;
             let payment_method_type = resp.request.payment_method_type;
             let storage_scheme = merchant_account.clone().storage_scheme;
+            let billing_name = resp
+                .address
+                .get_payment_method_billing()
+                .and_then(|billing_details| billing_details.address.as_ref())
+                .and_then(|address| address.get_optional_full_name());
 
             logger::info!("Call to save_payment_method in locker");
             let _task_handle = tokio::spawn(
@@ -166,6 +177,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                             Some(amount),
                             Some(currency),
                             profile_id,
+                            billing_name,
                         ))
                         .await;
 
@@ -360,7 +372,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         &self,
         state: &AppState,
         resp: &types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
-        _merchant_account: &domain::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
         _key_store: &domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
@@ -372,6 +384,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
             payment_data,
             resp.status,
             resp.response.clone(),
+            merchant_account.storage_scheme,
         )
         .await?;
         Ok(())
@@ -565,6 +578,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
     where
         F: 'b + Clone + Send + Sync,
     {
+        let billing_name = resp
+            .address
+            .get_payment_method_billing()
+            .and_then(|billing_details| billing_details.address.as_ref())
+            .and_then(|address| address.get_optional_full_name());
         let save_payment_data = tokenization::SavePaymentMethodData::from(resp);
         let customer_id = payment_data.payment_intent.customer_id.clone().ok_or_else(|| {
             logger::error!("Missing required Param customer_id");
@@ -587,6 +605,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
                 Some(resp.request.amount.unwrap_or(0)),
                 Some(resp.request.currency),
                 profile_id,
+                billing_name,
             ))
             .await?;
 
@@ -632,7 +651,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
         &self,
         state: &AppState,
         resp: &types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>,
-        _merchant_account: &domain::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
         _key_store: &domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
@@ -644,6 +663,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
             payment_data,
             resp.status,
             resp.response.clone(),
+            merchant_account.storage_scheme,
         )
         .await?;
         Ok(())
@@ -1172,11 +1192,12 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
     payment_data: &mut PaymentData<F>,
     attempt_status: common_enums::AttemptStatus,
     payment_response: Result<types::PaymentsResponseData, ErrorResponse>,
+    storage_scheme: enums::MerchantStorageScheme,
 ) -> RouterResult<()> {
     if let Some(id) = &payment_data.payment_attempt.payment_method_id {
         let pm = state
             .store
-            .find_payment_method(id)
+            .find_payment_method(id, storage_scheme)
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
@@ -1243,7 +1264,7 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
 
         state
             .store
-            .update_payment_method(pm, pm_update)
+            .update_payment_method(pm, pm_update, storage_scheme)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to update payment method in db")?;
