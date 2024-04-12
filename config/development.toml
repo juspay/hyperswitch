@@ -407,7 +407,7 @@ red_compra = { country = "CL", currency = "CLP" }
 red_pagos = { country = "UY", currency = "UYU" }
 
 [pm_filters.zsl]
-local_bank_transfer.currency = { country = "CN", currency = "CNY" }
+local_bank_transfer = { country = "CN", currency = "CNY" }
 
 [pm_filters.aci]
 credit = { not_available_flows = { capture_method = "manual" } }

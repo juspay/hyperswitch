@@ -294,7 +294,7 @@ red_compra = { country = "CL", currency = "CLP" }
 red_pagos = { country = "UY", currency = "UYU" }
 
 [pm_filters.zsl]
-local_bank_transfer.currency = { country = "CN", currency = "CNY" }
+local_bank_transfer = { country = "CN", currency = "CNY" }
 
 [temp_locker_enable_config]
 bluesnap.payment_method = "card"
