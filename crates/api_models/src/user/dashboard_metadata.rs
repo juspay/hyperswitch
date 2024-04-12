@@ -26,6 +26,7 @@ pub enum SetMetaDataRequest {
     IsMultipleConfiguration,
     #[serde(skip)]
     IsChangePasswordRequired,
+    OnboardingSurvey(OnboardingSurvey),
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -44,6 +45,20 @@ pub struct SetupProcessor {
 pub struct ProcessorConnected {
     pub processor_id: String,
     pub processor_name: String,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct OnboardingSurvey {
+    pub designation: String,
+    pub about_business: String,
+    pub business_website: String,
+    pub hyperswitch_req: String,
+    pub major_markets: Vec<String>,
+    pub business_size: String,
+    pub required_features: Vec<String>,
+    pub required_processors: Vec<String>,
+    pub planned_live_date: String,
+    pub miscellaneous: String,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -113,6 +128,7 @@ pub enum GetMetaDataRequest {
     SetupWoocomWebhook,
     IsMultipleConfiguration,
     IsChangePasswordRequired,
+    OnboardingSurvey,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -150,4 +166,5 @@ pub enum GetMetaDataResponse {
     SetupWoocomWebhook(bool),
     IsMultipleConfiguration(bool),
     IsChangePasswordRequired(bool),
+    OnboardingSurvey(Option<OnboardingSurvey>),
 }
