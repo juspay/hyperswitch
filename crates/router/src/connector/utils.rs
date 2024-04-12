@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use api_models::{
     enums::{CanadaStatesAbbreviation, UsStatesAbbreviation},
-    payments::{self, BankDebitBilling, OrderDetailsWithAmount},
+    payments::{self, OrderDetailsWithAmount},
 };
 use base64::Engine;
 use common_utils::{
@@ -1115,7 +1115,7 @@ pub trait CryptoData {
     fn get_pay_currency(&self) -> Result<String, Error>;
 }
 
-impl CryptoData for api::CryptoData {
+impl CryptoData for domain::CryptoData {
     fn get_pay_currency(&self) -> Result<String, Error> {
         self.pay_currency
             .clone()
@@ -1255,7 +1255,7 @@ pub trait BankDirectDebitBillingData {
     fn get_billing_country(&self) -> Result<api_models::enums::CountryAlpha2, Error>;
 }
 
-impl BankDirectDebitBillingData for BankDebitBilling {
+impl BankDirectDebitBillingData for domain::BankDebitBilling {
     fn get_billing_country(&self) -> Result<api_models::enums::CountryAlpha2, Error> {
         self.address
             .as_ref()

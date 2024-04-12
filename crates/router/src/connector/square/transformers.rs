@@ -1,4 +1,3 @@
-use api_models::payments::BankDebitData;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -13,19 +12,21 @@ use crate::{
     unimplemented_payment_method,
 };
 
-impl TryFrom<(&types::TokenizationRouterData, BankDebitData)> for SquareTokenRequest {
+impl TryFrom<(&types::TokenizationRouterData, domain::BankDebitData)> for SquareTokenRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        value: (&types::TokenizationRouterData, BankDebitData),
+        value: (&types::TokenizationRouterData, domain::BankDebitData),
     ) -> Result<Self, Self::Error> {
         let (_item, bank_debit_data) = value;
         match bank_debit_data {
-            BankDebitData::AchBankDebit { .. }
-            | BankDebitData::SepaBankDebit { .. }
-            | BankDebitData::BecsBankDebit { .. }
-            | BankDebitData::BacsBankDebit { .. } => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Square"),
-            ))?,
+            domain::BankDebitData::AchBankDebit { .. }
+            | domain::BankDebitData::SepaBankDebit { .. }
+            | domain::BankDebitData::BecsBankDebit { .. }
+            | domain::BankDebitData::BacsBankDebit { .. } => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Square"),
+                ))?
+            }
         }
     }
 }
@@ -312,7 +313,15 @@ impl TryFrom<&types::ConnectorAuthType> for SquareAuthType {
                 api_key: api_key.to_owned(),
                 key1: key1.to_owned(),
             }),
-            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+            types::ConnectorAuthType::HeaderKey { .. }
+            | types::ConnectorAuthType::SignatureKey { .. }
+            | types::ConnectorAuthType::MultiAuthKey { .. }
+            | types::ConnectorAuthType::CurrencyAuthKey { .. }
+            | types::ConnectorAuthType::TemporaryAuth { .. }
+            | types::ConnectorAuthType::NoKey { .. }
+            | types::ConnectorAuthType::CertificateAuth { .. } => {
+                Err(errors::ConnectorError::FailedToObtainAuthType.into())
+            }
         }
     }
 }

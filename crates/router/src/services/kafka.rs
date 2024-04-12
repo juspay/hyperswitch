@@ -1,22 +1,24 @@
 use std::sync::Arc;
 
+use bigdecimal::ToPrimitive;
 use common_utils::errors::CustomResult;
 use error_stack::{report, ResultExt};
+use events::{EventsError, Message, MessagingInterface};
 use rdkafka::{
     config::FromClientConfig,
     producer::{BaseRecord, DefaultProducerContext, Producer, ThreadedProducer},
 };
-
+#[cfg(feature = "payouts")]
+pub mod payout;
 use crate::events::EventType;
 mod dispute;
 mod payment_attempt;
 mod payment_intent;
-mod payout;
 mod refund;
 use data_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 use diesel_models::refund::Refund;
 use serde::Serialize;
-use time::OffsetDateTime;
+use time::{OffsetDateTime, PrimitiveDateTime};
 
 #[cfg(feature = "payouts")]
 use self::payout::KafkaPayout;
@@ -25,8 +27,6 @@ use self::{
     payment_intent::KafkaPaymentIntent, refund::KafkaRefund,
 };
 use crate::types::storage::Dispute;
-#[cfg(feature = "payouts")]
-use crate::types::storage::Payouts;
 
 // Using message queue result here to avoid confusion with Kafka result provided by library
 pub type MQResult<T> = CustomResult<T, KafkaError>;
@@ -97,6 +97,7 @@ pub struct KafkaSettings {
     outgoing_webhook_logs_topic: String,
     dispute_analytics_topic: String,
     audit_events_topic: String,
+    #[cfg(feature = "payouts")]
     payout_analytics_topic: String,
 }
 
@@ -163,6 +164,7 @@ impl KafkaSettings {
             ))
         })?;
 
+        #[cfg(feature = "payouts")]
         common_utils::fp_utils::when(self.payout_analytics_topic.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "Kafka Payout Analytics topic must not be empty".into(),
@@ -184,6 +186,7 @@ pub struct KafkaProducer {
     outgoing_webhook_logs_topic: String,
     dispute_analytics_topic: String,
     audit_events_topic: String,
+    #[cfg(feature = "payouts")]
     payout_analytics_topic: String,
 }
 
@@ -224,6 +227,7 @@ impl KafkaProducer {
             outgoing_webhook_logs_topic: conf.outgoing_webhook_logs_topic.clone(),
             dispute_analytics_topic: conf.dispute_analytics_topic.clone(),
             audit_events_topic: conf.audit_events_topic.clone(),
+            #[cfg(feature = "payouts")]
             payout_analytics_topic: conf.payout_analytics_topic.clone(),
         })
     }
@@ -239,6 +243,7 @@ impl KafkaProducer {
             EventType::OutgoingWebhookLogs => &self.outgoing_webhook_logs_topic,
             EventType::Dispute => &self.dispute_analytics_topic,
             EventType::AuditEvent => &self.audit_events_topic,
+            #[cfg(feature = "payouts")]
             EventType::Payout => &self.payout_analytics_topic,
         };
         self.producer
@@ -357,27 +362,27 @@ impl KafkaProducer {
     }
 
     #[cfg(feature = "payouts")]
-    pub async fn log_payout(&self, payout: &Payouts, old_payout: Option<Payouts>) -> MQResult<()> {
+    pub async fn log_payout(
+        &self,
+        payout: &KafkaPayout<'_>,
+        old_payout: Option<KafkaPayout<'_>>,
+    ) -> MQResult<()> {
         if let Some(negative_event) = old_payout {
-            self.log_event(&KafkaEvent::old(&KafkaPayout::from_storage(
-                &negative_event,
-            )))
-            .attach_printable_lazy(|| {
-                format!("Failed to add negative payout event {negative_event:?}")
-            })?;
+            self.log_event(&KafkaEvent::old(&negative_event))
+                .attach_printable_lazy(|| {
+                    format!("Failed to add negative payout event {negative_event:?}")
+                })?;
         };
-        self.log_event(&KafkaEvent::new(&KafkaPayout::from_storage(payout)))
+        self.log_event(&KafkaEvent::new(payout))
             .attach_printable_lazy(|| format!("Failed to add positive payout event {payout:?}"))
     }
 
     #[cfg(feature = "payouts")]
-    pub async fn log_payout_delete(&self, delete_old_payout: &Payouts) -> MQResult<()> {
-        self.log_event(&KafkaEvent::old(&KafkaPayout::from_storage(
-            delete_old_payout,
-        )))
-        .attach_printable_lazy(|| {
-            format!("Failed to add negative payout event {delete_old_payout:?}")
-        })
+    pub async fn log_payout_delete(&self, delete_old_payout: &KafkaPayout<'_>) -> MQResult<()> {
+        self.log_event(&KafkaEvent::old(delete_old_payout))
+            .attach_printable_lazy(|| {
+                format!("Failed to add negative payout event {delete_old_payout:?}")
+            })
     }
 
     pub fn get_topic(&self, event: EventType) -> &str {
@@ -390,6 +395,7 @@ impl KafkaProducer {
             EventType::OutgoingWebhookLogs => &self.outgoing_webhook_logs_topic,
             EventType::Dispute => &self.dispute_analytics_topic,
             EventType::AuditEvent => &self.audit_events_topic,
+            #[cfg(feature = "payouts")]
             EventType::Payout => &self.payout_analytics_topic,
         }
     }
@@ -404,5 +410,43 @@ impl Drop for RdKafkaProducer {
             Ok(_) => router_env::logger::info!("Kafka events flush Successful"),
             Err(error) => router_env::logger::error!("Failed to flush Kafka Events {error:?}"),
         }
+    }
+}
+
+impl MessagingInterface for KafkaProducer {
+    type MessageClass = EventType;
+
+    fn send_message<T>(
+        &self,
+        data: T,
+        timestamp: PrimitiveDateTime,
+    ) -> error_stack::Result<(), EventsError>
+    where
+        T: Message<Class = Self::MessageClass> + masking::ErasedMaskSerialize,
+    {
+        let topic = self.get_topic(data.get_message_class());
+        let json_data = data
+            .masked_serialize()
+            .and_then(|i| serde_json::to_vec(&i))
+            .change_context(EventsError::SerializationError)?;
+        self.producer
+            .0
+            .send(
+                BaseRecord::to(topic)
+                    .key(&data.identifier())
+                    .payload(&json_data)
+                    .timestamp(
+                        (timestamp.assume_utc().unix_timestamp_nanos() / 1_000)
+                            .to_i64()
+                            .unwrap_or_else(|| {
+                                // kafka producer accepts milliseconds
+                                // try converting nanos to millis if that fails convert seconds to millis
+                                timestamp.assume_utc().unix_timestamp() * 1_000
+                            }),
+                    ),
+            )
+            .map_err(|(error, record)| report!(error).attach_printable(format!("{record:?}")))
+            .change_context(KafkaError::GenericError)
+            .change_context(EventsError::PublishError)
     }
 }

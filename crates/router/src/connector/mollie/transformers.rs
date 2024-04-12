@@ -254,11 +254,11 @@ impl TryFrom<&domain::BankRedirectData> for PaymentMethodData {
     }
 }
 
-impl TryFrom<&api_models::payments::BankDebitData> for PaymentMethodData {
+impl TryFrom<&domain::BankDebitData> for PaymentMethodData {
     type Error = Error;
-    fn try_from(value: &api_models::payments::BankDebitData) -> Result<Self, Self::Error> {
+    fn try_from(value: &domain::BankDebitData) -> Result<Self, Self::Error> {
         match value {
-            api_models::payments::BankDebitData::SepaBankDebit {
+            domain::BankDebitData::SepaBankDebit {
                 bank_account_holder_name,
                 iban,
                 ..
