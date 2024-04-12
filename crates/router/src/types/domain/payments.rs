@@ -451,7 +451,7 @@ pub struct BankDebitBilling {
     pub address: Option<api_models::payments::AddressDetails>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BankTransferData {
     AchBankTransfer {
@@ -463,7 +463,6 @@ pub enum BankTransferData {
         billing_details: SepaAndBacsBillingDetails,
 
         /// The two-letter ISO country code for SEPA and BACS
-        #[schema(value_type = CountryAlpha2, example = "US")]
         country: api_models::enums::CountryAlpha2,
     },
     BacsBankTransfer {
@@ -504,41 +503,37 @@ pub enum BankTransferData {
     },
     Pix {},
     Pse {},
+    LocalBankTransfer {
+        bank_code: Option<String>,
+    },
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct AchBillingDetails {
     /// The Email ID for ACH billing
-    #[schema(value_type = String, example = "example@me.com")]
     pub email: Email,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct DokuBillingDetails {
     /// The billing first name for Doku
-    #[schema(value_type = String, example = "Jane")]
     pub first_name: Secret<String>,
     /// The billing second name for Doku
-    #[schema(value_type = String, example = "Doe")]
     pub last_name: Option<Secret<String>>,
     /// The Email ID for Doku billing
-    #[schema(value_type = String, example = "example@me.com")]
     pub email: Email,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct MultibancoBillingDetails {
-    #[schema(value_type = String, example = "example@me.com")]
     pub email: Email,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct SepaAndBacsBillingDetails {
     /// The Email ID for SEPA and BACS billing
-    #[schema(value_type = String, example = "example@me.com")]
     pub email: Email,
     /// The billing name for SEPA and BACS billing
-    #[schema(value_type = String, example = "Jane Doe")]
     pub name: Secret<String>,
 }
 
@@ -1132,6 +1127,9 @@ impl From<api_models::payments::BankTransferData> for BankTransferData {
             }
             api_models::payments::BankTransferData::Pix {} => Self::Pix {},
             api_models::payments::BankTransferData::Pse {} => Self::Pse {},
+            api_models::payments::BankTransferData::LocalBankTransfer { bank_code } => {
+                Self::LocalBankTransfer { bank_code }
+            }
         }
     }
 }

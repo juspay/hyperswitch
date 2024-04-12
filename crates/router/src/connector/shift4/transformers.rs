@@ -229,6 +229,7 @@ impl TryFrom<&domain::BankTransferData> for Shift4PaymentMethod {
             | domain::BankTransferData::CimbVaBankTransfer { .. }
             | domain::BankTransferData::DanamonVaBankTransfer { .. }
             | domain::BankTransferData::MandiriVaBankTransfer { .. }
+            | domain::BankTransferData::Pix { .. }
             | domain::BankTransferData::Pse {}
             | domain::BankTransferData::LocalBankTransfer { .. } => {
                 Err(errors::ConnectorError::NotImplemented(

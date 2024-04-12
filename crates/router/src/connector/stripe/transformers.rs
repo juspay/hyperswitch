@@ -1,6 +1,6 @@
 use std::{collections::HashMap, ops::Deref};
 
-use api_models::{self, enums as api_enums, payments};
+use api_models::{self, enums as api_enums};
 use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, Encode},
@@ -3726,7 +3726,7 @@ impl
                 | domain::BankTransferData::BriVaBankTransfer { .. }
                 | domain::BankTransferData::CimbVaBankTransfer { .. }
                 | domain::BankTransferData::DanamonVaBankTransfer { .. }
-                | payments::BankTransferData::LocalBankTransfer { .. }
+                | domain::BankTransferData::LocalBankTransfer { .. }
                 | domain::BankTransferData::MandiriVaBankTransfer { .. } => {
                     Err(errors::ConnectorError::NotImplemented(
                         connector_util::get_unimplemented_payment_method_error_message("stripe"),
