@@ -8,6 +8,7 @@ use redis::{kv_store::RedisConnInterface, RedisStore};
 mod address;
 pub mod config;
 pub mod connection;
+pub mod customers;
 pub mod database;
 pub mod errors;
 mod lookup;
@@ -368,6 +369,18 @@ impl UniqueConstraints for diesel_models::PaymentMethod {
     }
     fn table_name(&self) -> &str {
         "PaymentMethod"
+    }
+}
+
+impl UniqueConstraints for diesel_models::Customer {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!(
+            "customer_{}_{}",
+            self.customer_id, self.merchant_id
+        )]
+    }
+    fn table_name(&self) -> &str {
+        "Customer"
     }
 }
 

@@ -583,7 +583,12 @@ pub async fn get_or_create_customer_details(
     let key = key_store.key.get_inner().peek();
 
     match db
-        .find_customer_optional_by_customer_id_merchant_id(&customer_id, merchant_id, key_store)
+        .find_customer_optional_by_customer_id_merchant_id(
+            &customer_id,
+            merchant_id,
+            key_store,
+            merchant_account.storage_scheme,
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?
     {
@@ -616,7 +621,7 @@ pub async fn get_or_create_customer_details(
             };
 
             Ok(Some(
-                db.insert_customer(customer, key_store)
+                db.insert_customer(customer, key_store, merchant_account.storage_scheme)
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)?,
             ))
