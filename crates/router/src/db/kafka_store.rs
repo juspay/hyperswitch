@@ -32,6 +32,8 @@ use super::{
     user::{sample_data::BatchSampleDataInterface, UserInterface},
     user_role::UserRoleInterface,
 };
+#[cfg(feature = "payouts")]
+use crate::services::kafka::payout::KafkaPayout;
 use crate::{
     core::errors::{self, ProcessTrackerError},
     db::{
@@ -1380,9 +1382,10 @@ impl PaymentMethodInterface for KafkaStore {
     async fn find_payment_method(
         &self,
         payment_method_id: &str,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
         self.diesel_store
-            .find_payment_method(payment_method_id)
+            .find_payment_method(payment_method_id, storage_scheme)
             .await
     }
 
@@ -1432,26 +1435,31 @@ impl PaymentMethodInterface for KafkaStore {
     async fn find_payment_method_by_locker_id(
         &self,
         locker_id: &str,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
         self.diesel_store
-            .find_payment_method_by_locker_id(locker_id)
+            .find_payment_method_by_locker_id(locker_id, storage_scheme)
             .await
     }
 
     async fn insert_payment_method(
         &self,
         m: storage::PaymentMethodNew,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
-        self.diesel_store.insert_payment_method(m).await
+        self.diesel_store
+            .insert_payment_method(m, storage_scheme)
+            .await
     }
 
     async fn update_payment_method(
         &self,
         payment_method: storage::PaymentMethod,
         payment_method_update: storage::PaymentMethodUpdate,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
         self.diesel_store
-            .update_payment_method(payment_method, payment_method_update)
+            .update_payment_method(payment_method, payment_method_update, storage_scheme)
             .await
     }
 
@@ -1491,21 +1499,49 @@ impl PayoutAttemptInterface for KafkaStore {
         &self,
         this: &storage::PayoutAttempt,
         payout_attempt_update: storage::PayoutAttemptUpdate,
+        payouts: &storage::Payouts,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::PayoutAttempt, errors::DataStorageError> {
-        self.diesel_store
-            .update_payout_attempt(this, payout_attempt_update, storage_scheme)
+        let updated_payout_attempt = self
+            .diesel_store
+            .update_payout_attempt(this, payout_attempt_update, payouts, storage_scheme)
+            .await?;
+        if let Err(err) = self
+            .kafka_producer
+            .log_payout(
+                &KafkaPayout::from_storage(payouts, &updated_payout_attempt),
+                Some(KafkaPayout::from_storage(payouts, this)),
+            )
             .await
+        {
+            logger::error!(message="Failed to update analytics entry for Payouts {payouts:?}\n{updated_payout_attempt:?}", error_message=?err);
+        };
+
+        Ok(updated_payout_attempt)
     }
 
     async fn insert_payout_attempt(
         &self,
         payout_attempt: storage::PayoutAttemptNew,
+        payouts: &storage::Payouts,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::PayoutAttempt, errors::DataStorageError> {
-        self.diesel_store
-            .insert_payout_attempt(payout_attempt, storage_scheme)
+        let payout_attempt_new = self
+            .diesel_store
+            .insert_payout_attempt(payout_attempt, payouts, storage_scheme)
+            .await?;
+        if let Err(err) = self
+            .kafka_producer
+            .log_payout(
+                &KafkaPayout::from_storage(payouts, &payout_attempt_new),
+                None,
+            )
             .await
+        {
+            logger::error!(message="Failed to add analytics entry for Payouts {payouts:?}\n{payout_attempt_new:?}", error_message=?err);
+        };
+
+        Ok(payout_attempt_new)
     }
 
     async fn get_filters_for_payouts(
@@ -1544,21 +1580,23 @@ impl PayoutsInterface for KafkaStore {
         &self,
         this: &storage::Payouts,
         payout_update: storage::PayoutsUpdate,
+        payout_attempt: &storage::PayoutAttempt,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::Payouts, errors::DataStorageError> {
         let payout = self
             .diesel_store
-            .update_payout(this, payout_update, storage_scheme)
+            .update_payout(this, payout_update, payout_attempt, storage_scheme)
             .await?;
-
-        if let Err(er) = self
+        if let Err(err) = self
             .kafka_producer
-            .log_payout(&payout, Some(this.clone()))
+            .log_payout(
+                &KafkaPayout::from_storage(&payout, payout_attempt),
+                Some(KafkaPayout::from_storage(this, payout_attempt)),
+            )
             .await
         {
-            logger::error!(message="Failed to add analytics entry for Payout {payout:?}", error_message=?er);
+            logger::error!(message="Failed to update analytics entry for Payouts {payout:?}\n{payout_attempt:?}", error_message=?err);
         };
-
         Ok(payout)
     }
 
@@ -1567,16 +1605,9 @@ impl PayoutsInterface for KafkaStore {
         payout: storage::PayoutsNew,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::Payouts, errors::DataStorageError> {
-        let payout = self
-            .diesel_store
+        self.diesel_store
             .insert_payout(payout, storage_scheme)
-            .await?;
-
-        if let Err(er) = self.kafka_producer.log_payout(&payout, None).await {
-            logger::error!(message="Failed to add analytics entry for Payout {payout:?}", error_message=?er);
-        };
-
-        Ok(payout)
+            .await
     }
 
     async fn find_optional_payout_by_merchant_id_payout_id(
@@ -1608,8 +1639,14 @@ impl PayoutsInterface for KafkaStore {
         merchant_id: &str,
         filters: &data_models::payouts::PayoutFetchConstraints,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<Vec<(storage::Payouts, storage::PayoutAttempt)>, errors::DataStorageError>
-    {
+    ) -> CustomResult<
+        Vec<(
+            storage::Payouts,
+            storage::PayoutAttempt,
+            diesel_models::Customer,
+        )>,
+        errors::DataStorageError,
+    > {
         self.diesel_store
             .filter_payouts_and_attempts(merchant_id, filters, storage_scheme)
             .await

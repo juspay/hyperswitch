@@ -257,14 +257,14 @@ impl
 impl
     TryFrom<(
         &ZenRouterData<&types::PaymentsAuthorizeRouterData>,
-        &api_models::payments::VoucherData,
+        &domain::VoucherData,
     )> for ZenPaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         value: (
             &ZenRouterData<&types::PaymentsAuthorizeRouterData>,
-            &api_models::payments::VoucherData,
+            &domain::VoucherData,
         ),
     ) -> Result<Self, Self::Error> {
         let (item, voucher_data) = value;
@@ -278,30 +278,22 @@ impl
                 return_url: item.router_data.request.get_router_return_url()?,
             });
         let payment_channel = match voucher_data {
-            api_models::payments::VoucherData::Boleto { .. } => {
-                ZenPaymentChannels::PclBoacompraBoleto
-            }
-            api_models::payments::VoucherData::Efecty => ZenPaymentChannels::PclBoacompraEfecty,
-            api_models::payments::VoucherData::PagoEfectivo => {
-                ZenPaymentChannels::PclBoacompraPagoefectivo
-            }
-            api_models::payments::VoucherData::RedCompra => {
-                ZenPaymentChannels::PclBoacompraRedcompra
-            }
-            api_models::payments::VoucherData::RedPagos => ZenPaymentChannels::PclBoacompraRedpagos,
-            api_models::payments::VoucherData::Oxxo { .. }
-            | api_models::payments::VoucherData::Alfamart { .. }
-            | api_models::payments::VoucherData::Indomaret { .. }
-            | api_models::payments::VoucherData::SevenEleven { .. }
-            | api_models::payments::VoucherData::Lawson { .. }
-            | api_models::payments::VoucherData::MiniStop { .. }
-            | api_models::payments::VoucherData::FamilyMart { .. }
-            | api_models::payments::VoucherData::Seicomart { .. }
-            | api_models::payments::VoucherData::PayEasy { .. } => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Zen"),
-                ))?
-            }
+            domain::VoucherData::Boleto { .. } => ZenPaymentChannels::PclBoacompraBoleto,
+            domain::VoucherData::Efecty => ZenPaymentChannels::PclBoacompraEfecty,
+            domain::VoucherData::PagoEfectivo => ZenPaymentChannels::PclBoacompraPagoefectivo,
+            domain::VoucherData::RedCompra => ZenPaymentChannels::PclBoacompraRedcompra,
+            domain::VoucherData::RedPagos => ZenPaymentChannels::PclBoacompraRedpagos,
+            domain::VoucherData::Oxxo { .. }
+            | domain::VoucherData::Alfamart { .. }
+            | domain::VoucherData::Indomaret { .. }
+            | domain::VoucherData::SevenEleven { .. }
+            | domain::VoucherData::Lawson { .. }
+            | domain::VoucherData::MiniStop { .. }
+            | domain::VoucherData::FamilyMart { .. }
+            | domain::VoucherData::Seicomart { .. }
+            | domain::VoucherData::PayEasy { .. } => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Zen"),
+            ))?,
         };
         Ok(Self::ApiRequest(Box::new(ApiRequest {
             merchant_transaction_id: item.router_data.connector_request_reference_id.clone(),
@@ -354,6 +346,7 @@ impl
             | domain::BankTransferData::BriVaBankTransfer { .. }
             | domain::BankTransferData::CimbVaBankTransfer { .. }
             | domain::BankTransferData::DanamonVaBankTransfer { .. }
+            | domain::BankTransferData::LocalBankTransfer { .. }
             | domain::BankTransferData::MandiriVaBankTransfer { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Zen"),
@@ -720,27 +713,27 @@ impl TryFrom<&ZenRouterData<&types::PaymentsAuthorizeRouterData>> for ZenPayment
     }
 }
 
-impl TryFrom<&api_models::payments::BankRedirectData> for ZenPaymentsRequest {
+impl TryFrom<&domain::BankRedirectData> for ZenPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: &api_models::payments::BankRedirectData) -> Result<Self, Self::Error> {
+    fn try_from(value: &domain::BankRedirectData) -> Result<Self, Self::Error> {
         match value {
-            api_models::payments::BankRedirectData::Ideal { .. }
-            | api_models::payments::BankRedirectData::Sofort { .. }
-            | api_models::payments::BankRedirectData::BancontactCard { .. }
-            | api_models::payments::BankRedirectData::Blik { .. }
-            | api_models::payments::BankRedirectData::Trustly { .. }
-            | api_models::payments::BankRedirectData::Eps { .. }
-            | api_models::payments::BankRedirectData::Giropay { .. }
-            | api_models::payments::BankRedirectData::Przelewy24 { .. }
-            | api_models::payments::BankRedirectData::Bizum {}
-            | api_models::payments::BankRedirectData::Interac { .. }
-            | api_models::payments::BankRedirectData::OnlineBankingCzechRepublic { .. }
-            | api_models::payments::BankRedirectData::OnlineBankingFinland { .. }
-            | api_models::payments::BankRedirectData::OnlineBankingPoland { .. }
-            | api_models::payments::BankRedirectData::OnlineBankingSlovakia { .. }
-            | api_models::payments::BankRedirectData::OpenBankingUk { .. }
-            | api_models::payments::BankRedirectData::OnlineBankingFpx { .. }
-            | api_models::payments::BankRedirectData::OnlineBankingThailand { .. } => {
+            domain::BankRedirectData::Ideal { .. }
+            | domain::BankRedirectData::Sofort { .. }
+            | domain::BankRedirectData::BancontactCard { .. }
+            | domain::BankRedirectData::Blik { .. }
+            | domain::BankRedirectData::Trustly { .. }
+            | domain::BankRedirectData::Eps { .. }
+            | domain::BankRedirectData::Giropay { .. }
+            | domain::BankRedirectData::Przelewy24 { .. }
+            | domain::BankRedirectData::Bizum {}
+            | domain::BankRedirectData::Interac { .. }
+            | domain::BankRedirectData::OnlineBankingCzechRepublic { .. }
+            | domain::BankRedirectData::OnlineBankingFinland { .. }
+            | domain::BankRedirectData::OnlineBankingPoland { .. }
+            | domain::BankRedirectData::OnlineBankingSlovakia { .. }
+            | domain::BankRedirectData::OpenBankingUk { .. }
+            | domain::BankRedirectData::OnlineBankingFpx { .. }
+            | domain::BankRedirectData::OnlineBankingThailand { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Zen"),
                 )
@@ -750,18 +743,18 @@ impl TryFrom<&api_models::payments::BankRedirectData> for ZenPaymentsRequest {
     }
 }
 
-impl TryFrom<&api_models::payments::PayLaterData> for ZenPaymentsRequest {
+impl TryFrom<&domain::payments::PayLaterData> for ZenPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: &api_models::payments::PayLaterData) -> Result<Self, Self::Error> {
+    fn try_from(value: &domain::payments::PayLaterData) -> Result<Self, Self::Error> {
         match value {
-            api_models::payments::PayLaterData::KlarnaRedirect { .. }
-            | api_models::payments::PayLaterData::KlarnaSdk { .. }
-            | api_models::payments::PayLaterData::AffirmRedirect {}
-            | api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. }
-            | api_models::payments::PayLaterData::PayBrightRedirect {}
-            | api_models::payments::PayLaterData::WalleyRedirect {}
-            | api_models::payments::PayLaterData::AlmaRedirect {}
-            | api_models::payments::PayLaterData::AtomeRedirect {} => {
+            domain::payments::PayLaterData::KlarnaRedirect { .. }
+            | domain::payments::PayLaterData::KlarnaSdk { .. }
+            | domain::payments::PayLaterData::AffirmRedirect {}
+            | domain::payments::PayLaterData::AfterpayClearpayRedirect { .. }
+            | domain::payments::PayLaterData::PayBrightRedirect {}
+            | domain::payments::PayLaterData::WalleyRedirect {}
+            | domain::payments::PayLaterData::AlmaRedirect {}
+            | domain::payments::PayLaterData::AtomeRedirect {} => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Zen"),
                 )
@@ -771,14 +764,14 @@ impl TryFrom<&api_models::payments::PayLaterData> for ZenPaymentsRequest {
     }
 }
 
-impl TryFrom<&api_models::payments::BankDebitData> for ZenPaymentsRequest {
+impl TryFrom<&domain::BankDebitData> for ZenPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: &api_models::payments::BankDebitData) -> Result<Self, Self::Error> {
+    fn try_from(value: &domain::BankDebitData) -> Result<Self, Self::Error> {
         match value {
-            api_models::payments::BankDebitData::AchBankDebit { .. }
-            | api_models::payments::BankDebitData::SepaBankDebit { .. }
-            | api_models::payments::BankDebitData::BecsBankDebit { .. }
-            | api_models::payments::BankDebitData::BacsBankDebit { .. } => {
+            domain::BankDebitData::AchBankDebit { .. }
+            | domain::BankDebitData::SepaBankDebit { .. }
+            | domain::BankDebitData::BecsBankDebit { .. }
+            | domain::BankDebitData::BacsBankDebit { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Zen"),
                 )
@@ -805,12 +798,11 @@ impl TryFrom<&domain::payments::CardRedirectData> for ZenPaymentsRequest {
     }
 }
 
-impl TryFrom<&api_models::payments::GiftCardData> for ZenPaymentsRequest {
+impl TryFrom<&domain::GiftCardData> for ZenPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: &api_models::payments::GiftCardData) -> Result<Self, Self::Error> {
+    fn try_from(value: &domain::GiftCardData) -> Result<Self, Self::Error> {
         match value {
-            api_models::payments::GiftCardData::PaySafeCard {}
-            | api_models::payments::GiftCardData::Givex(_) => {
+            domain::GiftCardData::PaySafeCard {} | domain::GiftCardData::Givex(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Zen"),
                 )

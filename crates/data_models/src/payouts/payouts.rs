@@ -4,8 +4,9 @@ use serde::{Deserialize, Serialize};
 use storage_enums::MerchantStorageScheme;
 use time::PrimitiveDateTime;
 
+use super::payout_attempt::PayoutAttempt;
 #[cfg(feature = "olap")]
-use super::{payout_attempt::PayoutAttempt, PayoutFetchConstraints};
+use super::PayoutFetchConstraints;
 use crate::errors;
 
 #[async_trait::async_trait]
@@ -27,6 +28,7 @@ pub trait PayoutsInterface {
         &self,
         _this: &Payouts,
         _payout: PayoutsUpdate,
+        _payout_attempt: &PayoutAttempt,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Payouts, errors::StorageError>;
 
@@ -51,7 +53,10 @@ pub trait PayoutsInterface {
         _merchant_id: &str,
         _filters: &PayoutFetchConstraints,
         _storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<(Payouts, PayoutAttempt)>, errors::StorageError>;
+    ) -> error_stack::Result<
+        Vec<(Payouts, PayoutAttempt, diesel_models::Customer)>,
+        errors::StorageError,
+    >;
 
     #[cfg(feature = "olap")]
     async fn filter_payouts_by_time_range_constraints(
@@ -155,13 +160,16 @@ pub enum PayoutsUpdate {
         status: Option<storage_enums::PayoutStatus>,
     },
     PayoutMethodIdUpdate {
-        payout_method_id: Option<String>,
+        payout_method_id: String,
     },
     RecurringUpdate {
         recurring: bool,
     },
     AttemptCountUpdate {
         attempt_count: i16,
+    },
+    StatusUpdate {
+        status: storage_enums::PayoutStatus,
     },
 }
 
@@ -212,7 +220,7 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 ..Default::default()
             },
             PayoutsUpdate::PayoutMethodIdUpdate { payout_method_id } => Self {
-                payout_method_id,
+                payout_method_id: Some(payout_method_id),
                 ..Default::default()
             },
             PayoutsUpdate::RecurringUpdate { recurring } => Self {
@@ -221,6 +229,10 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
             },
             PayoutsUpdate::AttemptCountUpdate { attempt_count } => Self {
                 attempt_count: Some(attempt_count),
+                ..Default::default()
+            },
+            PayoutsUpdate::StatusUpdate { status } => Self {
+                status: Some(status),
                 ..Default::default()
             },
         }

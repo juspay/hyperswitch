@@ -323,7 +323,7 @@ pub struct ConnectorBankNames(pub HashMap<String, BanksVector>);
 #[derive(Debug, Deserialize, Clone)]
 pub struct BanksVector {
     #[serde(deserialize_with = "deserialize_hashset")]
-    pub banks: HashSet<api_models::enums::BankNames>,
+    pub banks: HashSet<common_enums::enums::BankNames>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -500,6 +500,7 @@ pub struct Connectors {
     pub dlocal: ConnectorParams,
     #[cfg(feature = "dummy_connector")]
     pub dummyconnector: ConnectorParams,
+    pub ebanx: ConnectorParams,
     pub fiserv: ConnectorParams,
     pub forte: ConnectorParams,
     pub globalpay: ConnectorParams,
@@ -538,6 +539,7 @@ pub struct Connectors {
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
     pub zen: ConnectorParams,
+    pub zsl: ConnectorParams,
 }
 
 #[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
