@@ -125,7 +125,7 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                     let payment_attempt_update =
                         data_models::payments::payment_attempt::PaymentAttemptUpdate::ErrorUpdate {
                             connector: None,
-                            status: api_models::enums::AttemptStatus::AuthenticationFailed,
+                            status: api_models::enums::AttemptStatus::Failure,
                             error_code: None,
                             error_message: None,
                             error_reason: Some(Some(
