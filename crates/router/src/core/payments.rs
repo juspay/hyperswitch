@@ -21,7 +21,7 @@ use api_models::{
 use common_utils::{ext_traits::AsyncExt, pii, types::Surcharge};
 use data_models::mandates::{CustomerAcceptance, MandateData};
 use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use futures::future::join_all;
 use helpers::ApplePayData;
 use masking::Secret;
@@ -3101,6 +3101,17 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
                             .attach_printable("no eligible connector found for token-based MIT flow since there were no connector mandate details")?
                             .get(merchant_connector_id)
                         {
+                            common_utils::fp_utils::when(
+                                mandate_reference_record
+                                    .original_payment_authorized_currency
+                                    .map(|mandate_currency| mandate_currency != payment_data.currency)
+                                    .unwrap_or(false),
+                                || {
+                                    Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
+                                        reason: "cross currency mandates not supported".into()
+                                    }))
+                                },
+                            )?;
                             let mandate_reference_id =
                                 Some(payments_api::MandateReferenceId::ConnectorMandateId(
                                     payments_api::ConnectorMandateReferenceId {
@@ -3550,6 +3561,7 @@ pub async fn payment_external_authentication(
         &payment_attempt,
         &payment_intent,
         &key_store,
+        storage_scheme,
     )
     .await?
     .ok_or(errors::ApiErrorResponse::InternalServerError)
