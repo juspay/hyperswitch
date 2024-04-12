@@ -136,7 +136,7 @@ impl DBOperation {
                         &m.orig.mandate_id,
                         m.update_data,
                     )
-                    .await?
+                    .await?,
                 )),
                 Updateable::CustomerUpdate(cust) => DBResult::Customer(Box::new(
                     Customer::update_by_customer_id_merchant_id(
