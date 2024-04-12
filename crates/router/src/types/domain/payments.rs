@@ -1064,65 +1064,37 @@ impl From<api_models::payments::BankTransferData> for BankTransferData {
             }
             api_models::payments::BankTransferData::PermataBankTransfer { billing_details } => {
                 Self::PermataBankTransfer {
-                    billing_details: DokuBillingDetails {
-                        first_name: billing_details.first_name,
-                        last_name: billing_details.last_name,
-                        email: billing_details.email,
-                    },
+                    billing_details: DokuBillingDetails::from(billing_details),
                 }
             }
             api_models::payments::BankTransferData::BcaBankTransfer { billing_details } => {
                 Self::BcaBankTransfer {
-                    billing_details: DokuBillingDetails {
-                        first_name: billing_details.first_name,
-                        last_name: billing_details.last_name,
-                        email: billing_details.email,
-                    },
+                    billing_details: DokuBillingDetails::from(billing_details),
                 }
             }
             api_models::payments::BankTransferData::BniVaBankTransfer { billing_details } => {
                 Self::BniVaBankTransfer {
-                    billing_details: DokuBillingDetails {
-                        first_name: billing_details.first_name,
-                        last_name: billing_details.last_name,
-                        email: billing_details.email,
-                    },
+                    billing_details: DokuBillingDetails::from(billing_details),
                 }
             }
             api_models::payments::BankTransferData::BriVaBankTransfer { billing_details } => {
                 Self::BriVaBankTransfer {
-                    billing_details: DokuBillingDetails {
-                        first_name: billing_details.first_name,
-                        last_name: billing_details.last_name,
-                        email: billing_details.email,
-                    },
+                    billing_details: DokuBillingDetails::from(billing_details),
                 }
             }
             api_models::payments::BankTransferData::CimbVaBankTransfer { billing_details } => {
                 Self::CimbVaBankTransfer {
-                    billing_details: DokuBillingDetails {
-                        first_name: billing_details.first_name,
-                        last_name: billing_details.last_name,
-                        email: billing_details.email,
-                    },
+                    billing_details: DokuBillingDetails::from(billing_details),
                 }
             }
             api_models::payments::BankTransferData::DanamonVaBankTransfer { billing_details } => {
                 Self::DanamonVaBankTransfer {
-                    billing_details: DokuBillingDetails {
-                        first_name: billing_details.first_name,
-                        last_name: billing_details.last_name,
-                        email: billing_details.email,
-                    },
+                    billing_details: DokuBillingDetails::from(billing_details),
                 }
             }
             api_models::payments::BankTransferData::MandiriVaBankTransfer { billing_details } => {
                 Self::MandiriVaBankTransfer {
-                    billing_details: DokuBillingDetails {
-                        first_name: billing_details.first_name,
-                        last_name: billing_details.last_name,
-                        email: billing_details.email,
-                    },
+                    billing_details: DokuBillingDetails::from(billing_details),
                 }
             }
             api_models::payments::BankTransferData::Pix {} => Self::Pix {},
@@ -1130,6 +1102,16 @@ impl From<api_models::payments::BankTransferData> for BankTransferData {
             api_models::payments::BankTransferData::LocalBankTransfer { bank_code } => {
                 Self::LocalBankTransfer { bank_code }
             }
+        }
+    }
+}
+
+impl From<api_models::payments::DokuBillingDetails> for DokuBillingDetails {
+    fn from(billing: api_models::payments::DokuBillingDetails) -> Self {
+        Self {
+            first_name: billing.first_name,
+            last_name: billing.last_name,
+            email: billing.email,
         }
     }
 }
