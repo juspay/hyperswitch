@@ -465,6 +465,7 @@ pub async fn mandates_incoming_webhook_flow(
                 &state,
                 key_store.clone(),
                 updated_mandate.clone(),
+                merchant_account.storage_scheme,
             )
             .await?,
         );
