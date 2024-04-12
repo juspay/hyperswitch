@@ -27,6 +27,15 @@ pub enum StoreLockerReq<'a> {
     LockerGeneric(StoreGenericReq<'a>),
 }
 
+impl StoreLockerReq<'_> {
+    pub fn update_requestor_card_reference(&mut self, card_reference: Option<String>) {
+        match self {
+            Self::LockerCard(c) => c.requestor_card_reference = card_reference,
+            Self::LockerGeneric(_) => (),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct StoreCardReq<'a> {
     pub merchant_id: &'a str,
@@ -309,6 +318,7 @@ pub async fn mk_add_locker_request_hs<'a>(
     Ok(request)
 }
 
+#[cfg(feature = "payouts")]
 pub fn mk_add_bank_response_hs(
     bank: api::BankPayout,
     bank_reference: String,
@@ -365,6 +375,7 @@ pub fn mk_add_card_response_hs(
         payment_method_id: card_reference,
         payment_method: req.payment_method,
         payment_method_type: req.payment_method_type,
+        #[cfg(feature = "payouts")]
         bank_transfer: None,
         card: Some(card),
         metadata: req.metadata,

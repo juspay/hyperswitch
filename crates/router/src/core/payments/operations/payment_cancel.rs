@@ -187,6 +187,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             authorizations: vec![],
             frm_metadata: None,
             authentication: None,
+            recurring_details: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

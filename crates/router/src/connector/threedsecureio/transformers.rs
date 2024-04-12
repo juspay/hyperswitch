@@ -1,7 +1,9 @@
+use std::str::FromStr;
+
 use api_models::payments::{DeviceChannel, ThreeDsCompletionIndicator};
 use base64::Engine;
 use common_utils::date_time;
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::ResultExt;
 use iso_currency::Currency;
 use isocountry;
 use masking::{ExposeInterface, Secret};
@@ -16,7 +18,7 @@ use crate::{
         self,
         api::{self, MessageCategory},
         authentication::ChallengeParams,
-        transformers::ForeignTryFrom,
+        domain,
     },
     utils::OptionExt,
 };
@@ -85,7 +87,6 @@ impl
                     "threeDSServerTransID": pre_authn_response.threeds_server_trans_id,
                 });
                 let three_ds_method_data_str = to_string(&three_ds_method_data)
-                    .into_report()
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)
                     .attach_printable("error while constructing three_ds_method_data_str")?;
                 let three_ds_method_data_base64 = BASE64_ENGINE.encode(three_ds_method_data_str);
@@ -100,13 +101,18 @@ impl
                         threeds_server_transaction_id: pre_authn_response
                             .threeds_server_trans_id
                             .clone(),
-                        maximum_supported_3ds_version: ForeignTryFrom::foreign_try_from(
-                            pre_authn_response.acs_end_protocol_version.clone(),
-                        )?,
+                        maximum_supported_3ds_version:
+                            common_utils::types::SemanticVersion::from_str(
+                                &pre_authn_response.acs_end_protocol_version,
+                            )
+                            .change_context(errors::ConnectorError::ParsingFailed)?,
                         connector_authentication_id: pre_authn_response.threeds_server_trans_id,
                         three_ds_method_data: three_ds_method_data_base64,
                         three_ds_method_url: pre_authn_response.threeds_method_url,
-                        message_version: pre_authn_response.acs_end_protocol_version.clone(),
+                        message_version: common_utils::types::SemanticVersion::from_str(
+                            &pre_authn_response.acs_end_protocol_version,
+                        )
+                        .change_context(errors::ConnectorError::ParsingFailed)?,
                         connector_metadata: Some(connector_metadata),
                     },
                 )
@@ -161,7 +167,6 @@ impl
                     "challengeWindowSize": "01",
                 });
                 let creq_str = to_string(&creq)
-                    .into_report()
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)
                     .attach_printable("error while constructing creq_str")?;
                 let creq_base64 = base64::Engine::encode(&BASE64_ENGINE, creq_str)
@@ -240,10 +245,10 @@ impl TryFrom<&types::ConnectorAuthType> for ThreedsecureioAuthType {
 }
 
 fn get_card_details(
-    payment_method_data: api_models::payments::PaymentMethodData,
-) -> Result<api_models::payments::Card, errors::ConnectorError> {
+    payment_method_data: domain::PaymentMethodData,
+) -> Result<domain::payments::Card, errors::ConnectorError> {
     match payment_method_data {
-        api_models::payments::PaymentMethodData::Card(details) => Ok(details),
+        domain::PaymentMethodData::Card(details) => Ok(details),
         _ => Err(errors::ConnectorError::NotSupported {
             message: SELECTED_PAYMENT_METHOD.to_string(),
             connector: "threedsecureio",
@@ -277,11 +282,9 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
             .currency
             .map(|currency| currency.to_string())
             .ok_or(errors::ConnectorError::RequestEncodingFailed)
-            .into_report()
             .attach_printable("missing field currency")?;
         let purchase_currency: Currency = iso_currency::Currency::from_code(&currency)
             .ok_or(errors::ConnectorError::RequestEncodingFailed)
-            .into_report()
             .attach_printable("error while parsing Currency")?;
         let billing_address = request.billing_address.address.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
@@ -297,7 +300,6 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
                 })?
                 .to_string(),
         )
-        .into_report()
         .change_context(errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Error parsing billing_address.address.country")?;
         let connector_meta_data: ThreeDSecureIoMetaData = item
@@ -307,7 +309,7 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
             .parse_value("ThreeDSecureIoMetaData")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
-        let authentication_data = &request.authentication_data.0;
+        let pre_authentication_data = &request.pre_authentication_data;
         let sdk_information = match request.device_channel {
             DeviceChannel::App => Some(item.router_data.request.sdk_information.clone().ok_or(
                 errors::ConnectorError::MissingRequiredField {
@@ -316,34 +318,39 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
             )?),
             DeviceChannel::Browser => None,
         };
-        let acquirer_details = authentication_data
-            .acquirer_details
+        let (acquirer_bin, acquirer_merchant_id) = pre_authentication_data
+            .acquirer_bin
             .clone()
+            .zip(pre_authentication_data.acquirer_merchant_id.clone())
             .get_required_value("acquirer_details")
             .change_context(errors::ConnectorError::MissingRequiredField {
                 field_name: "acquirer_details",
             })?;
         let meta: ThreeDSecureIoConnectorMetaData =
-            to_connector_meta(request.authentication_data.1.connector_metadata.clone())?;
+            to_connector_meta(request.pre_authentication_data.connector_metadata.clone())?;
+
+        let card_holder_name = billing_address.get_optional_full_name();
+
         Ok(Self {
             ds_start_protocol_version: meta.ds_start_protocol_version.clone(),
             ds_end_protocol_version: meta.ds_end_protocol_version.clone(),
             acs_start_protocol_version: meta.acs_start_protocol_version.clone(),
             acs_end_protocol_version: meta.acs_end_protocol_version.clone(),
-            three_dsserver_trans_id: authentication_data.threeds_server_transaction_id.clone(),
+            three_dsserver_trans_id: pre_authentication_data
+                .threeds_server_transaction_id
+                .clone(),
             acct_number: card_details.card_number.clone(),
             notification_url: request
                 .return_url
                 .clone()
                 .ok_or(errors::ConnectorError::RequestEncodingFailed)
-                .into_report()
                 .attach_printable("missing return_url")?,
             three_dscomp_ind: ThreeDSecureIoThreeDsCompletionIndicator::from(
                 request.threeds_method_comp_ind.clone(),
             ),
             three_dsrequestor_url: request.three_ds_requestor_url.clone(),
-            acquirer_bin: acquirer_details.acquirer_bin,
-            acquirer_merchant_id: acquirer_details.acquirer_merchant_id,
+            acquirer_bin,
+            acquirer_merchant_id,
             card_expiry_date: card_details.get_expiry_date_as_yymm()?.expose(),
             bill_addr_city: billing_address
                 .city
@@ -410,14 +417,13 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
             merchant_country_code: connector_meta_data.merchant_country_code,
             merchant_name: connector_meta_data.merchant_name,
             message_type: "AReq".to_string(),
-            message_version: authentication_data.message_version.clone(),
+            message_version: pre_authentication_data.message_version.clone(),
             purchase_amount: item.amount.clone(),
             purchase_currency: purchase_currency.numeric().to_string(),
             trans_type: "01".to_string(),
             purchase_exponent: purchase_currency
                 .exponent()
                 .ok_or(errors::ConnectorError::RequestEncodingFailed)
-                .into_report()
                 .attach_printable("missing purchase_exponent")?
                 .to_string(),
             purchase_date: date_time::DateTime::<date_time::YYYYMMDDHHmmss>::from(date_time::now())
@@ -449,7 +455,7 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
                 }),
                 DeviceChannel::Browser => None,
             },
-            cardholder_name: card_details.card_holder_name,
+            cardholder_name: card_holder_name,
             email: request.email.clone(),
         })
     }
@@ -644,7 +650,7 @@ impl From<ThreeDsCompletionIndicator> for ThreeDSecureIoThreeDsCompletionIndicat
     }
 }
 
-impl From<ThreedsecureioTransStatus> for api_models::payments::TransactionStatus {
+impl From<ThreedsecureioTransStatus> for common_enums::TransactionStatus {
     fn from(value: ThreedsecureioTransStatus) -> Self {
         match value {
             ThreedsecureioTransStatus::Y => Self::Success,
@@ -705,43 +711,5 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::PreAuthNRouterDat
             acct_number: router_data.request.card_holder_account_number.clone(),
             ds: None,
         })
-    }
-}
-
-impl ForeignTryFrom<String> for (i64, i64, i64) {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
-        let mut split_version = value.split('.');
-        let version_string = {
-            let major_version = split_version.next().ok_or(report!(
-                errors::ConnectorError::ResponseDeserializationFailed
-            ))?;
-            let minor_version = split_version.next().ok_or(report!(
-                errors::ConnectorError::ResponseDeserializationFailed
-            ))?;
-            let patch_version = split_version.next().ok_or(report!(
-                errors::ConnectorError::ResponseDeserializationFailed
-            ))?;
-            (major_version, minor_version, patch_version)
-        };
-        let int_representation = {
-            let major_version = version_string
-                .0
-                .parse()
-                .into_report()
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-            let minor_version = version_string
-                .1
-                .parse()
-                .into_report()
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-            let patch_version = version_string
-                .2
-                .parse()
-                .into_report()
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-            (major_version, minor_version, patch_version)
-        };
-        Ok(int_representation)
     }
 }

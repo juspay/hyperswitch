@@ -22,7 +22,7 @@ use common_utils::{
     errors::{ErrorSwitch, ReportSwitchExt},
     request::RequestContent,
 };
-use error_stack::{report, IntoReport, Report, ResultExt};
+use error_stack::{report, Report, ResultExt};
 use masking::{Maskable, PeekInterface, Secret};
 use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
 use serde::Serialize;
@@ -45,7 +45,7 @@ use crate::{
     },
     logger,
     routes::{
-        app::AppStateInfo,
+        app::{AppStateInfo, ReqState},
         metrics::{self, request as metrics_request},
         AppState,
     },
@@ -433,14 +433,7 @@ where
                                         });
                                     match handle_response_result {
                                         Ok(mut data) => {
-                                            match connector_event.try_into() {
-                                                Ok(event) => {
-                                                    state.event_handler().log_event(event);
-                                                }
-                                                Err(err) => {
-                                                    logger::error!(error=?err, "Error Logging Connector Event");
-                                                }
-                                            };
+                                            state.event_handler().log_event(&connector_event);
                                             data.connector_http_status_code =
                                                 connector_http_status_code;
                                             // Add up multiple external latencies in case of multiple external calls within the same request.
@@ -456,14 +449,7 @@ where
                                             connector_event
                                                 .set_error(json!({"error": err.to_string()}));
 
-                                            match connector_event.try_into() {
-                                                Ok(event) => {
-                                                    state.event_handler().log_event(event);
-                                                }
-                                                Err(err) => {
-                                                    logger::error!(error=?err, "Error Logging Connector Event");
-                                                }
-                                            }
+                                            state.event_handler().log_event(&connector_event);
                                             Err(err)
                                         }
                                     }?
@@ -491,14 +477,7 @@ where
                                                     body,
                                                     Some(&mut connector_event),
                                                 )?;
-                                            match connector_event.try_into() {
-                                                Ok(event) => {
-                                                    state.event_handler().log_event(event);
-                                                }
-                                                Err(err) => {
-                                                    logger::error!(error=?err, "Error Logging Connector Event");
-                                                }
-                                            };
+                                            state.event_handler().log_event(&connector_event);
                                             error_res
                                         }
                                         _ => {
@@ -523,14 +502,7 @@ where
                         }
                         Err(error) => {
                             connector_event.set_error(json!({"error": error.to_string()}));
-                            match connector_event.try_into() {
-                                Ok(event) => {
-                                    state.event_handler().log_event(event);
-                                }
-                                Err(err) => {
-                                    logger::error!(error=?err, "Error Logging Connector Event");
-                                }
-                            };
+                            state.event_handler().log_event(&connector_event);
                             if error.current_context().is_upstream_timeout() {
                                 let error_response = ErrorResponse {
                                     code: consts::REQUEST_TIMEOUT_ERROR_CODE.to_string(),
@@ -607,7 +579,6 @@ pub async fn send_request(
     logger::info!(method=?request.method, headers=?request.headers, payload=?request.body, ?request);
 
     let url = reqwest::Url::parse(&request.url)
-        .into_report()
         .change_context(errors::ApiClientError::UrlEncodingFailed)?;
 
     #[cfg(feature = "dummy_connector")]
@@ -640,7 +611,6 @@ pub async fn send_request(
                     Some(RequestContent::FormUrlEncoded(payload)) => client.form(&payload),
                     Some(RequestContent::Xml(payload)) => {
                         let body = quick_xml::se::to_string(&payload)
-                            .into_report()
                             .change_context(errors::ApiClientError::BodySerializationFailed)?;
                         client.body(body).header("Content-Type", "application/xml")
                     }
@@ -656,7 +626,6 @@ pub async fn send_request(
                     Some(RequestContent::FormUrlEncoded(payload)) => client.form(&payload),
                     Some(RequestContent::Xml(payload)) => {
                         let body = quick_xml::se::to_string(&payload)
-                            .into_report()
                             .change_context(errors::ApiClientError::BodySerializationFailed)?;
                         client.body(body).header("Content-Type", "application/xml")
                     }
@@ -672,7 +641,6 @@ pub async fn send_request(
                     Some(RequestContent::FormUrlEncoded(payload)) => client.form(&payload),
                     Some(RequestContent::Xml(payload)) => {
                         let body = quick_xml::se::to_string(&payload)
-                            .into_report()
                             .change_context(errors::ApiClientError::BodySerializationFailed)?;
                         client.body(body).header("Content-Type", "application/xml")
                     }
@@ -704,7 +672,6 @@ pub async fn send_request(
                 }
                 _ => errors::ApiClientError::RequestNotSent(error.to_string()),
             })
-            .into_report()
             .attach_printable("Unable to send request to connector")
     });
 
@@ -723,7 +690,6 @@ pub async fn send_request(
                 }
                 _ => errors::ApiClientError::RequestNotSent(error.to_string()),
             })
-            .into_report()
             .attach_printable("Unable to send request to connector")
     };
 
@@ -802,7 +768,6 @@ async fn handle_response(
                     let response = response
                         .bytes()
                         .await
-                        .into_report()
                         .change_context(errors::ApiClientError::ResponseDecodingFailed)
                         .attach_printable("Error while waiting for response")?;
                     Ok(Ok(types::Response {
@@ -888,6 +853,7 @@ pub struct PaymentLinkFormData {
     pub js_script: String,
     pub css_script: String,
     pub sdk_url: String,
+    pub html_meta_tags: String,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
@@ -977,39 +943,41 @@ pub enum AuthFlow {
     Merchant,
 }
 
-#[instrument(skip(request, payload, state, func, api_auth), fields(merchant_id))]
-pub async fn server_wrap_util<'a, 'b, A, U, T, Q, F, Fut, E, OErr>(
+#[allow(clippy::too_many_arguments)]
+#[instrument(
+    skip(request, payload, state, func, api_auth, request_state),
+    fields(merchant_id)
+)]
+pub async fn server_wrap_util<'a, 'b, U, T, Q, F, Fut, E, OErr>(
     flow: &'a impl router_env::types::FlowMetric,
-    state: web::Data<A>,
+    state: web::Data<AppState>,
+    request_state: ReqState,
     request: &'a HttpRequest,
     payload: T,
     func: F,
-    api_auth: &dyn AuthenticateAndFetch<U, A>,
+    api_auth: &dyn AuthenticateAndFetch<U, AppState>,
     lock_action: api_locking::LockAction,
 ) -> CustomResult<ApplicationResponse<Q>, OErr>
 where
-    F: Fn(A, U, T) -> Fut,
+    F: Fn(AppState, U, T, ReqState) -> Fut,
     'b: 'a,
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a + ApiEventMetric,
     T: Debug + Serialize + ApiEventMetric,
-    A: AppStateInfo + Clone,
     E: ErrorSwitch<OErr> + error_stack::Context,
     OErr: ResponseError + error_stack::Context + Serialize,
     errors::ApiErrorResponse: ErrorSwitch<OErr>,
 {
     let request_id = RequestId::extract(request)
         .await
-        .into_report()
         .attach_printable("Unable to extract request id from request")
         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?;
 
-    let mut request_state = state.get_ref().clone();
+    let mut app_state = state.get_ref().clone();
 
-    request_state.add_request_id(request_id);
+    app_state.add_request_id(request_id);
     let start_instant = Instant::now();
     let serialized_request = masking::masked_serialize(&payload)
-        .into_report()
         .attach_printable("Failed to serialize json request")
         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?;
 
@@ -1017,7 +985,7 @@ where
 
     // Currently auth failures are not recorded as API events
     let (auth_out, auth_type) = api_auth
-        .authenticate_and_fetch(request.headers(), &request_state)
+        .authenticate_and_fetch(request.headers(), &app_state)
         .await
         .switch()?;
 
@@ -1026,23 +994,23 @@ where
         .unwrap_or("MERCHANT_ID_NOT_FOUND")
         .to_string();
 
-    request_state.add_merchant_id(Some(merchant_id.clone()));
+    app_state.add_merchant_id(Some(merchant_id.clone()));
 
-    request_state.add_flow_name(flow.to_string());
+    app_state.add_flow_name(flow.to_string());
 
     tracing::Span::current().record("merchant_id", &merchant_id);
 
     let output = {
         lock_action
             .clone()
-            .perform_locking_action(&request_state, merchant_id.to_owned())
+            .perform_locking_action(&app_state, merchant_id.to_owned())
             .await
             .switch()?;
-        let res = func(request_state.clone(), auth_out, payload)
+        let res = func(app_state.clone(), auth_out, payload, request_state)
             .await
             .switch();
         lock_action
-            .free_lock_action(&request_state, merchant_id.to_owned())
+            .free_lock_action(&app_state, merchant_id.to_owned())
             .await
             .switch()?;
         res
@@ -1060,14 +1028,12 @@ where
             if let ApplicationResponse::Json(data) = res {
                 serialized_response.replace(
                     masking::masked_serialize(&data)
-                        .into_report()
                         .attach_printable("Failed to serialize json response")
                         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?,
                 );
             } else if let ApplicationResponse::JsonWithHeaders((data, headers)) = res {
                 serialized_response.replace(
                     masking::masked_serialize(&data)
-                        .into_report()
                         .attach_printable("Failed to serialize json response")
                         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?,
                 );
@@ -1085,7 +1051,6 @@ where
         Err(err) => {
             error.replace(
                 serde_json::to_value(err.current_context())
-                    .into_report()
                     .attach_printable("Failed to serialize json response")
                     .change_context(errors::ApiErrorResponse::InternalServerError.switch())
                     .ok()
@@ -1110,14 +1075,7 @@ where
         request,
         request.method(),
     );
-    match api_event.clone().try_into() {
-        Ok(event) => {
-            state.event_handler().log_event(event);
-        }
-        Err(err) => {
-            logger::error!(error=?err, event=?api_event, "Error Logging API Event");
-        }
-    }
+    state.event_handler().log_event(&api_event);
 
     metrics::request::status_code_metrics(status_code, flow.to_string(), merchant_id.to_string());
 
@@ -1128,24 +1086,24 @@ where
     skip(request, state, func, api_auth, payload),
     fields(request_method, request_url_path, status_code)
 )]
-pub async fn server_wrap<'a, A, T, U, Q, F, Fut, E>(
+pub async fn server_wrap<'a, T, U, Q, F, Fut, E>(
     flow: impl router_env::types::FlowMetric,
-    state: web::Data<A>,
+    state: web::Data<AppState>,
     request: &'a HttpRequest,
     payload: T,
     func: F,
-    api_auth: &dyn AuthenticateAndFetch<U, A>,
+    api_auth: &dyn AuthenticateAndFetch<U, AppState>,
     lock_action: api_locking::LockAction,
 ) -> HttpResponse
 where
-    F: Fn(A, U, T) -> Fut,
+    F: Fn(AppState, U, T, ReqState) -> Fut,
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + ApiEventMetric + 'a,
     T: Debug + Serialize + ApiEventMetric,
-    A: AppStateInfo + Clone,
     ApplicationResponse<Q>: Debug,
     E: ErrorSwitch<api_models::errors::types::ApiErrorResponse> + error_stack::Context,
 {
+    let req_state = state.get_req_state();
     let request_method = request.method().as_str();
     let url_path = request.path();
 
@@ -1182,6 +1140,7 @@ where
         server_wrap_util(
             &flow,
             state.clone(),
+            req_state,
             request,
             payload,
             func,
@@ -1484,7 +1443,8 @@ pub fn build_redirection_form(
     config: Settings,
 ) -> maud::Markup {
     use maud::PreEscaped;
-
+    let logging_template =
+        include_str!("redirection/assets/redirect_error_logs_push.js").to_string();
     match form {
         RedirectForm::Form {
             endpoint,
@@ -1533,7 +1493,6 @@ pub fn build_redirection_form(
                 </script>
                 "#))
 
-
                 h3 style="text-align: center;" { "Please wait while we process your payment..." }
                     form action=(PreEscaped(endpoint)) method=(method.to_string()) #payment_form {
                         @for (field, value) in form_fields {
@@ -1541,11 +1500,15 @@ pub fn build_redirection_form(
                     }
                 }
 
-                (PreEscaped(r#"<script type="text/javascript"> var frm = document.getElementById("payment_form"); window.setTimeout(function () { frm.submit(); }, 300); </script>"#))
+                (PreEscaped(format!("<script type=\"text/javascript\"> {logging_template} var frm = document.getElementById(\"payment_form\"); window.setTimeout(function () {{ frm.submit(); }}, 300); </script>")))
+
             }
         }
         },
-        RedirectForm::Html { html_data } => PreEscaped(html_data.to_string()),
+        RedirectForm::Html { html_data } => PreEscaped(format!(
+            "{} <script>{}</script>",
+            html_data, logging_template
+        )),
         RedirectForm::BlueSnap {
             payment_fields_token,
         } => {
@@ -1587,11 +1550,11 @@ pub fn build_redirection_form(
                         </script>
                         "#))
 
-
                         h3 style="text-align: center;" { "Please wait while we process your payment..." }
                     }
 
                 (PreEscaped(format!("<script>
+                    {logging_template}
                     bluesnap.threeDsPaymentsSetup(\"{payment_fields_token}\",
                     function(sdkResponse) {{
                         // console.log(sdkResponse);
@@ -1642,7 +1605,6 @@ pub fn build_redirection_form(
                             </script>
                             "#))
 
-
                         h3 style="text-align: center;" { "Please wait while we process your payment..." }
                     }
 
@@ -1656,6 +1618,7 @@ pub fn build_redirection_form(
               }
               </script>"#))
               (PreEscaped(format!("<script>
+                {logging_template}
                 window.addEventListener(\"message\", function(event) {{
                     if (event.origin === \"https://centinelapistag.cardinalcommerce.com\" || event.origin === \"https://centinelapi.cardinalcommerce.com\") {{
                       window.location.href = window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/cybersource?referenceId={reference_id}\");
@@ -1694,7 +1657,6 @@ pub fn build_redirection_form(
                             </script>
                             "#))
 
-
                         h3 style="text-align: center;" { "Please wait while we process your payment..." }
                     }
 
@@ -1704,11 +1666,12 @@ pub fn build_redirection_form(
                 (PreEscaped(format!("<form id=\"step-up-form\" method=\"POST\" action=\"{step_up_url}\">
                 <input type=\"hidden\" name=\"JWT\" value=\"{access_token}\">
               </form>")))
-              (PreEscaped(r#"<script>
-              window.onload = function() {
+              (PreEscaped(format!("<script>
+              {logging_template}
+              window.onload = function() {{
               var stepUpForm = document.querySelector('#step-up-form'); if(stepUpForm) stepUpForm.submit();
-              }
-              </script>"#))
+              }}
+              </script>")))
             }}
         }
         RedirectForm::Payme => {
@@ -1717,7 +1680,8 @@ pub fn build_redirection_form(
                 head {
                     (PreEscaped(r#"<script src="https://cdn.paymeservice.com/hf/v1/hostedfields.js"></script>"#))
                 }
-                (PreEscaped("<script>
+                (PreEscaped(format!("<script>
+                    {logging_template}
                     var f = document.createElement('form');
                     f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/payme\");
                     f.method='POST';
@@ -1735,7 +1699,7 @@ pub fn build_redirection_form(
                         f.submit();
                     }});
             </script>
-                ".to_string()))
+                ")))
             }
         }
         RedirectForm::Braintree {
@@ -1771,11 +1735,11 @@ pub fn build_redirection_form(
                             </script>
                             "#))
 
-
                         h3 style="text-align: center;" { "Please wait while we process your payment..." }
                     }
 
                     (PreEscaped(format!("<script>
+                                {logging_template}
                                 var my3DSContainer;
                                 var clientToken = \"{client_token}\";
                                 braintree.threeDSecure.create({{
@@ -1873,6 +1837,7 @@ pub fn build_redirection_form(
                         div id="threeds-wrapper" style="display: flex; width: 100%; height: 100vh; align-items: center; justify-content: center;" {""}
                     }
                     (PreEscaped(format!("<script>
+                    {logging_template}
                     const gateway = Gateway.create('{public_key_val}');
 
                     // Initialize the ThreeDSService
@@ -1999,6 +1964,7 @@ pub fn build_payment_link_html(
     // Add modification to js template with dynamic data
     let js_template =
         include_str!("../core/payment_link/payment_link_initiate/payment_link.js").to_string();
+
     let _ = tera.add_raw_template("payment_link_js", &js_template);
 
     context.insert("payment_details_js_script", &payment_link_data.js_script);
@@ -2016,6 +1982,18 @@ pub fn build_payment_link_html(
         include_str!("../core/payment_link/payment_link_initiate/payment_link.html").to_string();
 
     let _ = tera.add_raw_template("payment_link", &html_template);
+
+    context.insert("rendered_meta_tag_html", &payment_link_data.html_meta_tags);
+
+    context.insert(
+        "preload_link_tags",
+        &get_preload_link_html_template(&payment_link_data.sdk_url),
+    );
+
+    context.insert(
+        "preload_link_tags",
+        &get_preload_link_html_template(&payment_link_data.sdk_url),
+    );
 
     context.insert(
         "hyperloader_sdk_link",
@@ -2035,6 +2013,14 @@ pub fn build_payment_link_html(
 
 fn get_hyper_loader_sdk(sdk_url: &str) -> String {
     format!("<script src=\"{sdk_url}\" onload=\"initializeSDK()\"></script>")
+}
+
+fn get_preload_link_html_template(sdk_url: &str) -> String {
+    format!(
+        r#"<link rel="preload" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800" as="style">
+            <link rel="preload" href="{sdk_url}" as="script">"#,
+        sdk_url = sdk_url
+    )
 }
 
 pub fn get_payment_link_status(

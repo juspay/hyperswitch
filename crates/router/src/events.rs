@@ -1,29 +1,22 @@
 use data_models::errors::{StorageError, StorageResult};
 use error_stack::ResultExt;
+use events::{EventsError, Message, MessagingInterface};
+use masking::ErasedMaskSerialize;
+use router_env::logger;
 use serde::{Deserialize, Serialize};
 use storage_impl::errors::ApplicationError;
+use time::PrimitiveDateTime;
 
-use crate::{db::KafkaProducer, services::kafka::KafkaSettings};
+use crate::{
+    db::KafkaProducer,
+    services::kafka::{KafkaMessage, KafkaSettings},
+};
 
 pub mod api_logs;
+pub mod audit_events;
 pub mod connector_api_logs;
 pub mod event_logger;
-pub mod kafka_handler;
 pub mod outgoing_webhook_logs;
-
-pub(super) trait EventHandler: Sync + Send + dyn_clone::DynClone {
-    fn log_event(&self, event: RawEvent);
-}
-
-dyn_clone::clone_trait_object!(EventHandler);
-
-#[derive(Debug, Serialize)]
-pub struct RawEvent {
-    pub event_type: EventType,
-    pub key: String,
-    pub payload: serde_json::Value,
-}
-
 #[derive(Debug, Serialize, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum EventType {
@@ -34,6 +27,9 @@ pub enum EventType {
     ConnectorApiLogs,
     OutgoingWebhookLogs,
     Dispute,
+    AuditEvent,
+    #[cfg(feature = "payouts")]
+    Payout,
 }
 
 #[derive(Debug, Default, Deserialize, Clone)]
@@ -41,12 +37,13 @@ pub enum EventType {
 #[serde(rename_all = "lowercase")]
 pub enum EventsConfig {
     Kafka {
-        kafka: KafkaSettings,
+        kafka: Box<KafkaSettings>,
     },
     #[default]
     Logs,
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone)]
 pub enum EventsHandler {
     Kafka(KafkaProducer),
@@ -80,10 +77,30 @@ impl EventsConfig {
 }
 
 impl EventsHandler {
-    pub fn log_event(&self, event: RawEvent) {
+    pub fn log_event<T: KafkaMessage>(&self, event: &T) {
         match self {
-            Self::Kafka(kafka) => kafka.log_event(event),
+            Self::Kafka(kafka) => kafka.log_event(event).map_or((), |e| {
+                logger::error!("Failed to log event: {:?}", e);
+            }),
             Self::Logs(logger) => logger.log_event(event),
+        };
+    }
+}
+
+impl MessagingInterface for EventsHandler {
+    type MessageClass = EventType;
+
+    fn send_message<T>(
+        &self,
+        data: T,
+        timestamp: PrimitiveDateTime,
+    ) -> error_stack::Result<(), EventsError>
+    where
+        T: Message<Class = Self::MessageClass> + ErasedMaskSerialize,
+    {
+        match self {
+            Self::Kafka(a) => a.send_message(data, timestamp),
+            Self::Logs(a) => a.send_message(data, timestamp),
         }
     }
 }

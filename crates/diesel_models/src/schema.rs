@@ -87,6 +87,30 @@ diesel::table! {
         #[max_length = 64]
         error_code -> Nullable<Varchar>,
         connector_metadata -> Nullable<Jsonb>,
+        maximum_supported_version -> Nullable<Jsonb>,
+        #[max_length = 64]
+        threeds_server_transaction_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        cavv -> Nullable<Varchar>,
+        #[max_length = 64]
+        authentication_flow_type -> Nullable<Varchar>,
+        message_version -> Nullable<Jsonb>,
+        #[max_length = 64]
+        eci -> Nullable<Varchar>,
+        #[max_length = 64]
+        trans_status -> Nullable<Varchar>,
+        #[max_length = 64]
+        acquirer_bin -> Nullable<Varchar>,
+        #[max_length = 64]
+        acquirer_merchant_id -> Nullable<Varchar>,
+        three_ds_method_data -> Nullable<Varchar>,
+        three_ds_method_url -> Nullable<Varchar>,
+        acs_url -> Nullable<Varchar>,
+        challenge_request -> Nullable<Varchar>,
+        acs_reference_number -> Nullable<Varchar>,
+        acs_trans_id -> Nullable<Varchar>,
+        three_dsserver_trans_id -> Nullable<Varchar>,
+        acs_signed_content -> Nullable<Varchar>,
     }
 }
 
@@ -357,6 +381,7 @@ diesel::table! {
         initial_attempt_id -> Nullable<Varchar>,
         request -> Nullable<Bytea>,
         response -> Nullable<Bytea>,
+        delivery_attempt -> Nullable<WebhookDeliveryAttempt>,
     }
 }
 
@@ -888,6 +913,8 @@ diesel::table! {
         customer_acceptance -> Nullable<Jsonb>,
         #[max_length = 64]
         status -> Varchar,
+        #[max_length = 255]
+        network_transaction_id -> Nullable<Varchar>,
     }
 }
 
@@ -961,6 +988,9 @@ diesel::table! {
         created_at -> Timestamp,
         last_modified_at -> Timestamp,
         attempt_count -> Int2,
+        #[max_length = 64]
+        profile_id -> Varchar,
+        status -> PayoutStatus,
     }
 }
 

@@ -5,6 +5,10 @@ use common_utils::errors::CustomResult;
 use data_models::payments::{
     payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface,
 };
+#[cfg(feature = "payouts")]
+use data_models::payouts::{payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface};
+#[cfg(not(feature = "payouts"))]
+use data_models::{PayoutAttemptInterface, PayoutsInterface};
 use diesel_models::{
     enums,
     enums::ProcessTrackerStatus,
@@ -28,6 +32,8 @@ use super::{
     user::{sample_data::BatchSampleDataInterface, UserInterface},
     user_role::UserRoleInterface,
 };
+#[cfg(feature = "payouts")]
+use crate::services::kafka::payout::KafkaPayout;
 use crate::{
     core::errors::{self, ProcessTrackerError},
     db::{
@@ -53,8 +59,6 @@ use crate::{
         merchant_key_store::MerchantKeyStoreInterface,
         payment_link::PaymentLinkInterface,
         payment_method::PaymentMethodInterface,
-        payout_attempt::PayoutAttemptInterface,
-        payouts::PayoutsInterface,
         refund::RefundInterface,
         reverse_lookup::ReverseLookupInterface,
         routing_algorithm::RoutingAlgorithmInterface,
@@ -491,24 +495,128 @@ impl EventInterface for KafkaStore {
             .await
     }
 
-    async fn find_event_by_event_id(
+    async fn find_event_by_merchant_id_event_id(
         &self,
+        merchant_id: &str,
         event_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Event, errors::StorageError> {
         self.diesel_store
-            .find_event_by_event_id(event_id, merchant_key_store)
+            .find_event_by_merchant_id_event_id(merchant_id, event_id, merchant_key_store)
             .await
     }
 
-    async fn update_event(
+    async fn list_initial_events_by_merchant_id_primary_object_id(
         &self,
-        event_id: String,
+        merchant_id: &str,
+        primary_object_id: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
+        self.diesel_store
+            .list_initial_events_by_merchant_id_primary_object_id(
+                merchant_id,
+                primary_object_id,
+                merchant_key_store,
+            )
+            .await
+    }
+
+    async fn list_initial_events_by_merchant_id_constraints(
+        &self,
+        merchant_id: &str,
+        created_after: Option<PrimitiveDateTime>,
+        created_before: Option<PrimitiveDateTime>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
+        self.diesel_store
+            .list_initial_events_by_merchant_id_constraints(
+                merchant_id,
+                created_after,
+                created_before,
+                limit,
+                offset,
+                merchant_key_store,
+            )
+            .await
+    }
+
+    async fn list_events_by_merchant_id_initial_attempt_id(
+        &self,
+        merchant_id: &str,
+        initial_attempt_id: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
+        self.diesel_store
+            .list_events_by_merchant_id_initial_attempt_id(
+                merchant_id,
+                initial_attempt_id,
+                merchant_key_store,
+            )
+            .await
+    }
+
+    async fn list_initial_events_by_profile_id_primary_object_id(
+        &self,
+        profile_id: &str,
+        primary_object_id: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
+        self.diesel_store
+            .list_initial_events_by_profile_id_primary_object_id(
+                profile_id,
+                primary_object_id,
+                merchant_key_store,
+            )
+            .await
+    }
+
+    async fn list_initial_events_by_profile_id_constraints(
+        &self,
+        profile_id: &str,
+        created_after: Option<PrimitiveDateTime>,
+        created_before: Option<PrimitiveDateTime>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
+        self.diesel_store
+            .list_initial_events_by_profile_id_constraints(
+                profile_id,
+                created_after,
+                created_before,
+                limit,
+                offset,
+                merchant_key_store,
+            )
+            .await
+    }
+
+    async fn list_events_by_profile_id_initial_attempt_id(
+        &self,
+        profile_id: &str,
+        initial_attempt_id: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
+        self.diesel_store
+            .list_events_by_profile_id_initial_attempt_id(
+                profile_id,
+                initial_attempt_id,
+                merchant_key_store,
+            )
+            .await
+    }
+
+    async fn update_event_by_merchant_id_event_id(
+        &self,
+        merchant_id: &str,
+        event_id: &str,
         event: domain::EventUpdate,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Event, errors::StorageError> {
         self.diesel_store
-            .update_event(event_id, event, merchant_key_store)
+            .update_event_by_merchant_id_event_id(merchant_id, event_id, event, merchant_key_store)
             .await
     }
 }
@@ -1274,9 +1382,10 @@ impl PaymentMethodInterface for KafkaStore {
     async fn find_payment_method(
         &self,
         payment_method_id: &str,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
         self.diesel_store
-            .find_payment_method(payment_method_id)
+            .find_payment_method(payment_method_id, storage_scheme)
             .await
     }
 
@@ -1326,26 +1435,31 @@ impl PaymentMethodInterface for KafkaStore {
     async fn find_payment_method_by_locker_id(
         &self,
         locker_id: &str,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
         self.diesel_store
-            .find_payment_method_by_locker_id(locker_id)
+            .find_payment_method_by_locker_id(locker_id, storage_scheme)
             .await
     }
 
     async fn insert_payment_method(
         &self,
         m: storage::PaymentMethodNew,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
-        self.diesel_store.insert_payment_method(m).await
+        self.diesel_store
+            .insert_payment_method(m, storage_scheme)
+            .await
     }
 
     async fn update_payment_method(
         &self,
         payment_method: storage::PaymentMethod,
         payment_method_update: storage::PaymentMethodUpdate,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
         self.diesel_store
-            .update_payment_method(payment_method, payment_method_update)
+            .update_payment_method(payment_method, payment_method_update, storage_scheme)
             .await
     }
 
@@ -1360,90 +1474,194 @@ impl PaymentMethodInterface for KafkaStore {
     }
 }
 
+#[cfg(not(feature = "payouts"))]
+impl PayoutAttemptInterface for KafkaStore {}
+
+#[cfg(feature = "payouts")]
 #[async_trait::async_trait]
 impl PayoutAttemptInterface for KafkaStore {
-    async fn find_payout_attempt_by_merchant_id_payout_id(
-        &self,
-        merchant_id: &str,
-        payout_id: &str,
-    ) -> CustomResult<storage::PayoutAttempt, errors::StorageError> {
-        self.diesel_store
-            .find_payout_attempt_by_merchant_id_payout_id(merchant_id, payout_id)
-            .await
-    }
-
     async fn find_payout_attempt_by_merchant_id_payout_attempt_id(
         &self,
         merchant_id: &str,
         payout_attempt_id: &str,
-    ) -> CustomResult<storage::PayoutAttempt, errors::StorageError> {
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<storage::PayoutAttempt, errors::DataStorageError> {
         self.diesel_store
-            .find_payout_attempt_by_merchant_id_payout_attempt_id(merchant_id, payout_attempt_id)
-            .await
-    }
-
-    async fn update_payout_attempt_by_merchant_id_payout_id(
-        &self,
-        merchant_id: &str,
-        payout_id: &str,
-        payout: storage::PayoutAttemptUpdate,
-    ) -> CustomResult<storage::PayoutAttempt, errors::StorageError> {
-        self.diesel_store
-            .update_payout_attempt_by_merchant_id_payout_id(merchant_id, payout_id, payout)
-            .await
-    }
-
-    async fn update_payout_attempt_by_merchant_id_payout_attempt_id(
-        &self,
-        merchant_id: &str,
-        payout_attempt_id: &str,
-        payout: storage::PayoutAttemptUpdate,
-    ) -> CustomResult<storage::PayoutAttempt, errors::StorageError> {
-        self.diesel_store
-            .update_payout_attempt_by_merchant_id_payout_attempt_id(
+            .find_payout_attempt_by_merchant_id_payout_attempt_id(
                 merchant_id,
                 payout_attempt_id,
-                payout,
+                storage_scheme,
             )
             .await
     }
 
+    async fn update_payout_attempt(
+        &self,
+        this: &storage::PayoutAttempt,
+        payout_attempt_update: storage::PayoutAttemptUpdate,
+        payouts: &storage::Payouts,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<storage::PayoutAttempt, errors::DataStorageError> {
+        let updated_payout_attempt = self
+            .diesel_store
+            .update_payout_attempt(this, payout_attempt_update, payouts, storage_scheme)
+            .await?;
+        if let Err(err) = self
+            .kafka_producer
+            .log_payout(
+                &KafkaPayout::from_storage(payouts, &updated_payout_attempt),
+                Some(KafkaPayout::from_storage(payouts, this)),
+            )
+            .await
+        {
+            logger::error!(message="Failed to update analytics entry for Payouts {payouts:?}\n{updated_payout_attempt:?}", error_message=?err);
+        };
+
+        Ok(updated_payout_attempt)
+    }
+
     async fn insert_payout_attempt(
         &self,
-        payout: storage::PayoutAttemptNew,
-    ) -> CustomResult<storage::PayoutAttempt, errors::StorageError> {
-        self.diesel_store.insert_payout_attempt(payout).await
+        payout_attempt: storage::PayoutAttemptNew,
+        payouts: &storage::Payouts,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<storage::PayoutAttempt, errors::DataStorageError> {
+        let payout_attempt_new = self
+            .diesel_store
+            .insert_payout_attempt(payout_attempt, payouts, storage_scheme)
+            .await?;
+        if let Err(err) = self
+            .kafka_producer
+            .log_payout(
+                &KafkaPayout::from_storage(payouts, &payout_attempt_new),
+                None,
+            )
+            .await
+        {
+            logger::error!(message="Failed to add analytics entry for Payouts {payouts:?}\n{payout_attempt_new:?}", error_message=?err);
+        };
+
+        Ok(payout_attempt_new)
+    }
+
+    async fn get_filters_for_payouts(
+        &self,
+        payouts: &[data_models::payouts::payouts::Payouts],
+        merchant_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<
+        data_models::payouts::payout_attempt::PayoutListFilters,
+        errors::DataStorageError,
+    > {
+        self.diesel_store
+            .get_filters_for_payouts(payouts, merchant_id, storage_scheme)
+            .await
     }
 }
 
+#[cfg(not(feature = "payouts"))]
+impl PayoutsInterface for KafkaStore {}
+
+#[cfg(feature = "payouts")]
 #[async_trait::async_trait]
 impl PayoutsInterface for KafkaStore {
     async fn find_payout_by_merchant_id_payout_id(
         &self,
         merchant_id: &str,
         payout_id: &str,
-    ) -> CustomResult<storage::Payouts, errors::StorageError> {
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<storage::Payouts, errors::DataStorageError> {
         self.diesel_store
-            .find_payout_by_merchant_id_payout_id(merchant_id, payout_id)
+            .find_payout_by_merchant_id_payout_id(merchant_id, payout_id, storage_scheme)
             .await
     }
 
-    async fn update_payout_by_merchant_id_payout_id(
+    async fn update_payout(
         &self,
-        merchant_id: &str,
-        payout_id: &str,
-        payout: storage::PayoutsUpdate,
-    ) -> CustomResult<storage::Payouts, errors::StorageError> {
-        self.diesel_store
-            .update_payout_by_merchant_id_payout_id(merchant_id, payout_id, payout)
+        this: &storage::Payouts,
+        payout_update: storage::PayoutsUpdate,
+        payout_attempt: &storage::PayoutAttempt,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<storage::Payouts, errors::DataStorageError> {
+        let payout = self
+            .diesel_store
+            .update_payout(this, payout_update, payout_attempt, storage_scheme)
+            .await?;
+        if let Err(err) = self
+            .kafka_producer
+            .log_payout(
+                &KafkaPayout::from_storage(&payout, payout_attempt),
+                Some(KafkaPayout::from_storage(this, payout_attempt)),
+            )
             .await
+        {
+            logger::error!(message="Failed to update analytics entry for Payouts {payout:?}\n{payout_attempt:?}", error_message=?err);
+        };
+        Ok(payout)
     }
 
     async fn insert_payout(
         &self,
         payout: storage::PayoutsNew,
-    ) -> CustomResult<storage::Payouts, errors::StorageError> {
-        self.diesel_store.insert_payout(payout).await
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<storage::Payouts, errors::DataStorageError> {
+        self.diesel_store
+            .insert_payout(payout, storage_scheme)
+            .await
+    }
+
+    async fn find_optional_payout_by_merchant_id_payout_id(
+        &self,
+        merchant_id: &str,
+        payout_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Option<storage::Payouts>, errors::DataStorageError> {
+        self.diesel_store
+            .find_optional_payout_by_merchant_id_payout_id(merchant_id, payout_id, storage_scheme)
+            .await
+    }
+
+    #[cfg(feature = "olap")]
+    async fn filter_payouts_by_constraints(
+        &self,
+        merchant_id: &str,
+        filters: &data_models::payouts::PayoutFetchConstraints,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<storage::Payouts>, errors::DataStorageError> {
+        self.diesel_store
+            .filter_payouts_by_constraints(merchant_id, filters, storage_scheme)
+            .await
+    }
+
+    #[cfg(feature = "olap")]
+    async fn filter_payouts_and_attempts(
+        &self,
+        merchant_id: &str,
+        filters: &data_models::payouts::PayoutFetchConstraints,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<
+        Vec<(
+            storage::Payouts,
+            storage::PayoutAttempt,
+            diesel_models::Customer,
+        )>,
+        errors::DataStorageError,
+    > {
+        self.diesel_store
+            .filter_payouts_and_attempts(merchant_id, filters, storage_scheme)
+            .await
+    }
+
+    #[cfg(feature = "olap")]
+    async fn filter_payouts_by_time_range_constraints(
+        &self,
+        merchant_id: &str,
+        time_range: &api_models::payments::TimeRange,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<storage::Payouts>, errors::DataStorageError> {
+        self.diesel_store
+            .filter_payouts_by_time_range_constraints(merchant_id, time_range, storage_scheme)
+            .await
     }
 }
 

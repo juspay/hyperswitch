@@ -1,15 +1,15 @@
 use api_models::{user as user_api, user_role as user_role_api};
 use diesel_models::{enums::UserStatus, user_role::UserRoleUpdate};
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
 use router_env::logger;
 
 use crate::{
     consts,
     core::errors::{StorageErrorExt, UserErrors, UserResponse},
-    routes::AppState,
+    routes::{app::ReqState, AppState},
     services::{
-        authentication::{self as auth},
+        authentication as auth,
         authorization::{info, roles},
         ApplicationResponse,
     },
@@ -50,6 +50,7 @@ pub async fn update_user_role(
     state: AppState,
     user_from_token: auth::UserFromToken,
     req: user_role_api::UpdateUserRoleRequest,
+    _req_state: ReqState,
 ) -> UserResponse<()> {
     let role_info = roles::RoleInfo::from_role_id(
         &state,
@@ -61,7 +62,7 @@ pub async fn update_user_role(
     .to_not_found_response(UserErrors::InvalidRoleId)?;
 
     if !role_info.is_updatable() {
-        return Err(UserErrors::InvalidRoleOperation.into())
+        return Err(report!(UserErrors::InvalidRoleOperation))
             .attach_printable(format!("User role cannot be updated to {}", req.role_id));
     }
 
@@ -72,7 +73,7 @@ pub async fn update_user_role(
             .attach_printable("User not found in our records".to_string())?;
 
     if user_from_token.user_id == user_to_be_updated.get_user_id() {
-        return Err(UserErrors::InvalidRoleOperation.into())
+        return Err(report!(UserErrors::InvalidRoleOperation))
             .attach_printable("User Changing their own role");
     }
 
@@ -91,7 +92,7 @@ pub async fn update_user_role(
     .change_context(UserErrors::InternalServerError)?;
 
     if !role_to_be_updated.is_updatable() {
-        return Err(UserErrors::InvalidRoleOperation.into()).attach_printable(format!(
+        return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
             "User role cannot be updated from {}",
             role_to_be_updated.get_role_id()
         ));
@@ -120,9 +121,10 @@ pub async fn transfer_org_ownership(
     state: AppState,
     user_from_token: auth::UserFromToken,
     req: user_role_api::TransferOrgOwnershipRequest,
+    _req_state: ReqState,
 ) -> UserResponse<user_api::DashboardEntryResponse> {
     if user_from_token.role_id != consts::user_role::ROLE_ID_ORGANIZATION_ADMIN {
-        return Err(UserErrors::InvalidRoleOperation.into()).attach_printable(format!(
+        return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
             "role_id = {} is not org_admin",
             user_from_token.role_id
         ));
@@ -135,7 +137,7 @@ pub async fn transfer_org_ownership(
             .attach_printable("User not found in our records".to_string())?;
 
     if user_from_token.user_id == user_to_be_updated.get_user_id() {
-        return Err(UserErrors::InvalidRoleOperation.into())
+        return Err(report!(UserErrors::InvalidRoleOperation))
             .attach_printable("User transferring ownership to themselves".to_string());
     }
 
@@ -171,6 +173,7 @@ pub async fn accept_invitation(
     state: AppState,
     user_token: auth::UserWithoutMerchantFromToken,
     req: user_role_api::AcceptInvitationRequest,
+    _req_state: ReqState,
 ) -> UserResponse<user_api::DashboardEntryResponse> {
     let user_role = futures::future::join_all(req.merchant_ids.iter().map(|merchant_id| async {
         state
@@ -223,6 +226,7 @@ pub async fn delete_user_role(
     state: AppState,
     user_from_token: auth::UserFromToken,
     request: user_role_api::DeleteUserRoleRequest,
+    _req_state: ReqState,
 ) -> UserResponse<()> {
     let user_from_db: domain::UserFromStorage = state
         .store
@@ -244,7 +248,7 @@ pub async fn delete_user_role(
         .into();
 
     if user_from_db.get_user_id() == user_from_token.user_id {
-        return Err(UserErrors::InvalidDeleteOperation.into())
+        return Err(report!(UserErrors::InvalidDeleteOperation))
             .attach_printable("User deleting himself");
     }
 
@@ -268,12 +272,12 @@ pub async fn delete_user_role(
             .await
             .change_context(UserErrors::InternalServerError)?;
             if !role_info.is_deletable() {
-                return Err(UserErrors::InvalidDeleteOperation.into())
+                return Err(report!(UserErrors::InvalidDeleteOperation))
                     .attach_printable(format!("role_id = {} is not deletable", user_role.role_id));
             }
         }
         None => {
-            return Err(UserErrors::InvalidDeleteOperation.into())
+            return Err(report!(UserErrors::InvalidDeleteOperation))
                 .attach_printable("User is not associated with the merchant");
         }
     };
