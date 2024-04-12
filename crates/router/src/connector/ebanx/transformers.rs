@@ -313,12 +313,11 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, EbanxFulfillResponse>>
     }
 }
 
-#[cfg(feature = "payouts")]
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct EbanxErrorResponse {
-    pub status: String,
+    pub code: String,
     pub status_code: String,
-    pub status_message: Option<String>,
+    pub message: Option<String>,
 }
 
 #[cfg(feature = "payouts")]

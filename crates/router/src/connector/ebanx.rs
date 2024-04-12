@@ -63,7 +63,7 @@ where
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            self.get_content_type().to_string().into(),
+            self.common_get_content_type().to_string().into(),
         )];
         Ok(header)
     }
@@ -79,7 +79,7 @@ impl ConnectorCommon for Ebanx {
     }
 
     fn common_get_content_type(&self) -> &'static str {
-        "application/x-www-form-urlencoded"
+        "application/json"
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
@@ -102,8 +102,8 @@ impl ConnectorCommon for Ebanx {
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response.status_code,
-            message: response.status,
-            reason: response.status_message,
+            message: response.code,
+            reason: response.message,
             attempt_status: None,
             connector_transaction_id: None,
         })
@@ -141,7 +141,7 @@ impl ConnectorIntegration<api::PoCreate, types::PayoutsData, types::PayoutsRespo
             req,
         ))?;
         let connector_req = ebanx::EbanxPayoutCreateRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -162,7 +162,6 @@ impl ConnectorIntegration<api::PoCreate, types::PayoutsData, types::PayoutsRespo
         Ok(Some(request))
     }
 
-    #[instrument(skip_all)]
     fn handle_response(
         &self,
         data: &types::PayoutsRouterData<api::PoCreate>,
@@ -225,7 +224,7 @@ impl ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResp
             req,
         ))?;
         let connector_req = ebanx::EbanxPayoutFulfillRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -303,7 +302,7 @@ impl ConnectorIntegration<api::PoCancel, types::PayoutsData, types::PayoutsRespo
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = ebanx::EbanxPayoutCancelRequest::try_from(req)?;
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
