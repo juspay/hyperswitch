@@ -2,7 +2,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{Encode, ValueExt},
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret, StrongSecret};
 use serde::{Deserialize, Serialize};
 
@@ -15,6 +15,7 @@ use crate::{
     types::{
         self,
         api::{self, enums as api_enums},
+        domain,
         storage::enums,
         transformers::ForeignFrom,
     },
@@ -163,7 +164,7 @@ fn get_pm_and_subsequent_auth_detail(
                 reason: Reason::Resubmission,
             });
             match item.router_data.request.payment_method_data {
-                api::PaymentMethodData::Card(ref ccard) => {
+                domain::PaymentMethodData::Card(ref ccard) => {
                     let payment_details = PaymentDetails::CreditCard(CreditCardDetails {
                         card_number: (*ccard.card_number).clone(),
                         expiration_date: ccard.get_expiry_date_as_yyyymm("-"),
@@ -171,19 +172,19 @@ fn get_pm_and_subsequent_auth_detail(
                     });
                     Ok((payment_details, processing_options, subseuent_auth_info))
                 }
-                api::PaymentMethodData::CardRedirect(_)
-                | api::PaymentMethodData::Wallet(_)
-                | api::PaymentMethodData::PayLater(_)
-                | api::PaymentMethodData::BankRedirect(_)
-                | api::PaymentMethodData::BankDebit(_)
-                | api::PaymentMethodData::BankTransfer(_)
-                | api::PaymentMethodData::Crypto(_)
-                | api::PaymentMethodData::MandatePayment
-                | api::PaymentMethodData::Reward
-                | api::PaymentMethodData::Upi(_)
-                | api::PaymentMethodData::Voucher(_)
-                | api::PaymentMethodData::GiftCard(_)
-                | api::PaymentMethodData::CardToken(_) => {
+                domain::PaymentMethodData::CardRedirect(_)
+                | domain::PaymentMethodData::Wallet(_)
+                | domain::PaymentMethodData::PayLater(_)
+                | domain::PaymentMethodData::BankRedirect(_)
+                | domain::PaymentMethodData::BankDebit(_)
+                | domain::PaymentMethodData::BankTransfer(_)
+                | domain::PaymentMethodData::Crypto(_)
+                | domain::PaymentMethodData::MandatePayment
+                | domain::PaymentMethodData::Reward
+                | domain::PaymentMethodData::Upi(_)
+                | domain::PaymentMethodData::Voucher(_)
+                | domain::PaymentMethodData::GiftCard(_)
+                | domain::PaymentMethodData::CardToken(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
                     ))?
@@ -192,7 +193,7 @@ fn get_pm_and_subsequent_auth_detail(
         }
         Some(api_models::payments::MandateReferenceId::ConnectorMandateId(_)) | None => {
             match item.router_data.request.payment_method_data {
-                api::PaymentMethodData::Card(ref ccard) => {
+                domain::PaymentMethodData::Card(ref ccard) => {
                     Ok((
                         PaymentDetails::CreditCard(CreditCardDetails {
                             card_number: (*ccard.card_number).clone(),
@@ -206,7 +207,7 @@ fn get_pm_and_subsequent_auth_detail(
                         None,
                     ))
                 }
-                api::PaymentMethodData::Wallet(ref wallet_data) => Ok((
+                domain::PaymentMethodData::Wallet(ref wallet_data) => Ok((
                     get_wallet_data(
                         wallet_data,
                         &item.router_data.request.complete_authorize_url,
@@ -214,18 +215,18 @@ fn get_pm_and_subsequent_auth_detail(
                     None,
                     None,
                 )),
-                api::PaymentMethodData::CardRedirect(_)
-                | api::PaymentMethodData::PayLater(_)
-                | api::PaymentMethodData::BankRedirect(_)
-                | api::PaymentMethodData::BankDebit(_)
-                | api::PaymentMethodData::BankTransfer(_)
-                | api::PaymentMethodData::Crypto(_)
-                | api::PaymentMethodData::MandatePayment
-                | api::PaymentMethodData::Reward
-                | api::PaymentMethodData::Upi(_)
-                | api::PaymentMethodData::Voucher(_)
-                | api::PaymentMethodData::GiftCard(_)
-                | api::PaymentMethodData::CardToken(_) => {
+                domain::PaymentMethodData::CardRedirect(_)
+                | domain::PaymentMethodData::PayLater(_)
+                | domain::PaymentMethodData::BankRedirect(_)
+                | domain::PaymentMethodData::BankDebit(_)
+                | domain::PaymentMethodData::BankTransfer(_)
+                | domain::PaymentMethodData::Crypto(_)
+                | domain::PaymentMethodData::MandatePayment
+                | domain::PaymentMethodData::Reward
+                | domain::PaymentMethodData::Upi(_)
+                | domain::PaymentMethodData::Voucher(_)
+                | domain::PaymentMethodData::GiftCard(_)
+                | domain::PaymentMethodData::CardToken(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
                     ))?
@@ -1282,55 +1283,49 @@ impl TryFrom<AuthorizedotnetWebhookObjectId> for AuthorizedotnetSyncResponse {
 }
 
 fn get_wallet_data(
-    wallet_data: &api_models::payments::WalletData,
+    wallet_data: &domain::WalletData,
     return_url: &Option<String>,
 ) -> CustomResult<PaymentDetails, errors::ConnectorError> {
     match wallet_data {
-        api_models::payments::WalletData::GooglePay(_) => {
-            Ok(PaymentDetails::OpaqueData(WalletDetails {
-                data_descriptor: WalletMethod::Googlepay,
-                data_value: Secret::new(wallet_data.get_encoded_wallet_token()?),
-            }))
-        }
-        api_models::payments::WalletData::ApplePay(applepay_token) => {
+        domain::WalletData::GooglePay(_) => Ok(PaymentDetails::OpaqueData(WalletDetails {
+            data_descriptor: WalletMethod::Googlepay,
+            data_value: Secret::new(wallet_data.get_encoded_wallet_token()?),
+        })),
+        domain::WalletData::ApplePay(applepay_token) => {
             Ok(PaymentDetails::OpaqueData(WalletDetails {
                 data_descriptor: WalletMethod::Applepay,
                 data_value: Secret::new(applepay_token.payment_data.clone()),
             }))
         }
-        api_models::payments::WalletData::PaypalRedirect(_) => {
-            Ok(PaymentDetails::PayPal(PayPalDetails {
-                success_url: return_url.to_owned(),
-                cancel_url: return_url.to_owned(),
-            }))
-        }
-        api_models::payments::WalletData::AliPayQr(_)
-        | api_models::payments::WalletData::AliPayRedirect(_)
-        | api_models::payments::WalletData::AliPayHkRedirect(_)
-        | api_models::payments::WalletData::MomoRedirect(_)
-        | api_models::payments::WalletData::KakaoPayRedirect(_)
-        | api_models::payments::WalletData::GoPayRedirect(_)
-        | api_models::payments::WalletData::GcashRedirect(_)
-        | api_models::payments::WalletData::ApplePayRedirect(_)
-        | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
-        | api_models::payments::WalletData::DanaRedirect {}
-        | api_models::payments::WalletData::GooglePayRedirect(_)
-        | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
-        | api_models::payments::WalletData::MbWayRedirect(_)
-        | api_models::payments::WalletData::MobilePayRedirect(_)
-        | api_models::payments::WalletData::PaypalSdk(_)
-        | api_models::payments::WalletData::SamsungPay(_)
-        | api_models::payments::WalletData::TwintRedirect {}
-        | api_models::payments::WalletData::VippsRedirect {}
-        | api_models::payments::WalletData::TouchNGoRedirect(_)
-        | api_models::payments::WalletData::WeChatPayRedirect(_)
-        | api_models::payments::WalletData::WeChatPayQr(_)
-        | api_models::payments::WalletData::CashappQr(_)
-        | api_models::payments::WalletData::SwishQr(_) => {
-            Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
-            ))?
-        }
+        domain::WalletData::PaypalRedirect(_) => Ok(PaymentDetails::PayPal(PayPalDetails {
+            success_url: return_url.to_owned(),
+            cancel_url: return_url.to_owned(),
+        })),
+        domain::WalletData::AliPayQr(_)
+        | domain::WalletData::AliPayRedirect(_)
+        | domain::WalletData::AliPayHkRedirect(_)
+        | domain::WalletData::MomoRedirect(_)
+        | domain::WalletData::KakaoPayRedirect(_)
+        | domain::WalletData::GoPayRedirect(_)
+        | domain::WalletData::GcashRedirect(_)
+        | domain::WalletData::ApplePayRedirect(_)
+        | domain::WalletData::ApplePayThirdPartySdk(_)
+        | domain::WalletData::DanaRedirect {}
+        | domain::WalletData::GooglePayRedirect(_)
+        | domain::WalletData::GooglePayThirdPartySdk(_)
+        | domain::WalletData::MbWayRedirect(_)
+        | domain::WalletData::MobilePayRedirect(_)
+        | domain::WalletData::PaypalSdk(_)
+        | domain::WalletData::SamsungPay(_)
+        | domain::WalletData::TwintRedirect {}
+        | domain::WalletData::VippsRedirect {}
+        | domain::WalletData::TouchNGoRedirect(_)
+        | domain::WalletData::WeChatPayRedirect(_)
+        | domain::WalletData::WeChatPayQr(_)
+        | domain::WalletData::CashappQr(_)
+        | domain::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
+            utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
+        ))?,
     }
 }
 
@@ -1395,7 +1390,6 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsCompleteAuthorizeRouterD
             .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
         let payer_id: Secret<String> =
             serde_urlencoded::from_str::<PaypalQueryParams>(params.peek())
-                .into_report()
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
                 .payer_id;
         let transaction_type = match item.router_data.request.capture_method {

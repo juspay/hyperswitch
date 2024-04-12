@@ -4469,6 +4469,53 @@
           }
         ]
       }
+    },
+    "/events/{merchant_id_or_profile_id}/{event_id}/retry": {
+      "post": {
+        "tags": [
+          "Event"
+        ],
+        "summary": "Events - Manual Retry",
+        "description": "Events - Manual Retry\n\nManually retry the delivery of the specified Event.",
+        "operationId": "Manually retry the delivery of an Event",
+        "parameters": [
+          {
+            "name": "merchant_id_or_profile_id",
+            "in": "path",
+            "description": "The unique identifier for the Merchant Account or Business Profile",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "event_id",
+            "in": "path",
+            "description": "The unique identifier for the Event",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The delivery of the Event was attempted. Check the `response` field in the response payload to identify the status of the delivery attempt.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventRetrieveResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -4709,7 +4756,8 @@
             "type": "string",
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "AddressDetails": {
         "type": "object",
@@ -4778,7 +4826,8 @@
             "nullable": true,
             "maxLength": 255
           }
-        }
+        },
+        "additionalProperties": false
       },
       "AirwallexData": {
         "type": "object",
@@ -6193,6 +6242,23 @@
                 "type": "object"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "local_bank_transfer"
+            ],
+            "properties": {
+              "local_bank_transfer": {
+                "type": "object",
+                "properties": {
+                  "bank_code": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
           }
         ]
       },
@@ -6560,7 +6626,8 @@
             ],
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "BusinessProfileResponse": {
         "type": "object",
@@ -6856,7 +6923,8 @@
             "description": "Card Type",
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "CardDetailFromLocker": {
         "type": "object",
@@ -7067,6 +7135,7 @@
           "authorizedotnet",
           "bambora",
           "bankofamerica",
+          "billwerk",
           "bitpay",
           "bluesnap",
           "boku",
@@ -7110,10 +7179,11 @@
           "wise",
           "worldline",
           "worldpay",
-          "zen",
           "signifyd",
           "plaid",
-          "riskified"
+          "riskified",
+          "zen",
+          "zsl"
         ]
       },
       "ConnectorMetadata": {
@@ -7512,7 +7582,8 @@
           "expiration": {
             "$ref": "#/components/schemas/ApiKeyExpiration"
           }
-        }
+        },
+        "additionalProperties": false
       },
       "CreateApiKeyResponse": {
         "type": "object",
@@ -7751,7 +7822,8 @@
             ],
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "CustomerDefaultPaymentMethodResponse": {
         "type": "object",
@@ -7763,7 +7835,7 @@
           "default_payment_method_id": {
             "type": "string",
             "description": "The unique identifier of the Payment method",
-            "example": "card_rGK4Vi5iSW70MY7J2mIy",
+            "example": "card_rGK4Vi5iSW70MY7J2mIg",
             "nullable": true
           },
           "customer_id": {
@@ -8840,7 +8912,8 @@
             },
             "description": "payment methods that can be used in the payment"
           }
-        }
+        },
+        "additionalProperties": false
       },
       "FrmMessage": {
         "type": "object",
@@ -8896,7 +8969,8 @@
             },
             "description": "payment method types(credit, debit) that can be used in the payment"
           }
-        }
+        },
+        "additionalProperties": false
       },
       "FrmPaymentMethodType": {
         "type": "object",
@@ -8920,7 +8994,8 @@
           "action": {
             "$ref": "#/components/schemas/FrmAction"
           }
-        }
+        },
+        "additionalProperties": false
       },
       "FrmPreferredFlowTypes": {
         "type": "string",
@@ -9861,7 +9936,8 @@
             ],
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "MandateResponse": {
         "type": "object",
@@ -10119,7 +10195,8 @@
             "description": "The id of the organization to which the merchant belongs to",
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "MerchantAccountDeleteResponse": {
         "type": "object",
@@ -10404,7 +10481,8 @@
             "nullable": true,
             "maxLength": 64
           }
-        }
+        },
+        "additionalProperties": false
       },
       "MerchantConnectorCreate": {
         "type": "object",
@@ -10555,7 +10633,8 @@
             ],
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "MerchantConnectorDeleteResponse": {
         "type": "object",
@@ -10788,7 +10867,8 @@
           "status": {
             "$ref": "#/components/schemas/ConnectorStatus"
           }
-        }
+        },
+        "additionalProperties": false
       },
       "MerchantConnectorUpdate": {
         "type": "object",
@@ -10901,7 +10981,8 @@
           "status": {
             "$ref": "#/components/schemas/ConnectorStatus"
           }
-        }
+        },
+        "additionalProperties": false
       },
       "MerchantConnectorWebhookDetails": {
         "type": "object",
@@ -10918,7 +10999,8 @@
             "type": "string",
             "example": "12345678900987654321"
           }
-        }
+        },
+        "additionalProperties": false
       },
       "MerchantDetails": {
         "type": "object",
@@ -10987,7 +11069,8 @@
             ],
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "MerchantRoutingAlgorithm": {
         "type": "object",
@@ -11369,7 +11452,8 @@
             "type": "string",
             "description": "The user-agent of the customer's browser"
           }
-        }
+        },
+        "additionalProperties": false
       },
       "OrderDetails": {
         "type": "object",
@@ -11642,15 +11726,11 @@
       "OutgoingWebhookResponseContent": {
         "type": "object",
         "description": "The response information (headers, body and status code) received for the webhook sent.",
-        "required": [
-          "body",
-          "headers",
-          "status_code"
-        ],
         "properties": {
           "body": {
             "type": "string",
-            "description": "The response body received for the webhook sent."
+            "description": "The response body received for the webhook sent.",
+            "nullable": true
           },
           "headers": {
             "type": "array",
@@ -11677,14 +11757,22 @@
                 "content-length",
                 "1024"
               ]
-            ]
+            ],
+            "nullable": true
           },
           "status_code": {
             "type": "integer",
             "format": "int32",
             "description": "The HTTP status code for the webhook sent.",
             "example": 200,
+            "nullable": true,
             "minimum": 0
+          },
+          "error_message": {
+            "type": "string",
+            "description": "Error message in case any error occurred when trying to deliver the webhook.",
+            "example": 200,
+            "nullable": true
           }
         }
       },
@@ -12202,7 +12290,8 @@
             "example": "2022-09-10T10:11:12Z",
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "PaymentListResponse": {
         "type": "object",
@@ -12314,7 +12403,8 @@
             ],
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "PaymentMethodData": {
         "oneOf": [
@@ -12508,7 +12598,7 @@
           "payment_method_id": {
             "type": "string",
             "description": "The unique identifier of the Payment method",
-            "example": "card_rGK4Vi5iSW70MY7J2mIy"
+            "example": "card_rGK4Vi5iSW70MY7J2mIg"
           },
           "deleted": {
             "type": "boolean",
@@ -12634,7 +12724,7 @@
           "payment_method_id": {
             "type": "string",
             "description": "The unique identifier of the Payment method",
-            "example": "card_rGK4Vi5iSW70MY7J2mIy"
+            "example": "card_rGK4Vi5iSW70MY7J2mIg"
           },
           "payment_method": {
             "$ref": "#/components/schemas/PaymentMethod"
@@ -12798,7 +12888,8 @@
           "mini_stop",
           "family_mart",
           "seicomart",
-          "pay_easy"
+          "pay_easy",
+          "local_bank_transfer"
         ]
       },
       "PaymentMethodUpdate": {
@@ -12841,7 +12932,8 @@
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "PaymentMethodsEnabled": {
         "type": "object",
@@ -12864,7 +12956,8 @@
             ],
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "PaymentRetrieveBody": {
         "type": "object",
@@ -13339,6 +13432,14 @@
             "description": "Whether to perform external authentication (if applicable)",
             "example": true,
             "nullable": true
+          },
+          "recurring_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecurringDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -13735,6 +13836,14 @@
             "type": "boolean",
             "description": "Whether to perform external authentication (if applicable)",
             "example": true,
+            "nullable": true
+          },
+          "recurring_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecurringDetails"
+              }
+            ],
             "nullable": true
           }
         }
@@ -14235,8 +14344,17 @@
             "description": "Whether to perform external authentication (if applicable)",
             "example": true,
             "nullable": true
+          },
+          "recurring_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecurringDetails"
+              }
+            ],
+            "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "PaymentsResponse": {
         "type": "object",
@@ -14732,6 +14850,14 @@
             "description": "Payment Fingerprint",
             "nullable": true
           },
+          "browser_info": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
+            "nullable": true
+          },
           "payment_method_id": {
             "type": "string",
             "description": "Payment Method Id",
@@ -14743,6 +14869,13 @@
                 "$ref": "#/components/schemas/PaymentMethodStatus"
               }
             ],
+            "nullable": true
+          },
+          "updated": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Date time at which payment was updated",
+            "example": "2022-09-10T10:11:12Z",
             "nullable": true
           }
         }
@@ -15252,6 +15385,14 @@
             "description": "Whether to perform external authentication (if applicable)",
             "example": true,
             "nullable": true
+          },
+          "recurring_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecurringDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -15337,11 +15478,6 @@
           "cancellation_reason": {
             "type": "string",
             "description": "If the payout was cancelled the reason provided here",
-            "nullable": true
-          },
-          "payout_token": {
-            "type": "string",
-            "description": "Provide a reference to a stored payout method",
             "nullable": true
           },
           "unified_code": {
@@ -15533,7 +15669,8 @@
             "description": "The business profile to use for this payment, if not passed the default business profile\nassociated with the merchant account will be used.",
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "PayoutCreateResponse": {
         "type": "object",
@@ -15702,7 +15839,8 @@
             "description": "List of attempts",
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "PayoutEntityType": {
         "type": "string",
@@ -16075,7 +16213,8 @@
             "type": "string",
             "example": "food"
           }
-        }
+        },
+        "additionalProperties": false
       },
       "ProductType": {
         "type": "string",
@@ -16160,6 +16299,49 @@
           "active",
           "disabled"
         ]
+      },
+      "RecurringDetails": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "mandate_id"
+                ]
+              },
+              "data": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "payment_method_id"
+                ]
+              },
+              "data": {
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
+        }
       },
       "RedirectResponse": {
         "type": "object",
@@ -16277,7 +16459,7 @@
         "properties": {
           "payment_id": {
             "type": "string",
-            "description": "The payment id against which refund is to be intiated",
+            "description": "The payment id against which refund is to be initiated",
             "example": "pay_mbabizu24mvu3mela5njyhpit4",
             "maxLength": 30,
             "minLength": 30
@@ -16334,7 +16516,8 @@
             ],
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "RefundResponse": {
         "type": "object",
@@ -16353,7 +16536,7 @@
           },
           "payment_id": {
             "type": "string",
-            "description": "The payment id against which refund is intiated"
+            "description": "The payment id against which refund is initiated"
           },
           "amount": {
             "type": "integer",
@@ -16449,7 +16632,8 @@
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "RequestPaymentMethodTypes": {
         "type": "object",
@@ -16762,6 +16946,7 @@
           "airwallex",
           "authorizedotnet",
           "bankofamerica",
+          "billwerk",
           "bitpay",
           "bambora",
           "bluesnap",
@@ -16807,7 +16992,8 @@
           "wise",
           "worldline",
           "worldpay",
-          "zen"
+          "zen",
+          "zsl"
         ]
       },
       "RoutingAlgorithm": {
@@ -17707,7 +17893,8 @@
             ],
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "UpiData": {
         "type": "object",
@@ -18376,7 +18563,8 @@
             "example": true,
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       }
     },
     "securitySchemes": {

@@ -21,9 +21,9 @@ masking = { version = "0.1.0", path = "../masking" }
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store"] }
 
 # Third party deps
-async-trait = "0.1.68"
-error-stack = "0.3.1"
-serde = { version = "1.0.193", features = ["derive"] }
-serde_json = "1.0.108"
-thiserror = "1.0.40"
-time = { version = "0.3.21", features = ["serde", "serde-well-known", "std"] }
+async-trait = "0.1.79"
+error-stack = "0.4.1"
+serde = { version = "1.0.197", features = ["derive"] }
+serde_json = "1.0.115"
+thiserror = "1.0.58"
+time = { version = "0.3.35", features = ["serde", "serde-well-known", "std"] }

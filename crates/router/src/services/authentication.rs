@@ -2,9 +2,10 @@ use actix_web::http::header::HeaderMap;
 use api_models::{payment_methods::PaymentMethodListRequest, payments};
 use async_trait::async_trait;
 use common_utils::date_time;
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use masking::PeekInterface;
+use router_env::logger;
 use serde::Serialize;
 
 use self::blacklist::BlackList;
@@ -33,7 +34,6 @@ use crate::{
     utils::OptionExt,
 };
 pub mod blacklist;
-#[cfg(feature = "olap")]
 pub mod cookies;
 
 #[derive(Clone, Debug)]
@@ -214,7 +214,6 @@ where
             .trim();
         if api_key.is_empty() {
             return Err(errors::ApiErrorResponse::Unauthorized)
-                .into_report()
                 .attach_printable("API key is empty");
         }
 
@@ -599,6 +598,15 @@ where
     A: AppStateInfo + Sync,
 {
     let token = get_jwt_from_authorization_header(headers)?;
+    if let Some(token_from_cookies) = get_cookie_from_header(headers)
+        .ok()
+        .and_then(|cookies| cookies::parse_cookie(cookies).ok())
+    {
+        logger::info!(
+            "Cookie header and authorization header JWT comparison result: {}",
+            token == token_from_cookies
+        );
+    }
     let payload = decode_jwt(token, state).await?;
 
     Ok(payload)
@@ -927,7 +935,6 @@ where
     let key = DecodingKey::from_secret(secret);
     decode::<T>(token, &key, &Validation::new(Algorithm::HS256))
         .map(|decoded| decoded.claims)
-        .into_report()
         .change_context(errors::ApiErrorResponse::InvalidJwtToken)
 }
 
@@ -941,7 +948,6 @@ pub fn get_header_value_by_key(key: String, headers: &HeaderMap) -> RouterResult
         .map(|source_str| {
             source_str
                 .to_str()
-                .into_report()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(format!(
                     "Failed to convert header value to string for header key: {}",
@@ -956,11 +962,17 @@ pub fn get_jwt_from_authorization_header(headers: &HeaderMap) -> RouterResult<&s
         .get(crate::headers::AUTHORIZATION)
         .get_required_value(crate::headers::AUTHORIZATION)?
         .to_str()
-        .into_report()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to convert JWT token to string")?
         .strip_prefix("Bearer ")
         .ok_or(errors::ApiErrorResponse::InvalidJwtToken.into())
+}
+
+pub fn get_cookie_from_header(headers: &HeaderMap) -> RouterResult<&str> {
+    headers
+        .get(cookies::get_cookie_header())
+        .and_then(|header_value| header_value.to_str().ok())
+        .ok_or(errors::ApiErrorResponse::InvalidCookie.into())
 }
 
 pub fn strip_jwt_token(token: &str) -> RouterResult<&str> {

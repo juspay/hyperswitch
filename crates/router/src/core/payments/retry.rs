@@ -2,7 +2,7 @@ use std::{str::FromStr, vec::IntoIter};
 
 use common_utils::ext_traits::Encode;
 use diesel_models::enums as storage_enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use router_env::{
     logger,
     tracing::{self, instrument},
@@ -142,12 +142,11 @@ where
                     retries = retries.map(|i| i - 1);
                 }
                 api_models::gsm::GsmDecision::Requeue => {
-                    Err(errors::ApiErrorResponse::NotImplemented {
+                    Err(report!(errors::ApiErrorResponse::NotImplemented {
                         message: errors::api_error_response::NotImplementedMessage::Reason(
                             "Requeue not implemented".to_string(),
                         ),
-                    })
-                    .into_report()?
+                    }))?
                 }
                 api_models::gsm::GsmDecision::DoDefault => break,
             }
@@ -170,7 +169,6 @@ pub async fn is_step_up_enabled_for_merchant_connector(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .and_then(|step_up_config| {
             serde_json::from_str::<Vec<types::Connector>>(&step_up_config.config)
-                .into_report()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Step-up config parsing failed")
         })
@@ -200,7 +198,6 @@ pub async fn get_retries(
                     retries_config
                         .config
                         .parse::<i32>()
-                        .into_report()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Retries config parsing failed")
                 })
@@ -236,9 +233,8 @@ pub fn get_gsm_decision(
     let option_gsm_decision = option_gsm
             .and_then(|gsm| {
                 api_models::gsm::GsmDecision::from_str(gsm.decision.as_str())
-                    .into_report()
                     .map_err(|err| {
-                        let api_error = err.change_context(errors::ApiErrorResponse::InternalServerError)
+                        let api_error = report!(err).change_context(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable("gsm decision parsing failed");
                         logger::warn!(get_gsm_decision_parse_error=?api_error, "error fetching gsm decision");
                         api_error
@@ -259,7 +255,6 @@ fn get_flow_name<F>() -> RouterResult<String> {
         .rsplit("::")
         .next()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .into_report()
         .attach_printable("Flow stringify failed")?
         .to_string())
 }
@@ -381,7 +376,7 @@ where
                         .connector_response_reference_id
                         .clone(),
                     authentication_type: None,
-                    payment_method_id: Some(router_data.payment_method_id),
+                    payment_method_id: router_data.payment_method_id,
                     mandate_id: payment_data
                         .mandate_id
                         .clone()

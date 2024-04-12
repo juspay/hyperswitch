@@ -3,7 +3,7 @@ use std::str::FromStr;
 use api_models::payments::{DeviceChannel, ThreeDsCompletionIndicator};
 use base64::Engine;
 use common_utils::date_time;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use iso_currency::Currency;
 use isocountry;
 use masking::{ExposeInterface, Secret};
@@ -18,6 +18,7 @@ use crate::{
         self,
         api::{self, MessageCategory},
         authentication::ChallengeParams,
+        domain,
     },
     utils::OptionExt,
 };
@@ -86,7 +87,6 @@ impl
                     "threeDSServerTransID": pre_authn_response.threeds_server_trans_id,
                 });
                 let three_ds_method_data_str = to_string(&three_ds_method_data)
-                    .into_report()
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)
                     .attach_printable("error while constructing three_ds_method_data_str")?;
                 let three_ds_method_data_base64 = BASE64_ENGINE.encode(three_ds_method_data_str);
@@ -167,7 +167,6 @@ impl
                     "challengeWindowSize": "01",
                 });
                 let creq_str = to_string(&creq)
-                    .into_report()
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)
                     .attach_printable("error while constructing creq_str")?;
                 let creq_base64 = base64::Engine::encode(&BASE64_ENGINE, creq_str)
@@ -246,10 +245,10 @@ impl TryFrom<&types::ConnectorAuthType> for ThreedsecureioAuthType {
 }
 
 fn get_card_details(
-    payment_method_data: api_models::payments::PaymentMethodData,
-) -> Result<api_models::payments::Card, errors::ConnectorError> {
+    payment_method_data: domain::PaymentMethodData,
+) -> Result<domain::payments::Card, errors::ConnectorError> {
     match payment_method_data {
-        api_models::payments::PaymentMethodData::Card(details) => Ok(details),
+        domain::PaymentMethodData::Card(details) => Ok(details),
         _ => Err(errors::ConnectorError::NotSupported {
             message: SELECTED_PAYMENT_METHOD.to_string(),
             connector: "threedsecureio",
@@ -283,11 +282,9 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
             .currency
             .map(|currency| currency.to_string())
             .ok_or(errors::ConnectorError::RequestEncodingFailed)
-            .into_report()
             .attach_printable("missing field currency")?;
         let purchase_currency: Currency = iso_currency::Currency::from_code(&currency)
             .ok_or(errors::ConnectorError::RequestEncodingFailed)
-            .into_report()
             .attach_printable("error while parsing Currency")?;
         let billing_address = request.billing_address.address.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
@@ -303,7 +300,6 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
                 })?
                 .to_string(),
         )
-        .into_report()
         .change_context(errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Error parsing billing_address.address.country")?;
         let connector_meta_data: ThreeDSecureIoMetaData = item
@@ -332,6 +328,9 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
             })?;
         let meta: ThreeDSecureIoConnectorMetaData =
             to_connector_meta(request.pre_authentication_data.connector_metadata.clone())?;
+
+        let card_holder_name = billing_address.get_optional_full_name();
+
         Ok(Self {
             ds_start_protocol_version: meta.ds_start_protocol_version.clone(),
             ds_end_protocol_version: meta.ds_end_protocol_version.clone(),
@@ -345,7 +344,6 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
                 .return_url
                 .clone()
                 .ok_or(errors::ConnectorError::RequestEncodingFailed)
-                .into_report()
                 .attach_printable("missing return_url")?,
             three_dscomp_ind: ThreeDSecureIoThreeDsCompletionIndicator::from(
                 request.threeds_method_comp_ind.clone(),
@@ -426,7 +424,6 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
             purchase_exponent: purchase_currency
                 .exponent()
                 .ok_or(errors::ConnectorError::RequestEncodingFailed)
-                .into_report()
                 .attach_printable("missing purchase_exponent")?
                 .to_string(),
             purchase_date: date_time::DateTime::<date_time::YYYYMMDDHHmmss>::from(date_time::now())
@@ -458,7 +455,7 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
                 }),
                 DeviceChannel::Browser => None,
             },
-            cardholder_name: card_details.card_holder_name,
+            cardholder_name: card_holder_name,
             email: request.email.clone(),
         })
     }

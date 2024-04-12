@@ -177,6 +177,7 @@ Never share your secret api keys. Keep them guarded and secure.
         // Routes for events
         routes::webhook_events::list_initial_webhook_delivery_attempts,
         routes::webhook_events::list_webhook_delivery_attempts,
+        routes::webhook_events::retry_webhook_delivery_attempt,
     ),
     components(schemas(
         api_models::refunds::RefundRequest,
@@ -410,6 +411,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::mandates::MandateRevokedResponse,
         api_models::mandates::MandateResponse,
         api_models::mandates::MandateCardDetails,
+        api_models::mandates::RecurringDetails,
         api_models::ephemeral_key::EphemeralKeyCreateResponse,
         api_models::payments::CustomerDetails,
         api_models::payments::GiftCardData,

@@ -8,7 +8,7 @@ use crate::{
     consts,
     core::errors,
     services,
-    types::{self, api, storage::enums as storage_enums},
+    types::{self, api, domain, storage::enums as storage_enums},
 };
 
 const PASSWORD: &str = "password";
@@ -87,8 +87,8 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
         item: &VoltRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
-            api::PaymentMethodData::BankRedirect(ref bank_redirect) => match bank_redirect {
-                api_models::payments::BankRedirectData::OpenBankingUk { .. } => {
+            domain::PaymentMethodData::BankRedirect(ref bank_redirect) => match bank_redirect {
+                domain::BankRedirectData::OpenBankingUk { .. } => {
                     let amount = item.amount;
                     let currency_code = item.router_data.request.currency;
                     let merchant_internal_reference =
@@ -118,41 +118,41 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
                         transaction_type,
                     })
                 }
-                api_models::payments::BankRedirectData::BancontactCard { .. }
-                | api_models::payments::BankRedirectData::Bizum {}
-                | api_models::payments::BankRedirectData::Blik { .. }
-                | api_models::payments::BankRedirectData::Eps { .. }
-                | api_models::payments::BankRedirectData::Giropay { .. }
-                | api_models::payments::BankRedirectData::Ideal { .. }
-                | api_models::payments::BankRedirectData::Interac { .. }
-                | api_models::payments::BankRedirectData::OnlineBankingCzechRepublic { .. }
-                | api_models::payments::BankRedirectData::OnlineBankingFinland { .. }
-                | api_models::payments::BankRedirectData::OnlineBankingPoland { .. }
-                | api_models::payments::BankRedirectData::OnlineBankingSlovakia { .. }
-                | api_models::payments::BankRedirectData::Przelewy24 { .. }
-                | api_models::payments::BankRedirectData::Sofort { .. }
-                | api_models::payments::BankRedirectData::Trustly { .. }
-                | api_models::payments::BankRedirectData::OnlineBankingFpx { .. }
-                | api_models::payments::BankRedirectData::OnlineBankingThailand { .. } => {
+                domain::BankRedirectData::BancontactCard { .. }
+                | domain::BankRedirectData::Bizum {}
+                | domain::BankRedirectData::Blik { .. }
+                | domain::BankRedirectData::Eps { .. }
+                | domain::BankRedirectData::Giropay { .. }
+                | domain::BankRedirectData::Ideal { .. }
+                | domain::BankRedirectData::Interac { .. }
+                | domain::BankRedirectData::OnlineBankingCzechRepublic { .. }
+                | domain::BankRedirectData::OnlineBankingFinland { .. }
+                | domain::BankRedirectData::OnlineBankingPoland { .. }
+                | domain::BankRedirectData::OnlineBankingSlovakia { .. }
+                | domain::BankRedirectData::Przelewy24 { .. }
+                | domain::BankRedirectData::Sofort { .. }
+                | domain::BankRedirectData::Trustly { .. }
+                | domain::BankRedirectData::OnlineBankingFpx { .. }
+                | domain::BankRedirectData::OnlineBankingThailand { .. } => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("Volt"),
                     )
                     .into())
                 }
             },
-            api_models::payments::PaymentMethodData::Card(_)
-            | api_models::payments::PaymentMethodData::CardRedirect(_)
-            | api_models::payments::PaymentMethodData::Wallet(_)
-            | api_models::payments::PaymentMethodData::PayLater(_)
-            | api_models::payments::PaymentMethodData::BankDebit(_)
-            | api_models::payments::PaymentMethodData::BankTransfer(_)
-            | api_models::payments::PaymentMethodData::Crypto(_)
-            | api_models::payments::PaymentMethodData::MandatePayment
-            | api_models::payments::PaymentMethodData::Reward
-            | api_models::payments::PaymentMethodData::Upi(_)
-            | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_)
-            | api_models::payments::PaymentMethodData::CardToken(_) => {
+            domain::PaymentMethodData::Card(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Volt"),
                 )

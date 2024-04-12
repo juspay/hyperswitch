@@ -1,15 +1,15 @@
 use base64::Engine;
 use common_utils::{ext_traits::ValueExt, pii::IpAddress};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
-    connector::utils::{BrowserInformationData, PaymentsAuthorizeRequestData},
+    connector::utils::{BrowserInformationData, PaymentsAuthorizeRequestData, RouterData},
     consts,
     core::errors,
     services,
-    types::{self, api, storage::enums},
+    types::{self, api, domain, storage::enums},
 };
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -106,7 +106,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(req_card) => {
+            domain::PaymentMethodData::Card(req_card) => {
                 let three_ds = match item.auth_type {
                     enums::AuthenticationType::ThreeDs => Some(ThreeDSecure {
                         enabled: true,
@@ -117,8 +117,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest {
                     enums::AuthenticationType::NoThreeDs => None,
                 };
                 let bambora_card = BamboraCard {
-                    name: req_card
-                        .card_holder_name
+                    name: item
+                        .get_optional_billing_full_name()
                         .unwrap_or(Secret::new("".to_string())),
                     number: req_card.card_number,
                     expiry_month: req_card.card_exp_month,
@@ -239,7 +239,6 @@ impl<F, T>
                             serde_json::to_value(BamboraMeta {
                                 three_d_session_data: response.three_d_session_data.expose(),
                             })
-                            .into_report()
                             .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
                         ),
                         network_txn_id: None,

@@ -4,7 +4,7 @@ use std::{collections::HashMap, fmt::Debug, ops::Deref};
 
 use common_utils::request::RequestContent;
 use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 use stripe::auth_headers;
@@ -28,6 +28,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon},
+        domain,
     },
     utils::{crypto, ByteSliceExt, BytesExt, OptionExt},
 };
@@ -53,8 +54,7 @@ impl ConnectorCommon for Stripe {
         &self,
         auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth: stripe::StripeAuthType = auth_type
-            .try_into()
+        let auth = stripe::StripeAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![
             (
@@ -823,7 +823,7 @@ impl
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         match &req.request.payment_method_data {
-            api_models::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
+            domain::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
                 match bank_transfer_data.deref() {
                     api_models::payments::BankTransferData::AchBankTransfer { .. }
                     | api_models::payments::BankTransferData::MultibancoBankTransfer { .. } => {
@@ -850,7 +850,7 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         match &req.request.payment_method_data {
-            api_models::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
+            domain::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
                 stripe::get_bank_transfer_request_data(req, bank_transfer_data.deref())
             }
             _ => {
@@ -890,7 +890,7 @@ impl
         res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         match &data.request.payment_method_data {
-            api_models::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
+            domain::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
                 match bank_transfer_data.deref() {
                     api_models::payments::BankTransferData::AchBankTransfer { .. }
                     | api_models::payments::BankTransferData::MultibancoBankTransfer { .. } => {
@@ -1917,10 +1917,8 @@ fn get_signature_elements_from_header(
                 .to_str()
                 .map(String::from)
                 .map_err(|_| errors::ConnectorError::WebhookSignatureNotFound)
-                .into_report()
         })
-        .ok_or(errors::ConnectorError::WebhookSignatureNotFound)
-        .into_report()??;
+        .ok_or(errors::ConnectorError::WebhookSignatureNotFound)??;
 
     let props = security_header.split(',').collect::<Vec<&str>>();
     let mut security_header_kvs: HashMap<String, Vec<u8>> = HashMap::with_capacity(props.len());
@@ -1928,8 +1926,7 @@ fn get_signature_elements_from_header(
     for prop_str in &props {
         let (prop_key, prop_value) = prop_str
             .split_once('=')
-            .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)
-            .into_report()?;
+            .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         security_header_kvs.insert(prop_key.to_string(), prop_value.bytes().collect());
     }
@@ -1955,12 +1952,9 @@ impl api::IncomingWebhook for Stripe {
 
         let signature = security_header_kvs
             .remove("v1")
-            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)
-            .into_report()?;
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
 
-        hex::decode(signature)
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookSignatureNotFound)
+        hex::decode(signature).change_context(errors::ConnectorError::WebhookSignatureNotFound)
     }
 
     fn get_webhook_source_verification_message(
@@ -1973,8 +1967,7 @@ impl api::IncomingWebhook for Stripe {
 
         let timestamp = security_header_kvs
             .remove("t")
-            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)
-            .into_report()?;
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
 
         Ok(format!(
             "{}.{}",

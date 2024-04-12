@@ -1,7 +1,7 @@
 use std::{cmp::Ordering, str::FromStr, vec::IntoIter};
 
 use api_models::payouts::PayoutCreateRequest;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use router_env::{
     logger,
     tracing::{self, instrument},
@@ -83,12 +83,11 @@ pub async fn do_gsm_multiple_connector_actions(
                 retries = retries.map(|i| i - 1);
             }
             api_models::gsm::GsmDecision::Requeue => {
-                Err(errors::ApiErrorResponse::NotImplemented {
+                Err(report!(errors::ApiErrorResponse::NotImplemented {
                     message: errors::api_error_response::NotImplementedMessage::Reason(
                         "Requeue not implemented".to_string(),
                     ),
-                })
-                .into_report()?
+                }))?
             }
             api_models::gsm::GsmDecision::DoDefault => break,
         }
@@ -150,12 +149,11 @@ pub async fn do_gsm_single_connector_actions(
                 retries = retries.map(|i| i - 1);
             }
             api_models::gsm::GsmDecision::Requeue => {
-                Err(errors::ApiErrorResponse::NotImplemented {
+                Err(report!(errors::ApiErrorResponse::NotImplemented {
                     message: errors::api_error_response::NotImplementedMessage::Reason(
                         "Requeue not implemented".to_string(),
                     ),
-                })
-                .into_report()?
+                }))?
             }
             api_models::gsm::GsmDecision::DoDefault => break,
         }
@@ -189,7 +187,6 @@ pub async fn get_retries(
                     retries_config
                         .config
                         .parse::<i32>()
-                        .into_report()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Retries config parsing failed")
                 })
@@ -226,9 +223,8 @@ pub fn get_gsm_decision(
     let option_gsm_decision = option_gsm
             .and_then(|gsm| {
                 api_models::gsm::GsmDecision::from_str(gsm.decision.as_str())
-                    .into_report()
                     .map_err(|err| {
-                        let api_error = err.change_context(errors::ApiErrorResponse::InternalServerError)
+                        let api_error = report!(err).change_context(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable("gsm decision parsing failed");
                         logger::warn!(get_gsm_decision_parse_error=?api_error, "error fetching gsm decision");
                         api_error
@@ -289,6 +285,7 @@ pub async fn modify_trackers(
         .update_payout(
             &payout_data.payouts,
             updated_payouts,
+            &payout_data.payout_attempt,
             merchant_account.storage_scheme,
         )
         .await
@@ -312,7 +309,11 @@ pub async fn modify_trackers(
         ..Default::default()
     };
     payout_data.payout_attempt = db
-        .insert_payout_attempt(payout_attempt_req, merchant_account.storage_scheme)
+        .insert_payout_attempt(
+            payout_attempt_req,
+            &payouts,
+            merchant_account.storage_scheme,
+        )
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayout { payout_id })
         .attach_printable("Error inserting payouts in db")?;

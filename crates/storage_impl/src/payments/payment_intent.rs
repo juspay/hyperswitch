@@ -28,7 +28,7 @@ use diesel_models::{
     query::generics::db_metrics,
     schema::{payment_attempt::dsl as pa_dsl, payment_intent::dsl as pi_dsl},
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use redis_interface::HsetnxReply;
 #[cfg(feature = "olap")]
 use router_env::logger;
@@ -39,7 +39,7 @@ use crate::connection;
 use crate::{
     diesel_error_to_data_error,
     errors::RedisErrorExt,
-    redis::kv_store::{kv_wrapper, KvOperation},
+    redis::kv_store::{kv_wrapper, KvOperation, PartitionKey},
     utils::{self, pg_connection_read, pg_connection_write},
     DataModelExt, DatabaseStore, KVRouterStore,
 };
@@ -59,7 +59,13 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             }
 
             MerchantStorageScheme::RedisKv => {
-                let key = format!("mid_{}_pid_{}", new.merchant_id, new.payment_id);
+                let merchant_id = new.merchant_id.clone();
+                let payment_id = new.payment_id.clone();
+                let key = PartitionKey::MerchantIdPaymentId {
+                    merchant_id: &merchant_id,
+                    payment_id: &payment_id,
+                };
+                let key_str = key.to_string();
                 let field = format!("pi_{}", new.payment_id);
                 let created_intent = PaymentIntent {
                     id: 0i32,
@@ -119,17 +125,17 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                         &created_intent.clone().to_storage_model(),
                         redis_entry,
                     ),
-                    &key,
+                    key,
                 )
                 .await
-                .map_err(|err| err.to_redis_failed_response(&key))?
+                .map_err(|err| err.to_redis_failed_response(&key_str))?
                 .try_into_hsetnx()
                 {
                     Ok(HsetnxReply::KeyNotSet) => Err(StorageError::DuplicateValue {
                         entity: "payment_intent",
-                        key: Some(key),
-                    })
-                    .into_report(),
+                        key: Some(key_str),
+                    }
+                    .into()),
                     Ok(HsetnxReply::KeySet) => Ok(created_intent),
                     Err(error) => Err(error.change_context(StorageError::KVError)),
                 }
@@ -151,7 +157,13 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     .await
             }
             MerchantStorageScheme::RedisKv => {
-                let key = format!("mid_{}_pid_{}", this.merchant_id, this.payment_id);
+                let merchant_id = this.merchant_id.clone();
+                let payment_id = this.payment_id.clone();
+                let key = PartitionKey::MerchantIdPaymentId {
+                    merchant_id: &merchant_id,
+                    payment_id: &payment_id,
+                };
+                let key_str = key.to_string();
                 let field = format!("pi_{}", this.payment_id);
 
                 let diesel_intent_update = payment_intent_update.to_storage_model();
@@ -180,10 +192,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                 kv_wrapper::<(), _, _>(
                     self,
                     KvOperation::<DieselPaymentIntent>::Hset((&field, redis_value), redis_entry),
-                    &key,
+                    key,
                 )
                 .await
-                .map_err(|err| err.to_redis_failed_response(&key))?
+                .map_err(|err| err.to_redis_failed_response(&key_str))?
                 .try_into_hset()
                 .change_context(StorageError::KVError)?;
 
@@ -212,14 +224,17 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             MerchantStorageScheme::PostgresOnly => database_call().await,
 
             MerchantStorageScheme::RedisKv => {
-                let key = format!("mid_{merchant_id}_pid_{payment_id}");
+                let key = PartitionKey::MerchantIdPaymentId {
+                    merchant_id,
+                    payment_id,
+                };
                 let field = format!("pi_{payment_id}");
                 Box::pin(utils::try_redis_get_else_try_database_get(
                     async {
                         kv_wrapper::<DieselPaymentIntent, _, _>(
                             self,
                             KvOperation::<DieselPaymentIntent>::HGet(&field),
-                            &key,
+                            key,
                         )
                         .await?
                         .try_into_hget()
@@ -508,8 +523,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 error_stack::report!(diesel_models::errors::DatabaseError::from(er))
                     .attach_printable("Error filtering payment records"),
             )
+            .into()
         })
-        .into_report()
     }
 
     #[cfg(feature = "olap")]
@@ -663,8 +678,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     error_stack::report!(diesel_models::errors::DatabaseError::from(er))
                         .attach_printable("Error filtering payment records"),
                 )
+                .into()
             })
-            .into_report()
     }
 
     #[cfg(feature = "olap")]
@@ -731,8 +746,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 error_stack::report!(diesel_models::errors::DatabaseError::from(er))
                     .attach_printable("Error filtering payment records"),
             )
+            .into()
         })
-        .into_report()
     }
 }
 

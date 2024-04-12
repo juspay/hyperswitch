@@ -9,7 +9,7 @@ use common_utils::{
     pii,
 };
 use diesel_models::enums as storage_enums;
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 
 use super::domain;
@@ -188,6 +188,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Authorizedotnet => Self::Authorizedotnet,
             api_enums::Connector::Bambora => Self::Bambora,
             api_enums::Connector::Bankofamerica => Self::Bankofamerica,
+            api_enums::Connector::Billwerk => Self::Billwerk,
             api_enums::Connector::Bitpay => Self::Bitpay,
             api_enums::Connector::Bluesnap => Self::Bluesnap,
             api_enums::Connector::Boku => Self::Boku,
@@ -220,8 +221,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Plaid => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "plaid is not a routable connector".to_string(),
-                })
-                .into_report()?
+                })?
             }
             api_enums::Connector::Powertranz => Self::Powertranz,
             api_enums::Connector::Prophetpay => Self::Prophetpay,
@@ -230,14 +230,12 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Signifyd => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "signifyd is not a routable connector".to_string(),
-                })
-                .into_report()?
+                })?
             }
             api_enums::Connector::Riskified => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "riskified is not a routable connector".to_string(),
-                })
-                .into_report()?
+                })?
             }
             api_enums::Connector::Square => Self::Square,
             api_enums::Connector::Stax => Self::Stax,
@@ -249,6 +247,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Worldline => Self::Worldline,
             api_enums::Connector::Worldpay => Self::Worldpay,
             api_enums::Connector::Zen => Self::Zen,
+            api_enums::Connector::Zsl => Self::Zsl,
             #[cfg(feature = "dummy_connector")]
             api_enums::Connector::DummyConnector1 => Self::DummyConnector1,
             #[cfg(feature = "dummy_connector")]
@@ -266,8 +265,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Threedsecureio => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "threedsecureio is not a routable connector".to_string(),
-                })
-                .into_report()?
+                })?
             }
         })
     }
@@ -456,6 +454,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::CimbVa
             | api_enums::PaymentMethodType::DanamonVa
             | api_enums::PaymentMethodType::MandiriVa
+            | api_enums::PaymentMethodType::LocalBankTransfer
             | api_enums::PaymentMethodType::Pix => Self::BankTransfer,
             api_enums::PaymentMethodType::Givex | api_enums::PaymentMethodType::PaySafeCard => {
                 Self::GiftCard

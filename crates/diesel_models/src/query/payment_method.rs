@@ -3,7 +3,7 @@ use diesel::{
     associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods,
     QueryDsl, Table,
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 
 use super::generics;
 use crate::{
@@ -124,7 +124,6 @@ impl PaymentMethod {
             generics::db_metrics::DatabaseOperation::Count,
         )
         .await
-        .into_report()
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Failed to get a count of payment methods")
     }
@@ -152,7 +151,7 @@ impl PaymentMethod {
     pub async fn update_with_payment_method_id(
         self,
         conn: &PgPooledConn,
-        payment_method: payment_method::PaymentMethodUpdate,
+        payment_method: payment_method::PaymentMethodUpdateInternal,
     ) -> StorageResult<Self> {
         match generics::generic_update_with_unique_predicate_get_result::<
             <Self as HasTable>::Table,
@@ -162,7 +161,7 @@ impl PaymentMethod {
         >(
             conn,
             dsl::payment_method_id.eq(self.payment_method_id.to_owned()),
-            payment_method::PaymentMethodUpdateInternal::from(payment_method),
+            payment_method,
         )
         .await
         {
