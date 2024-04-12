@@ -107,3 +107,13 @@ if (jsonData?.amount_capturable) {
     },
   );
 }
+
+// Response body should have value "0" for "amount_received"
+if (jsonData?.amount_received) {
+  pm.test(
+    "[post]:://payments/:id/capture - Content check if value for 'amount_received' matches 0",
+    function () {
+      pm.expect(jsonData.amount_received).to.eql(0);
+    },
+  );
+}
