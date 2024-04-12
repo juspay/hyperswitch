@@ -185,6 +185,7 @@ cryptopay.base_url = "https://business-sandbox.cryptopay.me"
 cybersource.base_url = "https://apitest.cybersource.com/"
 dlocal.base_url = "https://sandbox.dlocal.com/"
 dummyconnector.base_url = "http://localhost:8080/dummy-connector"
+ebanx.base_url = "https://sandbox.ebanxpay.com/"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
 forte.base_url = "https://sandbox.forte.net/api/v3"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
@@ -227,6 +228,7 @@ volt.base_url = "https://api.sandbox.volt.io/"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
+zsl.base_url = "https://api.sitoffalb.net/"
 zen.base_url = "https://api.zen-test.com/"
 zen.secondary_base_url = "https://secure.zen-test.com/"
 
@@ -279,6 +281,7 @@ cards = [
     "threedsecureio",
     "worldpay",
     "zen",
+    "zsl",
 ]
 
 # Scheduler settings provides a point to modify the behaviour of scheduler flow.
@@ -568,6 +571,7 @@ connector_logs_topic = "topic"        # Kafka topic to be used for connector api
 outgoing_webhook_logs_topic = "topic" # Kafka topic to be used for outgoing webhook events
 dispute_analytics_topic = "topic"     # Kafka topic to be used for Dispute events
 audit_events_topic = "topic"          # Kafka topic to be used for Payment Audit events
+payout_analytics_topic = "topic"      # Kafka topic to be used for Payouts and PayoutAttempt events
 
 # File storage configuration
 [file_storage]

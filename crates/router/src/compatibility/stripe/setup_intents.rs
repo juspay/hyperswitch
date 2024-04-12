@@ -44,7 +44,6 @@ pub async fn setup_intents_create(
         _,
         _,
         _,
-        _,
         types::StripeSetupIntentResponse,
         errors::StripeErrorCode,
         _,
@@ -53,7 +52,7 @@ pub async fn setup_intents_create(
         state.into_inner(),
         &req,
         create_payment_req,
-        |state, auth, req| {
+        |state, auth, req, _| {
             payments::payments_core::<
                 api_types::SetupMandate,
                 api_types::PaymentsResponse,
@@ -111,7 +110,6 @@ pub async fn setup_intents_retrieve(
         _,
         _,
         _,
-        _,
         types::StripeSetupIntentResponse,
         errors::StripeErrorCode,
         _,
@@ -120,7 +118,7 @@ pub async fn setup_intents_retrieve(
         state.into_inner(),
         &req,
         payload,
-        |state, auth, payload| {
+        |state, auth, payload, _| {
             payments::payments_core::<api_types::PSync, api_types::PaymentsResponse, _, _, _, Oss>(
                 state,
                 auth.merchant_account,
@@ -177,7 +175,6 @@ pub async fn setup_intents_update(
         _,
         _,
         _,
-        _,
         types::StripeSetupIntentResponse,
         errors::StripeErrorCode,
         _,
@@ -186,7 +183,7 @@ pub async fn setup_intents_update(
         state.into_inner(),
         &req,
         payload,
-        |state, auth, req| {
+        |state, auth, req, _| {
             payments::payments_core::<
                 api_types::SetupMandate,
                 api_types::PaymentsResponse,
@@ -251,7 +248,6 @@ pub async fn setup_intents_confirm(
         _,
         _,
         _,
-        _,
         types::StripeSetupIntentResponse,
         errors::StripeErrorCode,
         _,
@@ -260,7 +256,7 @@ pub async fn setup_intents_confirm(
         state.into_inner(),
         &req,
         payload,
-        |state, auth, req| {
+        |state, auth, req, _| {
             payments::payments_core::<
                 api_types::SetupMandate,
                 api_types::PaymentsResponse,
