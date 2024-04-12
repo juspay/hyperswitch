@@ -13,6 +13,8 @@ mod authorizedotnet;
 mod bambora;
 #[cfg(feature = "dummy_connector")]
 mod bankofamerica;
+#[cfg(feature = "dummy_connector")]
+mod billwerk;
 mod bitpay;
 mod bluesnap;
 mod boku;
@@ -24,6 +26,7 @@ mod cybersource;
 mod dlocal;
 #[cfg(feature = "dummy_connector")]
 mod dummyconnector;
+mod ebanx;
 mod fiserv;
 mod forte;
 mod globalpay;
@@ -62,3 +65,4 @@ mod wise;
 mod worldline;
 mod worldpay;
 mod zen;
+mod zsl;

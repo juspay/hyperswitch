@@ -186,7 +186,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             sessions_token: vec![],
             card_cvc: None,
             creds_identifier,
-            payment_method_status: None,
             pm_token: None,
             connector_customer_id: None,
             recurring_mandate_payment_data: None,
@@ -200,6 +199,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             authorizations: vec![],
             authentication: None,
             frm_metadata: None,
+            recurring_details: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -300,6 +300,7 @@ where
         payment_data: &mut PaymentData<F>,
         request: Option<payments::CustomerDetails>,
         key_store: &domain::MerchantKeyStore,
+        storage_scheme: common_enums::enums::MerchantStorageScheme,
     ) -> errors::CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsSessionRequest, Ctx>,
@@ -314,6 +315,7 @@ where
             request,
             &key_store.merchant_id,
             key_store,
+            storage_scheme,
         )
         .await
     }

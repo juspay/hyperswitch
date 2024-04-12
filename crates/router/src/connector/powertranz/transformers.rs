@@ -1,17 +1,15 @@
-use api_models::payments::Card;
-use common_utils::pii::Email;
+use common_utils::pii::{Email, IpAddress};
 use diesel_models::enums::RefundStatus;
-use error_stack::IntoReport;
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::{
-    connector::utils::{self, CardData, PaymentsAuthorizeRequestData},
+    connector::utils::{self, CardData, PaymentsAuthorizeRequestData, RouterData},
     consts,
     core::errors,
     services,
-    types::{self, api, storage::enums, transformers::ForeignFrom},
+    types::{self, api, domain, storage::enums, transformers::ForeignFrom},
 };
 
 const ISO_SUCCESS_CODES: [&str; 7] = ["00", "3D0", "3D1", "HP0", "TK0", "SP4", "FC0"];
@@ -51,7 +49,7 @@ pub struct BrowserInfo {
     screen_width: Option<String>,
     time_zone: Option<String>,
     user_agent: Option<String>,
-    i_p: Option<std::net::IpAddr>,
+    i_p: Option<Secret<String, IpAddress>>,
     color_depth: Option<String>,
 }
 
@@ -94,31 +92,36 @@ pub struct PowertranzAddressDetails {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct RedirectResponsePayload {
-    pub spi_token: String,
+    pub spi_token: Secret<String>,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let source = match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(card) => Source::try_from(&card),
-            api::PaymentMethodData::Wallet(_)
-            | api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::PayLater(_)
-            | api::PaymentMethodData::BankRedirect(_)
-            | api::PaymentMethodData::BankDebit(_)
-            | api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::Crypto(_)
-            | api::PaymentMethodData::MandatePayment
-            | api::PaymentMethodData::Reward
-            | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotSupported {
-                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
-                connector: "powertranz",
-            })
-            .into_report(),
+            domain::PaymentMethodData::Card(card) => {
+                let card_holder_name = item.get_optional_billing_full_name();
+                Source::try_from((&card, card_holder_name))
+            }
+            domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector: "powertranz",
+                }
+                .into())
+            }
         }?;
         // let billing_address = get_address_details(&item.address.billing, &item.request.email);
         // let shipping_address = get_address_details(&item.address.shipping, &item.request.email);
@@ -173,7 +176,9 @@ impl TryFrom<&types::BrowserInformation> for BrowserInfo {
             screen_width: item.screen_width.map(|width| width.to_string()),
             time_zone: item.time_zone.map(|zone| zone.to_string()),
             user_agent: item.user_agent.clone(),
-            i_p: item.ip_address,
+            i_p: item
+                .ip_address
+                .map(|ip_address| Secret::new(ip_address.to_string())),
             color_depth: item.color_depth.map(|depth| depth.to_string()),
         })
     }
@@ -211,14 +216,13 @@ impl TryFrom<&types::BrowserInformation> for BrowserInfo {
         })
 }*/
 
-impl TryFrom<&Card> for Source {
+impl TryFrom<(&domain::Card, Option<Secret<String>>)> for Source {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(card: &Card) -> Result<Self, Self::Error> {
+    fn try_from(
+        (card, card_holder_name): (&domain::Card, Option<Secret<String>>),
+    ) -> Result<Self, Self::Error> {
         let card = PowertranzCard {
-            cardholder_name: card
-                .card_holder_name
-                .clone()
-                .unwrap_or(Secret::new("".to_string())),
+            cardholder_name: card_holder_name.unwrap_or(Secret::new("".to_string())),
             card_pan: card.card_number.clone(),
             card_expiration: card.get_expiry_date_as_yymm()?,
             card_cvv: card.card_cvc.clone(),
@@ -256,7 +260,7 @@ pub struct PowertranzBaseResponse {
     original_trxn_identifier: Option<String>,
     errors: Option<Vec<Error>>,
     iso_response_code: String,
-    redirect_data: Option<String>,
+    redirect_data: Option<Secret<String>>,
     response_message: String,
     order_identifier: String,
 }
@@ -322,7 +326,7 @@ impl<F, T>
             item.response
                 .redirect_data
                 .map(|redirect_data| services::RedirectForm::Html {
-                    html_data: redirect_data,
+                    html_data: redirect_data.expose(),
                 });
         let response = error_response.map_or(
             Ok(types::PaymentsResponseData::TransactionResponse {

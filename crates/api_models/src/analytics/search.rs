@@ -36,6 +36,7 @@ pub enum SearchIndex {
     PaymentAttempts,
     PaymentIntents,
     Refunds,
+    Disputes,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]

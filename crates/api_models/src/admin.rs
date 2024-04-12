@@ -882,13 +882,6 @@ pub struct MerchantConnectorDetails {
     pub metadata: Option<pii::SecretSerdeValue>,
 }
 
-#[cfg(feature = "payouts")]
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(tag = "type", content = "data", rename_all = "snake_case")]
-pub enum PayoutRoutingAlgorithm {
-    Single(api_enums::PayoutConnectors),
-}
-
 #[derive(Clone, Debug, Deserialize, ToSchema, Default, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct BusinessProfileCreate {

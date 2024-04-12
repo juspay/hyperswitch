@@ -228,6 +228,8 @@ merchant_secret="Source verification key"
 [[authorizedotnet.debit]]
   payment_method_type = "UnionPay"
 [[authorizedotnet.wallet]]
+  payment_method_type = "apple_pay"
+[[authorizedotnet.wallet]]
   payment_method_type = "google_pay"
 [[authorizedotnet.wallet]]
   payment_method_type = "paypal"
@@ -239,6 +241,17 @@ key1="Transaction Key"
 merchant_name="Google Pay Merchant Name"
 gateway_merchant_id="Google Pay Merchant Key"
 merchant_id="Google Pay Merchant ID"
+[authorizedotnet.metadata.apple_pay.session_token_data]
+certificate="Merchant Certificate (Base64 Encoded)"
+certificate_keys="Merchant PrivateKey (Base64 Encoded)"
+merchant_identifier="Apple Merchant Identifier"
+display_name="Display Name"
+initiative="Domain"
+initiative_context="Domain Name"
+[authorizedotnet.metadata.apple_pay.payment_request_data]
+supported_networks=["visa","masterCard","amex","discover"]
+merchant_capabilities=["supports3DS"]
+label="apple"
 [authorizedotnet.connector_webhook_details]
 merchant_secret="Source verification key"
 
@@ -1901,3 +1914,44 @@ pay_wall_secret="Pay Wall Secret"
 [zen.metadata.google_pay]
 terminal_uuid="Terminal UUID"
 pay_wall_secret="Pay Wall Secret"
+
+[billwerk]
+[[billwerk.credit]]
+  payment_method_type = "Mastercard"
+[[billwerk.credit]]
+  payment_method_type = "Visa"
+[[billwerk.credit]]
+  payment_method_type = "Interac"
+[[billwerk.credit]]
+  payment_method_type = "AmericanExpress"
+[[billwerk.credit]]
+  payment_method_type = "JCB"
+[[billwerk.credit]]
+  payment_method_type = "DinersClub"
+[[billwerk.credit]]
+  payment_method_type = "Discover"
+[[billwerk.credit]]
+  payment_method_type = "CartesBancaires"
+[[billwerk.credit]]
+  payment_method_type = "UnionPay"
+[[billwerk.debit]]
+  payment_method_type = "Mastercard"
+[[billwerk.debit]]
+  payment_method_type = "Visa"
+[[billwerk.debit]]
+  payment_method_type = "Interac"
+[[billwerk.debit]]
+  payment_method_type = "AmericanExpress"
+[[billwerk.debit]]
+  payment_method_type = "JCB"
+[[billwerk.debit]]
+  payment_method_type = "DinersClub"
+[[billwerk.debit]]
+  payment_method_type = "Discover"
+[[billwerk.debit]]
+  payment_method_type = "CartesBancaires"
+[[billwerk.debit]]
+  payment_method_type = "UnionPay"
+[billwerk.connector_auth.BodyKey]
+api_key="Private Api Key"
+key1="Public Api Key"

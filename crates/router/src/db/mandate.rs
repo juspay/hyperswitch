@@ -1,4 +1,4 @@
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
 use super::{MockDb, Store};
@@ -58,8 +58,7 @@ impl MandateInterface for Store {
         let conn = connection::pg_connection_read(self).await?;
         storage::Mandate::find_by_merchant_id_mandate_id(&conn, merchant_id, mandate_id)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -75,8 +74,7 @@ impl MandateInterface for Store {
             connector_mandate_id,
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -88,8 +86,7 @@ impl MandateInterface for Store {
         let conn = connection::pg_connection_read(self).await?;
         storage::Mandate::find_by_merchant_id_customer_id(&conn, merchant_id, customer_id)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -102,8 +99,7 @@ impl MandateInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::Mandate::update_by_merchant_id_mandate_id(&conn, merchant_id, mandate_id, mandate)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -115,8 +111,7 @@ impl MandateInterface for Store {
         let conn = connection::pg_connection_read(self).await?;
         storage::Mandate::filter_by_constraints(&conn, merchant_id, mandate_constraints)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -128,8 +123,7 @@ impl MandateInterface for Store {
         mandate
             .insert(&conn)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
 
@@ -262,14 +256,22 @@ impl MandateInterface for MockDb {
             checker
         });
 
+        #[allow(clippy::as_conversions)]
+        let offset = (if mandate_constraints.offset.unwrap_or(0) < 0 {
+            0
+        } else {
+            mandate_constraints.offset.unwrap_or(0)
+        }) as usize;
+
         let mandates: Vec<storage::Mandate> = if let Some(limit) = mandate_constraints.limit {
             #[allow(clippy::as_conversions)]
             mandates_iter
+                .skip(offset)
                 .take((if limit < 0 { 0 } else { limit }) as usize)
                 .cloned()
                 .collect()
         } else {
-            mandates_iter.cloned().collect()
+            mandates_iter.skip(offset).cloned().collect()
         };
         Ok(mandates)
     }
@@ -280,11 +282,7 @@ impl MandateInterface for MockDb {
     ) -> CustomResult<storage::Mandate, errors::StorageError> {
         let mut mandates = self.mandates.lock().await;
         let mandate = storage::Mandate {
-            id: mandates
-                .len()
-                .try_into()
-                .into_report()
-                .change_context(errors::StorageError::MockDbError)?,
+            id: i32::try_from(mandates.len()).change_context(errors::StorageError::MockDbError)?,
             mandate_id: mandate_new.mandate_id.clone(),
             customer_id: mandate_new.customer_id,
             merchant_id: mandate_new.merchant_id,

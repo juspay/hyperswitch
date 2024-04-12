@@ -170,11 +170,11 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             surcharge_details: None,
             frm_message: frm_response.ok(),
             payment_link_data: None,
-            payment_method_status: None,
             incremental_authorization_details: None,
             authorizations: vec![],
             authentication: None,
             frm_metadata: None,
+            recurring_details: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

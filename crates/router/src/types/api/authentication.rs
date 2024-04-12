@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use api_models::enums;
 use common_utils::errors::CustomResult;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 
 use super::BoxedConnector;
 use crate::core::errors;
@@ -25,7 +25,7 @@ pub struct AcquirerDetails {
 
 #[derive(Clone, serde::Deserialize, Debug, serde::Serialize)]
 pub struct AuthenticationResponse {
-    pub trans_status: api_models::payments::TransactionStatus,
+    pub trans_status: common_enums::TransactionStatus,
     pub acs_url: Option<url::Url>,
     pub challenge_request: Option<String>,
     pub acs_reference_number: Option<String>,
@@ -91,7 +91,6 @@ pub struct AuthenticationConnectorData {
 impl AuthenticationConnectorData {
     pub fn get_connector_by_name(name: &str) -> CustomResult<Self, errors::ApiErrorResponse> {
         let connector_name = enums::AuthenticationConnectors::from_str(name)
-            .into_report()
             .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
             .attach_printable_lazy(|| format!("unable to parse connector: {name}"))?;
         let connector = Self::convert_connector(connector_name)?;

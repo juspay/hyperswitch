@@ -254,7 +254,7 @@ pub enum PaymentAttemptUpdate {
         connector: Option<String>,
         connector_transaction_id: Option<String>,
         authentication_type: Option<storage_enums::AuthenticationType>,
-        payment_method_id: Option<Option<String>>,
+        payment_method_id: Option<String>,
         mandate_id: Option<String>,
         connector_metadata: Option<serde_json::Value>,
         payment_token: Option<String>,
@@ -268,12 +268,13 @@ pub enum PaymentAttemptUpdate {
         encoded_data: Option<String>,
         unified_code: Option<Option<String>>,
         unified_message: Option<Option<String>>,
+        payment_method_data: Option<serde_json::Value>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
         connector: Option<String>,
         connector_transaction_id: Option<String>,
-        payment_method_id: Option<Option<String>>,
+        payment_method_id: Option<String>,
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
         error_reason: Option<Option<String>>,
@@ -295,6 +296,7 @@ pub enum PaymentAttemptUpdate {
         unified_code: Option<Option<String>>,
         unified_message: Option<Option<String>>,
         connector_transaction_id: Option<String>,
+        payment_method_data: Option<serde_json::Value>,
     },
     CaptureUpdate {
         amount_to_capture: Option<i64>,
@@ -308,7 +310,7 @@ pub enum PaymentAttemptUpdate {
     },
     PreprocessingUpdate {
         status: storage_enums::AttemptStatus,
-        payment_method_id: Option<Option<String>>,
+        payment_method_id: Option<String>,
         connector_metadata: Option<serde_json::Value>,
         preprocessing_step_id: Option<String>,
         connector_transaction_id: Option<String>,
@@ -348,7 +350,7 @@ pub struct PaymentAttemptUpdateInternal {
     authentication_type: Option<storage_enums::AuthenticationType>,
     payment_method: Option<storage_enums::PaymentMethod>,
     error_message: Option<Option<String>>,
-    payment_method_id: Option<Option<String>>,
+    payment_method_id: Option<String>,
     cancellation_reason: Option<String>,
     modified_at: Option<PrimitiveDateTime>,
     mandate_id: Option<String>,
@@ -457,7 +459,7 @@ impl PaymentAttemptUpdate {
             authentication_type: authentication_type.or(source.authentication_type),
             payment_method: payment_method.or(source.payment_method),
             error_message: error_message.unwrap_or(source.error_message),
-            payment_method_id: payment_method_id.unwrap_or(source.payment_method_id),
+            payment_method_id: payment_method_id.or(source.payment_method_id),
             cancellation_reason: cancellation_reason.or(source.cancellation_reason),
             modified_at: common_utils::date_time::now(),
             mandate_id: mandate_id.or(source.mandate_id),
@@ -603,7 +605,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 authentication_id,
                 payment_method_billing_address_id,
                 fingerprint_id,
-                payment_method_id: payment_method_id.map(Some),
+                payment_method_id,
                 ..Default::default()
             },
             PaymentAttemptUpdate::VoidUpdate {
@@ -661,6 +663,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 encoded_data,
                 unified_code,
                 unified_message,
+                payment_method_data,
             } => Self {
                 status: Some(status),
                 connector: connector.map(Some),
@@ -681,6 +684,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 encoded_data,
                 unified_code,
                 unified_message,
+                payment_method_data,
                 ..Default::default()
             },
             PaymentAttemptUpdate::ErrorUpdate {
@@ -694,6 +698,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_code,
                 unified_message,
                 connector_transaction_id,
+                payment_method_data,
             } => Self {
                 connector: connector.map(Some),
                 status: Some(status),
@@ -706,6 +711,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_code,
                 unified_message,
                 connector_transaction_id,
+                payment_method_data,
                 ..Default::default()
             },
             PaymentAttemptUpdate::StatusUpdate { status, updated_by } => Self {

@@ -1,7 +1,7 @@
 use api_models::payments as payment_types;
 use async_trait::async_trait;
 use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
-use error_stack::{IntoReport, Report, ResultExt};
+use error_stack::{Report, ResultExt};
 use masking::ExposeInterface;
 
 use super::{ConstructFlowSpecificData, Feature};
@@ -58,6 +58,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         _merchant_account: &domain::MerchantAccount,
         _connector_request: Option<services::Request>,
         _key_store: &domain::MerchantKeyStore,
+        _profile_id: Option<String>,
     ) -> RouterResult<Self> {
         metrics::SESSION_TOKEN_CREATED.add(
             &metrics::CONTEXT,
@@ -259,7 +260,12 @@ async fn create_applepay_session_token(
             apple_pay_merchant_cert,
             apple_pay_merchant_cert_key,
         )?;
-        let response = services::call_connector_api(state, applepay_session_request).await;
+        let response = services::call_connector_api(
+            state,
+            applepay_session_request,
+            "create_apple_pay_session_token",
+        )
+        .await;
 
         // logging the error if present in session call response
         log_session_response_if_error(&response);
@@ -332,7 +338,6 @@ fn get_apple_pay_amount_info(
         amount: session_data
             .currency
             .to_currency_base_unit(session_data.amount)
-            .into_report()
             .change_context(errors::ApiErrorResponse::PreconditionFailed {
                 message: "Failed to convert currency to base unit".to_string(),
             })?,
@@ -440,7 +445,6 @@ fn create_gpay_session_token(
                 .request
                 .currency
                 .to_currency_base_unit(router_data.request.amount)
-                .into_report()
                 .attach_printable(
                     "Cannot convert given amount to base currency denomination".to_string(),
                 )

@@ -175,7 +175,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             card_cvc: None,
             creds_identifier,
             pm_token: None,
-            payment_method_status: None,
             connector_customer_id: None,
             recurring_mandate_payment_data: None,
             ephemeral_key: None,
@@ -188,6 +187,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             authorizations: vec![],
             frm_metadata: None,
             authentication: None,
+            recurring_details: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

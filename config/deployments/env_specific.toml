@@ -78,6 +78,9 @@ refund_analytics_topic = "topic"      # Kafka topic to be used for Refund events
 api_logs_topic = "topic"              # Kafka topic to be used for incoming api events
 connector_logs_topic = "topic"        # Kafka topic to be used for connector api events
 outgoing_webhook_logs_topic = "topic" # Kafka topic to be used for outgoing webhook events
+dispute_analytics_topic = "topic"     # Kafka topic to be used for Dispute events
+audit_events_topic = "topic"          # Kafka topic to be used for Payment Audit events
+payout_analytics_topic = "topic"      # Kafka topic to be used for Payouts and PayoutAttempt events
 
 # File storage configuration
 [file_storage]
@@ -213,6 +216,7 @@ region = "eu-central-1"
 payment_attempts = "hyperswitch-payment-attempt-events"
 payment_intents = "hyperswitch-payment-intent-events"
 refunds = "hyperswitch-refund-events"
+disputes = "hyperswitch-dispute-events"
 
 # This section provides some secret values.
 [secrets]

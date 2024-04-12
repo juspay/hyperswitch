@@ -91,6 +91,7 @@ pub struct Settings<S: SecretState> {
     pub email: EmailSettings,
     pub cors: CorsSettings,
     pub mandates: Mandates,
+    pub network_transaction_id_supported_connectors: NetworkTransactionIdSupportedConnectors,
     pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
     pub webhook_source_verification_call: WebhookSourceVerificationCall,
@@ -252,6 +253,12 @@ pub struct Mandates {
     pub update_mandate_supported: SupportedPaymentMethodsForMandate,
 }
 
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct NetworkTransactionIdSupportedConnectors {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub connector_list: HashSet<api_models::enums::Connector>,
+}
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct SupportedPaymentMethodsForMandate(
     pub HashMap<enums::PaymentMethod, SupportedPaymentMethodTypesForMandate>,
@@ -317,7 +324,7 @@ pub struct ConnectorBankNames(pub HashMap<String, BanksVector>);
 #[derive(Debug, Deserialize, Clone)]
 pub struct BanksVector {
     #[serde(deserialize_with = "deserialize_hashset")]
-    pub banks: HashSet<api_models::enums::BankNames>,
+    pub banks: HashSet<common_enums::enums::BankNames>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -481,6 +488,7 @@ pub struct Connectors {
     pub authorizedotnet: ConnectorParams,
     pub bambora: ConnectorParams,
     pub bankofamerica: ConnectorParams,
+    pub billwerk: ConnectorParams,
     pub bitpay: ConnectorParams,
     pub bluesnap: ConnectorParamsWithSecondaryBaseUrl,
     pub boku: ConnectorParams,
@@ -493,6 +501,7 @@ pub struct Connectors {
     pub dlocal: ConnectorParams,
     #[cfg(feature = "dummy_connector")]
     pub dummyconnector: ConnectorParams,
+    pub ebanx: ConnectorParams,
     pub fiserv: ConnectorParams,
     pub forte: ConnectorParams,
     pub globalpay: ConnectorParams,
@@ -531,6 +540,7 @@ pub struct Connectors {
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
     pub zen: ConnectorParams,
+    pub zsl: ConnectorParams,
 }
 
 #[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]

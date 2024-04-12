@@ -56,13 +56,13 @@ pub type ExchangeTokenRouterData =
 
 #[derive(Debug, Clone)]
 pub struct BankAccountCredentialsRequest {
-    pub access_token: String,
+    pub access_token: Secret<String>,
     pub optional_ids: Option<BankAccountOptionalIDs>,
 }
 
 #[derive(Debug, Clone)]
 pub struct BankAccountOptionalIDs {
-    pub ids: Vec<String>,
+    pub ids: Vec<Secret<String>>,
 }
 
 #[derive(Debug, Clone)]
@@ -73,11 +73,35 @@ pub struct BankAccountCredentialsResponse {
 #[derive(Debug, Clone)]
 pub struct BankAccountDetails {
     pub account_name: Option<String>,
-    pub account_number: String,
-    pub routing_number: String,
+    pub account_details: PaymentMethodTypeDetails,
     pub payment_method_type: PaymentMethodType,
-    pub account_id: String,
+    pub payment_method: PaymentMethod,
+    pub account_id: Secret<String>,
     pub account_type: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub enum PaymentMethodTypeDetails {
+    Ach(BankAccountDetailsAch),
+    Bacs(BankAccountDetailsBacs),
+    Sepa(BankAccountDetailsSepa),
+}
+#[derive(Debug, Clone)]
+pub struct BankAccountDetailsAch {
+    pub account_number: Secret<String>,
+    pub routing_number: Secret<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct BankAccountDetailsBacs {
+    pub account_number: Secret<String>,
+    pub sort_code: Secret<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct BankAccountDetailsSepa {
+    pub iban: Secret<String>,
+    pub bic: Secret<String>,
 }
 
 pub type BankDetailsRouterData = PaymentAuthRouterData<

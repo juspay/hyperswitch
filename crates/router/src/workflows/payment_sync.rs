@@ -69,7 +69,7 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
             >(
                 state,
                 merchant_account.clone(),
-                key_store,
+                key_store.clone(),
                 operations::PaymentStatus,
                 tracking_data.clone(),
                 payment_flows::CallConnectorAction::Trigger,
@@ -136,6 +136,7 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                             unified_code: None,
                             unified_message: None,
                             connector_transaction_id: None,
+                            payment_method_data: None,
                         };
 
                     payment_data.payment_attempt = db
@@ -175,15 +176,11 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
 
                     // Trigger the outgoing webhook to notify the merchant about failed payment
                     let operation = operations::PaymentStatus;
-                    Box::pin(utils::trigger_payments_webhook::<
-                        _,
-                        api_models::payments::PaymentsRequest,
-                        _,
-                    >(
+                    Box::pin(utils::trigger_payments_webhook(
                         merchant_account,
                         business_profile,
+                        &key_store,
                         payment_data,
-                        None,
                         customer,
                         state,
                         operation,

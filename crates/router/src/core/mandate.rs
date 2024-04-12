@@ -3,7 +3,7 @@ pub mod utils;
 use api_models::payments;
 use common_utils::ext_traits::Encode;
 use diesel_models::{enums as storage_enums, Mandate};
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use futures::future;
 use router_env::{instrument, logger, tracing};
 
@@ -43,7 +43,13 @@ pub async fn get_mandate(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
     Ok(services::ApplicationResponse::Json(
-        mandates::MandateResponse::from_db_mandate(&state, key_store, mandate).await?,
+        mandates::MandateResponse::from_db_mandate(
+            &state,
+            key_store,
+            mandate,
+            merchant_account.storage_scheme,
+        )
+        .await?,
     ))
 }
 
@@ -59,7 +65,7 @@ pub async fn revoke_mandate(
         .find_mandate_by_merchant_id_mandate_id(&merchant_account.merchant_id, &req.mandate_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
-    let mandate_revoke_status = match mandate.mandate_status {
+    match mandate.mandate_status {
         common_enums::MandateStatus::Active
         | common_enums::MandateStatus::Inactive
         | common_enums::MandateStatus::Pending => {
@@ -136,18 +142,17 @@ pub async fn revoke_mandate(
                     connector: mandate.connector,
                     status_code: err.status_code,
                     reason: err.reason,
-                })
-                .into_report(),
+                }
+                .into()),
             }
         }
         common_enums::MandateStatus::Revoked => {
             Err(errors::ApiErrorResponse::MandateValidationFailed {
                 reason: "Mandate has already been revoked".to_string(),
-            })
-            .into_report()
+            }
+            .into())
         }
-    };
-    mandate_revoke_status
+    }
 }
 
 #[instrument(skip(db))]
@@ -227,8 +232,13 @@ pub async fn get_customer_mandates(
         let mut response_vec = Vec::with_capacity(mandates.len());
         for mandate in mandates {
             response_vec.push(
-                mandates::MandateResponse::from_db_mandate(&state, key_store.clone(), mandate)
-                    .await?,
+                mandates::MandateResponse::from_db_mandate(
+                    &state,
+                    key_store.clone(),
+                    mandate,
+                    merchant_account.storage_scheme,
+                )
+                .await?,
             );
         }
         Ok(services::ApplicationResponse::Json(response_vec))
@@ -237,12 +247,12 @@ pub async fn get_customer_mandates(
 
 fn get_insensitive_payment_method_data_if_exists<F, FData>(
     router_data: &types::RouterData<F, FData, types::PaymentsResponseData>,
-) -> Option<payments::PaymentMethodData>
+) -> Option<domain::PaymentMethodData>
 where
     FData: MandateBehaviour,
 {
     match &router_data.request.get_payment_method_data() {
-        api_models::payments::PaymentMethodData::Card(_) => None,
+        domain::PaymentMethodData::Card(_) => None,
         _ => Some(router_data.request.get_payment_method_data()),
     }
 }
@@ -261,7 +271,6 @@ where
             mandate_reference, ..
         }) => mandate_reference,
         Ok(_) => Err(errors::ApiErrorResponse::InternalServerError)
-            .into_report()
             .attach_printable("Unexpected response received")?,
         Err(_) => return Ok(resp),
     };
@@ -400,7 +409,7 @@ where
                         resp.merchant_id.clone(),
                         resp.payment_id.clone(),
                         resp.connector.clone(),
-                        resp.request.get_setup_mandate_details().map(Clone::clone),
+                        resp.request.get_setup_mandate_details().cloned(),
                         maybe_customer,
                         pm_id.get_required_value("payment_method_id")?,
                         mandate_ids,
@@ -473,7 +482,12 @@ pub async fn retrieve_mandates_list(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to retrieve mandates")?;
     let mandates_list = future::try_join_all(mandates.into_iter().map(|mandate| {
-        mandates::MandateResponse::from_db_mandate(&state, key_store.clone(), mandate)
+        mandates::MandateResponse::from_db_mandate(
+            &state,
+            key_store.clone(),
+            mandate,
+            merchant_account.storage_scheme,
+        )
     }))
     .await?;
     Ok(services::ApplicationResponse::Json(mandates_list))
@@ -497,7 +511,7 @@ pub trait MandateBehaviour {
     fn get_setup_future_usage(&self) -> Option<diesel_models::enums::FutureUsage>;
     fn get_mandate_id(&self) -> Option<&api_models::payments::MandateIds>;
     fn set_mandate_id(&mut self, new_mandate_id: Option<api_models::payments::MandateIds>);
-    fn get_payment_method_data(&self) -> api_models::payments::PaymentMethodData;
+    fn get_payment_method_data(&self) -> domain::payments::PaymentMethodData;
     fn get_setup_mandate_details(&self) -> Option<&data_models::mandates::MandateData>;
     fn get_customer_acceptance(&self) -> Option<api_models::payments::CustomerAcceptance>;
 }

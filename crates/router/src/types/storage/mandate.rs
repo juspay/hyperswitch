@@ -5,7 +5,7 @@ pub use diesel_models::mandate::{
     Mandate, MandateNew, MandateUpdate, MandateUpdateInternal, SingleUseMandate,
 };
 use diesel_models::{errors, schema::mandate::dsl};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 
 use crate::{connection::PgPooledConn, logger};
 
@@ -54,13 +54,15 @@ impl MandateDbExt for Mandate {
         if let Some(limit) = mandate_list_constraints.limit {
             filter = filter.limit(limit);
         }
+        if let Some(offset) = mandate_list_constraints.offset {
+            filter = filter.offset(offset);
+        }
 
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
 
         filter
             .get_results_async(conn)
             .await
-            .into_report()
             // The query built here returns an empty Vec when no records are found, and if any error does occur,
             // it would be an internal database error, due to which we are raising a DatabaseError::Unknown error
             .change_context(errors::DatabaseError::Others)
