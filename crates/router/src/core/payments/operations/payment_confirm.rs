@@ -652,6 +652,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
         key_store: &domain::MerchantKeyStore,
+        storage_scheme: common_enums::enums::MerchantStorageScheme,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
@@ -666,6 +667,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
             request,
             &key_store.merchant_id,
             key_store,
+            storage_scheme,
         )
         .await
     }
@@ -1158,8 +1160,10 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                         m_db.update_customer_by_customer_id_merchant_id(
                             m_customer_customer_id,
                             m_customer_merchant_id,
+                            customer,
                             m_updated_customer,
                             &m_key_store,
+                            storage_scheme,
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
