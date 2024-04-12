@@ -470,7 +470,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             reason: "Expected one out of recurring_details and mandate_data but got both".into(),
         })?;
 
-        // Parallel calls - level 2
         let m_state = state.clone();
         let m_mandate_type = mandate_type.clone();
         let m_merchant_account = merchant_account.clone();
@@ -491,6 +490,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .in_current_span(),
         );
 
+        // Parallel calls - level 2
         let (mandate_details, additional_pm_data, payment_method_billing) = tokio::try_join!(
             utils::flatten_join_error(mandate_details_fut),
             utils::flatten_join_error(additional_pm_data_fut),
