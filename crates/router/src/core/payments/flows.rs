@@ -216,7 +216,6 @@ impl<const T: u8>
 {
 }
 default_imp_for_webhook_source_verification!(
-    connector::Netcetera,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -245,6 +244,7 @@ default_imp_for_webhook_source_verification!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -303,7 +303,6 @@ impl<const T: u8>
 }
 
 default_imp_for_create_customer!(
-    connector::Netcetera,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -331,6 +330,7 @@ default_imp_for_create_customer!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -390,7 +390,6 @@ impl<const T: u8> services::ConnectorRedirectResponse for connector::DummyConnec
 }
 
 default_imp_for_connector_redirect_response!(
-    connector::Netcetera,
     connector::Aci,
     connector::Adyen,
     connector::Bitpay,
@@ -411,6 +410,7 @@ default_imp_for_connector_redirect_response!(
     connector::Iatapay,
     connector::Klarna,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Opayo,
     connector::Opennode,
@@ -446,7 +446,6 @@ macro_rules! default_imp_for_connector_request_id {
 impl<const T: u8> api::ConnectorTransactionId for connector::DummyConnector<T> {}
 
 default_imp_for_connector_request_id!(
-    connector::Netcetera,
     connector::Zsl,
     connector::Aci,
     connector::Adyen,
@@ -475,6 +474,7 @@ default_imp_for_connector_request_id!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nmi,
     connector::Noon,
     connector::Nuvei,
@@ -535,7 +535,6 @@ impl<const T: u8>
 }
 
 default_imp_for_accept_dispute!(
-    connector::Netcetera,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -563,6 +562,7 @@ default_imp_for_accept_dispute!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -644,7 +644,6 @@ impl<const T: u8>
 }
 
 default_imp_for_file_upload!(
-    connector::Netcetera,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -672,6 +671,7 @@ default_imp_for_file_upload!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -730,7 +730,6 @@ impl<const T: u8>
 }
 
 default_imp_for_submit_evidence!(
-    connector::Netcetera,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -758,6 +757,7 @@ default_imp_for_submit_evidence!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -816,7 +816,6 @@ impl<const T: u8>
 }
 
 default_imp_for_defend_dispute!(
-    connector::Netcetera,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -844,6 +843,7 @@ default_imp_for_defend_dispute!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -903,7 +903,6 @@ impl<const T: u8>
 }
 
 default_imp_for_pre_processing_steps!(
-    connector::Netcetera,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -928,6 +927,7 @@ default_imp_for_pre_processing_steps!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Noon,
     connector::Nuvei,
@@ -966,7 +966,6 @@ macro_rules! default_imp_for_payouts {
 impl<const T: u8> api::Payouts for connector::DummyConnector<T> {}
 
 default_imp_for_payouts!(
-    connector::Netcetera,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -994,6 +993,7 @@ default_imp_for_payouts!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -1053,7 +1053,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_create!(
-    connector::Netcetera,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1081,6 +1080,7 @@ default_imp_for_payouts_create!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -1143,7 +1143,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_eligibility!(
-    connector::Netcetera,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1171,6 +1170,7 @@ default_imp_for_payouts_eligibility!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -1230,7 +1230,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_fulfill!(
-    connector::Netcetera,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1258,6 +1257,7 @@ default_imp_for_payouts_fulfill!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -1317,7 +1317,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_cancel!(
-    connector::Netcetera,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1345,6 +1344,7 @@ default_imp_for_payouts_cancel!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -1404,7 +1404,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_quote!(
-    connector::Netcetera,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1433,6 +1432,7 @@ default_imp_for_payouts_quote!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -1492,7 +1492,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient!(
-    connector::Netcetera,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1521,6 +1520,7 @@ default_imp_for_payouts_recipient!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -1579,7 +1579,6 @@ impl<const T: u8>
 }
 
 default_imp_for_approve!(
-    connector::Netcetera,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1608,6 +1607,7 @@ default_imp_for_approve!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -1667,7 +1667,6 @@ impl<const T: u8>
 }
 
 default_imp_for_reject!(
-    connector::Netcetera,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1696,6 +1695,7 @@ default_imp_for_reject!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -1739,7 +1739,6 @@ macro_rules! default_imp_for_fraud_check {
 impl<const T: u8> api::FraudCheck for connector::DummyConnector<T> {}
 
 default_imp_for_fraud_check!(
-    connector::Netcetera,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1768,6 +1767,7 @@ default_imp_for_fraud_check!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -1827,7 +1827,6 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_sale!(
-    connector::Netcetera,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1856,6 +1855,7 @@ default_imp_for_frm_sale!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -1915,7 +1915,6 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_checkout!(
-    connector::Netcetera,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1944,6 +1943,7 @@ default_imp_for_frm_checkout!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -2003,7 +2003,6 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_transaction!(
-    connector::Netcetera,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2032,6 +2031,7 @@ default_imp_for_frm_transaction!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -2091,7 +2091,6 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_fulfillment!(
-    connector::Netcetera,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2120,6 +2119,7 @@ default_imp_for_frm_fulfillment!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -2179,7 +2179,6 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_record_return!(
-    connector::Netcetera,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2208,6 +2207,7 @@ default_imp_for_frm_record_return!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -2265,7 +2265,6 @@ impl<const T: u8>
 }
 
 default_imp_for_incremental_authorization!(
-    connector::Netcetera,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2293,6 +2292,7 @@ default_imp_for_incremental_authorization!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -2350,7 +2350,6 @@ impl<const T: u8>
 {
 }
 default_imp_for_revoking_mandates!(
-    connector::Netcetera,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2378,6 +2377,7 @@ default_imp_for_revoking_mandates!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Nuvei,
