@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use api_models::{
     enums::{CanadaStatesAbbreviation, UsStatesAbbreviation},
-    payments::{self, BankDebitBilling, OrderDetailsWithAmount},
+    payments::{self, OrderDetailsWithAmount},
 };
 use base64::Engine;
 use common_utils::{
@@ -98,6 +98,8 @@ pub trait RouterData {
     fn get_optional_billing_state(&self) -> Option<Secret<String>>;
     fn get_optional_billing_first_name(&self) -> Option<Secret<String>>;
     fn get_optional_billing_last_name(&self) -> Option<Secret<String>>;
+    fn get_optional_billing_phone_number(&self) -> Option<Secret<String>>;
+    fn get_optional_billing_email(&self) -> Option<Email>;
     fn get_email(&self) -> Result<Email, Error>;
 }
 
@@ -306,7 +308,23 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .and_then(|bill| bill.email.clone())
             .ok_or_else(missing_field_err("email"))
     }
+    
+    fn get_optional_billing_phone_number(&self) -> Option<Secret<String>> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .phone
+                    .and_then(|phone_data| phone_data.number)
+            })
+    }
 
+    fn get_optional_billing_email(&self) -> Option<Email> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| billing_address.clone().email)
+    }
     fn to_connector_meta<T>(&self) -> Result<T, Error>
     where
         T: serde::de::DeserializeOwned,
@@ -1122,7 +1140,7 @@ pub trait CryptoData {
     fn get_pay_currency(&self) -> Result<String, Error>;
 }
 
-impl CryptoData for api::CryptoData {
+impl CryptoData for domain::CryptoData {
     fn get_pay_currency(&self) -> Result<String, Error> {
         self.pay_currency
             .clone()
@@ -1272,7 +1290,7 @@ pub trait BankDirectDebitBillingData {
     fn get_billing_country(&self) -> Result<api_models::enums::CountryAlpha2, Error>;
 }
 
-impl BankDirectDebitBillingData for BankDebitBilling {
+impl BankDirectDebitBillingData for domain::BankDebitBilling {
     fn get_billing_country(&self) -> Result<api_models::enums::CountryAlpha2, Error> {
         self.address
             .as_ref()

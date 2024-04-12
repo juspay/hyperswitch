@@ -1029,13 +1029,13 @@ impl ForeignTryFrom<&domain::WalletData> for Option<StripePaymentMethodType> {
     }
 }
 
-impl From<&payments::BankDebitData> for StripePaymentMethodType {
-    fn from(bank_debit_data: &payments::BankDebitData) -> Self {
+impl From<&domain::BankDebitData> for StripePaymentMethodType {
+    fn from(bank_debit_data: &domain::BankDebitData) -> Self {
         match bank_debit_data {
-            payments::BankDebitData::AchBankDebit { .. } => Self::Ach,
-            payments::BankDebitData::SepaBankDebit { .. } => Self::Sepa,
-            payments::BankDebitData::BecsBankDebit { .. } => Self::Becs,
-            payments::BankDebitData::BacsBankDebit { .. } => Self::Bacs,
+            domain::BankDebitData::AchBankDebit { .. } => Self::Ach,
+            domain::BankDebitData::SepaBankDebit { .. } => Self::Sepa,
+            domain::BankDebitData::BecsBankDebit { .. } => Self::Becs,
+            domain::BankDebitData::BacsBankDebit { .. } => Self::Bacs,
         }
     }
 }
@@ -1074,8 +1074,8 @@ impl
     }
 }
 
-impl From<&payments::BankDebitBilling> for StripeBillingAddress {
-    fn from(item: &payments::BankDebitBilling) -> Self {
+impl From<&domain::BankDebitBilling> for StripeBillingAddress {
+    fn from(item: &domain::BankDebitBilling) -> Self {
         Self {
             email: Some(item.email.to_owned()),
             country: item
@@ -1208,10 +1208,10 @@ impl TryFrom<(&domain::BankRedirectData, Option<bool>)> for StripeBillingAddress
 }
 
 fn get_bank_debit_data(
-    bank_debit_data: &payments::BankDebitData,
+    bank_debit_data: &domain::BankDebitData,
 ) -> (StripePaymentMethodType, BankDebitData, StripeBillingAddress) {
     match bank_debit_data {
-        payments::BankDebitData::AchBankDebit {
+        domain::BankDebitData::AchBankDebit {
             billing_details,
             account_number,
             routing_number,
@@ -1226,7 +1226,7 @@ fn get_bank_debit_data(
             let billing_data = StripeBillingAddress::from(billing_details);
             (StripePaymentMethodType::Ach, ach_data, billing_data)
         }
-        payments::BankDebitData::SepaBankDebit {
+        domain::BankDebitData::SepaBankDebit {
             billing_details,
             iban,
             ..
@@ -1238,7 +1238,7 @@ fn get_bank_debit_data(
             let billing_data = StripeBillingAddress::from(billing_details);
             (StripePaymentMethodType::Sepa, sepa_data, billing_data)
         }
-        payments::BankDebitData::BecsBankDebit {
+        domain::BankDebitData::BecsBankDebit {
             billing_details,
             account_number,
             bsb_number,
@@ -1252,7 +1252,7 @@ fn get_bank_debit_data(
             let billing_data = StripeBillingAddress::from(billing_details);
             (StripePaymentMethodType::Becs, becs_data, billing_data)
         }
-        payments::BankDebitData::BacsBankDebit {
+        domain::BankDebitData::BacsBankDebit {
             billing_details,
             account_number,
             sort_code,
@@ -1432,7 +1432,7 @@ fn create_stripe_payment_method(
         .into()),
 
         domain::PaymentMethodData::GiftCard(giftcard_data) => match giftcard_data.deref() {
-            payments::GiftCardData::Givex(_) | payments::GiftCardData::PaySafeCard {} => {
+            domain::GiftCardData::Givex(_) | domain::GiftCardData::PaySafeCard {} => {
                 Err(errors::ConnectorError::NotImplemented(
                     connector_util::get_unimplemented_payment_method_error_message("stripe"),
                 )
@@ -1456,24 +1456,24 @@ fn create_stripe_payment_method(
         .into()),
 
         domain::PaymentMethodData::Voucher(voucher_data) => match voucher_data {
-            payments::VoucherData::Boleto(_) | payments::VoucherData::Oxxo => {
+            domain::VoucherData::Boleto(_) | domain::VoucherData::Oxxo => {
                 Err(errors::ConnectorError::NotImplemented(
                     connector_util::get_unimplemented_payment_method_error_message("stripe"),
                 )
                 .into())
             }
-            payments::VoucherData::Alfamart(_)
-            | payments::VoucherData::Efecty
-            | payments::VoucherData::PagoEfectivo
-            | payments::VoucherData::RedCompra
-            | payments::VoucherData::RedPagos
-            | payments::VoucherData::Indomaret(_)
-            | payments::VoucherData::SevenEleven(_)
-            | payments::VoucherData::Lawson(_)
-            | payments::VoucherData::MiniStop(_)
-            | payments::VoucherData::FamilyMart(_)
-            | payments::VoucherData::Seicomart(_)
-            | payments::VoucherData::PayEasy(_) => Err(errors::ConnectorError::NotImplemented(
+            domain::VoucherData::Alfamart(_)
+            | domain::VoucherData::Efecty
+            | domain::VoucherData::PagoEfectivo
+            | domain::VoucherData::RedCompra
+            | domain::VoucherData::RedPagos
+            | domain::VoucherData::Indomaret(_)
+            | domain::VoucherData::SevenEleven(_)
+            | domain::VoucherData::Lawson(_)
+            | domain::VoucherData::MiniStop(_)
+            | domain::VoucherData::FamilyMart(_)
+            | domain::VoucherData::Seicomart(_)
+            | domain::VoucherData::PayEasy(_) => Err(errors::ConnectorError::NotImplemented(
                 connector_util::get_unimplemented_payment_method_error_message("stripe"),
             )
             .into()),

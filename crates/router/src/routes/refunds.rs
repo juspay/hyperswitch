@@ -36,7 +36,7 @@ pub async fn refunds_create(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth, req| refund_create_core(state, auth.merchant_account, auth.key_store, req),
+        |state, auth, req, _| refund_create_core(state, auth.merchant_account, auth.key_store, req),
         auth::auth_type(
             &auth::ApiKeyAuth,
             &auth::JWTAuth(Permission::RefundWrite),
@@ -88,7 +88,7 @@ pub async fn refunds_retrieve(
         state,
         &req,
         refund_request,
-        |state, auth, refund_request| {
+        |state, auth, refund_request, _| {
             refund_response_wrapper(
                 state,
                 auth.merchant_account,
@@ -139,7 +139,7 @@ pub async fn refunds_retrieve_with_body(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth, req| {
+        |state, auth, req, _| {
             refund_response_wrapper(
                 state,
                 auth.merchant_account,
@@ -187,7 +187,7 @@ pub async fn refunds_update(
         state,
         &req,
         refund_update_req,
-        |state, auth, req| refund_update_core(state, auth.merchant_account, req),
+        |state, auth, req, _| refund_update_core(state, auth.merchant_account, req),
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     )
@@ -220,7 +220,7 @@ pub async fn refunds_list(
         state,
         &req,
         payload.into_inner(),
-        |state, auth, req| refund_list(state, auth.merchant_account, req),
+        |state, auth, req, _| refund_list(state, auth.merchant_account, req),
         auth::auth_type(
             &auth::ApiKeyAuth,
             &auth::JWTAuth(Permission::RefundRead),
@@ -257,7 +257,7 @@ pub async fn refunds_filter_list(
         state,
         &req,
         payload.into_inner(),
-        |state, auth, req| refund_filter_list(state, auth.merchant_account, req),
+        |state, auth, req, _| refund_filter_list(state, auth.merchant_account, req),
         auth::auth_type(
             &auth::ApiKeyAuth,
             &auth::JWTAuth(Permission::RefundRead),
