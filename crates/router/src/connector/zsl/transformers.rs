@@ -221,11 +221,7 @@ impl TryFrom<&ZslRouterData<&types::PaymentsAuthorizeRouterData>> for ZslPayment
         let family_name = item.router_data.get_optional_billing_last_name();
         let router_url = item.router_data.request.get_router_return_url()?;
         let webhook_url = item.router_data.request.get_webhook_url()?;
-        let billing_country = item.router_data.get_optional_billing_country().ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "billing.address.country",
-            },
-        )?;
+        let billing_country = item.router_data.get_billing_country()?;
 
         let lang = item
             .router_data
