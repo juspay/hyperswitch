@@ -118,9 +118,7 @@ impl ConnectorCommon for Netcetera {
     }
 }
 
-impl ConnectorValidation for Netcetera {
-    //TODO: implement functions when support enabled
-}
+impl ConnectorValidation for Netcetera {}
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Netcetera
