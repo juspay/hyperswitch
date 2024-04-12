@@ -402,9 +402,12 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             )
             .await?;
 
-            let payment_method_info =
-                helpers::retrieve_payment_method_from_db_with_token_data(state, &token_data)
-                    .await?;
+            let payment_method_info = helpers::retrieve_payment_method_from_db_with_token_data(
+                state,
+                &token_data,
+                storage_scheme,
+            )
+            .await?;
 
             (Some(token_data), payment_method_info)
         } else {
@@ -649,6 +652,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
         key_store: &domain::MerchantKeyStore,
+        storage_scheme: common_enums::enums::MerchantStorageScheme,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
@@ -663,6 +667,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
             request,
             &key_store.merchant_id,
             key_store,
+            storage_scheme,
         )
         .await
     }
@@ -672,7 +677,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         &'a self,
         state: &'a AppState,
         payment_data: &mut PaymentData<F>,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
+        storage_scheme: storage_enums::MerchantStorageScheme,
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
     ) -> RouterResult<(
@@ -680,8 +685,15 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         Option<api::PaymentMethodData>,
         Option<String>,
     )> {
-        let (op, payment_method_data, pm_id) =
-            helpers::make_pm_data(Box::new(self), state, payment_data, key_store, customer).await?;
+        let (op, payment_method_data, pm_id) = helpers::make_pm_data(
+            Box::new(self),
+            state,
+            payment_data,
+            key_store,
+            customer,
+            storage_scheme,
+        )
+        .await?;
 
         utils::when(payment_method_data.is_none(), || {
             Err(errors::ApiErrorResponse::PaymentMethodNotFound)
@@ -1148,8 +1160,10 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                         m_db.update_customer_by_customer_id_merchant_id(
                             m_customer_customer_id,
                             m_customer_merchant_id,
+                            customer,
                             m_updated_customer,
                             &m_key_store,
+                            storage_scheme,
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)

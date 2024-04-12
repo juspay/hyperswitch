@@ -88,9 +88,9 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
                     idempotency_id: Some(item.router_data.connector_request_reference_id.clone()),
                 })
             }
-            domain::PaymentMethodData::BankDebit(
-                api_models::payments::BankDebitData::AchBankDebit { .. },
-            ) => {
+            domain::PaymentMethodData::BankDebit(domain::BankDebitData::AchBankDebit {
+                ..
+            }) => {
                 let pm_token = item.router_data.get_payment_method_token()?;
                 let pre_auth = !item.router_data.request.is_auto_capture()?;
                 Ok(Self {
@@ -206,9 +206,9 @@ pub struct StaxBankTokenizeData {
     person_name: Secret<String>,
     bank_account: Secret<String>,
     bank_routing: Secret<String>,
-    bank_name: api_models::enums::BankNames,
-    bank_type: api_models::enums::BankType,
-    bank_holder_type: api_models::enums::BankHolderType,
+    bank_name: common_enums::BankNames,
+    bank_type: common_enums::BankType,
+    bank_holder_type: common_enums::BankHolderType,
     customer_id: Secret<String>,
 }
 
@@ -238,17 +238,15 @@ impl TryFrom<&types::TokenizationRouterData> for StaxTokenRequest {
                 };
                 Ok(Self::Card(stax_card_data))
             }
-            domain::PaymentMethodData::BankDebit(
-                api_models::payments::BankDebitData::AchBankDebit {
-                    billing_details,
-                    account_number,
-                    routing_number,
-                    bank_name,
-                    bank_type,
-                    bank_holder_type,
-                    ..
-                },
-            ) => {
+            domain::PaymentMethodData::BankDebit(domain::BankDebitData::AchBankDebit {
+                billing_details,
+                account_number,
+                routing_number,
+                bank_name,
+                bank_type,
+                bank_holder_type,
+                ..
+            }) => {
                 let stax_bank_data = StaxBankTokenizeData {
                     person_name: billing_details.name,
                     bank_account: account_number,
