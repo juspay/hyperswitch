@@ -1682,7 +1682,14 @@ where
             {
                 router_data = router_data.preprocessing_steps(state, connector).await?;
 
-                (router_data, false)
+                let should_continue = matches!(
+                    payment_data
+                        .payment_attempt
+                        .external_three_ds_authentication_attempted,
+                    Some(true)
+                );
+
+                (router_data, should_continue)
             } else if (connector.connector_name == router_types::Connector::Cybersource
                 || connector.connector_name == router_types::Connector::Bankofamerica)
                 && is_operation_complete_authorize(&operation)
