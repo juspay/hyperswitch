@@ -710,6 +710,7 @@ pub async fn payouts_list_core(
                         &payouts.customer_id,
                         merchant_id,
                         &key_store,
+                        merchant_account.storage_scheme,
                     )
                     .await
                 {
@@ -1063,8 +1064,10 @@ pub async fn create_recipient(
                         db.update_customer_by_customer_id_merchant_id(
                             customer_id,
                             merchant_id,
+                            customer,
                             updated_customer,
                             key_store,
+                            merchant_account.storage_scheme,
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1838,6 +1841,7 @@ pub async fn make_payout_data(
             &payouts.customer_id.to_owned(),
             merchant_id,
             key_store,
+            merchant_account.storage_scheme,
         )
         .await
         .map_or(None, |c| c);
