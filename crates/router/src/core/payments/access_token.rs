@@ -73,9 +73,10 @@ pub async fn add_access_token<
         let res = match old_access_token {
             Some(access_token) => {
                 router_env::logger::debug!(
-                    "Access token found in redis for merchant_id: {}, connector: {}",
+                    "Access token found in redis for merchant_id: {}, connector: {} which has expiry of: {}",
                     merchant_account.merchant_id,
-                    connector.connector_name
+                    connector.connector_name,
+                    access_token.expires
                 );
                 Ok(Some(access_token))
             }
