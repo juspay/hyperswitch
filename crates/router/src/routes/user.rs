@@ -32,7 +32,7 @@ pub async fn user_signup_with_merchant_id(
         state,
         &http_req,
         req_payload.clone(),
-        |state, _, req_body| user_core::signup_with_merchant_id(state, req_body),
+        |state, _, req_body, _| user_core::signup_with_merchant_id(state, req_body),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -51,7 +51,7 @@ pub async fn user_signup(
         state,
         &http_req,
         req_payload.clone(),
-        |state, _, req_body| user_core::signup(state, req_body),
+        |state, _, req_body, _| user_core::signup(state, req_body),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -70,7 +70,7 @@ pub async fn user_signin_without_invite_checks(
         state,
         &http_req,
         req_payload.clone(),
-        |state, _, req_body| user_core::signin_without_invite_checks(state, req_body),
+        |state, _, req_body, _| user_core::signin_without_invite_checks(state, req_body),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -89,7 +89,7 @@ pub async fn user_signin(
         state,
         &http_req,
         req_payload.clone(),
-        |state, _, req_body| user_core::signin(state, req_body),
+        |state, _, req_body, _| user_core::signin(state, req_body),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -109,7 +109,7 @@ pub async fn user_connect_account(
         state,
         &http_req,
         req_payload.clone(),
-        |state, _, req_body| user_core::connect_account(state, req_body),
+        |state, _, req_body, _| user_core::connect_account(state, req_body),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -123,7 +123,7 @@ pub async fn signout(state: web::Data<AppState>, http_req: HttpRequest) -> HttpR
         state.clone(),
         &http_req,
         (),
-        |state, user, _| user_core::signout(state, user),
+        |state, user, _, _| user_core::signout(state, user),
         &auth::DashboardNoPermissionAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -141,7 +141,7 @@ pub async fn change_password(
         state.clone(),
         &http_req,
         json_payload.into_inner(),
-        |state, user, req| user_core::change_password(state, req, user),
+        |state, user, req, _| user_core::change_password(state, req, user),
         &auth::DashboardNoPermissionAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -211,7 +211,7 @@ pub async fn internal_user_signup(
         state.clone(),
         &http_req,
         json_payload.into_inner(),
-        |state, _, req| user_core::create_internal_user(state, req),
+        |state, _, req, _| user_core::create_internal_user(state, req),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -229,7 +229,7 @@ pub async fn switch_merchant_id(
         state.clone(),
         &http_req,
         json_payload.into_inner(),
-        |state, user, req| user_core::switch_merchant_id(state, req, user),
+        |state, user, req, _| user_core::switch_merchant_id(state, req, user),
         &auth::DashboardNoPermissionAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -247,7 +247,7 @@ pub async fn user_merchant_account_create(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth: auth::UserFromToken, json_payload| {
+        |state, auth: auth::UserFromToken, json_payload, _| {
             user_core::create_merchant_account(state, auth, json_payload)
         },
         &auth::JWTAuth(Permission::MerchantAccountCreate),
@@ -304,7 +304,7 @@ pub async fn list_merchants_for_user(state: web::Data<AppState>, req: HttpReques
         state,
         &req,
         (),
-        |state, user, _| user_core::list_merchants_for_user(state, user),
+        |state, user, _, _| user_core::list_merchants_for_user(state, user),
         &auth::DashboardNoPermissionAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -339,7 +339,7 @@ pub async fn list_users_for_merchant_account(
         state.clone(),
         &req,
         (),
-        |state, user, _| user_core::list_users_for_merchant_account(state, user),
+        |state, user, _, _| user_core::list_users_for_merchant_account(state, user),
         &auth::JWTAuth(Permission::UsersRead),
         api_locking::LockAction::NotApplicable,
     ))
@@ -358,7 +358,7 @@ pub async fn forgot_password(
         state.clone(),
         &req,
         payload.into_inner(),
-        |state, _, payload| user_core::forgot_password(state, payload),
+        |state, _, payload, _| user_core::forgot_password(state, payload),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -377,7 +377,7 @@ pub async fn reset_password(
         state.clone(),
         &req,
         payload.into_inner(),
-        |state, _, payload| user_core::reset_password(state, payload),
+        |state, _, payload, _| user_core::reset_password(state, payload),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -395,7 +395,7 @@ pub async fn invite_user(
         state.clone(),
         &req,
         payload.into_inner(),
-        |state, user, payload| user_core::invite_user(state, payload, user),
+        |state, user, payload, req_state| user_core::invite_user(state, payload, user, req_state),
         &auth::JWTAuth(Permission::UsersWrite),
         api_locking::LockAction::NotApplicable,
     ))
@@ -450,7 +450,7 @@ pub async fn accept_invite_from_email(
         state.clone(),
         &req,
         payload.into_inner(),
-        |state, _, request_payload| user_core::accept_invite_from_email(state, request_payload),
+        |state, _, request_payload, _| user_core::accept_invite_from_email(state, request_payload),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -469,7 +469,9 @@ pub async fn verify_email_without_invite_checks(
         state,
         &http_req,
         json_payload.into_inner(),
-        |state, _, req_payload| user_core::verify_email_without_invite_checks(state, req_payload),
+        |state, _, req_payload, _| {
+            user_core::verify_email_without_invite_checks(state, req_payload)
+        },
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -488,7 +490,7 @@ pub async fn verify_email(
         state,
         &http_req,
         json_payload.into_inner(),
-        |state, _, req_payload| user_core::verify_email(state, req_payload),
+        |state, _, req_payload, _| user_core::verify_email(state, req_payload),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -507,7 +509,7 @@ pub async fn verify_email_request(
         state.clone(),
         &http_req,
         json_payload.into_inner(),
-        |state, _, req_body| user_core::send_verification_mail(state, req_body),
+        |state, _, req_body, _| user_core::send_verification_mail(state, req_body),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -522,7 +524,7 @@ pub async fn verify_recon_token(state: web::Data<AppState>, http_req: HttpReques
         state.clone(),
         &http_req,
         (),
-        |state, user, _req| user_core::verify_token(state, user),
+        |state, user, _req, _| user_core::verify_token(state, user),
         &auth::ReconJWT,
         api_locking::LockAction::NotApplicable,
     ))

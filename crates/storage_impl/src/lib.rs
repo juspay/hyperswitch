@@ -13,6 +13,7 @@ pub mod errors;
 mod lookup;
 pub mod metrics;
 pub mod mock_db;
+pub mod payment_method;
 pub mod payments;
 #[cfg(feature = "payouts")]
 pub mod payouts;
@@ -358,6 +359,15 @@ impl UniqueConstraints for diesel_models::PayoutAttempt {
     }
     fn table_name(&self) -> &str {
         "PayoutAttempt"
+    }
+}
+
+impl UniqueConstraints for diesel_models::PaymentMethod {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!("paymentmethod_{}", self.payment_method_id)]
+    }
+    fn table_name(&self) -> &str {
+        "PaymentMethod"
     }
 }
 

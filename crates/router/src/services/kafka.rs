@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
+use bigdecimal::ToPrimitive;
 use common_utils::errors::CustomResult;
 use error_stack::{report, ResultExt};
+use events::{EventsError, Message, MessagingInterface};
 use rdkafka::{
     config::FromClientConfig,
     producer::{BaseRecord, DefaultProducerContext, Producer, ThreadedProducer},
@@ -16,7 +18,7 @@ mod refund;
 use data_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 use diesel_models::refund::Refund;
 use serde::Serialize;
-use time::OffsetDateTime;
+use time::{OffsetDateTime, PrimitiveDateTime};
 
 #[cfg(feature = "payouts")]
 use self::payout::KafkaPayout;
@@ -408,5 +410,43 @@ impl Drop for RdKafkaProducer {
             Ok(_) => router_env::logger::info!("Kafka events flush Successful"),
             Err(error) => router_env::logger::error!("Failed to flush Kafka Events {error:?}"),
         }
+    }
+}
+
+impl MessagingInterface for KafkaProducer {
+    type MessageClass = EventType;
+
+    fn send_message<T>(
+        &self,
+        data: T,
+        timestamp: PrimitiveDateTime,
+    ) -> error_stack::Result<(), EventsError>
+    where
+        T: Message<Class = Self::MessageClass> + masking::ErasedMaskSerialize,
+    {
+        let topic = self.get_topic(data.get_message_class());
+        let json_data = data
+            .masked_serialize()
+            .and_then(|i| serde_json::to_vec(&i))
+            .change_context(EventsError::SerializationError)?;
+        self.producer
+            .0
+            .send(
+                BaseRecord::to(topic)
+                    .key(&data.identifier())
+                    .payload(&json_data)
+                    .timestamp(
+                        (timestamp.assume_utc().unix_timestamp_nanos() / 1_000)
+                            .to_i64()
+                            .unwrap_or_else(|| {
+                                // kafka producer accepts milliseconds
+                                // try converting nanos to millis if that fails convert seconds to millis
+                                timestamp.assume_utc().unix_timestamp() * 1_000
+                            }),
+                    ),
+            )
+            .map_err(|(error, record)| report!(error).attach_printable(format!("{record:?}")))
+            .change_context(KafkaError::GenericError)
+            .change_context(EventsError::PublishError)
     }
 }

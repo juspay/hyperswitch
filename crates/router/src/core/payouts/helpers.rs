@@ -298,7 +298,9 @@ pub async fn save_payout_data_to_locker(
             let locker_ref = stored_resp.card_reference.clone();
 
             // Use locker ref as payment_method_id
-            let existing_pm_by_pmid = db.find_payment_method(&locker_ref).await;
+            let existing_pm_by_pmid = db
+                .find_payment_method(&locker_ref, merchant_account.storage_scheme)
+                .await;
 
             match existing_pm_by_pmid {
                 // If found, update locker's metadata [DELETE + INSERT OP], don't insert in payment_method's table
@@ -314,7 +316,13 @@ pub async fn save_payout_data_to_locker(
                 // If not found, use locker ref as locker_id
                 Err(err) => {
                     if err.current_context().is_db_not_found() {
-                        match db.find_payment_method_by_locker_id(&locker_ref).await {
+                        match db
+                            .find_payment_method_by_locker_id(
+                                &locker_ref,
+                                merchant_account.storage_scheme,
+                            )
+                            .await
+                        {
                             // If found, update locker's metadata [DELETE + INSERT OP], don't insert in payment_methods table
                             Ok(pm) => (
                                 false,
@@ -480,6 +488,7 @@ pub async fn save_payout_data_to_locker(
             key_store,
             None,
             None,
+            merchant_account.storage_scheme,
         )
         .await?;
     }
@@ -537,7 +546,7 @@ pub async fn save_payout_data_to_locker(
         let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
             payment_method_data: card_details_encrypted,
         };
-        db.update_payment_method(existing_pm, pm_update)
+        db.update_payment_method(existing_pm, pm_update, merchant_account.storage_scheme)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to add payment method in db")?;
