@@ -430,12 +430,14 @@ pub struct PaymentIntentListParams {
     pub offset: u32,
     pub starting_at: Option<PrimitiveDateTime>,
     pub ending_at: Option<PrimitiveDateTime>,
+    pub amount: Option<AmountFilter>,
     pub connector: Option<Vec<api_models::enums::Connector>>,
     pub currency: Option<Vec<storage_enums::Currency>>,
     pub status: Option<Vec<storage_enums::IntentStatus>>,
     pub payment_method: Option<Vec<storage_enums::PaymentMethod>>,
     pub payment_method_type: Option<Vec<storage_enums::PaymentMethodType>>,
     pub authentication_type: Option<Vec<storage_enums::AuthenticationType>>,
+    pub merchant_connector_id: Option<Vec<String>>,
     pub profile_id: Option<String>,
     pub customer_id: Option<String>,
     pub starting_after_id: Option<String>,
@@ -449,12 +451,14 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             offset: 0,
             starting_at: value.created_gte.or(value.created_gt).or(value.created),
             ending_at: value.created_lte.or(value.created_lt).or(value.created),
+            amount: None,
             connector: None,
             currency: None,
             status: None,
             payment_method: None,
             payment_method_type: None,
             authentication_type: None,
+            merchant_connector_id: None,
             profile_id: None,
             customer_id: value.customer_id,
             starting_after_id: value.starting_after,
@@ -470,12 +474,14 @@ impl From<api_models::payments::TimeRange> for PaymentIntentFetchConstraints {
             offset: 0,
             starting_at: Some(value.start_time),
             ending_at: value.end_time,
+            amount: None,
             connector: None,
             currency: None,
             status: None,
             payment_method: None,
             payment_method_type: None,
             authentication_type: None,
+            merchant_connector_id: None,
             profile_id: None,
             customer_id: None,
             starting_after_id: None,
@@ -494,18 +500,54 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
                 offset: value.offset.unwrap_or_default(),
                 starting_at: value.time_range.map(|t| t.start_time),
                 ending_at: value.time_range.and_then(|t| t.end_time),
+                amount: value.amount.map(|amount_filter| amount_filter.into()),
                 connector: value.connector,
                 currency: value.currency,
                 status: value.status,
                 payment_method: value.payment_method,
                 payment_method_type: value.payment_method_type,
                 authentication_type: value.authentication_type,
+                merchant_connector_id: value.merchant_connector_id,
                 profile_id: value.profile_id,
                 customer_id: value.customer_id,
                 starting_after_id: None,
                 ending_before_id: None,
                 limit: Some(std::cmp::min(value.limit, PAYMENTS_LIST_MAX_LIMIT_V2)),
             }))
+        }
+    }
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct AmountFilter {
+    pub amount: i64,
+    pub filter_option: AmountFilterOption,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub enum AmountFilterOption {
+    Range { end: i64 },
+    LessThan,
+    EqualTo,
+    GreaterThan,
+}
+
+impl From<api_models::payments::AmountFilter> for AmountFilter {
+    fn from(value: api_models::payments::AmountFilter) -> Self {
+        let filter_option = match value.filter_option {
+            api_models::payments::AmountFilterOption::Range { end } => {
+                AmountFilterOption::Range { end }
+            }
+            api_models::payments::AmountFilterOption::LessThan => AmountFilterOption::LessThan,
+            api_models::payments::AmountFilterOption::EqualTo => AmountFilterOption::EqualTo,
+            api_models::payments::AmountFilterOption::GreaterThan => {
+                AmountFilterOption::GreaterThan
+            }
+        };
+
+        Self {
+            amount: value.amount,
+            filter_option,
         }
     }
 }

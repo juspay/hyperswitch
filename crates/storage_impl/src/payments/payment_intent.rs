@@ -535,6 +535,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, StorageError> {
         use common_utils::errors::ReportSwitchExt;
+        use data_models::payments::payment_intent::AmountFilterOption;
 
         let conn = connection::pg_connection_read(self).await.switch()?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
@@ -600,6 +601,23 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
 
                 query = query.offset(params.offset.into());
 
+                if let Some(amount_filter) = &params.amount {
+                    match &amount_filter.filter_option {
+                        AmountFilterOption::LessThan => {
+                            query = query.filter(pi_dsl::amount.lt(amount_filter.amount))
+                        }
+                        AmountFilterOption::EqualTo => {
+                            query = query.filter(pi_dsl::amount.eq(amount_filter.amount))
+                        }
+                        AmountFilterOption::GreaterThan => {
+                            query = query.filter(pi_dsl::amount.gt(amount_filter.amount))
+                        }
+                        AmountFilterOption::Range { end } => {
+                            query = query.filter(pi_dsl::amount.between(amount_filter.amount, *end))
+                        }
+                    }
+                }
+
                 if let Some(currency) = &params.currency {
                     query = query.filter(pi_dsl::currency.eq_any(currency.clone()));
                 }
@@ -635,6 +653,13 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 query = match &params.authentication_type {
                     Some(authentication_type) => query
                         .filter(pa_dsl::authentication_type.eq_any(authentication_type.clone())),
+                    None => query,
+                };
+
+                query = match &params.merchant_connector_id {
+                    Some(merchant_connector_id) => query.filter(
+                        pa_dsl::merchant_connector_id.eq_any(merchant_connector_id.clone()),
+                    ),
                     None => query,
                 };
 
@@ -676,6 +701,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<String>, StorageError> {
         use common_utils::errors::ReportSwitchExt;
+        use data_models::payments::payment_intent::AmountFilterOption;
 
         let conn = connection::pg_connection_read(self).await.switch()?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
@@ -704,6 +730,24 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
 
                 query = match params.ending_at {
                     Some(ending_at) => query.filter(pi_dsl::created_at.le(ending_at)),
+                    None => query,
+                };
+
+                query = match &params.amount {
+                    Some(amount_filter) => match &amount_filter.filter_option {
+                        AmountFilterOption::LessThan => {
+                            query.filter(pi_dsl::amount.lt(amount_filter.amount))
+                        }
+                        AmountFilterOption::EqualTo => {
+                            query.filter(pi_dsl::amount.eq(amount_filter.amount))
+                        }
+                        AmountFilterOption::GreaterThan => {
+                            query.filter(pi_dsl::amount.gt(amount_filter.amount))
+                        }
+                        AmountFilterOption::Range { end } => {
+                            query.filter(pi_dsl::amount.between(amount_filter.amount, *end))
+                        }
+                    },
                     None => query,
                 };
 
