@@ -7182,7 +7182,8 @@
           "signifyd",
           "plaid",
           "riskified",
-          "zen"
+          "zen",
+          "zsl"
         ]
       },
       "ConnectorMetadata": {
@@ -16967,7 +16968,8 @@
           "wise",
           "worldline",
           "worldpay",
-          "zen"
+          "zen",
+          "zsl"
         ]
       },
       "RoutingAlgorithm": {

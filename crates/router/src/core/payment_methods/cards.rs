@@ -92,7 +92,12 @@ pub async fn create_payment_method(
     storage_scheme: MerchantStorageScheme,
 ) -> errors::CustomResult<storage::PaymentMethod, errors::ApiErrorResponse> {
     let customer = db
-        .find_customer_by_customer_id_merchant_id(customer_id, merchant_id, key_store)
+        .find_customer_by_customer_id_merchant_id(
+            customer_id,
+            merchant_id,
+            key_store,
+            storage_scheme,
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
@@ -1288,6 +1293,7 @@ pub async fn list_payment_methods(
                         cust.as_str(),
                         &pi.merchant_id,
                         &key_store,
+                        merchant_account.storage_scheme,
                     )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
@@ -2802,6 +2808,7 @@ pub async fn list_customer_payment_method(
             customer_id,
             &merchant_account.merchant_id,
             &key_store,
+            merchant_account.storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
@@ -3258,7 +3265,12 @@ pub async fn set_default_payment_method(
 ) -> errors::RouterResponse<CustomerDefaultPaymentMethodResponse> {
     //check for the customer
     let customer = db
-        .find_customer_by_customer_id_merchant_id(customer_id, &merchant_id, &key_store)
+        .find_customer_by_customer_id_merchant_id(
+            customer_id,
+            &merchant_id,
+            &key_store,
+            storage_scheme,
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
     // check for the presence of payment_method
@@ -3289,20 +3301,24 @@ pub async fn set_default_payment_method(
         default_payment_method_id: Some(Some(payment_method_id.to_owned())),
     };
 
+    let customer_id = customer.customer_id.clone();
+
     // update the db with the default payment method id
     let updated_customer_details = db
         .update_customer_by_customer_id_merchant_id(
             customer_id.to_owned(),
             merchant_id.to_owned(),
+            customer,
             customer_update,
             &key_store,
+            storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update the default payment method id for the customer")?;
     let resp = CustomerDefaultPaymentMethodResponse {
         default_payment_method_id: updated_customer_details.default_payment_method_id,
-        customer_id: customer.customer_id,
+        customer_id,
         payment_method_type: payment_method.payment_method_type,
         payment_method: payment_method.payment_method,
     };
@@ -3556,6 +3572,7 @@ pub async fn delete_payment_method(
             &key.customer_id,
             &merchant_account.merchant_id,
             &key_store,
+            merchant_account.storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
@@ -3599,8 +3616,10 @@ pub async fn delete_payment_method(
         db.update_customer_by_customer_id_merchant_id(
             key.customer_id,
             key.merchant_id,
+            customer,
             customer_update,
             &key_store,
+            merchant_account.storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)

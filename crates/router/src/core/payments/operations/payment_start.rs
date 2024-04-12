@@ -276,6 +276,7 @@ where
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
         key_store: &domain::MerchantKeyStore,
+        storage_scheme: common_enums::enums::MerchantStorageScheme,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsStartRequest, Ctx>,
@@ -290,6 +291,7 @@ where
             request,
             &key_store.merchant_id,
             key_store,
+            storage_scheme,
         )
         .await
     }

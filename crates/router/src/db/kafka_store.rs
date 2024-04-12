@@ -324,9 +324,15 @@ impl CustomerInterface for KafkaStore {
         customer_id: &str,
         merchant_id: &str,
         key_store: &domain::MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<domain::Customer>, errors::StorageError> {
         self.diesel_store
-            .find_customer_optional_by_customer_id_merchant_id(customer_id, merchant_id, key_store)
+            .find_customer_optional_by_customer_id_merchant_id(
+                customer_id,
+                merchant_id,
+                key_store,
+                storage_scheme,
+            )
             .await
     }
 
@@ -334,15 +340,19 @@ impl CustomerInterface for KafkaStore {
         &self,
         customer_id: String,
         merchant_id: String,
-        customer: storage::CustomerUpdate,
+        customer: domain::Customer,
+        customer_update: storage::CustomerUpdate,
         key_store: &domain::MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, errors::StorageError> {
         self.diesel_store
             .update_customer_by_customer_id_merchant_id(
                 customer_id,
                 merchant_id,
                 customer,
+                customer_update,
                 key_store,
+                storage_scheme,
             )
             .await
     }
@@ -362,9 +372,15 @@ impl CustomerInterface for KafkaStore {
         customer_id: &str,
         merchant_id: &str,
         key_store: &domain::MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, errors::StorageError> {
         self.diesel_store
-            .find_customer_by_customer_id_merchant_id(customer_id, merchant_id, key_store)
+            .find_customer_by_customer_id_merchant_id(
+                customer_id,
+                merchant_id,
+                key_store,
+                storage_scheme,
+            )
             .await
     }
 
@@ -372,9 +388,10 @@ impl CustomerInterface for KafkaStore {
         &self,
         customer_data: domain::Customer,
         key_store: &domain::MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, errors::StorageError> {
         self.diesel_store
-            .insert_customer(customer_data, key_store)
+            .insert_customer(customer_data, key_store, storage_scheme)
             .await
     }
 }

@@ -52,7 +52,9 @@ use crate::{
             self,
             types::{self, AsyncLift},
         },
-        storage::{self, enums as storage_enums, ephemeral_key, CustomerUpdate::Update},
+        storage::{
+            self, enums as storage_enums, ephemeral_key, CardTokenData, CustomerUpdate::Update,
+        },
         transformers::{ForeignFrom, ForeignTryFrom},
         ErrorResponse, MandateReference, RouterData,
     },
@@ -1286,6 +1288,7 @@ pub async fn get_customer_from_details<F: Clone>(
     merchant_id: &str,
     payment_data: &mut PaymentData<F>,
     merchant_key_store: &domain::MerchantKeyStore,
+    storage_scheme: enums::MerchantStorageScheme,
 ) -> CustomResult<Option<domain::Customer>, errors::StorageError> {
     match customer_id {
         None => Ok(None),
@@ -1295,6 +1298,7 @@ pub async fn get_customer_from_details<F: Clone>(
                     &c_id,
                     merchant_id,
                     merchant_key_store,
+                    storage_scheme,
                 )
                 .await?;
             payment_data.email = payment_data.email.clone().or_else(|| {
@@ -1433,6 +1437,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, Ctx>(
     req: Option<CustomerDetails>,
     merchant_id: &str,
     key_store: &domain::MerchantKeyStore,
+    storage_scheme: common_enums::enums::MerchantStorageScheme,
 ) -> CustomResult<(BoxedOperation<'a, F, R, Ctx>, Option<domain::Customer>), errors::StorageError> {
     let request_customer_details = req
         .get_required_value("customer")
@@ -1449,6 +1454,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, Ctx>(
                     &customer_id,
                     merchant_id,
                     key_store,
+                    storage_scheme,
                 )
                 .await?;
 
@@ -1500,8 +1506,10 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, Ctx>(
                         db.update_customer_by_customer_id_merchant_id(
                             customer_id,
                             merchant_id.to_string(),
+                            c,
                             customer_update,
                             key_store,
+                            storage_scheme,
                         )
                         .await
                     } else {
@@ -1552,7 +1560,8 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, Ctx>(
                     .change_context(errors::StorageError::SerializationFailed)
                     .attach_printable("Failed while encrypting Customer while insert")?;
                     metrics::CUSTOMER_CREATED.add(&metrics::CONTEXT, 1, &[]);
-                    db.insert_customer(new_customer, key_store).await
+                    db.insert_customer(new_customer, key_store, storage_scheme)
+                        .await
                 }
             })
         }
@@ -1563,6 +1572,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, Ctx>(
                     customer_id,
                     merchant_id,
                     key_store,
+                    storage_scheme,
                 )
                 .await?
                 .map(Ok),
@@ -1854,6 +1864,25 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
     if let Some(cvc) = payment_data.card_cvc.clone() {
         if let Some(token_data) = card_token_data.as_mut() {
             token_data.card_cvc = Some(cvc);
+        }
+    }
+
+    if payment_data.token_data.is_none() {
+        if let Some(payment_method_info) = &payment_data.payment_method_info {
+            if payment_method_info.payment_method == storage_enums::PaymentMethod::Card {
+                payment_data.token_data =
+                    Some(storage::PaymentTokenData::PermanentCard(CardTokenData {
+                        payment_method_id: Some(payment_method_info.payment_method_id.clone()),
+                        locker_id: payment_method_info
+                            .locker_id
+                            .clone()
+                            .or(Some(payment_method_info.payment_method_id.clone())),
+                        token: payment_method_info
+                            .locker_id
+                            .clone()
+                            .unwrap_or(payment_method_info.payment_method_id.clone()),
+                    }));
+            }
         }
     }
 
