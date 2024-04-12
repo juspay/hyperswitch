@@ -205,7 +205,8 @@ api_key="API Key"
 
 
 [netcetera]
-api_key="API Key"
+certificate="Certificate"
+private_key="Private Key"
 
 
 [ebanx]
