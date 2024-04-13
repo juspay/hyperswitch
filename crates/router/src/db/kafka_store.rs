@@ -1423,6 +1423,7 @@ impl PaymentMethodInterface for KafkaStore {
         merchant_id: &str,
         status: common_enums::PaymentMethodStatus,
         limit: Option<i64>,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<storage::PaymentMethod>, errors::StorageError> {
         self.diesel_store
             .find_payment_method_by_customer_id_merchant_id_status(
@@ -1430,6 +1431,7 @@ impl PaymentMethodInterface for KafkaStore {
                 merchant_id,
                 status,
                 limit,
+                storage_scheme,
             )
             .await
     }

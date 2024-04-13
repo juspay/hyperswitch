@@ -36,3 +36,73 @@ where
         },
     }
 }
+
+pub async fn find_all_redis_database<F, RFut, DFut, T>(redis_fut : RFut, database_call : F, limit : Option<i64>)
+    -> error_stack::Result<Vec<T>, errors::StorageError>
+where
+    T : UniqueConstraints,
+    F: FnOnce() -> DFut,
+    RFut: futures::Future<Output = error_stack::Result<Vec<T>, redis_interface::errors::RedisError>>,
+    DFut: futures::Future<Output = error_stack::Result<Vec<T>, errors::StorageError>>,
+{   
+    let trunc = |v: &mut Vec<_>| {
+        match limit {
+            Some(l) => v.truncate(l as usize),
+            None => ()
+        }
+    };
+
+    let redis_output = redis_fut.await;
+    match (redis_output,limit) {
+        (Ok(mut kv_rows),Some(lim)) if kv_rows.len() >= (lim as usize) => {
+            let _ = (&mut kv_rows).truncate(lim as usize);
+            Ok(kv_rows)
+        },
+        (Ok(kv_rows), _) =>{
+            database_call()
+                .await
+                .and_then(|db_rows| {
+                    let mut res = union_vec(kv_rows, db_rows);
+                    trunc(&mut res);
+                    Ok(res)
+                })
+        },
+        (Err(redis_error), _) => match redis_error.current_context() {
+            redis_interface::errors::RedisError::NotFound => {
+                metrics::KV_MISS.add(&metrics::CONTEXT, 1, &[]);
+                database_call().await
+            }
+            // Keeping the key empty here since the error would never go here.
+            _ => Err(redis_error.to_redis_failed_response("")),
+        },
+
+    }
+}
+
+use std::collections::HashSet;
+use storage_impl::UniqueConstraints;
+
+fn union_vec<T>(kv_rows: Vec<T>, sql_rows : Vec<T>) -> Vec<T>
+where
+    T : UniqueConstraints,
+{
+    let mut kv_unique_keys = HashSet::new();
+    let mut kv_iter = kv_rows.iter();
+    while let Some(v) = kv_iter.next(){
+        let unique_key = v.unique_constraints().concat();
+        kv_unique_keys.insert(unique_key);
+    };
+
+    let mut res = kv_rows;
+
+    let mut sql_iter = sql_rows.into_iter();
+    while let Some(v) = sql_iter.next(){
+        let unique_key = v.unique_constraints().concat();
+        if !kv_unique_keys.contains(&unique_key){
+            res.push(v);
+        }
+    };
+
+    return res
+    
+}
