@@ -129,13 +129,13 @@ where
         customer_details,
         mut payment_data,
         business_profile,
+        mandate_type,
     } = operation
         .to_get_tracker()?
         .get_trackers(
             state,
             &validate_result.payment_id,
             &req,
-            validate_result.mandate_type.to_owned(),
             &merchant_account,
             &key_store,
             auth_flow,
@@ -167,6 +167,7 @@ where
         &key_store,
         &mut payment_data,
         eligible_connectors,
+        mandate_type,
     )
     .await?;
 
@@ -2656,6 +2657,7 @@ pub async fn get_connector_choice<F, Req, Ctx>(
     key_store: &domain::MerchantKeyStore,
     payment_data: &mut PaymentData<F>,
     eligible_connectors: Option<Vec<api_models::enums::RoutableConnectors>>,
+    mandate_type: Option<api::MandateTransactionType>,
 ) -> RouterResult<Option<ConnectorCallType>>
 where
     F: Send + Clone,
@@ -2695,6 +2697,7 @@ where
                     payment_data,
                     Some(straight_through),
                     eligible_connectors,
+                    mandate_type,
                 )
                 .await?
             }
@@ -2708,6 +2711,7 @@ where
                     payment_data,
                     None,
                     eligible_connectors,
+                    mandate_type,
                 )
                 .await?
             }
@@ -2724,6 +2728,7 @@ where
     Ok(connector)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn connector_selection<F>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
@@ -2732,6 +2737,7 @@ pub async fn connector_selection<F>(
     payment_data: &mut PaymentData<F>,
     request_straight_through: Option<serde_json::Value>,
     eligible_connectors: Option<Vec<api_models::enums::RoutableConnectors>>,
+    mandate_type: Option<api::MandateTransactionType>,
 ) -> RouterResult<ConnectorCallType>
 where
     F: Send + Clone,
@@ -2773,6 +2779,7 @@ where
         request_straight_through,
         &mut routing_data,
         eligible_connectors,
+        mandate_type,
     )
     .await?;
 
@@ -2806,6 +2813,7 @@ pub async fn decide_connector<F>(
     request_straight_through: Option<api::routing::StraightThroughAlgorithm>,
     routing_data: &mut storage::RoutingData,
     eligible_connectors: Option<Vec<api_models::enums::RoutableConnectors>>,
+    mandate_type: Option<api::MandateTransactionType>,
 ) -> RouterResult<ConnectorCallType>
 where
     F: Send + Clone,
@@ -2937,6 +2945,7 @@ where
             payment_data,
             routing_data,
             connector_data,
+            mandate_type,
         )
         .await;
     }
@@ -2993,6 +3002,7 @@ where
             payment_data,
             routing_data,
             connector_data,
+            mandate_type,
         )
         .await;
     }
@@ -3005,6 +3015,7 @@ where
         TransactionData::Payment(payment_data),
         routing_data,
         eligible_connectors,
+        mandate_type,
     )
     .await
 }
@@ -3014,16 +3025,30 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
     payment_data: &mut PaymentData<F>,
     routing_data: &mut storage::RoutingData,
     connectors: Vec<api::ConnectorData>,
+    mandate_type: Option<api::MandateTransactionType>,
 ) -> RouterResult<ConnectorCallType> {
     match (
         payment_data.payment_intent.setup_future_usage,
         payment_data.token_data.as_ref(),
         payment_data.recurring_details.as_ref(),
         payment_data.payment_intent.off_session,
+        mandate_type,
     ) {
-        (Some(storage_enums::FutureUsage::OffSession), Some(_), None, None)
-        | (None, None, Some(RecurringDetails::PaymentMethodId(_)), Some(true))
-        | (None, Some(_), None, Some(true)) => {
+        (
+            Some(storage_enums::FutureUsage::OffSession),
+            Some(_),
+            None,
+            None,
+            Some(api::MandateTransactionType::RecurringMandateTransaction),
+        )
+        | (
+            None,
+            None,
+            Some(RecurringDetails::PaymentMethodId(_)),
+            Some(true),
+            Some(api::MandateTransactionType::RecurringMandateTransaction),
+        )
+        | (None, Some(_), None, Some(true), _) => {
             logger::debug!("performing routing for token-based MIT flow");
 
             let payment_method_info = payment_data
@@ -3327,6 +3352,7 @@ where
     Ok(final_list)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn route_connector_v1<F>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
@@ -3335,6 +3361,7 @@ pub async fn route_connector_v1<F>(
     transaction_data: TransactionData<'_, F>,
     routing_data: &mut storage::RoutingData,
     eligible_connectors: Option<Vec<api_models::enums::RoutableConnectors>>,
+    mandate_type: Option<api::MandateTransactionType>,
 ) -> RouterResult<ConnectorCallType>
 where
     F: Send + Clone,
@@ -3425,6 +3452,7 @@ where
                 payment_data,
                 routing_data,
                 connector_data,
+                mandate_type,
             )
             .await
         }

@@ -214,26 +214,24 @@ impl TryFrom<&domain::WalletData> for Shift4PaymentMethod {
     }
 }
 
-impl TryFrom<&api_models::payments::BankTransferData> for Shift4PaymentMethod {
+impl TryFrom<&domain::BankTransferData> for Shift4PaymentMethod {
     type Error = Error;
-    fn try_from(
-        bank_transfer_data: &api_models::payments::BankTransferData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(bank_transfer_data: &domain::BankTransferData) -> Result<Self, Self::Error> {
         match bank_transfer_data {
-            payments::BankTransferData::MultibancoBankTransfer { .. }
-            | payments::BankTransferData::AchBankTransfer { .. }
-            | payments::BankTransferData::SepaBankTransfer { .. }
-            | payments::BankTransferData::BacsBankTransfer { .. }
-            | payments::BankTransferData::PermataBankTransfer { .. }
-            | payments::BankTransferData::BcaBankTransfer { .. }
-            | payments::BankTransferData::BniVaBankTransfer { .. }
-            | payments::BankTransferData::BriVaBankTransfer { .. }
-            | payments::BankTransferData::CimbVaBankTransfer { .. }
-            | payments::BankTransferData::DanamonVaBankTransfer { .. }
-            | payments::BankTransferData::MandiriVaBankTransfer { .. }
-            | payments::BankTransferData::Pix {}
-            | payments::BankTransferData::Pse {}
-            | payments::BankTransferData::LocalBankTransfer { .. } => {
+            domain::BankTransferData::MultibancoBankTransfer { .. }
+            | domain::BankTransferData::AchBankTransfer { .. }
+            | domain::BankTransferData::SepaBankTransfer { .. }
+            | domain::BankTransferData::BacsBankTransfer { .. }
+            | domain::BankTransferData::PermataBankTransfer { .. }
+            | domain::BankTransferData::BcaBankTransfer { .. }
+            | domain::BankTransferData::BniVaBankTransfer { .. }
+            | domain::BankTransferData::BriVaBankTransfer { .. }
+            | domain::BankTransferData::CimbVaBankTransfer { .. }
+            | domain::BankTransferData::DanamonVaBankTransfer { .. }
+            | domain::BankTransferData::MandiriVaBankTransfer { .. }
+            | domain::BankTransferData::Pix { .. }
+            | domain::BankTransferData::Pse {}
+            | domain::BankTransferData::LocalBankTransfer { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Shift4"),
                 )
