@@ -34,7 +34,7 @@ use super::{
     admin::*, api_keys::*, connector_onboarding::*, disputes::*, files::*, gsm::*, payment_link::*,
     user::*, user_role::*, webhook_events::*,
 };
-use super::{cache::*, health::*};
+use super::{cache::*, health::*, poll::retrieve_poll_status};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
@@ -971,6 +971,17 @@ impl Configs {
                     .route(web::post().to(config_key_update))
                     .route(web::delete().to(config_key_delete)),
             )
+    }
+}
+
+pub struct Poll;
+
+#[cfg(feature = "oltp")]
+impl Poll {
+    pub fn server(config: AppState) -> Scope {
+        web::scope("/poll")
+            .app_data(web::Data::new(config))
+            .service(web::resource("/status/{poll_id}").route(web::get().to(retrieve_poll_status)))
     }
 }
 
