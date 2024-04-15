@@ -500,7 +500,9 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
                 offset: value.offset.unwrap_or_default(),
                 starting_at: value.time_range.map(|t| t.start_time),
                 ending_at: value.time_range.and_then(|t| t.end_time),
-                amount_filter: value.amount_filter.map(|amount_filter| amount_filter.into()),
+                amount_filter: value
+                    .amount_filter
+                    .map(|amount_filter| amount_filter.into()),
                 connector: value.connector,
                 currency: value.currency,
                 status: value.status,
