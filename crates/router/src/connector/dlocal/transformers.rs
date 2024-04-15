@@ -125,9 +125,9 @@ impl TryFrom<&DlocalRouterData<&types::PaymentsAuthorizeRouterData>> for DlocalP
                         document: get_doc_from_currency(country.to_string()),
                     },
                     card: Some(Card {
-                        holder_name: item
-                            .router_data
-                            .get_optional_billing_full_name()
+                        holder_name: ccard
+                            .card_holder_name
+                            .clone()
                             .unwrap_or(Secret::new("".to_string())),
                         number: ccard.card_number.clone(),
                         cvv: ccard.card_cvc.clone(),

@@ -53,7 +53,7 @@ where
         Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
     })?;
 
-    let test_mode = merchant_connector_account.is_test_mode_on();
+    let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
 
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()

@@ -1,6 +1,5 @@
 use std::{marker::PhantomData, str::FromStr};
 
-use api_models::payments::{Address, AddressDetails};
 use masking::Secret;
 use router::{
     configs::settings::Settings,
@@ -41,6 +40,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
                 card_number: cards::CardNumber::from_str("4200000000000000").unwrap(),
                 card_exp_month: Secret::new("10".to_string()),
                 card_exp_year: Secret::new("2025".to_string()),
+                card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
                 card_cvc: Secret::new("999".to_string()),
                 card_issuer: None,
                 card_network: None,
@@ -78,19 +78,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
             customer_acceptance: None,
         },
         response: Err(types::ErrorResponse::default()),
-        address: PaymentAddress::new(
-            None,
-            None,
-            Some(Address {
-                address: Some(AddressDetails {
-                    first_name: Some(Secret::new("John".to_string())),
-                    last_name: Some(Secret::new("Doe".to_string())),
-                    ..Default::default()
-                }),
-                phone: None,
-                email: None,
-            }),
-        ),
+        address: PaymentAddress::default(),
         connector_meta_data: None,
         amount_captured: None,
         access_token: None,
@@ -256,6 +244,7 @@ async fn payments_create_failure() {
                 card_number: cards::CardNumber::from_str("4200000000000000").unwrap(),
                 card_exp_month: Secret::new("10".to_string()),
                 card_exp_year: Secret::new("2025".to_string()),
+                card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
                 card_cvc: Secret::new("99".to_string()),
                 card_issuer: None,
                 card_network: None,

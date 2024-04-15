@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::{
-    connector::utils::{self, CardData, PaymentsAuthorizeRequestData, RouterData},
+    connector::utils::{self, CardData, PaymentsAuthorizeRequestData},
     consts,
     core::errors,
     services,
@@ -99,10 +99,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest 
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let source = match item.request.payment_method_data.clone() {
-            domain::PaymentMethodData::Card(card) => {
-                let card_holder_name = item.get_optional_billing_full_name();
-                Source::try_from((&card, card_holder_name))
-            }
+            domain::PaymentMethodData::Card(card) => Source::try_from(&card),
             domain::PaymentMethodData::Wallet(_)
             | domain::PaymentMethodData::CardRedirect(_)
             | domain::PaymentMethodData::PayLater(_)
@@ -216,13 +213,14 @@ impl TryFrom<&types::BrowserInformation> for BrowserInfo {
         })
 }*/
 
-impl TryFrom<(&domain::Card, Option<Secret<String>>)> for Source {
+impl TryFrom<&domain::Card> for Source {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (card, card_holder_name): (&domain::Card, Option<Secret<String>>),
-    ) -> Result<Self, Self::Error> {
+    fn try_from(card: &domain::Card) -> Result<Self, Self::Error> {
         let card = PowertranzCard {
-            cardholder_name: card_holder_name.unwrap_or(Secret::new("".to_string())),
+            cardholder_name: card
+                .card_holder_name
+                .clone()
+                .unwrap_or(Secret::new("".to_string())),
             card_pan: card.card_number.clone(),
             card_expiration: card.get_expiry_date_as_yymm()?,
             card_cvv: card.card_cvc.clone(),

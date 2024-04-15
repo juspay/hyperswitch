@@ -1,6 +1,5 @@
 use std::str::FromStr;
 
-use api_models::payments::{Address, AddressDetails};
 use masking::{PeekInterface, Secret};
 use router::types::{self, domain, storage::enums, AccessToken};
 
@@ -52,19 +51,6 @@ fn get_access_token() -> Option<AccessToken> {
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     Some(utils::PaymentInfo {
         access_token: get_access_token(),
-        address: Some(types::PaymentAddress::new(
-            None,
-            None,
-            Some(Address {
-                address: Some(AddressDetails {
-                    first_name: Some(Secret::new("John".to_string())),
-                    last_name: Some(Secret::new("Doe".to_string())),
-                    ..Default::default()
-                }),
-                phone: None,
-                email: None,
-            }),
-        )),
         ..Default::default()
     })
 }
@@ -74,6 +60,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
             card_number: cards::CardNumber::from_str("4035501000000008").unwrap(),
             card_exp_month: Secret::new("02".to_string()),
             card_exp_year: Secret::new("2035".to_string()),
+            card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
             card_cvc: Secret::new("123".to_string()),
             card_issuer: None,
             card_network: None,
