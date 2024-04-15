@@ -88,9 +88,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest {
                     expire_year: ccard.card_exp_year.clone(),
                     card_verification_value: ccard.card_cvc.clone(),
                 };
+                let first_name = address.get_first_name()?.to_owned();
                 let billing_address = BillingAddress {
-                    first_name: address.get_first_name()?.to_owned(),
-                    last_name: address.get_last_name()?.to_owned(),
+                    first_name: first_name.clone(),
+                    last_name: address.get_last_name().ok().unwrap_or(&first_name).clone(),
                 };
                 let authorization_amount =
                     utils::to_currency_base_unit_asf64(item.request.amount, item.request.currency)?;

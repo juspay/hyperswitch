@@ -2709,8 +2709,8 @@ impl AddressDetails {
             };
 
             Self {
-                first_name: first_name.clone(),
-                last_name: last_name.or(first_name),
+                first_name,
+                last_name,
                 city: self.city.or(other.city.clone()),
                 country: self.country.or(other.country),
                 line1: self.line1.or(other.line1.clone()),
