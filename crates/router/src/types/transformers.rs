@@ -247,6 +247,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Worldline => Self::Worldline,
             api_enums::Connector::Worldpay => Self::Worldpay,
             api_enums::Connector::Zen => Self::Zen,
+            api_enums::Connector::Zsl => Self::Zsl,
             #[cfg(feature = "dummy_connector")]
             api_enums::Connector::DummyConnector1 => Self::DummyConnector1,
             #[cfg(feature = "dummy_connector")]
@@ -453,6 +454,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::CimbVa
             | api_enums::PaymentMethodType::DanamonVa
             | api_enums::PaymentMethodType::MandiriVa
+            | api_enums::PaymentMethodType::LocalBankTransfer
             | api_enums::PaymentMethodType::Pix => Self::BankTransfer,
             api_enums::PaymentMethodType::Givex | api_enums::PaymentMethodType::PaySafeCard => {
                 Self::GiftCard
@@ -586,6 +588,7 @@ impl<'a> From<&'a domain::Address> for api_types::Address {
             && address.line2.is_none()
             && address.line3.is_none()
             && address.state.is_none()
+            && address.country.is_none()
             && address.zip.is_none()
             && address.first_name.is_none()
             && address.last_name.is_none()

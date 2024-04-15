@@ -867,6 +867,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         &mut payment_data,
         router_data.status,
         router_data.response.clone(),
+        storage_scheme,
     )
     .await?;
     let m_db = state.clone().store;
@@ -965,25 +966,55 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
     payment_data: &mut PaymentData<F>,
     attempt_status: common_enums::AttemptStatus,
     payment_response: Result<types::PaymentsResponseData, ErrorResponse>,
+    storage_scheme: enums::MerchantStorageScheme,
 ) -> RouterResult<()> {
     if let Some(id) = &payment_data.payment_attempt.payment_method_id {
         let pm = state
             .store
-            .find_payment_method(id)
+            .find_payment_method(id, storage_scheme)
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
-        let network_transaction_id = payment_response
-            .map(|resp| match resp {
-                crate::types::PaymentsResponseData::TransactionResponse { network_txn_id, .. } => {
-                    network_txn_id.to_owned()
+
+        let pm_resp_network_transaction_id = payment_response
+            .map(|resp| if let types::PaymentsResponseData::TransactionResponse { network_txn_id: network_transaction_id, .. } = resp {
+                network_transaction_id
+    } else {None})
+    .map_err(|err| {
+        logger::error!(error=?err, "Failed to obtain the network_transaction_id from payment response");
+    })
+    .ok()
+    .flatten();
+
+        let network_transaction_id =
+            if let Some(network_transaction_id) = pm_resp_network_transaction_id {
+                let profile_id = payment_data
+                    .payment_intent
+                    .profile_id
+                    .as_ref()
+                    .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?;
+
+                let pg_agnostic = state
+                    .store
+                    .find_config_by_key_unwrap_or(
+                        &format!("pg_agnostic_mandate_{}", profile_id),
+                        Some("false".to_string()),
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("The pg_agnostic config was not found in the DB")?;
+
+                if &pg_agnostic.config == "true"
+                    && payment_data.payment_intent.setup_future_usage
+                        == Some(diesel_models::enums::FutureUsage::OffSession)
+                {
+                    Some(network_transaction_id)
+                } else {
+                    logger::info!("Skip storing network transaction id");
+                    None
                 }
-                _ => None,
-            })
-            .map_err(|err| {
-                logger::error!(error=?err, "Failed to obtain the network_transaction_id from payment response");
-            })
-            .ok()
-            .flatten();
+            } else {
+                None
+            };
 
         let pm_update = if pm.status != common_enums::PaymentMethodStatus::Active
             && pm.status != attempt_status.into()
@@ -1007,7 +1038,7 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
 
         state
             .store
-            .update_payment_method(pm, pm_update)
+            .update_payment_method(pm, pm_update, storage_scheme)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to update payment method in db")?;

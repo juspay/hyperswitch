@@ -8,10 +8,10 @@ use cards::CardNumber;
 use common_utils::{
     consts::default_payments_list_limit,
     crypto,
-    ext_traits::Encode,
+    ext_traits::{ConfigExt, Encode},
     pii::{self, Email},
 };
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 use router_derive::Setter;
 use serde::{
     de::{self, Unexpected, Visitor},
@@ -46,7 +46,7 @@ pub struct BankData {
 
 #[derive(serde::Deserialize)]
 pub struct BankCodeInformation {
-    pub bank_name: api_enums::BankNames,
+    pub bank_name: common_enums::BankNames,
     pub connector_codes: Vec<ConnectorCode>,
 }
 
@@ -58,7 +58,7 @@ pub struct ConnectorCode {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
 pub struct BankCodeResponse {
-    pub bank_name: Vec<api_enums::BankNames>,
+    pub bank_name: Vec<common_enums::BankNames>,
     pub eligible_connectors: Vec<String>,
 }
 
@@ -916,6 +916,47 @@ pub struct Card {
     pub nick_name: Option<Secret<String>>,
 }
 
+impl GetAddressFromPaymentMethodData for Card {
+    fn get_billing_address(&self) -> Option<Address> {
+        // Create billing address if first_name is some or if it is not ""
+        self.card_holder_name
+            .as_ref()
+            .filter(|card_holder_name| !card_holder_name.is_empty_after_trim())
+            .map(|card_holder_name| {
+                // Split the `card_holder_name` into `first_name` and `last_name` based on the
+                // first occurrence of ' '. For example
+                // John Wheat Dough
+                // first_name -> John
+                // last_name -> Wheat Dough
+                card_holder_name.peek().split_whitespace()
+            })
+            .map(|mut card_holder_name_iter| {
+                let first_name = card_holder_name_iter
+                    .next()
+                    .map(ToOwned::to_owned)
+                    .map(Secret::new);
+
+                let last_name = card_holder_name_iter.collect::<Vec<_>>().join(" ");
+                let last_name = if last_name.is_empty_after_trim() {
+                    None
+                } else {
+                    Some(Secret::new(last_name))
+                };
+
+                AddressDetails {
+                    first_name,
+                    last_name,
+                    ..Default::default()
+                }
+            })
+            .map(|address_details| Address {
+                address: Some(address_details),
+                phone: None,
+                email: None,
+            })
+    }
+}
+
 impl Card {
     fn apply_additional_card_info(&self, additional_card_info: AdditionalCardInfo) -> Self {
         Self {
@@ -1065,13 +1106,13 @@ pub enum BankDebitData {
         bank_account_holder_name: Option<Secret<String>>,
 
         #[schema(value_type = String, example = "ACH")]
-        bank_name: Option<enums::BankNames>,
+        bank_name: Option<common_enums::BankNames>,
 
         #[schema(value_type = String, example = "Checking")]
-        bank_type: Option<enums::BankType>,
+        bank_type: Option<common_enums::BankType>,
 
         #[schema(value_type = String, example = "Personal")]
-        bank_holder_type: Option<enums::BankHolderType>,
+        bank_holder_type: Option<common_enums::BankHolderType>,
     },
     SepaBankDebit {
         /// Billing details for bank debit
@@ -1299,7 +1340,7 @@ pub trait GetAddressFromPaymentMethodData {
 impl GetAddressFromPaymentMethodData for PaymentMethodData {
     fn get_billing_address(&self) -> Option<Address> {
         match self {
-            Self::Card(_) => None,
+            Self::Card(card_data) => card_data.get_billing_address(),
             Self::CardRedirect(_) => None,
             Self::Wallet(_) => None,
             Self::PayLater(_) => None,
@@ -1472,6 +1513,7 @@ impl GetPaymentMethodType for BankTransferData {
             Self::MandiriVaBankTransfer { .. } => api_enums::PaymentMethodType::MandiriVa,
             Self::Pix {} => api_enums::PaymentMethodType::Pix,
             Self::Pse {} => api_enums::PaymentMethodType::Pse,
+            Self::LocalBankTransfer { .. } => api_enums::PaymentMethodType::LocalBankTransfer,
         }
     }
 }
@@ -1578,7 +1620,7 @@ pub struct AdditionalCardInfo {
 pub enum AdditionalPaymentData {
     Card(Box<AdditionalCardInfo>),
     BankRedirect {
-        bank_name: Option<api_enums::BankNames>,
+        bank_name: Option<common_enums::BankNames>,
     },
     Wallet {
         apple_pay: Option<ApplepayPaymentMethod>,
@@ -1629,7 +1671,7 @@ pub enum BankRedirectData {
 
         /// The hyperswitch bank code for eps
         #[schema(value_type = BankNames, example = "triodos_bank")]
-        bank_name: Option<api_enums::BankNames>,
+        bank_name: Option<common_enums::BankNames>,
 
         /// The country for bank payment
         #[schema(value_type = CountryAlpha2, example = "US")]
@@ -1658,7 +1700,7 @@ pub enum BankRedirectData {
 
         /// The hyperswitch bank code for ideal
         #[schema(value_type = BankNames, example = "abn_amro")]
-        bank_name: Option<api_enums::BankNames>,
+        bank_name: Option<common_enums::BankNames>,
 
         /// The country for bank payment
         #[schema(value_type = CountryAlpha2, example = "US")]
@@ -1675,7 +1717,7 @@ pub enum BankRedirectData {
     OnlineBankingCzechRepublic {
         // Issuer banks
         #[schema(value_type = BankNames)]
-        issuer: api_enums::BankNames,
+        issuer: common_enums::BankNames,
     },
     OnlineBankingFinland {
         // Shopper Email
@@ -1685,17 +1727,17 @@ pub enum BankRedirectData {
     OnlineBankingPoland {
         // Issuer banks
         #[schema(value_type = BankNames)]
-        issuer: api_enums::BankNames,
+        issuer: common_enums::BankNames,
     },
     OnlineBankingSlovakia {
         // Issuer value corresponds to the bank
         #[schema(value_type = BankNames)]
-        issuer: api_enums::BankNames,
+        issuer: common_enums::BankNames,
     },
     OpenBankingUk {
         // Issuer banks
         #[schema(value_type = BankNames)]
-        issuer: Option<api_enums::BankNames>,
+        issuer: Option<common_enums::BankNames>,
         /// The country for bank payment
         #[schema(value_type = CountryAlpha2, example = "US")]
         country: Option<api_enums::CountryAlpha2>,
@@ -1703,7 +1745,7 @@ pub enum BankRedirectData {
     Przelewy24 {
         //Issuer banks
         #[schema(value_type = Option<BankNames>)]
-        bank_name: Option<api_enums::BankNames>,
+        bank_name: Option<common_enums::BankNames>,
 
         // The billing details for bank redirect
         billing_details: BankRedirectBilling,
@@ -1728,11 +1770,11 @@ pub enum BankRedirectData {
     OnlineBankingFpx {
         // Issuer banks
         #[schema(value_type = BankNames)]
-        issuer: api_enums::BankNames,
+        issuer: common_enums::BankNames,
     },
     OnlineBankingThailand {
         #[schema(value_type = BankNames)]
-        issuer: api_enums::BankNames,
+        issuer: common_enums::BankNames,
     },
 }
 
@@ -2036,6 +2078,9 @@ pub enum BankTransferData {
     },
     Pix {},
     Pse {},
+    LocalBankTransfer {
+        bank_code: Option<String>,
+    },
 }
 
 impl GetAddressFromPaymentMethodData for BankTransferData {
@@ -2086,7 +2131,7 @@ impl GetAddressFromPaymentMethodData for BankTransferData {
                 phone: None,
                 email: Some(billing_details.email.clone()),
             }),
-            Self::Pix {} | Self::Pse {} => None,
+            Self::LocalBankTransfer { .. } | Self::Pix {} | Self::Pse {} => None,
         }
     }
 }
@@ -2650,6 +2695,18 @@ pub struct AddressDetails {
 }
 
 impl AddressDetails {
+    pub fn get_optional_full_name(&self) -> Option<Secret<String>> {
+        match (self.first_name.as_ref(), self.last_name.as_ref()) {
+            (Some(first_name), Some(last_name)) => Some(Secret::new(format!(
+                "{} {}",
+                first_name.peek(),
+                last_name.peek()
+            ))),
+            (Some(name), None) | (None, Some(name)) => Some(name.to_owned()),
+            _ => None,
+        }
+    }
+
     pub fn unify_address_details(self, other: Option<&Self>) -> Self {
         if let Some(other) = other {
             let (first_name, last_name) = if self.first_name.is_some() {
@@ -3203,6 +3260,11 @@ pub struct PaymentsResponse {
     /// Payment Method Status
     #[schema(value_type = Option<PaymentMethodStatus>)]
     pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
+
+    /// Date time at which payment was updated
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub updated: Option<PrimitiveDateTime>,
 }
 
 #[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema)]
@@ -3816,11 +3878,15 @@ pub struct SessionTokenInfo {
     pub display_name: String,
     pub initiative: String,
     pub initiative_context: String,
+    #[schema(value_type = Option<CountryAlpha2>)]
+    pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct SessionTokenForSimplifiedApplePay {
     pub initiative_context: String,
+    #[schema(value_type = Option<CountryAlpha2>)]
+    pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
@@ -3988,7 +4054,7 @@ pub struct SecretInfoToInitiateSdk {
 pub struct ApplePayPaymentRequest {
     /// The code for country
     #[schema(value_type = CountryAlpha2, example = "US")]
-    pub country_code: Option<api_enums::CountryAlpha2>,
+    pub country_code: api_enums::CountryAlpha2,
     /// The code for currency
     #[schema(value_type = Currency, example = "USD")]
     pub currency_code: api_enums::Currency,
@@ -4608,11 +4674,15 @@ mod payments_request_api_contract {
 mod billing_from_payment_method_data {
     #![allow(clippy::unwrap_used)]
     use common_enums::CountryAlpha2;
+    use masking::ExposeOptionInterface;
 
     use super::*;
 
     const TEST_COUNTRY: CountryAlpha2 = CountryAlpha2::US;
     const TEST_FIRST_NAME: &str = "John";
+    const TEST_LAST_NAME: &str = "Wheat Dough";
+    const TEST_FULL_NAME: &str = "John Wheat Dough";
+    const TEST_FIRST_NAME_SINGLE: &str = "John";
 
     #[test]
     fn test_wallet_payment_method_data_paypal() {
@@ -4721,15 +4791,17 @@ mod billing_from_payment_method_data {
     #[test]
     fn test_card_payment_method_data() {
         let card_payment_method_data = PaymentMethodData::Card(Card {
-            card_holder_name: Some(Secret::new(TEST_FIRST_NAME.into())),
+            card_holder_name: Some(Secret::new(TEST_FIRST_NAME_SINGLE.into())),
             ..Default::default()
         });
 
-        let billing_address = card_payment_method_data.get_billing_address().unwrap();
+        let billing_address = card_payment_method_data.get_billing_address();
+
+        let billing_address = billing_address.unwrap();
 
         assert_eq!(
-            billing_address.address.unwrap().first_name.unwrap(),
-            Secret::new(TEST_FIRST_NAME.into())
+            billing_address.address.unwrap().first_name.expose_option(),
+            Some(TEST_FIRST_NAME_SINGLE.into())
         );
     }
 
@@ -4740,5 +4812,38 @@ mod billing_from_payment_method_data {
         let billing_address = card_payment_method_data.get_billing_address();
 
         assert!(billing_address.is_none());
+    }
+
+    #[test]
+    fn test_card_payment_method_data_full_name() {
+        let card_payment_method_data = PaymentMethodData::Card(Card {
+            card_holder_name: Some(Secret::new(TEST_FULL_NAME.into())),
+            ..Default::default()
+        });
+
+        let billing_details = card_payment_method_data.get_billing_address().unwrap();
+        let billing_address = billing_details.address.unwrap();
+
+        assert_eq!(
+            billing_address.first_name.expose_option(),
+            Some(TEST_FIRST_NAME.into())
+        );
+
+        assert_eq!(
+            billing_address.last_name.expose_option(),
+            Some(TEST_LAST_NAME.into())
+        );
+    }
+
+    #[test]
+    fn test_card_payment_method_data_empty_string() {
+        let card_payment_method_data = PaymentMethodData::Card(Card {
+            card_holder_name: Some(Secret::new("".to_string())),
+            ..Default::default()
+        });
+
+        let billing_details = card_payment_method_data.get_billing_address();
+
+        assert!(billing_details.is_none());
     }
 }

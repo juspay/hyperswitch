@@ -6242,6 +6242,23 @@
                 "type": "object"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "local_bank_transfer"
+            ],
+            "properties": {
+              "local_bank_transfer": {
+                "type": "object",
+                "properties": {
+                  "bank_code": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
           }
         ]
       },
@@ -7162,10 +7179,11 @@
           "wise",
           "worldline",
           "worldpay",
-          "zen",
           "signifyd",
           "plaid",
-          "riskified"
+          "riskified",
+          "zen",
+          "zsl"
         ]
       },
       "ConnectorMetadata": {
@@ -12870,7 +12888,8 @@
           "mini_stop",
           "family_mart",
           "seicomart",
-          "pay_easy"
+          "pay_easy",
+          "local_bank_transfer"
         ]
       },
       "PaymentMethodUpdate": {
@@ -14832,6 +14851,13 @@
               }
             ],
             "nullable": true
+          },
+          "updated": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Date time at which payment was updated",
+            "example": "2022-09-10T10:11:12Z",
+            "nullable": true
           }
         }
       },
@@ -15428,11 +15454,6 @@
           "cancellation_reason": {
             "type": "string",
             "description": "If the payout was cancelled the reason provided here",
-            "nullable": true
-          },
-          "payout_token": {
-            "type": "string",
-            "description": "Provide a reference to a stored payout method",
             "nullable": true
           },
           "unified_code": {
@@ -16947,7 +16968,8 @@
           "wise",
           "worldline",
           "worldpay",
-          "zen"
+          "zen",
+          "zsl"
         ]
       },
       "RoutingAlgorithm": {
@@ -17484,6 +17506,14 @@
           },
           "initiative_context": {
             "type": "string"
+          },
+          "merchant_business_country": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
           }
         }
       },
