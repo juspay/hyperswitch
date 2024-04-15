@@ -16221,7 +16221,8 @@
         ],
         "properties": {
           "poll_id": {
-            "type": "string"
+            "type": "string",
+            "description": "The poll id"
           },
           "status": {
             "$ref": "#/components/schemas/PollStatus"
