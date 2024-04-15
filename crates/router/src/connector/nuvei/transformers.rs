@@ -667,9 +667,7 @@ impl<F>
                 (
                     Some(BillingAddress {
                         first_name: Some(first_name.clone()),
-                        last_name: Some(
-                            address.get_last_name().ok().unwrap_or(&first_name).clone(),
-                        ),
+                        last_name: Some(address.get_last_name().ok().unwrap_or(first_name).clone()),
                         email: item.request.get_email()?,
                         country: item.get_billing_country()?,
                     }),
