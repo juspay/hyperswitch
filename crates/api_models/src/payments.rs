@@ -1099,13 +1099,13 @@ pub enum BankDebitData {
         bank_account_holder_name: Option<Secret<String>>,
 
         #[schema(value_type = String, example = "ACH")]
-        bank_name: Option<enums::BankNames>,
+        bank_name: Option<common_enums::BankNames>,
 
         #[schema(value_type = String, example = "Checking")]
-        bank_type: Option<enums::BankType>,
+        bank_type: Option<common_enums::BankType>,
 
         #[schema(value_type = String, example = "Personal")]
-        bank_holder_type: Option<enums::BankHolderType>,
+        bank_holder_type: Option<common_enums::BankHolderType>,
     },
     SepaBankDebit {
         /// Billing details for bank debit
@@ -3253,6 +3253,11 @@ pub struct PaymentsResponse {
     /// Payment Method Status
     #[schema(value_type = Option<PaymentMethodStatus>)]
     pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
+
+    /// Date time at which payment was updated
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub updated: Option<PrimitiveDateTime>,
 }
 
 #[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema)]
@@ -3852,11 +3857,15 @@ pub struct SessionTokenInfo {
     pub display_name: String,
     pub initiative: String,
     pub initiative_context: String,
+    #[schema(value_type = Option<CountryAlpha2>)]
+    pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct SessionTokenForSimplifiedApplePay {
     pub initiative_context: String,
+    #[schema(value_type = Option<CountryAlpha2>)]
+    pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
@@ -4024,7 +4033,7 @@ pub struct SecretInfoToInitiateSdk {
 pub struct ApplePayPaymentRequest {
     /// The code for country
     #[schema(value_type = CountryAlpha2, example = "US")]
-    pub country_code: Option<api_enums::CountryAlpha2>,
+    pub country_code: api_enums::CountryAlpha2,
     /// The code for currency
     #[schema(value_type = Currency, example = "USD")]
     pub currency_code: api_enums::Currency,

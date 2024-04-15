@@ -4,6 +4,79 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.04.15.0
+
+### Bug Fixes
+
+- **logger:** Use specified log level only for first-party crates ([#4356](https://github.com/juspay/hyperswitch/pull/4356)) ([`b204be0`](https://github.com/juspay/hyperswitch/commit/b204be0e919d0ffd97b383e6a654982f78f9fa3d))
+
+### Refactors
+
+- **router:** Change stack size ([#4355](https://github.com/juspay/hyperswitch/pull/4355)) ([`4c2e972`](https://github.com/juspay/hyperswitch/commit/4c2e97273ab07917477ce016f7f04400e7e5df9a))
+
+**Full Changelog:** [`2024.04.12.1...2024.04.15.0`](https://github.com/juspay/hyperswitch/compare/2024.04.12.1...2024.04.15.0)
+
+- - -
+
+## 2024.04.12.1
+
+### Features
+
+- **core:** Create mandates with payment_token ([#4342](https://github.com/juspay/hyperswitch/pull/4342)) ([`53697fb`](https://github.com/juspay/hyperswitch/commit/53697fb472d6e236d57aef6883a6b11a0e9232f1))
+- **customer:** Customer kv impl ([#4267](https://github.com/juspay/hyperswitch/pull/4267)) ([`c980f01`](https://github.com/juspay/hyperswitch/commit/c980f016918144290ea98df2860644249c7b2e03))
+
+### Bug Fixes
+
+- **connector:** [ZSL] Add base_url to Environments ([#4344](https://github.com/juspay/hyperswitch/pull/4344)) ([`91830f6`](https://github.com/juspay/hyperswitch/commit/91830f6d7965f1ba9c23925a1399fdf810a7b31a))
+- **payouts:** Update payout's state in app after DB operations ([#4341](https://github.com/juspay/hyperswitch/pull/4341)) ([`0fe93d6`](https://github.com/juspay/hyperswitch/commit/0fe93d65b40acf169ec333bc238505e3381f9842))
+- **router:** Capture billing country in payments request ([#4347](https://github.com/juspay/hyperswitch/pull/4347)) ([`986ed2a`](https://github.com/juspay/hyperswitch/commit/986ed2a923444a38960462ec03f5e7cd8a2c249a))
+- Revert payment method kv changes ([#4351](https://github.com/juspay/hyperswitch/pull/4351)) ([`bb202e3`](https://github.com/juspay/hyperswitch/commit/bb202e39bfc10cfc5ea6e15805ba28e2699284c8))
+
+### Refactors
+
+- **payment_methods:** Add BankTransfer payment method data to new domain type to be used in connector module ([#4260](https://github.com/juspay/hyperswitch/pull/4260)) ([`08d0811`](https://github.com/juspay/hyperswitch/commit/08d08114be0792614ce8fb990d6a9f45420cae33))
+
+**Full Changelog:** [`2024.04.12.0...2024.04.12.1`](https://github.com/juspay/hyperswitch/compare/2024.04.12.0...2024.04.12.1)
+
+- - -
+
+## 2024.04.12.0
+
+### Features
+
+- **connector:** [ZSL] add connector template code ([#4285](https://github.com/juspay/hyperswitch/pull/4285)) ([`086516b`](https://github.com/juspay/hyperswitch/commit/086516b7b307e074b4301bd14a4c65595b6e142c))
+- **events:** Add events framework for registering events ([#4115](https://github.com/juspay/hyperswitch/pull/4115)) ([`3963219`](https://github.com/juspay/hyperswitch/commit/3963219e44bd771353d754aa356097e2d78a1392))
+- **payment_methods:** Added kv support for payment_methods table ([#4311](https://github.com/juspay/hyperswitch/pull/4311)) ([`eb3cecd`](https://github.com/juspay/hyperswitch/commit/eb3cecdd74b4c758948f9de82727af76b9ba9fb0))
+- **payouts:** Add kafka events ([#4264](https://github.com/juspay/hyperswitch/pull/4264)) ([`a2958c3`](https://github.com/juspay/hyperswitch/commit/a2958c33b5c4ed627c97e97e791ca2cfbfcecd5e))
+- **router:**
+  - Add `ApiKeyAuth` support for `upsert_connector_agnostic_mandate_config` ([#4335](https://github.com/juspay/hyperswitch/pull/4335)) ([`963a10c`](https://github.com/juspay/hyperswitch/commit/963a10c877cf7e63cef2c05093cc2c3d4eab66ec))
+  - Add support for accepting an existing `payment_method_id` as the `payment_method_data` in `/payments` request ([#4328](https://github.com/juspay/hyperswitch/pull/4328)) ([`92e19af`](https://github.com/juspay/hyperswitch/commit/92e19af275c615db77e3ae398bfd487529210ba4))
+- **users:** Add role specific fields for list merchants API ([#4326](https://github.com/juspay/hyperswitch/pull/4326)) ([`018c5b1`](https://github.com/juspay/hyperswitch/commit/018c5b10646a68a9898c47ade4874d52250231a8))
+
+### Bug Fixes
+
+- **compatibility:** Generate payment_id if not sent ([#4125](https://github.com/juspay/hyperswitch/pull/4125)) ([`9448673`](https://github.com/juspay/hyperswitch/commit/9448673c1c49fe1419f47c28f59e30268b9691c5))
+- **connectors:** Amount received should be zero for `pending` and `failed` status ([#4331](https://github.com/juspay/hyperswitch/pull/4331)) ([`6aa66c4`](https://github.com/juspay/hyperswitch/commit/6aa66c4243fd2a55c9df5420fd2dc85ef156561b))
+- **mandate:** Add validation for currency in MIT recurring payments ([#4308](https://github.com/juspay/hyperswitch/pull/4308)) ([`07c917c`](https://github.com/juspay/hyperswitch/commit/07c917c0559da1774848d0deb95a2725fc0d6503))
+
+### Refactors
+
+- **card:** Use `billing.first_name` instead of `card_holder_name` ([#4239](https://github.com/juspay/hyperswitch/pull/4239)) ([`8b66cda`](https://github.com/juspay/hyperswitch/commit/8b66cdaaf384bb0d5ce986334a7b32bb3cb13581))
+- **connector:** [Ebanx] Add base_url to Integ Environment ([#4332](https://github.com/juspay/hyperswitch/pull/4332)) ([`13ba3cb`](https://github.com/juspay/hyperswitch/commit/13ba3cbd9627ff53b701084d8d4c0b800793a3e3))
+- **connectors:** [ZSL] add Local bank Transfer ([#4337](https://github.com/juspay/hyperswitch/pull/4337)) ([`266a075`](https://github.com/juspay/hyperswitch/commit/266a075ab653b96505a4f8f26688153ced952c8f))
+- **payment_methods:**
+  - Add some payment method data to new domain type to be used in connector module ([#4234](https://github.com/juspay/hyperswitch/pull/4234)) ([`ce1e165`](https://github.com/juspay/hyperswitch/commit/ce1e165cecade481ce6002795049d6a9ffec96e2))
+  - Add BankDebit payment method data to new domain type to be used in connector module ([#4238](https://github.com/juspay/hyperswitch/pull/4238)) ([`2bf775a`](https://github.com/juspay/hyperswitch/commit/2bf775a97e331cde2cad3e3d2a325850d969add9))
+- **router:** Add `updated` field to `PaymentsResponse` ([#4292](https://github.com/juspay/hyperswitch/pull/4292)) ([`c99e038`](https://github.com/juspay/hyperswitch/commit/c99e038a4813aa68b7a0a6ad3458c93a0e3c27ba))
+
+### Miscellaneous Tasks
+
+- **deps:** Update time crate to 0.3.35 ([#4338](https://github.com/juspay/hyperswitch/pull/4338)) ([`44e7456`](https://github.com/juspay/hyperswitch/commit/44e7456a1088f8c413ff3694357822328bbc29bb))
+
+**Full Changelog:** [`2024.04.10.0...2024.04.12.0`](https://github.com/juspay/hyperswitch/compare/2024.04.10.0...2024.04.12.0)
+
+- - -
+
 ## 2024.04.10.0
 
 ### Features

@@ -164,6 +164,7 @@ worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
 zen.base_url = "https://api.zen-test.com/"
 zen.secondary_base_url = "https://secure.zen-test.com/"
+zsl.base_url = "https://api.sitoffalb.net/"
 
 
 [pm_filters.default]
@@ -225,6 +226,7 @@ cards = [
     "worldline",
     "worldpay",
     "zen",
+    "zsl"
 ]
 
 [delayed_session_response]
@@ -334,6 +336,9 @@ pse = { country = "CO", currency = "COP" }
 pix = { country = "BR", currency = "BRL" }
 red_compra = { country = "CL", currency = "CLP" }
 red_pagos = { country = "UY", currency = "UYU" }
+
+[pm_filters.zsl]
+local_bank_transfer = { country = "CN", currency = "CNY" }
 
 [pm_filters.stripe]
 cashapp = { country = "US", currency = "USD" }

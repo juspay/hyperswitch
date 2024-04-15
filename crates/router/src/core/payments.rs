@@ -21,7 +21,7 @@ use api_models::{
 use common_utils::{ext_traits::AsyncExt, pii, types::Surcharge};
 use data_models::mandates::{CustomerAcceptance, MandateData};
 use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use futures::future::join_all;
 use helpers::ApplePayData;
 use masking::Secret;
@@ -130,13 +130,13 @@ where
         customer_details,
         mut payment_data,
         business_profile,
+        mandate_type,
     } = operation
         .to_get_tracker()?
         .get_trackers(
             state,
             &validate_result.payment_id,
             &req,
-            validate_result.mandate_type.to_owned(),
             &merchant_account,
             &key_store,
             auth_flow,
@@ -151,6 +151,7 @@ where
             &mut payment_data,
             customer_details,
             &key_store,
+            merchant_account.storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
@@ -167,6 +168,7 @@ where
         &key_store,
         &mut payment_data,
         eligible_connectors,
+        mandate_type,
     )
     .await?;
 
@@ -2672,6 +2674,7 @@ pub async fn get_connector_choice<F, Req, Ctx>(
     key_store: &domain::MerchantKeyStore,
     payment_data: &mut PaymentData<F>,
     eligible_connectors: Option<Vec<api_models::enums::RoutableConnectors>>,
+    mandate_type: Option<api::MandateTransactionType>,
 ) -> RouterResult<Option<ConnectorCallType>>
 where
     F: Send + Clone,
@@ -2711,6 +2714,7 @@ where
                     payment_data,
                     Some(straight_through),
                     eligible_connectors,
+                    mandate_type,
                 )
                 .await?
             }
@@ -2724,6 +2728,7 @@ where
                     payment_data,
                     None,
                     eligible_connectors,
+                    mandate_type,
                 )
                 .await?
             }
@@ -2740,6 +2745,7 @@ where
     Ok(connector)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn connector_selection<F>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
@@ -2748,6 +2754,7 @@ pub async fn connector_selection<F>(
     payment_data: &mut PaymentData<F>,
     request_straight_through: Option<serde_json::Value>,
     eligible_connectors: Option<Vec<api_models::enums::RoutableConnectors>>,
+    mandate_type: Option<api::MandateTransactionType>,
 ) -> RouterResult<ConnectorCallType>
 where
     F: Send + Clone,
@@ -2789,6 +2796,7 @@ where
         request_straight_through,
         &mut routing_data,
         eligible_connectors,
+        mandate_type,
     )
     .await?;
 
@@ -2822,6 +2830,7 @@ pub async fn decide_connector<F>(
     request_straight_through: Option<api::routing::StraightThroughAlgorithm>,
     routing_data: &mut storage::RoutingData,
     eligible_connectors: Option<Vec<api_models::enums::RoutableConnectors>>,
+    mandate_type: Option<api::MandateTransactionType>,
 ) -> RouterResult<ConnectorCallType>
 where
     F: Send + Clone,
@@ -2953,6 +2962,7 @@ where
             payment_data,
             routing_data,
             connector_data,
+            mandate_type,
         )
         .await;
     }
@@ -3009,6 +3019,7 @@ where
             payment_data,
             routing_data,
             connector_data,
+            mandate_type,
         )
         .await;
     }
@@ -3021,6 +3032,7 @@ where
         TransactionData::Payment(payment_data),
         routing_data,
         eligible_connectors,
+        mandate_type,
     )
     .await
 }
@@ -3030,16 +3042,30 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
     payment_data: &mut PaymentData<F>,
     routing_data: &mut storage::RoutingData,
     connectors: Vec<api::ConnectorData>,
+    mandate_type: Option<api::MandateTransactionType>,
 ) -> RouterResult<ConnectorCallType> {
     match (
         payment_data.payment_intent.setup_future_usage,
         payment_data.token_data.as_ref(),
         payment_data.recurring_details.as_ref(),
         payment_data.payment_intent.off_session,
+        mandate_type,
     ) {
-        (Some(storage_enums::FutureUsage::OffSession), Some(_), None, None)
-        | (None, None, Some(RecurringDetails::PaymentMethodId(_)), Some(true))
-        | (None, Some(_), None, Some(true)) => {
+        (
+            Some(storage_enums::FutureUsage::OffSession),
+            Some(_),
+            None,
+            None,
+            Some(api::MandateTransactionType::RecurringMandateTransaction),
+        )
+        | (
+            None,
+            None,
+            Some(RecurringDetails::PaymentMethodId(_)),
+            Some(true),
+            Some(api::MandateTransactionType::RecurringMandateTransaction),
+        )
+        | (None, Some(_), None, Some(true), _) => {
             logger::debug!("performing routing for token-based MIT flow");
 
             let payment_method_info = payment_data
@@ -3118,6 +3144,17 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
                             .attach_printable("no eligible connector found for token-based MIT flow since there were no connector mandate details")?
                             .get(merchant_connector_id)
                         {
+                            common_utils::fp_utils::when(
+                                mandate_reference_record
+                                    .original_payment_authorized_currency
+                                    .map(|mandate_currency| mandate_currency != payment_data.currency)
+                                    .unwrap_or(false),
+                                || {
+                                    Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
+                                        reason: "cross currency mandates not supported".into()
+                                    }))
+                                },
+                            )?;
                             let mandate_reference_id =
                                 Some(payments_api::MandateReferenceId::ConnectorMandateId(
                                     payments_api::ConnectorMandateReferenceId {
@@ -3332,6 +3369,7 @@ where
     Ok(final_list)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn route_connector_v1<F>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
@@ -3340,6 +3378,7 @@ pub async fn route_connector_v1<F>(
     transaction_data: TransactionData<'_, F>,
     routing_data: &mut storage::RoutingData,
     eligible_connectors: Option<Vec<api_models::enums::RoutableConnectors>>,
+    mandate_type: Option<api::MandateTransactionType>,
 ) -> RouterResult<ConnectorCallType>
 where
     F: Send + Clone,
@@ -3430,6 +3469,7 @@ where
                 payment_data,
                 routing_data,
                 connector_data,
+                mandate_type,
             )
             .await
         }
@@ -3496,6 +3536,7 @@ pub async fn payment_external_authentication(
                     customer_id,
                     &merchant_account.merchant_id,
                     &key_store,
+                    storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3567,6 +3608,7 @@ pub async fn payment_external_authentication(
         &payment_attempt,
         &payment_intent,
         &key_store,
+        storage_scheme,
     )
     .await?
     .ok_or(errors::ApiErrorResponse::InternalServerError)
