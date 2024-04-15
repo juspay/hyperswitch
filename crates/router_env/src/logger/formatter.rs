@@ -163,7 +163,7 @@ where
     pub fn new_with_implicit_entries(
         service: &str,
         dst_writer: W,
-        default_fields: HashMap<String, Value>,
+        mut default_fields: HashMap<String, Value>,
         formatter: F,
     ) -> Self {
         let pid = std::process::id();
@@ -174,6 +174,17 @@ where
         #[cfg(feature = "vergen")]
         let build = crate::build!().to_string();
         let env = crate::env::which().to_string();
+        default_fields = default_fields
+            .into_iter()
+            .filter(|(k, _)| {
+                if !IMPLICIT_KEYS.contains(k.as_str()) {
+                    true
+                } else {
+                    eprintln!("{} is a reserved entry. It won't be added to the logs", k);
+                    false
+                }
+            })
+            .collect();
 
         Self {
             dst_writer,
@@ -228,11 +239,7 @@ where
 
         // Write down implicit default entries.
         for (key, value) in self.default_fields.iter() {
-            if !IMPLICIT_KEYS.contains(key.as_str()) {
-                map_serializer.serialize_entry(key, value)?;
-            } else {
-                tracing::warn!("{} is a reserved field. Skipping it.", key);
-            }
+            map_serializer.serialize_entry(key, value)?;
         }
 
         #[cfg(feature = "log_custom_entries_to_extra")]
@@ -251,6 +258,8 @@ where
                     #[cfg(not(feature = "log_custom_entries_to_extra"))]
                     map_serializer.serialize_entry(key, value)?;
                     explicit_entries_set.insert(key);
+                } else {
+                    tracing::debug!("{} is a reserved entry. Skipping it.", key);
                 }
             }
         }
