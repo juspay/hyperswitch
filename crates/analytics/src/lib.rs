@@ -47,8 +47,10 @@ use error_stack::report;
 use router_env::{
     logger,
     tracing::{self, instrument},
+    types::FlowMetric,
 };
 use storage_impl::config::Database;
+use strum::Display;
 
 use self::{
     payments::{
@@ -706,3 +708,33 @@ impl Default for OpensearchConfig {
         }
     }
 }
+
+/// Analytics Flow routes Enums
+/// Info - Dimensions and filters available for the domain
+/// Filters - Set of values present for the dimension
+/// Metrics - Analytical data on dimensions and metrics
+#[derive(Debug, Display, Clone, PartialEq, Eq)]
+pub enum AnalyticsFlow {
+    GetInfo,
+    GetPaymentMetrics,
+    GetRefundsMetrics,
+    GetSdkMetrics,
+    GetPaymentFilters,
+    GetRefundFilters,
+    GetSdkEventFilters,
+    GetApiEvents,
+    GetSdkEvents,
+    GeneratePaymentReport,
+    GenerateDisputeReport,
+    GenerateRefundReport,
+    GetApiEventMetrics,
+    GetApiEventFilters,
+    GetConnectorEvents,
+    GetOutgoingWebhookEvents,
+    GetGlobalSearchResults,
+    GetSearchResults,
+    GetDisputeFilters,
+    GetDisputeMetrics,
+}
+
+impl FlowMetric for AnalyticsFlow {}

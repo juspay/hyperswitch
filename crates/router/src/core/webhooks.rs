@@ -39,7 +39,12 @@ use crate::{
         outgoing_webhook_logs::{OutgoingWebhookEvent, OutgoingWebhookEventMetric},
     },
     logger,
-    routes::{app::AppStateInfo, lock_utils, metrics::request::add_attributes, AppState},
+    routes::{
+        app::{AppStateInfo, ReqState},
+        lock_utils,
+        metrics::request::add_attributes,
+        AppState,
+    },
     services::{self, authentication as auth},
     types::{
         api::{self, mandates::MandateResponseExt},
@@ -56,6 +61,7 @@ const MERCHANT_ID: &str = "merchant_id";
 
 pub async fn payments_incoming_webhook_flow<Ctx: PaymentMethodRetrieve>(
     state: AppState,
+    req_state: ReqState,
     merchant_account: domain::MerchantAccount,
     business_profile: diesel_models::business_profile::BusinessProfile,
     key_store: domain::MerchantKeyStore,
@@ -99,6 +105,7 @@ pub async fn payments_incoming_webhook_flow<Ctx: PaymentMethodRetrieve>(
                 Ctx,
             >(
                 state.clone(),
+                req_state,
                 merchant_account.clone(),
                 key_store.clone(),
                 payments::operations::PaymentStatus,
@@ -612,6 +619,7 @@ pub async fn mandates_incoming_webhook_flow(
                 &state,
                 key_store.clone(),
                 updated_mandate.clone(),
+                merchant_account.storage_scheme,
             )
             .await?,
         );
@@ -717,6 +725,7 @@ pub async fn disputes_incoming_webhook_flow(
 
 async fn bank_transfer_webhook_flow<Ctx: PaymentMethodRetrieve>(
     state: AppState,
+    req_state: ReqState,
     merchant_account: domain::MerchantAccount,
     business_profile: diesel_models::business_profile::BusinessProfile,
     key_store: domain::MerchantKeyStore,
@@ -747,6 +756,7 @@ async fn bank_transfer_webhook_flow<Ctx: PaymentMethodRetrieve>(
             Ctx,
         >(
             state.clone(),
+            req_state,
             merchant_account.to_owned(),
             key_store.clone(),
             payments::PaymentConfirm,
@@ -1408,9 +1418,11 @@ fn raise_webhooks_analytics_event(
     state.event_handler().log_event(&webhook_event);
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn webhooks_wrapper<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetrieve>(
     flow: &impl router_env::types::FlowMetric,
     state: AppState,
+    req_state: ReqState,
     req: &actix_web::HttpRequest,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
@@ -1421,6 +1433,7 @@ pub async fn webhooks_wrapper<W: types::OutgoingWebhookType, Ctx: PaymentMethodR
     let (application_response, webhooks_response_tracker, serialized_req) =
         Box::pin(webhooks_core::<W, Ctx>(
             state.clone(),
+            req_state,
             req,
             merchant_account.clone(),
             key_store,
@@ -1471,6 +1484,7 @@ pub async fn webhooks_wrapper<W: types::OutgoingWebhookType, Ctx: PaymentMethodR
 #[instrument(skip_all)]
 pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetrieve>(
     state: AppState,
+    req_state: ReqState,
     req: &actix_web::HttpRequest,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
@@ -1707,6 +1721,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
         match flow_type {
             api::WebhookFlow::Payment => Box::pin(payments_incoming_webhook_flow::<Ctx>(
                 state.clone(),
+                req_state,
                 merchant_account,
                 business_profile,
                 key_store,
@@ -1745,6 +1760,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
 
             api::WebhookFlow::BankTransfer => Box::pin(bank_transfer_webhook_flow::<Ctx>(
                 state.clone(),
+                req_state,
                 merchant_account,
                 business_profile,
                 key_store,

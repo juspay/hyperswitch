@@ -324,9 +324,15 @@ impl CustomerInterface for KafkaStore {
         customer_id: &str,
         merchant_id: &str,
         key_store: &domain::MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<domain::Customer>, errors::StorageError> {
         self.diesel_store
-            .find_customer_optional_by_customer_id_merchant_id(customer_id, merchant_id, key_store)
+            .find_customer_optional_by_customer_id_merchant_id(
+                customer_id,
+                merchant_id,
+                key_store,
+                storage_scheme,
+            )
             .await
     }
 
@@ -334,15 +340,19 @@ impl CustomerInterface for KafkaStore {
         &self,
         customer_id: String,
         merchant_id: String,
-        customer: storage::CustomerUpdate,
+        customer: domain::Customer,
+        customer_update: storage::CustomerUpdate,
         key_store: &domain::MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, errors::StorageError> {
         self.diesel_store
             .update_customer_by_customer_id_merchant_id(
                 customer_id,
                 merchant_id,
                 customer,
+                customer_update,
                 key_store,
+                storage_scheme,
             )
             .await
     }
@@ -362,9 +372,15 @@ impl CustomerInterface for KafkaStore {
         customer_id: &str,
         merchant_id: &str,
         key_store: &domain::MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, errors::StorageError> {
         self.diesel_store
-            .find_customer_by_customer_id_merchant_id(customer_id, merchant_id, key_store)
+            .find_customer_by_customer_id_merchant_id(
+                customer_id,
+                merchant_id,
+                key_store,
+                storage_scheme,
+            )
             .await
     }
 
@@ -372,9 +388,10 @@ impl CustomerInterface for KafkaStore {
         &self,
         customer_data: domain::Customer,
         key_store: &domain::MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, errors::StorageError> {
         self.diesel_store
-            .insert_customer(customer_data, key_store)
+            .insert_customer(customer_data, key_store, storage_scheme)
             .await
     }
 }
@@ -1382,9 +1399,10 @@ impl PaymentMethodInterface for KafkaStore {
     async fn find_payment_method(
         &self,
         payment_method_id: &str,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
         self.diesel_store
-            .find_payment_method(payment_method_id)
+            .find_payment_method(payment_method_id, storage_scheme)
             .await
     }
 
@@ -1434,26 +1452,31 @@ impl PaymentMethodInterface for KafkaStore {
     async fn find_payment_method_by_locker_id(
         &self,
         locker_id: &str,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
         self.diesel_store
-            .find_payment_method_by_locker_id(locker_id)
+            .find_payment_method_by_locker_id(locker_id, storage_scheme)
             .await
     }
 
     async fn insert_payment_method(
         &self,
         m: storage::PaymentMethodNew,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
-        self.diesel_store.insert_payment_method(m).await
+        self.diesel_store
+            .insert_payment_method(m, storage_scheme)
+            .await
     }
 
     async fn update_payment_method(
         &self,
         payment_method: storage::PaymentMethod,
         payment_method_update: storage::PaymentMethodUpdate,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
         self.diesel_store
-            .update_payment_method(payment_method, payment_method_update)
+            .update_payment_method(payment_method, payment_method_update, storage_scheme)
             .await
     }
 

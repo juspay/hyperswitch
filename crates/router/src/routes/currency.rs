@@ -14,7 +14,7 @@ pub async fn retrieve_forex(state: web::Data<AppState>, req: HttpRequest) -> Htt
         state,
         &req,
         (),
-        |state, _auth: auth::AuthenticationData, _| currency::retrieve_forex(state),
+        |state, _auth: auth::AuthenticationData, _, _| currency::retrieve_forex(state),
         auth::auth_type(
             &auth::ApiKeyAuth,
             &auth::DashboardNoPermissionAuth,
@@ -39,7 +39,7 @@ pub async fn convert_forex(
         state.clone(),
         &req,
         (),
-        |state, _, _| {
+        |state, _, _, _| {
             currency::convert_forex(
                 state,
                 *amount,
