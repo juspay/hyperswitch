@@ -395,7 +395,7 @@ mod storage {
                                 .into_iter()
                                 .filter(|pm| pm.status == status)
                                 .collect()
-                            })
+                        })
                     };
 
                     Box::pin(db_utils::find_all_redis_database(
@@ -404,10 +404,8 @@ mod storage {
                         limit,
                     ))
                     .await
-
+                }
             }
-
-        }
         }
 
         async fn delete_payment_method_by_merchant_id_payment_method_id(
@@ -427,7 +425,7 @@ mod storage {
     }
 }
 
-#[cfg(not(feature="kv_store"))]
+#[cfg(not(feature = "kv_store"))]
 mod storage {
     use error_stack::report;
     use router_env::{instrument, tracing};
