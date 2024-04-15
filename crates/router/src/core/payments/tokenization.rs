@@ -58,7 +58,7 @@ pub async fn save_payment_method<FData>(
     connector_name: String,
     merchant_connector_id: Option<String>,
     save_payment_method_data: SavePaymentMethodData<FData>,
-    customer_id: String,
+    customer_id: Option<String>,
     merchant_account: &domain::MerchantAccount,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     key_store: &domain::MerchantKeyStore,
@@ -194,10 +194,11 @@ where
                     Some(&save_payment_method_data.request.get_payment_method_data()),
                     Some(save_payment_method_data.payment_method),
                     payment_method_type,
-                    &Some(customer_id.clone()),
+                    &customer_id.clone(),
                     billing_name,
                 )
                 .await?;
+                let customer_id = customer_id.to_owned().get_required_value("customer_id")?;
                 let merchant_id = &merchant_account.merchant_id;
                 let (mut resp, duplication_check) = if !state.conf.locker.locker_enabled {
                     skip_saving_card_in_locker(
@@ -549,7 +550,7 @@ where
                             merchant_account.storage_scheme,
                         )
                         .await?;
-                    }
+                    },
                 }
 
                 Some(resp.payment_method_id)

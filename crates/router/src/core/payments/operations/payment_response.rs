@@ -93,17 +93,8 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
     where
         F: 'b + Clone + Send + Sync,
     {
+        let customer_id = payment_data.payment_intent.customer_id.clone();
         let save_payment_data = tokenization::SavePaymentMethodData::from(resp);
-        let customer_id = payment_data
-            .payment_intent
-            .customer_id
-            .clone()
-            .ok_or_else(|| {
-                logger::error!("Missing required Param customer_id");
-                errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "customer_id",
-                }
-            })?;
         let profile_id = payment_data.payment_intent.profile_id.clone();
         let is_mandate = &resp.request.setup_mandate_details.is_some();
         let connector_name = payment_data
@@ -143,7 +134,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             mandate::mandate_procedure(
                 state,
                 resp,
-                &Some(customer_id.clone()),
+                &customer_id.clone(),
                 payment_method_id.clone(),
                 merchant_connector_id.clone(),
             )
@@ -158,13 +149,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             let customer_id = payment_data
                 .payment_intent
                 .customer_id
-                .clone()
-                .ok_or_else(|| {
-                    logger::error!("Missing required Param customer_id");
-                    errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "customer_id",
-                    }
-                })?;
+                .clone();
             let profile_id = payment_data.payment_intent.profile_id.clone();
             let connector_name =
                 payment_data
@@ -636,7 +621,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
                 connector_name,
                 merchant_connector_id.clone(),
                 save_payment_data,
-                customer_id.clone(),
+                Some(customer_id.clone()),
                 merchant_account,
                 resp.request.payment_method_type,
                 key_store,
