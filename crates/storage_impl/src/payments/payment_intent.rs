@@ -601,7 +601,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
 
                 query = query.offset(params.offset.into());
 
-                if let Some(amount_filter) = &params.amount {
+                if let Some(amount_filter) = &params.amount_filter {
                     match &amount_filter.filter_option {
                         AmountFilterOption::LessThan => {
                             query = query.filter(pi_dsl::amount.lt(amount_filter.amount))
@@ -733,7 +733,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     None => query,
                 };
 
-                query = match &params.amount {
+                query = match &params.amount_filter {
                     Some(amount_filter) => match &amount_filter.filter_option {
                         AmountFilterOption::LessThan => {
                             query.filter(pi_dsl::amount.lt(amount_filter.amount))

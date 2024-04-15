@@ -3326,7 +3326,7 @@ pub struct PaymentListFilterConstraints {
     /// The starting point within a list of objects
     pub offset: Option<u32>,
     /// The amount to filter payments list
-    pub amount: Option<AmountFilter>,
+    pub amount_filter: Option<AmountFilter>,
     /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
     #[serde(flatten)]
     pub time_range: Option<TimeRange>,

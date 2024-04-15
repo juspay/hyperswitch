@@ -22,7 +22,7 @@ pub static FRM_CONFIGS_EG: &str = r#"
 /// Maximum limit for payments list get api
 pub const PAYMENTS_LIST_MAX_LIMIT_V1: u32 = 100;
 /// Maximum limit for payments list post api with filters
-pub const PAYMENTS_LIST_MAX_LIMIT_V2: u32 = 20;
+pub const PAYMENTS_LIST_MAX_LIMIT_V2: u32 = 50;
 /// Default limit for payments list API
 pub fn default_payments_list_limit() -> u32 {
     10
