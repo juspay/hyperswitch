@@ -812,7 +812,7 @@ pub fn check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
             metadata
                 .pull_mechanism_for_external_3ds_enabled
                 .unwrap_or("true".to_owned())
-                == "true".to_string()
+                == *"true"
         })
         .unwrap_or(true)
 }
