@@ -1217,7 +1217,7 @@ pub struct Browser {
     /// characters and the accepted values are as following:
     ///      - IPv4 address is represented in the dotted decimal format of 4 sets of decimal numbers separated by dots. The
     ///        decimal number in each and every set is in the range 0 - 255. Example: 1.12.123.255
-    ///      - IPv6 adress is represented as eight groups of four hexadecimal digits, each group representing 16 bits (two
+    ///      - IPv6 address is represented as eight groups of four hexadecimal digits, each group representing 16 bits (two
     ///        octets). The groups are separated by colons (:). Example: 2011:0db8:85a3:0101:0101:8a2e:0370:7334
     ///
     /// This field is required for requests when deviceChannel = 02 (BRW) where regionally acceptable.
@@ -1295,7 +1295,7 @@ pub struct Browser {
     #[serde(rename = "browserTZ")]
     browser_tz: Option<u32>,
 
-    /// Exact content of the HTTP user-agent header. The field is limited to maximum 2048 caracters. If the total length of
+    /// Exact content of the HTTP user-agent header. The field is limited to maximum 2048 characters. If the total length of
     /// the User-Agent sent by the browser exceeds 2048 characters, the 3DS Server truncates the excess portion.
     ///
     /// This field is required for requests where deviceChannel = 02 (BRW).
