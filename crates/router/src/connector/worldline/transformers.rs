@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-    connector::utils::{self, BankRedirectBillingData, CardData, RouterData},
+    connector::utils::{self, CardData, RouterData},
     core::errors,
     services,
     types::{
@@ -246,7 +246,7 @@ impl
                 }
                 domain::PaymentMethodData::BankRedirect(bank_redirect) => {
                     WorldlinePaymentMethod::RedirectPaymentMethodSpecificInput(Box::new(
-                        make_bank_redirect_request(&item.router_data.request, bank_redirect)?,
+                        make_bank_redirect_request(item.router_data, bank_redirect)?,
                     ))
                 }
                 domain::PaymentMethodData::CardRedirect(_)
@@ -372,26 +372,25 @@ fn make_card_request(
 }
 
 fn make_bank_redirect_request(
-    req: &PaymentsAuthorizeData,
+    req: &types::PaymentsAuthorizeRouterData,
     bank_redirect: &domain::BankRedirectData,
 ) -> Result<RedirectPaymentMethod, error_stack::Report<errors::ConnectorError>> {
-    let return_url = req.router_return_url.clone();
+    let return_url = req.request.router_return_url.clone();
     let redirection_data = RedirectionData { return_url };
     let (payment_method_specific_data, payment_product_id) = match bank_redirect {
         domain::BankRedirectData::Giropay {
-            billing_details,
-            bank_account_iban,
-            ..
+            bank_account_iban, ..
         } => (
             {
                 PaymentMethodSpecificData::PaymentProduct816SpecificInput(Box::new(Giropay {
                     bank_account_iban: BankAccountIban {
-                        account_holder_name: billing_details
-                            .clone()
+                        account_holder_name: req
+                            .get_optional_billing_full_name()
+                            .as_ref()
                             .ok_or(errors::ConnectorError::MissingRequiredField {
-                                field_name: "giropay.billing_details",
+                                field_name: "billing_details.billing_name",
                             })?
-                            .get_billing_name()?,
+                            .to_owned(),
                         iban: bank_account_iban.clone(),
                     },
                 }))
