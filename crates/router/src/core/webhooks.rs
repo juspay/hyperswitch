@@ -419,6 +419,7 @@ pub async fn get_or_update_dispute_object(
 #[allow(clippy::too_many_arguments)]
 pub async fn external_authentication_incoming_webhook_flow<Ctx: PaymentMethodRetrieve>(
     state: AppState,
+    req_state: ReqState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     source_verified: bool,
@@ -509,6 +510,7 @@ pub async fn external_authentication_incoming_webhook_flow<Ctx: PaymentMethodRet
                     Ctx,
                 >(
                     state.clone(),
+                    req_state,
                     merchant_account.clone(),
                     key_store.clone(),
                     payments::PaymentConfirm,
@@ -1787,6 +1789,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
             api::WebhookFlow::ExternalAuthentication => {
                 Box::pin(external_authentication_incoming_webhook_flow::<Ctx>(
                     state.clone(),
+                    req_state,
                     merchant_account,
                     key_store,
                     source_verified,
