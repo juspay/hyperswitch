@@ -411,13 +411,12 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
             .address
             .as_ref()
             .ok_or_else(utils::missing_field_err("billing.address"))?;
-        let first_name = billing_address.get_first_name()?.to_owned();
+        let first_name = billing_address.get_first_name()?;
         let delivery = DeliveryObject {
             first_name: first_name.clone(),
             last_name: billing_address
                 .get_last_name()
-                .ok()
-                .unwrap_or(&first_name)
+                .unwrap_or(first_name)
                 .clone(),
             address1: billing_address.get_line1()?.to_owned(),
             house_number: billing_address.get_line2()?.to_owned(),

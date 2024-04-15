@@ -667,7 +667,7 @@ impl<F>
                 (
                     Some(BillingAddress {
                         first_name: Some(first_name.clone()),
-                        last_name: Some(address.get_last_name().ok().unwrap_or(first_name).clone()),
+                        last_name: Some(address.get_last_name().unwrap_or(first_name).clone()),
                         email: item.request.get_email()?,
                         country: item.get_billing_country()?,
                     }),
@@ -719,7 +719,7 @@ fn get_pay_later_info<F>(
         .address
         .as_ref()
         .ok_or_else(utils::missing_field_err("billing.address"))?;
-    let first_name = address.get_first_name()?.to_owned();
+    let first_name = address.get_first_name()?;
     let payment_method = payment_method_type;
     Ok(NuveiPaymentsRequest {
         payment_option: PaymentOption {
@@ -730,7 +730,7 @@ fn get_pay_later_info<F>(
             billing_address: Some(BillingAddress {
                 email: item.request.get_email()?,
                 first_name: Some(first_name.clone()),
-                last_name: Some(address.get_last_name().ok().unwrap_or(&first_name).clone()),
+                last_name: Some(address.get_last_name().unwrap_or(first_name).clone()),
                 country: address.get_country()?.to_owned(),
             }),
             ..Default::default()
