@@ -550,7 +550,7 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
                                 session_response,
                             ),
                         payment_request_data: Some(api_models::payments::ApplePayPaymentRequest {
-                            country_code: item.data.request.country,
+                            country_code: item.data.get_billing_country()?,
                             currency_code: item.data.request.currency,
                             total: api_models::payments::AmountInfo {
                                 label: payment_request_data.label,

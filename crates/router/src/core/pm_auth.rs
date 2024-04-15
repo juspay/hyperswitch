@@ -5,7 +5,7 @@ use api_models::{
     payment_methods::{self, BankAccountAccessCreds},
     payments::{AddressDetails, BankDebitBilling, BankDebitData, PaymentMethodData},
 };
-use common_enums::PaymentMethodType;
+use common_enums::{enums::MerchantStorageScheme, PaymentMethodType};
 use hex;
 pub mod helpers;
 pub mod transformers;
@@ -455,7 +455,13 @@ async fn store_bank_details_in_payment_methods(
         };
     }
 
-    store_in_db(update_entries, new_entries, db).await?;
+    store_in_db(
+        update_entries,
+        new_entries,
+        db,
+        merchant_account.storage_scheme,
+    )
+    .await?;
 
     Ok(())
 }
@@ -464,15 +470,16 @@ async fn store_in_db(
     update_entries: Vec<(storage::PaymentMethod, storage::PaymentMethodUpdate)>,
     new_entries: Vec<storage::PaymentMethodNew>,
     db: &dyn StorageInterface,
+    storage_scheme: MerchantStorageScheme,
 ) -> RouterResult<()> {
     let update_entries_futures = update_entries
         .into_iter()
-        .map(|(pm, pm_update)| db.update_payment_method(pm, pm_update))
+        .map(|(pm, pm_update)| db.update_payment_method(pm, pm_update, storage_scheme))
         .collect::<Vec<_>>();
 
     let new_entries_futures = new_entries
         .into_iter()
-        .map(|pm_new| db.insert_payment_method(pm_new))
+        .map(|pm_new| db.insert_payment_method(pm_new, storage_scheme))
         .collect::<Vec<_>>();
 
     let update_futures = futures::future::join_all(update_entries_futures);
@@ -695,7 +702,7 @@ pub async fn retrieve_payment_method_from_auth_service(
 
     let mut bank_type = None;
     if let Some(account_type) = bank_account.account_type.clone() {
-        bank_type = api_models::enums::BankType::from_str(account_type.as_str())
+        bank_type = common_enums::BankType::from_str(account_type.as_str())
             .map_err(|error| logger::error!(%error,"unable to parse account_type {account_type:?}"))
             .ok();
     }
