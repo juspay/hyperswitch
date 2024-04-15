@@ -420,6 +420,7 @@ pub async fn external_authentication_incoming_webhook_flow<Ctx: PaymentMethodRet
     connector: &(dyn api::Connector + Sync),
     object_ref_id: api::ObjectReferenceId,
     business_profile: diesel_models::business_profile::BusinessProfile,
+    merchant_connector_account: domain::MerchantConnectorAccount,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     if source_verified {
         let authentication_details = connector
@@ -443,10 +444,12 @@ pub async fn external_authentication_incoming_webhook_flow<Ctx: PaymentMethodRet
                         .store
                         .find_authentication_by_merchant_id_authentication_id(
                             merchant_account.merchant_id.clone(),
-                            authentication_id,
+                            authentication_id.clone(),
                         )
                         .await
-                        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+                        .to_not_found_response(errors::ApiErrorResponse::AuthenticationNotFound {
+                            id: authentication_id,
+                        })
                         .attach_printable("Error while fetching authentication record"),
                     webhooks::AuthenticationIdType::ConnectorAuthenticationId(
                         connector_authentication_id,
@@ -454,10 +457,12 @@ pub async fn external_authentication_incoming_webhook_flow<Ctx: PaymentMethodRet
                         .store
                         .find_authentication_by_merchant_id_connector_authentication_id(
                             merchant_account.merchant_id.clone(),
-                            connector_authentication_id,
+                            connector_authentication_id.clone(),
                         )
                         .await
-                        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+                        .to_not_found_response(errors::ApiErrorResponse::AuthenticationNotFound {
+                            id: connector_authentication_id,
+                        })
                         .attach_printable("Error while fetching authentication record"),
                 }
             } else {
@@ -476,21 +481,9 @@ pub async fn external_authentication_incoming_webhook_flow<Ctx: PaymentMethodRet
             .attach_printable("Error while updating authentication")?;
         // Check if it's a payment authentication flow, payment_id would be there only for payment authentication flows
         if let Some(payment_id) = updated_authentication.payment_id {
-            let config = state
-                .store
-                .find_config_by_key_unwrap_or(
-                    &format!(
-                        "pull_mechanism_for_external_3ds_enabled_{}_{}",
-                        merchant_account.merchant_id,
-                        connector.id()
-                    ),
-                    Some("true".to_owned()),
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error while fetching pull_mechanism_for_external_3ds_enabled_{merchant_id} config")?;
+            let is_pull_mechanism_enabled = helper_utils::check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(merchant_connector_account.metadata.map(|metadata| metadata.expose()));
             // Merchant doesn't have pull mechanism enabled, so we have to authorize whenever we receive a ARes webhook
-            if config.config == "false"
+            if !is_pull_mechanism_enabled
                 && event_type == webhooks::IncomingWebhookEvent::ExternalAuthenticationARes
             {
                 let payment_confirm_req = api::PaymentsRequest {
@@ -1786,9 +1779,10 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
                     connector,
                     object_ref_id,
                     business_profile,
+                    merchant_connector_account,
                 ))
                 .await
-                .attach_printable("Incoming webhook flow for mandates failed")?
+                .attach_printable("Incoming webhook flow for external authentication failed")?
             }
 
             _ => Err(errors::ApiErrorResponse::InternalServerError)

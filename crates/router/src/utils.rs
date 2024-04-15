@@ -38,6 +38,7 @@ pub use self::ext_traits::{OptionExt, ValidateCall};
 use crate::{
     consts,
     core::{
+        authentication::types::ExternalThreeDSConnectorMetadata,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         utils, webhooks as webhooks_core,
     },
@@ -325,7 +326,6 @@ pub async fn find_mca_from_authentication_id_type(
     db: &dyn StorageInterface,
     authentication_id_type: webhooks::AuthenticationIdType,
     merchant_account: &domain::MerchantAccount,
-    connector_name: &str,
     key_store: &domain::MerchantKeyStore,
 ) -> CustomResult<domain::MerchantConnectorAccount, errors::ApiErrorResponse> {
     let authentication = match authentication_id_type {
@@ -345,15 +345,14 @@ pub async fn find_mca_from_authentication_id_type(
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?
         }
     };
-    let profile_id = authentication.profile_id;
-    db.find_merchant_connector_account_by_profile_id_connector_name(
-        &profile_id,
-        connector_name,
+    db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+        &merchant_account.merchant_id,
+        &authentication.merchant_connector_id,
         key_store,
     )
     .await
     .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-        id: format!("profile_id {profile_id} and connector_name {connector_name}"),
+        id: authentication.merchant_connector_id.to_string(),
     })
 }
 
@@ -474,7 +473,6 @@ pub async fn get_mca_from_object_reference_id(
                     db,
                     authentication_id_type,
                     merchant_account,
-                    connector_name,
                     key_store,
                 )
                 .await
@@ -800,6 +798,18 @@ pub fn add_apple_pay_payment_status_metrics(
             }
         }
     }
+}
+
+pub fn check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
+    metadata: Option<Value>,
+) -> bool {
+    let external_three_ds_connector_metadata: Option<ExternalThreeDSConnectorMetadata> = metadata
+            .parse_value("ExternalThreeDSConnectorMetadata")
+            .map_err(|err| logger::warn!(parsing_error=?err,"Error while parsing ExternalThreeDSConnectorMetadata"))
+            .ok();
+    external_three_ds_connector_metadata
+        .and_then(|metadata| metadata.pull_mechanism_for_external_3ds_enabled)
+        .unwrap_or(true)
 }
 
 #[allow(clippy::too_many_arguments)]

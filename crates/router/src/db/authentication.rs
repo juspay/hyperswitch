@@ -147,6 +147,7 @@ impl AuthenticationInterface for MockDb {
             acs_signed_content: authentication.acs_signed_content,
             profile_id: authentication.profile_id,
             payment_id: authentication.payment_id,
+            merchant_connector_id: authentication.merchant_connector_id,
         };
         authentications.push(authentication.clone());
         Ok(authentication)

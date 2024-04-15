@@ -181,6 +181,10 @@ pub async fn perform_pre_authentication<F: Clone + Send>(
         authentication_connector_name.clone(),
         business_profile.profile_id.clone(),
         payment_id,
+        three_ds_connector_account
+            .get_mca_id()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error while finding mca_id from merchant_connector_account")?,
     )
     .await?;
     match authentication_flow_input {

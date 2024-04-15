@@ -115,6 +115,8 @@ diesel::table! {
         profile_id -> Varchar,
         #[max_length = 255]
         payment_id -> Nullable<Varchar>,
+        #[max_length = 128]
+        merchant_connector_id -> Varchar,
     }
 }
 
