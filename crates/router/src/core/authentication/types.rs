@@ -77,5 +77,5 @@ pub struct AcquirerDetails {
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct ExternalThreeDSConnectorMetadata {
-    pub pull_mechanism_for_external_3ds_enabled: Option<bool>,
+    pub pull_mechanism_for_external_3ds_enabled: Option<String>,
 }
