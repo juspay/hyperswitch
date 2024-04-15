@@ -31,7 +31,7 @@ impl<'a> Storage<'a> {
 
     pub fn record_value(&mut self, key: &'a str, value: serde_json::Value) {
         if super::formatter::IMPLICIT_KEYS.contains(key) {
-            tracing::debug!("{} is a reserved entry. Skipping it.", key);
+            tracing::warn!(value =? value, "{} is a reserved entry. Skipping it.", key);
         } else {
             self.values.insert(key, value);
         }

@@ -11,13 +11,11 @@ use crate::{
 };
 /// .
 // #[logger::instrument(skip_all, name = "name1", level = "warn", fields( key1 = "val1" ))]
-#[instrument(skip_all, fields(flow = ?Flow::HealthCheck, file = ?"tests"))]
+#[instrument(skip_all, fields(flow = ?Flow::HealthCheck))]
 // #[actix_web::get("/health")]
 pub async fn health() -> impl actix_web::Responder {
     metrics::HEALTH_METRIC.add(&metrics::CONTEXT, 1, &[]);
     logger::info!("Health was called");
-    logger::info!(message = "In case you missed it, Health was called");
-    logger::info!(message = "Injecting dup values", file =? "second test", file_test =? "attempting again");
 
     actix_web::HttpResponse::Ok().body("health is good")
 }
