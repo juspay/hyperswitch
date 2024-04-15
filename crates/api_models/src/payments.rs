@@ -1892,26 +1892,26 @@ impl GetAddressFromPaymentMethodData for BankRedirectData {
 pub struct AlfamartVoucherData {
     /// The billing first name for Alfamart
     #[schema(value_type = String, example = "Jane")]
-    pub first_name: Secret<String>,
+    pub first_name: Option<Secret<String>>,
     /// The billing second name for Alfamart
     #[schema(value_type = String, example = "Doe")]
     pub last_name: Option<Secret<String>>,
     /// The Email ID for Alfamart
     #[schema(value_type = String, example = "example@me.com")]
-    pub email: Email,
+    pub email: Option<Email>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct IndomaretVoucherData {
     /// The billing first name for Alfamart
     #[schema(value_type = String, example = "Jane")]
-    pub first_name: Secret<String>,
+    pub first_name: Option<Secret<String>>,
     /// The billing second name for Alfamart
     #[schema(value_type = String, example = "Doe")]
     pub last_name: Option<Secret<String>>,
     /// The Email ID for Alfamart
     #[schema(value_type = String, example = "example@me.com")]
-    pub email: Email,
+    pub email: Option<Email>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -2461,21 +2461,21 @@ impl GetAddressFromPaymentMethodData for VoucherData {
         match self {
             Self::Alfamart(voucher_data) => Some(Address {
                 address: Some(AddressDetails {
-                    first_name: Some(voucher_data.first_name.clone()),
+                    first_name: voucher_data.first_name.clone(),
                     last_name: voucher_data.last_name.clone(),
                     ..AddressDetails::default()
                 }),
                 phone: None,
-                email: Some(voucher_data.email.clone()),
+                email: voucher_data.email.clone(),
             }),
             Self::Indomaret(voucher_data) => Some(Address {
                 address: Some(AddressDetails {
-                    first_name: Some(voucher_data.first_name.clone()),
+                    first_name: Some(voucher_data.first_name.clone()?),
                     last_name: voucher_data.last_name.clone(),
                     ..AddressDetails::default()
                 }),
                 phone: None,
-                email: Some(voucher_data.email.clone()),
+                email: Some(voucher_data.email.clone()?),
             }),
             Self::Lawson(voucher_data)
             | Self::MiniStop(voucher_data)
