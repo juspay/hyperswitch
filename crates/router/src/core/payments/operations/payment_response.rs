@@ -146,10 +146,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             let merchant_account = merchant_account.clone();
             let key_store = key_store.clone();
             let state = state.clone();
-            let customer_id = payment_data
-                .payment_intent
-                .customer_id
-                .clone();
+            let customer_id = payment_data.payment_intent.customer_id.clone();
             let profile_id = payment_data.payment_intent.profile_id.clone();
             let connector_name =
                 payment_data

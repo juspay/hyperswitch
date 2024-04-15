@@ -550,7 +550,7 @@ where
                             merchant_account.storage_scheme,
                         )
                         .await?;
-                    },
+                    }
                 }
 
                 Some(resp.payment_method_id)
