@@ -9,6 +9,7 @@ use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 use transformers as ebanx;
 
+#[cfg(feature = "payouts")]
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
