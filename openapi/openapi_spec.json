@@ -12135,7 +12135,8 @@
           "theme",
           "logo",
           "seller_name",
-          "sdk_layout"
+          "sdk_layout",
+          "display_sdk_only"
         ],
         "properties": {
           "theme": {
@@ -12153,6 +12154,10 @@
           "sdk_layout": {
             "type": "string",
             "description": "Custom layout for sdk"
+          },
+          "display_sdk_only": {
+            "type": "boolean",
+            "description": "Display only the sdk for payment link"
           }
         }
       },
@@ -12186,6 +12191,13 @@
             "example": "accordion",
             "nullable": true,
             "maxLength": 255
+          },
+          "display_sdk_only": {
+            "type": "boolean",
+            "description": "Display only the sdk for payment link",
+            "default": false,
+            "example": true,
+            "nullable": true
           }
         }
       },
