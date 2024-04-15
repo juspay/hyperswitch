@@ -49,21 +49,22 @@ where
         futures::Future<Output = error_stack::Result<Vec<T>, redis_interface::errors::RedisError>>,
     DFut: futures::Future<Output = error_stack::Result<Vec<T>, errors::StorageError>>,
 {
-    let trunc = |v: &mut Vec<_>| match limit {
-        Some(l) => v.truncate(l as usize),
-        None => (),
-    };
+    let trunc = |v: &mut Vec<_>| if let Some(l)
+        = limit.and_then(|v| TryInto::try_into(v).ok())
+    { v.truncate(l); };
 
+    let limit_satisfies = |len : usize, limit : i64| TryInto::try_into(limit).ok().map_or(true,  |val : usize| len >= val);
+    
     let redis_output = redis_fut.await;
     match (redis_output, limit) {
-        (Ok(mut kv_rows), Some(lim)) if kv_rows.len() >= (lim as usize) => {
-            let _ = (&mut kv_rows).truncate(lim as usize);
+        (Ok(mut kv_rows), Some(lim)) if limit_satisfies(kv_rows.len(), lim) => {
+            trunc(&mut kv_rows);
             Ok(kv_rows)
         }
-        (Ok(kv_rows), _) => database_call().await.and_then(|db_rows| {
+        (Ok(kv_rows), _) => database_call().await.map(|db_rows| {
             let mut res = union_vec(kv_rows, db_rows);
             trunc(&mut res);
-            Ok(res)
+            res
         }),
         (Err(redis_error), _) => match redis_error.current_context() {
             redis_interface::errors::RedisError::NotFound => {
@@ -97,5 +98,5 @@ where
         }
     });
 
-    return kv_rows;
+    kv_rows
 }
