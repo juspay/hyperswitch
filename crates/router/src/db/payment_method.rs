@@ -398,7 +398,7 @@ mod storage {
                         })
                     };
 
-                    Box::pin(db_utils::find_all_redis_database(
+                    Box::pin(db_utils::find_all_combined_kv_database(
                         redis_fut,
                         database_call,
                         limit,

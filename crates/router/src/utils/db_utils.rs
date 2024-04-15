@@ -37,7 +37,7 @@ where
     }
 }
 
-pub async fn find_all_redis_database<F, RFut, DFut, T>(
+pub async fn find_all_combined_kv_database<F, RFut, DFut, T>(
     redis_fut: RFut,
     database_call: F,
     limit: Option<i64>,
