@@ -23,8 +23,6 @@ use super::blocklist;
 use super::dummy_connector::*;
 #[cfg(feature = "payouts")]
 use super::payouts::*;
-#[cfg(feature = "oltp")]
-use super::pm_auth;
 #[cfg(feature = "olap")]
 use super::routing as cloud_routing;
 #[cfg(feature = "olap")]
@@ -34,13 +32,15 @@ use super::{
     admin::*, api_keys::*, connector_onboarding::*, disputes::*, files::*, gsm::*, payment_link::*,
     user::*, user_role::*, webhook_events::*,
 };
-use super::{cache::*, health::*, poll::retrieve_poll_status};
+use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{currency, payment_methods::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, webhooks::*};
+#[cfg(feature = "oltp")]
+use super::{pm_auth, poll::retrieve_poll_status};
 use crate::configs::secrets_transformers;
 #[cfg(all(feature = "frm", feature = "oltp"))]
 use crate::routes::fraud_check as frm_routes;
