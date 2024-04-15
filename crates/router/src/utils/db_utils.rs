@@ -82,27 +82,23 @@ where
 use std::collections::HashSet;
 use storage_impl::UniqueConstraints;
 
-fn union_vec<T>(kv_rows: Vec<T>, sql_rows : Vec<T>) -> Vec<T>
+fn union_vec<T>(mut kv_rows: Vec<T>, sql_rows : Vec<T>) -> Vec<T>
 where
     T : UniqueConstraints,
 {
     let mut kv_unique_keys = HashSet::new();
-    let mut kv_iter = kv_rows.iter();
-    while let Some(v) = kv_iter.next(){
-        let unique_key = v.unique_constraints().concat();
-        kv_unique_keys.insert(unique_key);
-    };
 
-    let mut res = kv_rows;
+    kv_rows.iter().for_each(|v| {
+        kv_unique_keys.insert(v.unique_constraints().concat());
+    });
 
-    let mut sql_iter = sql_rows.into_iter();
-    while let Some(v) = sql_iter.next(){
+
+    sql_rows.into_iter().for_each(|v| {
         let unique_key = v.unique_constraints().concat();
         if !kv_unique_keys.contains(&unique_key){
-            res.push(v);
+            kv_rows.push(v);
         }
-    };
+    });
 
-    return res
-    
+    return kv_rows
 }
