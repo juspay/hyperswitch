@@ -1,4 +1,4 @@
-CREATE TABLE payment_attempts_queue (
+CREATE TABLE payment_attempt_queue (
     `payment_id` String,
     `merchant_id` String,
     `attempt_id` String,
@@ -32,22 +32,22 @@ CREATE TABLE payment_attempts_queue (
     `payment_method_data` Nullable(String),
     `error_reason` Nullable(String),
     `multiple_capture_count` Nullable(Int16),
-    `amount_capturable` Nullable(UInt64) ,
-    `merchant_connector_id`  Nullable(String),
-    `net_amount` Nullable(UInt64) ,
-    `unified_code`  Nullable(String),
-    `unified_message`  Nullable(String),
-    `mandate_data`  Nullable(String),
+    `amount_capturable` Nullable(UInt64),
+    `merchant_connector_id` Nullable(String),
+    `net_amount` Nullable(UInt64),
+    `unified_code` Nullable(String),
+    `unified_message` Nullable(String),
+    `mandate_data` Nullable(String),
     `sign_flag` Int8
 ) ENGINE = Kafka SETTINGS kafka_broker_list = 'kafka0:29092',
 kafka_topic_list = 'hyperswitch-payment-attempt-events',
-kafka_group_name = 'hyper-c1',
+kafka_group_name = 'hyper',
 kafka_format = 'JSONEachRow',
 kafka_handle_error_mode = 'stream';
 
-CREATE TABLE payment_attempt_dist (
+CREATE TABLE payment_attempts (
     `payment_id` String,
-    `merchant_id` String,
+    `merchant_id` LowCardinality(String),
     `attempt_id` String,
     `status` LowCardinality(String),
     `amount` Nullable(UInt32),
@@ -79,12 +79,12 @@ CREATE TABLE payment_attempt_dist (
     `payment_method_data` Nullable(String),
     `error_reason` Nullable(String),
     `multiple_capture_count` Nullable(Int16),
-    `amount_capturable` Nullable(UInt64) ,
-    `merchant_connector_id`  Nullable(String),
-    `net_amount` Nullable(UInt64) ,
-    `unified_code`  Nullable(String),
-    `unified_message`  Nullable(String),
-    `mandate_data`  Nullable(String),
+    `amount_capturable` Nullable(UInt64),
+    `merchant_connector_id` Nullable(String),
+    `net_amount` Nullable(UInt64),
+    `unified_code` Nullable(String),
+    `unified_message` Nullable(String),
+    `mandate_data` Nullable(String),
     `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4),
     `sign_flag` Int8,
     INDEX connectorIndex connector TYPE bloom_filter GRANULARITY 1,
@@ -92,17 +92,11 @@ CREATE TABLE payment_attempt_dist (
     INDEX authenticationTypeIndex authentication_type TYPE bloom_filter GRANULARITY 1,
     INDEX currencyIndex currency TYPE bloom_filter GRANULARITY 1,
     INDEX statusIndex status TYPE bloom_filter GRANULARITY 1
-) ENGINE = CollapsingMergeTree(
-    sign_flag
-)
-PARTITION BY toStartOfDay(created_at)
+) ENGINE = CollapsingMergeTree(sign_flag) PARTITION BY toStartOfDay(created_at)
 ORDER BY
-    (created_at, merchant_id, attempt_id)
-TTL created_at + toIntervalMonth(6)
-;
+    (created_at, merchant_id, attempt_id) TTL created_at + toIntervalMonth(18) SETTINGS index_granularity = 8192;
 
-
-CREATE MATERIALIZED VIEW kafka_parse_pa TO payment_attempt_dist (
+CREATE MATERIALIZED VIEW payment_attempt_mv TO payment_attempts (
     `payment_id` String,
     `merchant_id` String,
     `attempt_id` String,
@@ -136,12 +130,12 @@ CREATE MATERIALIZED VIEW kafka_parse_pa TO payment_attempt_dist (
     `payment_method_data` Nullable(String),
     `error_reason` Nullable(String),
     `multiple_capture_count` Nullable(Int16),
-    `amount_capturable` Nullable(UInt64) ,
-    `merchant_connector_id`  Nullable(String),
-    `net_amount` Nullable(UInt64) ,
-    `unified_code`  Nullable(String),
-    `unified_message`  Nullable(String),
-    `mandate_data`  Nullable(String),
+    `amount_capturable` Nullable(UInt64),
+    `merchant_connector_id` Nullable(String),
+    `net_amount` Nullable(UInt64),
+    `unified_code` Nullable(String),
+    `unified_message` Nullable(String),
+    `mandate_data` Nullable(String),
     `inserted_at` DateTime64(3),
     `sign_flag` Int8
 ) AS
@@ -185,8 +179,9 @@ SELECT
     unified_code,
     unified_message,
     mandate_data,
-    now() as inserted_at,
+    now() AS inserted_at,
     sign_flag
 FROM
-    payment_attempts_queue;
-
+    payment_attempt_queue
+WHERE
+    length(_error) = 0;
