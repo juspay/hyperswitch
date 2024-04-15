@@ -613,6 +613,7 @@ impl<'a> From<&'a domain::Address> for api_types::Address {
             && address.line2.is_none()
             && address.line3.is_none()
             && address.state.is_none()
+            && address.country.is_none()
             && address.zip.is_none()
             && address.first_name.is_none()
             && address.last_name.is_none()

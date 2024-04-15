@@ -1222,7 +1222,7 @@ pub fn get_apple_pay_session<F, T>(
                             },
                         ),
                     payment_request_data: Some(api_models::payments::ApplePayPaymentRequest {
-                        country_code: Some(apple_pay_init_result.country_code),
+                        country_code: apple_pay_init_result.country_code,
                         currency_code: apple_pay_init_result.currency_code,
                         supported_networks: Some(apple_pay_init_result.supported_networks.clone()),
                         merchant_capabilities: Some(
