@@ -1169,7 +1169,7 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest, Ctx>(
 ) -> RouterResult<router_types::RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
-    RouterDReq: Send + Sync + Clone,
+    RouterDReq: Send + Sync,
 
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
