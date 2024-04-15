@@ -1237,22 +1237,37 @@ pub async fn complete_create_payout_if_required(
     connector_data: &api::ConnectorData,
     mut payout_data: PayoutData,
 ) -> RouterResult<PayoutData> {
-    if payout_data.payout_attempt.status == storage_enums::PayoutStatus::RequiresCreation
-        && (payout_data.payouts.payout_type == storage_enums::PayoutType::Bank
-            || payout_data.payouts.payout_type == storage_enums::PayoutType::Wallet)
-    {
-        payout_data = create_payout(
-            state,
-            merchant_account,
-            key_store,
-            req,
-            connector_data,
-            &mut payout_data,
-        )
-        .await
-        .attach_printable("Payout creation failed for given Payout request")?;
+    if payout_data.payout_attempt.status == storage_enums::PayoutStatus::RequiresCreation {
+        match payout_data.payouts.payout_type {
+            storage_enums::PayoutType::Bank => {
+                payout_data = create_payout(
+                    state,
+                    merchant_account,
+                    key_store,
+                    req,
+                    connector_data,
+                    &mut payout_data,
+                )
+                .await
+                .attach_printable("Payout creation failed for given Payout request")?;
+            }
+            storage_enums::PayoutType::Wallet => {
+                if connector_data.connector_name == types::Connector::Adyen {
+                    payout_data = create_payout(
+                        state,
+                        merchant_account,
+                        key_store,
+                        req,
+                        connector_data,
+                        &mut payout_data,
+                    )
+                    .await
+                    .attach_printable("Payout creation failed for given Payout request")?;
+                }
+            }
+            storage_enums::PayoutType::Card => {}
+        };
     }
-
     Ok(payout_data)
 }
 
