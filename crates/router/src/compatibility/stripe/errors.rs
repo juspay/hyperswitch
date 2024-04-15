@@ -427,6 +427,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             | errors::ApiErrorResponse::InvalidJwtToken
             | errors::ApiErrorResponse::GenericUnauthorized { .. }
             | errors::ApiErrorResponse::AccessForbidden { .. }
+            | errors::ApiErrorResponse::InvalidCookie
             | errors::ApiErrorResponse::InvalidEphemeralKey => Self::Unauthorized,
             errors::ApiErrorResponse::InvalidRequestUrl
             | errors::ApiErrorResponse::InvalidHttpMethod

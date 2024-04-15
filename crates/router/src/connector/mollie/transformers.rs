@@ -230,35 +230,35 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
     }
 }
 
-impl TryFrom<&api_models::payments::BankRedirectData> for PaymentMethodData {
+impl TryFrom<&domain::BankRedirectData> for PaymentMethodData {
     type Error = Error;
-    fn try_from(value: &api_models::payments::BankRedirectData) -> Result<Self, Self::Error> {
+    fn try_from(value: &domain::BankRedirectData) -> Result<Self, Self::Error> {
         match value {
-            api_models::payments::BankRedirectData::Eps { .. } => Ok(Self::Eps),
-            api_models::payments::BankRedirectData::Giropay { .. } => Ok(Self::Giropay),
-            api_models::payments::BankRedirectData::Ideal { .. } => {
+            domain::BankRedirectData::Eps { .. } => Ok(Self::Eps),
+            domain::BankRedirectData::Giropay { .. } => Ok(Self::Giropay),
+            domain::BankRedirectData::Ideal { .. } => {
                 Ok(Self::Ideal(Box::new(IdealMethodData {
                     // To do if possible this should be from the payment request
                     issuer: None,
                 })))
             }
-            api_models::payments::BankRedirectData::Sofort { .. } => Ok(Self::Sofort),
-            api_models::payments::BankRedirectData::Przelewy24 {
+            domain::BankRedirectData::Sofort { .. } => Ok(Self::Sofort),
+            domain::BankRedirectData::Przelewy24 {
                 billing_details, ..
             } => Ok(Self::Przelewy24(Box::new(Przelewy24MethodData {
                 billing_email: billing_details.email.clone(),
             }))),
-            api_models::payments::BankRedirectData::BancontactCard { .. } => Ok(Self::Bancontact),
+            domain::BankRedirectData::BancontactCard { .. } => Ok(Self::Bancontact),
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
 }
 
-impl TryFrom<&api_models::payments::BankDebitData> for PaymentMethodData {
+impl TryFrom<&domain::BankDebitData> for PaymentMethodData {
     type Error = Error;
-    fn try_from(value: &api_models::payments::BankDebitData) -> Result<Self, Self::Error> {
+    fn try_from(value: &domain::BankDebitData) -> Result<Self, Self::Error> {
         match value {
-            api_models::payments::BankDebitData::SepaBankDebit {
+            domain::BankDebitData::SepaBankDebit {
                 bank_account_holder_name,
                 iban,
                 ..
@@ -289,9 +289,8 @@ impl TryFrom<&types::TokenizationRouterData> for MollieCardTokenRequest {
         match item.request.payment_method_data.clone() {
             domain::PaymentMethodData::Card(ccard) => {
                 let auth = MollieAuthType::try_from(&item.connector_auth_type)?;
-                let card_holder = ccard
-                    .card_holder_name
-                    .clone()
+                let card_holder = item
+                    .get_optional_billing_full_name()
                     .unwrap_or(Secret::new("".to_string()));
                 let card_number = ccard.card_number.clone();
                 let card_expiry_date =

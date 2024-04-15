@@ -1,4 +1,3 @@
-use api_models::payments::{BankDebitData, PayLaterData};
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -13,19 +12,21 @@ use crate::{
     unimplemented_payment_method,
 };
 
-impl TryFrom<(&types::TokenizationRouterData, BankDebitData)> for SquareTokenRequest {
+impl TryFrom<(&types::TokenizationRouterData, domain::BankDebitData)> for SquareTokenRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        value: (&types::TokenizationRouterData, BankDebitData),
+        value: (&types::TokenizationRouterData, domain::BankDebitData),
     ) -> Result<Self, Self::Error> {
         let (_item, bank_debit_data) = value;
         match bank_debit_data {
-            BankDebitData::AchBankDebit { .. }
-            | BankDebitData::SepaBankDebit { .. }
-            | BankDebitData::BecsBankDebit { .. }
-            | BankDebitData::BacsBankDebit { .. } => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Square"),
-            ))?,
+            domain::BankDebitData::AchBankDebit { .. }
+            | domain::BankDebitData::SepaBankDebit { .. }
+            | domain::BankDebitData::BecsBankDebit { .. }
+            | domain::BankDebitData::BacsBankDebit { .. } => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Square"),
+                ))?
+            }
         }
     }
 }
@@ -71,23 +72,25 @@ impl TryFrom<(&types::TokenizationRouterData, domain::Card)> for SquareTokenRequ
     }
 }
 
-impl TryFrom<(&types::TokenizationRouterData, PayLaterData)> for SquareTokenRequest {
+impl TryFrom<(&types::TokenizationRouterData, domain::PayLaterData)> for SquareTokenRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        value: (&types::TokenizationRouterData, PayLaterData),
+        value: (&types::TokenizationRouterData, domain::PayLaterData),
     ) -> Result<Self, Self::Error> {
         let (_item, pay_later_data) = value;
         match pay_later_data {
-            PayLaterData::AfterpayClearpayRedirect { .. }
-            | PayLaterData::KlarnaRedirect { .. }
-            | PayLaterData::KlarnaSdk { .. }
-            | PayLaterData::AffirmRedirect { .. }
-            | PayLaterData::PayBrightRedirect { .. }
-            | PayLaterData::WalleyRedirect { .. }
-            | PayLaterData::AlmaRedirect { .. }
-            | PayLaterData::AtomeRedirect { .. } => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Square"),
-            ))?,
+            domain::PayLaterData::AfterpayClearpayRedirect { .. }
+            | domain::PayLaterData::KlarnaRedirect { .. }
+            | domain::PayLaterData::KlarnaSdk { .. }
+            | domain::PayLaterData::AffirmRedirect { .. }
+            | domain::PayLaterData::PayBrightRedirect { .. }
+            | domain::PayLaterData::WalleyRedirect { .. }
+            | domain::PayLaterData::AlmaRedirect { .. }
+            | domain::PayLaterData::AtomeRedirect { .. } => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Square"),
+                ))?
+            }
         }
     }
 }

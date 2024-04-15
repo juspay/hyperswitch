@@ -38,7 +38,9 @@ pub async fn payouts_create(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth, req| payouts_create_core(state, auth.merchant_account, auth.key_store, req),
+        |state, auth, req, _| {
+            payouts_create_core(state, auth.merchant_account, auth.key_store, req)
+        },
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -76,7 +78,9 @@ pub async fn payouts_retrieve(
         state,
         &req,
         payout_retrieve_request,
-        |state, auth, req| payouts_retrieve_core(state, auth.merchant_account, auth.key_store, req),
+        |state, auth, req, _| {
+            payouts_retrieve_core(state, auth.merchant_account, auth.key_store, req)
+        },
         auth::auth_type(
             &auth::ApiKeyAuth,
             &auth::JWTAuth(Permission::PayoutRead),
@@ -118,7 +122,9 @@ pub async fn payouts_update(
         state,
         &req,
         payout_update_payload,
-        |state, auth, req| payouts_update_core(state, auth.merchant_account, auth.key_store, req),
+        |state, auth, req, _| {
+            payouts_update_core(state, auth.merchant_account, auth.key_store, req)
+        },
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -156,7 +162,9 @@ pub async fn payouts_cancel(
         state,
         &req,
         payload,
-        |state, auth, req| payouts_cancel_core(state, auth.merchant_account, auth.key_store, req),
+        |state, auth, req, _| {
+            payouts_cancel_core(state, auth.merchant_account, auth.key_store, req)
+        },
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -194,7 +202,9 @@ pub async fn payouts_fulfill(
         state,
         &req,
         payload,
-        |state, auth, req| payouts_fulfill_core(state, auth.merchant_account, auth.key_store, req),
+        |state, auth, req, _| {
+            payouts_fulfill_core(state, auth.merchant_account, auth.key_store, req)
+        },
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -228,7 +238,7 @@ pub async fn payouts_list(
         state,
         &req,
         payload,
-        |state, auth, req| payouts_list_core(state, auth.merchant_account, req),
+        |state, auth, req, _| payouts_list_core(state, auth.merchant_account, auth.key_store, req),
         auth::auth_type(
             &auth::ApiKeyAuth,
             &auth::JWTAuth(Permission::PayoutRead),
@@ -266,7 +276,9 @@ pub async fn payouts_list_by_filter(
         state,
         &req,
         payload,
-        |state, auth, req| payouts_filtered_list_core(state, auth.merchant_account, req),
+        |state, auth, req, _| {
+            payouts_filtered_list_core(state, auth.merchant_account, auth.key_store, req)
+        },
         auth::auth_type(
             &auth::ApiKeyAuth,
             &auth::JWTAuth(Permission::PayoutRead),
@@ -304,7 +316,9 @@ pub async fn payouts_list_available_filters(
         state,
         &req,
         payload,
-        |state, auth, req| payouts_list_available_filters_core(state, auth.merchant_account, req),
+        |state, auth, req, _| {
+            payouts_list_available_filters_core(state, auth.merchant_account, req)
+        },
         auth::auth_type(
             &auth::ApiKeyAuth,
             &auth::JWTAuth(Permission::PayoutRead),
