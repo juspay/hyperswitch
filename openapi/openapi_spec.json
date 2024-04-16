@@ -16232,9 +16232,9 @@
       "PollStatus": {
         "type": "string",
         "enum": [
-          "Pending",
-          "Completed",
-          "NotFound"
+          "pending",
+          "completed",
+          "not_found"
         ]
       },
       "PrimaryBusinessDetails": {
