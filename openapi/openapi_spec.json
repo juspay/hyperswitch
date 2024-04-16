@@ -5266,7 +5266,6 @@
                 "type": "object",
                 "description": "Payment Method data for Ach bank debit",
                 "required": [
-                  "billing_details",
                   "account_number",
                   "routing_number",
                   "card_holder_name",
@@ -5277,7 +5276,12 @@
                 ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/BankDebitBilling"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankDebitBilling"
+                      }
+                    ],
+                    "nullable": true
                   },
                   "account_number": {
                     "type": "string",
@@ -5322,13 +5326,17 @@
               "sepa_bank_debit": {
                 "type": "object",
                 "required": [
-                  "billing_details",
                   "iban",
                   "bank_account_holder_name"
                 ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/BankDebitBilling"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankDebitBilling"
+                      }
+                    ],
+                    "nullable": true
                   },
                   "iban": {
                     "type": "string",
@@ -5353,13 +5361,17 @@
               "becs_bank_debit": {
                 "type": "object",
                 "required": [
-                  "billing_details",
                   "account_number",
                   "bsb_number"
                 ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/BankDebitBilling"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankDebitBilling"
+                      }
+                    ],
+                    "nullable": true
                   },
                   "account_number": {
                     "type": "string",
@@ -5390,14 +5402,18 @@
               "bacs_bank_debit": {
                 "type": "object",
                 "required": [
-                  "billing_details",
                   "account_number",
                   "sort_code",
                   "bank_account_holder_name"
                 ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/BankDebitBilling"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankDebitBilling"
+                      }
+                    ],
+                    "nullable": true
                   },
                   "account_number": {
                     "type": "string",
