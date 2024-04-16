@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.04.12.1-hotfix1
+
+### Bug Fixes
+
+- **address:** Use first_name if last_name is not passed ([#4367](https://github.com/juspay/hyperswitch/pull/4367)) ([`533d680`](https://github.com/juspay/hyperswitch/commit/533d680f089396319f2a449d7f5df6a8006eadbb))
+
+- - -
+
 ## 2024.04.12.1
 
 ### Features
