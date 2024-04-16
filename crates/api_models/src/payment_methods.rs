@@ -95,6 +95,10 @@ pub struct PaymentMethodUpdate {
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK
+    #[schema(max_length = 30, min_length = 30, example = "secret_k2uj3he2893eiu2d")]
+    pub client_secret: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
