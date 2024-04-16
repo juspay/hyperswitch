@@ -1,14 +1,10 @@
-use api_models::enums::{PaymentMethod, PaymentMethodType};
 use async_trait::async_trait;
-use error_stack::ResultExt;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
-    configs::settings,
     core::{
-        errors::{self, ConnectorErrorExt, RouterResult, StorageErrorExt},
+        errors::{self, ConnectorErrorExt, RouterResult},
         mandate,
-        payment_methods::cards,
         payments::{
             self, access_token, customers, helpers, tokenization, transformers, PaymentData,
         },
@@ -55,54 +51,14 @@ impl
 impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::SetupMandateRouterData {
     async fn decide_flows<'a>(
         self,
-        state: &AppState,
-        connector: &api::ConnectorData,
-        maybe_customer: &Option<domain::Customer>,
-        call_connector_action: payments::CallConnectorAction,
-        merchant_account: &domain::MerchantAccount,
-        connector_request: Option<services::Request>,
-        key_store: &domain::MerchantKeyStore,
-        profile_id: Option<String>,
+        _state: &AppState,
+        _connector: &api::ConnectorData,
+        _call_connector_action: payments::CallConnectorAction,
+        _connector_request: Option<services::Request>,
+        _key_store: &domain::MerchantKeyStore,
+        _profile_id: Option<String>,
     ) -> RouterResult<Self> {
-        if let Some(mandate_id) = self
-            .request
-            .setup_mandate_details
-            .as_ref()
-            .and_then(|mandate_data| mandate_data.update_mandate_id.clone())
-        {
-            Box::pin(self.update_mandate_flow(
-                state,
-                merchant_account,
-                mandate_id,
-                connector,
-                key_store,
-                call_connector_action,
-                &state.conf.mandates.update_mandate_supported,
-                connector_request,
-                maybe_customer,
-                profile_id,
-            ))
-            .await
-        } else {
-            let connector_integration: services::BoxedConnectorIntegration<
-                '_,
-                api::SetupMandate,
-                types::SetupMandateRequestData,
-                types::PaymentsResponseData,
-            > = connector.connector.get_connector_integration();
-
-            let resp = services::execute_connector_processing_step(
-                state,
-                connector_integration,
-                &self,
-                call_connector_action.clone(),
-                connector_request,
-            )
-            .await
-            .to_setup_mandate_failed_response()?;
-
-            Ok(resp)
-        }
+        Ok(self)
     }
 
     async fn add_access_token<'a>(
@@ -183,141 +139,6 @@ impl TryFrom<types::SetupMandateRequestData> for types::ConnectorCustomerData {
             name: None,
             preprocessing_id: None,
         })
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-impl types::SetupMandateRouterData {
-    async fn update_mandate_flow(
-        self,
-        state: &AppState,
-        merchant_account: &domain::MerchantAccount,
-        mandate_id: String,
-        connector: &api::ConnectorData,
-        key_store: &domain::MerchantKeyStore,
-        call_connector_action: payments::CallConnectorAction,
-        supported_connectors_for_update_mandate: &settings::SupportedPaymentMethodsForMandate,
-        connector_request: Option<services::Request>,
-        _maybe_customer: &Option<domain::Customer>,
-        _profile_id: Option<String>,
-    ) -> RouterResult<Self> {
-        let payment_method_type = self.request.payment_method_type;
-
-        let payment_method = self.request.payment_method_data.get_payment_method();
-        let supported_connectors_config = payment_method.zip(payment_method_type).map_or_else(
-            || {
-                if payment_method == Some(PaymentMethod::Card) {
-                    cards::filter_pm_based_on_update_mandate_support_for_connector(
-                        supported_connectors_for_update_mandate,
-                        &PaymentMethod::Card,
-                        &PaymentMethodType::Credit,
-                        connector.connector_name,
-                    ) && cards::filter_pm_based_on_update_mandate_support_for_connector(
-                        supported_connectors_for_update_mandate,
-                        &PaymentMethod::Card,
-                        &PaymentMethodType::Debit,
-                        connector.connector_name,
-                    )
-                } else {
-                    false
-                }
-            },
-            |(pm, pmt)| {
-                cards::filter_pm_based_on_update_mandate_support_for_connector(
-                    supported_connectors_for_update_mandate,
-                    &pm,
-                    &pmt,
-                    connector.connector_name,
-                )
-            },
-        );
-        if supported_connectors_config {
-            let connector_integration: services::BoxedConnectorIntegration<
-                '_,
-                api::SetupMandate,
-                types::SetupMandateRequestData,
-                types::PaymentsResponseData,
-            > = connector.connector.get_connector_integration();
-
-            let resp = services::execute_connector_processing_step(
-                state,
-                connector_integration,
-                &self,
-                call_connector_action.clone(),
-                connector_request,
-            )
-            .await
-            .to_setup_mandate_failed_response()?;
-            let mandate = state
-                .store
-                .find_mandate_by_merchant_id_mandate_id(&merchant_account.merchant_id, &mandate_id)
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
-
-            let profile_id = mandate::helpers::get_profile_id_for_mandate(
-                state,
-                merchant_account,
-                mandate.clone(),
-            )
-            .await?;
-            match resp.response {
-                Ok(types::PaymentsResponseData::TransactionResponse { .. }) => {
-                    let connector_integration: services::BoxedConnectorIntegration<
-                        '_,
-                        types::api::MandateRevoke,
-                        types::MandateRevokeRequestData,
-                        types::MandateRevokeResponseData,
-                    > = connector.connector.get_connector_integration();
-                    let merchant_connector_account = helpers::get_merchant_connector_account(
-                        state,
-                        &merchant_account.merchant_id,
-                        None,
-                        key_store,
-                        &profile_id,
-                        &mandate.connector,
-                        mandate.merchant_connector_id.as_ref(),
-                    )
-                    .await?;
-
-                    let router_data = mandate::utils::construct_mandate_revoke_router_data(
-                        merchant_connector_account,
-                        merchant_account,
-                        mandate.clone(),
-                    )
-                    .await?;
-
-                    let _response = services::execute_connector_processing_step(
-                        state,
-                        connector_integration,
-                        &router_data,
-                        call_connector_action,
-                        None,
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
-                    // TODO:Add the revoke mandate task to process tracker
-                    mandate::update_mandate_procedure(
-                        state,
-                        resp,
-                        mandate,
-                        &merchant_account.merchant_id,
-                        Some(profile_id),
-                    )
-                    .await
-                }
-                Ok(_) => Err(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Unexpected response received")?,
-                Err(_) => Ok(resp),
-            }
-        } else {
-            Err(errors::ApiErrorResponse::PreconditionFailed {
-                message: format!(
-                    "Update Mandate flow not implemented for the connector {:?}",
-                    connector.connector_name
-                ),
-            }
-            .into())
-        }
     }
 }
 

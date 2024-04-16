@@ -53,9 +53,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         self,
         state: &routes::AppState,
         connector: &api::ConnectorData,
-        customer: &Option<domain::Customer>,
         call_connector_action: payments::CallConnectorAction,
-        _merchant_account: &domain::MerchantAccount,
         _connector_request: Option<services::Request>,
         _key_store: &domain::MerchantKeyStore,
         _profile_id: Option<String>,
@@ -68,14 +66,8 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
                 connector.connector_name.to_string(),
             )],
         );
-        self.decide_flow(
-            state,
-            connector,
-            customer,
-            Some(true),
-            call_connector_action,
-        )
-        .await
+        self.decide_flow(state, connector, Some(true), call_connector_action)
+            .await
     }
 
     async fn add_access_token<'a>(
@@ -502,7 +494,6 @@ impl types::PaymentsSessionRouterData {
         &'b self,
         state: &'a routes::AppState,
         connector: &api::ConnectorData,
-        _customer: &Option<domain::Customer>,
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<Self> {

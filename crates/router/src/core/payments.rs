@@ -1366,9 +1366,7 @@ where
             .decide_flows(
                 state,
                 &connector,
-                customer,
                 call_connector_action,
-                merchant_account,
                 connector_request,
                 key_store,
                 payment_data.payment_intent.profile_id.clone(),
@@ -1495,9 +1493,7 @@ where
         let res = router_data.decide_flows(
             state,
             &session_connector_data.connector,
-            customer,
             CallConnectorAction::Trigger,
-            merchant_account,
             None,
             key_store,
             payment_data.payment_intent.profile_id.clone(),
