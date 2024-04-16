@@ -5125,7 +5125,8 @@
       "AuthenticationConnectors": {
         "type": "string",
         "enum": [
-          "threedsecureio"
+          "threedsecureio",
+          "netcetera"
         ]
       },
       "AuthenticationStatus": {
@@ -7156,6 +7157,7 @@
           "klarna",
           "mollie",
           "multisafepay",
+          "netcetera",
           "nexinets",
           "nmi",
           "noon",
