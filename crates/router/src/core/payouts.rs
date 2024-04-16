@@ -1242,22 +1242,9 @@ pub async fn complete_create_payout_if_required(
     if payout_data.payout_attempt.status == storage_enums::PayoutStatus::RequiresCreation {
         if connector_data
             .connector_name
-            .supports_create_payout_in_connector(payout_data.payouts.payout_type)
-        {
-            payout_data = create_payout(
-                state,
-                merchant_account,
-                key_store,
-                req,
-                connector_data,
-                &mut payout_data,
-            )
-            .await
-            .attach_printable("Payout creation failed for given Payout request")?;
-        } else if connector_data
-            .connector_name
             .supports_create_payout_in_router(payout_data.payouts.payout_type)
         {
+            // create payout_object only in router
             let db = &*state.store;
             let payout_attempt = &payout_data.payout_attempt;
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
@@ -1289,6 +1276,18 @@ pub async fn complete_create_payout_if_required(
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error updating payouts in db")?;
+        } else {
+            // create payout_object in connector as well as router
+            payout_data = create_payout(
+                state,
+                merchant_account,
+                key_store,
+                req,
+                connector_data,
+                &mut payout_data,
+            )
+            .await
+            .attach_printable("Payout creation failed for given Payout request")?;
         }
     }
     Ok(payout_data)

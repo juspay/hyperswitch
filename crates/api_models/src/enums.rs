@@ -137,7 +137,7 @@ impl Connector {
     pub fn supports_create_payout_in_connector(&self, payout_method: PayoutType) -> bool {
         matches!(
             (self, payout_method),
-            (_, PayoutType::Bank) | (Self::Adyen, PayoutType::Wallet)
+            (_, PayoutType::Bank) | (_, PayoutType::Wallet) | (_, PayoutType::Card)
         )
     }
     pub fn supports_create_payout_in_router(&self, payout_method: PayoutType) -> bool {
