@@ -2350,7 +2350,6 @@ impl services::ConnectorIntegration<api::PoCancel, types::PayoutsData, types::Pa
         Ok(Some(request))
     }
 
-    #[instrument(skip_all)]
     fn handle_response(
         &self,
         data: &types::PayoutsRouterData<api::PoCancel>,
@@ -2429,7 +2428,6 @@ impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::Pa
         Ok(Some(request))
     }
 
-    #[instrument(skip_all)]
     fn handle_response(
         &self,
         data: &types::PayoutsRouterData<api::PoCreate>,
@@ -2517,7 +2515,6 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
         Ok(Some(request))
     }
 
-    #[instrument(skip_all)]
     fn handle_response(
         &self,
         data: &types::PayoutsRouterData<api::PoFulfill>,
@@ -2599,7 +2596,6 @@ impl
         Ok(Some(request))
     }
 
-    #[instrument(skip_all)]
     fn handle_response(
         &self,
         data: &types::PayoutsRouterData<api::PoRecipient>,
@@ -2690,7 +2686,6 @@ impl
         Ok(Some(request))
     }
 
-    #[instrument(skip_all)]
     fn handle_response(
         &self,
         data: &types::PayoutsRouterData<api::PoRecipientAccount>,
