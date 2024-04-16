@@ -939,6 +939,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 m_payment_data_mandate_id,
                 m_payment_method_id,
                 m_router_data_response,
+                storage_scheme,
             )
             .await
         }

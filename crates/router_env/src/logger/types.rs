@@ -151,6 +151,8 @@ pub enum Flow {
     PaymentsStart,
     /// Payments list flow.
     PaymentsList,
+    // Payments filters flow
+    PaymentsFilters,
     #[cfg(feature = "payouts")]
     /// Payouts create flow
     PayoutsCreate,

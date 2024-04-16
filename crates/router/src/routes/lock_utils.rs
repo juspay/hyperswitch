@@ -115,6 +115,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsSessionToken
             | Flow::PaymentsStart
             | Flow::PaymentsList
+            | Flow::PaymentsFilters
             | Flow::PaymentsRedirect
             | Flow::PaymentsIncrementalAuthorization
             | Flow::PaymentsExternalAuthentication
