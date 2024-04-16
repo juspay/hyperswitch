@@ -363,4 +363,4 @@ services:
       sdkEnv: local
       envSdkUrl: http://localhost:9050
       envBackendUrl: http://localhost:8080
-
+      envLoggingUrl: http://localhost:8207
