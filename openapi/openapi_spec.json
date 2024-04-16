@@ -15472,7 +15472,8 @@
         "type": "string",
         "enum": [
           "adyen",
-          "wise"
+          "wise",
+          "paypal"
         ]
       },
       "PayoutCreateRequest": {
