@@ -143,6 +143,7 @@ cards = [
     "worldline",
     "worldpay",
     "zen",
+    "zsl",
 ]
 
 [refund]
@@ -227,6 +228,7 @@ volt.base_url = "https://api.sandbox.volt.io/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 zen.base_url = "https://api.zen-test.com/"
 zen.secondary_base_url = "https://secure.zen-test.com/"
+zsl.base_url = "https://api.sitoffalb.net/"
 
 [scheduler]
 stream = "SCHEDULER_STREAM"
@@ -403,6 +405,9 @@ pse = { country = "CO", currency = "COP" }
 pix = { country = "BR", currency = "BRL" }
 red_compra = { country = "CL", currency = "CLP" }
 red_pagos = { country = "UY", currency = "UYU" }
+
+[pm_filters.zsl]
+local_bank_transfer = { country = "CN", currency = "CNY" }
 
 [pm_filters.aci]
 credit = { not_available_flows = { capture_method = "manual" } }

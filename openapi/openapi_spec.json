@@ -7211,10 +7211,11 @@
           "wise",
           "worldline",
           "worldpay",
-          "zen",
           "signifyd",
           "plaid",
-          "riskified"
+          "riskified",
+          "zen",
+          "zsl"
         ]
       },
       "ConnectorMetadata": {
@@ -14882,6 +14883,13 @@
               }
             ],
             "nullable": true
+          },
+          "updated": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Date time at which payment was updated",
+            "example": "2022-09-10T10:11:12Z",
+            "nullable": true
           }
         }
       },
@@ -16992,7 +17000,8 @@
           "wise",
           "worldline",
           "worldpay",
-          "zen"
+          "zen",
+          "zsl"
         ]
       },
       "RoutingAlgorithm": {
@@ -17529,6 +17538,14 @@
           },
           "initiative_context": {
             "type": "string"
+          },
+          "merchant_business_country": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
           }
         }
       },

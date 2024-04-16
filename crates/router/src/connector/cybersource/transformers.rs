@@ -784,9 +784,10 @@ fn build_bill_to(
         .ok_or_else(utils::missing_field_err("billing.address"))?;
     let mut state = address.to_state_code()?.peek().clone();
     state.truncate(20);
+    let first_name = address.get_first_name()?;
     Ok(BillTo {
-        first_name: address.get_first_name()?.to_owned(),
-        last_name: address.get_last_name()?.to_owned(),
+        first_name: first_name.clone(),
+        last_name: address.get_last_name().unwrap_or(first_name).clone(),
         address1: address.get_line1()?.to_owned(),
         locality: address.get_city()?.to_owned(),
         administrative_area: Secret::from(state),
