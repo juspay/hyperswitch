@@ -384,17 +384,20 @@ pub async fn get_mca_from_payment_intent(
                 id: merchant_connector_id,
             }),
         None => {
-            let profile_id = utils::get_profile_id_from_business_details(
-                payment_intent.business_country,
-                payment_intent.business_label.as_ref(),
-                merchant_account,
-                payment_intent.profile_id.as_ref(),
-                db,
-                false,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("profile_id is not set in payment_intent")?;
+            let profile_id = match payment_intent.profile_id {
+                Some(profile_id) => profile_id,
+                None => utils::get_profile_id_from_business_details(
+                    payment_intent.business_country,
+                    payment_intent.business_label.as_ref(),
+                    merchant_account,
+                    payment_intent.profile_id.as_ref(),
+                    db,
+                    false,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("profile_id is not set in payment_intent")?,
+            };
 
             db.find_merchant_connector_account_by_profile_id_connector_name(
                 &profile_id,
@@ -808,11 +811,9 @@ pub fn check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
             .map_err(|err| logger::warn!(parsing_error=?err,"Error while parsing ExternalThreeDSConnectorMetadata"))
             .ok();
     external_three_ds_connector_metadata
-        .map(|metadata| {
+        .and_then(|metadata| {
             metadata
                 .pull_mechanism_for_external_3ds_enabled
-                .unwrap_or("true".to_owned())
-                == *"true"
         })
         .unwrap_or(true)
 }
