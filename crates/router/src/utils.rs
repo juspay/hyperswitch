@@ -811,10 +811,7 @@ pub fn check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
             .map_err(|err| logger::warn!(parsing_error=?err,"Error while parsing ExternalThreeDSConnectorMetadata"))
             .ok();
     external_three_ds_connector_metadata
-        .and_then(|metadata| {
-            metadata
-                .pull_mechanism_for_external_3ds_enabled
-        })
+        .and_then(|metadata| metadata.pull_mechanism_for_external_3ds_enabled)
         .unwrap_or(true)
 }
 
