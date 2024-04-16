@@ -1,10 +1,15 @@
+use std::collections::HashMap;
+
 use common_utils::pii;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
 use super::payments::TimeRange;
-use crate::{admin, enums};
+use crate::{
+    admin::{self, MerchantConnectorInfo},
+    enums,
+};
 
 #[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -173,6 +178,18 @@ pub struct RefundListResponse {
 pub struct RefundListMetaData {
     /// The list of available connector filters
     pub connector: Vec<String>,
+    /// The list of available currency filters
+    #[schema(value_type = Vec<Currency>)]
+    pub currency: Vec<enums::Currency>,
+    /// The list of available refund status filters
+    #[schema(value_type = Vec<RefundStatus>)]
+    pub refund_status: Vec<enums::RefundStatus>,
+}
+
+#[derive(Clone, Debug, serde::Serialize, ToSchema)]
+pub struct RefundListFilters {
+    /// The list of available connector filters
+    pub connector: HashMap<String, Vec<MerchantConnectorInfo>>,
     /// The list of available currency filters
     #[schema(value_type = Vec<Currency>)]
     pub currency: Vec<enums::Currency>,
