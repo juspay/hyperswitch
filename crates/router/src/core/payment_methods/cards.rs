@@ -656,12 +656,12 @@ pub fn validate_payment_method_update(
     card_updation_obj: CardDetailUpdate,
     existing_card_data: api::CardDetailFromLocker,
 ) -> bool {
-    /// Return true If any one of the below condition returns true,
-    /// If a field is not passed in the update request, return false.
-    /// If the field is present, it depends on the existing field data:
-    /// - If existing field data is not present, or if it is present and doesn't match
-    ///   the update request data, then return true.
-    /// - Or else return false
+    // Return true If any one of the below condition returns true,
+    // If a field is not passed in the update request, return false.
+    // If the field is present, it depends on the existing field data:
+    // - If existing field data is not present, or if it is present and doesn't match
+    //   the update request data, then return true.
+    // - Or else return false
     card_updation_obj
         .card_exp_month
         .map(|exp_month| exp_month.expose())
