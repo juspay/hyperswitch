@@ -24,8 +24,9 @@ pub use common_utils::{
     validation::validate_email,
 };
 use data_models::payments::PaymentIntent;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use image::Luma;
+use masking::ExposeInterface;
 use nanoid::nanoid;
 use qrcode;
 use serde::de::DeserializeOwned;
@@ -126,32 +127,28 @@ impl<E> ConnectorResponseExt
     for Result<Result<types::Response, types::Response>, error_stack::Report<E>>
 {
     fn get_error_response(self) -> RouterResult<types::Response> {
-        self.change_context(errors::ApiErrorResponse::InternalServerError)
+        self.map_err(|error| error.change_context(errors::ApiErrorResponse::InternalServerError))
             .attach_printable("Error while receiving response")
             .and_then(|inner| match inner {
                 Ok(res) => {
                     logger::error!(response=?res);
-                    Err(errors::ApiErrorResponse::InternalServerError)
-                        .into_report()
-                        .attach_printable(format!(
-                            "Expecting error response, received response: {res:?}"
-                        ))
+                    Err(errors::ApiErrorResponse::InternalServerError).attach_printable(format!(
+                        "Expecting error response, received response: {res:?}"
+                    ))
                 }
                 Err(err_res) => Ok(err_res),
             })
     }
 
     fn get_response(self) -> RouterResult<types::Response> {
-        self.change_context(errors::ApiErrorResponse::InternalServerError)
+        self.map_err(|error| error.change_context(errors::ApiErrorResponse::InternalServerError))
             .attach_printable("Error while receiving response")
             .and_then(|inner| match inner {
                 Err(err_res) => {
                     logger::error!(error_response=?err_res);
-                    Err(errors::ApiErrorResponse::InternalServerError)
-                        .into_report()
-                        .attach_printable(format!(
-                            "Expecting response, received error response: {err_res:?}"
-                        ))
+                    Err(errors::ApiErrorResponse::InternalServerError).attach_printable(format!(
+                        "Expecting response, received error response: {err_res:?}"
+                    ))
                 }
                 Ok(res) => Ok(res),
             })
@@ -173,22 +170,21 @@ impl QrImage {
         data: String,
     ) -> Result<Self, error_stack::Report<common_utils::errors::QrCodeError>> {
         let qr_code = qrcode::QrCode::new(data.as_bytes())
-            .into_report()
             .change_context(common_utils::errors::QrCodeError::FailedToCreateQrCode)?;
 
         // Renders the QR code into an image.
         let qrcode_image_buffer = qr_code.render::<Luma<u8>>().build();
         let qrcode_dynamic_image = image::DynamicImage::ImageLuma8(qrcode_image_buffer);
 
-        let mut image_bytes = Vec::new();
+        let mut image_bytes = std::io::BufWriter::new(std::io::Cursor::new(Vec::new()));
 
         // Encodes qrcode_dynamic_image and write it to image_bytes
-        let _ = qrcode_dynamic_image.write_to(&mut image_bytes, image::ImageOutputFormat::Png);
+        let _ = qrcode_dynamic_image.write_to(&mut image_bytes, image::ImageFormat::Png);
 
         let image_data_source = format!(
             "{},{}",
             consts::QR_IMAGE_DATA_SOURCE_STRING,
-            consts::BASE64_ENGINE.encode(image_bytes)
+            consts::BASE64_ENGINE.encode(image_bytes.get_ref().get_ref())
         );
         Ok(Self {
             data: image_data_source,
@@ -317,7 +313,6 @@ pub async fn find_payment_intent_from_mandate_id_type(
         &mandate
             .original_payment_id
             .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .into_report()
             .attach_printable("original_payment_id not present in mandate record")?,
         &merchant_account.merchant_id,
         merchant_account.storage_scheme,
@@ -433,7 +428,6 @@ pub fn handle_json_response_deserialization_failure(
     );
 
     let response_data = String::from_utf8(res.response.to_vec())
-        .into_report()
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
     // check for whether the response is in json format
@@ -466,7 +460,6 @@ pub fn get_http_status_code_type(
         400..=499 => "4xx",
         500..=599 => "5xx",
         _ => Err(errors::ApiErrorResponse::InternalServerError)
-            .into_report()
             .attach_printable("Invalid http status code")?,
     };
     Ok(status_code_type.to_string())
@@ -564,6 +557,12 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                     .await?,
                 country_code: self.phone_country_code.clone(),
                 updated_by: storage_scheme.to_string(),
+                email: self
+                    .email
+                    .as_ref()
+                    .cloned()
+                    .async_lift(|inner| encrypt_optional(inner.map(|inner| inner.expose()), key))
+                    .await?,
             })
         }
         .await
@@ -623,6 +622,12 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                 created_at: common_utils::date_time::now(),
                 modified_at: common_utils::date_time::now(),
                 updated_by: storage_scheme.to_string(),
+                email: self
+                    .email
+                    .as_ref()
+                    .cloned()
+                    .async_lift(|inner| encrypt_optional(inner.map(|inner| inner.expose()), key))
+                    .await?,
             })
         }
         .await
@@ -730,11 +735,12 @@ pub fn add_apple_pay_payment_status_metrics(
     }
 }
 
-pub async fn trigger_payments_webhook<F, Req, Op>(
+#[allow(clippy::too_many_arguments)]
+pub async fn trigger_payments_webhook<F, Op>(
     merchant_account: domain::MerchantAccount,
     business_profile: diesel_models::business_profile::BusinessProfile,
+    key_store: &domain::MerchantKeyStore,
     payment_data: crate::core::payments::PaymentData<F>,
-    req: Option<Req>,
     customer: Option<domain::Customer>,
     state: &crate::routes::AppState,
     operation: Op,
@@ -763,7 +769,6 @@ where
             | enums::IntentStatus::PartiallyCaptured
     ) {
         let payments_response = crate::core::payments::transformers::payments_to_payments_response(
-            req,
             payment_data,
             captures,
             customer,
@@ -781,7 +786,8 @@ where
         if let services::ApplicationResponse::JsonWithHeaders((payments_response_json, _)) =
             payments_response
         {
-            let m_state = state.clone();
+            let cloned_state = state.clone();
+            let cloned_key_store = key_store.clone();
             // This spawns this futures in a background thread, the exception inside this future won't affect
             // the current thread and the lifecycle of spawn thread is not handled by runtime.
             // So when server shutdown won't wait for this thread's completion.
@@ -789,21 +795,21 @@ where
             if let Some(event_type) = event_type {
                 tokio::spawn(
                     async move {
-                        Box::pin(
-                            webhooks_core::create_event_and_trigger_appropriate_outgoing_webhook(
-                                m_state,
-                                merchant_account,
-                                business_profile,
-                                event_type,
-                                diesel_models::enums::EventClass::Payments,
-                                None,
-                                payment_id,
-                                diesel_models::enums::EventObjectType::PaymentDetails,
-                                webhooks::OutgoingWebhookContent::PaymentDetails(
-                                    payments_response_json,
-                                ),
+                        let primary_object_created_at = payments_response_json.created;
+                        Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
+                            cloned_state,
+                            merchant_account,
+                            business_profile,
+                            &cloned_key_store,
+                            event_type,
+                            diesel_models::enums::EventClass::Payments,
+                            payment_id,
+                            diesel_models::enums::EventObjectType::PaymentDetails,
+                            webhooks::OutgoingWebhookContent::PaymentDetails(
+                                payments_response_json,
                             ),
-                        )
+                            primary_object_created_at,
+                        ))
                         .await
                     }
                     .in_current_span(),
@@ -826,7 +832,6 @@ pub async fn flatten_join_error<T>(handle: Handle<T>) -> RouterResult<T> {
         Ok(Ok(t)) => Ok(t),
         Ok(Err(err)) => Err(err),
         Err(err) => Err(err)
-            .into_report()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Join Error"),
     }

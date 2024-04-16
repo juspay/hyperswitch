@@ -1,6 +1,6 @@
 use api_models::enums::{PaymentMethod, PaymentMethodType};
 use async_trait::async_trait;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -62,6 +62,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         merchant_account: &domain::MerchantAccount,
         connector_request: Option<services::Request>,
         key_store: &domain::MerchantKeyStore,
+        profile_id: Option<String>,
     ) -> RouterResult<Self> {
         if let Some(mandate_id) = self
             .request
@@ -69,7 +70,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             .as_ref()
             .and_then(|mandate_data| mandate_data.update_mandate_id.clone())
         {
-            self.update_mandate_flow(
+            Box::pin(self.update_mandate_flow(
                 state,
                 merchant_account,
                 mandate_id,
@@ -79,7 +80,8 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                 &state.conf.mandates.update_mandate_supported,
                 connector_request,
                 maybe_customer,
-            )
+                profile_id,
+            ))
             .await
         } else {
             let connector_integration: services::BoxedConnectorIntegration<
@@ -89,7 +91,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                 types::PaymentsResponseData,
             > = connector.connector.get_connector_integration();
 
-            let resp = services::execute_connector_processing_step(
+            let mut resp = services::execute_connector_processing_step(
                 state,
                 connector_integration,
                 &self,
@@ -98,8 +100,8 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             )
             .await
             .to_setup_mandate_failed_response()?;
-            let is_mandate = resp.request.setup_mandate_details.is_some();
-            let pm_id = Box::pin(tokenization::save_payment_method(
+
+            let (pm_id, payment_method_status) = Box::pin(tokenization::save_payment_method(
                 state,
                 connector,
                 resp.to_owned(),
@@ -107,9 +109,14 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                 merchant_account,
                 self.request.payment_method_type,
                 key_store,
-                is_mandate,
+                resp.request.amount,
+                Some(resp.request.currency),
+                profile_id,
             ))
             .await?;
+
+            resp.payment_method_id = pm_id.clone();
+            resp.payment_method_status = payment_method_status;
             mandate::mandate_procedure(
                 state,
                 resp,
@@ -213,6 +220,7 @@ impl types::SetupMandateRouterData {
         call_connector_action: payments::CallConnectorAction,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
+        profile_id: Option<String>,
     ) -> RouterResult<Self> {
         match confirm {
             Some(true) => {
@@ -222,7 +230,7 @@ impl types::SetupMandateRouterData {
                     types::SetupMandateRequestData,
                     types::PaymentsResponseData,
                 > = connector.connector.get_connector_integration();
-                let resp = services::execute_connector_processing_step(
+                let mut resp = services::execute_connector_processing_step(
                     state,
                     connector_integration,
                     self,
@@ -234,9 +242,7 @@ impl types::SetupMandateRouterData {
 
                 let payment_method_type = self.request.payment_method_type;
 
-                let is_mandate = resp.request.setup_mandate_details.is_some();
-
-                let pm_id = Box::pin(tokenization::save_payment_method(
+                let (pm_id, payment_method_status) = Box::pin(tokenization::save_payment_method(
                     state,
                     connector,
                     resp.to_owned(),
@@ -244,9 +250,14 @@ impl types::SetupMandateRouterData {
                     merchant_account,
                     payment_method_type,
                     key_store,
-                    is_mandate,
+                    resp.request.amount,
+                    Some(resp.request.currency),
+                    profile_id,
                 ))
                 .await?;
+
+                resp.payment_method_id = pm_id.clone();
+                resp.payment_method_status = payment_method_status;
 
                 Ok(mandate::mandate_procedure(
                     state,
@@ -272,6 +283,7 @@ impl types::SetupMandateRouterData {
         supported_connectors_for_update_mandate: &settings::SupportedPaymentMethodsForMandate,
         connector_request: Option<services::Request>,
         maybe_customer: &Option<domain::Customer>,
+        profile_id: Option<String>,
     ) -> RouterResult<Self> {
         let payment_method_type = self.request.payment_method_type;
 
@@ -320,7 +332,6 @@ impl types::SetupMandateRouterData {
             )
             .await
             .to_setup_mandate_failed_response()?;
-            let is_mandate = resp.request.setup_mandate_details.is_some();
             let pm_id = Box::pin(tokenization::save_payment_method(
                 state,
                 connector,
@@ -329,9 +340,12 @@ impl types::SetupMandateRouterData {
                 merchant_account,
                 self.request.payment_method_type,
                 key_store,
-                is_mandate,
+                resp.request.amount,
+                Some(resp.request.currency),
+                profile_id,
             ))
-            .await?;
+            .await?
+            .0;
             let mandate = state
                 .store
                 .find_mandate_by_merchant_id_mandate_id(&merchant_account.merchant_id, &mandate_id)
@@ -390,7 +404,6 @@ impl types::SetupMandateRouterData {
                     .await
                 }
                 Ok(_) => Err(errors::ApiErrorResponse::InternalServerError)
-                    .into_report()
                     .attach_printable("Unexpected response received")?,
                 Err(_) => Ok(resp),
             }
@@ -400,8 +413,8 @@ impl types::SetupMandateRouterData {
                     "Update Mandate flow not implemented for the connector {:?}",
                     connector.connector_name
                 ),
-            })
-            .into_report()
+            }
+            .into())
         }
     }
 }
@@ -423,12 +436,15 @@ impl mandate::MandateBehaviour for types::SetupMandateRequestData {
         self.mandate_id = new_mandate_id;
     }
 
-    fn get_payment_method_data(&self) -> api_models::payments::PaymentMethodData {
+    fn get_payment_method_data(&self) -> domain::payments::PaymentMethodData {
         self.payment_method_data.clone()
     }
 
     fn get_setup_mandate_details(&self) -> Option<&data_models::mandates::MandateData> {
         self.setup_mandate_details.as_ref()
+    }
+    fn get_customer_acceptance(&self) -> Option<api_models::payments::CustomerAcceptance> {
+        self.customer_acceptance.clone().map(From::from)
     }
 }
 

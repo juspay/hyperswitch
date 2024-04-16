@@ -12,30 +12,6 @@ use crate::{errors as storage_errors, store::errors::DatabaseError};
 
 pub type ApplicationResult<T> = Result<T, ApplicationError>;
 
-macro_rules! impl_error_display {
-    ($st: ident, $arg: tt) => {
-        impl Display for $st {
-            fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                write!(
-                    fmt,
-                    "{{ error_type: {:?}, error_description: {} }}",
-                    self, $arg
-                )
-            }
-        }
-    };
-}
-macro_rules! impl_error_type {
-    ($name: ident, $arg: tt) => {
-        #[derive(Debug)]
-        pub struct $name;
-
-        impl_error_display!($name, $arg);
-
-        impl std::error::Error for $name {}
-    };
-}
-
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {
     #[error("DatabaseError: {0:?}")]
@@ -139,6 +115,7 @@ impl StorageError {
     pub fn is_db_not_found(&self) -> bool {
         match self {
             Self::DatabaseError(err) => matches!(err.current_context(), DatabaseError::NotFound),
+            Self::ValueNotFound(_) => true,
             _ => false,
         }
     }
@@ -164,16 +141,16 @@ impl RedisErrorExt for error_stack::Report<RedisError> {
             RedisError::NotFound => self.change_context(DataStorageError::ValueNotFound(format!(
                 "Data does not exist for key {key}",
             ))),
-            RedisError::SetNxFailed => self.change_context(DataStorageError::DuplicateValue {
-                entity: "redis",
-                key: Some(key.to_string()),
-            }),
+            RedisError::SetNxFailed | RedisError::SetAddMembersFailed => {
+                self.change_context(DataStorageError::DuplicateValue {
+                    entity: "redis",
+                    key: Some(key.to_string()),
+                })
+            }
             _ => self.change_context(DataStorageError::KVError),
         }
     }
 }
-
-impl_error_type!(EncryptionError, "Encryption error");
 
 #[derive(Debug, thiserror::Error)]
 pub enum ApplicationError {
@@ -204,12 +181,6 @@ impl From<MetricsError> for ApplicationError {
 impl From<std::io::Error> for ApplicationError {
     fn from(err: std::io::Error) -> Self {
         Self::IoError(err)
-    }
-}
-
-impl From<ring::error::Unspecified> for EncryptionError {
-    fn from(_: ring::error::Unspecified) -> Self {
-        Self
     }
 }
 
@@ -371,7 +342,7 @@ pub enum ConnectorError {
     #[error("Payment Method data / Payment Method Type / Payment Experience Mismatch ")]
     MismatchedPaymentData,
     #[error("Failed to parse Wallet token")]
-    InvalidWalletToken,
+    InvalidWalletToken { wallet_name: String },
     #[error("Missing Connector Related Transaction ID")]
     MissingConnectorRelatedTransactionID { id: String },
     #[error("File Validation failed")]

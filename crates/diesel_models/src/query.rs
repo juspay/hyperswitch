@@ -6,6 +6,7 @@ mod capture;
 pub mod cards_info;
 pub mod configs;
 
+pub mod authentication;
 pub mod authorization;
 pub mod blocklist;
 pub mod blocklist_fingerprint;
@@ -32,6 +33,7 @@ pub mod payouts;
 pub mod process_tracker;
 pub mod refund;
 pub mod reverse_lookup;
+pub mod role;
 pub mod routing_algorithm;
 pub mod user;
 pub mod user_role;

@@ -1,6 +1,5 @@
-use api_models::payments::CryptoData;
 use masking::Secret;
-use router::types::{self, api, storage::enums, PaymentAddress};
+use router::types::{self, api, domain, storage::enums, PaymentAddress};
 
 use crate::{
     connector_auth,
@@ -39,8 +38,9 @@ static CONNECTOR: BitpayTest = BitpayTest {};
 
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     Some(utils::PaymentInfo {
-        address: Some(PaymentAddress {
-            billing: Some(api::Address {
+        address: Some(PaymentAddress::new(
+            None,
+            Some(api::Address {
                 address: Some(api::AddressDetails {
                     first_name: Some(Secret::new("first".to_string())),
                     last_name: Some(Secret::new("last".to_string())),
@@ -55,9 +55,10 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                     number: Some(Secret::new("1234567890".to_string())),
                     country_code: Some("+91".to_string()),
                 }),
+                email: None,
             }),
-            ..Default::default()
-        }),
+            None,
+        )),
         ..Default::default()
     })
 }
@@ -66,7 +67,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
         amount: 1,
         currency: enums::Currency::USD,
-        payment_method_data: types::api::PaymentMethodData::Crypto(CryptoData {
+        payment_method_data: types::domain::PaymentMethodData::Crypto(domain::CryptoData {
             pay_currency: None,
         }),
         confirm: true,
@@ -95,6 +96,8 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
         surcharge_details: None,
         request_incremental_authorization: false,
         metadata: None,
+        authentication_data: None,
+        customer_acceptance: None,
     })
 }
 

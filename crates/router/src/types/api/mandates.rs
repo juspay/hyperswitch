@@ -28,6 +28,7 @@ pub(crate) trait MandateResponseExt: Sized {
         state: &AppState,
         key_store: domain::MerchantKeyStore,
         mandate: storage::Mandate,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<Self>;
 }
 
@@ -37,10 +38,11 @@ impl MandateResponseExt for MandateResponse {
         state: &AppState,
         key_store: domain::MerchantKeyStore,
         mandate: storage::Mandate,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<Self> {
         let db = &*state.store;
         let payment_method = db
-            .find_payment_method(&mandate.payment_method_id)
+            .find_payment_method(&mandate.payment_method_id, storage_scheme)
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
@@ -51,7 +53,10 @@ impl MandateResponseExt for MandateResponse {
                     state,
                     &payment_method.customer_id,
                     &payment_method.merchant_id,
-                    &payment_method.payment_method_id,
+                    payment_method
+                        .locker_id
+                        .as_ref()
+                        .unwrap_or(&payment_method.payment_method_id),
                 )
                 .await?;
 

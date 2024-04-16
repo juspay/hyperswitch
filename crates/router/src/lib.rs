@@ -30,6 +30,8 @@ use actix_web::{
     middleware::ErrorHandlers,
 };
 use http::StatusCode;
+use hyperswitch_interfaces::secrets_interface::secret_state::SecuredSecret;
+use router_env::tracing::Instrument;
 use routes::AppState;
 use storage_impl::errors::ApplicationResult;
 use tokio::sync::{mpsc, oneshot};
@@ -135,16 +137,12 @@ pub fn mk_app(
             .service(routes::Analytics::server(state.clone()))
             .service(routes::Routing::server(state.clone()))
             .service(routes::Blocklist::server(state.clone()))
-            .service(routes::LockerMigrate::server(state.clone()))
             .service(routes::Gsm::server(state.clone()))
             .service(routes::PaymentLink::server(state.clone()))
             .service(routes::User::server(state.clone()))
             .service(routes::ConnectorOnboarding::server(state.clone()))
-    }
-
-    #[cfg(all(feature = "olap", feature = "aws_kms"))]
-    {
-        server_app = server_app.service(routes::Verify::server(state.clone()));
+            .service(routes::Verify::server(state.clone()))
+            .service(routes::WebhookEvents::server(state.clone()));
     }
 
     #[cfg(feature = "payouts")]
@@ -175,7 +173,7 @@ pub fn mk_app(
 ///
 ///  Unwrap used because without the value we can't start the server
 #[allow(clippy::expect_used, clippy::unwrap_used)]
-pub async fn start_server(conf: settings::Settings) -> ApplicationResult<Server> {
+pub async fn start_server(conf: settings::Settings<SecuredSecret>) -> ApplicationResult<Server> {
     logger::debug!(startup_config=?conf);
     let server = conf.server.clone();
     let (tx, rx) = oneshot::channel();
@@ -195,7 +193,7 @@ pub async fn start_server(conf: settings::Settings) -> ApplicationResult<Server>
         .workers(server.workers)
         .shutdown_timeout(server.shutdown_timeout)
         .run();
-    tokio::spawn(receiver_for_error(rx, server.handle()));
+    let _task_handle = tokio::spawn(receiver_for_error(rx, server.handle()).in_current_span());
     Ok(server)
 }
 

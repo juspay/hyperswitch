@@ -51,6 +51,12 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::CardError, code = "invalid_card_type", message = "Card data is invalid")]
     InvalidCardType,
 
+    #[error(
+        error_type = StripeErrorType::ConnectorError, code = "invalid_wallet_token",
+        message = "Invalid {wallet_name} wallet token"
+    )]
+    InvalidWalletToken { wallet_name: String },
+
     #[error(error_type = StripeErrorType::ApiError, code = "refund_failed", message = "refund has failed")]
     RefundFailed, // stripe error code
 
@@ -120,6 +126,9 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such payout")]
     PayoutNotFound,
 
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such event")]
+    EventNotFound,
+
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "Duplicate payout request")]
     DuplicatePayout { payout_id: String },
 
@@ -129,10 +138,10 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "duplicate merchant account")]
     DuplicateMerchantAccount,
 
-    #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "The merchant connector account with the specified profile_id '{profile_id}' and connector_name '{connector_name}' already exists in our records")]
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "The merchant connector account with the specified profile_id '{profile_id}' and connector_label '{connector_label}' already exists in our records")]
     DuplicateMerchantConnectorAccount {
         profile_id: String,
-        connector_name: String,
+        connector_label: String,
     },
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "duplicate payment method")]
@@ -251,6 +260,8 @@ pub enum StripeErrorCode {
     InvalidConnectorConfiguration { config: String },
     #[error(error_type = StripeErrorType::HyperswitchError, code = "HE_01", message = "Failed to convert currency to minor unit")]
     CurrencyConversionFailed,
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "IR_25", message = "Cannot delete the default payment method")]
+    PaymentMethodDeleteFailed,
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
 
@@ -416,6 +427,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             | errors::ApiErrorResponse::InvalidJwtToken
             | errors::ApiErrorResponse::GenericUnauthorized { .. }
             | errors::ApiErrorResponse::AccessForbidden { .. }
+            | errors::ApiErrorResponse::InvalidCookie
             | errors::ApiErrorResponse::InvalidEphemeralKey => Self::Unauthorized,
             errors::ApiErrorResponse::InvalidRequestUrl
             | errors::ApiErrorResponse::InvalidHttpMethod
@@ -516,6 +528,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::MandateNotFound => Self::MandateNotFound,
             errors::ApiErrorResponse::ApiKeyNotFound => Self::ApiKeyNotFound,
             errors::ApiErrorResponse::PayoutNotFound => Self::PayoutNotFound,
+            errors::ApiErrorResponse::EventNotFound => Self::EventNotFound,
             errors::ApiErrorResponse::MandateValidationFailed { reason } => {
                 Self::PaymentIntentMandateInvalid { message: reason }
             }
@@ -523,10 +536,10 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::DuplicateMerchantAccount => Self::DuplicateMerchantAccount,
             errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
                 profile_id,
-                connector_name,
+                connector_label,
             } => Self::DuplicateMerchantConnectorAccount {
                 profile_id,
-                connector_name,
+                connector_label,
             },
             errors::ApiErrorResponse::DuplicatePaymentMethod => Self::DuplicatePaymentMethod,
             errors::ApiErrorResponse::PaymentBlockedError {
@@ -618,6 +631,10 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 Self::InvalidConnectorConfiguration { config }
             }
             errors::ApiErrorResponse::CurrencyConversionFailed => Self::CurrencyConversionFailed,
+            errors::ApiErrorResponse::PaymentMethodDeleteFailed => Self::PaymentMethodDeleteFailed,
+            errors::ApiErrorResponse::InvalidWalletToken { wallet_name } => {
+                Self::InvalidWalletToken { wallet_name }
+            }
         }
     }
 }
@@ -653,6 +670,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::MandateNotFound
             | Self::ApiKeyNotFound
             | Self::PayoutNotFound
+            | Self::EventNotFound
             | Self::DuplicateMerchantAccount
             | Self::DuplicateMerchantConnectorAccount { .. }
             | Self::DuplicatePaymentMethod
@@ -663,6 +681,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::PaymentIntentInvalidParameter { .. }
             | Self::SerdeQsError { .. }
             | Self::InvalidRequestData { .. }
+            | Self::InvalidWalletToken { .. }
             | Self::PreconditionFailed { .. }
             | Self::DuplicateMandate
             | Self::SuccessfulPaymentNotFound
@@ -686,7 +705,8 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::DuplicateCustomer
             | Self::PaymentMethodUnactivated
             | Self::InvalidConnectorConfiguration { .. }
-            | Self::CurrencyConversionFailed => StatusCode::BAD_REQUEST,
+            | Self::CurrencyConversionFailed
+            | Self::PaymentMethodDeleteFailed => StatusCode::BAD_REQUEST,
             Self::RefundFailed
             | Self::PayoutFailed
             | Self::PaymentLinkNotFound

@@ -4,9 +4,10 @@ use std::{collections::HashMap, fmt::Debug, ops::Deref};
 
 use common_utils::request::RequestContent;
 use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
+use stripe::auth_headers;
 
 use self::transformers as stripe;
 use super::utils::{self as connector_utils, RefundsRequestData};
@@ -27,6 +28,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon},
+        domain,
     },
     utils::{crypto, ByteSliceExt, BytesExt, OptionExt},
 };
@@ -52,13 +54,18 @@ impl ConnectorCommon for Stripe {
         &self,
         auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth: stripe::StripeAuthType = auth_type
-            .try_into()
+        let auth = stripe::StripeAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", auth.api_key.peek()).into_masked(),
-        )])
+        Ok(vec![
+            (
+                headers::AUTHORIZATION.to_string(),
+                format!("Bearer {}", auth.api_key.peek()).into_masked(),
+            ),
+            (
+                auth_headers::STRIPE_API_VERSION.to_string(),
+                auth_headers::STRIPE_VERSION.to_string().into_masked(),
+            ),
+        ])
     }
 }
 
@@ -150,7 +157,6 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = stripe::StripeCreditTransferSourceRequest::try_from(req)?;
-
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
@@ -667,10 +673,10 @@ impl
 
         match id.get_connector_transaction_id() {
             Ok(x) if x.starts_with("set") => Ok(format!(
-                "{}{}/{}",
+                "{}{}/{}?expand[0]=latest_attempt", // expand latest attempt to extract payment checks and three_d_secure data
                 self.base_url(connectors),
                 "v1/setup_intents",
-                x
+                x,
             )),
             Ok(x) => Ok(format!(
                 "{}{}/{}{}",
@@ -705,7 +711,6 @@ impl
         res: types::Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError>
     where
-        types::PaymentsAuthorizeData: Clone,
         types::PaymentsResponseData: Clone,
     {
         let id = data.request.connector_transaction_id.clone();
@@ -818,10 +823,10 @@ impl
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         match &req.request.payment_method_data {
-            api_models::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
+            domain::PaymentMethodData::BankTransfer(bank_transfer_data) => {
                 match bank_transfer_data.deref() {
-                    api_models::payments::BankTransferData::AchBankTransfer { .. }
-                    | api_models::payments::BankTransferData::MultibancoBankTransfer { .. } => {
+                    domain::BankTransferData::AchBankTransfer { .. }
+                    | domain::BankTransferData::MultibancoBankTransfer { .. } => {
                         Ok(format!("{}{}", self.base_url(connectors), "v1/charges"))
                     }
                     _ => Ok(format!(
@@ -845,11 +850,12 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         match &req.request.payment_method_data {
-            api_models::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
+            domain::PaymentMethodData::BankTransfer(bank_transfer_data) => {
                 stripe::get_bank_transfer_request_data(req, bank_transfer_data.deref())
             }
             _ => {
                 let connector_req = stripe::PaymentIntentRequest::try_from(req)?;
+
                 Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
             }
         }
@@ -884,45 +890,41 @@ impl
         res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         match &data.request.payment_method_data {
-            api_models::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
-                match bank_transfer_data.deref() {
-                    api_models::payments::BankTransferData::AchBankTransfer { .. }
-                    | api_models::payments::BankTransferData::MultibancoBankTransfer { .. } => {
-                        let response: stripe::ChargesResponse = res
-                            .response
-                            .parse_struct("ChargesResponse")
-                            .change_context(
-                                errors::ConnectorError::ResponseDeserializationFailed,
-                            )?;
+            domain::PaymentMethodData::BankTransfer(bank_transfer_data) => match bank_transfer_data
+                .deref()
+            {
+                domain::BankTransferData::AchBankTransfer { .. }
+                | domain::BankTransferData::MultibancoBankTransfer { .. } => {
+                    let response: stripe::ChargesResponse = res
+                        .response
+                        .parse_struct("ChargesResponse")
+                        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-                        event_builder.map(|i| i.set_response_body(&response));
-                        router_env::logger::info!(connector_response=?response);
+                    event_builder.map(|i| i.set_response_body(&response));
+                    router_env::logger::info!(connector_response=?response);
 
-                        types::RouterData::try_from(types::ResponseRouterData {
-                            response,
-                            data: data.clone(),
-                            http_code: res.status_code,
-                        })
-                    }
-                    _ => {
-                        let response: stripe::PaymentIntentResponse = res
-                            .response
-                            .parse_struct("PaymentIntentResponse")
-                            .change_context(
-                                errors::ConnectorError::ResponseDeserializationFailed,
-                            )?;
-
-                        event_builder.map(|i| i.set_response_body(&response));
-                        router_env::logger::info!(connector_response=?response);
-
-                        types::RouterData::try_from(types::ResponseRouterData {
-                            response,
-                            data: data.clone(),
-                            http_code: res.status_code,
-                        })
-                    }
+                    types::RouterData::try_from(types::ResponseRouterData {
+                        response,
+                        data: data.clone(),
+                        http_code: res.status_code,
+                    })
                 }
-            }
+                _ => {
+                    let response: stripe::PaymentIntentResponse = res
+                        .response
+                        .parse_struct("PaymentIntentResponse")
+                        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+                    event_builder.map(|i| i.set_response_body(&response));
+                    router_env::logger::info!(connector_response=?response);
+
+                    types::RouterData::try_from(types::ResponseRouterData {
+                        response,
+                        data: data.clone(),
+                        http_code: res.status_code,
+                    })
+                }
+            },
             _ => {
                 let response: stripe::PaymentIntentResponse = res
                     .response
@@ -1708,7 +1710,7 @@ impl
     fn handle_response(
         &self,
         data: &types::RetrieveFileRouterData,
-        _event_builder: Option<&mut ConnectorEvent>,
+        event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<
         types::RouterData<
@@ -1719,7 +1721,10 @@ impl
         errors::ConnectorError,
     > {
         let response = res.response;
-        router_env::logger::info!(connector_response=?response);
+
+        event_builder.map(|event| event.set_response_body(&serde_json::json!({"connector_response_type": "file", "status_code": res.status_code})));
+        router_env::logger::info!(connector_response_type=?"file");
+
         Ok(types::RetrieveFileRouterData {
             response: Ok(types::RetrieveFileResponse {
                 file_data: response.to_vec(),
@@ -1737,6 +1742,7 @@ impl
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
         event_builder.map(|i| i.set_error_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
@@ -1907,10 +1913,8 @@ fn get_signature_elements_from_header(
                 .to_str()
                 .map(String::from)
                 .map_err(|_| errors::ConnectorError::WebhookSignatureNotFound)
-                .into_report()
         })
-        .ok_or(errors::ConnectorError::WebhookSignatureNotFound)
-        .into_report()??;
+        .ok_or(errors::ConnectorError::WebhookSignatureNotFound)??;
 
     let props = security_header.split(',').collect::<Vec<&str>>();
     let mut security_header_kvs: HashMap<String, Vec<u8>> = HashMap::with_capacity(props.len());
@@ -1918,8 +1922,7 @@ fn get_signature_elements_from_header(
     for prop_str in &props {
         let (prop_key, prop_value) = prop_str
             .split_once('=')
-            .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)
-            .into_report()?;
+            .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         security_header_kvs.insert(prop_key.to_string(), prop_value.bytes().collect());
     }
@@ -1945,12 +1948,9 @@ impl api::IncomingWebhook for Stripe {
 
         let signature = security_header_kvs
             .remove("v1")
-            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)
-            .into_report()?;
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
 
-        hex::decode(signature)
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookSignatureNotFound)
+        hex::decode(signature).change_context(errors::ConnectorError::WebhookSignatureNotFound)
     }
 
     fn get_webhook_source_verification_message(
@@ -1963,8 +1963,7 @@ impl api::IncomingWebhook for Stripe {
 
         let timestamp = security_header_kvs
             .remove("t")
-            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)
-            .into_report()?;
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
 
         Ok(format!(
             "{}.{}",

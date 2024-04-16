@@ -5,7 +5,7 @@ use std::fmt::Debug;
 use base64::Engine;
 use common_utils::request::RequestContent;
 use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 use ring::{digest, hmac};
 use time::OffsetDateTime;
@@ -79,7 +79,6 @@ impl Cybersource {
         );
         let key_value = consts::BASE64_ENGINE
             .decode(api_secret.expose())
-            .into_report()
             .change_context(errors::ConnectorError::InvalidConnectorConfig {
                 config: "connector_account_details.api_secret",
             })?;
@@ -230,9 +229,8 @@ where
         let auth = cybersource::CybersourceAuthType::try_from(&req.connector_auth_type)?;
         let merchant_account = auth.merchant_account.clone();
         let base_url = connectors.cybersource.base_url.as_str();
-        let cybersource_host = Url::parse(base_url)
-            .into_report()
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let cybersource_host =
+            Url::parse(base_url).change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let host = cybersource_host
             .host_str()
             .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
@@ -241,11 +239,7 @@ where
             .chars()
             .skip(base_url.len() - 1)
             .collect();
-        let sha256 = self.generate_digest(
-            types::RequestBody::get_inner_value(cybersource_req)
-                .expose()
-                .as_bytes(),
-        );
+        let sha256 = self.generate_digest(cybersource_req.get_inner_value().expose().as_bytes());
         let http_method = self.get_http_method();
         let signature = self.generate_signature(
             auth,
@@ -452,7 +446,6 @@ impl
         } else {
             // If http_code != 204 || http_code != 4xx, we dont know any other response scenario yet.
             let response_value: serde_json::Value = serde_json::from_slice(&res.response)
-                .into_report()
                 .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
             let response_string = response_value.to_string();
 
@@ -1486,7 +1479,7 @@ impl api::IncomingWebhook for Cybersource {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_event_type(
@@ -1500,6 +1493,6 @@ impl api::IncomingWebhook for Cybersource {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }

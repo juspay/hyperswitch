@@ -1,6 +1,4 @@
 use actix_web::{web, HttpRequest, Responder};
-#[cfg(feature = "hashicorp-vault")]
-use error_stack::ResultExt;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
@@ -43,28 +41,8 @@ pub async fn api_key_create(
         state,
         &req,
         payload,
-        |state, _, payload| async {
-            #[cfg(feature = "aws_kms")]
-            let aws_kms_client =
-                external_services::aws_kms::core::get_aws_kms_client(&state.clone().conf.kms).await;
-
-            #[cfg(feature = "hashicorp-vault")]
-            let hc_client = external_services::hashicorp_vault::core::get_hashicorp_client(
-                &state.clone().conf.hc_vault,
-            )
-            .await
-            .change_context(crate::core::errors::ApiErrorResponse::InternalServerError)?;
-
-            api_keys::create_api_key(
-                state,
-                #[cfg(feature = "aws_kms")]
-                aws_kms_client,
-                #[cfg(feature = "hashicorp-vault")]
-                hc_client,
-                payload,
-                merchant_id.clone(),
-            )
-            .await
+        |state, _, payload, _| async {
+            api_keys::create_api_key(state, payload, merchant_id.clone()).await
         },
         auth::auth_type(
             &auth::AdminApiAuth,
@@ -110,7 +88,7 @@ pub async fn api_key_retrieve(
         state,
         &req,
         (&merchant_id, &key_id),
-        |state, _, (merchant_id, key_id)| api_keys::retrieve_api_key(state, merchant_id, key_id),
+        |state, _, (merchant_id, key_id), _| api_keys::retrieve_api_key(state, merchant_id, key_id),
         auth::auth_type(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
@@ -160,7 +138,7 @@ pub async fn api_key_update(
         state,
         &req,
         payload,
-        |state, _, payload| api_keys::update_api_key(state, payload),
+        |state, _, payload, _| api_keys::update_api_key(state, payload),
         auth::auth_type(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
@@ -206,7 +184,7 @@ pub async fn api_key_revoke(
         state,
         &req,
         (&merchant_id, &key_id),
-        |state, _, (merchant_id, key_id)| api_keys::revoke_api_key(state, merchant_id, key_id),
+        |state, _, (merchant_id, key_id), _| api_keys::revoke_api_key(state, merchant_id, key_id),
         auth::auth_type(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
@@ -255,7 +233,7 @@ pub async fn api_key_list(
         state,
         &req,
         (limit, offset, merchant_id.clone()),
-        |state, _, (limit, offset, merchant_id)| async move {
+        |state, _, (limit, offset, merchant_id), _| async move {
             api_keys::list_api_keys(state, merchant_id, limit, offset).await
         },
         auth::auth_type(

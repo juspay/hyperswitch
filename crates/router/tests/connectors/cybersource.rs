@@ -3,7 +3,7 @@ use std::str::FromStr;
 use common_utils::pii::Email;
 use masking::Secret;
 use router::types::{
-    self, api,
+    self, api, domain,
     storage::{self, enums},
 };
 
@@ -38,8 +38,9 @@ impl utils::Connector for Cybersource {
 
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     Some(utils::PaymentInfo {
-        address: Some(types::PaymentAddress {
-            billing: Some(api::Address {
+        address: Some(types::PaymentAddress::new(
+            None,
+            Some(api::Address {
                 address: Some(api::AddressDetails {
                     first_name: Some(Secret::new("first".to_string())),
                     last_name: Some(Secret::new("last".to_string())),
@@ -54,9 +55,10 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                     number: Some(Secret::new("1234567890".to_string())),
                     country_code: Some("+91".to_string()),
                 }),
+                email: None,
             }),
-            ..Default::default()
-        }),
+            None,
+        )),
         ..Default::default()
     })
 }
@@ -158,7 +160,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
     let response = Cybersource {}
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
                     card_exp_month: Secret::new("13".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -183,7 +185,7 @@ async fn should_fail_payment_for_invalid_exp_year() {
     let response = Cybersource {}
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
                     card_exp_year: Secret::new("2022".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -201,7 +203,7 @@ async fn should_fail_payment_for_invalid_card_cvc() {
     let response = Cybersource {}
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
                     card_cvc: Secret::new("2131233213".to_string()),
                     ..utils::CCardType::default().0
                 }),

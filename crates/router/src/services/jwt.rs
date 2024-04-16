@@ -1,10 +1,9 @@
 use common_utils::errors::CustomResult;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use jsonwebtoken::{encode, EncodingKey, Header};
 use masking::PeekInterface;
 
-use super::authentication;
-use crate::{configs::settings::Settings, core::errors::UserErrors};
+use crate::{configs::Settings, core::errors::UserErrors};
 
 pub fn generate_exp(
     exp_duration: std::time::Duration,
@@ -13,7 +12,6 @@ pub fn generate_exp(
         .checked_add(exp_duration)
         .ok_or(UserErrors::InternalServerError)?
         .duration_since(std::time::UNIX_EPOCH)
-        .into_report()
         .change_context(UserErrors::InternalServerError)
 }
 
@@ -24,19 +22,11 @@ pub async fn generate_jwt<T>(
 where
     T: serde::ser::Serialize,
 {
-    let jwt_secret = authentication::get_jwt_secret(
-        &settings.secrets,
-        #[cfg(feature = "aws_kms")]
-        external_services::aws_kms::core::get_aws_kms_client(&settings.kms).await,
-    )
-    .await
-    .change_context(UserErrors::InternalServerError)
-    .attach_printable("Failed to obtain JWT secret")?;
+    let jwt_secret = &settings.secrets.get_inner().jwt_secret;
     encode(
         &Header::default(),
         claims_data,
         &EncodingKey::from_secret(jwt_secret.peek().as_bytes()),
     )
-    .into_report()
     .change_context(UserErrors::InternalServerError)
 }

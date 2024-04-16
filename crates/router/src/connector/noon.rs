@@ -5,7 +5,7 @@ use std::fmt::Debug;
 use base64::Engine;
 use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
 use diesel_models::enums;
-use error_stack::{IntoReport, Report, ResultExt};
+use error_stack::{Report, ResultExt};
 use masking::PeekInterface;
 use router_env::logger;
 use transformers as noon;
@@ -137,12 +137,18 @@ impl ConnectorCommon for Noon {
             Ok(noon_error_response) => {
                 event_builder.map(|i| i.set_error_response_body(&noon_error_response));
                 router_env::logger::info!(connector_response=?noon_error_response);
+                // Adding in case of timeouts, if psync gives 4xx with this code, fail the payment
+                let attempt_status = if noon_error_response.result_code == 19001 {
+                    Some(enums::AttemptStatus::Failure)
+                } else {
+                    None
+                };
                 Ok(ErrorResponse {
                     status_code: res.status_code,
-                    code: consts::NO_ERROR_CODE.to_string(),
+                    code: noon_error_response.result_code.to_string(),
                     message: noon_error_response.class_description,
                     reason: Some(noon_error_response.message),
-                    attempt_status: None,
+                    attempt_status,
                     connector_transaction_id: None,
                 })
             }
@@ -797,7 +803,6 @@ impl api::IncomingWebhook for Noon {
         let signature = webhook_body.signature;
         consts::BASE64_ENGINE
             .decode(signature)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)
     }
 

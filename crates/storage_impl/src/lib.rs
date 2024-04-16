@@ -8,22 +8,31 @@ use redis::{kv_store::RedisConnInterface, RedisStore};
 mod address;
 pub mod config;
 pub mod connection;
+pub mod customers;
 pub mod database;
 pub mod errors;
 mod lookup;
 pub mod metrics;
 pub mod mock_db;
+pub mod payment_method;
 pub mod payments;
+#[cfg(feature = "payouts")]
+pub mod payouts;
 pub mod redis;
 pub mod refund;
 mod reverse_lookup;
 mod utils;
 
+use common_utils::errors::CustomResult;
+#[cfg(not(feature = "payouts"))]
+use data_models::{PayoutAttemptInterface, PayoutsInterface};
 use database::store::PgPool;
 pub use mock_db::MockDb;
-use redis_interface::errors::RedisError;
+use redis_interface::{errors::RedisError, SaddReply};
 
 pub use crate::database::store::DatabaseStore;
+#[cfg(not(feature = "payouts"))]
+pub use crate::database::store::Store;
 
 #[derive(Debug, Clone)]
 pub struct RouterStore<T: DatabaseStore> {
@@ -259,3 +268,127 @@ pub(crate) fn diesel_error_to_data_error(
         _ => StorageError::DatabaseError(error_stack::report!(*diesel_error)),
     }
 }
+
+#[async_trait::async_trait]
+pub trait UniqueConstraints {
+    fn unique_constraints(&self) -> Vec<String>;
+    fn table_name(&self) -> &str;
+    async fn check_for_constraints(
+        &self,
+        redis_conn: &Arc<redis_interface::RedisConnectionPool>,
+    ) -> CustomResult<(), RedisError> {
+        let constraints = self.unique_constraints();
+        let sadd_result = redis_conn
+            .sadd(
+                &format!("unique_constraint:{}", self.table_name()),
+                constraints,
+            )
+            .await?;
+
+        match sadd_result {
+            SaddReply::KeyNotSet => Err(error_stack::report!(RedisError::SetAddMembersFailed)),
+            SaddReply::KeySet => Ok(()),
+        }
+    }
+}
+
+impl UniqueConstraints for diesel_models::Address {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!("address_{}", self.address_id)]
+    }
+    fn table_name(&self) -> &str {
+        "Address"
+    }
+}
+
+impl UniqueConstraints for diesel_models::PaymentIntent {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!("pi_{}_{}", self.merchant_id, self.payment_id)]
+    }
+    fn table_name(&self) -> &str {
+        "PaymentIntent"
+    }
+}
+
+impl UniqueConstraints for diesel_models::PaymentAttempt {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!(
+            "pa_{}_{}_{}",
+            self.merchant_id, self.payment_id, self.attempt_id
+        )]
+    }
+    fn table_name(&self) -> &str {
+        "PaymentAttempt"
+    }
+}
+
+impl UniqueConstraints for diesel_models::Refund {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!("refund_{}_{}", self.merchant_id, self.refund_id)]
+    }
+    fn table_name(&self) -> &str {
+        "Refund"
+    }
+}
+
+impl UniqueConstraints for diesel_models::ReverseLookup {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!("reverselookup_{}", self.lookup_id)]
+    }
+    fn table_name(&self) -> &str {
+        "ReverseLookup"
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl UniqueConstraints for diesel_models::Payouts {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!("po_{}_{}", self.merchant_id, self.payout_id)]
+    }
+    fn table_name(&self) -> &str {
+        "Payouts"
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl UniqueConstraints for diesel_models::PayoutAttempt {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!(
+            "poa_{}_{}",
+            self.merchant_id, self.payout_attempt_id
+        )]
+    }
+    fn table_name(&self) -> &str {
+        "PayoutAttempt"
+    }
+}
+
+impl UniqueConstraints for diesel_models::PaymentMethod {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!("paymentmethod_{}", self.payment_method_id)]
+    }
+    fn table_name(&self) -> &str {
+        "PaymentMethod"
+    }
+}
+
+impl UniqueConstraints for diesel_models::Customer {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!(
+            "customer_{}_{}",
+            self.customer_id, self.merchant_id
+        )]
+    }
+    fn table_name(&self) -> &str {
+        "Customer"
+    }
+}
+
+#[cfg(not(feature = "payouts"))]
+impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {}
+#[cfg(not(feature = "payouts"))]
+impl<T: DatabaseStore> PayoutAttemptInterface for RouterStore<T> {}
+#[cfg(not(feature = "payouts"))]
+impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {}
+#[cfg(not(feature = "payouts"))]
+impl<T: DatabaseStore> PayoutsInterface for RouterStore<T> {}

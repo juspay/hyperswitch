@@ -3,7 +3,6 @@ use error_stack::ResultExt;
 use router_env::logger;
 use scheduler::{
     consumer::{self, types::process_data, workflows::ProcessTrackerWorkflow},
-    db::process_tracker::ProcessTrackerExt,
     errors as sch_errors, utils as scheduler_utils, SchedulerAppState,
 };
 
@@ -60,6 +59,7 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
             )
             .await?;
 
+        // TODO: Add support for ReqState in PT flows
         let (mut payment_data, _, customer, _, _) =
             Box::pin(payment_flows::payments_operation_core::<
                 api::PSync,
@@ -69,8 +69,9 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                 Oss,
             >(
                 state,
+                state.get_req_state(),
                 merchant_account.clone(),
-                key_store,
+                key_store.clone(),
                 operations::PaymentStatus,
                 tracking_data.clone(),
                 payment_flows::CallConnectorAction::Trigger,
@@ -91,12 +92,10 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
         ];
         match &payment_data.payment_attempt.status {
             status if terminal_status.contains(status) => {
-                let id = process.id.clone();
-                process
-                    .finish_with_status(
-                        state.get_db().as_scheduler(),
-                        format!("COMPLETED_BY_PT_{id}"),
-                    )
+                state
+                    .get_db()
+                    .as_scheduler()
+                    .finish_process_with_business_status(process, "COMPLETED_BY_PT".to_string())
                     .await?
             }
             _ => {
@@ -139,6 +138,7 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                             unified_code: None,
                             unified_message: None,
                             connector_transaction_id: None,
+                            payment_method_data: None,
                         };
 
                     payment_data.payment_attempt = db
@@ -178,15 +178,11 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
 
                     // Trigger the outgoing webhook to notify the merchant about failed payment
                     let operation = operations::PaymentStatus;
-                    Box::pin(utils::trigger_payments_webhook::<
-                        _,
-                        api_models::payments::PaymentsRequest,
-                        _,
-                    >(
+                    Box::pin(utils::trigger_payments_webhook(
                         merchant_account,
                         business_profile,
+                        &key_store,
                         payment_data,
-                        None,
                         customer,
                         state,
                         operation,
@@ -250,12 +246,12 @@ pub async fn get_sync_process_schedule_time(
         });
     let mapping = match mapping {
         Ok(x) => x,
-        Err(err) => {
-            logger::info!("Redis Mapping Error: {}", err);
+        Err(error) => {
+            logger::info!(?error, "Redis Mapping Error");
             process_data::ConnectorPTMapping::default()
         }
     };
-    let time_delta = scheduler_utils::get_schedule_time(mapping, merchant_id, retry_count + 1);
+    let time_delta = scheduler_utils::get_schedule_time(mapping, merchant_id, retry_count);
 
     Ok(scheduler_utils::get_time_from_delta(time_delta))
 }
@@ -270,15 +266,16 @@ pub async fn retry_sync_task(
     pt: storage::ProcessTracker,
 ) -> Result<bool, sch_errors::ProcessTrackerError> {
     let schedule_time =
-        get_sync_process_schedule_time(db, &connector, &merchant_id, pt.retry_count).await?;
+        get_sync_process_schedule_time(db, &connector, &merchant_id, pt.retry_count + 1).await?;
 
     match schedule_time {
         Some(s_time) => {
-            pt.retry(db.as_scheduler(), s_time).await?;
+            db.as_scheduler().retry_process(pt, s_time).await?;
             Ok(false)
         }
         None => {
-            pt.finish_with_status(db.as_scheduler(), "RETRIES_EXCEEDED".to_string())
+            db.as_scheduler()
+                .finish_process_with_business_status(pt, "RETRIES_EXCEEDED".to_string())
                 .await?;
             Ok(true)
         }

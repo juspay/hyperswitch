@@ -1,5 +1,5 @@
 use common_utils::request::{Method, Request, RequestBuilder, RequestContent};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use http::header;
 
 use crate::{
@@ -20,24 +20,24 @@ pub async fn generate_access_token(state: AppState) -> RouterResult<types::Acces
         &state.conf.connectors,
         connector.to_string().as_str(),
     )?;
-    let connector_auth = super::get_connector_auth(connector, &state.conf.connector_onboarding)?;
+    let connector_auth =
+        super::get_connector_auth(connector, state.conf.connector_onboarding.get_inner())?;
 
     connector::Paypal::get_access_token(
         &state,
         verify_connector_types::VerifyConnectorData {
             connector: *boxed_connector,
             connector_auth,
-            card_details: verify_connector_utils::get_test_card_details(connector)?
-                .ok_or(ApiErrorResponse::FlowNotSupported {
+            card_details: verify_connector_utils::get_test_card_details(connector)?.ok_or(
+                ApiErrorResponse::FlowNotSupported {
                     flow: "Connector onboarding".to_string(),
                     connector: connector.to_string(),
-                })
-                .into_report()?,
+                },
+            )?,
         },
     )
     .await?
     .ok_or(ApiErrorResponse::InternalServerError)
-    .into_report()
     .attach_printable("Error occurred while retrieving access token")
 }
 

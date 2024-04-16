@@ -2,10 +2,19 @@
   "childrenOrder": [
     "Scenario1-Create payment with confirm true",
     "Scenario2-Create payment with confirm false",
+    "Scenario2a-Create payment with confirm false card holder name null",
+    "Scenario2b-Create payment with confirm false card holder name empty",
     "Scenario3-Create payment without PMD",
     "Scenario4-Create payment with Manual capture",
     "Scenario5-Void the payment",
-    "Scenario9-Refund full payment",
-    "Scenario10-Partial refund"
+    "Scenario6-Refund full payment",
+    "Scenario7-Partial refund",
+    "Scenario8-Create a failure card payment with confirm true",
+    "Scenario9-Update amount with automatic capture",
+    "Scenario9a-Update amount with manual capture",
+    "Scenario10-Add card flow",
+    "Scenario11-Don't Pass CVV for save card flow and verify success payment",
+    "Scenario12-Save card payment with manual capture",
+    "Scenario13-Create payment without customer_id and with billing address and shipping address"
   ]
 }

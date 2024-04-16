@@ -1,3 +1,4 @@
+use common_enums::{PermissionGroup, RoleScope};
 use common_utils::{crypto::OptionalEncryptableName, pii};
 use masking::Secret;
 
@@ -118,12 +119,15 @@ pub struct ReInviteUserRequest {
     pub email: pii::Email,
 }
 
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct AcceptInviteFromEmailRequest {
+    pub token: Secret<String>,
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct SwitchMerchantIdRequest {
     pub merchant_id: String,
 }
-
-pub type SwitchMerchantResponse = DashboardEntryResponse;
 
 #[derive(serde::Deserialize, Debug, serde::Serialize)]
 pub struct CreateInternalUserRequest {
@@ -138,7 +142,7 @@ pub struct UserMerchantCreate {
 }
 
 #[derive(Debug, serde::Serialize)]
-pub struct GetUsersResponse(pub Vec<UserDetails>);
+pub struct ListUsersResponse(pub Vec<UserDetails>);
 
 #[derive(Debug, serde::Serialize)]
 pub struct UserDetails {
@@ -149,6 +153,24 @@ pub struct UserDetails {
     pub status: UserStatus,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub last_modified_at: time::PrimitiveDateTime,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct GetUserDetailsRequest {
+    pub email: pii::Email,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct GetUserDetailsResponse {
+    pub email: pii::Email,
+    pub name: Secret<String>,
+    pub role_id: String,
+    pub role_name: String,
+    pub status: UserStatus,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub last_modified_at: time::PrimitiveDateTime,
+    pub groups: Vec<PermissionGroup>,
+    pub role_scope: RoleScope,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -168,6 +190,9 @@ pub struct UserMerchantAccount {
     pub merchant_id: String,
     pub merchant_name: OptionalEncryptableName,
     pub is_active: bool,
+    pub role_id: String,
+    pub role_name: String,
+    pub org_id: String,
 }
 
 #[cfg(feature = "recon")]

@@ -77,9 +77,9 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPost {
     ) -> RouterResult<Option<FrmData>> {
         let db = &*state.store;
 
-        let payment_details: Option<serde_json::Value> =
-            Encode::<PaymentDetails>::encode_to_value(&PaymentDetails::from(payment_data.clone()))
-                .ok();
+        let payment_details: Option<serde_json::Value> = PaymentDetails::from(payment_data.clone())
+            .encode_to_value()
+            .ok();
         let existing_fraud_check = db
             .find_fraud_check_by_payment_id_if_present(
                 payment_data.payment_intent.payment_id.clone(),
@@ -398,11 +398,9 @@ impl<F: Clone + Send> UpdateTracker<FrmData, F> for FraudCheckPost {
                             last_step: frm_data.fraud_check.last_step,
                         };
                         Some(fraud_check_update)
-
                     }
                 },
             },
-
 
             FrmResponse::Checkout(_) | FrmResponse::Transaction(_) => {
                 Some(FraudCheckUpdate::ErrorUpdate {

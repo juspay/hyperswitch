@@ -1,15 +1,15 @@
 use base64::Engine;
-use common_utils::ext_traits::ValueExt;
-use error_stack::{IntoReport, ResultExt};
-use masking::{PeekInterface, Secret};
+use common_utils::{ext_traits::ValueExt, pii::IpAddress};
+use error_stack::ResultExt;
+use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
-    connector::utils::{BrowserInformationData, PaymentsAuthorizeRequestData},
+    connector::utils::{BrowserInformationData, PaymentsAuthorizeRequestData, RouterData},
     consts,
     core::errors,
     services,
-    types::{self, api, storage::enums},
+    types::{self, api, domain, storage::enums},
 };
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -51,7 +51,7 @@ pub struct BamboraPaymentsRequest {
     order_number: String,
     amount: i64,
     payment_method: PaymentMethod,
-    customer_ip: Option<std::net::IpAddr>,
+    customer_ip: Option<Secret<String, IpAddress>>,
     term_url: Option<String>,
     card: BamboraCard,
 }
@@ -106,7 +106,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(req_card) => {
+            domain::PaymentMethodData::Card(req_card) => {
                 let three_ds = match item.auth_type {
                     enums::AuthenticationType::ThreeDs => Some(ThreeDSecure {
                         enabled: true,
@@ -117,8 +117,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest {
                     enums::AuthenticationType::NoThreeDs => None,
                 };
                 let bambora_card = BamboraCard {
-                    name: req_card
-                        .card_holder_name
+                    name: item
+                        .get_optional_billing_full_name()
                         .unwrap_or(Secret::new("".to_string())),
                     number: req_card.card_number,
                     expiry_month: req_card.card_exp_month,
@@ -133,7 +133,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest {
                     amount: item.request.amount,
                     payment_method: PaymentMethod::Card,
                     card: bambora_card,
-                    customer_ip: browser_info.ip_address,
+                    customer_ip: browser_info
+                        .ip_address
+                        .map(|ip_address| Secret::new(format!("{ip_address}"))),
                     term_url: item.request.complete_authorize_url.clone(),
                 })
             }
@@ -235,9 +237,8 @@ impl<F, T>
                         mandate_reference: None,
                         connector_metadata: Some(
                             serde_json::to_value(BamboraMeta {
-                                three_d_session_data: response.three_d_session_data,
+                                three_d_session_data: response.three_d_session_data.expose(),
                             })
-                            .into_report()
                             .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
                         ),
                         network_txn_id: None,
@@ -312,7 +313,7 @@ pub struct BamboraPaymentsResponse {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Bambora3DsResponse {
     #[serde(rename = "3d_session_data")]
-    three_d_session_data: String,
+    three_d_session_data: Secret<String>,
     contents: String,
 }
 
@@ -334,12 +335,12 @@ pub struct CardResponse {
 
 #[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct CardData {
-    name: Option<String>,
-    expiry_month: Option<String>,
-    expiry_year: Option<String>,
+    name: Option<Secret<String>>,
+    expiry_month: Option<Secret<String>>,
+    expiry_year: Option<Secret<String>>,
     card_type: String,
-    last_four: String,
-    card_bin: Option<String>,
+    last_four: Secret<String>,
+    card_bin: Option<Secret<String>>,
     avs_result: String,
     cvd_result: String,
     cavv_result: Option<String>,
@@ -357,15 +358,15 @@ pub struct AvsObject {
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AddressData {
-    name: String,
-    address_line1: String,
-    address_line2: String,
+    name: Secret<String>,
+    address_line1: Secret<String>,
+    address_line2: Secret<String>,
     city: String,
     province: String,
     country: String,
-    postal_code: String,
-    phone_number: String,
-    email_address: String,
+    postal_code: Secret<String>,
+    phone_number: Secret<String>,
+    email_address: Secret<String>,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]

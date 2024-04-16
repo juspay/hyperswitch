@@ -53,6 +53,7 @@ pub async fn construct_mandate_revoke_router_data(
         preprocessing_id: None,
         payment_method_balance: None,
         connector_api_version: None,
+        payment_method_status: None,
         request: types::MandateRevokeRequestData {
             mandate_id: mandate.mandate_id,
             connector_mandate_id: mandate.connector_mandate_id,
@@ -72,6 +73,7 @@ pub async fn construct_mandate_revoke_router_data(
         quote_id: None,
         refund_id: None,
         dispute_id: None,
+        connector_response: None,
     };
 
     Ok(router_data)

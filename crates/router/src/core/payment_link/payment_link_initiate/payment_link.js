@@ -1,4 +1,4 @@
-// @ts-check
+// @ts-nocheck
 
 /**
  * UTIL FUNCTIONS
@@ -162,6 +162,7 @@ function invert(color, bw) {
  * UTIL FUNCTIONS END HERE
  */
 
+// @ts-ignore
 {{ payment_details_js_script }}
 
 // @ts-ignore
@@ -187,9 +188,27 @@ var hyper = null;
  *  - Initialize event listeners for updating UI on screen size changes
  *  - Initialize SDK
  **/
+
+
 function boot() {
+
   // @ts-ignore
   var paymentDetails = window.__PAYMENT_DETAILS;
+  var orderDetails = paymentDetails.order_details;
+  if (orderDetails!==null) {
+    var charges = 0;
+
+    for (var i = 0; i < orderDetails.length; i++) {
+      charges += parseFloat(orderDetails[i].amount * orderDetails[i].quantity);
+    }
+    orderDetails.push({
+      "amount": (paymentDetails.amount - charges).toFixed(2),
+      "product_img_link": "https://live.hyperswitch.io/payment-link-assets/cart_placeholder.png",
+      "product_name": "Miscellaneous charges\n" +
+                      "(includes taxes, shipping, discounts, offers etc.)",
+      "quantity": null
+    });
+  }
 
   if (paymentDetails.merchant_name) {
     document.title = "Payment requested by " + paymentDetails.merchant_name;
@@ -283,6 +302,7 @@ function initializeEventListeners(paymentDetails) {
     }
   }
 
+  // @ts-ignore
   window.addEventListener("resize", function (event) {
     var currentHeight = window.innerHeight;
     var currentWidth = window.innerWidth;
@@ -382,7 +402,8 @@ function initializeSDK() {
       : paymentDetails.sdk_layout;
 
   var unifiedCheckoutOptions = {
-    disableSaveCards: true,
+    displaySavedPaymentMethodsCheckbox: false,
+    displaySavedPaymentMethods: false,
     layout: {
       type: type, //accordion , tabs, spaced accordion
       spacedAccordionItems: paymentDetails.sdk_layout === "spaced_accordion",
@@ -400,7 +421,15 @@ function initializeSDK() {
   unifiedCheckout = widgets.create("payment", unifiedCheckoutOptions);
   mountUnifiedCheckout("#unified-checkout");
   showSDK();
+
+  let shimmer = document.getElementById("payment-details-shimmer");
+  shimmer.classList.add("reduce-opacity")
+
+  setTimeout(() => {
+    document.body.removeChild(shimmer);
+  }, 500)
 }
+
 
 /**
  * Use - mount payment widget on the passed element
@@ -420,6 +449,7 @@ function mountUnifiedCheckout(id) {
  *    - Handle errors and redirect to status page
  * @param {Event} e
  */
+// @ts-ignore
 function handleSubmit(e) {
   // @ts-ignore
   var paymentDetails = window.__PAYMENT_DETAILS;
@@ -526,6 +556,7 @@ function formatDate(date) {
 
   var hours = date.getHours();
   var minutes = date.getMinutes();
+  // @ts-ignore
   minutes = minutes < 10 ? "0" + minutes : minutes;
   var suffix = hours > 11 ? "PM" : "AM";
   hours = hours % 12;
@@ -592,6 +623,8 @@ function renderPaymentDetails(paymentDetails) {
   // Create merchant logo's node
   var merchantLogoNode = document.createElement("img");
   merchantLogoNode.src = paymentDetails.merchant_logo;
+  merchantLogoNode.setAttribute("width", "48"); // Set width to 100 pixels
+  merchantLogoNode.setAttribute("height", "48");
 
   // Create expiry node
   var paymentExpiryNode = document.createElement("div");
@@ -651,6 +684,7 @@ function renderCart(paymentDetails) {
         item,
         paymentDetails,
         index !== 0 && index < MAX_ITEMS_VISIBLE_AFTER_COLLAPSE,
+        // @ts-ignore
         cartItemsNode
       );
     });
@@ -714,7 +748,7 @@ function renderCartItem(
   item,
   paymentDetails,
   shouldAddDividerNode,
-  cartItemsNode
+  cartItemsNode,
 ) {
   // Wrappers
   var itemWrapperNode = document.createElement("div");
@@ -723,6 +757,9 @@ function renderCartItem(
   nameAndQuantityWrapperNode.className = "hyper-checkout-cart-product-details";
   // Image
   var productImageNode = document.createElement("img");
+  productImageNode.setAttribute("width", 56);
+  productImageNode.setAttribute("height", 56);
+
   productImageNode.className = "hyper-checkout-cart-product-image";
   productImageNode.src = item.product_img_link;
   // Product title
@@ -730,20 +767,29 @@ function renderCartItem(
   productNameNode.className = "hyper-checkout-card-item-name";
   productNameNode.innerText = item.product_name;
   // Product quantity
-  var quantityNode = document.createElement("div");
-  quantityNode.className = "hyper-checkout-card-item-quantity";
-  quantityNode.innerText = "Qty: " + item.quantity;
+  if (item.quantity !== null) {
+    var quantityNode = document.createElement("div");
+    quantityNode.className = "hyper-checkout-card-item-quantity";
+    quantityNode.innerText = "Qty: " + item.quantity;
+  }  
   // Product price
   var priceNode = document.createElement("div");
   priceNode.className = "hyper-checkout-card-item-price";
   priceNode.innerText = paymentDetails.currency + " " + item.amount;
   // Append items
-  nameAndQuantityWrapperNode.append(productNameNode, quantityNode);
+
+  nameAndQuantityWrapperNode.append(productNameNode);
+  if (item.quantity !== null) {
+    // @ts-ignore
+    nameAndQuantityWrapperNode.append(quantityNode);
+  }
+
   itemWrapperNode.append(
     productImageNode,
     nameAndQuantityWrapperNode,
     priceNode
   );
+
   if (shouldAddDividerNode) {
     var dividerNode = document.createElement("div");
     dividerNode.className = "hyper-checkout-cart-item-divider";
@@ -792,13 +838,16 @@ function handleCartView(paymentDetails) {
         );
       });
     }
-    if (cartItemsNode instanceof HTMLDivElement) {
+    if (cartItemsNode instanceof HTMLDivElement){
       cartItemsNode.style.maxHeight = cartItemsNode.scrollHeight + "px";
+      
       cartItemsNode.style.height = cartItemsNode.scrollHeight + "px";
     }
-    if (cartButtonTextNode instanceof HTMLButtonElement) {
+
+    if (cartButtonTextNode instanceof HTMLSpanElement) {
       cartButtonTextNode.innerText = "Show Less";
     }
+
     var arrowUpImage = document.getElementById("arrow-up");
     if (
       cartButtonImageNode instanceof Object &&
@@ -833,7 +882,7 @@ function handleCartView(paymentDetails) {
     setTimeout(function () {
       var hiddenItemsCount =
         orderDetails.length - MAX_ITEMS_VISIBLE_AFTER_COLLAPSE;
-      if (cartButtonTextNode instanceof HTMLButtonElement) {
+      if (cartButtonTextNode instanceof HTMLSpanElement) {
         cartButtonTextNode.innerText = "Show More (" + hiddenItemsCount + ")";
       }
       var arrowDownImage = document.getElementById("arrow-down");

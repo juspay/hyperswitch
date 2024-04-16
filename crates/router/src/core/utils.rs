@@ -5,7 +5,7 @@ use common_enums::RequestIncrementalAuthorization;
 #[cfg(feature = "payouts")]
 use common_utils::{crypto::Encryptable, pii::Email};
 use common_utils::{errors::CustomResult, ext_traits::AsyncExt};
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 use uuid::Uuid;
 
@@ -15,7 +15,7 @@ use super::payouts::PayoutData;
 #[cfg(feature = "payouts")]
 use crate::core::payments;
 use crate::{
-    configs::settings,
+    configs::Settings,
     consts,
     core::errors::{self, RouterResult, StorageErrorExt},
     db::StorageInterface,
@@ -86,37 +86,44 @@ pub async fn construct_payout_router_data<'a, F>(
 
     let billing = payout_data.billing_address.to_owned();
 
-    let address = PaymentAddress {
-        shipping: None,
-        billing: billing.map(|a| {
-            let phone_details = api_models::payments::PhoneDetails {
-                number: a.phone_number.clone().map(Encryptable::into_inner),
-                country_code: a.country_code.to_owned(),
-            };
-            let address_details = api_models::payments::AddressDetails {
-                city: a.city.to_owned(),
-                country: a.country.to_owned(),
-                line1: a.line1.clone().map(Encryptable::into_inner),
-                line2: a.line2.clone().map(Encryptable::into_inner),
-                line3: a.line3.clone().map(Encryptable::into_inner),
-                zip: a.zip.clone().map(Encryptable::into_inner),
-                first_name: a.first_name.clone().map(Encryptable::into_inner),
-                last_name: a.last_name.clone().map(Encryptable::into_inner),
-                state: a.state.map(Encryptable::into_inner),
-            };
+    let billing_address = billing.map(|a| {
+        let phone_details = api_models::payments::PhoneDetails {
+            number: a.phone_number.clone().map(Encryptable::into_inner),
+            country_code: a.country_code.to_owned(),
+        };
+        let address_details = api_models::payments::AddressDetails {
+            city: a.city.to_owned(),
+            country: a.country.to_owned(),
+            line1: a.line1.clone().map(Encryptable::into_inner),
+            line2: a.line2.clone().map(Encryptable::into_inner),
+            line3: a.line3.clone().map(Encryptable::into_inner),
+            zip: a.zip.clone().map(Encryptable::into_inner),
+            first_name: a.first_name.clone().map(Encryptable::into_inner),
+            last_name: a.last_name.clone().map(Encryptable::into_inner),
+            state: a.state.map(Encryptable::into_inner),
+        };
 
-            api_models::payments::Address {
-                phone: Some(phone_details),
-                address: Some(address_details),
-            }
-        }),
-    };
+        api_models::payments::Address {
+            phone: Some(phone_details),
+            address: Some(address_details),
+            email: a.email.to_owned().map(Email::from),
+        }
+    });
+
+    let address = PaymentAddress::new(None, billing_address, None);
 
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let payouts = &payout_data.payouts;
     let payout_attempt = &payout_data.payout_attempt;
     let customer_details = &payout_data.customer_details;
-    let connector_label = format!("{}_{}", payout_data.profile_id, payout_attempt.connector);
+    let connector_name = payout_attempt
+        .connector
+        .clone()
+        .get_required_value("connector")
+        .change_context(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Could not decide to route the connector".to_string(),
+        })?;
+    let connector_label = format!("{}_{}", payout_data.profile_id, connector_name);
     let connector_customer_id = customer_details
         .as_ref()
         .and_then(|c| c.connector_customer.as_ref())
@@ -140,6 +147,7 @@ pub async fn construct_payout_router_data<'a, F>(
         auth_type: enums::AuthenticationType::default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
         amount_captured: None,
+        payment_method_status: None,
         request: types::PayoutsData {
             payout_id: payouts.payout_id.to_owned(),
             amount: payouts.amount,
@@ -178,6 +186,7 @@ pub async fn construct_payout_router_data<'a, F>(
         frm_metadata: None,
         refund_id: None,
         dispute_id: None,
+        connector_response: None,
     };
 
     Ok(router_data)
@@ -245,7 +254,6 @@ pub async fn construct_refund_router_data<'a, F>(
         .multiple_api_version_supported_connectors
         .supported_connectors;
     let connector_enum = api_models::enums::Connector::from_str(connector_id)
-        .into_report()
         .change_context(errors::ConnectorError::InvalidConnectorName)
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "connector",
@@ -290,6 +298,7 @@ pub async fn construct_refund_router_data<'a, F>(
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
         amount_captured: payment_intent.amount_captured,
+        payment_method_status: None,
         request: types::RefundsData {
             refund_id: refund.refund_id.clone(),
             connector_transaction_id: refund.connector_transaction_id.clone(),
@@ -332,6 +341,7 @@ pub async fn construct_refund_router_data<'a, F>(
         frm_metadata: None,
         refund_id: Some(refund.refund_id.clone()),
         dispute_id: None,
+        connector_response: None,
     };
 
     Ok(router_data)
@@ -533,6 +543,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
         amount_captured: payment_intent.amount_captured,
+        payment_method_status: None,
         request: types::AcceptDisputeRequestData {
             dispute_id: dispute.dispute_id.clone(),
             connector_dispute_id: dispute.connector_dispute_id.clone(),
@@ -564,6 +575,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         frm_metadata: None,
         dispute_id: Some(dispute.dispute_id.clone()),
         refund_id: None,
+        connector_response: None,
     };
     Ok(router_data)
 }
@@ -637,6 +649,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         recurring_mandate_payment_data: None,
         preprocessing_id: None,
         payment_method_balance: None,
+        payment_method_status: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
             &merchant_account.merchant_id,
@@ -654,6 +667,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         frm_metadata: None,
         refund_id: None,
         dispute_id: Some(dispute.dispute_id.clone()),
+        connector_response: None,
     };
     Ok(router_data)
 }
@@ -717,6 +731,7 @@ pub async fn construct_upload_file_router_data<'a>(
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
         amount_captured: payment_intent.amount_captured,
+        payment_method_status: None,
         request: types::UploadFileRequestData {
             file_key,
             file: create_file_request.file.clone(),
@@ -750,6 +765,7 @@ pub async fn construct_upload_file_router_data<'a>(
         frm_metadata: None,
         refund_id: None,
         dispute_id: None,
+        connector_response: None,
     };
     Ok(router_data)
 }
@@ -812,6 +828,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
         amount_captured: payment_intent.amount_captured,
+        payment_method_status: None,
         request: types::DefendDisputeRequestData {
             dispute_id: dispute.dispute_id.clone(),
             connector_dispute_id: dispute.connector_dispute_id.clone(),
@@ -843,6 +860,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         frm_metadata: None,
         refund_id: None,
         dispute_id: Some(dispute.dispute_id.clone()),
+        connector_response: None,
     };
     Ok(router_data)
 }
@@ -861,7 +879,6 @@ pub async fn construct_retrieve_file_router_data<'a>(
         .ok_or(errors::ApiErrorResponse::MissingRequiredField {
             field_name: "profile_id",
         })
-        .into_report()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("profile_id is not set in file_metadata")?;
 
@@ -899,12 +916,12 @@ pub async fn construct_retrieve_file_router_data<'a>(
         auth_type: diesel_models::enums::AuthenticationType::default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
         amount_captured: None,
+        payment_method_status: None,
         request: types::RetrieveFileRequestData {
             provider_file_id: file_metadata
                 .provider_file_id
                 .clone()
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .into_report()
                 .attach_printable("Missing provider file id")?,
         },
         response: Err(types::ErrorResponse::default()),
@@ -929,12 +946,13 @@ pub async fn construct_retrieve_file_router_data<'a>(
         frm_metadata: None,
         refund_id: None,
         dispute_id: None,
+        connector_response: None,
     };
     Ok(router_data)
 }
 
 pub fn is_merchant_enabled_for_payment_id_as_connector_request_id(
-    conf: &settings::Settings,
+    conf: &Settings,
     merchant_id: &str,
 ) -> bool {
     let config_map = &conf
@@ -944,7 +962,7 @@ pub fn is_merchant_enabled_for_payment_id_as_connector_request_id(
 }
 
 pub fn get_connector_request_reference_id(
-    conf: &settings::Settings,
+    conf: &Settings,
     merchant_id: &str,
     payment_attempt: &data_models::payments::payment_attempt::PaymentAttempt,
 ) -> String {
@@ -979,13 +997,13 @@ pub async fn validate_and_get_business_profile(
             if business_profile.merchant_id.ne(merchant_id) {
                 Err(errors::ApiErrorResponse::AccessForbidden {
                     resource: business_profile.profile_id,
-                })
+                }
+                .into())
             } else {
                 Ok(business_profile)
             }
         })
         .transpose()
-        .into_report()
 }
 
 fn connector_needs_business_sub_label(connector_name: &str) -> bool {
@@ -1079,7 +1097,6 @@ pub fn get_flow_name<F>() -> RouterResult<String> {
         .rsplit("::")
         .next()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .into_report()
         .attach_printable("Flow stringify failed")?
         .to_string())
 }
@@ -1092,7 +1109,7 @@ pub fn get_request_incremental_authorization_value(
         .map(|request_incremental_authorization| {
             if request_incremental_authorization {
                 if capture_method == Some(common_enums::CaptureMethod::Automatic) {
-                    Err(errors::ApiErrorResponse::NotSupported { message: "incremental authorization is not supported when capture_method is automatic".to_owned() }).into_report()?
+                    Err(errors::ApiErrorResponse::NotSupported { message: "incremental authorization is not supported when capture_method is automatic".to_owned() })?
                 }
                 Ok(RequestIncrementalAuthorization::True)
             } else {

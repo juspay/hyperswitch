@@ -1,4 +1,4 @@
-use error_stack::IntoReport;
+use error_stack::report;
 use router_env::{instrument, tracing};
 use storage_impl::MockDb;
 
@@ -35,10 +35,10 @@ impl BlocklistFingerprintInterface for Store {
         pm_fingerprint_new
             .insert(&conn)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
+    #[instrument(skip_all)]
     async fn find_blocklist_fingerprint_by_merchant_id_fingerprint_id(
         &self,
         merchant_id: &str,
@@ -51,14 +51,12 @@ impl BlocklistFingerprintInterface for Store {
             fingerprint_id,
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
 
 #[async_trait::async_trait]
 impl BlocklistFingerprintInterface for MockDb {
-    #[instrument(skip_all)]
     async fn insert_blocklist_fingerprint_entry(
         &self,
         _pm_fingerprint_new: storage::BlocklistFingerprintNew,
@@ -87,6 +85,7 @@ impl BlocklistFingerprintInterface for KafkaStore {
             .await
     }
 
+    #[instrument(skip_all)]
     async fn find_blocklist_fingerprint_by_merchant_id_fingerprint_id(
         &self,
         merchant_id: &str,

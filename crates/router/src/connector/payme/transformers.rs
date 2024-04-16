@@ -1,11 +1,8 @@
 use std::collections::HashMap;
 
-use api_models::{
-    enums::{AuthenticationType, PaymentMethod},
-    payments::PaymentMethodData,
-};
+use api_models::enums::{AuthenticationType, PaymentMethod};
 use common_utils::pii;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -13,13 +10,15 @@ use url::Url;
 use crate::{
     connector::utils::{
         self, is_payment_failure, is_refund_failure, missing_field_err, AddressDetailsData,
-        CardData, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
-        PaymentsPreProcessingData, PaymentsSyncRequestData, RouterData,
+        CardData, PaymentsAuthorizeRequestData, PaymentsCancelRequestData,
+        PaymentsCompleteAuthorizeRequestData, PaymentsPreProcessingData, PaymentsSyncRequestData,
+        RouterData,
     },
     consts,
     core::errors,
     services,
-    types::{self, api, storage::enums, MandateReference},
+    types::{self, api, domain, domain::PaymentMethodData, storage::enums, MandateReference},
+    unimplemented_payment_method,
 };
 
 const LANGUAGE: &str = "en";
@@ -83,7 +82,7 @@ pub struct Pay3dsRequest {
     buyer_email: pii::Email,
     buyer_key: String,
     payme_sale_id: String,
-    meta_data_jwt: String,
+    meta_data_jwt: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -121,7 +120,7 @@ pub struct CaptureBuyerRequest {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct CaptureBuyerResponse {
-    buyer_key: String,
+    buyer_key: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -254,13 +253,7 @@ impl TryFrom<&PaymePaySaleResponse> for types::PaymentsResponseData {
                 connector_mandate_id: Some(buyer_key.expose()),
                 payment_method_id: None,
             }),
-            connector_metadata: Some(
-                serde_json::to_value(PaymeMetadata {
-                    payme_transaction_id: value.payme_transaction_id.clone(),
-                })
-                .into_report()
-                .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
-            ),
+            connector_metadata: None,
             network_txn_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
@@ -392,38 +385,36 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
         match item {
             PaymentMethodData::Card(_) => Ok(Self::CreditCard),
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                api_models::payments::WalletData::ApplePayThirdPartySdk(_) => Ok(Self::ApplePay),
-                api_models::payments::WalletData::AliPayQr(_)
-                | api_models::payments::WalletData::AliPayRedirect(_)
-                | api_models::payments::WalletData::AliPayHkRedirect(_)
-                | api_models::payments::WalletData::MomoRedirect(_)
-                | api_models::payments::WalletData::KakaoPayRedirect(_)
-                | api_models::payments::WalletData::GoPayRedirect(_)
-                | api_models::payments::WalletData::GcashRedirect(_)
-                | api_models::payments::WalletData::ApplePayRedirect(_)
-                | api_models::payments::WalletData::DanaRedirect {}
-                | api_models::payments::WalletData::GooglePay(_)
-                | api_models::payments::WalletData::GooglePayRedirect(_)
-                | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
-                | api_models::payments::WalletData::MbWayRedirect(_)
-                | api_models::payments::WalletData::MobilePayRedirect(_)
-                | api_models::payments::WalletData::PaypalRedirect(_)
-                | api_models::payments::WalletData::PaypalSdk(_)
-                | api_models::payments::WalletData::SamsungPay(_)
-                | api_models::payments::WalletData::TwintRedirect {}
-                | api_models::payments::WalletData::VippsRedirect {}
-                | api_models::payments::WalletData::TouchNGoRedirect(_)
-                | api_models::payments::WalletData::WeChatPayRedirect(_)
-                | api_models::payments::WalletData::WeChatPayQr(_)
-                | api_models::payments::WalletData::CashappQr(_)
-                | api_models::payments::WalletData::ApplePay(_)
-                | api_models::payments::WalletData::SwishQr(_) => {
-                    Err(errors::ConnectorError::NotSupported {
-                        message: "Wallet".to_string(),
-                        connector: "payme",
-                    }
-                    .into())
+                domain::WalletData::ApplePayThirdPartySdk(_) => Ok(Self::ApplePay),
+                domain::WalletData::AliPayQr(_)
+                | domain::WalletData::AliPayRedirect(_)
+                | domain::WalletData::AliPayHkRedirect(_)
+                | domain::WalletData::MomoRedirect(_)
+                | domain::WalletData::KakaoPayRedirect(_)
+                | domain::WalletData::GoPayRedirect(_)
+                | domain::WalletData::GcashRedirect(_)
+                | domain::WalletData::ApplePayRedirect(_)
+                | domain::WalletData::DanaRedirect {}
+                | domain::WalletData::GooglePay(_)
+                | domain::WalletData::GooglePayRedirect(_)
+                | domain::WalletData::GooglePayThirdPartySdk(_)
+                | domain::WalletData::MbWayRedirect(_)
+                | domain::WalletData::MobilePayRedirect(_)
+                | domain::WalletData::PaypalRedirect(_)
+                | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::SamsungPay(_)
+                | domain::WalletData::TwintRedirect {}
+                | domain::WalletData::VippsRedirect {}
+                | domain::WalletData::TouchNGoRedirect(_)
+                | domain::WalletData::WeChatPayRedirect(_)
+                | domain::WalletData::WeChatPayQr(_)
+                | domain::WalletData::CashappQr(_)
+                | domain::WalletData::ApplePay(_)
+                | domain::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotSupported {
+                    message: "Wallet".to_string(),
+                    connector: "payme",
                 }
+                .into()),
             },
             PaymentMethodData::PayLater(_)
             | PaymentMethodData::BankRedirect(_)
@@ -547,28 +538,21 @@ impl<F>
             }
             _ => {
                 let currency_code = item.data.request.get_currency()?;
-                let country_code = item
-                    .data
-                    .address
-                    .billing
-                    .as_ref()
-                    .and_then(|billing| billing.address.as_ref())
-                    .and_then(|address| address.country);
                 let amount = item.data.request.get_amount()?;
                 let amount_in_base_unit = utils::to_currency_base_unit(amount, currency_code)?;
                 let pmd = item.data.request.payment_method_data.to_owned();
                 let payme_auth_type = PaymeAuthType::try_from(&item.data.connector_auth_type)?;
 
                 let session_token = match pmd {
-                    Some(PaymentMethodData::Wallet(
-                        api_models::payments::WalletData::ApplePayThirdPartySdk(_),
-                    )) => Some(api_models::payments::SessionToken::ApplePay(Box::new(
+                    Some(PaymentMethodData::Wallet(domain::WalletData::ApplePayThirdPartySdk(
+                        _,
+                    ))) => Some(api_models::payments::SessionToken::ApplePay(Box::new(
                         api_models::payments::ApplepaySessionTokenResponse {
                             session_token_data:
                                 api_models::payments::ApplePaySessionResponse::NoSessionResponse,
                             payment_request_data: Some(
                                 api_models::payments::ApplePayPaymentRequest {
-                                    country_code,
+                                    country_code: item.data.get_billing_country()?,
                                     currency_code,
                                     total: api_models::payments::AmountInfo {
                                         label: "Apple Pay".to_string(),
@@ -646,7 +630,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(req_card) => {
+            domain::PaymentMethodData::Card(req_card) => {
                 let card = PaymeCard {
                     credit_card_cvv: req_card.card_cvc.clone(),
                     credit_card_exp: req_card
@@ -668,21 +652,23 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayRequest {
                     language: LANGUAGE.to_string(),
                 })
             }
-            api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::Wallet(_)
-            | api::PaymentMethodData::PayLater(_)
-            | api::PaymentMethodData::BankRedirect(_)
-            | api::PaymentMethodData::BankDebit(_)
-            | api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::Crypto(_)
-            | api::PaymentMethodData::MandatePayment
-            | api::PaymentMethodData::Reward
-            | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("payme"),
-            ))?,
+            domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("payme"),
+                ))?
+            }
         }
     }
 }
@@ -695,14 +681,13 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCompleteAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
-            Some(api::PaymentMethodData::Card(_)) => {
+            Some(domain::PaymentMethodData::Card(_)) => {
                 let buyer_email = item.request.get_email()?;
                 let buyer_name = item.get_billing_address()?.get_full_name()?;
 
                 let payload_data = item.request.get_redirect_response_payload()?.expose();
 
                 let jwt_data: PaymeRedirectResponseData = serde_json::from_value(payload_data)
-                    .into_report()
                     .change_context(errors::ConnectorError::MissingConnectorRedirectionPayload {
                         field_name: "meta_data_jwt",
                     })?;
@@ -715,31 +700,31 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
                 let pm_token = item.get_payment_method_token()?;
                 let buyer_key = match pm_token {
                     types::PaymentMethodToken::Token(token) => token,
-                    types::PaymentMethodToken::ApplePayDecrypt(_) => {
-                        Err(errors::ConnectorError::InvalidWalletToken)?
-                    }
+                    types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
+                        unimplemented_payment_method!("Apple Pay", "Simplified", "Payme"),
+                    )?,
                 };
                 Ok(Self {
                     buyer_email,
                     buyer_key,
                     buyer_name,
                     payme_sale_id,
-                    meta_data_jwt: jwt_data.meta_data,
+                    meta_data_jwt: Secret::new(jwt_data.meta_data),
                 })
             }
-            Some(api::PaymentMethodData::CardRedirect(_))
-            | Some(api::PaymentMethodData::Wallet(_))
-            | Some(api::PaymentMethodData::PayLater(_))
-            | Some(api::PaymentMethodData::BankRedirect(_))
-            | Some(api::PaymentMethodData::BankDebit(_))
-            | Some(api::PaymentMethodData::BankTransfer(_))
-            | Some(api::PaymentMethodData::Crypto(_))
-            | Some(api::PaymentMethodData::MandatePayment)
-            | Some(api::PaymentMethodData::Reward)
-            | Some(api::PaymentMethodData::Upi(_))
-            | Some(api::PaymentMethodData::Voucher(_))
-            | Some(api::PaymentMethodData::GiftCard(_))
-            | Some(api::PaymentMethodData::CardToken(_))
+            Some(domain::PaymentMethodData::CardRedirect(_))
+            | Some(domain::PaymentMethodData::Wallet(_))
+            | Some(domain::PaymentMethodData::PayLater(_))
+            | Some(domain::PaymentMethodData::BankRedirect(_))
+            | Some(domain::PaymentMethodData::BankDebit(_))
+            | Some(domain::PaymentMethodData::BankTransfer(_))
+            | Some(domain::PaymentMethodData::Crypto(_))
+            | Some(domain::PaymentMethodData::MandatePayment)
+            | Some(domain::PaymentMethodData::Reward)
+            | Some(domain::PaymentMethodData::Upi(_))
+            | Some(domain::PaymentMethodData::Voucher(_))
+            | Some(domain::PaymentMethodData::GiftCard(_))
+            | Some(domain::PaymentMethodData::CardToken(_))
             | None => {
                 Err(errors::ConnectorError::NotImplemented("Tokenize Flow".to_string()).into())
             }
@@ -751,7 +736,7 @@ impl TryFrom<&types::TokenizationRouterData> for CaptureBuyerRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::TokenizationRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(req_card) => {
+            domain::PaymentMethodData::Card(req_card) => {
                 let seller_payme_id =
                     PaymeAuthType::try_from(&item.connector_auth_type)?.seller_payme_id;
                 let card = PaymeCard {
@@ -765,19 +750,19 @@ impl TryFrom<&types::TokenizationRouterData> for CaptureBuyerRequest {
                     seller_payme_id,
                 })
             }
-            api::PaymentMethodData::Wallet(_)
-            | api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::PayLater(_)
-            | api::PaymentMethodData::BankRedirect(_)
-            | api::PaymentMethodData::BankDebit(_)
-            | api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::Crypto(_)
-            | api::PaymentMethodData::MandatePayment
-            | api::PaymentMethodData::Reward
-            | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardToken(_) => {
+            domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented("Tokenize Flow".to_string()).into())
             }
         }
@@ -884,7 +869,7 @@ pub struct SaleQuery {
 pub struct PaymePaySaleResponse {
     sale_status: SaleStatus,
     payme_sale_id: String,
-    payme_transaction_id: String,
+    payme_transaction_id: Option<String>,
     buyer_key: Option<Secret<String>>,
     status_error_details: Option<String>,
     status_error_code: Option<u32>,
@@ -894,7 +879,7 @@ pub struct PaymePaySaleResponse {
 
 #[derive(Serialize, Deserialize)]
 pub struct PaymeMetadata {
-    payme_transaction_id: String,
+    payme_transaction_id: Option<String>,
 }
 
 impl<F, T>
@@ -907,10 +892,10 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             payment_method_token: Some(types::PaymentMethodToken::Token(
-                item.response.buyer_key.clone(),
+                item.response.buyer_key.clone().expose(),
             )),
             response: Ok(types::PaymentsResponseData::TokenizationResponse {
-                token: item.response.buyer_key,
+                token: item.response.buyer_key.expose(),
             }),
             ..item.data
         })
@@ -983,8 +968,8 @@ impl TryFrom<SaleStatus> for enums::RefundStatus {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PaymeRefundResponse {
     sale_status: SaleStatus,
-    payme_transaction_id: String,
-    status_error_code: i64,
+    payme_transaction_id: Option<String>,
+    status_error_code: Option<u32>,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, PaymeRefundResponse>>
@@ -997,21 +982,114 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, PaymeRefundResponse>
         let refund_status = enums::RefundStatus::try_from(item.response.sale_status.clone())?;
         let response = if is_refund_failure(refund_status) {
             let payme_response = &item.response;
+            let status_error_code = payme_response
+                .status_error_code
+                .map(|error_code| error_code.to_string());
             Err(types::ErrorResponse {
-                code: payme_response.status_error_code.to_string(),
-                message: payme_response.status_error_code.to_string(),
-                reason: Some(payme_response.status_error_code.to_string()),
+                code: status_error_code
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                message: status_error_code
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: status_error_code,
                 status_code: item.http_code,
                 attempt_status: None,
-                connector_transaction_id: Some(payme_response.payme_transaction_id.clone()),
+                connector_transaction_id: payme_response.payme_transaction_id.clone(),
             })
         } else {
             Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.payme_transaction_id,
+                connector_refund_id: item
+                    .response
+                    .payme_transaction_id
+                    .ok_or(errors::ConnectorError::MissingConnectorRefundID)?,
                 refund_status,
             })
         };
         Ok(Self {
+            response,
+            ..item.data
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct PaymeVoidRequest {
+    sale_currency: enums::Currency,
+    payme_sale_id: String,
+    seller_payme_id: Secret<String>,
+    language: String,
+}
+
+impl
+    TryFrom<
+        &PaymeRouterData<
+            &types::RouterData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>,
+        >,
+    > for PaymeVoidRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &PaymeRouterData<
+            &types::RouterData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let auth_type = PaymeAuthType::try_from(&item.router_data.connector_auth_type)?;
+        Ok(Self {
+            payme_sale_id: item.router_data.request.connector_transaction_id.clone(),
+            seller_payme_id: auth_type.seller_payme_id,
+            sale_currency: item.router_data.request.get_currency()?,
+            language: LANGUAGE.to_string(),
+        })
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PaymeVoidResponse {
+    sale_status: SaleStatus,
+    payme_transaction_id: Option<String>,
+    status_error_code: Option<u32>,
+}
+
+impl TryFrom<types::PaymentsCancelResponseRouterData<PaymeVoidResponse>>
+    for types::PaymentsCancelRouterData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::PaymentsCancelResponseRouterData<PaymeVoidResponse>,
+    ) -> Result<Self, Self::Error> {
+        let status = enums::AttemptStatus::from(item.response.sale_status.clone());
+        let response = if is_payment_failure(status) {
+            let payme_response = &item.response;
+            let status_error_code = payme_response
+                .status_error_code
+                .map(|error_code| error_code.to_string());
+            Err(types::ErrorResponse {
+                code: status_error_code
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                message: status_error_code
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: status_error_code,
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: payme_response.payme_transaction_id.clone(),
+            })
+        } else {
+            // Since we are not receiving payme_sale_id, we are not populating the transaction response
+            Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::NoResponseId,
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+            })
+        };
+        Ok(Self {
+            status,
             response,
             ..item.data
         })
@@ -1133,7 +1211,7 @@ impl From<WebhookEventDataResource> for PaymePaySaleResponse {
         Self {
             sale_status: value.sale_status,
             payme_sale_id: value.payme_sale_id,
-            payme_transaction_id: value.payme_transaction_id,
+            payme_transaction_id: Some(value.payme_transaction_id),
             buyer_key: value.buyer_key,
             sale_3ds: None,
             redirect_url: None,

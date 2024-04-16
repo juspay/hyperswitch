@@ -1,5 +1,6 @@
 pub mod address;
 pub mod api_keys;
+pub mod authentication;
 pub mod authorization;
 pub mod blocklist;
 pub mod blocklist_fingerprint;
@@ -27,10 +28,9 @@ pub mod merchant_key_store;
 pub mod organization;
 pub mod payment_link;
 pub mod payment_method;
-pub mod payout_attempt;
-pub mod payouts;
 pub mod refund;
 pub mod reverse_lookup;
+pub mod role;
 pub mod routing_algorithm;
 pub mod user;
 pub mod user_role;
@@ -38,6 +38,10 @@ pub mod user_role;
 use data_models::payments::{
     payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface,
 };
+#[cfg(feature = "payouts")]
+use data_models::payouts::{payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface};
+#[cfg(not(feature = "payouts"))]
+use data_models::{PayoutAttemptInterface, PayoutsInterface};
 use diesel_models::{
     fraud_check::{FraudCheck, FraudCheckNew, FraudCheckUpdate},
     organization::{Organization, OrganizationNew, OrganizationUpdate},
@@ -92,8 +96,8 @@ pub trait StorageInterface:
     + blocklist::BlocklistInterface
     + blocklist_fingerprint::BlocklistFingerprintInterface
     + scheduler::SchedulerInterface
-    + payout_attempt::PayoutAttemptInterface
-    + payouts::PayoutsInterface
+    + PayoutAttemptInterface
+    + PayoutsInterface
     + refund::RefundInterface
     + reverse_lookup::ReverseLookupInterface
     + cards_info::CardsInfoInterface
@@ -111,6 +115,8 @@ pub trait StorageInterface:
     + authorization::AuthorizationInterface
     + user::sample_data::BatchSampleDataInterface
     + health_check::HealthCheckDbInterface
+    + role::RoleInterface
+    + authentication::AuthenticationInterface
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;

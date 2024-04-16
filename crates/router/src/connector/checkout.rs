@@ -2,9 +2,13 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
+use common_utils::{
+    crypto,
+    ext_traits::{ByteSliceExt, Encode},
+    request::RequestContent,
+};
 use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::PeekInterface;
 
 use self::transformers as checkout;
@@ -30,7 +34,6 @@ use crate::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
     },
-    utils,
     utils::BytesExt,
 };
 
@@ -75,8 +78,7 @@ impl ConnectorCommon for Checkout {
         &self,
         auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth: checkout::CheckoutAuthType = auth_type
-            .try_into()
+        let auth = checkout::CheckoutAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
@@ -137,7 +139,7 @@ impl ConnectorCommon for Checkout {
                 .map(|errors| errors.join(" & "))
                 .or(response.error_type),
             attempt_status: None,
-            connector_transaction_id: None,
+            connector_transaction_id: response.request_id,
         })
     }
 }
@@ -751,12 +753,11 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             response,
             status: res.status_code,
         };
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -826,12 +827,11 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .iter()
             .find(|&x| x.action_id.clone() == refund_action_id)
             .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -1219,9 +1219,7 @@ impl api::IncomingWebhook for Checkout {
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let signature = conn_utils::get_header_key_value("cko-signature", request.headers)
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
-        hex::decode(signature)
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookSignatureNotFound)
+        hex::decode(signature).change_context(errors::ConnectorError::WebhookSignatureNotFound)
     }
     fn get_webhook_source_verification_message(
         &self,
@@ -1239,30 +1237,43 @@ impl api::IncomingWebhook for Checkout {
             .body
             .parse_struct("CheckoutWebhookBody")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-
-        if checkout::is_chargeback_event(&details.transaction_type) {
-            return Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                api_models::payments::PaymentIdType::ConnectorTransactionId(
-                    details
-                        .data
-                        .payment_id
-                        .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
-                ),
-            ));
-        }
-        if checkout::is_refund_event(&details.transaction_type) {
-            return Ok(api_models::webhooks::ObjectReferenceId::RefundId(
-                api_models::webhooks::RefundIdType::ConnectorRefundId(
-                    details
-                        .data
-                        .action_id
-                        .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
-                ),
-            ));
-        }
-        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            api_models::payments::PaymentIdType::ConnectorTransactionId(details.data.id),
-        ))
+        let ref_id: api_models::webhooks::ObjectReferenceId =
+            if checkout::is_chargeback_event(&details.transaction_type) {
+                let reference = match details.data.reference {
+                    Some(reference) => {
+                        api_models::payments::PaymentIdType::PaymentAttemptId(reference)
+                    }
+                    None => api_models::payments::PaymentIdType::ConnectorTransactionId(
+                        details
+                            .data
+                            .payment_id
+                            .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
+                    ),
+                };
+                api_models::webhooks::ObjectReferenceId::PaymentId(reference)
+            } else if checkout::is_refund_event(&details.transaction_type) {
+                let refund_reference = match details.data.reference {
+                    Some(reference) => api_models::webhooks::RefundIdType::RefundId(reference),
+                    None => api_models::webhooks::RefundIdType::ConnectorRefundId(
+                        details
+                            .data
+                            .action_id
+                            .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
+                    ),
+                };
+                api_models::webhooks::ObjectReferenceId::RefundId(refund_reference)
+            } else {
+                let reference_id = match details.data.reference {
+                    Some(reference) => {
+                        api_models::payments::PaymentIdType::PaymentAttemptId(reference)
+                    }
+                    None => {
+                        api_models::payments::PaymentIdType::ConnectorTransactionId(details.data.id)
+                    }
+                };
+                api_models::webhooks::ObjectReferenceId::PaymentId(reference_id)
+            };
+        Ok(ref_id)
     }
 
     fn get_webhook_event_type(
@@ -1297,7 +1308,8 @@ impl api::IncomingWebhook for Checkout {
         } else {
             // if payment_event, construct PaymentResponse and then serialize it to json and return.
             let payment_response = checkout::PaymentsResponse::try_from(request)?;
-            utils::Encode::<checkout::PaymentsResponse>::encode_to_value(&payment_response)
+            payment_response
+                .encode_to_value()
                 .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?
         };
         // Ideally this should be a strict type that has type information

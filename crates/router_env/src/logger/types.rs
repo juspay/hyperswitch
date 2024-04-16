@@ -49,11 +49,16 @@ pub enum Tag {
 
     /// Event: general.
     Event,
+
+    /// Compatibility Layer Request
+    CompatibilityLayerRequest,
 }
 
 /// API Flow
 #[derive(Debug, Display, Clone, PartialEq, Eq)]
 pub enum Flow {
+    /// Health check
+    HealthCheck,
     /// Deep health Check
     DeepHealthCheck,
     /// Merchants account create flow.
@@ -82,6 +87,8 @@ pub enum Flow {
     ConfigKeyFetch,
     /// ConfigKey Update flow.
     ConfigKeyUpdate,
+    /// ConfigKey Delete flow.
+    ConfigKeyDelete,
     /// Customers create flow.
     CustomersCreate,
     /// Customers retrieve flow.
@@ -110,16 +117,22 @@ pub enum Flow {
     CustomerPaymentMethodsList,
     /// List Customers for a merchant
     CustomersList,
+    /// Retrieve countries and currencies for connector and payment method
+    ListCountriesCurrencies,
     /// Payment methods retrieve flow.
     PaymentMethodsRetrieve,
     /// Payment methods update flow.
     PaymentMethodsUpdate,
     /// Payment methods delete flow.
     PaymentMethodsDelete,
+    /// Default Payment method flow.
+    DefaultPaymentMethodsSet,
     /// Payments create flow.
     PaymentsCreate,
     /// Payments Retrieve flow.
     PaymentsRetrieve,
+    /// Payments Retrieve force sync flow.
+    PaymentsRetrieveForceSync,
     /// Payments update flow.
     PaymentsUpdate,
     /// Payments confirm flow.
@@ -153,6 +166,12 @@ pub enum Flow {
     #[cfg(feature = "payouts")]
     /// Payouts fulfill flow.
     PayoutsFulfill,
+    #[cfg(feature = "payouts")]
+    /// Payouts list flow.
+    PayoutsList,
+    #[cfg(feature = "payouts")]
+    /// Payouts filter flow.
+    PayoutsFilter,
     /// Payouts accounts flow.
     PayoutsAccounts,
     /// Payments Redirect flow.
@@ -161,6 +180,8 @@ pub enum Flow {
     RefundsCreate,
     /// Refunds retrieve flow.
     RefundsRetrieve,
+    /// Refunds retrieve force sync flow.
+    RefundsRetrieveForceSync,
     /// Refunds update flow.
     RefundsUpdate,
     /// Refunds list flow.
@@ -185,6 +206,8 @@ pub enum Flow {
     RoutingRetrieveConfig,
     /// Routing retrieve active config
     RoutingRetrieveActiveConfig,
+    /// Update connector agnostic mandate config
+    CreateConnectorAgnosticMandateConfig,
     /// Routing retrieve default config
     RoutingRetrieveDefaultConfig,
     /// Routing retrieve dictionary
@@ -296,7 +319,7 @@ pub enum Flow {
     /// Set Dashboard Metadata flow
     SetDashboardMetadata,
     /// Get Multiple Dashboard Metadata flow
-    GetMutltipleDashboardMetadata,
+    GetMultipleDashboardMetadata,
     /// Payment Connector Verify
     VerifyPaymentConnector,
     /// Internal user signup
@@ -323,8 +346,10 @@ pub enum Flow {
     DeleteSampleData,
     /// List merchant accounts for user
     UserMerchantAccountList,
-    /// Get users for merchant account
+    /// Get details of a user in a merchant account
     GetUserDetails,
+    /// List users for merchant account
+    ListUsersForMerchantAccount,
     /// PaymentMethodAuth Link token create
     PmAuthLinkTokenCreate,
     /// PaymentMethodAuth Exchange token create
@@ -339,6 +364,8 @@ pub enum Flow {
     InviteMultipleUser,
     /// Reinvite user
     ReInviteUser,
+    /// Accept invite from email
+    AcceptInviteFromEmail,
     /// Delete user role
     DeleteUserRole,
     /// Incremental Authorization flow
@@ -359,6 +386,20 @@ pub enum Flow {
     UpdateUserAccountDetails,
     /// Accept user invitation
     AcceptInvitation,
+    /// Initiate external authentication for a payment
+    PaymentsExternalAuthentication,
+    /// Authorize the payment after external 3ds authentication
+    PaymentsAuthorize,
+    /// Create Role
+    CreateRole,
+    /// Update Role
+    UpdateRole,
+    /// List initial webhook delivery attempts
+    WebhookEventInitialDeliveryAttemptList,
+    /// List delivery attempts for a webhook event
+    WebhookEventDeliveryAttemptList,
+    /// Manually retry the delivery for a webhook event
+    WebhookEventDeliveryRetry,
 }
 
 ///

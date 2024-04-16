@@ -1,20 +1,17 @@
 pub use api_models::admin::{
-    payout_routing_algorithm, BusinessProfileCreate, BusinessProfileResponse,
-    BusinessProfileUpdate, MerchantAccountCreate, MerchantAccountDeleteResponse,
-    MerchantAccountResponse, MerchantAccountUpdate, MerchantConnectorCreate,
-    MerchantConnectorDeleteResponse, MerchantConnectorDetails, MerchantConnectorDetailsWrap,
-    MerchantConnectorId, MerchantConnectorResponse, MerchantDetails, MerchantId,
-    PaymentMethodsEnabled, PayoutRoutingAlgorithm, PayoutStraightThroughAlgorithm, ToggleKVRequest,
-    ToggleKVResponse, WebhookDetails,
+    BusinessProfileCreate, BusinessProfileResponse, BusinessProfileUpdate, MerchantAccountCreate,
+    MerchantAccountDeleteResponse, MerchantAccountResponse, MerchantAccountUpdate,
+    MerchantConnectorCreate, MerchantConnectorDeleteResponse, MerchantConnectorDetails,
+    MerchantConnectorDetailsWrap, MerchantConnectorId, MerchantConnectorResponse, MerchantDetails,
+    MerchantId, PaymentMethodsEnabled, ToggleKVRequest, ToggleKVResponse, WebhookDetails,
 };
-use common_utils::ext_traits::ValueExt;
+use common_utils::ext_traits::{Encode, ValueExt};
 use error_stack::ResultExt;
 use masking::Secret;
 
 use crate::{
     core::errors,
     types::{domain, storage, transformers::ForeignTryFrom},
-    utils::{self},
 };
 
 impl TryFrom<domain::MerchantAccount> for MerchantAccountResponse {
@@ -42,6 +39,7 @@ impl TryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             primary_business_details,
             frm_routing_algorithm: item.frm_routing_algorithm,
             intent_fulfillment_time: item.intent_fulfillment_time,
+            #[cfg(feature = "payouts")]
             payout_routing_algorithm: item.payout_routing_algorithm,
             organization_id: item.organization_id,
             is_recon_enabled: item.is_recon_enabled,
@@ -70,10 +68,17 @@ impl ForeignTryFrom<storage::business_profile::BusinessProfile> for BusinessProf
             routing_algorithm: item.routing_algorithm,
             intent_fulfillment_time: item.intent_fulfillment_time,
             frm_routing_algorithm: item.frm_routing_algorithm,
+            #[cfg(feature = "payouts")]
             payout_routing_algorithm: item.payout_routing_algorithm,
             applepay_verified_domains: item.applepay_verified_domains,
             payment_link_config: item.payment_link_config,
             session_expiry: item.session_expiry,
+            authentication_connector_details: item
+                .authentication_connector_details
+                .map(|authentication_connector_details| {
+                    authentication_connector_details.parse_value("AuthenticationDetails")
+                })
+                .transpose()?,
         })
     }
 }
@@ -95,10 +100,11 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
             .webhook_details
             .as_ref()
             .map(|webhook_details| {
-                common_utils::ext_traits::Encode::<WebhookDetails>::encode_to_value(webhook_details)
-                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                webhook_details.encode_to_value().change_context(
+                    errors::ApiErrorResponse::InvalidDataValue {
                         field_name: "webhook details",
-                    })
+                    },
+                )
             })
             .transpose()?;
 
@@ -110,12 +116,11 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
         let payment_link_config_value = request
             .payment_link_config
             .map(|pl_config| {
-                utils::Encode::<api_models::admin::BusinessPaymentLinkConfig>::encode_to_value(
-                    &pl_config,
+                pl_config.encode_to_value().change_context(
+                    errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "payment_link_config_value",
+                    },
                 )
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "payment_link_config_value",
-                })
             })
             .transpose()?;
 
@@ -149,9 +154,12 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
             frm_routing_algorithm: request
                 .frm_routing_algorithm
                 .or(merchant_account.frm_routing_algorithm),
+            #[cfg(feature = "payouts")]
             payout_routing_algorithm: request
                 .payout_routing_algorithm
                 .or(merchant_account.payout_routing_algorithm),
+            #[cfg(not(feature = "payouts"))]
+            payout_routing_algorithm: None,
             is_recon_enabled: merchant_account.is_recon_enabled,
             applepay_verified_domains: request.applepay_verified_domains,
             payment_link_config: payment_link_config_value,
@@ -159,6 +167,14 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
                 .session_expiry
                 .map(i64::from)
                 .or(Some(common_utils::consts::DEFAULT_SESSION_EXPIRY)),
+            authentication_connector_details: request
+                .authentication_connector_details
+                .as_ref()
+                .map(Encode::encode_to_value)
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "authentication_connector_details",
+                })?,
         })
     }
 }

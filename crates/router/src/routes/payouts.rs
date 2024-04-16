@@ -5,15 +5,15 @@ use actix_web::{
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
+#[cfg(feature = "olap")]
+use crate::types::api::payments as payment_types;
 use crate::{
-    core::api_locking,
-    services::{api, authentication as auth},
+    core::{api_locking, payouts::*},
+    services::{api, authentication as auth, authorization::permissions::Permission},
+    types::api::payouts as payout_types,
 };
-#[cfg(feature = "payouts")]
-use crate::{core::payouts::*, types::api::payouts as payout_types};
 
 /// Payouts - Create
-#[cfg(feature = "payouts")]
 #[utoipa::path(
     post,
     path = "/payouts/create",
@@ -38,14 +38,15 @@ pub async fn payouts_create(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth, req| payouts_create_core(state, auth.merchant_account, auth.key_store, req),
+        |state, auth, req, _| {
+            payouts_create_core(state, auth.merchant_account, auth.key_store, req)
+        },
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
 }
 /// Payouts - Retrieve
-#[cfg(feature = "payouts")]
 #[utoipa::path(
     get,
     path = "/payouts/{payout_id}",
@@ -77,14 +78,19 @@ pub async fn payouts_retrieve(
         state,
         &req,
         payout_retrieve_request,
-        |state, auth, req| payouts_retrieve_core(state, auth.merchant_account, auth.key_store, req),
-        &auth::ApiKeyAuth,
+        |state, auth, req, _| {
+            payouts_retrieve_core(state, auth.merchant_account, auth.key_store, req)
+        },
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::PayoutRead),
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await
 }
 /// Payouts - Update
-#[cfg(feature = "payouts")]
 #[utoipa::path(
     post,
     path = "/payouts/{payout_id}",
@@ -116,14 +122,15 @@ pub async fn payouts_update(
         state,
         &req,
         payout_update_payload,
-        |state, auth, req| payouts_update_core(state, auth.merchant_account, auth.key_store, req),
+        |state, auth, req, _| {
+            payouts_update_core(state, auth.merchant_account, auth.key_store, req)
+        },
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
 }
 /// Payouts - Cancel
-#[cfg(feature = "payouts")]
 #[utoipa::path(
     post,
     path = "/payouts/{payout_id}/cancel",
@@ -155,14 +162,15 @@ pub async fn payouts_cancel(
         state,
         &req,
         payload,
-        |state, auth, req| payouts_cancel_core(state, auth.merchant_account, auth.key_store, req),
+        |state, auth, req, _| {
+            payouts_cancel_core(state, auth.merchant_account, auth.key_store, req)
+        },
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
 }
 /// Payouts - Fulfill
-#[cfg(feature = "payouts")]
 #[utoipa::path(
     post,
     path = "/payouts/{payout_id}/fulfill",
@@ -194,12 +202,133 @@ pub async fn payouts_fulfill(
         state,
         &req,
         payload,
-        |state, auth, req| payouts_fulfill_core(state, auth.merchant_account, auth.key_store, req),
+        |state, auth, req, _| {
+            payouts_fulfill_core(state, auth.merchant_account, auth.key_store, req)
+        },
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
 }
+
+/// Payouts - List
+#[cfg(feature = "olap")]
+#[utoipa::path(
+    get,
+    path = "/payouts/list",
+    responses(
+        (status = 200, description = "Payouts listed", body = PayoutListResponse),
+        (status = 404, description = "Payout not found")
+    ),
+    tag = "Payouts",
+    operation_id = "List payouts",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::PayoutsList))]
+pub async fn payouts_list(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Query<payout_types::PayoutListConstraints>,
+) -> HttpResponse {
+    let flow = Flow::PayoutsList;
+    let payload = json_payload.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, req, _| payouts_list_core(state, auth.merchant_account, auth.key_store, req),
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::PayoutRead),
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+/// Payouts - Filtered list
+#[cfg(feature = "olap")]
+#[utoipa::path(
+    post,
+    path = "/payouts/list",
+    responses(
+        (status = 200, description = "Payouts filtered", body = PayoutListResponse),
+        (status = 404, description = "Payout not found")
+    ),
+    tag = "Payouts",
+    operation_id = "Filter payouts",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::PayoutsList))]
+pub async fn payouts_list_by_filter(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<payout_types::PayoutListFilterConstraints>,
+) -> HttpResponse {
+    let flow = Flow::PayoutsList;
+    let payload = json_payload.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, req, _| {
+            payouts_filtered_list_core(state, auth.merchant_account, auth.key_store, req)
+        },
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::PayoutRead),
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+/// Payouts - Available filters
+#[cfg(feature = "olap")]
+#[utoipa::path(
+    post,
+    path = "/payouts/filter",
+    responses(
+        (status = 200, description = "Payouts filtered", body = PayoutListFilters),
+        (status = 404, description = "Payout not found")
+    ),
+    tag = "Payouts",
+    operation_id = "Filter payouts",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::PayoutsFilter))]
+pub async fn payouts_list_available_filters(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<payment_types::TimeRange>,
+) -> HttpResponse {
+    let flow = Flow::PayoutsFilter;
+    let payload = json_payload.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, req, _| {
+            payouts_list_available_filters_core(state, auth.merchant_account, req)
+        },
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::PayoutRead),
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsAccounts))]
 // #[get("/accounts")]
 pub async fn payouts_accounts() -> impl Responder {

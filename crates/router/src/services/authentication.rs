@@ -2,22 +2,20 @@ use actix_web::http::header::HeaderMap;
 use api_models::{payment_methods::PaymentMethodListRequest, payments};
 use async_trait::async_trait;
 use common_utils::date_time;
-use error_stack::{report, IntoReport, ResultExt};
-#[cfg(feature = "aws_kms")]
-use external_services::aws_kms::{self, decrypt::AwsKmsDecrypt};
-#[cfg(feature = "hashicorp-vault")]
-use external_services::hashicorp_vault::decrypt::VaultFetch;
+use error_stack::{report, ResultExt};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
-#[cfg(feature = "hashicorp-vault")]
-use masking::ExposeInterface;
-use masking::{PeekInterface, StrongSecret};
+use masking::PeekInterface;
+use router_env::logger;
 use serde::Serialize;
 
+use self::blacklist::BlackList;
 use super::authorization::{self, permissions::Permission};
 #[cfg(feature = "olap")]
 use super::jwt;
 #[cfg(feature = "recon")]
 use super::recon::ReconToken;
+#[cfg(feature = "olap")]
+use crate::configs::Settings;
 #[cfg(feature = "olap")]
 use crate::consts;
 #[cfg(feature = "olap")]
@@ -25,7 +23,6 @@ use crate::core::errors::UserResult;
 #[cfg(feature = "recon")]
 use crate::routes::AppState;
 use crate::{
-    configs::settings,
     core::{
         api_keys,
         errors::{self, utils::StorageErrorExt, RouterResult},
@@ -37,6 +34,7 @@ use crate::{
     utils::OptionExt,
 };
 pub mod blacklist;
+pub mod cookies;
 
 #[derive(Clone, Debug)]
 pub struct AuthenticationData {
@@ -75,6 +73,17 @@ pub enum AuthenticationType {
     NoAuth,
 }
 
+impl events::EventInfo for AuthenticationType {
+    type Data = Self;
+    fn data(&self) -> error_stack::Result<Self::Data, events::EventsError> {
+        Ok(self.clone())
+    }
+
+    fn key(&self) -> String {
+        "auth_info".to_string()
+    }
+}
+
 impl AuthenticationType {
     pub fn get_merchant_id(&self) -> Option<&str> {
         match self {
@@ -107,7 +116,7 @@ pub struct UserAuthToken {
 
 #[cfg(feature = "olap")]
 impl UserAuthToken {
-    pub async fn new_token(user_id: String, settings: &settings::Settings) -> UserResult<String> {
+    pub async fn new_token(user_id: String, settings: &Settings) -> UserResult<String> {
         let exp_duration = std::time::Duration::from_secs(consts::JWT_TOKEN_TIME_IN_SECS);
         let exp = jwt::generate_exp(exp_duration)?.as_secs();
         let token_payload = Self { user_id, exp };
@@ -130,7 +139,7 @@ impl AuthToken {
         user_id: String,
         merchant_id: String,
         role_id: String,
-        settings: &settings::Settings,
+        settings: &Settings,
         org_id: String,
     ) -> UserResult<String> {
         let exp_duration = std::time::Duration::from_secs(consts::JWT_TOKEN_TIME_IN_SECS);
@@ -216,23 +225,13 @@ where
             .trim();
         if api_key.is_empty() {
             return Err(errors::ApiErrorResponse::Unauthorized)
-                .into_report()
                 .attach_printable("API key is empty");
         }
 
         let api_key = api_keys::PlaintextApiKey::from(api_key);
         let hash_key = {
             let config = state.conf();
-            api_keys::get_hash_key(
-                &config.api_keys,
-                #[cfg(feature = "aws_kms")]
-                aws_kms::core::get_aws_kms_client(&config.kms).await,
-                #[cfg(feature = "hashicorp-vault")]
-                external_services::hashicorp_vault::core::get_hashicorp_client(&config.hc_vault)
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
-            )
-            .await?
+            config.api_keys.get_inner().get_hash_key()?
         };
         let hashed_api_key = api_key.keyed_hash(hash_key.peek());
 
@@ -284,41 +283,6 @@ where
     }
 }
 
-static ADMIN_API_KEY: tokio::sync::OnceCell<StrongSecret<String>> =
-    tokio::sync::OnceCell::const_new();
-
-pub async fn get_admin_api_key(
-    secrets: &settings::Secrets,
-    #[cfg(feature = "aws_kms")] aws_kms_client: &aws_kms::core::AwsKmsClient,
-    #[cfg(feature = "hashicorp-vault")]
-    hc_client: &external_services::hashicorp_vault::core::HashiCorpVault,
-) -> RouterResult<&'static StrongSecret<String>> {
-    ADMIN_API_KEY
-        .get_or_try_init(|| async {
-            #[cfg(not(feature = "aws_kms"))]
-            let admin_api_key = secrets.admin_api_key.clone();
-
-            #[cfg(feature = "aws_kms")]
-            let admin_api_key = secrets
-                .kms_encrypted_admin_api_key
-                .decrypt_inner(aws_kms_client)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to AWS KMS decrypt admin API key")?;
-
-            #[cfg(feature = "hashicorp-vault")]
-            let admin_api_key = masking::Secret::new(admin_api_key)
-                .fetch_inner::<external_services::hashicorp_vault::core::Kv2>(hc_client)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to KMS decrypt admin API key")?
-                .expose();
-
-            Ok(StrongSecret::new(admin_api_key))
-        })
-        .await
-}
-
 #[derive(Debug)]
 pub struct UserWithoutMerchantJWTAuth;
 
@@ -334,7 +298,7 @@ where
         state: &A,
     ) -> RouterResult<(UserWithoutMerchantFromToken, AuthenticationType)> {
         let payload = parse_jwt_payload::<A, UserAuthToken>(request_headers, state).await?;
-        if blacklist::check_user_in_blacklist(state, &payload.user_id, payload.exp).await? {
+        if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
@@ -366,17 +330,7 @@ where
             get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
         let conf = state.conf();
 
-        let admin_api_key = get_admin_api_key(
-            &conf.secrets,
-            #[cfg(feature = "aws_kms")]
-            aws_kms::core::get_aws_kms_client(&conf.kms).await,
-            #[cfg(feature = "hashicorp-vault")]
-            external_services::hashicorp_vault::core::get_hashicorp_client(&conf.hc_vault)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed while getting admin api key")?,
-        )
-        .await?;
+        let admin_api_key = &conf.secrets.get_inner().admin_api_key;
 
         if request_admin_api_key != admin_api_key.peek() {
             Err(report!(errors::ApiErrorResponse::Unauthorized)
@@ -499,12 +453,12 @@ where
         state: &A,
     ) -> RouterResult<((), AuthenticationType)> {
         let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
-        if blacklist::check_user_in_blacklist(state, &payload.user_id, payload.exp).await? {
+        if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let permissions = authorization::get_permissions(&payload.role_id)?;
-        authorization::check_authorization(&self.0, permissions)?;
+        let permissions = authorization::get_permissions(state, &payload).await?;
+        authorization::check_authorization(&self.0, &permissions)?;
 
         Ok((
             (),
@@ -528,12 +482,12 @@ where
         state: &A,
     ) -> RouterResult<(UserFromToken, AuthenticationType)> {
         let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
-        if blacklist::check_user_in_blacklist(state, &payload.user_id, payload.exp).await? {
+        if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let permissions = authorization::get_permissions(&payload.role_id)?;
-        authorization::check_authorization(&self.0, permissions)?;
+        let permissions = authorization::get_permissions(state, &payload).await?;
+        authorization::check_authorization(&self.0, &permissions)?;
 
         Ok((
             UserFromToken {
@@ -566,12 +520,12 @@ where
         state: &A,
     ) -> RouterResult<((), AuthenticationType)> {
         let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
-        if blacklist::check_user_in_blacklist(state, &payload.user_id, payload.exp).await? {
+        if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let permissions = authorization::get_permissions(&payload.role_id)?;
-        authorization::check_authorization(&self.required_permission, permissions)?;
+        let permissions = authorization::get_permissions(state, &payload).await?;
+        authorization::check_authorization(&self.required_permission, &permissions)?;
 
         // Check if token has access to MerchantId that has been requested through query param
         if payload.merchant_id != self.merchant_id {
@@ -587,12 +541,83 @@ where
     }
 }
 
+pub struct JWTAuthMerchantOrProfileFromRoute {
+    pub merchant_id_or_profile_id: String,
+    pub required_permission: Permission,
+}
+
+#[async_trait]
+impl<A> AuthenticateAndFetch<(), A> for JWTAuthMerchantOrProfileFromRoute
+where
+    A: AppStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<((), AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+        if payload.check_in_blacklist(state).await? {
+            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+        }
+
+        let permissions = authorization::get_permissions(state, &payload).await?;
+        authorization::check_authorization(&self.required_permission, &permissions)?;
+
+        // Check if token has access to MerchantId that has been requested through path or query param
+        if payload.merchant_id == self.merchant_id_or_profile_id {
+            return Ok((
+                (),
+                AuthenticationType::MerchantJwt {
+                    merchant_id: payload.merchant_id,
+                    user_id: Some(payload.user_id),
+                },
+            ));
+        }
+
+        // Route did not contain the merchant ID in present JWT, check if it corresponds to a
+        // business profile
+        let business_profile = state
+            .store()
+            .find_business_profile_by_profile_id(&self.merchant_id_or_profile_id)
+            .await
+            // Return access forbidden if business profile not found
+            .to_not_found_response(errors::ApiErrorResponse::AccessForbidden {
+                resource: self.merchant_id_or_profile_id.clone(),
+            })
+            .attach_printable("Could not find business profile specified in route")?;
+
+        // Check if merchant (from JWT) has access to business profile that has been requested
+        // through path or query param
+        if payload.merchant_id == business_profile.merchant_id {
+            Ok((
+                (),
+                AuthenticationType::MerchantJwt {
+                    merchant_id: payload.merchant_id,
+                    user_id: Some(payload.user_id),
+                },
+            ))
+        } else {
+            Err(report!(errors::ApiErrorResponse::InvalidJwtToken))
+        }
+    }
+}
+
 pub async fn parse_jwt_payload<A, T>(headers: &HeaderMap, state: &A) -> RouterResult<T>
 where
     T: serde::de::DeserializeOwned,
     A: AppStateInfo + Sync,
 {
     let token = get_jwt_from_authorization_header(headers)?;
+    if let Some(token_from_cookies) = get_cookie_from_header(headers)
+        .ok()
+        .and_then(|cookies| cookies::parse_cookie(cookies).ok())
+    {
+        logger::info!(
+            "Cookie header and authorization header JWT comparison result: {}",
+            token == token_from_cookies
+        );
+    }
     let payload = decode_jwt(token, state).await?;
 
     Ok(payload)
@@ -609,12 +634,12 @@ where
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
         let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
-        if blacklist::check_user_in_blacklist(state, &payload.user_id, payload.exp).await? {
+        if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let permissions = authorization::get_permissions(&payload.role_id)?;
-        authorization::check_authorization(&self.0, permissions)?;
+        let permissions = authorization::get_permissions(state, &payload).await?;
+        authorization::check_authorization(&self.0, &permissions)?;
 
         let key_store = state
             .store()
@@ -659,12 +684,12 @@ where
         state: &A,
     ) -> RouterResult<(AuthenticationDataWithUserId, AuthenticationType)> {
         let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
-        if blacklist::check_user_in_blacklist(state, &payload.user_id, payload.exp).await? {
+        if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let permissions = authorization::get_permissions(&payload.role_id)?;
-        authorization::check_authorization(&self.0, permissions)?;
+        let permissions = authorization::get_permissions(state, &payload).await?;
+        authorization::check_authorization(&self.0, &permissions)?;
 
         let key_store = state
             .store()
@@ -710,7 +735,7 @@ where
         state: &A,
     ) -> RouterResult<(UserFromToken, AuthenticationType)> {
         let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
-        if blacklist::check_user_in_blacklist(state, &payload.user_id, payload.exp).await? {
+        if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
@@ -741,11 +766,53 @@ where
         state: &A,
     ) -> RouterResult<((), AuthenticationType)> {
         let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
-        if blacklist::check_user_in_blacklist(state, &payload.user_id, payload.exp).await? {
+        if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
         Ok(((), AuthenticationType::NoAuth))
+    }
+}
+
+#[async_trait]
+impl<A> AuthenticateAndFetch<AuthenticationData, A> for DashboardNoPermissionAuth
+where
+    A: AppStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+
+        let key_store = state
+            .store()
+            .get_merchant_key_store_by_merchant_id(
+                &payload.merchant_id,
+                &state.store().get_master_key().to_vec().into(),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::Unauthorized)
+            .attach_printable("Failed to fetch merchant key store for the merchant id")?;
+
+        let merchant = state
+            .store()
+            .find_merchant_account_by_merchant_id(&payload.merchant_id, &key_store)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+        let auth = AuthenticationData {
+            merchant_account: merchant,
+            key_store,
+        };
+        Ok((
+            auth.clone(),
+            AuthenticationType::MerchantJwt {
+                merchant_id: auth.merchant_account.merchant_id.clone(),
+                user_id: Some(payload.user_id),
+            },
+        ))
     }
 }
 
@@ -869,48 +936,16 @@ pub fn is_jwt_auth(headers: &HeaderMap) -> bool {
     headers.get(crate::headers::AUTHORIZATION).is_some()
 }
 
-static JWT_SECRET: tokio::sync::OnceCell<StrongSecret<String>> = tokio::sync::OnceCell::const_new();
-
-pub async fn get_jwt_secret(
-    secrets: &settings::Secrets,
-    #[cfg(feature = "aws_kms")] aws_kms_client: &aws_kms::core::AwsKmsClient,
-) -> RouterResult<&'static StrongSecret<String>> {
-    JWT_SECRET
-        .get_or_try_init(|| async {
-            #[cfg(feature = "aws_kms")]
-            let jwt_secret = secrets
-                .kms_encrypted_jwt_secret
-                .decrypt_inner(aws_kms_client)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to AWS KMS decrypt JWT secret")?;
-
-            #[cfg(not(feature = "aws_kms"))]
-            let jwt_secret = secrets.jwt_secret.clone();
-
-            Ok(StrongSecret::new(jwt_secret))
-        })
-        .await
-}
-
 pub async fn decode_jwt<T>(token: &str, state: &impl AppStateInfo) -> RouterResult<T>
 where
     T: serde::de::DeserializeOwned,
 {
     let conf = state.conf();
-    let secret = get_jwt_secret(
-        &conf.secrets,
-        #[cfg(feature = "aws_kms")]
-        aws_kms::core::get_aws_kms_client(&conf.kms).await,
-    )
-    .await?
-    .peek()
-    .as_bytes();
+    let secret = conf.secrets.get_inner().jwt_secret.peek().as_bytes();
 
     let key = DecodingKey::from_secret(secret);
     decode::<T>(token, &key, &Validation::new(Algorithm::HS256))
         .map(|decoded| decoded.claims)
-        .into_report()
         .change_context(errors::ApiErrorResponse::InvalidJwtToken)
 }
 
@@ -924,7 +959,6 @@ pub fn get_header_value_by_key(key: String, headers: &HeaderMap) -> RouterResult
         .map(|source_str| {
             source_str
                 .to_str()
-                .into_report()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(format!(
                     "Failed to convert header value to string for header key: {}",
@@ -939,11 +973,17 @@ pub fn get_jwt_from_authorization_header(headers: &HeaderMap) -> RouterResult<&s
         .get(crate::headers::AUTHORIZATION)
         .get_required_value(crate::headers::AUTHORIZATION)?
         .to_str()
-        .into_report()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to convert JWT token to string")?
         .strip_prefix("Bearer ")
         .ok_or(errors::ApiErrorResponse::InvalidJwtToken.into())
+}
+
+pub fn get_cookie_from_header(headers: &HeaderMap) -> RouterResult<&str> {
+    headers
+        .get(cookies::get_cookie_header())
+        .and_then(|header_value| header_value.to_str().ok())
+        .ok_or(errors::ApiErrorResponse::InvalidCookie.into())
 }
 
 pub fn strip_jwt_token(token: &str) -> RouterResult<&str> {
@@ -966,33 +1006,6 @@ where
 }
 
 #[cfg(feature = "recon")]
-static RECON_API_KEY: tokio::sync::OnceCell<StrongSecret<String>> =
-    tokio::sync::OnceCell::const_new();
-
-#[cfg(feature = "recon")]
-pub async fn get_recon_admin_api_key(
-    secrets: &settings::Secrets,
-    #[cfg(feature = "aws_kms")] kms_client: &aws_kms::core::AwsKmsClient,
-) -> RouterResult<&'static StrongSecret<String>> {
-    RECON_API_KEY
-        .get_or_try_init(|| async {
-            #[cfg(feature = "aws_kms")]
-            let recon_admin_api_key = secrets
-                .kms_encrypted_recon_admin_api_key
-                .decrypt_inner(kms_client)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to KMS decrypt recon admin API key")?;
-
-            #[cfg(not(feature = "aws_kms"))]
-            let recon_admin_api_key = secrets.recon_admin_api_key.clone();
-
-            Ok(StrongSecret::new(recon_admin_api_key))
-        })
-        .await
-}
-
-#[cfg(feature = "recon")]
 pub struct ReconAdmin;
 
 #[async_trait]
@@ -1010,14 +1023,9 @@ where
             get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
         let conf = state.conf();
 
-        let admin_api_key = get_recon_admin_api_key(
-            &conf.secrets,
-            #[cfg(feature = "aws_kms")]
-            aws_kms::core::get_aws_kms_client(&conf.kms).await,
-        )
-        .await?;
+        let admin_api_key = conf.secrets.get_inner().recon_admin_api_key.peek();
 
-        if request_admin_api_key != admin_api_key.peek() {
+        if request_admin_api_key != admin_api_key {
             Err(report!(errors::ApiErrorResponse::Unauthorized)
                 .attach_printable("Recon Admin Authentication Failure"))?;
         }

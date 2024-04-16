@@ -7,7 +7,7 @@ use common_utils::{
     ext_traits::StringExt,
     pii::{IpAddress, SecretSerdeValue, UpiVpaMaskingStrategy},
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -22,7 +22,7 @@ use crate::{
     },
 };
 
-#[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
+#[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone, Debug)]
 pub struct StripeBillingDetails {
     pub address: Option<AddressDetails>,
     pub email: Option<Email>,
@@ -39,6 +39,7 @@ impl From<StripeBillingDetails> for payments::Address {
                     address.country.as_ref().map(|country| country.to_string())
                 }),
             }),
+            email: details.email,
             address: details.address.map(|address| payments::AddressDetails {
                 city: address.city,
                 country: address.country,
@@ -64,7 +65,7 @@ pub struct StripeCard {
 }
 
 // ApplePay wallet param is not available in stripe Docs
-#[derive(Serialize, PartialEq, Eq, Deserialize, Clone)]
+#[derive(Serialize, PartialEq, Eq, Deserialize, Clone, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum StripeWallet {
     ApplePay(payments::ApplePayWalletData),
@@ -94,7 +95,7 @@ impl From<StripePaymentMethodType> for api_enums::PaymentMethod {
     }
 }
 
-#[derive(Default, PartialEq, Eq, Deserialize, Clone)]
+#[derive(Default, PartialEq, Eq, Deserialize, Clone, Debug)]
 pub struct StripePaymentMethodData {
     #[serde(rename = "type")]
     pub stype: StripePaymentMethodType,
@@ -104,7 +105,7 @@ pub struct StripePaymentMethodData {
     pub metadata: Option<SecretSerdeValue>,
 }
 
-#[derive(PartialEq, Eq, Deserialize, Clone)]
+#[derive(PartialEq, Eq, Deserialize, Clone, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum StripePaymentMethodDetails {
     Card(StripeCard),
@@ -158,7 +159,7 @@ impl From<StripePaymentMethodDetails> for payments::PaymentMethodData {
     }
 }
 
-#[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
+#[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone, Debug)]
 pub struct Shipping {
     pub address: AddressDetails,
     pub name: Option<masking::Secret<String>>,
@@ -167,7 +168,7 @@ pub struct Shipping {
     pub tracking_number: Option<masking::Secret<String>>,
 }
 
-#[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
+#[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone, Debug)]
 pub struct AddressDetails {
     pub city: Option<String>,
     pub country: Option<api_enums::CountryAlpha2>,
@@ -184,6 +185,7 @@ impl From<Shipping> for payments::Address {
                 number: details.phone,
                 country_code: details.address.country.map(|country| country.to_string()),
             }),
+            email: None,
             address: Some(payments::AddressDetails {
                 city: details.address.city,
                 country: details.address.country,
@@ -199,7 +201,7 @@ impl From<Shipping> for payments::Address {
     }
 }
 
-#[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
+#[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone, Debug)]
 pub struct MandateData {
     pub customer_acceptance: CustomerAcceptance,
     pub mandate_type: Option<StripeMandateType>,
@@ -210,7 +212,7 @@ pub struct MandateData {
     pub end_date: Option<PrimitiveDateTime>,
 }
 
-#[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
+#[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone, Debug)]
 pub struct CustomerAcceptance {
     #[serde(rename = "type")]
     pub acceptance_type: Option<AcceptanceType>,
@@ -233,7 +235,7 @@ pub struct OnlineMandate {
     pub user_agent: String,
 }
 
-#[derive(Deserialize, Clone)]
+#[derive(Deserialize, Clone, Debug)]
 pub struct StripePaymentIntentRequest {
     pub id: Option<String>,
     pub amount: Option<i64>, // amount in cents, hence passed as integer
@@ -296,7 +298,6 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             })
             .map(|r| {
                 serde_json::to_value(r)
-                    .into_report()
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("converting to routing failed")
             })
@@ -306,7 +307,6 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             .receipt_ipaddress
             .map(|ip| std::net::IpAddr::from_str(ip.as_str()))
             .transpose()
-            .into_report()
             .change_context(errors::ApiErrorResponse::InvalidDataFormat {
                 field_name: "receipt_ipaddress".to_string(),
                 expected_format: "127.0.0.1".to_string(),
@@ -334,7 +334,10 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             payment_method_data: item.payment_method_data.as_ref().and_then(|pmd| {
                 pmd.payment_method_details
                     .as_ref()
-                    .map(|spmd| payments::PaymentMethodData::from(spmd.to_owned()))
+                    .map(|spmd| payments::PaymentMethodDataRequest {
+                        payment_method_data: payments::PaymentMethodData::from(spmd.to_owned()),
+                        billing: pmd.billing_details.clone().map(payments::Address::from),
+                    })
             }),
             payment_method: item
                 .payment_method_data
@@ -378,7 +381,6 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
                     user_agent: item.user_agent,
                     ..Default::default()
                 })
-                .into_report()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("convert to browser info failed")?,
             ),
@@ -421,24 +423,14 @@ impl From<api_enums::IntentStatus> for StripePaymentStatus {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Copy, Clone)]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone, strum::Display)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum CancellationReason {
     Duplicate,
     Fraudulent,
     RequestedByCustomer,
     Abandoned,
-}
-
-impl ToString for CancellationReason {
-    fn to_string(&self) -> String {
-        String::from(match self {
-            Self::Duplicate => "duplicate",
-            Self::Fraudulent => "fradulent",
-            Self::RequestedByCustomer => "requested_by_customer",
-            Self::Abandoned => "abandoned",
-        })
-    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Copy, Clone)]
@@ -533,7 +525,7 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
             capture_on: resp.capture_on,
             capture_method: resp.capture_method,
             payment_method: resp.payment_method,
-            payment_method_data: resp.payment_method_data.clone(),
+            payment_method_data: resp.payment_method_data.map(|pmd| pmd.payment_method_data),
             payment_token: resp.payment_token,
             shipping: resp.shipping,
             billing: resp.billing,
@@ -715,10 +707,12 @@ impl ForeignTryFrom<(Option<MandateData>, Option<String>)> for Option<payments::
         (mandate_data, currency): (Option<MandateData>, Option<String>),
     ) -> errors::RouterResult<Self> {
         let currency = currency
-            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "currency",
-            })
-            .into_report()
+            .ok_or(
+                errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "currency",
+                }
+                .into(),
+            )
             .and_then(|c| {
                 c.to_uppercase().parse_enum("currency").change_context(
                     errors::ApiErrorResponse::InvalidDataValue {
@@ -863,6 +857,12 @@ pub(crate) fn into_stripe_next_action(
         } => StripeNextAction::WaitScreenInformation {
             display_from_timestamp,
             display_to_timestamp,
+        },
+        payments::NextActionData::ThreeDsInvoke { .. } => StripeNextAction::RedirectToUrl {
+            redirect_to_url: RedirectUrl {
+                return_url: None,
+                url: None,
+            },
         },
     })
 }

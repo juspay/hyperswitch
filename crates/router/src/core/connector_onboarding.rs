@@ -3,8 +3,9 @@ use masking::Secret;
 
 use crate::{
     core::errors::{ApiErrorResponse, RouterResponse, RouterResult},
+    routes::app::ReqState,
     services::{authentication as auth, ApplicationResponse},
-    types::{self as oss_types},
+    types as oss_types,
     utils::connector_onboarding as utils,
     AppState,
 };
@@ -20,12 +21,13 @@ pub async fn get_action_url(
     state: AppState,
     user_from_token: auth::UserFromToken,
     request: api::ActionUrlRequest,
+    _req_state: ReqState,
 ) -> RouterResponse<api::ActionUrlResponse> {
     utils::check_if_connector_exists(&state, &request.connector_id, &user_from_token.merchant_id)
         .await?;
 
-    let connector_onboarding_conf = state.conf.connector_onboarding.clone();
-    let is_enabled = utils::is_enabled(request.connector, &connector_onboarding_conf);
+    let connector_onboarding_conf = state.conf.connector_onboarding.get_inner();
+    let is_enabled = utils::is_enabled(request.connector, connector_onboarding_conf);
     let tracking_id =
         utils::get_tracking_id_from_configs(&state, &request.connector_id, request.connector)
             .await?;
@@ -54,12 +56,13 @@ pub async fn sync_onboarding_status(
     state: AppState,
     user_from_token: auth::UserFromToken,
     request: api::OnboardingSyncRequest,
+    _req_state: ReqState,
 ) -> RouterResponse<api::OnboardingStatus> {
     utils::check_if_connector_exists(&state, &request.connector_id, &user_from_token.merchant_id)
         .await?;
 
-    let connector_onboarding_conf = state.conf.connector_onboarding.clone();
-    let is_enabled = utils::is_enabled(request.connector, &connector_onboarding_conf);
+    let connector_onboarding_conf = state.conf.connector_onboarding.get_inner();
+    let is_enabled = utils::is_enabled(request.connector, connector_onboarding_conf);
     let tracking_id =
         utils::get_tracking_id_from_configs(&state, &request.connector_id, request.connector)
             .await?;
@@ -75,10 +78,10 @@ pub async fn sync_onboarding_status(
                 ref paypal_onboarding_data,
             )) = status
             {
-                let connector_onboarding_conf = state.conf.connector_onboarding.clone();
+                let connector_onboarding_conf = state.conf.connector_onboarding.get_inner();
                 let auth_details = oss_types::ConnectorAuthType::SignatureKey {
-                    api_key: connector_onboarding_conf.paypal.client_secret,
-                    key1: connector_onboarding_conf.paypal.client_id,
+                    api_key: connector_onboarding_conf.paypal.client_secret.clone(),
+                    key1: connector_onboarding_conf.paypal.client_id.clone(),
                     api_secret: Secret::new(paypal_onboarding_data.payer_id.clone()),
                 };
                 let update_mca_data = paypal::update_mca(
@@ -107,6 +110,7 @@ pub async fn reset_tracking_id(
     state: AppState,
     user_from_token: auth::UserFromToken,
     request: api::ResetTrackingIdRequest,
+    _req_state: ReqState,
 ) -> RouterResponse<()> {
     utils::check_if_connector_exists(&state, &request.connector_id, &user_from_token.merchant_id)
         .await?;

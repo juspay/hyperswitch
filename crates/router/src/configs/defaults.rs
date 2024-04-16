@@ -1,10 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
 use api_models::{enums, payment_methods::RequiredFieldInfo};
-#[cfg(feature = "aws_kms")]
-use external_services::aws_kms::core::AwsKmsValue;
 
-use super::settings::{ConnectorFields, Password, PaymentMethodType, RequiredFieldFinal};
+use super::settings::{ConnectorFields, PaymentMethodType, RequiredFieldFinal};
 
 impl Default for super::settings::Server {
     fn default() -> Self {
@@ -37,7 +35,7 @@ impl Default for super::settings::Database {
     fn default() -> Self {
         Self {
             username: String::new(),
-            password: Password::default(),
+            password: String::new().into(),
             host: "localhost".into(),
             port: 5432,
             dbname: String::new(),
@@ -759,7 +757,8 @@ impl Default for super::settings::RequiredFields {
                                 enums::Connector::Cybersource,
                                 RequiredFieldFinal {
                                     mandate: HashMap::new(),
-                                    non_mandate: HashMap::from(
+                                    non_mandate: HashMap::new(),
+                                    common:HashMap::from(
                                         [
                                             (
                                                 "payment_method_data.card.card_number".to_string(),
@@ -794,6 +793,15 @@ impl Default for super::settings::RequiredFields {
                                                     required_field: "payment_method_data.card.card_cvc".to_string(),
                                                     display_name: "card_cvc".to_string(),
                                                     field_type: enums::FieldType::UserCardCvc,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "payment_method_data.card.card_holder_name".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_holder_name".to_string(),
+                                                    display_name: "card_holder_name".to_string(),
+                                                    field_type: enums::FieldType::UserFullName,
                                                     value: None,
                                                 }
                                             ),
@@ -875,7 +883,6 @@ impl Default for super::settings::RequiredFields {
                                             )
                                         ]
                                     ),
-                                    common:HashMap::new(),
                                 }
                             ),
                             (
@@ -2856,6 +2863,15 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
+                                                "payment_method_data.card.card_holder_name".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_holder_name".to_string(),
+                                                    display_name: "card_holder_name".to_string(),
+                                                    field_type: enums::FieldType::UserFullName,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
                                                 "email".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "email".to_string(),
@@ -4785,7 +4801,8 @@ impl Default for super::settings::RequiredFields {
                                                     field_type: enums::FieldType::UserBank,
                                                     value: None,
                                                 }
-                                            )
+                                            ),
+
                                         ]),
                                     }
                                 ),
@@ -6436,7 +6453,15 @@ impl Default for super::settings::RequiredFields {
                                     RequiredFieldFinal {
                                         mandate: HashMap::new(),
                                         non_mandate: HashMap::new(),
-                                        common: HashMap::new(),
+                                        common: HashMap::from([ (
+                                            "billing.address.first_name".to_string(),
+                                            RequiredFieldInfo {
+                                                required_field: "billing.address.first_name".to_string(),
+                                                display_name: "billing_first_name".to_string(),
+                                                field_type: enums::FieldType::UserBillingName,
+                                                value: None,
+                                            }
+                                        )]),
                                     })]
                                 )}
                     ),
@@ -6449,7 +6474,15 @@ impl Default for super::settings::RequiredFields {
                                     RequiredFieldFinal {
                                         mandate: HashMap::new(),
                                         non_mandate: HashMap::new(),
-                                        common: HashMap::new(),
+                                        common: HashMap::from([ (
+                                            "billing.address.first_name".to_string(),
+                                            RequiredFieldInfo {
+                                                required_field: "billing.address.first_name".to_string(),
+                                                display_name: "billing_first_name".to_string(),
+                                                field_type: enums::FieldType::UserBillingName,
+                                                value: None,
+                                            }
+                                        )]),
                                     }
                                 ),
                                ]),
@@ -6464,7 +6497,15 @@ impl Default for super::settings::RequiredFields {
                                     RequiredFieldFinal {
                                         mandate: HashMap::new(),
                                         non_mandate: HashMap::new(),
-                                        common: HashMap::new(),
+                                        common: HashMap::from([ (
+                                            "billing.address.first_name".to_string(),
+                                            RequiredFieldInfo {
+                                                required_field: "billing.address.first_name".to_string(),
+                                                display_name: "billing_first_name".to_string(),
+                                                field_type: enums::FieldType::UserBillingName,
+                                                value: None,
+                                            }
+                                        )]),
                                     }
                                 ),
                                 ]),
@@ -6518,13 +6559,9 @@ impl Default for super::settings::RequiredFields {
 impl Default for super::settings::ApiKeys {
     fn default() -> Self {
         Self {
-            #[cfg(feature = "aws_kms")]
-            kms_encrypted_hash_key: AwsKmsValue::default(),
-
             // Hex-encoded 32-byte long (64 characters long when hex-encoded) key used for calculating
             // hashes of API keys
-            #[cfg(not(feature = "aws_kms"))]
-            hash_key: String::new(),
+            hash_key: String::new().into(),
 
             // Specifies the number of days before API key expiry when email reminders should be sent
             #[cfg(feature = "email")]

@@ -3,16 +3,127 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    {{rendered_meta_tag_html}}
     <title>Payments requested by HyperSwitch</title>
+    {{ preload_link_tags }}
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800">
+    <style>
+      #payment-details-shimmer{
+        min-width: 300px;
+        width: 100%;
+        margin: 0;
+        border: 0;
+        border-radius: 0;
+        height: 100%;
+        position: fixed;
+        top: 0;
+        left: 0;
+        background: linear-gradient(to right, #f6f7f8 0%, #edeef1 50%, #f6f7f8 100%);
+        background-size: 300%;
+        animation: shimmer 1.5s infinite linear;
+        background-position-x: -100%;
+        justify-content: center;
+        display: flex;
+        align-items: center;
+        flex-direction: column; 
+        z-index: 3;
+        transition: opacity 0.5s;
+        opacity: 1;
+      }
+
+      .reduce-opacity {
+        opacity: 0 !important;
+      }
+
+      .shine {
+        background: #f6f7f8;
+        background-image: linear-gradient(to right, #f6f7f8 0%, #edeef1 20%, #f6f7f8 40%, #f6f7f8 100%);
+        background-repeat: no-repeat;
+        background-size: 800px 104px; 
+        display: inline-block;
+        position: relative; 
+        justify-content: center;
+        display: flex;
+        -webkit-animation-duration: 2s;
+        -webkit-animation-fill-mode: forwards; 
+        -webkit-animation-iteration-count: infinite;
+        -webkit-animation-name: placeholderShimmer;
+        -webkit-animation-timing-function: linear;
+      }
+
+      .wrap {
+        display: inline-flex;
+        margin: 10px;
+      }
+
+      box {
+        height: 104px;
+        width: 100px;
+        border-radius: 25px;
+      }
+
+      lines {
+        height: 15px;
+        width: 200px; 
+        border-radius: 25px;
+        margin: 7px;
+      } 
+
+      .line-shimmer > :first-child{
+        width: 140px; 
+      }
+
+      .line-shimmer {
+        display: inline-flex;
+        flex-direction: column; 
+        margin-left: 25px;
+        margin-top: 15px;
+        vertical-align: top; 
+      } 
+
+      @-webkit-keyframes placeholderShimmer {
+        0% {
+          background-position: -468px 0;
+        }
+        
+        100% {
+          background-position: 468px 0; 
+        }
+      }
+    </style>
+  </head>
+  <body class="hide-scrollbar">
+    <div id="payment-details-shimmer">
+      <div class = "wrap">
+        <box class="shine"></box>
+        <div class="line-shimmer">
+          <lines class="shine"></lines>
+          <lines class="shine"></lines>
+          <lines class="shine"></lines>
+        </div>
+      </div>
+      <div class = "wrap">
+        <box class="shine"></box>
+        <div class="line-shimmer">
+          <lines class="shine"></lines>
+          <lines class="shine"></lines>
+          <lines class="shine"></lines>
+        </div>
+      </div>
+      <div class = "wrap">
+        <box class="shine"></box>
+        <div class="line-shimmer">
+          <lines class="shine"></lines>
+          <lines class="shine"></lines>
+          <lines class="shine"></lines>
+        </div>
+      </div>
+    </div>
     <style>
       {{rendered_css}}
     </style>
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800"
-    />
-  </head>
-  <body class="hide-scrollbar">
+
     <!-- SVG ICONS -->
     <svg xmlns="http://www.w3.org/2000/svg" display="none">
       <defs>
@@ -29,10 +140,32 @@
             <image href="https://live.hyperswitch.io/payment-link-assets/icons/powered-by-hyperswitch.svg" opacity="0.4"/>
         </symbol>
         <symbol id="arrow-down">
-            <image href="https://live.hyperswitch.io/payment-link-assets/icons/arrow-down.svg"/>
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M8.20573 11.0351C8.33593 11.0351 8.45573 10.9831 8.54948 10.8841L12.5911 6.75911C12.6797 6.66536 12.7266 6.55078 12.7266 6.41536C12.7266 6.14974 12.5234 5.94141 12.2526 5.94141C12.1224 5.94141 12.0026 5.99349 11.9141 6.07682L8.20573 9.86848L4.4974 6.07682C4.40887 5.99349 4.29429 5.94141 4.15882 5.94141C3.88798 5.94141 3.68486 6.14974 3.68486 6.41536C3.68486 6.55078 3.7318 6.66536 3.82549 6.75911L7.86198 10.8841C7.96094 10.9831 8.07551 11.0351 8.20573 11.0351Z"
+              fill="#333333"
+            ></path>
+          </svg>
         </symbol>
         <symbol id="arrow-up">
-            <image href="https://live.hyperswitch.io/payment-link-assets/icons/arrow-up.svg"/>
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M7.79427 4.96485C7.66407 4.96485 7.54427 5.01694 7.45052 5.11587L3.40886 9.24089C3.32032 9.33464 3.27344 9.44922 3.27344 9.58464C3.27344 9.85026 3.47657 10.0586 3.7474 10.0586C3.87761 10.0586 3.9974 10.0065 4.08594 9.92318L7.79427 6.13152L11.5026 9.92318C11.5911 10.0065 11.7057 10.0586 11.8412 10.0586C12.112 10.0586 12.3151 9.85026 12.3151 9.58464C12.3151 9.44922 12.2682 9.33464 12.1745 9.24089L8.13802 5.11587C8.03906 5.01694 7.92449 4.96485 7.79427 4.96485Z"
+              fill="#333333"
+            ></path>
+          </svg>
         </symbol>
       </defs>
     </svg>

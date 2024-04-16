@@ -1,14 +1,7 @@
 use api_models::payments as payment_types;
 use async_trait::async_trait;
 use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
-use error_stack::{IntoReport, Report, ResultExt};
-#[cfg(feature = "aws_kms")]
-use external_services::aws_kms;
-#[cfg(feature = "hashicorp-vault")]
-use external_services::hashicorp_vault;
-#[cfg(feature = "hashicorp-vault")]
-use external_services::hashicorp_vault::decrypt::VaultFetch;
-#[cfg(feature = "hashicorp-vault")]
+use error_stack::{Report, ResultExt};
 use masking::ExposeInterface;
 
 use super::{ConstructFlowSpecificData, Feature};
@@ -65,6 +58,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         _merchant_account: &domain::MerchantAccount,
         _connector_request: Option<services::Request>,
         _key_store: &domain::MerchantKeyStore,
+        _profile_id: Option<String>,
     ) -> RouterResult<Self> {
         metrics::SESSION_TOKEN_CREATED.add(
             &metrics::CONTEXT,
@@ -175,6 +169,7 @@ async fn create_applepay_session_token(
             apple_pay_session_request,
             apple_pay_merchant_cert,
             apple_pay_merchant_cert_key,
+            merchant_business_country,
         ) = match apple_pay_metadata {
             payment_types::ApplepaySessionTokenMetadata::ApplePayCombined(
                 apple_pay_combined_metadata,
@@ -183,130 +178,43 @@ async fn create_applepay_session_token(
                     payment_request_data,
                     session_token_data,
                 } => {
-                    let (
-                        apple_pay_merchant_cert,
-                        apple_pay_merchant_cert_key,
-                        common_merchant_identifier,
-                    ) = async {
-                        #[cfg(feature = "hashicorp-vault")]
-                        let client =
-                            external_services::hashicorp_vault::core::get_hashicorp_client(
-                                &state.conf.hc_vault,
-                            )
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("Failed while building hashicorp client")?;
+                    let merchant_identifier = state
+                        .conf
+                        .applepay_merchant_configs
+                        .get_inner()
+                        .common_merchant_identifier
+                        .clone()
+                        .expose();
 
-                        #[cfg(feature = "hashicorp-vault")]
-                        {
-                            Ok::<_, Report<errors::ApiErrorResponse>>((
-                                masking::Secret::new(
-                                    state
-                                        .conf
-                                        .applepay_decrypt_keys
-                                        .apple_pay_merchant_cert
-                                        .clone(),
-                                )
-                                .fetch_inner::<hashicorp_vault::core::Kv2>(client)
-                                .await
-                                .change_context(errors::ApiErrorResponse::InternalServerError)?
-                                .expose(),
-                                masking::Secret::new(
-                                    state
-                                        .conf
-                                        .applepay_decrypt_keys
-                                        .apple_pay_merchant_cert_key
-                                        .clone(),
-                                )
-                                .fetch_inner::<hashicorp_vault::core::Kv2>(client)
-                                .await
-                                .change_context(errors::ApiErrorResponse::InternalServerError)?
-                                .expose(),
-                                masking::Secret::new(
-                                    state
-                                        .conf
-                                        .applepay_merchant_configs
-                                        .common_merchant_identifier
-                                        .clone(),
-                                )
-                                .fetch_inner::<hashicorp_vault::core::Kv2>(client)
-                                .await
-                                .change_context(errors::ApiErrorResponse::InternalServerError)?
-                                .expose(),
-                            ))
-                        }
-
-                        #[cfg(not(feature = "hashicorp-vault"))]
-                        {
-                            Ok::<_, Report<errors::ApiErrorResponse>>((
-                                state
-                                    .conf
-                                    .applepay_decrypt_keys
-                                    .apple_pay_merchant_cert
-                                    .clone(),
-                                state
-                                    .conf
-                                    .applepay_decrypt_keys
-                                    .apple_pay_merchant_cert_key
-                                    .clone(),
-                                state
-                                    .conf
-                                    .applepay_merchant_configs
-                                    .common_merchant_identifier
-                                    .clone(),
-                            ))
-                        }
-                    }
-                    .await?;
-
-                    #[cfg(feature = "aws_kms")]
-                    let decrypted_apple_pay_merchant_cert =
-                        aws_kms::core::get_aws_kms_client(&state.conf.kms)
-                            .await
-                            .decrypt(apple_pay_merchant_cert)
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("Apple pay merchant certificate decryption failed")?;
-
-                    #[cfg(feature = "aws_kms")]
-                    let decrypted_apple_pay_merchant_cert_key =
-                        aws_kms::core::get_aws_kms_client(&state.conf.kms)
-                            .await
-                            .decrypt(apple_pay_merchant_cert_key)
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable(
-                                "Apple pay merchant certificate key decryption failed",
-                            )?;
-
-                    #[cfg(feature = "aws_kms")]
-                    let decrypted_merchant_identifier =
-                        aws_kms::core::get_aws_kms_client(&state.conf.kms)
-                            .await
-                            .decrypt(common_merchant_identifier)
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("Apple pay merchant identifier decryption failed")?;
-
-                    #[cfg(not(feature = "aws_kms"))]
-                    let decrypted_merchant_identifier = common_merchant_identifier;
+                    let merchant_business_country = session_token_data.merchant_business_country;
 
                     let apple_pay_session_request = get_session_request_for_simplified_apple_pay(
-                        decrypted_merchant_identifier.to_string(),
+                        merchant_identifier,
                         session_token_data,
                     );
 
-                    #[cfg(not(feature = "aws_kms"))]
-                    let decrypted_apple_pay_merchant_cert = apple_pay_merchant_cert;
+                    let apple_pay_merchant_cert = state
+                        .conf
+                        .applepay_decrypt_keys
+                        .get_inner()
+                        .apple_pay_merchant_cert
+                        .clone()
+                        .expose();
 
-                    #[cfg(not(feature = "aws_kms"))]
-                    let decrypted_apple_pay_merchant_cert_key = apple_pay_merchant_cert_key;
+                    let apple_pay_merchant_cert_key = state
+                        .conf
+                        .applepay_decrypt_keys
+                        .get_inner()
+                        .apple_pay_merchant_cert_key
+                        .clone()
+                        .expose();
 
                     (
                         payment_request_data,
                         apple_pay_session_request,
-                        decrypted_apple_pay_merchant_cert.to_owned(),
-                        decrypted_apple_pay_merchant_cert_key.to_owned(),
+                        apple_pay_merchant_cert,
+                        apple_pay_merchant_cert_key,
+                        merchant_business_country,
                     )
                 }
                 payment_types::ApplePayCombinedMetadata::Manual {
@@ -315,11 +223,15 @@ async fn create_applepay_session_token(
                 } => {
                     let apple_pay_session_request =
                         get_session_request_for_manual_apple_pay(session_token_data.clone());
+
+                    let merchant_business_country = session_token_data.merchant_business_country;
+
                     (
                         payment_request_data,
                         apple_pay_session_request,
                         session_token_data.certificate.clone(),
                         session_token_data.certificate_keys,
+                        merchant_business_country,
                     )
                 }
             },
@@ -327,11 +239,16 @@ async fn create_applepay_session_token(
                 let apple_pay_session_request = get_session_request_for_manual_apple_pay(
                     apple_pay_metadata.session_token_data.clone(),
                 );
+
+                let merchant_business_country = apple_pay_metadata
+                    .session_token_data
+                    .merchant_business_country;
                 (
                     apple_pay_metadata.payment_request_data,
                     apple_pay_session_request,
                     apple_pay_metadata.session_token_data.certificate.clone(),
                     apple_pay_metadata.session_token_data.certificate_keys,
+                    merchant_business_country,
                 )
             }
         };
@@ -348,6 +265,7 @@ async fn create_applepay_session_token(
             payment_request_data,
             router_data.request.to_owned(),
             apple_pay_session_request.merchant_identifier.as_str(),
+            merchant_business_country,
         )?;
 
         let applepay_session_request = build_apple_pay_session_request(
@@ -356,7 +274,12 @@ async fn create_applepay_session_token(
             apple_pay_merchant_cert,
             apple_pay_merchant_cert_key,
         )?;
-        let response = services::call_connector_api(state, applepay_session_request).await;
+        let response = services::call_connector_api(
+            state,
+            applepay_session_request,
+            "create_apple_pay_session_token",
+        )
+        .await;
 
         // logging the error if present in session call response
         log_session_response_if_error(&response);
@@ -429,7 +352,6 @@ fn get_apple_pay_amount_info(
         amount: session_data
             .currency
             .to_currency_base_unit(session_data.amount)
-            .into_report()
             .change_context(errors::ApiErrorResponse::PreconditionFailed {
                 message: "Failed to convert currency to base unit".to_string(),
             })?,
@@ -443,9 +365,14 @@ fn get_apple_pay_payment_request(
     payment_request_data: payment_types::PaymentRequestMetadata,
     session_data: types::PaymentsSessionData,
     merchant_identifier: &str,
+    merchant_business_country: Option<api_models::enums::CountryAlpha2>,
 ) -> RouterResult<payment_types::ApplePayPaymentRequest> {
     let applepay_payment_request = payment_types::ApplePayPaymentRequest {
-        country_code: session_data.country,
+        country_code: merchant_business_country.or(session_data.country).ok_or(
+            errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "country_code",
+            },
+        )?,
         currency_code: session_data.currency,
         total: amount_info,
         merchant_capabilities: Some(payment_request_data.merchant_capabilities),
@@ -537,7 +464,6 @@ fn create_gpay_session_token(
                 .request
                 .currency
                 .to_currency_base_unit(router_data.request.amount)
-                .into_report()
                 .attach_printable(
                     "Cannot convert given amount to base currency denomination".to_string(),
                 )

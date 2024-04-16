@@ -55,14 +55,7 @@
           ],
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "x-feature",
-                "value": "router-custom",
-                "type": "text",
-                "disabled": true
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{baseUrl}}/health",
               "host": [
@@ -705,7 +698,7 @@
               ]
             },
             {
-              "name": "Scenario7-Create 3DS payment with confrm false",
+              "name": "Scenario7-Create 3DS payment with confirm false",
               "item": [
                 {
                   "name": "Payments - Create",

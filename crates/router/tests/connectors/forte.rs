@@ -2,7 +2,7 @@ use std::{str::FromStr, time::Duration};
 
 use cards::CardNumber;
 use masking::Secret;
-use router::types::{self, api, storage::enums};
+use router::types::{self, api, domain, storage::enums};
 
 use crate::{
     connector_auth,
@@ -41,7 +41,7 @@ static CONNECTOR: ForteTest = ForteTest {};
 
 fn get_payment_data() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
-        payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+        payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
             card_number: CardNumber::from_str("4111111111111111").unwrap(),
             ..utils::CCardType::default().0
         }),
@@ -51,8 +51,9 @@ fn get_payment_data() -> Option<types::PaymentsAuthorizeData> {
 
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     Some(utils::PaymentInfo {
-        address: Some(types::PaymentAddress {
-            billing: Some(api::Address {
+        address: Some(types::PaymentAddress::new(
+            None,
+            Some(api::Address {
                 address: Some(api::AddressDetails {
                     first_name: Some(Secret::new("first".to_string())),
                     last_name: Some(Secret::new("last".to_string())),
@@ -67,9 +68,10 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                     number: Some(Secret::new("1234567890".to_string())),
                     country_code: Some("+91".to_string()),
                 }),
+                email: None,
             }),
-            ..Default::default()
-        }),
+            None,
+        )),
         ..Default::default()
     })
 }
@@ -457,14 +459,14 @@ async fn should_sync_refund() {
     );
 }
 
-// Cards Negative scenerios
+// Cards Negative scenarios
 // Creates a payment with incorrect CVC.
 #[actix_web::test]
 async fn should_fail_payment_for_incorrect_cvc() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
                     card_cvc: Secret::new("12345".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -486,7 +488,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
                     card_exp_month: Secret::new("20".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -509,7 +511,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
                     card_exp_year: Secret::new("2000".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -621,13 +623,13 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
 
 // [#478]: add unit tests for non 3DS, wallets & webhooks in connector tests
 
-// Cards Negative scenerios
+// Cards Negative scenarios
 // Creates a payment with incorrect card issuer.
 
 #[actix_web::test]
 async fn should_throw_not_implemented_for_unsupported_issuer() {
     let authorize_data = Some(types::PaymentsAuthorizeData {
-        payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+        payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
             card_number: CardNumber::from_str("6759649826438453").unwrap(),
             ..utils::CCardType::default().0
         }),

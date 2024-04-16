@@ -2,11 +2,12 @@ use std::collections::HashMap;
 
 use async_trait::async_trait;
 use common_enums::AuthorizationStatus;
+use common_utils::ext_traits::Encode;
 use data_models::payments::payment_attempt::PaymentAttempt;
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use futures::FutureExt;
 use router_derive;
-use router_env::{instrument, tracing};
+use router_env::{instrument, logger, tracing};
 use storage_impl::DataModelExt;
 use tracing_futures::Instrument;
 
@@ -17,16 +18,23 @@ use crate::{
         errors::{self, RouterResult, StorageErrorExt},
         mandate,
         payment_methods::PaymentMethodRetrieve,
-        payments::{helpers as payments_helpers, types::MultipleCaptureData, PaymentData},
+        payments::{
+            self,
+            helpers::{
+                self as payments_helpers,
+                update_additional_payment_data_with_connector_response_pm_data,
+            },
+            types::MultipleCaptureData,
+            PaymentData,
+        },
         utils as core_utils,
     },
     routes::{metrics, AppState},
-    services::RedirectForm,
     types::{
         self, api,
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignTryFrom},
-        CaptureSyncResponse,
+        CaptureSyncResponse, ErrorResponse,
     },
     utils,
 };
@@ -124,7 +132,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
                     }
                 }
                 _ => Err(errors::ApiErrorResponse::InternalServerError)
-                    .into_report()
                     .attach_printable("unexpected response in incremental_authorization flow")?,
             };
         //payment_attempt update
@@ -171,7 +178,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
                 connector_authorization_id: connector_authorization_id.clone(),
             }),
             Ok(_) => Err(errors::ApiErrorResponse::InternalServerError)
-                .into_report()
                 .attach_printable("unexpected response in incremental_authorization flow"),
         }?;
         let authorization_id = incremental_authorization_details
@@ -441,6 +447,24 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     router_data: types::RouterData<F, T, types::PaymentsResponseData>,
     storage_scheme: enums::MerchantStorageScheme,
 ) -> RouterResult<PaymentData<F>> {
+    // Update additional payment data with the payment method response that we received from connector
+    let additional_payment_method_data =
+        update_additional_payment_data_with_connector_response_pm_data(
+            payment_data.payment_attempt.payment_method_data.clone(),
+            router_data
+                .connector_response
+                .as_ref()
+                .and_then(|connector_response| {
+                    connector_response.additional_payment_method_data.clone()
+                }),
+        )?;
+
+    router_data.payment_method_status.and_then(|status| {
+        payment_data
+            .payment_method_info
+            .as_mut()
+            .map(|info| info.status = status)
+    });
     let (capture_update, mut payment_attempt_update) = match router_data.response.clone() {
         Err(err) => {
             let (capture_update, attempt_update) = match payment_data.multiple_capture_data {
@@ -471,6 +495,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         flow_name.clone(),
                     )
                     .await;
+
                     let status = match err.attempt_status {
                         // Use the status sent by connector in error_response if it's present
                         Some(status) => status,
@@ -482,6 +507,13 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                     // marking failure for 2xx because this is genuine payment failure
                                     200..=299 => storage::enums::AttemptStatus::Failure,
                                     _ => router_data.status,
+                                }
+                            } else if flow_name == "Capture" {
+                                match err.status_code {
+                                    500..=511 => storage::enums::AttemptStatus::Pending,
+                                    // don't update the status for 429 error status
+                                    429 => router_data.status,
+                                    _ => storage::enums::AttemptStatus::Failure,
                                 }
                             } else {
                                 match err.status_code {
@@ -506,6 +538,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             unified_code: option_gsm.clone().map(|gsm| gsm.unified_code),
                             unified_message: option_gsm.map(|gsm| gsm.unified_message),
                             connector_transaction_id: err.connector_transaction_id,
+                            payment_method_data: additional_payment_method_data,
                         }),
                     )
                 }
@@ -554,7 +587,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     let payment_attempt_update =
                         storage::PaymentAttemptUpdate::PreprocessingUpdate {
                             status: updated_attempt_status,
-                            payment_method_id: Some(router_data.payment_method_id),
+                            payment_method_id: router_data.payment_method_id,
                             connector_metadata,
                             preprocessing_step_id,
                             connector_transaction_id,
@@ -590,7 +623,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     let encoded_data = payment_data.payment_attempt.encoded_data.clone();
 
                     let authentication_data = redirection_data
-                        .map(|data| utils::Encode::<RedirectForm>::encode_to_value(&data))
+                        .as_ref()
+                        .map(Encode::encode_to_value)
                         .transpose()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Could not parse the connector response")?;
@@ -603,8 +637,12 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     };
 
                     if router_data.status == enums::AttemptStatus::Charged {
+                        payment_data.payment_intent.fingerprint_id =
+                            payment_data.payment_attempt.fingerprint_id.clone();
                         metrics::SUCCESSFUL_PAYMENT.add(&metrics::CONTEXT, 1, &[]);
                     }
+
+                    let payment_method_id = router_data.payment_method_id.clone();
 
                     utils::add_apple_pay_payment_status_metrics(
                         router_data.status,
@@ -638,11 +676,11 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 amount_capturable: router_data
                                     .request
                                     .get_amount_capturable(&payment_data, updated_attempt_status),
-                                payment_method_id: Some(router_data.payment_method_id),
+                                payment_method_id,
                                 mandate_id: payment_data
                                     .mandate_id
                                     .clone()
-                                    .map(|mandate| mandate.mandate_id),
+                                    .and_then(|mandate| mandate.mandate_id),
                                 connector_metadata,
                                 payment_token: None,
                                 error_code: error_status.clone(),
@@ -654,6 +692,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 updated_by: storage_scheme.to_string(),
                                 authentication_data,
                                 encoded_data,
+                                payment_method_data: additional_payment_method_data,
                             }),
                         ),
                     };
@@ -676,7 +715,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             status: updated_attempt_status,
                             connector: None,
                             connector_transaction_id,
-                            payment_method_id: Some(router_data.payment_method_id),
+                            payment_method_id: router_data.payment_method_id,
                             error_code: Some(reason.clone().map(|cd| cd.code)),
                             error_message: Some(reason.clone().map(|cd| cd.message)),
                             error_reason: Some(reason.map(|cd| cd.message)),
@@ -774,8 +813,27 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
     payment_data.payment_attempt = payment_attempt;
 
+    payment_data.authentication = match payment_data.authentication {
+        Some(authentication) => {
+            let authentication_update = storage::AuthenticationUpdate::PostAuthorizationUpdate {
+                authentication_lifecycle_status:
+                    storage::enums::AuthenticationLifecycleStatus::Used,
+            };
+            let updated_authentication = state
+                .store
+                .update_authentication_by_merchant_id_authentication_id(
+                    authentication,
+                    authentication_update,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            Some(updated_authentication)
+        }
+        None => None,
+    };
+
     let amount_captured = get_total_amount_captured(
-        router_data.request,
+        &router_data.request,
         router_data.amount_captured,
         router_data.status,
         &payment_data,
@@ -797,12 +855,21 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             return_url: router_data.return_url.clone(),
             amount_captured,
             updated_by: storage_scheme.to_string(),
+            fingerprint_id: payment_data.payment_attempt.fingerprint_id.clone(),
             incremental_authorization_allowed: payment_data
                 .payment_intent
                 .incremental_authorization_allowed,
         },
     };
 
+    update_payment_method_status_and_ntid(
+        state,
+        &mut payment_data,
+        router_data.status,
+        router_data.response.clone(),
+        storage_scheme,
+    )
+    .await?;
     let m_db = state.clone().store;
     let m_payment_data_payment_intent = payment_data.payment_intent.clone();
     let m_payment_intent_update = payment_intent_update.clone();
@@ -819,6 +886,37 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         .in_current_span(),
     );
 
+    let flow_name = core_utils::get_flow_name::<F>()?;
+    if flow_name == "PSync" || flow_name == "CompleteAuthorize" {
+        let connector_mandate_id = match router_data.response.clone() {
+            Ok(resp) => match resp {
+                types::PaymentsResponseData::TransactionResponse {
+                    ref mandate_reference,
+                    ..
+                } => {
+                    if let Some(mandate_ref) = mandate_reference {
+                        mandate_ref.connector_mandate_id.clone()
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            },
+            Err(_) => None,
+        };
+        if let Some(ref payment_method) = payment_data.payment_method_info {
+            payments::tokenization::update_connector_mandate_details_in_payment_method(
+                payment_method.clone(),
+                payment_method.payment_method_type,
+                Some(payment_data.payment_attempt.amount),
+                payment_data.payment_attempt.currency,
+                payment_data.payment_attempt.merchant_connector_id.clone(),
+                connector_mandate_id,
+            )
+            .await?;
+        }
+    }
+
     // When connector requires redirection for mandate creation it can update the connector mandate_id during Psync and CompleteAuthorize
     let m_db = state.clone().store;
     let m_payment_method_id = payment_data.payment_attempt.payment_method_id.clone();
@@ -831,7 +929,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             .or(payment_data
                 .mandate_id
                 .clone()
-                .map(|mandate_ids| mandate_ids.mandate_id));
+                .and_then(|mandate_ids| mandate_ids.mandate_id));
     let m_router_data_response = router_data.response.clone();
     let mandate_update_fut = tokio::spawn(
         async move {
@@ -854,7 +952,98 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     )?;
 
     payment_data.payment_intent = payment_intent;
+    router_data.payment_method_status.and_then(|status| {
+        payment_data
+            .payment_method_info
+            .as_mut()
+            .map(|info| info.status = status)
+    });
     Ok(payment_data)
+}
+
+async fn update_payment_method_status_and_ntid<F: Clone>(
+    state: &AppState,
+    payment_data: &mut PaymentData<F>,
+    attempt_status: common_enums::AttemptStatus,
+    payment_response: Result<types::PaymentsResponseData, ErrorResponse>,
+    storage_scheme: enums::MerchantStorageScheme,
+) -> RouterResult<()> {
+    if let Some(id) = &payment_data.payment_attempt.payment_method_id {
+        let pm = state
+            .store
+            .find_payment_method(id, storage_scheme)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
+        let pm_resp_network_transaction_id = payment_response
+            .map(|resp| if let types::PaymentsResponseData::TransactionResponse { network_txn_id: network_transaction_id, .. } = resp {
+                network_transaction_id
+    } else {None})
+    .map_err(|err| {
+        logger::error!(error=?err, "Failed to obtain the network_transaction_id from payment response");
+    })
+    .ok()
+    .flatten();
+
+        let network_transaction_id =
+            if let Some(network_transaction_id) = pm_resp_network_transaction_id {
+                let profile_id = payment_data
+                    .payment_intent
+                    .profile_id
+                    .as_ref()
+                    .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?;
+
+                let pg_agnostic = state
+                    .store
+                    .find_config_by_key_unwrap_or(
+                        &format!("pg_agnostic_mandate_{}", profile_id),
+                        Some("false".to_string()),
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("The pg_agnostic config was not found in the DB")?;
+
+                if &pg_agnostic.config == "true"
+                    && payment_data.payment_intent.setup_future_usage
+                        == Some(diesel_models::enums::FutureUsage::OffSession)
+                {
+                    Some(network_transaction_id)
+                } else {
+                    logger::info!("Skip storing network transaction id");
+                    None
+                }
+            } else {
+                None
+            };
+
+        let pm_update = if pm.status != common_enums::PaymentMethodStatus::Active
+            && pm.status != attempt_status.into()
+        {
+            let updated_pm_status = common_enums::PaymentMethodStatus::from(attempt_status);
+
+            payment_data
+                .payment_method_info
+                .as_mut()
+                .map(|info| info.status = updated_pm_status);
+            storage::PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
+                network_transaction_id,
+                status: Some(updated_pm_status),
+            }
+        } else {
+            storage::PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
+                network_transaction_id,
+                status: None,
+            }
+        };
+
+        state
+            .store
+            .update_payment_method(pm, pm_update, storage_scheme)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to update payment method in db")?;
+    };
+    Ok(())
 }
 
 fn response_to_capture_update(
@@ -911,7 +1100,7 @@ fn get_capture_update_for_unmapped_capture_responses(
 }
 
 fn get_total_amount_captured<F: Clone, T: types::Capturable>(
-    request: T,
+    request: &T,
     amount_captured: Option<i64>,
     router_data_status: enums::AttemptStatus,
     payment_data: &PaymentData<F>,

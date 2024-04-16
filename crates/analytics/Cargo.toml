@@ -1,37 +1,41 @@
 [package]
 name = "analytics"
 version = "0.1.0"
-description = "Analytics / Reports related functionality"
-edition = "2021"
+description = "Analytics / Reports / Search related functionality"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 
 [dependencies]
 # First party crates
-api_models = { version = "0.1.0", path = "../api_models" , features = ["errors"]}
+api_models = { version = "0.1.0", path = "../api_models", features = ["errors"] }
 storage_impl = { version = "0.1.0", path = "../storage_impl", default-features = false }
-common_utils = { version = "0.1.0", path = "../common_utils"}
-external_services = { version = "0.1.0", path = "../external_services", default-features = false}
+common_utils = { version = "0.1.0", path = "../common_utils" }
+external_services = { version = "0.1.0", path = "../external_services", default-features = false }
+hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces" }
 masking = { version = "0.1.0", path = "../masking" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store"] }
 
 #Third Party dependencies
-actix-web = "4.3.1"
-async-trait = "0.1.68"
-aws-config = { version = "0.55.3" }
-aws-sdk-lambda = { version = "0.28.0" }
-aws-smithy-types = { version = "0.55.3" }
+actix-web = "4.5.1"
+async-trait = "0.1.79"
+aws-config = { version = "1.1.9", features = ["behavior-version-latest"] }
+aws-sdk-lambda = { version = "1.18.0" }
+aws-smithy-types = { version = "1.1.8" }
 bigdecimal = { version = "0.3.1", features = ["serde"] }
-error-stack = "0.3.1"
-futures = "0.3.28"
-once_cell = "1.18.0"
-reqwest = { version = "0.11.18", features = ["serde_json"] }
-serde = { version = "1.0.193", features = ["derive", "rc"] }
-serde_json = "1.0.108"
-sqlx = { version = "0.6.3", features = ["postgres", "runtime-actix", "runtime-actix-native-tls", "time", "bigdecimal"] }
-strum = { version = "0.25.0", features = ["derive"] }
-thiserror = "1.0.43"
-time = { version = "0.3.21", features = ["serde", "serde-well-known", "std"] }
-tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread"] }
+error-stack = "0.4.1"
+futures = "0.3.30"
+opensearch = { version = "2.2.0", features = ["aws-auth"] }
+once_cell = "1.19.0"
+reqwest = { version = "0.11.27", features = ["serde_json"] }
+serde = { version = "1.0.197", features = ["derive", "rc"] }
+serde_json = "1.0.115"
+sqlx = { version = "0.7.3", features = ["postgres", "runtime-tokio", "runtime-tokio-native-tls", "time", "bigdecimal"] }
+strum = { version = "0.26.2", features = ["derive"] }
+thiserror = "1.0.58"
+time = { version = "0.3.35", features = ["serde", "serde-well-known", "std"] }
+tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"] }

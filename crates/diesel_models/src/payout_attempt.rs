@@ -13,7 +13,7 @@ pub struct PayoutAttempt {
     pub customer_id: String,
     pub merchant_id: String,
     pub address_id: String,
-    pub connector: String,
+    pub connector: Option<String>,
     pub connector_payout_id: String,
     pub payout_token: Option<String>,
     pub status: storage_enums::PayoutStatus,
@@ -28,33 +28,7 @@ pub struct PayoutAttempt {
     pub last_modified_at: PrimitiveDateTime,
     pub profile_id: String,
     pub merchant_connector_id: Option<String>,
-}
-
-impl Default for PayoutAttempt {
-    fn default() -> Self {
-        let now = common_utils::date_time::now();
-
-        Self {
-            payout_attempt_id: String::default(),
-            payout_id: String::default(),
-            customer_id: String::default(),
-            merchant_id: String::default(),
-            address_id: String::default(),
-            connector: String::default(),
-            connector_payout_id: String::default(),
-            payout_token: None,
-            status: storage_enums::PayoutStatus::default(),
-            is_eligible: Some(true),
-            error_message: None,
-            error_code: None,
-            business_country: Some(storage_enums::CountryAlpha2::default()),
-            business_label: None,
-            created_at: now,
-            last_modified_at: now,
-            profile_id: String::default(),
-            merchant_connector_id: None,
-        }
-    }
+    pub routing_info: Option<serde_json::Value>,
 }
 
 #[derive(
@@ -76,7 +50,7 @@ pub struct PayoutAttemptNew {
     pub customer_id: String,
     pub merchant_id: String,
     pub address_id: String,
-    pub connector: String,
+    pub connector: Option<String>,
     pub connector_payout_id: String,
     pub payout_token: Option<String>,
     pub status: storage_enums::PayoutStatus,
@@ -89,11 +63,12 @@ pub struct PayoutAttemptNew {
     pub created_at: Option<PrimitiveDateTime>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_modified_at: Option<PrimitiveDateTime>,
-    pub profile_id: Option<String>,
+    pub profile_id: String,
     pub merchant_connector_id: Option<String>,
+    pub routing_info: Option<serde_json::Value>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PayoutAttemptUpdate {
     StatusUpdate {
         connector_payout_id: String,
@@ -101,20 +76,21 @@ pub enum PayoutAttemptUpdate {
         error_message: Option<String>,
         error_code: Option<String>,
         is_eligible: Option<bool>,
-        last_modified_at: Option<PrimitiveDateTime>,
     },
     PayoutTokenUpdate {
         payout_token: String,
-        last_modified_at: Option<PrimitiveDateTime>,
     },
     BusinessUpdate {
         business_country: Option<storage_enums::CountryAlpha2>,
         business_label: Option<String>,
-        last_modified_at: Option<PrimitiveDateTime>,
+    },
+    UpdateRouting {
+        connector: String,
+        routing_info: Option<serde_json::Value>,
     },
 }
 
-#[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
+#[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = payout_attempt)]
 pub struct PayoutAttemptUpdateInternal {
     pub payout_token: Option<String>,
@@ -125,17 +101,33 @@ pub struct PayoutAttemptUpdateInternal {
     pub is_eligible: Option<bool>,
     pub business_country: Option<storage_enums::CountryAlpha2>,
     pub business_label: Option<String>,
-    pub last_modified_at: Option<PrimitiveDateTime>,
+    pub connector: Option<String>,
+    pub routing_info: Option<serde_json::Value>,
+    pub last_modified_at: PrimitiveDateTime,
+}
+
+impl Default for PayoutAttemptUpdateInternal {
+    fn default() -> Self {
+        Self {
+            payout_token: None,
+            connector_payout_id: None,
+            status: None,
+            error_message: None,
+            error_code: None,
+            is_eligible: None,
+            business_country: None,
+            business_label: None,
+            connector: None,
+            routing_info: None,
+            last_modified_at: common_utils::date_time::now(),
+        }
+    }
 }
 
 impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
     fn from(payout_update: PayoutAttemptUpdate) -> Self {
         match payout_update {
-            PayoutAttemptUpdate::PayoutTokenUpdate {
-                last_modified_at,
-                payout_token,
-            } => Self {
-                last_modified_at,
+            PayoutAttemptUpdate::PayoutTokenUpdate { payout_token } => Self {
                 payout_token: Some(payout_token),
                 ..Default::default()
             },
@@ -145,26 +137,62 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
                 error_message,
                 error_code,
                 is_eligible,
-                last_modified_at,
             } => Self {
                 connector_payout_id: Some(connector_payout_id),
                 status: Some(status),
                 error_message,
                 error_code,
                 is_eligible,
-                last_modified_at,
                 ..Default::default()
             },
             PayoutAttemptUpdate::BusinessUpdate {
                 business_country,
                 business_label,
-                last_modified_at,
             } => Self {
                 business_country,
                 business_label,
-                last_modified_at,
                 ..Default::default()
             },
+            PayoutAttemptUpdate::UpdateRouting {
+                connector,
+                routing_info,
+            } => Self {
+                connector: Some(connector),
+                routing_info,
+                ..Default::default()
+            },
+        }
+    }
+}
+
+impl PayoutAttemptUpdate {
+    pub fn apply_changeset(self, source: PayoutAttempt) -> PayoutAttempt {
+        let PayoutAttemptUpdateInternal {
+            payout_token,
+            connector_payout_id,
+            status,
+            error_message,
+            error_code,
+            is_eligible,
+            business_country,
+            business_label,
+            connector,
+            routing_info,
+            last_modified_at,
+        } = self.into();
+        PayoutAttempt {
+            payout_token: payout_token.or(source.payout_token),
+            connector_payout_id: connector_payout_id.unwrap_or(source.connector_payout_id),
+            status: status.unwrap_or(source.status),
+            error_message: error_message.or(source.error_message),
+            error_code: error_code.or(source.error_code),
+            is_eligible: is_eligible.or(source.is_eligible),
+            business_country: business_country.or(source.business_country),
+            business_label: business_label.or(source.business_label),
+            connector: connector.or(source.connector),
+            routing_info: routing_info.or(source.routing_info),
+            last_modified_at,
+            ..source
         }
     }
 }

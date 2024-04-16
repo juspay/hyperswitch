@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use masking::Secret;
-use router::types::{self, api, storage::enums, AccessToken, ConnectorAuthType};
+use router::types::{self, api, domain, storage::enums, AccessToken, ConnectorAuthType};
 use serde_json::json;
 
 use crate::{
@@ -57,16 +57,18 @@ impl Globalpay {
     }
     fn get_payment_info() -> Option<PaymentInfo> {
         Some(PaymentInfo {
-            address: Some(types::PaymentAddress {
-                billing: Some(api::Address {
+            address: Some(types::PaymentAddress::new(
+                None,
+                Some(api::Address {
                     address: Some(api::AddressDetails {
                         country: Some(api_models::enums::CountryAlpha2::US),
                         ..Default::default()
                     }),
                     phone: None,
+                    ..Default::default()
                 }),
-                ..Default::default()
-            }),
+                None,
+            )),
             access_token: get_access_token(),
             connector_meta_data: CONNECTOR.get_connector_meta(),
             ..Default::default()
@@ -135,7 +137,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
                     card_number: cards::CardNumber::from_str("4024007134364842").unwrap(),
                     ..utils::CCardType::default().0
                 }),
@@ -343,7 +345,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
                     card_exp_year: Secret::new("2000".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -365,7 +367,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
                     card_exp_month: Secret::new("20".to_string()),
                     ..utils::CCardType::default().0
                 }),

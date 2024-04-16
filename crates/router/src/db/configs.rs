@@ -1,6 +1,6 @@
 use common_utils::ext_traits::AsyncExt;
 use diesel_models::configs::ConfigUpdateInternal;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 use storage_impl::redis::{
     cache::{CacheKind, CONFIG_CACHE},
@@ -51,7 +51,10 @@ pub trait ConfigInterface {
         config_update: storage::ConfigUpdate,
     ) -> CustomResult<storage::Config, errors::StorageError>;
 
-    async fn delete_config_by_key(&self, key: &str) -> CustomResult<bool, errors::StorageError>;
+    async fn delete_config_by_key(
+        &self,
+        key: &str,
+    ) -> CustomResult<storage::Config, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -62,9 +65,13 @@ impl ConfigInterface for Store {
         config: storage::ConfigNew,
     ) -> CustomResult<storage::Config, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        config.insert(&conn).await.map_err(Into::into).into_report()
+        config
+            .insert(&conn)
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
+    #[instrument(skip_all)]
     async fn update_config_in_database(
         &self,
         key: &str,
@@ -73,11 +80,11 @@ impl ConfigInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::Config::update_by_key(&conn, key, config_update)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     //update in DB and remove in redis and cache
+    #[instrument(skip_all)]
     async fn update_config_by_key(
         &self,
         key: &str,
@@ -89,6 +96,7 @@ impl ConfigInterface for Store {
         .await
     }
 
+    #[instrument(skip_all)]
     async fn find_config_by_key_from_db(
         &self,
         key: &str,
@@ -96,11 +104,11 @@ impl ConfigInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::Config::find_by_key(&conn, key)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     //check in cache, then redis then finally DB, and on the way back populate redis and cache
+    #[instrument(skip_all)]
     async fn find_config_by_key(
         &self,
         key: &str,
@@ -109,12 +117,12 @@ impl ConfigInterface for Store {
             let conn = connection::pg_connection_write(self).await?;
             storage::Config::find_by_key(&conn, key)
                 .await
-                .map_err(Into::into)
-                .into_report()
+                .map_err(|error| report!(errors::StorageError::from(error)))
         };
         cache::get_or_populate_in_memory(self, key, find_config_by_key_from_db, &CONFIG_CACHE).await
     }
 
+    #[instrument(skip_all)]
     async fn find_config_by_key_unwrap_or(
         &self,
         key: &str,
@@ -125,8 +133,7 @@ impl ConfigInterface for Store {
             let conn = connection::pg_connection_write(self).await?;
             match storage::Config::find_by_key(&conn, key)
                 .await
-                .map_err(Into::<errors::StorageError>::into)
-                .into_report()
+                .map_err(|error| report!(errors::StorageError::from(error)))
             {
                 Ok(a) => Ok(a),
                 Err(err) => {
@@ -140,8 +147,7 @@ impl ConfigInterface for Store {
                                 }
                                 .insert(&conn)
                                 .await
-                                .map_err(Into::into)
-                                .into_report()
+                                .map_err(|error| report!(errors::StorageError::from(error)))
                             })
                             .await
                     } else {
@@ -154,12 +160,15 @@ impl ConfigInterface for Store {
         cache::get_or_populate_in_memory(self, key, find_else_unwrap_or, &CONFIG_CACHE).await
     }
 
-    async fn delete_config_by_key(&self, key: &str) -> CustomResult<bool, errors::StorageError> {
+    #[instrument(skip_all)]
+    async fn delete_config_by_key(
+        &self,
+        key: &str,
+    ) -> CustomResult<storage::Config, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         let deleted = storage::Config::delete_by_key(&conn, key)
             .await
-            .map_err(Into::into)
-            .into_report()?;
+            .map_err(|error| report!(errors::StorageError::from(error)))?;
 
         self.get_redis_conn()
             .map_err(Into::<errors::StorageError>::into)?
@@ -181,11 +190,7 @@ impl ConfigInterface for MockDb {
         let mut configs = self.configs.lock().await;
 
         let config_new = storage::Config {
-            id: configs
-                .len()
-                .try_into()
-                .into_report()
-                .change_context(errors::StorageError::MockDbError)?,
+            id: i32::try_from(configs.len()).change_context(errors::StorageError::MockDbError)?,
             key: config.key,
             config: config.config,
         };
@@ -226,15 +231,15 @@ impl ConfigInterface for MockDb {
         result
     }
 
-    async fn delete_config_by_key(&self, key: &str) -> CustomResult<bool, errors::StorageError> {
+    async fn delete_config_by_key(
+        &self,
+        key: &str,
+    ) -> CustomResult<storage::Config, errors::StorageError> {
         let mut configs = self.configs.lock().await;
         let result = configs
             .iter()
             .position(|c| c.key == key)
-            .map(|index| {
-                configs.remove(index);
-                true
-            })
+            .map(|index| configs.remove(index))
             .ok_or_else(|| {
                 errors::StorageError::ValueNotFound("cannot find config to delete".to_string())
                     .into()

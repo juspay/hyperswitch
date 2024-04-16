@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use error_stack;
 
+// use router_env::tracing::Instrument;
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
@@ -65,6 +66,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         merchant_account: &domain::MerchantAccount,
         connector_request: Option<services::Request>,
         key_store: &domain::MerchantKeyStore,
+        profile_id: Option<String>,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedConnectorIntegration<
             '_,
@@ -72,18 +74,11 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
-        connector
-            .connector
-            .validate_capture_method(
-                self.request.capture_method,
-                self.request.payment_method_type,
-            )
-            .to_payment_failed_response()?;
 
         if self.should_proceed_with_authorize() {
             self.decide_authentication_type();
             logger::debug!(auth_type=?self.auth_type);
-            let resp = services::execute_connector_processing_step(
+            let mut resp = services::execute_connector_processing_step(
                 state,
                 connector_integration,
                 &self,
@@ -98,17 +93,24 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             let is_mandate = resp.request.setup_mandate_details.is_some();
 
             if is_mandate {
-                let payment_method_id = Box::pin(tokenization::save_payment_method(
-                    state,
-                    connector,
-                    resp.to_owned(),
-                    maybe_customer,
-                    merchant_account,
-                    self.request.payment_method_type,
-                    key_store,
-                    is_mandate,
-                ))
-                .await?;
+                let (payment_method_id, payment_method_status) =
+                    Box::pin(tokenization::save_payment_method(
+                        state,
+                        connector,
+                        resp.to_owned(),
+                        maybe_customer,
+                        merchant_account,
+                        self.request.payment_method_type,
+                        key_store,
+                        Some(resp.request.amount),
+                        Some(resp.request.currency),
+                        profile_id,
+                    ))
+                    .await?;
+
+                resp.payment_method_id = payment_method_id.clone();
+                resp.payment_method_status = payment_method_status;
+
                 Ok(mandate::mandate_procedure(
                     state,
                     resp,
@@ -118,37 +120,66 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 )
                 .await?)
             } else {
-                let connector = connector.clone();
                 let response = resp.clone();
-                let maybe_customer = maybe_customer.clone();
-                let merchant_account = merchant_account.clone();
-                let key_store = key_store.clone();
-                let state = state.clone();
 
-                logger::info!("Initiating async call to save_payment_method in locker");
+                logger::info!("Call to save_payment_method in locker");
 
-                tokio::spawn(async move {
-                    logger::info!("Starting async call to save_payment_method in locker");
+                let pm = Box::pin(tokenization::save_payment_method(
+                    state,
+                    connector,
+                    response,
+                    maybe_customer,
+                    merchant_account,
+                    self.request.payment_method_type,
+                    key_store,
+                    Some(resp.request.amount),
+                    Some(resp.request.currency),
+                    profile_id,
+                ))
+                .await;
 
-                    let result = Box::pin(tokenization::save_payment_method(
-                        &state,
-                        &connector,
-                        response,
-                        &maybe_customer,
-                        &merchant_account,
-                        self.request.payment_method_type,
-                        &key_store,
-                        is_mandate,
-                    ))
-                    .await;
-
-                    if let Err(err) = result {
-                        logger::error!("Asynchronously saving card in locker failed : {:?}", err);
+                match pm {
+                    Ok((payment_method_id, payment_method_status)) => {
+                        resp.payment_method_id = payment_method_id.clone();
+                        resp.payment_method_status = payment_method_status;
                     }
-                });
+                    Err(err) => logger::error!("Save pm to locker failed : {err:?}"),
+                }
 
                 Ok(resp)
             }
+
+            // Async locker code (Commenting out the code for near future refactors)
+            //     logger::info!("Call to save_payment_method in locker");
+            //     let _task_handle = tokio::spawn(
+            //         async move {
+            //             logger::info!("Starting async call to save_payment_method in locker");
+            //
+            //             let result = Box::pin(tokenization::save_payment_method(
+            //                 &state,
+            //                 &connector,
+            //                 response,
+            //                 &maybe_customer,
+            //                 &merchant_account,
+            //                 self.request.payment_method_type,
+            //                 &key_store,
+            //                 Some(resp.request.amount),
+            //                 Some(resp.request.currency),
+            //             ))
+            //             .await;
+            //
+            //             if let Err(err) = result {
+            //                 logger::error!(
+            //                     "Asynchronously saving card in locker failed : {:?}",
+            //                     err
+            //                 );
+            //             }
+            //         }
+            //         .in_current_span(),
+            //     );
+            //
+            //     Ok(resp)
+            // }
         } else {
             Ok(self.clone())
         }
@@ -210,13 +241,19 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
     ) -> RouterResult<(Option<services::Request>, bool)> {
         match call_connector_action {
             payments::CallConnectorAction::Trigger => {
+                connector
+                    .connector
+                    .validate_capture_method(
+                        self.request.capture_method,
+                        self.request.payment_method_type,
+                    )
+                    .to_payment_failed_response()?;
                 let connector_integration: services::BoxedConnectorIntegration<
                     '_,
                     api::Authorize,
                     types::PaymentsAuthorizeData,
                     types::PaymentsResponseData,
                 > = connector.connector.get_connector_integration();
-
                 connector_integration
                     .execute_pretasks(self, state)
                     .await
@@ -282,7 +319,7 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
     fn get_mandate_id(&self) -> Option<&api_models::payments::MandateIds> {
         self.mandate_id.as_ref()
     }
-    fn get_payment_method_data(&self) -> api_models::payments::PaymentMethodData {
+    fn get_payment_method_data(&self) -> domain::payments::PaymentMethodData {
         self.payment_method_data.clone()
     }
     fn get_setup_future_usage(&self) -> Option<diesel_models::enums::FutureUsage> {
@@ -294,6 +331,9 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
 
     fn set_mandate_id(&mut self, new_mandate_id: Option<api_models::payments::MandateIds>) {
         self.mandate_id = new_mandate_id;
+    }
+    fn get_customer_acceptance(&self) -> Option<api_models::payments::CustomerAcceptance> {
+        self.customer_acceptance.clone().map(From::from)
     }
 }
 

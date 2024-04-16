@@ -232,6 +232,8 @@ api_key="Adyen API Key"
 key1="Adyen Account Id"
 [adyen.connector_webhook_details]
 merchant_secret="Source verification key"
+[adyen.metadata]
+endpoint_prefix="Live endpoint prefix"
 [adyen.metadata.google_pay]
 merchant_name="Google Pay Merchant Name"
 gateway_merchant_id="Google Pay Merchant Key"
@@ -244,6 +246,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+merchant_business_country="Merchant Business Country"
 [adyen.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -333,6 +336,8 @@ merchant_secret="Source verification key"
 [[authorizedotnet.debit]]
   payment_method_type = "UnionPay"
 [[authorizedotnet.wallet]]
+  payment_method_type = "apple_pay"
+[[authorizedotnet.wallet]]
   payment_method_type = "google_pay"
 [[authorizedotnet.wallet]]
   payment_method_type = "paypal"
@@ -343,6 +348,18 @@ key1="Transaction Key"
 merchant_name="Google Pay Merchant Name"
 gateway_merchant_id="Google Pay Merchant Key"
 merchant_id="Google Pay Merchant ID"
+[authorizedotnet.metadata.apple_pay.session_token_data]
+certificate="Merchant Certificate (Base64 Encoded)"
+certificate_keys="Merchant PrivateKey (Base64 Encoded)"
+merchant_identifier="Apple Merchant Identifier"
+display_name="Display Name"
+initiative="Domain"
+initiative_context="Domain Name"
+merchant_business_country="Merchant Business Country"
+[authorizedotnet.metadata.apple_pay.payment_request_data]
+supported_networks=["visa","masterCard","amex","discover"]
+merchant_capabilities=["supports3DS"]
+label="apple"
 [authorizedotnet.connector_webhook_details]
 merchant_secret="Source verification key"
 
@@ -399,6 +416,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+merchant_business_country="Merchant Business Country"
 [bambora.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -459,6 +477,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+merchant_business_country="Merchant Business Country"
 [bankofamerica.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -536,6 +555,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+merchant_business_country="Merchant Business Country"
 [bluesnap.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -657,6 +677,46 @@ merchant_id_classic="MerchantId Classic"
 password_evoucher="Password Evoucher"
 username_evoucher="Username Evoucher"
 merchant_id_evoucher="MerchantId Evoucher"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.AUD.classic]
+password_classic="Password Classic"
+username_classic="Username Classic"
+merchant_id_classic="MerchantId Classic"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.AUD.evoucher]
+password_evoucher="Password Evoucher"
+username_evoucher="Username Evoucher"
+merchant_id_evoucher="MerchantId Evoucher"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.INR.classic]
+password_classic="Password Classic"
+username_classic="Username Classic"
+merchant_id_classic="MerchantId Classic"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.INR.evoucher]
+password_evoucher="Password Evoucher"
+username_evoucher="Username Evoucher"
+merchant_id_evoucher="MerchantId Evoucher"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.JPY.classic]
+password_classic="Password Classic"
+username_classic="Username Classic"
+merchant_id_classic="MerchantId Classic"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.JPY.evoucher]
+password_evoucher="Password Evoucher"
+username_evoucher="Username Evoucher"
+merchant_id_evoucher="MerchantId Evoucher"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.NZD.classic]
+password_classic="Password Classic"
+username_classic="Username Classic"
+merchant_id_classic="MerchantId Classic"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.NZD.evoucher]
+password_evoucher="Password Evoucher"
+username_evoucher="Username Evoucher"
+merchant_id_evoucher="MerchantId Evoucher"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.ZAR.classic]
+password_classic="Password Classic"
+username_classic="Username Classic"
+merchant_id_classic="MerchantId Classic"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.ZAR.evoucher]
+password_evoucher="Password Evoucher"
+username_evoucher="Username Evoucher"
+merchant_id_evoucher="MerchantId Evoucher"
 [cashtocode.connector_webhook_details]
 merchant_secret="Source verification key"
 
@@ -701,8 +761,6 @@ merchant_secret="Source verification key"
   payment_method_type = "apple_pay"
 [[checkout.wallet]]
   payment_method_type = "google_pay"
-[[checkout.wallet]]
-  payment_method_type = "paypal"
 [checkout.connector_auth.SignatureKey]
 api_key="Checkout API Public Key"
 key1="Processing Channel ID"
@@ -722,10 +780,15 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+merchant_business_country="Merchant Business Country"
 [checkout.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
 label="apple"
+
+[checkout.metadata]
+acquirer_bin = "Acquirer Bin"
+acquirer_merchant_id = "Acquirer Merchant ID"
 
 [coinbase]
 [[coinbase.crypto]]
@@ -799,6 +862,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+merchant_business_country="Merchant Business Country"
 [cybersource.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -1214,6 +1278,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+merchant_business_country="Merchant Business Country"
 [nexinets.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -1280,6 +1345,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+merchant_business_country="Merchant Business Country"
 [nmi.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -1347,6 +1413,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+merchant_business_country="Merchant Business Country"
 [noon.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -1426,6 +1493,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+merchant_business_country="Merchant Business Country"
 [nuvei.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -1733,6 +1801,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+merchant_business_country="Merchant Business Country"
 [rapyd.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -1887,6 +1956,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+merchant_business_country="Merchant Business Country"
 [stripe.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -2044,6 +2114,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+merchant_business_country="Merchant Business Country"
 [trustpay.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -2211,6 +2282,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+merchant_business_country="Merchant Business Country"
 [worldpay.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -2283,6 +2355,12 @@ pay_wall_secret="Pay Wall Secret"
 terminal_uuid="Terminal UUID"
 pay_wall_secret="Pay Wall Secret"
 
+[zsl]
+[[zsl.bank_transfer]]
+  payment_method_type = "local_bank_transfer"
+[zsl.connector_auth.BodyKey]
+api_key = "Key"
+key1 = "Merchant ID"
 
 [dummy_connector]
 [[dummy_connector.credit]]
@@ -2506,6 +2584,8 @@ api_key="Api Key"
   payment_method_type = "sepa"
 [[adyen_payout.wallet]]
   payment_method_type = "paypal"
+[adyen_payout.metadata]
+  endpoint_prefix="Live endpoint prefix"
 [adyen_payout.connector_auth.SignatureKey]
 api_key = "Adyen API Key (Payout creation)"
 api_secret = "Adyen Key (Payout submission)"
@@ -2521,3 +2601,52 @@ key1 = "Adyen Account Id"
 [wise_payout.connector_auth.BodyKey]
 api_key = "Wise API Key"
 key1 = "Wise Account Id"
+
+[threedsecureio]
+[threedsecureio.connector_auth.HeaderKey]
+api_key="Api Key"
+[threedsecureio.metadata]
+mcc="MCC"
+merchant_country_code="3 digit numeric country code"
+merchant_name="Name of the merchant"
+
+[billwerk]
+[[billwerk.credit]]
+  payment_method_type = "Mastercard"
+[[billwerk.credit]]
+  payment_method_type = "Visa"
+[[billwerk.credit]]
+  payment_method_type = "Interac"
+[[billwerk.credit]]
+  payment_method_type = "AmericanExpress"
+[[billwerk.credit]]
+  payment_method_type = "JCB"
+[[billwerk.credit]]
+  payment_method_type = "DinersClub"
+[[billwerk.credit]]
+  payment_method_type = "Discover"
+[[billwerk.credit]]
+  payment_method_type = "CartesBancaires"
+[[billwerk.credit]]
+  payment_method_type = "UnionPay"
+[[billwerk.debit]]
+  payment_method_type = "Mastercard"
+[[billwerk.debit]]
+  payment_method_type = "Visa"
+[[billwerk.debit]]
+  payment_method_type = "Interac"
+[[billwerk.debit]]
+  payment_method_type = "AmericanExpress"
+[[billwerk.debit]]
+  payment_method_type = "JCB"
+[[billwerk.debit]]
+  payment_method_type = "DinersClub"
+[[billwerk.debit]]
+  payment_method_type = "Discover"
+[[billwerk.debit]]
+  payment_method_type = "CartesBancaires"
+[[billwerk.debit]]
+  payment_method_type = "UnionPay"
+[billwerk.connector_auth.BodyKey]
+api_key="Private Api Key"
+key1="Public Api Key"

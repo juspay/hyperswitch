@@ -814,14 +814,14 @@ mod test {
             &mut cycle_map,
             None,
         );
-        let _ans = memo
+        let _answer = memo
             .get(&(
                 _node_3,
                 cgraph::Relation::Positive,
                 cgraph::Strength::Strong,
             ))
             .expect("Memoization not workng");
-        matches!(_ans, Ok(()));
+        matches!(_answer, Ok(()));
     }
 
     #[test]

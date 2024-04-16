@@ -353,7 +353,7 @@ impl TryFrom<&frm_types::FrmCheckoutRouterData> for SignifydPaymentsCheckoutRequ
 #[serde(deny_unknown_fields)]
 #[serde_with::skip_serializing_none]
 #[serde(rename_all = "camelCase")]
-pub struct FrmFullfillmentSignifydRequest {
+pub struct FrmFulfillmentSignifydRequest {
     pub order_id: String,
     pub fulfillment_status: Option<FulfillmentStatus>,
     pub fulfillments: Vec<Fulfillments>,
@@ -388,7 +388,7 @@ pub struct Product {
     pub item_id: String,
 }
 
-impl TryFrom<&frm_types::FrmFulfillmentRouterData> for FrmFullfillmentSignifydRequest {
+impl TryFrom<&frm_types::FrmFulfillmentRouterData> for FrmFulfillmentSignifydRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &frm_types::FrmFulfillmentRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -470,7 +470,7 @@ impl From<core_types::Address> for Address {
 #[derive(Debug, Deserialize, Serialize, Clone, ToSchema)]
 #[serde_with::skip_serializing_none]
 #[serde(rename_all = "camelCase")]
-pub struct FrmFullfillmentSignifydApiResponse {
+pub struct FrmFulfillmentSignifydApiResponse {
     pub order_id: String,
     pub shipment_ids: Vec<String>,
 }
@@ -479,7 +479,7 @@ impl
     TryFrom<
         ResponseRouterData<
             Fulfillment,
-            FrmFullfillmentSignifydApiResponse,
+            FrmFulfillmentSignifydApiResponse,
             frm_types::FraudCheckFulfillmentData,
             frm_types::FraudCheckResponseData,
         >,
@@ -494,7 +494,7 @@ impl
     fn try_from(
         item: ResponseRouterData<
             Fulfillment,
-            FrmFullfillmentSignifydApiResponse,
+            FrmFulfillmentSignifydApiResponse,
             frm_types::FraudCheckFulfillmentData,
             frm_types::FraudCheckResponseData,
         >,

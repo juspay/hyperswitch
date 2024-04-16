@@ -1,13 +1,13 @@
 use api_models::{
-    routing::{self},
+    routing,
     surcharge_decision_configs::{
         SurchargeDecisionConfigReq, SurchargeDecisionManagerRecord,
         SurchargeDecisionManagerResponse,
     },
 };
-use common_utils::ext_traits::{StringExt, ValueExt};
+use common_utils::ext_traits::{Encode, StringExt, ValueExt};
 use diesel_models::configs;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use euclid::frontend::ast;
 
 use super::routing::helpers::{
@@ -18,7 +18,7 @@ use crate::{
     routes::AppState,
     services::api as service_api,
     types::domain,
-    utils::{self, OptionExt},
+    utils::OptionExt,
 };
 
 pub async fn upsert_surcharge_decision_config(
@@ -53,7 +53,6 @@ pub async fn upsert_surcharge_decision_config(
     let read_config_key = db.find_config_by_key(&key).await;
 
     ast::lowering::lower_program(program.clone())
-        .into_report()
         .change_context(errors::ApiErrorResponse::InvalidRequestData {
             message: "Invalid Request Data".to_string(),
         })
@@ -75,10 +74,8 @@ pub async fn upsert_surcharge_decision_config(
                 merchant_surcharge_configs,
             };
 
-            let serialize_updated_str =
-                utils::Encode::<SurchargeDecisionManagerRecord>::encode_to_string_of_json(
-                    &new_algo,
-                )
+            let serialize_updated_str = new_algo
+                .encode_to_string_of_json()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Unable to serialize config to string")?;
 
@@ -113,10 +110,10 @@ pub async fn upsert_surcharge_decision_config(
                 created_at: timestamp,
             };
 
-            let serialized_str =
-                utils::Encode::<SurchargeDecisionManagerRecord>::encode_to_string_of_json(&new_rec)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Error serializing the config")?;
+            let serialized_str = new_rec
+                .encode_to_string_of_json()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Error serializing the config")?;
             let new_config = configs::ConfigNew {
                 key: key.clone(),
                 config: serialized_str,

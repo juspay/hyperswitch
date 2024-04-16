@@ -14,17 +14,17 @@ use router::{
     },
     logger, routes,
     services::{self, api},
-    types::storage::ProcessTrackerExt,
     workflows,
 };
-use router_env::{instrument, tracing};
+use router_env::{
+    instrument,
+    tracing::{self, Instrument},
+};
 use scheduler::{
     consumer::workflows::ProcessTrackerWorkflow, errors::ProcessTrackerError,
     workflows::ProcessTrackerWorkflows, SchedulerAppState,
 };
-use serde::{Deserialize, Serialize};
 use storage_impl::errors::ApplicationError;
-use strum::EnumString;
 use tokio::sync::{mpsc, oneshot};
 
 const SCHEDULER_FLOW: &str = "SCHEDULER_FLOW";
@@ -52,10 +52,9 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
     .await;
     // channel to shutdown scheduler gracefully
     let (tx, rx) = mpsc::channel(1);
-    tokio::spawn(router::receiver_for_error(
-        redis_shutdown_signal_rx,
-        tx.clone(),
-    ));
+    let _task_handle = tokio::spawn(
+        router::receiver_for_error(redis_shutdown_signal_rx, tx.clone()).in_current_span(),
+    );
 
     #[allow(clippy::expect_used)]
     let scheduler_flow_str =
@@ -84,10 +83,13 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
     .await
     .expect("Failed to create the server");
 
-    tokio::spawn(async move {
-        let _ = web_server.await;
-        logger::error!("The health check probe stopped working!");
-    });
+    let _task_handle = tokio::spawn(
+        async move {
+            let _ = web_server.await;
+            logger::error!("The health check probe stopped working!");
+        }
+        .in_current_span(),
+    );
 
     logger::debug!(startup_config=?state.conf);
 
@@ -209,15 +211,6 @@ pub async fn deep_health_check_func(
     Ok(response)
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, EnumString)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
-pub enum PTRunner {
-    PaymentsSyncWorkflow,
-    RefundWorkflowRouter,
-    DeleteTokenizeDataWorkflow,
-}
-
 #[derive(Debug, Copy, Clone)]
 pub struct WorkflowRunner;
 
@@ -227,21 +220,54 @@ impl ProcessTrackerWorkflows<routes::AppState> for WorkflowRunner {
         &'a self,
         state: &'a routes::AppState,
         process: storage::ProcessTracker,
-    ) -> Result<(), ProcessTrackerError> {
-        let runner = process.runner.clone().get_required_value("runner")?;
-        let runner: Option<PTRunner> = runner.parse_enum("PTRunner").ok();
-        let operation: Box<dyn ProcessTrackerWorkflow<routes::AppState>> = match runner {
-            Some(PTRunner::PaymentsSyncWorkflow) => {
-                Box::new(workflows::payment_sync::PaymentsSyncWorkflow)
+    ) -> CustomResult<(), ProcessTrackerError> {
+        let runner = process
+            .runner
+            .clone()
+            .get_required_value("runner")
+            .change_context(ProcessTrackerError::MissingRequiredField)
+            .attach_printable("Missing runner field in process information")?;
+        let runner: storage::ProcessTrackerRunner = runner
+            .parse_enum("ProcessTrackerRunner")
+            .change_context(ProcessTrackerError::UnexpectedFlow)
+            .attach_printable("Failed to parse workflow runner name")?;
+
+        let get_operation = |runner: storage::ProcessTrackerRunner| -> CustomResult<
+            Box<dyn ProcessTrackerWorkflow<routes::AppState>>,
+            ProcessTrackerError,
+        > {
+            match runner {
+                storage::ProcessTrackerRunner::PaymentsSyncWorkflow => {
+                    Ok(Box::new(workflows::payment_sync::PaymentsSyncWorkflow))
+                }
+                storage::ProcessTrackerRunner::RefundWorkflowRouter => {
+                    Ok(Box::new(workflows::refund_router::RefundWorkflowRouter))
+                }
+                storage::ProcessTrackerRunner::DeleteTokenizeDataWorkflow => Ok(Box::new(
+                    workflows::tokenized_data::DeleteTokenizeDataWorkflow,
+                )),
+                storage::ProcessTrackerRunner::ApiKeyExpiryWorkflow => {
+                    #[cfg(feature = "email")]
+                    {
+                        Ok(Box::new(workflows::api_key_expiry::ApiKeyExpiryWorkflow))
+                    }
+
+                    #[cfg(not(feature = "email"))]
+                    {
+                        Err(error_stack::report!(ProcessTrackerError::UnexpectedFlow))
+                            .attach_printable(
+                                "Cannot run API key expiry workflow when email feature is disabled",
+                            )
+                    }
+                }
+                storage::ProcessTrackerRunner::OutgoingWebhookRetryWorkflow => Ok(Box::new(
+                    workflows::outgoing_webhook_retry::OutgoingWebhookRetryWorkflow,
+                )),
             }
-            Some(PTRunner::RefundWorkflowRouter) => {
-                Box::new(workflows::refund_router::RefundWorkflowRouter)
-            }
-            Some(PTRunner::DeleteTokenizeDataWorkflow) => {
-                Box::new(workflows::tokenized_data::DeleteTokenizeDataWorkflow)
-            }
-            _ => Err(ProcessTrackerError::UnexpectedFlow)?,
         };
+
+        let operation = get_operation(runner)?;
+
         let app_state = &state.clone();
         let output = operation.execute_workflow(app_state, process.clone()).await;
         match output {
@@ -253,11 +279,10 @@ impl ProcessTrackerWorkflows<routes::AppState> for WorkflowRunner {
                 Ok(_) => (),
                 Err(error) => {
                     logger::error!(%error, "Failed while handling error");
-                    let status = process
-                        .finish_with_status(
-                            state.get_db().as_scheduler(),
-                            "GLOBAL_FAILURE".to_string(),
-                        )
+                    let status = state
+                        .get_db()
+                        .as_scheduler()
+                        .finish_process_with_business_status(process, "GLOBAL_FAILURE".to_string())
                         .await;
                     if let Err(err) = status {
                         logger::error!(%err, "Failed while performing database operation: GLOBAL_FAILURE");
@@ -287,19 +312,4 @@ async fn start_scheduler(
         WorkflowRunner {},
     )
     .await
-}
-
-#[cfg(test)]
-mod workflow_tests {
-    #![allow(clippy::unwrap_used)]
-    use common_utils::ext_traits::StringExt;
-
-    use super::PTRunner;
-
-    #[test]
-    fn test_enum_to_string() {
-        let string_format = "PAYMENTS_SYNC_WORKFLOW".to_string();
-        let enum_format: PTRunner = string_format.parse_enum("PTRunner").unwrap();
-        assert_eq!(enum_format, PTRunner::PaymentsSyncWorkflow)
-    }
 }
