@@ -3,7 +3,7 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface};
 use transformers as volt;
 
@@ -640,7 +640,6 @@ impl api::IncomingWebhook for Volt {
                 .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
 
         hex::decode(signature)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookVerificationSecretInvalid)
     }
 

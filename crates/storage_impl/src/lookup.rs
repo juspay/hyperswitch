@@ -6,13 +6,13 @@ use diesel_models::{
         ReverseLookup as DieselReverseLookup, ReverseLookupNew as DieselReverseLookupNew,
     },
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use redis_interface::SetnxReply;
 
 use crate::{
     diesel_error_to_data_error,
     errors::RedisErrorExt,
-    redis::kv_store::{kv_wrapper, KvOperation},
+    redis::kv_store::{kv_wrapper, KvOperation, PartitionKey},
     utils::{self, try_redis_get_else_try_database_get},
     DatabaseStore, KVRouterStore, RouterStore,
 };
@@ -42,7 +42,6 @@ impl<T: DatabaseStore> ReverseLookupInterface for RouterStore<T> {
             .get_master_pool()
             .get()
             .await
-            .into_report()
             .change_context(errors::StorageError::DatabaseConnectionError)?;
         new.insert(&conn).await.map_err(|er| {
             let new_err = diesel_error_to_data_error(er.current_context());
@@ -95,7 +94,9 @@ impl<T: DatabaseStore> ReverseLookupInterface for KVRouterStore<T> {
                 match kv_wrapper::<DieselReverseLookup, _, _>(
                     self,
                     KvOperation::SetNx(&created_rev_lookup, redis_entry),
-                    format!("reverse_lookup_{}", &created_rev_lookup.lookup_id),
+                    PartitionKey::CombinationKey {
+                        combination: &format!("reverse_lookup_{}", &created_rev_lookup.lookup_id),
+                    },
                 )
                 .await
                 .map_err(|err| err.to_redis_failed_response(&created_rev_lookup.lookup_id))?
@@ -105,8 +106,8 @@ impl<T: DatabaseStore> ReverseLookupInterface for KVRouterStore<T> {
                     Ok(SetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
                         entity: "reverse_lookup",
                         key: Some(created_rev_lookup.lookup_id.clone()),
-                    })
-                    .into_report(),
+                    }
+                    .into()),
                     Err(er) => Err(er).change_context(errors::StorageError::KVError),
                 }
             }
@@ -130,7 +131,9 @@ impl<T: DatabaseStore> ReverseLookupInterface for KVRouterStore<T> {
                     kv_wrapper(
                         self,
                         KvOperation::<DieselReverseLookup>::Get,
-                        format!("reverse_lookup_{id}"),
+                        PartitionKey::CombinationKey {
+                            combination: &format!("reverse_lookup_{id}"),
+                        },
                     )
                     .await?
                     .try_into_get()

@@ -4,7 +4,7 @@ use api_models::{enums::FrmSuggestion, payments::PaymentsIncrementalAuthorizatio
 use async_trait::async_trait;
 use common_utils::errors::CustomResult;
 use diesel_models::authorization::AuthorizationNew;
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
@@ -17,7 +17,10 @@ use crate::{
             PaymentAddress,
         },
     },
-    routes::{app::StorageInterface, AppState},
+    routes::{
+        app::{ReqState, StorageInterface},
+        AppState,
+    },
     services,
     types::{
         api::{self, PaymentIdTypeExt},
@@ -42,7 +45,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         request: &PaymentsIncrementalAuthorizationRequest,
-        _mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
         _key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
@@ -152,6 +154,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             authorizations: vec![],
             authentication: None,
             frm_metadata: None,
+            recurring_details: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -159,6 +162,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             customer_details: None,
             payment_data,
             business_profile,
+            mandate_type: None,
         };
 
         Ok(get_trackers_response)
@@ -174,6 +178,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     async fn update_trackers<'b>(
         &'b self,
         db: &'b AppState,
+        _req_state: ReqState,
         mut payment_data: payments::PaymentData<F>,
         _customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
@@ -250,7 +255,6 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     });
             }
             None => Err(errors::ApiErrorResponse::InternalServerError)
-                .into_report()
                 .attach_printable("missing incremental_authorization_details in payment_data")?,
         }
         Ok((Box::new(self), payment_data))
@@ -275,7 +279,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             operations::ValidateResult {
                 merchant_id: &merchant_account.merchant_id,
                 payment_id: api::PaymentIdType::PaymentIntentId(request.payment_id.to_owned()),
-                mandate_type: None,
                 storage_scheme: merchant_account.storage_scheme,
                 requeue: false,
             },
@@ -294,6 +297,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve>
         _payment_data: &mut payments::PaymentData<F>,
         _request: Option<CustomerDetails>,
         _merchant_key_store: &domain::MerchantKeyStore,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, PaymentsIncrementalAuthorizationRequest, Ctx>,

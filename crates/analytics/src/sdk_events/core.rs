@@ -8,7 +8,7 @@ use api_models::analytics::{
     SdkEventFiltersResponse,
 };
 use common_utils::errors::ReportSwitchExt;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use router_env::{instrument, logger, tracing};
 
 use super::{
@@ -32,7 +32,6 @@ pub async fn sdk_events_core(
         AnalyticsProvider::Sqlx(_) => Err(FiltersError::NotImplemented(
             "SDK Events not implemented for SQLX",
         ))
-        .into_report()
         .attach_printable("SQL Analytics is not implemented for Sdk Events"),
         AnalyticsProvider::Clickhouse(pool) => get_sdk_event(&publishable_key, req, pool).await,
         AnalyticsProvider::CombinedSqlx(_sqlx_pool, ckh_pool)
@@ -80,7 +79,6 @@ pub async fn get_metrics(
             .join_next()
             .await
             .transpose()
-            .into_report()
             .change_context(AnalyticsError::UnknownError)?
         {
             logger::info!("Logging Result {:?}", data);
@@ -89,9 +87,6 @@ pub async fn get_metrics(
                 match metric {
                     SdkEventMetrics::PaymentAttempts => {
                         metrics_builder.payment_attempts.add_metrics_bucket(&value)
-                    }
-                    SdkEventMetrics::PaymentSuccessCount => {
-                        metrics_builder.payment_success.add_metrics_bucket(&value)
                     }
                     SdkEventMetrics::PaymentMethodsCallCount => metrics_builder
                         .payment_methods_call_count
@@ -110,6 +105,27 @@ pub async fn get_metrics(
                         .add_metrics_bucket(&value),
                     SdkEventMetrics::AveragePaymentTime => metrics_builder
                         .average_payment_time
+                        .add_metrics_bucket(&value),
+                    SdkEventMetrics::ThreeDsMethodInvokedCount => metrics_builder
+                        .three_ds_method_invoked_count
+                        .add_metrics_bucket(&value),
+                    SdkEventMetrics::ThreeDsMethodSkippedCount => metrics_builder
+                        .three_ds_method_skipped_count
+                        .add_metrics_bucket(&value),
+                    SdkEventMetrics::ThreeDsMethodSuccessfulCount => metrics_builder
+                        .three_ds_method_successful_count
+                        .add_metrics_bucket(&value),
+                    SdkEventMetrics::ThreeDsMethodUnsuccessfulCount => metrics_builder
+                        .three_ds_method_unsuccessful_count
+                        .add_metrics_bucket(&value),
+                    SdkEventMetrics::AuthenticationUnsuccessfulCount => metrics_builder
+                        .authentication_unsuccessful_count
+                        .add_metrics_bucket(&value),
+                    SdkEventMetrics::ThreeDsChallengeFlowCount => metrics_builder
+                        .three_ds_challenge_flow_count
+                        .add_metrics_bucket(&value),
+                    SdkEventMetrics::ThreeDsFrictionlessFlowCount => metrics_builder
+                        .three_ds_frictionless_flow_count
                         .add_metrics_bucket(&value),
                 }
             }
@@ -165,7 +181,6 @@ pub async fn get_filters(
                 AnalyticsProvider::Sqlx(_pool) => Err(FiltersError::NotImplemented(
                     "SDK Events not implemented for SQLX",
                 ))
-                .into_report()
                 .attach_printable("SQL Analytics is not implemented for SDK Events"),
                 AnalyticsProvider::Clickhouse(pool) => {
                     get_sdk_event_filter_for_dimension(dim, publishable_key, &req.time_range, pool)

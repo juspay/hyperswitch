@@ -10,11 +10,11 @@ license.workspace = true
 [features]
 
 [dependencies]
-error-stack = "0.3.1"
+error-stack = "0.4.1"
 luhn = "1.0.1"
-serde = { version = "1.0.193", features = ["derive"] }
-thiserror = "1.0.40"
-time = "0.3.21"
+serde = { version = "1.0.197", features = ["derive"] }
+thiserror = "1.0.58"
+time = "0.3.35"
 
 # First party crates
 common_utils = { version = "0.1.0", path = "../common_utils" }
@@ -24,4 +24,4 @@ masking = { version = "0.1.0", path = "../masking" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
 
 [dev-dependencies]
-serde_json = "1.0.108"
+serde_json = "1.0.115"

@@ -1,8 +1,9 @@
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     address::{Address, AddressNew, AddressUpdateInternal},
+    customers::{Customer, CustomerNew, CustomerUpdateInternal},
     errors,
     payment_attempt::{PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate},
     payment_intent::{PaymentIntentNew, PaymentIntentUpdate},
@@ -10,7 +11,7 @@ use crate::{
     payouts::{Payouts, PayoutsNew, PayoutsUpdate},
     refund::{Refund, RefundNew, RefundUpdate},
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
-    PaymentIntent, PgPooledConn,
+    PaymentIntent, PaymentMethod, PaymentMethodNew, PaymentMethodUpdateInternal, PgPooledConn,
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -36,15 +37,19 @@ impl DBOperation {
                 Insertable::Address(_) => "address",
                 Insertable::Payouts(_) => "payouts",
                 Insertable::PayoutAttempt(_) => "payout_attempt",
+                Insertable::Customer(_) => "customer",
                 Insertable::ReverseLookUp(_) => "reverse_lookup",
+                Insertable::PaymentMethod(_) => "payment_method",
             },
             Self::Update { updatable } => match updatable {
                 Updateable::PaymentIntentUpdate(_) => "payment_intent",
                 Updateable::PaymentAttemptUpdate(_) => "payment_attempt",
                 Updateable::RefundUpdate(_) => "refund",
+                Updateable::CustomerUpdate(_) => "customer",
                 Updateable::AddressUpdate(_) => "address",
                 Updateable::PayoutsUpdate(_) => "payouts",
                 Updateable::PayoutAttemptUpdate(_) => "payout_attempt",
+                Updateable::PaymentMethodUpdate(_) => "payment_method",
             },
         }
     }
@@ -56,9 +61,11 @@ pub enum DBResult {
     PaymentAttempt(Box<PaymentAttempt>),
     Refund(Box<Refund>),
     Address(Box<Address>),
+    Customer(Box<Customer>),
     ReverseLookUp(Box<ReverseLookup>),
     Payouts(Box<Payouts>),
     PayoutAttempt(Box<PayoutAttempt>),
+    PaymentMethod(Box<PaymentMethod>),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -79,12 +86,18 @@ impl DBOperation {
                 }
                 Insertable::Refund(a) => DBResult::Refund(Box::new(a.insert(conn).await?)),
                 Insertable::Address(addr) => DBResult::Address(Box::new(addr.insert(conn).await?)),
+                Insertable::Customer(cust) => {
+                    DBResult::Customer(Box::new(cust.insert(conn).await?))
+                }
                 Insertable::ReverseLookUp(rev) => {
                     DBResult::ReverseLookUp(Box::new(rev.insert(conn).await?))
                 }
                 Insertable::Payouts(rev) => DBResult::Payouts(Box::new(rev.insert(conn).await?)),
                 Insertable::PayoutAttempt(rev) => {
                     DBResult::PayoutAttempt(Box::new(rev.insert(conn).await?))
+                }
+                Insertable::PaymentMethod(rev) => {
+                    DBResult::PaymentMethod(Box::new(rev.insert(conn).await?))
                 }
             },
             Self::Update { updatable } => match updatable {
@@ -106,6 +119,20 @@ impl DBOperation {
                 Updateable::PayoutAttemptUpdate(a) => DBResult::PayoutAttempt(Box::new(
                     a.orig.update_with_attempt_id(conn, a.update_data).await?,
                 )),
+                Updateable::PaymentMethodUpdate(v) => DBResult::PaymentMethod(Box::new(
+                    v.orig
+                        .update_with_payment_method_id(conn, v.update_data)
+                        .await?,
+                )),
+                Updateable::CustomerUpdate(cust) => DBResult::Customer(Box::new(
+                    Customer::update_by_customer_id_merchant_id(
+                        conn,
+                        cust.orig.customer_id.clone(),
+                        cust.orig.merchant_id.clone(),
+                        cust.update_data,
+                    )
+                    .await?,
+                )),
             },
         })
     }
@@ -123,7 +150,6 @@ impl TypedSql {
             (
                 "typed_sql",
                 serde_json::to_string(self)
-                    .into_report()
                     .change_context(errors::DatabaseError::QueryGenerationFailed)?,
             ),
             ("global_id", global_id),
@@ -140,9 +166,11 @@ pub enum Insertable {
     PaymentAttempt(PaymentAttemptNew),
     Refund(RefundNew),
     Address(Box<AddressNew>),
+    Customer(CustomerNew),
     ReverseLookUp(ReverseLookupNew),
     Payouts(PayoutsNew),
     PayoutAttempt(PayoutAttemptNew),
+    PaymentMethod(PaymentMethodNew),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -151,9 +179,17 @@ pub enum Updateable {
     PaymentIntentUpdate(PaymentIntentUpdateMems),
     PaymentAttemptUpdate(PaymentAttemptUpdateMems),
     RefundUpdate(RefundUpdateMems),
+    CustomerUpdate(CustomerUpdateMems),
     AddressUpdate(Box<AddressUpdateMems>),
     PayoutsUpdate(PayoutsUpdateMems),
     PayoutAttemptUpdate(PayoutAttemptUpdateMems),
+    PaymentMethodUpdate(PaymentMethodUpdateMems),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CustomerUpdateMems {
+    pub orig: Customer,
+    pub update_data: CustomerUpdateInternal,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -190,4 +226,10 @@ pub struct PayoutsUpdateMems {
 pub struct PayoutAttemptUpdateMems {
     pub orig: PayoutAttempt,
     pub update_data: PayoutAttemptUpdate,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PaymentMethodUpdateMems {
+    pub orig: PaymentMethod,
+    pub update_data: PaymentMethodUpdateInternal,
 }

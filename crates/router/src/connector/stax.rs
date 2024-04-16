@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
 use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::PeekInterface;
 use transformers as stax;
 
@@ -107,7 +107,6 @@ impl ConnectorCommon for Stax {
             message: consts::NO_ERROR_MESSAGE.to_string(),
             reason: Some(
                 std::str::from_utf8(&res.response)
-                    .into_report()
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
                     .to_owned(),
             ),
@@ -927,7 +926,6 @@ impl api::IncomingWebhook for Stax {
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let reference_object: serde_json::Value = serde_json::from_slice(request.body)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         Ok(Box::new(reference_object))
     }

@@ -11,6 +11,7 @@ use crate::{
     types::{
         self,
         api::{self, enums as api_enums},
+        domain,
         storage::enums,
         transformers::ForeignFrom,
         PaymentsAuthorizeData, PaymentsResponseData,
@@ -235,33 +236,36 @@ impl
             >,
         >,
     ) -> Result<Self, Self::Error> {
-        let payment_data = match &item.router_data.request.payment_method_data {
-            api::PaymentMethodData::Card(card) => {
-                WorldlinePaymentMethod::CardPaymentMethodSpecificInput(Box::new(make_card_request(
-                    &item.router_data.request,
-                    card,
-                )?))
-            }
-            api::PaymentMethodData::BankRedirect(bank_redirect) => {
-                WorldlinePaymentMethod::RedirectPaymentMethodSpecificInput(Box::new(
-                    make_bank_redirect_request(&item.router_data.request, bank_redirect)?,
-                ))
-            }
-            api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::Wallet(_)
-            | api::PaymentMethodData::PayLater(_)
-            | api::PaymentMethodData::BankDebit(_)
-            | api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::Crypto(_)
-            | api::PaymentMethodData::MandatePayment
-            | api::PaymentMethodData::Reward
-            | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("worldline"),
-            ))?,
-        };
+        let payment_data =
+            match &item.router_data.request.payment_method_data {
+                domain::PaymentMethodData::Card(card) => {
+                    let card_holder_name = item.router_data.get_optional_billing_full_name();
+                    WorldlinePaymentMethod::CardPaymentMethodSpecificInput(Box::new(
+                        make_card_request(&item.router_data.request, card, card_holder_name)?,
+                    ))
+                }
+                domain::PaymentMethodData::BankRedirect(bank_redirect) => {
+                    WorldlinePaymentMethod::RedirectPaymentMethodSpecificInput(Box::new(
+                        make_bank_redirect_request(&item.router_data.request, bank_redirect)?,
+                    ))
+                }
+                domain::PaymentMethodData::CardRedirect(_)
+                | domain::PaymentMethodData::Wallet(_)
+                | domain::PaymentMethodData::PayLater(_)
+                | domain::PaymentMethodData::BankDebit(_)
+                | domain::PaymentMethodData::BankTransfer(_)
+                | domain::PaymentMethodData::Crypto(_)
+                | domain::PaymentMethodData::MandatePayment
+                | domain::PaymentMethodData::Reward
+                | domain::PaymentMethodData::Upi(_)
+                | domain::PaymentMethodData::Voucher(_)
+                | domain::PaymentMethodData::GiftCard(_)
+                | domain::PaymentMethodData::CardToken(_) => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("worldline"),
+                    ))?
+                }
+            };
 
         let billing_address = item.router_data.get_billing()?;
 
@@ -314,20 +318,20 @@ impl TryFrom<utils::CardIssuer> for Gateway {
     }
 }
 
-impl TryFrom<&api_models::enums::BankNames> for WorldlineBic {
+impl TryFrom<&common_enums::enums::BankNames> for WorldlineBic {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(bank: &api_models::enums::BankNames) -> Result<Self, Self::Error> {
+    fn try_from(bank: &common_enums::enums::BankNames) -> Result<Self, Self::Error> {
         match bank {
-            api_models::enums::BankNames::AbnAmro => Ok(Self::Abnamro),
-            api_models::enums::BankNames::AsnBank => Ok(Self::Asn),
-            api_models::enums::BankNames::Ing => Ok(Self::Ing),
-            api_models::enums::BankNames::Knab => Ok(Self::Knab),
-            api_models::enums::BankNames::Rabobank => Ok(Self::Rabobank),
-            api_models::enums::BankNames::Regiobank => Ok(Self::Regiobank),
-            api_models::enums::BankNames::SnsBank => Ok(Self::Sns),
-            api_models::enums::BankNames::TriodosBank => Ok(Self::Triodos),
-            api_models::enums::BankNames::VanLanschot => Ok(Self::Vanlanschot),
-            api_models::enums::BankNames::FrieslandBank => Ok(Self::Friesland),
+            common_enums::enums::BankNames::AbnAmro => Ok(Self::Abnamro),
+            common_enums::enums::BankNames::AsnBank => Ok(Self::Asn),
+            common_enums::enums::BankNames::Ing => Ok(Self::Ing),
+            common_enums::enums::BankNames::Knab => Ok(Self::Knab),
+            common_enums::enums::BankNames::Rabobank => Ok(Self::Rabobank),
+            common_enums::enums::BankNames::Regiobank => Ok(Self::Regiobank),
+            common_enums::enums::BankNames::SnsBank => Ok(Self::Sns),
+            common_enums::enums::BankNames::TriodosBank => Ok(Self::Triodos),
+            common_enums::enums::BankNames::VanLanschot => Ok(Self::Vanlanschot),
+            common_enums::enums::BankNames::FrieslandBank => Ok(Self::Friesland),
             _ => Err(errors::ConnectorError::FlowNotSupported {
                 flow: bank.to_string(),
                 connector: "Worldline".to_string(),
@@ -339,7 +343,8 @@ impl TryFrom<&api_models::enums::BankNames> for WorldlineBic {
 
 fn make_card_request(
     req: &PaymentsAuthorizeData,
-    ccard: &payments::Card,
+    ccard: &domain::Card,
+    card_holder_name: Option<Secret<String>>,
 ) -> Result<CardPaymentMethod, error_stack::Report<errors::ConnectorError>> {
     let expiry_year = ccard.card_exp_year.peek();
     let secret_value = format!(
@@ -352,10 +357,7 @@ fn make_card_request(
     let expiry_date: Secret<String> = Secret::new(secret_value);
     let card = Card {
         card_number: ccard.card_number.clone(),
-        cardholder_name: ccard
-            .card_holder_name
-            .clone()
-            .unwrap_or(Secret::new("".to_string())),
+        cardholder_name: card_holder_name.unwrap_or(Secret::new("".to_string())),
         cvv: ccard.card_cvc.clone(),
         expiry_date,
     };
@@ -371,12 +373,12 @@ fn make_card_request(
 
 fn make_bank_redirect_request(
     req: &PaymentsAuthorizeData,
-    bank_redirect: &payments::BankRedirectData,
+    bank_redirect: &domain::BankRedirectData,
 ) -> Result<RedirectPaymentMethod, error_stack::Report<errors::ConnectorError>> {
     let return_url = req.router_return_url.clone();
     let redirection_data = RedirectionData { return_url };
     let (payment_method_specific_data, payment_product_id) = match bank_redirect {
-        payments::BankRedirectData::Giropay {
+        domain::BankRedirectData::Giropay {
             billing_details,
             bank_account_iban,
             ..
@@ -396,7 +398,7 @@ fn make_bank_redirect_request(
             },
             816,
         ),
-        payments::BankRedirectData::Ideal { bank_name, .. } => (
+        domain::BankRedirectData::Ideal { bank_name, .. } => (
             {
                 PaymentMethodSpecificData::PaymentProduct809SpecificInput(Box::new(Ideal {
                     issuer_id: bank_name
@@ -406,21 +408,21 @@ fn make_bank_redirect_request(
             },
             809,
         ),
-        payments::BankRedirectData::BancontactCard { .. }
-        | payments::BankRedirectData::Bizum {}
-        | payments::BankRedirectData::Blik { .. }
-        | payments::BankRedirectData::Eps { .. }
-        | payments::BankRedirectData::Interac { .. }
-        | payments::BankRedirectData::OnlineBankingCzechRepublic { .. }
-        | payments::BankRedirectData::OnlineBankingFinland { .. }
-        | payments::BankRedirectData::OnlineBankingPoland { .. }
-        | payments::BankRedirectData::OnlineBankingSlovakia { .. }
-        | payments::BankRedirectData::OpenBankingUk { .. }
-        | payments::BankRedirectData::Przelewy24 { .. }
-        | payments::BankRedirectData::Sofort { .. }
-        | payments::BankRedirectData::Trustly { .. }
-        | payments::BankRedirectData::OnlineBankingFpx { .. }
-        | payments::BankRedirectData::OnlineBankingThailand { .. } => {
+        domain::BankRedirectData::BancontactCard { .. }
+        | domain::BankRedirectData::Bizum {}
+        | domain::BankRedirectData::Blik { .. }
+        | domain::BankRedirectData::Eps { .. }
+        | domain::BankRedirectData::Interac { .. }
+        | domain::BankRedirectData::OnlineBankingCzechRepublic { .. }
+        | domain::BankRedirectData::OnlineBankingFinland { .. }
+        | domain::BankRedirectData::OnlineBankingPoland { .. }
+        | domain::BankRedirectData::OnlineBankingSlovakia { .. }
+        | domain::BankRedirectData::OpenBankingUk { .. }
+        | domain::BankRedirectData::Przelewy24 { .. }
+        | domain::BankRedirectData::Sofort { .. }
+        | domain::BankRedirectData::Trustly { .. }
+        | domain::BankRedirectData::OnlineBankingFpx { .. }
+        | domain::BankRedirectData::OnlineBankingThailand { .. } => {
             return Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("worldline"),
             )
