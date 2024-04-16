@@ -24,7 +24,7 @@ use crate::types::{domain::behaviour::Conversion, transformers::ForeignFrom};
 use crate::{
     core::{
         errors::{self, RouterResponse, RouterResult},
-        payments::{self, helpers as payment_helpers},
+        payments::{self, access_token, helpers as payment_helpers},
         utils as core_utils,
     },
     routes::AppState,
@@ -906,7 +906,7 @@ pub async fn call_connector_payout(
 
     if let Some(true) = req.confirm {
         // Eligibility flow
-        payout_data = complete_payout_eligibility_if_required(
+        payout_data = complete_payout_eligibility(
             state,
             merchant_account,
             key_store,
@@ -917,7 +917,7 @@ pub async fn call_connector_payout(
         .await?;
 
         // Create customer flow
-        payout_data = complete_create_recipient_if_required(
+        payout_data = complete_create_recipient(
             state,
             merchant_account,
             key_store,
@@ -928,7 +928,7 @@ pub async fn call_connector_payout(
         .await?;
 
         // Payout creation flow
-        payout_data = complete_create_payout_if_required(
+        payout_data = complete_create_payout(
             state,
             merchant_account,
             key_store,
@@ -957,7 +957,7 @@ pub async fn call_connector_payout(
     Ok(payout_data)
 }
 
-pub async fn complete_create_recipient_if_required(
+pub async fn complete_create_recipient(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
@@ -1071,7 +1071,7 @@ pub async fn create_recipient(
     Ok(payout_data.clone())
 }
 
-pub async fn complete_payout_eligibility_if_required(
+pub async fn complete_payout_eligibility(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
@@ -1231,7 +1231,7 @@ pub async fn check_payout_eligibility(
     Ok(payout_data.clone())
 }
 
-pub async fn complete_create_payout_if_required(
+pub async fn complete_create_payout(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
@@ -1312,7 +1312,10 @@ pub async fn create_payout(
     )
     .await?;
 
-    // 2. Fetch connector integration details
+    // 2. Get/Create access token
+    create_access_token(state, connector_data, merchant_account, &mut router_data).await?;
+
+    // 3. Fetch connector integration details
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
         api::PoCreate,
@@ -1320,13 +1323,13 @@ pub async fn create_payout(
         types::PayoutsResponseData,
     > = connector_data.connector.get_connector_integration();
 
-    // 3. Execute pretasks
+    // 4. Execute pretasks
     connector_integration
         .execute_pretasks(&mut router_data, state)
         .await
         .to_payout_failed_response()?;
 
-    // 4. Call connector service
+    // 5. Call connector service
     let router_data_resp = services::execute_connector_processing_step(
         state,
         connector_integration,
@@ -1337,7 +1340,7 @@ pub async fn create_payout(
     .await
     .to_payout_failed_response()?;
 
-    // 5. Process data returned by the connector
+    // 6. Process data returned by the connector
     let db = &*state.store;
     match router_data_resp.response {
         Ok(payout_response_data) => {
@@ -1413,6 +1416,30 @@ pub async fn create_payout(
     };
 
     Ok(payout_data.clone())
+}
+
+pub async fn create_access_token<F: Clone + 'static>(
+    state: &AppState,
+    connector_data: &api::ConnectorData,
+    merchant_account: &domain::MerchantAccount,
+    router_data: &mut types::PayoutsRouterData<F>,
+) -> RouterResult<()> {
+    let connector_access_token =
+        access_token::add_access_token(state, connector_data, merchant_account, router_data)
+            .await?;
+
+    if connector_access_token.connector_supports_access_token {
+        match connector_access_token.access_token_result.as_ref() {
+            Ok(access_token) => {
+                router_data.access_token = access_token.clone();
+            }
+            Err(connector_error) => {
+                router_data.response = Err(connector_error.clone());
+            }
+        }
+    }
+
+    Ok(())
 }
 
 pub async fn cancel_payout(
@@ -1532,7 +1559,7 @@ pub async fn fulfill_payout(
     payout_data: &mut PayoutData,
 ) -> RouterResult<PayoutData> {
     // 1. Form Router data
-    let router_data = core_utils::construct_payout_router_data(
+    let mut router_data = core_utils::construct_payout_router_data(
         state,
         &connector_data.connector_name.to_string(),
         merchant_account,
@@ -1542,7 +1569,10 @@ pub async fn fulfill_payout(
     )
     .await?;
 
-    // 2. Fetch connector integration details
+    // 2. Get/Create access token
+    create_access_token(state, connector_data, merchant_account, &mut router_data).await?;
+
+    // 3. Fetch connector integration details
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
         api::PoFulfill,
@@ -1550,7 +1580,7 @@ pub async fn fulfill_payout(
         types::PayoutsResponseData,
     > = connector_data.connector.get_connector_integration();
 
-    // 3. Call connector service
+    // 4. Call connector service
     let router_data_resp = services::execute_connector_processing_step(
         state,
         connector_integration,
@@ -1561,7 +1591,7 @@ pub async fn fulfill_payout(
     .await
     .to_payout_failed_response()?;
 
-    // 4. Process data returned by the connector
+    // 5. Process data returned by the connector
     let db = &*state.store;
     match router_data_resp.response {
         Ok(payout_response_data) => {
