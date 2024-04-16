@@ -518,6 +518,12 @@ pub struct MerchantConnectorWebhookDetails {
     pub additional_secret: Option<Secret<String>>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct MerchantConnectorInfo {
+    pub connector_label: String,
+    pub merchant_connector_id: String,
+}
+
 /// Response of creating a new Merchant Connector for the merchant account."
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
