@@ -76,6 +76,17 @@ pub enum AuthenticationType {
     NoAuth,
 }
 
+impl events::EventInfo for AuthenticationType {
+    type Data = Self;
+    fn data(&self) -> error_stack::Result<Self::Data, events::EventsError> {
+        Ok(self.clone())
+    }
+
+    fn key(&self) -> String {
+        "auth_info".to_string()
+    }
+}
+
 impl AuthenticationType {
     pub fn get_merchant_id(&self) -> Option<&str> {
         match self {
