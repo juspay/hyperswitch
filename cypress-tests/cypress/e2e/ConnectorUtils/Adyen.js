@@ -45,7 +45,7 @@ export const connectorDetails = {
         "refundSyncStatus": "pending",
         "mandate_type": {
             "single_use": {
-                "amount": 6000,
+                "amount": 8000,
                 "currency": "USD"
             }
         }
@@ -59,7 +59,7 @@ export const connectorDetails = {
         "refundSyncStatus": "pending",
         "mandate_type": {
             "single_use": {
-                "amount": 6000,
+                "amount": 8000,
                 "currency": "USD"
             }
         }
@@ -73,7 +73,7 @@ export const connectorDetails = {
         "refundSyncStatus": "pending",
         "mandate_type": {
             "multi_use": {
-                "amount": 6000,
+                "amount": 8000,
                 "currency": "USD"
             }
         }
@@ -87,7 +87,7 @@ export const connectorDetails = {
         "refundSyncStatus": "pending",
         "mandate_type": {
             "multi_use": {
-                "amount": 6000,
+                "amount": 8000,
                 "currency": "USD"
             }
         }

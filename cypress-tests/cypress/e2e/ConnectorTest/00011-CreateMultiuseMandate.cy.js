@@ -7,7 +7,7 @@ import State from "../../utils/State";
 
 let globalState;
 
-describe("Card - SingleUse Mandates flow test", () => {
+describe("Card - MultiUse Mandates flow test", () => {
 
     before("seed global state", () => {
 
