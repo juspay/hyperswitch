@@ -9,6 +9,8 @@ use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 use transformers as ebanx;
 
+#[cfg(feature = "payouts")]
+use crate::services;
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
@@ -21,9 +23,6 @@ use crate::{
     },
     utils::BytesExt,
 };
-
-#[cfg(feature = "payouts")]
-use crate::services;
 
 #[derive(Debug, Clone)]
 pub struct Ebanx;
