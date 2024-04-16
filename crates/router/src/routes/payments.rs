@@ -971,7 +971,7 @@ pub async fn get_payment_filters(
         state,
         &req,
         (),
-        |state, auth, _| payments::get_payment_filters(state, auth.merchant_account),
+        |state, auth, _, _| payments::get_payment_filters(state, auth.merchant_account),
         auth::auth_type(
             &auth::ApiKeyAuth,
             &auth::JWTAuth(Permission::PaymentRead),
