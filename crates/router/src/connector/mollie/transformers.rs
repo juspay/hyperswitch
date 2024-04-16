@@ -195,7 +195,7 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
                         get_payment_method_for_wallet(item.router_data, wallet_data)
                     }
                     domain::PaymentMethodData::BankDebit(ref directdebit_data) => {
-                        PaymentMethodData::try_from(directdebit_data)
+                        PaymentMethodData::try_from((directdebit_data, item.router_data))
                     }
                     _ => Err(
                         errors::ConnectorError::NotImplemented("Payment Method".to_string()).into(),
@@ -254,18 +254,18 @@ impl TryFrom<&domain::BankRedirectData> for PaymentMethodData {
     }
 }
 
-impl TryFrom<&domain::BankDebitData> for PaymentMethodData {
+impl TryFrom<(&domain::BankDebitData, &types::PaymentsAuthorizeRouterData)> for PaymentMethodData {
     type Error = Error;
-    fn try_from(value: &domain::BankDebitData) -> Result<Self, Self::Error> {
-        match value {
-            domain::BankDebitData::SepaBankDebit {
-                bank_account_holder_name,
-                iban,
-                ..
-            } => Ok(Self::DirectDebit(Box::new(DirectDebitMethodData {
-                consumer_name: bank_account_holder_name.clone(),
-                consumer_account: iban.clone(),
-            }))),
+    fn try_from(
+        (bank_debit_data, item): (&domain::BankDebitData, &types::PaymentsAuthorizeRouterData),
+    ) -> Result<Self, Self::Error> {
+        match bank_debit_data {
+            domain::BankDebitData::SepaBankDebit { iban, .. } => {
+                Ok(Self::DirectDebit(Box::new(DirectDebitMethodData {
+                    consumer_name: item.get_optional_billing_full_name(),
+                    consumer_account: iban.clone(),
+                })))
+            }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }

@@ -1084,7 +1084,7 @@ pub enum BankDebitData {
     /// Payment Method data for Ach bank debit
     AchBankDebit {
         /// Billing details for bank debit
-        billing_details: BankDebitBilling,
+        billing_details: Option<BankDebitBilling>,
         /// Account number for ach bank debit payment
         #[schema(value_type = String, example = "000123456789")]
         account_number: Secret<String>,
@@ -1109,7 +1109,7 @@ pub enum BankDebitData {
     },
     SepaBankDebit {
         /// Billing details for bank debit
-        billing_details: BankDebitBilling,
+        billing_details: Option<BankDebitBilling>,
         /// International bank account number (iban) for SEPA
         #[schema(value_type = String, example = "DE89370400440532013000")]
         iban: Secret<String>,
@@ -1119,7 +1119,7 @@ pub enum BankDebitData {
     },
     BecsBankDebit {
         /// Billing details for bank debit
-        billing_details: BankDebitBilling,
+        billing_details: Option<BankDebitBilling>,
         /// Account number for Becs payment method
         #[schema(value_type = String, example = "000123456")]
         account_number: Secret<String>,
@@ -1132,7 +1132,7 @@ pub enum BankDebitData {
     },
     BacsBankDebit {
         /// Billing details for bank debit
-        billing_details: BankDebitBilling,
+        billing_details: Option<BankDebitBilling>,
         /// Account number for Bacs payment method
         #[schema(value_type = String, example = "00012345")]
         account_number: Secret<String>,
@@ -1166,25 +1166,26 @@ impl GetAddressFromPaymentMethodData for BankDebitData {
 
         match self {
             Self::AchBankDebit {
-                billing_details,
+                billing_details: Some(billing_details),
                 bank_account_holder_name,
                 ..
             }
             | Self::SepaBankDebit {
-                billing_details,
+                billing_details: Some(billing_details),
                 bank_account_holder_name,
                 ..
             }
             | Self::BecsBankDebit {
-                billing_details,
+                billing_details: Some(billing_details),
                 bank_account_holder_name,
                 ..
             }
             | Self::BacsBankDebit {
-                billing_details,
+                billing_details: Some(billing_details),
                 bank_account_holder_name,
                 ..
             } => get_billing_address_inner(billing_details, bank_account_holder_name.as_ref()),
+            _none => None,
         }
     }
 }
@@ -4746,7 +4747,7 @@ mod billing_from_payment_method_data {
 
         let ach_bank_debit_payment_method_data =
             PaymentMethodData::BankDebit(BankDebitData::AchBankDebit {
-                billing_details: bank_redirect_billing,
+                billing_details: Some(bank_redirect_billing),
                 account_number: Secret::new("1234".to_string()),
                 routing_number: Secret::new("1235".to_string()),
                 card_holder_name: None,

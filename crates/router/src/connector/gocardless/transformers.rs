@@ -8,9 +8,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{
-        self, AddressDetailsData, BankDirectDebitBillingData, BrowserInformationData,
-        ConnectorCustomerData, PaymentsAuthorizeRequestData, PaymentsSetupMandateRequestData,
-        RouterData,
+        self, AddressDetailsData, BrowserInformationData, ConnectorCustomerData,
+        PaymentsAuthorizeRequestData, PaymentsSetupMandateRequestData, RouterData,
     },
     core::errors,
     types::{
@@ -79,64 +78,24 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for GocardlessCustomerRequest 
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::ConnectorCustomerRouterData) -> Result<Self, Self::Error> {
         let email = item.request.get_email()?;
-        let billing_details = match &item.request.payment_method_data {
-            domain::PaymentMethodData::BankDebit(bank_debit_data) => {
-                match bank_debit_data.clone() {
-                    domain::BankDebitData::AchBankDebit {
-                        billing_details, ..
-                    } => Ok(billing_details),
-                    domain::BankDebitData::SepaBankDebit {
-                        billing_details, ..
-                    } => Ok(billing_details),
-                    domain::BankDebitData::BecsBankDebit {
-                        billing_details, ..
-                    } => Ok(billing_details),
-                    domain::BankDebitData::BacsBankDebit { .. } => {
-                        Err(errors::ConnectorError::NotImplemented(
-                            utils::get_unimplemented_payment_method_error_message("Gocardless"),
-                        ))
-                    }
-                }
-            }
-            domain::PaymentMethodData::Card(_)
-            | domain::PaymentMethodData::CardRedirect(_)
-            | domain::PaymentMethodData::Wallet(_)
-            | domain::PaymentMethodData::PayLater(_)
-            | domain::PaymentMethodData::BankRedirect(_)
-            | domain::PaymentMethodData::BankTransfer(_)
-            | domain::PaymentMethodData::Crypto(_)
-            | domain::PaymentMethodData::MandatePayment
-            | domain::PaymentMethodData::Reward
-            | domain::PaymentMethodData::Upi(_)
-            | domain::PaymentMethodData::Voucher(_)
-            | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::CardToken(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Gocardless"),
-                ))
-            }
-        }?;
-
-        let billing_details_name = billing_details.name.expose();
-
-        if billing_details_name.is_empty() {
-            Err(errors::ConnectorError::MissingRequiredField {
+        let billing_details_name = item
+            .get_optional_billing_full_name()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
                 field_name: "billing_details.name",
             })?
-        }
+            .expose();
+
         let (given_name, family_name) = billing_details_name
             .trim()
             .rsplit_once(' ')
             .unwrap_or((&billing_details_name, &billing_details_name));
 
-        let billing_address = billing_details
-            .address
-            .ok_or_else(utils::missing_field_err("billing_details.address"))?;
+        let billing_address = item.get_billing_address()?;
 
         let metadata = CustomerMetaData {
             crm_id: item.customer_id.clone().map(Secret::new),
         };
-        let region = get_region(&billing_address)?;
+        let region = get_region(billing_address)?;
         Ok(Self {
             customers: GocardlessCustomer {
                 email,
@@ -153,7 +112,7 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for GocardlessCustomerRequest 
                 postal_code: billing_address.zip.to_owned(),
                 // Should be populated based on the billing country
                 swedish_identity_number: None,
-                city: billing_address.city.map(Secret::new),
+                city: billing_address.city.clone().map(Secret::new),
             },
         })
     }
@@ -286,7 +245,7 @@ impl TryFrom<&types::TokenizationRouterData> for CustomerBankAccount {
     fn try_from(item: &types::TokenizationRouterData) -> Result<Self, Self::Error> {
         match &item.request.payment_method_data {
             domain::PaymentMethodData::BankDebit(bank_debit_data) => {
-                Self::try_from(bank_debit_data)
+                Self::try_from((bank_debit_data, item))
             }
             domain::PaymentMethodData::Card(_)
             | domain::PaymentMethodData::CardRedirect(_)
@@ -310,23 +269,26 @@ impl TryFrom<&types::TokenizationRouterData> for CustomerBankAccount {
     }
 }
 
-impl TryFrom<&domain::BankDebitData> for CustomerBankAccount {
+impl TryFrom<(&domain::BankDebitData, &types::TokenizationRouterData)> for CustomerBankAccount {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &domain::BankDebitData) -> Result<Self, Self::Error> {
-        match item {
+    fn try_from(
+        (bank_debit_data, item): (&domain::BankDebitData, &types::TokenizationRouterData),
+    ) -> Result<Self, Self::Error> {
+        match bank_debit_data {
             domain::BankDebitData::AchBankDebit {
-                billing_details,
                 account_number,
                 routing_number,
                 bank_type,
-                bank_account_holder_name,
                 ..
             } => {
                 let bank_type = bank_type.ok_or_else(utils::missing_field_err("bank_type"))?;
-                let country_code = billing_details.get_billing_country()?;
+                let country_code = item.get_optional_billing_country().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "billing.country",
+                    },
+                )?;
                 let account_holder_name =
-                    bank_account_holder_name
-                        .clone()
+                    item.get_optional_billing_full_name()
                         .ok_or_else(utils::missing_field_err(
                         "payment_method_data.bank_debit.ach_bank_debit.bank_account_holder_name",
                     ))?;
@@ -340,15 +302,16 @@ impl TryFrom<&domain::BankDebitData> for CustomerBankAccount {
                 Ok(Self::USBankAccount(us_bank_account))
             }
             domain::BankDebitData::BecsBankDebit {
-                billing_details,
                 account_number,
                 bsb_number,
-                bank_account_holder_name,
             } => {
-                let country_code = billing_details.get_billing_country()?;
+                let country_code = item.get_optional_billing_country().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "billing.country",
+                    },
+                )?;
                 let account_holder_name =
-                    bank_account_holder_name
-                        .clone()
+                    item.get_optional_billing_full_name()
                         .ok_or_else(utils::missing_field_err(
                         "payment_method_data.bank_debit.becs_bank_debit.bank_account_holder_name",
                     ))?;
@@ -360,14 +323,9 @@ impl TryFrom<&domain::BankDebitData> for CustomerBankAccount {
                 };
                 Ok(Self::AUBankAccount(au_bank_account))
             }
-            domain::BankDebitData::SepaBankDebit {
-                iban,
-                bank_account_holder_name,
-                ..
-            } => {
+            domain::BankDebitData::SepaBankDebit { iban, .. } => {
                 let account_holder_name =
-                    bank_account_holder_name
-                        .clone()
+                    item.get_optional_billing_full_name()
                         .ok_or_else(utils::missing_field_err(
                         "payment_method_data.bank_debit.sepa_bank_debit.bank_account_holder_name",
                     ))?;
