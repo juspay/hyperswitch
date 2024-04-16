@@ -77,7 +77,7 @@ CREATE TABLE payout (
 ORDER BY
     (created_at, merchant_id, payout_id) TTL created_at + toIntervalMonth(6);
 
-CREATE MATERIALIZED VIEW kafka_parse_payout TO payout (
+CREATE MATERIALIZED VIEW payout_mv TO payout (
     `payout_id` String,
     `payout_attempt_id` String,
     `merchant_id` String,
