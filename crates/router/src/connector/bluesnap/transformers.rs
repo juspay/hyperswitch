@@ -293,7 +293,7 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
                 )?,
             )),
             domain::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                api_models::payments::WalletData::GooglePay(payment_method_data) => {
+                domain::WalletData::GooglePay(payment_method_data) => {
                     let gpay_object = BluesnapGooglePayObject {
                         payment_method_data: utils::GooglePayWalletData::from(payment_method_data),
                     }
@@ -309,7 +309,7 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
                         None,
                     ))
                 }
-                api_models::payments::WalletData::ApplePay(payment_method_data) => {
+                domain::WalletData::ApplePay(payment_method_data) => {
                     let apple_pay_payment_data =
                         payment_method_data.get_applepay_decoded_payment_data()?;
                     let apple_pay_payment_data: ApplePayEncodedPaymentData = apple_pay_payment_data
@@ -370,30 +370,30 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
                         )?,
                     ))
                 }
-                payments::WalletData::AliPayQr(_)
-                | payments::WalletData::AliPayRedirect(_)
-                | payments::WalletData::AliPayHkRedirect(_)
-                | payments::WalletData::MomoRedirect(_)
-                | payments::WalletData::KakaoPayRedirect(_)
-                | payments::WalletData::GoPayRedirect(_)
-                | payments::WalletData::GcashRedirect(_)
-                | payments::WalletData::ApplePayRedirect(_)
-                | payments::WalletData::ApplePayThirdPartySdk(_)
-                | payments::WalletData::DanaRedirect {}
-                | payments::WalletData::GooglePayRedirect(_)
-                | payments::WalletData::GooglePayThirdPartySdk(_)
-                | payments::WalletData::MbWayRedirect(_)
-                | payments::WalletData::MobilePayRedirect(_)
-                | payments::WalletData::PaypalRedirect(_)
-                | payments::WalletData::PaypalSdk(_)
-                | payments::WalletData::SamsungPay(_)
-                | payments::WalletData::TwintRedirect {}
-                | payments::WalletData::VippsRedirect {}
-                | payments::WalletData::TouchNGoRedirect(_)
-                | payments::WalletData::WeChatPayRedirect(_)
-                | payments::WalletData::CashappQr(_)
-                | payments::WalletData::SwishQr(_)
-                | payments::WalletData::WeChatPayQr(_) => {
+                domain::WalletData::AliPayQr(_)
+                | domain::WalletData::AliPayRedirect(_)
+                | domain::WalletData::AliPayHkRedirect(_)
+                | domain::WalletData::MomoRedirect(_)
+                | domain::WalletData::KakaoPayRedirect(_)
+                | domain::WalletData::GoPayRedirect(_)
+                | domain::WalletData::GcashRedirect(_)
+                | domain::WalletData::ApplePayRedirect(_)
+                | domain::WalletData::ApplePayThirdPartySdk(_)
+                | domain::WalletData::DanaRedirect {}
+                | domain::WalletData::GooglePayRedirect(_)
+                | domain::WalletData::GooglePayThirdPartySdk(_)
+                | domain::WalletData::MbWayRedirect(_)
+                | domain::WalletData::MobilePayRedirect(_)
+                | domain::WalletData::PaypalRedirect(_)
+                | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::SamsungPay(_)
+                | domain::WalletData::TwintRedirect {}
+                | domain::WalletData::VippsRedirect {}
+                | domain::WalletData::TouchNGoRedirect(_)
+                | domain::WalletData::WeChatPayRedirect(_)
+                | domain::WalletData::CashappQr(_)
+                | domain::WalletData::SwishQr(_)
+                | domain::WalletData::WeChatPayQr(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("bluesnap"),
                     ))
@@ -431,8 +431,8 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
     }
 }
 
-impl From<api_models::payments::ApplepayPaymentMethod> for ApplepayPaymentMethod {
-    fn from(item: api_models::payments::ApplepayPaymentMethod) -> Self {
+impl From<domain::ApplepayPaymentMethod> for ApplepayPaymentMethod {
+    fn from(item: domain::ApplepayPaymentMethod) -> Self {
         Self {
             display_name: item.display_name,
             network: item.network,
@@ -550,7 +550,7 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
                                 session_response,
                             ),
                         payment_request_data: Some(api_models::payments::ApplePayPaymentRequest {
-                            country_code: item.data.request.country,
+                            country_code: item.data.get_billing_country()?,
                             currency_code: item.data.request.currency,
                             total: api_models::payments::AmountInfo {
                                 label: payment_request_data.label,

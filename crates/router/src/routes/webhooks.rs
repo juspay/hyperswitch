@@ -26,10 +26,11 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
         state,
         &req,
         WebhookBytes(body),
-        |state, auth, payload| {
+        |state, auth, payload, req_state| {
             webhooks::webhooks_wrapper::<W, Oss>(
                 &flow,
                 state.to_owned(),
+                req_state,
                 &req,
                 auth.merchant_account,
                 auth.key_store,

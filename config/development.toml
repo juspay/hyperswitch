@@ -108,6 +108,7 @@ cards = [
     "cybersource",
     "dlocal",
     "dummyconnector",
+    "ebanx",
     "fiserv",
     "forte",
     "globalpay",
@@ -142,6 +143,7 @@ cards = [
     "worldline",
     "worldpay",
     "zen",
+    "zsl",
 ]
 
 [refund]
@@ -181,6 +183,7 @@ cryptopay.base_url = "https://business-sandbox.cryptopay.me"
 cybersource.base_url = "https://apitest.cybersource.com/"
 dlocal.base_url = "https://sandbox.dlocal.com/"
 dummyconnector.base_url = "http://localhost:8080/dummy-connector"
+ebanx.base_url = "https://sandbox.ebanxpay.com/"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
 forte.base_url = "https://sandbox.forte.net/api/v3"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
@@ -225,6 +228,7 @@ volt.base_url = "https://api.sandbox.volt.io/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 zen.base_url = "https://api.zen-test.com/"
 zen.secondary_base_url = "https://secure.zen-test.com/"
+zsl.base_url = "https://api.sitoffalb.net/"
 
 [scheduler]
 stream = "SCHEDULER_STREAM"
@@ -402,6 +406,9 @@ pix = { country = "BR", currency = "BRL" }
 red_compra = { country = "CL", currency = "CLP" }
 red_pagos = { country = "UY", currency = "UYU" }
 
+[pm_filters.zsl]
+local_bank_transfer = { country = "CN", currency = "CNY" }
+
 [pm_filters.aci]
 credit = { not_available_flows = { capture_method = "manual" } }
 debit = { not_available_flows = { capture_method = "manual" } }
@@ -451,7 +458,7 @@ square = { long_lived_token = false, payment_method = "card" }
 braintree = { long_lived_token = false, payment_method = "card" }
 payme = { long_lived_token = false, payment_method = "card" }
 gocardless = { long_lived_token = true, payment_method = "bank_debit" }
-billwerk = {long_lived_token = false, payment_method = "card"}
+billwerk = { long_lived_token = false, payment_method = "card" }
 
 [temp_locker_enable_config]
 stripe = { payment_method = "bank_transfer" }
@@ -511,6 +518,9 @@ bank_redirect.giropay = { connector_list = "adyen,globalpay" }
 card.credit = { connector_list = "cybersource" }
 card.debit = { connector_list = "cybersource" }
 
+[network_transaction_id_supported_connectors]
+connector_list = "stripe,adyen,cybersource"
+
 [connector_request_reference_id_config]
 merchant_ids_send_payment_id_as_connector_request_id = []
 
@@ -556,6 +566,7 @@ connector_logs_topic = "hyperswitch-connector-api-events"
 outgoing_webhook_logs_topic = "hyperswitch-outgoing-webhook-events"
 dispute_analytics_topic = "hyperswitch-dispute-events"
 audit_events_topic = "hyperswitch-audit-events"
+payout_analytics_topic = "hyperswitch-payout-events"
 
 [analytics]
 source = "sqlx"
