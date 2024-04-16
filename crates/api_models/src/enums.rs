@@ -134,6 +134,24 @@ pub enum Connector {
 }
 
 impl Connector {
+    pub fn supports_create_payout_in_connector(&self, payout_method: PayoutType) -> bool {
+        matches!(
+            (self, payout_method),
+            (_, PayoutType::Bank) | (Self::Adyen, PayoutType::Wallet)
+        )
+    }
+    pub fn supports_create_payout_in_router(&self, payout_method: PayoutType) -> bool {
+        matches!((self, payout_method), (Self::Paypal, PayoutType::Wallet))
+    }
+    pub fn supports_create_recipient(&self, payout_method: PayoutType) -> bool {
+        matches!((self, payout_method), (_, PayoutType::Bank))
+    }
+    pub fn supports_payout_eligibility(&self, payout_method: PayoutType) -> bool {
+        matches!((self, payout_method), (_, PayoutType::Card))
+    }
+    pub fn supports_access_token_for_payout(&self, _payout_method: PayoutType) -> bool {
+        true
+    }
     pub fn supports_access_token(&self, payment_method: PaymentMethod) -> bool {
         matches!(
             (self, payment_method),

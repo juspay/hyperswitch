@@ -965,10 +965,11 @@ pub async fn complete_create_recipient_if_required(
     connector_data: &api::ConnectorData,
     mut payout_data: PayoutData,
 ) -> RouterResult<PayoutData> {
-    if payout_data.payouts.payout_type == storage_enums::PayoutType::Bank
-        && payout_data.payout_attempt.status == storage_enums::PayoutStatus::RequiresCreation
+    if payout_data.payout_attempt.status == storage_enums::PayoutStatus::RequiresCreation
+        && connector_data
+            .connector_name
+            .supports_create_recipient(payout_data.payouts.payout_type)
     {
-        // Create customer flow
         payout_data = create_recipient(
             state,
             merchant_account,
@@ -1079,10 +1080,11 @@ pub async fn complete_payout_eligibility_if_required(
     mut payout_data: PayoutData,
 ) -> RouterResult<PayoutData> {
     let payout_attempt = &payout_data.payout_attempt.to_owned();
-    let payouts = &payout_data.payouts.to_owned();
 
-    if payouts.payout_type == storage_enums::PayoutType::Card
-        && payout_attempt.is_eligible.is_none()
+    if payout_attempt.is_eligible.is_none()
+        && connector_data
+            .connector_name
+            .supports_payout_eligibility(payout_data.payouts.payout_type)
     {
         payout_data = check_payout_eligibility(
             state,
@@ -1238,68 +1240,56 @@ pub async fn complete_create_payout_if_required(
     mut payout_data: PayoutData,
 ) -> RouterResult<PayoutData> {
     if payout_data.payout_attempt.status == storage_enums::PayoutStatus::RequiresCreation {
-        match payout_data.payouts.payout_type {
-            storage_enums::PayoutType::Bank => {
-                payout_data = create_payout(
-                    state,
-                    merchant_account,
-                    key_store,
-                    req,
-                    connector_data,
-                    &mut payout_data,
+        if connector_data
+            .connector_name
+            .supports_create_payout_in_connector(payout_data.payouts.payout_type)
+        {
+            payout_data = create_payout(
+                state,
+                merchant_account,
+                key_store,
+                req,
+                connector_data,
+                &mut payout_data,
+            )
+            .await
+            .attach_printable("Payout creation failed for given Payout request")?;
+        } else if connector_data
+            .connector_name
+            .supports_create_payout_in_router(payout_data.payouts.payout_type)
+        {
+            let db = &*state.store;
+            let payout_attempt = &payout_data.payout_attempt;
+            let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
+                connector_payout_id: "".to_string(),
+                status: storage::enums::PayoutStatus::RequiresFulfillment,
+                error_code: None,
+                error_message: None,
+                is_eligible: None,
+            };
+            payout_data.payout_attempt = db
+                .update_payout_attempt(
+                    payout_attempt,
+                    updated_payout_attempt,
+                    &payout_data.payouts,
+                    merchant_account.storage_scheme,
                 )
                 .await
-                .attach_printable("Payout creation failed for given Payout request")?;
-            }
-            storage_enums::PayoutType::Wallet => {
-                if connector_data.connector_name == types::Connector::Adyen {
-                    payout_data = create_payout(
-                        state,
-                        merchant_account,
-                        key_store,
-                        req,
-                        connector_data,
-                        &mut payout_data,
-                    )
-                    .await
-                    .attach_printable("Payout creation failed for given Payout request")?;
-                } else if connector_data.connector_name == types::Connector::Paypal {
-                    // Update status for payout creation
-                    let db = &*state.store;
-                    let payout_attempt = &payout_data.payout_attempt;
-                    let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
-                        connector_payout_id: "".to_string(),
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Error updating payout_attempt in db")?;
+            payout_data.payouts = db
+                .update_payout(
+                    &payout_data.payouts,
+                    storage::PayoutsUpdate::StatusUpdate {
                         status: storage::enums::PayoutStatus::RequiresFulfillment,
-                        error_code: None,
-                        error_message: None,
-                        is_eligible: None,
-                    };
-                    payout_data.payout_attempt = db
-                        .update_payout_attempt(
-                            payout_attempt,
-                            updated_payout_attempt,
-                            &payout_data.payouts,
-                            merchant_account.storage_scheme,
-                        )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Error updating payout_attempt in db")?;
-                    payout_data.payouts = db
-                        .update_payout(
-                            &payout_data.payouts,
-                            storage::PayoutsUpdate::StatusUpdate {
-                                status: storage::enums::PayoutStatus::RequiresFulfillment,
-                            },
-                            &payout_data.payout_attempt,
-                            merchant_account.storage_scheme,
-                        )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Error updating payouts in db")?;
-                }
-            }
-            storage_enums::PayoutType::Card => {}
-        };
+                    },
+                    &payout_data.payout_attempt,
+                    merchant_account.storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Error updating payouts in db")?;
+        }
     }
     Ok(payout_data)
 }
