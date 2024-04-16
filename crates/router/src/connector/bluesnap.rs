@@ -15,8 +15,7 @@ use transformers as bluesnap;
 
 use super::utils::{
     self as connector_utils, get_error_code_error_message_based_on_priority, ConnectorErrorType,
-    ConnectorErrorTypeMapping, PaymentMethodDataType, PaymentsAuthorizeRequestData,
-    RefundsRequestData, RouterData,
+    ConnectorErrorTypeMapping, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData,
 };
 use crate::{
     configs::settings,
@@ -26,7 +25,7 @@ use crate::{
         payments,
     },
     events::connector_api_logs::ConnectorEvent,
-    headers, is_mandate_supported, logger, mandate_not_supported_error,
+    headers, logger,
     services::{
         self,
         request::{self, Mask},
@@ -214,15 +213,6 @@ impl ConnectorValidation for Bluesnap {
             connector_utils::to_connector_meta_from_secret(data.connector_meta_data.clone());
 
         meta_data.map(|_| ())
-    }
-
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<types::storage::enums::PaymentMethodType>,
-        pm_data: api_models::payments::PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::<PaymentMethodDataType>::new();
-        is_mandate_supported!(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 

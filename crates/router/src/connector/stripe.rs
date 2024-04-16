@@ -19,7 +19,7 @@ use crate::{
         payments,
     },
     events::connector_api_logs::ConnectorEvent,
-    headers, is_mandate_supported, mandate_not_supported_error,
+    headers,
     services::{
         self,
         request::{self, Mask},
@@ -95,7 +95,7 @@ impl ConnectorValidation for Stripe {
             PaymentMethodDataType::GooglePay,
             PaymentMethodDataType::MandatePayment,
         ]);
-        is_mandate_supported!(pm_data, pm_type, mandate_supported_pmd, self.id())
+        connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 

@@ -9,13 +9,13 @@ use masking::PeekInterface;
 use transformers as iatapay;
 
 use self::iatapay::IatapayPaymentsResponse;
-use super::utils::{self as connector_utils, base64_decode, PaymentMethodDataType};
+use super::utils::{self as connector_utils, base64_decode};
 use crate::{
     configs::settings,
     consts,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
-    headers, is_mandate_supported, mandate_not_supported_error,
+    headers,
     services::{
         self,
         request::{self, Mask},
@@ -135,16 +135,7 @@ impl ConnectorCommon for Iatapay {
     }
 }
 
-impl ConnectorValidation for Iatapay {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<types::storage::enums::PaymentMethodType>,
-        pm_data: api_models::payments::PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::<PaymentMethodDataType>::new();
-        is_mandate_supported!(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
-}
+impl ConnectorValidation for Iatapay {}
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Iatapay

@@ -9,7 +9,7 @@ use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as square;
 
-use super::utils::{self as super_utils, PaymentMethodDataType, RefundsRequestData};
+use super::utils::{self as super_utils, RefundsRequestData};
 use crate::{
     configs::settings,
     consts,
@@ -18,7 +18,7 @@ use crate::{
         payments,
     },
     events::connector_api_logs::ConnectorEvent,
-    headers, is_mandate_supported, mandate_not_supported_error,
+    headers,
     services::{
         self,
         request::{self, Mask},
@@ -147,14 +147,6 @@ impl ConnectorValidation for Square {
                 super::utils::construct_not_implemented_error_report(capture_method, self.id()),
             ),
         }
-    }
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<types::storage::enums::PaymentMethodType>,
-        pm_data: api_models::payments::PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::<PaymentMethodDataType>::new();
-        is_mandate_supported!(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 

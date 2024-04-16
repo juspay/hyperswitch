@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use api_models::{
     enums::{CanadaStatesAbbreviation, UsStatesAbbreviation},
@@ -463,7 +463,10 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
             })
     }
     fn is_mandate_payment(&self) -> bool {
-        self.setup_mandate_details.is_some()
+        (self.customer_acceptance.is_some()
+            && self.setup_future_usage.map_or(false, |setup_future_usage| {
+                setup_future_usage == storage_enums::FutureUsage::OffSession
+            }))
             || self
                 .mandate_id
                 .as_ref()
@@ -1885,15 +1888,28 @@ mod error_code_error_message_tests {
     }
 }
 
-#[macro_export]
-macro_rules! is_mandate_supported {
-    ($selected_pmd:expr, $pm_type:expr, $mandate_implemented_pmds:expr, $connector:expr) => {
-        if $mandate_implemented_pmds.contains(&PaymentMethodDataType::from($selected_pmd)) {
-            Ok(())
-        } else {
-            mandate_not_supported_error!($pm_type, $connector)
+pub fn is_mandate_supported(
+    selected_pmd: api_models::payments::PaymentMethodData,
+    payment_method_type: Option<types::storage::enums::PaymentMethodType>,
+    mandate_implemented_pmds: HashSet<PaymentMethodDataType>,
+    connector: &'static str,
+) -> Result<(), Error> {
+    if mandate_implemented_pmds.contains(&PaymentMethodDataType::from(selected_pmd)) {
+        Ok(())
+    } else {
+        match payment_method_type {
+            Some(pm_type) => Err(errors::ConnectorError::NotSupported {
+                message: format!("{} mandate payment", pm_type),
+                connector,
+            }
+            .into()),
+            None => Err(errors::ConnectorError::NotSupported {
+                message: format!(" mandate payment"),
+                connector,
+            }
+            .into()),
         }
-    };
+    }
 }
 
 #[derive(Debug, strum::Display, Eq, PartialEq, Hash)]

@@ -12,6 +12,7 @@ use ring::hmac;
 use router_env::{instrument, tracing};
 
 use self::transformers as adyen;
+use super::utils::is_mandate_supported;
 use crate::{
     capture_method_not_supported,
     configs::settings,
@@ -19,7 +20,7 @@ use crate::{
     consts,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
-    headers, is_mandate_supported, logger, mandate_not_supported_error,
+    headers, logger,
     services::{
         self,
         request::{self, Mask},
@@ -254,7 +255,7 @@ impl ConnectorValidation for Adyen {
             PaymentMethodDataType::BecsBankDebit,
             PaymentMethodDataType::MandatePayment,
         ]);
-        is_mandate_supported!(pm_data, pm_type, mandate_supported_pmd, self.id())
+        is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 
     fn validate_psync_reference_id(

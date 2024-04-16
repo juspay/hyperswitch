@@ -7,6 +7,7 @@ use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use transformers as authorizedotnet;
 
+use super::utils::is_mandate_supported;
 use crate::{
     configs::settings,
     connector::{
@@ -22,7 +23,7 @@ use crate::{
         payments,
     },
     events::connector_api_logs::ConnectorEvent,
-    headers, is_mandate_supported, mandate_not_supported_error,
+    headers,
     services::{self, request, ConnectorIntegration, ConnectorValidation},
     types::{
         self,
@@ -93,7 +94,7 @@ impl ConnectorValidation for Authorizedotnet {
             PaymentMethodDataType::Card,
             PaymentMethodDataType::MandatePayment,
         ]);
-        is_mandate_supported!(pm_data, pm_type, mandate_supported_pmd, self.id())
+        is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 

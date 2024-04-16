@@ -17,7 +17,7 @@ use crate::{
         payments,
     },
     events::connector_api_logs::ConnectorEvent,
-    headers, is_mandate_supported, mandate_not_supported_error,
+    headers,
     services::{self, request, ConnectorIntegration, ConnectorValidation},
     types::{
         self,
@@ -142,7 +142,7 @@ impl ConnectorValidation for Payme {
             PaymentMethodDataType::ApplePayThirdPartySdk,
             PaymentMethodDataType::MandatePayment,
         ]);
-        is_mandate_supported!(pm_data, pm_type, mandate_supported_pmd, self.id())
+        connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 

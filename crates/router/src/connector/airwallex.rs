@@ -14,13 +14,12 @@ use transformers as airwallex;
 use super::utils::{self as connector_utils, AccessTokenRequestInfo, RefundsRequestData};
 use crate::{
     configs::settings,
-    connector::utils::PaymentMethodDataType,
     core::{
         errors::{self, CustomResult},
         payments,
     },
     events::connector_api_logs::ConnectorEvent,
-    headers, is_mandate_supported, logger, mandate_not_supported_error, routes,
+    headers, logger, routes,
     services::{
         self,
         request::{self, Mask},
@@ -120,15 +119,6 @@ impl ConnectorValidation for Airwallex {
                 connector_utils::construct_not_supported_error_report(capture_method, self.id()),
             ),
         }
-    }
-
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<types::storage::enums::PaymentMethodType>,
-        pm_data: api_models::payments::PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::<PaymentMethodDataType>::new();
-        is_mandate_supported!(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 

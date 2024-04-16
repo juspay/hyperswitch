@@ -12,8 +12,7 @@ use transformers as trustpay;
 
 use super::utils::{
     collect_and_sort_values_by_removing_signature, get_error_code_error_message_based_on_priority,
-    ConnectorErrorType, ConnectorErrorTypeMapping, PaymentMethodDataType,
-    PaymentsPreProcessingData,
+    ConnectorErrorType, ConnectorErrorTypeMapping, PaymentsPreProcessingData,
 };
 use crate::{
     configs::settings,
@@ -23,7 +22,7 @@ use crate::{
         payments,
     },
     events::connector_api_logs::ConnectorEvent,
-    headers, is_mandate_supported, logger, mandate_not_supported_error,
+    headers, logger,
     services::{
         self,
         request::{self, Mask},
@@ -160,16 +159,7 @@ impl ConnectorCommon for Trustpay {
     }
 }
 
-impl ConnectorValidation for Trustpay {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<types::storage::enums::PaymentMethodType>,
-        pm_data: api_models::payments::PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::<PaymentMethodDataType>::new();
-        is_mandate_supported!(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
-}
+impl ConnectorValidation for Trustpay {}
 
 impl api::Payment for Trustpay {}
 
