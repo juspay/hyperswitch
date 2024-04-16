@@ -207,6 +207,7 @@ impl ConnectorConfig {
         match connector {
             PayoutConnectors::Adyen => Ok(connector_data.adyen_payout),
             PayoutConnectors::Wise => Ok(connector_data.wise_payout),
+            PayoutConnectors::Paypal => Ok(connector_data.paypal),
         }
     }
 

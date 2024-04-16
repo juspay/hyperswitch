@@ -317,6 +317,7 @@ pub enum AuthenticationConnectors {
 pub enum PayoutConnectors {
     Adyen,
     Wise,
+    Paypal,
 }
 
 #[cfg(feature = "payouts")]
@@ -325,6 +326,7 @@ impl From<PayoutConnectors> for RoutableConnectors {
         match value {
             PayoutConnectors::Adyen => Self::Adyen,
             PayoutConnectors::Wise => Self::Wise,
+            PayoutConnectors::Paypal => Self::Paypal,
         }
     }
 }
@@ -335,6 +337,7 @@ impl From<PayoutConnectors> for Connector {
         match value {
             PayoutConnectors::Adyen => Self::Adyen,
             PayoutConnectors::Wise => Self::Wise,
+            PayoutConnectors::Paypal => Self::Paypal,
         }
     }
 }
@@ -346,6 +349,7 @@ impl TryFrom<Connector> for PayoutConnectors {
         match value {
             Connector::Adyen => Ok(Self::Adyen),
             Connector::Wise => Ok(Self::Wise),
+            Connector::Paypal => Ok(Self::Paypal),
             _ => Err(format!("Invalid payout connector {}", value)),
         }
     }
