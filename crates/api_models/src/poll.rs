@@ -12,6 +12,7 @@ pub struct PollResponse {
 
 #[derive(Debug, strum::Display, strum::EnumString, Clone, serde::Serialize, ToSchema)]
 #[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
 pub enum PollStatus {
     Pending,
     Completed,

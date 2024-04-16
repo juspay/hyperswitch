@@ -20,7 +20,9 @@ pub async fn retrieve_poll_status(
         .get_redis_conn()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get redis connection")?;
-    let poll_id = req.poll_id;
+    let request_poll_id = req.poll_id;
+    // prepend 'poll_' to restrict access to only fetching Poll IDs, as this is a freely passed string in the request
+    let poll_id = format!("poll_{}", request_poll_id);
     let redis_value = redis_conn
         .get_key::<Option<String>>(poll_id.as_str())
         .await
@@ -40,6 +42,9 @@ pub async fn retrieve_poll_status(
                 .unwrap_or(PollStatus::NotFound)
         })
         .unwrap_or(PollStatus::NotFound);
-    let poll_response = PollResponse { poll_id, status };
+    let poll_response = PollResponse {
+        poll_id: request_poll_id,
+        status,
+    };
     Ok(ApplicationResponse::Json(poll_response))
 }
