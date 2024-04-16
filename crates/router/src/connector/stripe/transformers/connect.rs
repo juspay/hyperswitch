@@ -30,7 +30,6 @@ pub struct StripeConnectErrorResponse {
 }
 
 // Payouts
-#[cfg(feature = "payouts")]
 #[derive(Clone, Debug, Serialize)]
 pub struct StripeConnectPayoutCreateRequest {
     amount: i64,
@@ -40,28 +39,39 @@ pub struct StripeConnectPayoutCreateRequest {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[allow(dead_code)]
 pub struct StripeConnectPayoutCreateResponse {
     id: String,
+    #[serde(skip_deserializing)]
     object: String,
+    #[serde(skip_deserializing)]
     amount: i64,
+    #[serde(skip_deserializing)]
     amount_reversed: i64,
+    #[serde(skip_deserializing)]
     balance_transaction: String,
+    #[serde(skip_deserializing)]
     created: i32,
+    #[serde(skip_deserializing)]
     currency: String,
     description: Option<String>,
+    #[serde(skip_deserializing)]
     destination: String,
+    #[serde(skip_deserializing)]
     destination_payment: String,
+    #[serde(skip_deserializing)]
     livemode: bool,
+    #[serde(skip_deserializing)]
     reversals: TransferReversals,
+    #[serde(skip_deserializing)]
     reversed: bool,
     source_transaction: Option<String>,
+    #[serde(skip_deserializing)]
     source_type: String,
+    #[serde(skip_deserializing)]
     transfer_group: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[allow(dead_code)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct TransferReversals {
     object: String,
     has_more: bool,
@@ -76,30 +86,41 @@ pub struct StripeConnectPayoutFulfillRequest {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[allow(dead_code)]
 pub struct StripeConnectPayoutFulfillResponse {
     id: String,
+    #[serde(skip_deserializing)]
     object: String,
+    #[serde(skip_deserializing)]
     amount: i64,
+    #[serde(skip_deserializing)]
     arrival_date: i32,
+    #[serde(skip_deserializing)]
     automatic: bool,
+    #[serde(skip_deserializing)]
     balance_transaction: String,
+    #[serde(skip_deserializing)]
     created: i32,
+    #[serde(skip_deserializing)]
     currency: String,
     description: Option<String>,
+    #[serde(skip_deserializing)]
     destination: String,
     failure_balance_transaction: Option<String>,
     failure_code: Option<String>,
     failure_message: Option<String>,
+    #[serde(skip_deserializing)]
     livemode: bool,
+    #[serde(skip_deserializing)]
     method: String,
     original_payout: Option<String>,
+    #[serde(skip_deserializing)]
     reconciliation_status: String,
     reversed_by: Option<String>,
+    #[serde(skip_deserializing)]
     source_type: String,
     statement_descriptor: Option<String>,
     status: StripeConnectPayoutStatus,
-    #[serde(rename = "type")]
+    #[serde(skip_deserializing, rename = "type")]
     account_type: String,
 }
 
@@ -109,16 +130,22 @@ pub struct StripeConnectReversalRequest {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[allow(dead_code)]
 pub struct StripeConnectReversalResponse {
     id: String,
+    #[serde(skip_deserializing)]
     object: String,
+    #[serde(skip_deserializing)]
     amount: i64,
+    #[serde(skip_deserializing)]
     balance_transaction: String,
+    #[serde(skip_deserializing)]
     created: i32,
+    #[serde(skip_deserializing)]
     currency: String,
+    #[serde(skip_deserializing)]
     destination_payment_refund: String,
     source_refund: Option<String>,
+    #[serde(skip_deserializing)]
     transfer: String,
 }
 
@@ -192,18 +219,25 @@ pub struct StripeConnectRecipientCreateRequest {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-#[allow(dead_code)]
 pub struct StripeConnectRecipientCreateResponse {
     id: String,
+    #[serde(skip_deserializing)]
     object: String,
+    #[serde(skip_deserializing)]
     business_type: String,
+    #[serde(skip_deserializing)]
     charges_enabled: bool,
+    #[serde(skip_deserializing)]
     country: enums::CountryAlpha2,
+    #[serde(skip_deserializing)]
     created: i32,
+    #[serde(skip_deserializing)]
     default_currency: String,
+    #[serde(skip_deserializing)]
     email: Email,
+    #[serde(skip_deserializing)]
     payouts_enabled: bool,
-    #[serde(rename = "type")]
+    #[serde(skip_deserializing, rename = "type")]
     account_type: String,
 }
 
@@ -260,42 +294,66 @@ pub enum StripeConnectRecipientAccountCreateResponse {
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct RecipientBankAccountResponse {
     id: String,
+    #[serde(skip_deserializing)]
     object: String,
+    #[serde(skip_deserializing)]
     account: String,
+    #[serde(skip_deserializing)]
     account_holder_name: String,
+    #[serde(skip_deserializing)]
     account_holder_type: String,
     account_type: Option<String>,
+    #[serde(skip_deserializing)]
     bank_name: String,
+    #[serde(skip_deserializing)]
     country: enums::CountryAlpha2,
+    #[serde(skip_deserializing)]
     currency: String,
+    #[serde(skip_deserializing)]
     default_for_currency: bool,
+    #[serde(skip_deserializing)]
     fingerprint: String,
+    #[serde(skip_deserializing)]
     last4: String,
+    #[serde(skip_deserializing)]
     routing_number: String,
+    #[serde(skip_deserializing)]
     status: String,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct RecipientCardAccountResponse {
     id: String,
+    #[serde(skip_deserializing)]
     object: String,
+    #[serde(skip_deserializing)]
     account: String,
+    #[serde(skip_deserializing)]
     brand: String,
+    #[serde(skip_deserializing)]
     country: enums::CountryAlpha2,
+    #[serde(skip_deserializing)]
     currency: String,
+    #[serde(skip_deserializing)]
     default_for_currency: bool,
     dynamic_last4: Option<String>,
+    #[serde(skip_deserializing)]
     exp_month: i8,
+    #[serde(skip_deserializing)]
     exp_year: i8,
+    #[serde(skip_deserializing)]
     fingerprint: String,
+    #[serde(skip_deserializing)]
     funding: String,
+    #[serde(skip_deserializing)]
     last4: String,
+    #[serde(skip_deserializing)]
     name: String,
+    #[serde(skip_deserializing)]
     status: String,
 }
 
 // Payouts create/transfer request transform
-#[cfg(feature = "payouts")]
 impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectPayoutCreateRequest {
     type Error = Error;
     fn try_from(item: &types::PayoutsRouterData<F>) -> Result<Self, Self::Error> {
@@ -311,7 +369,6 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectPayoutCreateReque
 }
 
 // Payouts create response transform
-#[cfg(feature = "payouts")]
 impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectPayoutCreateResponse>>
     for types::PayoutsRouterData<F>
 {
@@ -334,7 +391,6 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectPayoutCreateRes
 }
 
 // Payouts fulfill request transform
-#[cfg(feature = "payouts")]
 impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectPayoutFulfillRequest {
     type Error = Error;
     fn try_from(item: &types::PayoutsRouterData<F>) -> Result<Self, Self::Error> {
@@ -347,7 +403,6 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectPayoutFulfillRequ
 }
 
 // Payouts fulfill response transform
-#[cfg(feature = "payouts")]
 impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectPayoutFulfillResponse>>
     for types::PayoutsRouterData<F>
 {
@@ -370,7 +425,6 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectPayoutFulfillRe
 }
 
 // Payouts reversal request transform
-#[cfg(feature = "payouts")]
 impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectReversalRequest {
     type Error = Error;
     fn try_from(item: &types::PayoutsRouterData<F>) -> Result<Self, Self::Error> {
@@ -381,7 +435,6 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectReversalRequest {
 }
 
 // Payouts reversal response transform
-#[cfg(feature = "payouts")]
 impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectReversalResponse>>
     for types::PayoutsRouterData<F>
 {
@@ -404,7 +457,6 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectReversalRespons
 }
 
 // Recipient creation request transform
-#[cfg(feature = "payouts")]
 impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectRecipientCreateRequest {
     type Error = Error;
     fn try_from(item: &types::PayoutsRouterData<F>) -> Result<Self, Self::Error> {
@@ -457,7 +509,6 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectRecipientCreateRe
 }
 
 // Recipient creation response transform
-#[cfg(feature = "payouts")]
 impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectRecipientCreateResponse>>
     for types::PayoutsRouterData<F>
 {
@@ -480,7 +531,6 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectRecipientCreate
 }
 
 // Recipient account's creation request
-#[cfg(feature = "payouts")]
 impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectRecipientAccountCreateRequest {
     type Error = Error;
     fn try_from(item: &types::PayoutsRouterData<F>) -> Result<Self, Self::Error> {
@@ -537,7 +587,6 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectRecipientAccountC
 }
 
 // Recipient account's creation response
-#[cfg(feature = "payouts")]
 impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectRecipientAccountCreateResponse>>
     for types::PayoutsRouterData<F>
 {

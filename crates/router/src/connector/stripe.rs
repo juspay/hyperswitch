@@ -2545,7 +2545,6 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
     }
 }
 
-#[async_trait::async_trait]
 #[cfg(feature = "payouts")]
 impl
     services::ConnectorIntegration<api::PoRecipient, types::PayoutsData, types::PayoutsResponseData>
