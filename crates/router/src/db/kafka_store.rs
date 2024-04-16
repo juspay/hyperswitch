@@ -2645,6 +2645,19 @@ impl AuthenticationInterface for KafkaStore {
             .await
     }
 
+    async fn find_authentication_by_merchant_id_connector_authentication_id(
+        &self,
+        merchant_id: String,
+        connector_authentication_id: String,
+    ) -> CustomResult<storage::Authentication, errors::StorageError> {
+        self.diesel_store
+            .find_authentication_by_merchant_id_connector_authentication_id(
+                merchant_id,
+                connector_authentication_id,
+            )
+            .await
+    }
+
     async fn update_authentication_by_merchant_id_authentication_id(
         &self,
         previous_state: storage::Authentication,
