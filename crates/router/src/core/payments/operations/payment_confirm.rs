@@ -475,6 +475,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         let m_merchant_account = merchant_account.clone();
         let m_request = request.clone();
         let m_key_store = key_store.clone();
+        let m_payment_method_id = payment_attempt.payment_method_id.clone();
 
         let mandate_details_fut = tokio::spawn(
             async move {
@@ -484,6 +485,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                     m_mandate_type,
                     &m_merchant_account,
                     &m_key_store,
+                    m_payment_method_id,
                 )
                 .await
             }
