@@ -129,7 +129,9 @@ impl ConnectorCommon for Prophetpay {
     }
 }
 
-impl ConnectorValidation for Prophetpay {}
+impl ConnectorValidation for Prophetpay {
+    //TODO: implement functions when support enabled
+}
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Prophetpay
