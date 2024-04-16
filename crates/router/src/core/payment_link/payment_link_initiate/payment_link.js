@@ -200,7 +200,7 @@ function boot() {
     var sdkDisplayWidth = document.querySelector('.hyper-checkout-sdk');
     sdkDisplayWidth.style.width = '100vw';
   }
-  else{
+  else {
     var orderDetails = paymentDetails.order_details;
     if (orderDetails!==null) {
       var charges = 0;
@@ -231,7 +231,7 @@ function boot() {
   }
   // Render UI
 
-  if (window.__PAYMENT_DETAILS.display_sdk_only){
+  if (paymentDetails.display_sdk_only){
     renderSDKHeader(paymentDetails);
   }
   else{
