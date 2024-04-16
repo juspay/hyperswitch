@@ -11,7 +11,6 @@ use crate::{
     types::{AnalyticsCollection, AnalyticsDataSource, LoadRow, MetricsResult},
 };
 
-mod authentication_unsuccessful_count;
 mod average_payment_time;
 mod load_time;
 mod payment_attempts;
@@ -20,14 +19,7 @@ mod payment_method_selected_count;
 mod payment_methods_call_count;
 mod sdk_initiated_count;
 mod sdk_rendered_count;
-mod three_ds_challenge_flow_count;
-mod three_ds_frictionless_flow_count;
-mod three_ds_method_invoked_count;
-mod three_ds_method_skipped_count;
-mod three_ds_method_successful_count;
-mod three_ds_method_unsuccessful_count;
 
-use authentication_unsuccessful_count::AuthenticationUnsuccessfulCount;
 use average_payment_time::AveragePaymentTime;
 use load_time::LoadTime;
 use payment_attempts::PaymentAttempts;
@@ -36,12 +28,6 @@ use payment_method_selected_count::PaymentMethodSelectedCount;
 use payment_methods_call_count::PaymentMethodsCallCount;
 use sdk_initiated_count::SdkInitiatedCount;
 use sdk_rendered_count::SdkRenderedCount;
-use three_ds_challenge_flow_count::ThreeDsChallengeFlowCount;
-use three_ds_frictionless_flow_count::ThreeDsFrictionlessFlowCount;
-use three_ds_method_invoked_count::ThreeDsMethodInvokedCount;
-use three_ds_method_skipped_count::ThreeDsMethodSkippedCount;
-use three_ds_method_successful_count::ThreeDsMethodSuccessfulCount;
-use three_ds_method_unsuccessful_count::ThreeDsMethodUnsuccessfulCount;
 
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 pub struct SdkEventMetricRow {
@@ -180,90 +166,6 @@ where
             }
             Self::LoadTime => {
                 LoadTime
-                    .load_metrics(
-                        dimensions,
-                        publishable_key,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
-                    .await
-            }
-            Self::ThreeDsMethodSkippedCount => {
-                ThreeDsMethodSkippedCount
-                    .load_metrics(
-                        dimensions,
-                        publishable_key,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
-                    .await
-            }
-            Self::ThreeDsMethodInvokedCount => {
-                ThreeDsMethodInvokedCount
-                    .load_metrics(
-                        dimensions,
-                        publishable_key,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
-                    .await
-            }
-            Self::ThreeDsMethodSuccessfulCount => {
-                ThreeDsMethodSuccessfulCount
-                    .load_metrics(
-                        dimensions,
-                        publishable_key,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
-                    .await
-            }
-            Self::ThreeDsMethodUnsuccessfulCount => {
-                ThreeDsMethodUnsuccessfulCount
-                    .load_metrics(
-                        dimensions,
-                        publishable_key,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
-                    .await
-            }
-            Self::AuthenticationUnsuccessfulCount => {
-                AuthenticationUnsuccessfulCount
-                    .load_metrics(
-                        dimensions,
-                        publishable_key,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
-                    .await
-            }
-            Self::ThreeDsChallengeFlowCount => {
-                ThreeDsChallengeFlowCount
-                    .load_metrics(
-                        dimensions,
-                        publishable_key,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
-                    .await
-            }
-            Self::ThreeDsFrictionlessFlowCount => {
-                ThreeDsFrictionlessFlowCount
                     .load_metrics(
                         dimensions,
                         publishable_key,

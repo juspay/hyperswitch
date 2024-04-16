@@ -72,13 +72,6 @@ pub enum SdkEventDimensions {
 pub enum SdkEventMetrics {
     PaymentAttempts,
     PaymentMethodsCallCount,
-    ThreeDsMethodInvokedCount,
-    ThreeDsMethodSkippedCount,
-    ThreeDsMethodSuccessfulCount,
-    ThreeDsMethodUnsuccessfulCount,
-    AuthenticationUnsuccessfulCount,
-    ThreeDsChallengeFlowCount,
-    ThreeDsFrictionlessFlowCount,
     SdkRenderedCount,
     SdkInitiatedCount,
     PaymentMethodSelectedCount,
@@ -125,13 +118,6 @@ pub enum SdkEventNames {
 pub mod metric_behaviour {
     pub struct PaymentAttempts;
     pub struct PaymentMethodsCallCount;
-    pub struct ThreeDsMethodInvokedCount;
-    pub struct ThreeDsMethodSkippedCount;
-    pub struct ThreeDsMethodSuccessfulCount;
-    pub struct ThreeDsMethodUnsuccessfulCount;
-    pub struct AuthenticationUnsuccessfulCount;
-    pub struct ThreeDsChallengeFlowCount;
-    pub struct ThreeDsFrictionlessFlowCount;
     pub struct SdkRenderedCount;
     pub struct SdkInitiatedCount;
     pub struct PaymentMethodSelectedCount;
@@ -223,13 +209,6 @@ pub struct SdkEventMetricsBucketValue {
     pub sdk_initiated_count: Option<u64>,
     pub payment_method_selected_count: Option<u64>,
     pub payment_data_filled_count: Option<u64>,
-    pub three_ds_method_invoked_count: Option<u64>,
-    pub three_ds_method_skipped_count: Option<u64>,
-    pub three_ds_method_successful_count: Option<u64>,
-    pub three_ds_method_unsuccessful_count: Option<u64>,
-    pub authentication_unsuccessful_count: Option<u64>,
-    pub three_ds_challenge_flow_count: Option<u64>,
-    pub three_ds_frictionless_flow_count: Option<u64>,
 }
 
 #[derive(Debug, serde::Serialize)]
