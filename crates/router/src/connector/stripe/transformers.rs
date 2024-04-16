@@ -115,6 +115,14 @@ pub enum ExpandableObjects {
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct StripeBrowserInformation {
+    #[serde(rename = "payment_method_data[ip]")]
+    pub ip_address: Option<Secret<String, pii::IpAddress>>,
+    #[serde(rename = "payment_method_data[user_agent]")]
+    pub user_agent: Option<String>,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct PaymentIntentRequest {
     pub amount: i64, //amount in cents, hence passed as integer
     pub currency: String,
@@ -144,6 +152,8 @@ pub struct PaymentIntentRequest {
     pub payment_method_types: Option<StripePaymentMethodType>,
     #[serde(rename = "expand[0]")]
     pub expand: Option<ExpandableObjects>,
+    #[serde(flatten)]
+    pub browser_info: Option<StripeBrowserInformation>,
 }
 
 // Field rename is required only in case of serialization as it is passed in the request to the connector.
@@ -1981,6 +1991,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             });
 
         let meta_data = get_transaction_metadata(item.request.metadata.clone(), order_id);
+        let browser_info =
+            <Option<types::BrowserInformation> as Clone>::clone(&item.request.browser_info)
+                .map(StripeBrowserInformation::from);
 
         Ok(Self {
             amount: item.request.amount, //hopefully we don't loose some cents here
@@ -2007,6 +2020,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             setup_future_usage: item.request.setup_future_usage,
             payment_method_types,
             expand: Some(ExpandableObjects::LatestCharge),
+            browser_info,
         })
     }
 }
@@ -2040,6 +2054,18 @@ fn get_payment_method_type_for_saved_payment_method_payment(
             | StripePaymentMethodType::Bancontact
             | StripePaymentMethodType::Sofort => Ok(Some(StripePaymentMethodType::Sepa)),
             _ => Ok(Some(stripe_payment_method_type)),
+        }
+    }
+}
+
+impl From<types::BrowserInformation> for StripeBrowserInformation {
+    fn from(item: types::BrowserInformation) -> Self {
+        Self {
+            ip_address: item
+                .ip_address
+                .as_ref()
+                .map(|ip| Secret::new(ip.to_string())),
+            user_agent: item.user_agent,
         }
     }
 }
