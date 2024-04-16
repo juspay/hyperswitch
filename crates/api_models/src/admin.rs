@@ -1065,6 +1065,9 @@ pub struct PaymentLinkConfigRequest {
     /// Custom layout for sdk
     #[schema(value_type = Option<String>, max_length = 255, example = "accordion")]
     pub sdk_layout: Option<String>,
+    /// Display only the sdk for payment link
+    #[schema(default = false, example = true)]
+    pub display_sdk_only: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, ToSchema)]
@@ -1077,4 +1080,6 @@ pub struct PaymentLinkConfig {
     pub seller_name: String,
     /// Custom layout for sdk
     pub sdk_layout: String,
+    /// Display only the sdk for payment link
+    pub display_sdk_only: bool,
 }
