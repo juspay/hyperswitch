@@ -336,11 +336,9 @@ services:
       nofile:
         soft: 262144
         hard: 262144
-  
+
   hyperswitch-control-center:
-    image: juspaydotin/hyperswitch-control-center:v1.29.9
-    networks:
-      - router_net
+    image: juspaydotin/hyperswitch-control-center:latest
     ports:
       - "9000:9000"
     environment:
@@ -355,8 +353,6 @@ services:
         WORKDIR hyperswitch-web
         RUN npm i --force
     command: bash -c 'npm run re:build && npx run webpack serve --config webpack.dev.js --host 0.0.0.0'
-    networks:
-      - router_net
     ports:
       - "9050:9050"
     environment:
