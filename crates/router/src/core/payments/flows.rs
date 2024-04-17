@@ -165,6 +165,7 @@ default_imp_for_complete_authorize!(
     connector::Iatapay,
     connector::Klarna,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Noon,
     connector::Opayo,
@@ -185,7 +186,8 @@ default_imp_for_complete_authorize!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 macro_rules! default_imp_for_webhook_source_verification {
     ($($path:ident::$connector:ident),*) => {
@@ -242,6 +244,7 @@ default_imp_for_webhook_source_verification!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -268,7 +271,8 @@ default_imp_for_webhook_source_verification!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 macro_rules! default_imp_for_create_customer {
@@ -326,6 +330,7 @@ default_imp_for_create_customer!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -351,7 +356,8 @@ default_imp_for_create_customer!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 macro_rules! default_imp_for_connector_redirect_response {
@@ -404,6 +410,7 @@ default_imp_for_connector_redirect_response!(
     connector::Iatapay,
     connector::Klarna,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Opayo,
     connector::Opennode,
@@ -423,7 +430,8 @@ default_imp_for_connector_redirect_response!(
     connector::Volt,
     connector::Wise,
     connector::Worldline,
-    connector::Worldpay
+    connector::Worldpay,
+    connector::Zsl
 );
 
 macro_rules! default_imp_for_connector_request_id {
@@ -438,6 +446,7 @@ macro_rules! default_imp_for_connector_request_id {
 impl<const T: u8> api::ConnectorTransactionId for connector::DummyConnector<T> {}
 
 default_imp_for_connector_request_id!(
+    connector::Zsl,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -465,6 +474,7 @@ default_imp_for_connector_request_id!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nmi,
     connector::Noon,
     connector::Nuvei,
@@ -552,6 +562,7 @@ default_imp_for_accept_dispute!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -579,7 +590,8 @@ default_imp_for_accept_dispute!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 macro_rules! default_imp_for_file_upload {
@@ -659,6 +671,7 @@ default_imp_for_file_upload!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -685,7 +698,8 @@ default_imp_for_file_upload!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 macro_rules! default_imp_for_submit_evidence {
@@ -743,6 +757,7 @@ default_imp_for_submit_evidence!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -769,7 +784,8 @@ default_imp_for_submit_evidence!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 macro_rules! default_imp_for_defend_dispute {
@@ -827,6 +843,7 @@ default_imp_for_defend_dispute!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -854,7 +871,8 @@ default_imp_for_defend_dispute!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 macro_rules! default_imp_for_pre_processing_steps{
@@ -909,6 +927,7 @@ default_imp_for_pre_processing_steps!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Noon,
     connector::Nuvei,
@@ -931,7 +950,8 @@ default_imp_for_pre_processing_steps!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 macro_rules! default_imp_for_payouts {
@@ -973,6 +993,7 @@ default_imp_for_payouts!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -999,7 +1020,8 @@ default_imp_for_payouts!(
     connector::Volt,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 #[cfg(feature = "payouts")]
@@ -1058,6 +1080,7 @@ default_imp_for_payouts_create!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -1084,7 +1107,8 @@ default_imp_for_payouts_create!(
     connector::Volt,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 #[cfg(feature = "payouts")]
@@ -1146,6 +1170,7 @@ default_imp_for_payouts_eligibility!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -1172,7 +1197,8 @@ default_imp_for_payouts_eligibility!(
     connector::Volt,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 #[cfg(feature = "payouts")]
@@ -1231,6 +1257,7 @@ default_imp_for_payouts_fulfill!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -1257,7 +1284,8 @@ default_imp_for_payouts_fulfill!(
     connector::Volt,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 #[cfg(feature = "payouts")]
@@ -1316,6 +1344,7 @@ default_imp_for_payouts_cancel!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -1342,7 +1371,8 @@ default_imp_for_payouts_cancel!(
     connector::Volt,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 #[cfg(feature = "payouts")]
@@ -1402,6 +1432,7 @@ default_imp_for_payouts_quote!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -1428,7 +1459,8 @@ default_imp_for_payouts_quote!(
     connector::Volt,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 #[cfg(feature = "payouts")]
@@ -1488,6 +1520,7 @@ default_imp_for_payouts_recipient!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -1514,7 +1547,8 @@ default_imp_for_payouts_recipient!(
     connector::Volt,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 macro_rules! default_imp_for_approve {
@@ -1573,6 +1607,7 @@ default_imp_for_approve!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -1600,7 +1635,8 @@ default_imp_for_approve!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 macro_rules! default_imp_for_reject {
@@ -1659,6 +1695,7 @@ default_imp_for_reject!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -1686,7 +1723,8 @@ default_imp_for_reject!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 macro_rules! default_imp_for_fraud_check {
@@ -1729,6 +1767,7 @@ default_imp_for_fraud_check!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -1754,7 +1793,8 @@ default_imp_for_fraud_check!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 #[cfg(feature = "frm")]
@@ -1815,6 +1855,7 @@ default_imp_for_frm_sale!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -1840,7 +1881,8 @@ default_imp_for_frm_sale!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 #[cfg(feature = "frm")]
@@ -1901,6 +1943,7 @@ default_imp_for_frm_checkout!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -1926,7 +1969,8 @@ default_imp_for_frm_checkout!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 #[cfg(feature = "frm")]
@@ -1987,6 +2031,7 @@ default_imp_for_frm_transaction!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -2012,7 +2057,8 @@ default_imp_for_frm_transaction!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 #[cfg(feature = "frm")]
@@ -2073,6 +2119,7 @@ default_imp_for_frm_fulfillment!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -2098,7 +2145,8 @@ default_imp_for_frm_fulfillment!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 #[cfg(feature = "frm")]
@@ -2159,6 +2207,7 @@ default_imp_for_frm_record_return!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -2184,7 +2233,8 @@ default_imp_for_frm_record_return!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 macro_rules! default_imp_for_incremental_authorization {
@@ -2242,6 +2292,7 @@ default_imp_for_incremental_authorization!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
@@ -2269,7 +2320,8 @@ default_imp_for_incremental_authorization!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 macro_rules! default_imp_for_revoking_mandates {
@@ -2325,6 +2377,7 @@ default_imp_for_revoking_mandates!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Nuvei,
@@ -2351,7 +2404,8 @@ default_imp_for_revoking_mandates!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );
 
 macro_rules! default_imp_for_connector_authentication {
@@ -2476,5 +2530,6 @@ default_imp_for_connector_authentication!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Zsl
 );

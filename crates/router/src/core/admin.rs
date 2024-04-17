@@ -1824,6 +1824,10 @@ pub(crate) fn validate_auth_and_metadata_type(
             multisafepay::transformers::MultisafepayAuthType::try_from(val)?;
             Ok(())
         }
+        api_enums::Connector::Netcetera => {
+            netcetera::transformers::NetceteraAuthType::try_from(val)?;
+            Ok(())
+        }
         api_enums::Connector::Nexinets => {
             nexinets::transformers::NexinetsAuthType::try_from(val)?;
             Ok(())
@@ -1914,6 +1918,10 @@ pub(crate) fn validate_auth_and_metadata_type(
         }
         api_enums::Connector::Zen => {
             zen::transformers::ZenAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Zsl => {
+            zsl::transformers::ZslAuthType::try_from(val)?;
             Ok(())
         }
         api_enums::Connector::Signifyd => {

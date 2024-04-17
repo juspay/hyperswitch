@@ -28,6 +28,7 @@ pub mod iatapay;
 pub mod klarna;
 pub mod mollie;
 pub mod multisafepay;
+pub mod netcetera;
 pub mod nexinets;
 pub mod nmi;
 pub mod noon;
@@ -57,6 +58,7 @@ pub mod wise;
 pub mod worldline;
 pub mod worldpay;
 pub mod zen;
+pub mod zsl;
 
 #[cfg(feature = "dummy_connector")]
 pub use self::dummyconnector::DummyConnector;
@@ -67,10 +69,11 @@ pub use self::{
     checkout::Checkout, coinbase::Coinbase, cryptopay::Cryptopay, cybersource::Cybersource,
     dlocal::Dlocal, ebanx::Ebanx, fiserv::Fiserv, forte::Forte, globalpay::Globalpay,
     globepay::Globepay, gocardless::Gocardless, helcim::Helcim, iatapay::Iatapay, klarna::Klarna,
-    mollie::Mollie, multisafepay::Multisafepay, nexinets::Nexinets, nmi::Nmi, noon::Noon,
-    nuvei::Nuvei, opayo::Opayo, opennode::Opennode, payeezy::Payeezy, payme::Payme, paypal::Paypal,
-    payu::Payu, placetopay::Placetopay, powertranz::Powertranz, prophetpay::Prophetpay,
-    rapyd::Rapyd, riskified::Riskified, shift4::Shift4, signifyd::Signifyd, square::Square,
-    stax::Stax, stripe::Stripe, threedsecureio::Threedsecureio, trustpay::Trustpay, tsys::Tsys,
-    volt::Volt, wise::Wise, worldline::Worldline, worldpay::Worldpay, zen::Zen,
+    mollie::Mollie, multisafepay::Multisafepay, netcetera::Netcetera, nexinets::Nexinets, nmi::Nmi,
+    noon::Noon, nuvei::Nuvei, opayo::Opayo, opennode::Opennode, payeezy::Payeezy, payme::Payme,
+    paypal::Paypal, payu::Payu, placetopay::Placetopay, powertranz::Powertranz,
+    prophetpay::Prophetpay, rapyd::Rapyd, riskified::Riskified, shift4::Shift4, signifyd::Signifyd,
+    square::Square, stax::Stax, stripe::Stripe, threedsecureio::Threedsecureio, trustpay::Trustpay,
+    tsys::Tsys, volt::Volt, wise::Wise, worldline::Worldline, worldpay::Worldpay, zen::Zen,
+    zsl::Zsl,
 };
