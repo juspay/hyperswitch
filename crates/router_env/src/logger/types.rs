@@ -402,6 +402,8 @@ pub enum Flow {
     WebhookEventDeliveryAttemptList,
     /// Manually retry the delivery for a webhook event
     WebhookEventDeliveryRetry,
+    /// Retrieve status of the Poll
+    RetrievePollStatus,
 }
 
 ///
