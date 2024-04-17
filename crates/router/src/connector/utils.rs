@@ -2064,7 +2064,7 @@ mod error_code_error_message_tests {
 }
 
 pub fn is_mandate_supported(
-    selected_pmd: api_models::payments::PaymentMethodData,
+    selected_pmd: domain::payments::PaymentMethodData,
     payment_method_type: Option<types::storage::enums::PaymentMethodType>,
     mandate_implemented_pmds: HashSet<PaymentMethodDataType>,
     connector: &'static str,
@@ -2183,199 +2183,201 @@ pub enum PaymentMethodDataType {
     Givex,
     PaySafeCar,
     CardToken,
+    LocalBankTransfer,
 }
 
-impl From<payments::PaymentMethodData> for PaymentMethodDataType {
-    fn from(pm_data: payments::PaymentMethodData) -> Self {
+impl From<types::domain::payments::PaymentMethodData> for PaymentMethodDataType {
+    fn from(pm_data: types::domain::payments::PaymentMethodData) -> Self {
         match pm_data {
-            payments::PaymentMethodData::Card(_) => PaymentMethodDataType::Card,
-            payments::PaymentMethodData::CardRedirect(card_redirect_data) => {
+            types::domain::payments::PaymentMethodData::Card(_) => PaymentMethodDataType::Card,
+            types::domain::payments::PaymentMethodData::CardRedirect(card_redirect_data) => {
                 match card_redirect_data {
-                    payments::CardRedirectData::Knet {} => PaymentMethodDataType::Knet,
-                    payments::CardRedirectData::Benefit {} => PaymentMethodDataType::Benefit,
-                    payments::CardRedirectData::MomoAtm {} => PaymentMethodDataType::MomoAtm,
-                    payments::CardRedirectData::CardRedirect {} => {
+                    types::domain::CardRedirectData::Knet {} => PaymentMethodDataType::Knet,
+                    types::domain::payments::CardRedirectData::Benefit {} => PaymentMethodDataType::Benefit,
+                    types::domain::payments::CardRedirectData::MomoAtm {} => PaymentMethodDataType::MomoAtm,
+                    types::domain::payments::CardRedirectData::CardRedirect {} => {
                         PaymentMethodDataType::CardRedirect
                     }
                 }
             }
-            payments::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                payments::WalletData::AliPayQr(_) => PaymentMethodDataType::AliPayQr,
-                payments::WalletData::AliPayRedirect(_) => PaymentMethodDataType::AliPayRedirect,
-                payments::WalletData::AliPayHkRedirect(_) => {
+            types::domain::payments::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                types::domain::payments::WalletData::AliPayQr(_) => PaymentMethodDataType::AliPayQr,
+                types::domain::payments::WalletData::AliPayRedirect(_) => PaymentMethodDataType::AliPayRedirect,
+                types::domain::payments::WalletData::AliPayHkRedirect(_) => {
                     PaymentMethodDataType::AliPayHkRedirect
                 }
-                payments::WalletData::MomoRedirect(_) => PaymentMethodDataType::MomoRedirect,
-                payments::WalletData::KakaoPayRedirect(_) => {
+                types::domain::payments::WalletData::MomoRedirect(_) => PaymentMethodDataType::MomoRedirect,
+                types::domain::payments::WalletData::KakaoPayRedirect(_) => {
                     PaymentMethodDataType::KakaoPayRedirect
                 }
-                payments::WalletData::GoPayRedirect(_) => PaymentMethodDataType::GoPayRedirect,
-                payments::WalletData::GcashRedirect(_) => PaymentMethodDataType::GcashRedirect,
-                payments::WalletData::ApplePay(_) => PaymentMethodDataType::ApplePay,
-                payments::WalletData::ApplePayRedirect(_) => {
+                types::domain::payments::WalletData::GoPayRedirect(_) => PaymentMethodDataType::GoPayRedirect,
+                types::domain::payments::WalletData::GcashRedirect(_) => PaymentMethodDataType::GcashRedirect,
+                types::domain::payments::WalletData::ApplePay(_) => PaymentMethodDataType::ApplePay,
+                types::domain::payments::WalletData::ApplePayRedirect(_) => {
                     PaymentMethodDataType::ApplePayRedirect
                 }
-                payments::WalletData::ApplePayThirdPartySdk(_) => {
+                types::domain::payments::WalletData::ApplePayThirdPartySdk(_) => {
                     PaymentMethodDataType::ApplePayThirdPartySdk
                 }
-                payments::WalletData::DanaRedirect {} => PaymentMethodDataType::DanaRedirect,
-                payments::WalletData::GooglePay(_) => PaymentMethodDataType::GooglePay,
-                payments::WalletData::GooglePayRedirect(_) => {
+                types::domain::payments::WalletData::DanaRedirect {} => PaymentMethodDataType::DanaRedirect,
+                types::domain::payments::WalletData::GooglePay(_) => PaymentMethodDataType::GooglePay,
+                types::domain::payments::WalletData::GooglePayRedirect(_) => {
                     PaymentMethodDataType::GooglePayRedirect
                 }
-                payments::WalletData::GooglePayThirdPartySdk(_) => {
+                types::domain::payments::WalletData::GooglePayThirdPartySdk(_) => {
                     PaymentMethodDataType::GooglePayThirdPartySdk
                 }
-                payments::WalletData::MbWayRedirect(_) => PaymentMethodDataType::MbWayRedirect,
-                payments::WalletData::MobilePayRedirect(_) => {
+                types::domain::payments::WalletData::MbWayRedirect(_) => PaymentMethodDataType::MbWayRedirect,
+                types::domain::payments::WalletData::MobilePayRedirect(_) => {
                     PaymentMethodDataType::MobilePayRedirect
                 }
-                payments::WalletData::PaypalRedirect(_) => PaymentMethodDataType::PaypalRedirect,
-                payments::WalletData::PaypalSdk(_) => PaymentMethodDataType::PaypalSdk,
-                payments::WalletData::SamsungPay(_) => PaymentMethodDataType::SamsungPay,
-                payments::WalletData::TwintRedirect {} => PaymentMethodDataType::TwintRedirect,
-                payments::WalletData::VippsRedirect {} => PaymentMethodDataType::VippsRedirect,
-                payments::WalletData::TouchNGoRedirect(_) => {
+                types::domain::payments::WalletData::PaypalRedirect(_) => PaymentMethodDataType::PaypalRedirect,
+                types::domain::payments::WalletData::PaypalSdk(_) => PaymentMethodDataType::PaypalSdk,
+                types::domain::payments::WalletData::SamsungPay(_) => PaymentMethodDataType::SamsungPay,
+                types::domain::payments::WalletData::TwintRedirect {} => PaymentMethodDataType::TwintRedirect,
+                types::domain::payments::WalletData::VippsRedirect {} => PaymentMethodDataType::VippsRedirect,
+                types::domain::payments::WalletData::TouchNGoRedirect(_) => {
                     PaymentMethodDataType::TouchNGoRedirect
                 }
-                payments::WalletData::WeChatPayRedirect(_) => {
+                types::domain::payments::WalletData::WeChatPayRedirect(_) => {
                     PaymentMethodDataType::WeChatPayRedirect
                 }
-                payments::WalletData::WeChatPayQr(_) => PaymentMethodDataType::WeChatPayQr,
-                payments::WalletData::CashappQr(_) => PaymentMethodDataType::CashappQr,
-                payments::WalletData::SwishQr(_) => PaymentMethodDataType::SwishQr,
+                types::domain::payments::WalletData::WeChatPayQr(_) => PaymentMethodDataType::WeChatPayQr,
+                types::domain::payments::WalletData::CashappQr(_) => PaymentMethodDataType::CashappQr,
+                types::domain::payments::WalletData::SwishQr(_) => PaymentMethodDataType::SwishQr,
             },
-            payments::PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
-                payments::PayLaterData::KlarnaRedirect { .. } => {
+            types::domain::payments::PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
+                types::domain::payments::PayLaterData::KlarnaRedirect { .. } => {
                     PaymentMethodDataType::KlarnaRedirect
                 }
-                payments::PayLaterData::KlarnaSdk { .. } => PaymentMethodDataType::KlarnaSdk,
-                payments::PayLaterData::AffirmRedirect {} => PaymentMethodDataType::AffirmRedirect,
-                payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
+                types::domain::payments::PayLaterData::KlarnaSdk { .. } => PaymentMethodDataType::KlarnaSdk,
+                types::domain::payments::PayLaterData::AffirmRedirect {} => PaymentMethodDataType::AffirmRedirect,
+                types::domain::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
                     PaymentMethodDataType::AfterpayClearpayRedirect
                 }
-                payments::PayLaterData::PayBrightRedirect {} => {
+                types::domain::payments::PayLaterData::PayBrightRedirect {} => {
                     PaymentMethodDataType::PayBrightRedirect
                 }
-                payments::PayLaterData::WalleyRedirect {} => PaymentMethodDataType::WalleyRedirect,
-                payments::PayLaterData::AlmaRedirect {} => PaymentMethodDataType::AlmaRedirect,
-                payments::PayLaterData::AtomeRedirect {} => PaymentMethodDataType::AtomeRedirect,
+                types::domain::payments::PayLaterData::WalleyRedirect {} => PaymentMethodDataType::WalleyRedirect,
+                types::domain::payments::PayLaterData::AlmaRedirect {} => PaymentMethodDataType::AlmaRedirect,
+                types::domain::payments::PayLaterData::AtomeRedirect {} => PaymentMethodDataType::AtomeRedirect,
             },
-            payments::PaymentMethodData::BankRedirect(bank_redirect_data) => {
+            types::domain::payments::PaymentMethodData::BankRedirect(bank_redirect_data) => {
                 match bank_redirect_data {
-                    payments::BankRedirectData::BancontactCard { .. } => {
+                    types::domain::payments::BankRedirectData::BancontactCard { .. } => {
                         PaymentMethodDataType::BancontactCard
                     }
-                    payments::BankRedirectData::Bizum {} => PaymentMethodDataType::Bizum,
-                    payments::BankRedirectData::Blik { .. } => PaymentMethodDataType::Blik,
-                    payments::BankRedirectData::Eps { .. } => PaymentMethodDataType::Eps,
-                    payments::BankRedirectData::Giropay { .. } => PaymentMethodDataType::Giropay,
-                    payments::BankRedirectData::Ideal { .. } => PaymentMethodDataType::Ideal,
-                    payments::BankRedirectData::Interac { .. } => PaymentMethodDataType::Interac,
-                    payments::BankRedirectData::OnlineBankingCzechRepublic { .. } => {
+                    types::domain::payments::BankRedirectData::Bizum {} => PaymentMethodDataType::Bizum,
+                    types::domain::payments::BankRedirectData::Blik { .. } => PaymentMethodDataType::Blik,
+                    types::domain::payments::BankRedirectData::Eps { .. } => PaymentMethodDataType::Eps,
+                    types::domain::payments::BankRedirectData::Giropay { .. } => PaymentMethodDataType::Giropay,
+                    types::domain::payments::BankRedirectData::Ideal { .. } => PaymentMethodDataType::Ideal,
+                    types::domain::payments::BankRedirectData::Interac { .. } => PaymentMethodDataType::Interac,
+                    types::domain::payments::BankRedirectData::OnlineBankingCzechRepublic { .. } => {
                         PaymentMethodDataType::OnlineBankingCzechRepublic
                     }
-                    payments::BankRedirectData::OnlineBankingFinland { .. } => {
+                    types::domain::payments::BankRedirectData::OnlineBankingFinland { .. } => {
                         PaymentMethodDataType::OnlineBankingFinland
                     }
-                    payments::BankRedirectData::OnlineBankingPoland { .. } => {
+                    types::domain::payments::BankRedirectData::OnlineBankingPoland { .. } => {
                         PaymentMethodDataType::OnlineBankingPoland
                     }
-                    payments::BankRedirectData::OnlineBankingSlovakia { .. } => {
+                    types::domain::payments::BankRedirectData::OnlineBankingSlovakia { .. } => {
                         PaymentMethodDataType::OnlineBankingSlovakia
                     }
-                    payments::BankRedirectData::OpenBankingUk { .. } => {
+                    types::domain::payments::BankRedirectData::OpenBankingUk { .. } => {
                         PaymentMethodDataType::OpenBankingUk
                     }
-                    payments::BankRedirectData::Przelewy24 { .. } => {
+                    types::domain::payments::BankRedirectData::Przelewy24 { .. } => {
                         PaymentMethodDataType::Przelewy24
                     }
-                    payments::BankRedirectData::Sofort { .. } => PaymentMethodDataType::Sofort,
-                    payments::BankRedirectData::Trustly { .. } => PaymentMethodDataType::Trustly,
-                    payments::BankRedirectData::OnlineBankingFpx { .. } => {
+                    types::domain::payments::BankRedirectData::Sofort { .. } => PaymentMethodDataType::Sofort,
+                    types::domain::payments::BankRedirectData::Trustly { .. } => PaymentMethodDataType::Trustly,
+                    types::domain::payments::BankRedirectData::OnlineBankingFpx { .. } => {
                         PaymentMethodDataType::OnlineBankingFpx
                     }
-                    payments::BankRedirectData::OnlineBankingThailand { .. } => {
+                    types::domain::payments::BankRedirectData::OnlineBankingThailand { .. } => {
                         PaymentMethodDataType::OnlineBankingThailand
                     }
                 }
             }
-            payments::PaymentMethodData::BankDebit(bank_debit_data) => match bank_debit_data {
-                payments::BankDebitData::AchBankDebit { .. } => PaymentMethodDataType::AchBankDebit,
-                payments::BankDebitData::SepaBankDebit { .. } => {
+            types::domain::payments::PaymentMethodData::BankDebit(bank_debit_data) => match bank_debit_data {
+                types::domain::payments::BankDebitData::AchBankDebit { .. } => PaymentMethodDataType::AchBankDebit,
+                types::domain::payments::BankDebitData::SepaBankDebit { .. } => {
                     PaymentMethodDataType::SepaBankDebit
                 }
-                payments::BankDebitData::BecsBankDebit { .. } => {
+                types::domain::payments::BankDebitData::BecsBankDebit { .. } => {
                     PaymentMethodDataType::BecsBankDebit
                 }
-                payments::BankDebitData::BacsBankDebit { .. } => {
+                types::domain::payments::BankDebitData::BacsBankDebit { .. } => {
                     PaymentMethodDataType::BacsBankDebit
                 }
             },
-            payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
+            types::domain::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
                 match *bank_transfer_data {
-                    payments::BankTransferData::AchBankTransfer { .. } => {
+                    types::domain::payments::BankTransferData::AchBankTransfer { .. } => {
                         PaymentMethodDataType::AchBankTransfer
                     }
-                    payments::BankTransferData::SepaBankTransfer { .. } => {
+                    types::domain::payments::BankTransferData::SepaBankTransfer { .. } => {
                         PaymentMethodDataType::SepaBankTransfer
                     }
-                    payments::BankTransferData::BacsBankTransfer { .. } => {
+                    types::domain::payments::BankTransferData::BacsBankTransfer { .. } => {
                         PaymentMethodDataType::BacsBankTransfer
                     }
-                    payments::BankTransferData::MultibancoBankTransfer { .. } => {
+                    types::domain::payments::BankTransferData::MultibancoBankTransfer { .. } => {
                         PaymentMethodDataType::MultibancoBankTransfer
                     }
-                    payments::BankTransferData::PermataBankTransfer { .. } => {
+                    types::domain::payments::BankTransferData::PermataBankTransfer { .. } => {
                         PaymentMethodDataType::PermataBankTransfer
                     }
-                    payments::BankTransferData::BcaBankTransfer { .. } => {
+                    types::domain::payments::BankTransferData::BcaBankTransfer { .. } => {
                         PaymentMethodDataType::BcaBankTransfer
                     }
-                    payments::BankTransferData::BniVaBankTransfer { .. } => {
+                    types::domain::payments::BankTransferData::BniVaBankTransfer { .. } => {
                         PaymentMethodDataType::BniVaBankTransfer
                     }
-                    payments::BankTransferData::BriVaBankTransfer { .. } => {
+                    types::domain::payments::BankTransferData::BriVaBankTransfer { .. } => {
                         PaymentMethodDataType::BriVaBankTransfer
                     }
-                    payments::BankTransferData::CimbVaBankTransfer { .. } => {
+                    types::domain::payments::BankTransferData::CimbVaBankTransfer { .. } => {
                         PaymentMethodDataType::CimbVaBankTransfer
                     }
-                    payments::BankTransferData::DanamonVaBankTransfer { .. } => {
+                    types::domain::payments::BankTransferData::DanamonVaBankTransfer { .. } => {
                         PaymentMethodDataType::DanamonVaBankTransfer
                     }
-                    payments::BankTransferData::MandiriVaBankTransfer { .. } => {
+                    types::domain::payments::BankTransferData::MandiriVaBankTransfer { .. } => {
                         PaymentMethodDataType::MandiriVaBankTransfer
                     }
-                    payments::BankTransferData::Pix {} => PaymentMethodDataType::Pix,
-                    payments::BankTransferData::Pse {} => PaymentMethodDataType::Pse,
+                    types::domain::payments::BankTransferData::Pix {} => PaymentMethodDataType::Pix,
+                    types::domain::payments::BankTransferData::Pse {} => PaymentMethodDataType::Pse,
+                    types::domain::payments::BankTransferData::LocalBankTransfer { .. } => PaymentMethodDataType::LocalBankTransfer,
                 }
             }
-            payments::PaymentMethodData::Crypto(_) => PaymentMethodDataType::Crypto,
-            payments::PaymentMethodData::MandatePayment => PaymentMethodDataType::MandatePayment,
-            payments::PaymentMethodData::Reward => PaymentMethodDataType::Reward,
-            payments::PaymentMethodData::Upi(_) => PaymentMethodDataType::Upi,
-            payments::PaymentMethodData::Voucher(voucher_data) => match voucher_data {
-                payments::VoucherData::Boleto(_) => PaymentMethodDataType::Boleto,
-                payments::VoucherData::Efecty => PaymentMethodDataType::Efecty,
-                payments::VoucherData::PagoEfectivo => PaymentMethodDataType::PagoEfectivo,
-                payments::VoucherData::RedCompra => PaymentMethodDataType::RedCompra,
-                payments::VoucherData::RedPagos => PaymentMethodDataType::RedPagos,
-                payments::VoucherData::Alfamart(_) => PaymentMethodDataType::Alfamart,
-                payments::VoucherData::Indomaret(_) => PaymentMethodDataType::Indomaret,
-                payments::VoucherData::Oxxo => PaymentMethodDataType::Oxxo,
-                payments::VoucherData::SevenEleven(_) => PaymentMethodDataType::SevenEleven,
-                payments::VoucherData::Lawson(_) => PaymentMethodDataType::Lawson,
-                payments::VoucherData::MiniStop(_) => PaymentMethodDataType::MiniStop,
-                payments::VoucherData::FamilyMart(_) => PaymentMethodDataType::FamilyMart,
-                payments::VoucherData::Seicomart(_) => PaymentMethodDataType::Seicomart,
-                payments::VoucherData::PayEasy(_) => PaymentMethodDataType::PayEasy,
+            types::domain::payments::PaymentMethodData::Crypto(_) => PaymentMethodDataType::Crypto,
+            types::domain::payments::PaymentMethodData::MandatePayment => PaymentMethodDataType::MandatePayment,
+            types::domain::payments::PaymentMethodData::Reward => PaymentMethodDataType::Reward,
+            types::domain::payments::PaymentMethodData::Upi(_) => PaymentMethodDataType::Upi,
+            types::domain::payments::PaymentMethodData::Voucher(voucher_data) => match voucher_data {
+                types::domain::payments::VoucherData::Boleto(_) => PaymentMethodDataType::Boleto,
+                types::domain::payments::VoucherData::Efecty => PaymentMethodDataType::Efecty,
+                types::domain::payments::VoucherData::PagoEfectivo => PaymentMethodDataType::PagoEfectivo,
+                types::domain::payments::VoucherData::RedCompra => PaymentMethodDataType::RedCompra,
+                types::domain::payments::VoucherData::RedPagos => PaymentMethodDataType::RedPagos,
+                types::domain::payments::VoucherData::Alfamart(_) => PaymentMethodDataType::Alfamart,
+                types::domain::payments::VoucherData::Indomaret(_) => PaymentMethodDataType::Indomaret,
+                types::domain::payments::VoucherData::Oxxo => PaymentMethodDataType::Oxxo,
+                types::domain::payments::VoucherData::SevenEleven(_) => PaymentMethodDataType::SevenEleven,
+                types::domain::payments::VoucherData::Lawson(_) => PaymentMethodDataType::Lawson,
+                types::domain::payments::VoucherData::MiniStop(_) => PaymentMethodDataType::MiniStop,
+                types::domain::payments::VoucherData::FamilyMart(_) => PaymentMethodDataType::FamilyMart,
+                types::domain::payments::VoucherData::Seicomart(_) => PaymentMethodDataType::Seicomart,
+                types::domain::payments::VoucherData::PayEasy(_) => PaymentMethodDataType::PayEasy,
             },
-            payments::PaymentMethodData::GiftCard(gift_card_data) => match *gift_card_data {
-                payments::GiftCardData::Givex(_) => PaymentMethodDataType::Givex,
-                payments::GiftCardData::PaySafeCard {} => PaymentMethodDataType::PaySafeCar,
+            types::domain::payments::PaymentMethodData::GiftCard(gift_card_data) => match *gift_card_data {
+                types::domain::payments::GiftCardData::Givex(_) => PaymentMethodDataType::Givex,
+                types::domain::payments::GiftCardData::PaySafeCard {} => PaymentMethodDataType::PaySafeCar,
             },
-            payments::PaymentMethodData::CardToken(_) => PaymentMethodDataType::CardToken,
+            types::domain::payments::PaymentMethodData::CardToken(_) => PaymentMethodDataType::CardToken,
         }
     }
 }

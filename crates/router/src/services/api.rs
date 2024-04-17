@@ -33,7 +33,6 @@ use self::request::{HeaderExt, RequestBuilderExt};
 use super::authentication::AuthenticateAndFetch;
 use crate::{
     configs::{settings::Connectors, Settings},
-    connector::utils::is_mandate_supported,
     consts,
     core::{
         api_locking,
@@ -95,11 +94,21 @@ pub trait ConnectorValidation: ConnectorCommon {
     fn validate_mandate_payment(
         &self,
         pm_type: Option<PaymentMethodType>,
-        pm_data: api_models::payments::PaymentMethodData,
+        _pm_data: types::domain::payments::PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd =
-            std::collections::HashSet::<crate::connector::utils::PaymentMethodDataType>::new();
-        is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
+        let connector = self.id().as_ref();
+        match pm_type {
+            Some(pm_type) => Err(errors::ConnectorError::NotSupported {
+                message: format!("{} mandate payment", pm_type),
+                connector,
+            }
+            .into()),
+            None => Err(errors::ConnectorError::NotSupported {
+                message: format!(" mandate payment"),
+                connector,
+            }
+            .into()),
+        }
     }
 
     fn validate_psync_reference_id(
