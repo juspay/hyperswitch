@@ -2445,7 +2445,7 @@ impl<F, T>
                 let error_response =
                     get_error_response_if_failure((&info_response, mandate_status, item.http_code));
 
-                    let connector_response = info_response
+                let connector_response = info_response
                     .processor_information
                     .as_ref()
                     .map(types::AdditionalPaymentMethodConnectorResponse::from)
