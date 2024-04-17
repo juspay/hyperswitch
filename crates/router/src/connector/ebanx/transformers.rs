@@ -5,21 +5,15 @@ use common_enums::Currency;
 use common_utils::pii::Email;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
- 
+
 #[cfg(feature = "payouts")]
 use crate::{
-    types::{
-        api,
-        storage::enums as storage_enums
-    },
-    connector::utils::{self, AddressDetailsData, RouterData}
+    connector::utils::{self, AddressDetailsData, RouterData},
+    types::{api, storage::enums as storage_enums},
 };
 use crate::{
     core::errors,
-    types::{
-        self,
-        api::CurrencyUnit,
-    },
+    types::{self, api::CurrencyUnit},
 };
 
 pub struct EbanxRouterData<T> {
