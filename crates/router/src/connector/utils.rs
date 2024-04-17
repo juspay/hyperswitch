@@ -590,7 +590,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
             })
     }
     fn is_mandate_payment(&self) -> bool {
-        (self.customer_acceptance.is_some()
+        ((self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
             && self.setup_future_usage.map_or(false, |setup_future_usage| {
                 setup_future_usage == storage_enums::FutureUsage::OffSession
             }))

@@ -183,6 +183,14 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                     types::PaymentsResponseData,
                 > = connector.connector.get_connector_integration();
 
+                connector
+                    .connector
+                    .validate_mandate_payment(
+                        self.request.payment_method_type,
+                        self.request.payment_method_data.clone(),
+                    )
+                    .to_payment_failed_response()?;
+
                 Ok((
                     connector_integration
                         .build_request(self, &state.conf.connectors)
