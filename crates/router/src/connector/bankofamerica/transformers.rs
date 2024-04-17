@@ -1388,20 +1388,20 @@ fn get_payment_response(
                     });
 
             Ok(types::PaymentsResponseData::TransactionResponse {
-            resource_id: types::ResponseId::ConnectorTransactionId(info_response.id.clone()),
-            redirection_data: None,
-            mandate_reference,
-            connector_metadata: None,
-            network_txn_id: None,
-            connector_response_reference_id: Some(
-                info_response
-                    .client_reference_information
-                    .code
-                    .clone()
-                    .unwrap_or(info_response.id.clone()),
-            ),
-            incremental_authorization_allowed: None,
-        })
+                resource_id: types::ResponseId::ConnectorTransactionId(info_response.id.clone()),
+                redirection_data: None,
+                mandate_reference,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: Some(
+                    info_response
+                        .client_reference_information
+                        .code
+                        .clone()
+                        .unwrap_or(info_response.id.clone()),
+                ),
+                incremental_authorization_allowed: None,
+            })
         }
     }
 }
