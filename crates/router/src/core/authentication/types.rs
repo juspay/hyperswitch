@@ -74,3 +74,8 @@ pub struct AcquirerDetails {
     pub acquirer_bin: String,
     pub acquirer_merchant_id: String,
 }
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct ExternalThreeDSConnectorMetadata {
+    pub pull_mechanism_for_external_3ds_enabled: Option<bool>,
+}

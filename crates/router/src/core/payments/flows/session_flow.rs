@@ -161,6 +161,7 @@ async fn create_applepay_session_token(
             apple_pay_session_request,
             apple_pay_merchant_cert,
             apple_pay_merchant_cert_key,
+            merchant_business_country,
         ) = match apple_pay_metadata {
             payment_types::ApplepaySessionTokenMetadata::ApplePayCombined(
                 apple_pay_combined_metadata,
@@ -176,6 +177,8 @@ async fn create_applepay_session_token(
                         .common_merchant_identifier
                         .clone()
                         .expose();
+
+                    let merchant_business_country = session_token_data.merchant_business_country;
 
                     let apple_pay_session_request = get_session_request_for_simplified_apple_pay(
                         merchant_identifier,
@@ -203,6 +206,7 @@ async fn create_applepay_session_token(
                         apple_pay_session_request,
                         apple_pay_merchant_cert,
                         apple_pay_merchant_cert_key,
+                        merchant_business_country,
                     )
                 }
                 payment_types::ApplePayCombinedMetadata::Manual {
@@ -211,11 +215,15 @@ async fn create_applepay_session_token(
                 } => {
                     let apple_pay_session_request =
                         get_session_request_for_manual_apple_pay(session_token_data.clone());
+
+                    let merchant_business_country = session_token_data.merchant_business_country;
+
                     (
                         payment_request_data,
                         apple_pay_session_request,
                         session_token_data.certificate.clone(),
                         session_token_data.certificate_keys,
+                        merchant_business_country,
                     )
                 }
             },
@@ -223,11 +231,16 @@ async fn create_applepay_session_token(
                 let apple_pay_session_request = get_session_request_for_manual_apple_pay(
                     apple_pay_metadata.session_token_data.clone(),
                 );
+
+                let merchant_business_country = apple_pay_metadata
+                    .session_token_data
+                    .merchant_business_country;
                 (
                     apple_pay_metadata.payment_request_data,
                     apple_pay_session_request,
                     apple_pay_metadata.session_token_data.certificate.clone(),
                     apple_pay_metadata.session_token_data.certificate_keys,
+                    merchant_business_country,
                 )
             }
         };
@@ -244,6 +257,7 @@ async fn create_applepay_session_token(
             payment_request_data,
             router_data.request.to_owned(),
             apple_pay_session_request.merchant_identifier.as_str(),
+            merchant_business_country,
         )?;
 
         let applepay_session_request = build_apple_pay_session_request(
@@ -343,9 +357,14 @@ fn get_apple_pay_payment_request(
     payment_request_data: payment_types::PaymentRequestMetadata,
     session_data: types::PaymentsSessionData,
     merchant_identifier: &str,
+    merchant_business_country: Option<api_models::enums::CountryAlpha2>,
 ) -> RouterResult<payment_types::ApplePayPaymentRequest> {
     let applepay_payment_request = payment_types::ApplePayPaymentRequest {
-        country_code: session_data.country,
+        country_code: merchant_business_country.or(session_data.country).ok_or(
+            errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "country_code",
+            },
+        )?,
         currency_code: session_data.currency,
         total: amount_info,
         merchant_capabilities: Some(payment_request_data.merchant_capabilities),
