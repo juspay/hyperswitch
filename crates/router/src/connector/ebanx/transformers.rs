@@ -7,8 +7,8 @@ use common_utils::pii::Email;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
-use crate::connector::utils::{self, AddressDetailsData, RouterData};
 #[cfg(feature = "payouts")]
+use crate::connector::utils::{self, AddressDetailsData, RouterData};
 use crate::{
     core::errors,
     types::{
@@ -153,12 +153,10 @@ impl TryFrom<&EbanxRouterData<&types::PayoutsRouterData<api::PoCreate>>>
     }
 }
 
-#[cfg(feature = "payouts")]
 pub struct EbanxAuthType {
     pub(super) integration_key: Secret<String>,
 }
 
-#[cfg(feature = "payouts")]
 impl TryFrom<&types::ConnectorAuthType> for EbanxAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
