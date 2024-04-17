@@ -2,10 +2,13 @@
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 use common_utils::ext_traits::Encode;
 #[cfg(feature = "olap")]
-use data_models::payouts::{payout_attempt::PayoutAttempt, PayoutFetchConstraints};
+use data_models::payouts::PayoutFetchConstraints;
 use data_models::{
     errors::StorageError,
-    payouts::payouts::{Payouts, PayoutsInterface, PayoutsNew, PayoutsUpdate},
+    payouts::{
+        payout_attempt::PayoutAttempt,
+        payouts::{Payouts, PayoutsInterface, PayoutsNew, PayoutsUpdate},
+    },
 };
 #[cfg(feature = "olap")]
 use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
@@ -35,7 +38,7 @@ use crate::connection;
 use crate::{
     diesel_error_to_data_error,
     errors::RedisErrorExt,
-    redis::kv_store::{kv_wrapper, KvOperation},
+    redis::kv_store::{kv_wrapper, KvOperation, PartitionKey},
     utils::{self, pg_connection_read, pg_connection_write},
     DataModelExt, DatabaseStore, KVRouterStore,
 };
@@ -53,7 +56,13 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                 self.router_store.insert_payout(new, storage_scheme).await
             }
             MerchantStorageScheme::RedisKv => {
-                let key = format!("mid_{}_po_{}", new.merchant_id, new.payout_id);
+                let merchant_id = new.merchant_id.clone();
+                let payout_id = new.payout_id.clone();
+                let key = PartitionKey::MerchantIdPayoutId {
+                    merchant_id: &merchant_id,
+                    payout_id: &payout_id,
+                };
+                let key_str = key.to_string();
                 let field = format!("po_{}", new.payout_id);
                 let now = common_utils::date_time::now();
                 let created_payout = Payouts {
@@ -92,15 +101,15 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                         &created_payout.clone().to_storage_model(),
                         redis_entry,
                     ),
-                    &key,
+                    key,
                 )
                 .await
-                .map_err(|err| err.to_redis_failed_response(&key))?
+                .map_err(|err| err.to_redis_failed_response(&key_str))?
                 .try_into_hsetnx()
                 {
                     Ok(HsetnxReply::KeyNotSet) => Err(StorageError::DuplicateValue {
                         entity: "payouts",
-                        key: Some(key),
+                        key: Some(key_str),
                     }
                     .into()),
                     Ok(HsetnxReply::KeySet) => Ok(created_payout),
@@ -115,16 +124,21 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         &self,
         this: &Payouts,
         payout_update: PayoutsUpdate,
+        payout_attempt: &PayoutAttempt,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Payouts, StorageError> {
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
-                    .update_payout(this, payout_update, storage_scheme)
+                    .update_payout(this, payout_update, payout_attempt, storage_scheme)
                     .await
             }
             MerchantStorageScheme::RedisKv => {
-                let key = format!("mid_{}_po_{}", this.merchant_id, this.payout_id);
+                let key = PartitionKey::MerchantIdPayoutId {
+                    merchant_id: &this.merchant_id,
+                    payout_id: &this.payout_id,
+                };
+                let key_str = key.to_string();
                 let field = format!("po_{}", this.payout_id);
 
                 let diesel_payout_update = payout_update.to_storage_model();
@@ -151,10 +165,10 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                 kv_wrapper::<(), _, _>(
                     self,
                     KvOperation::<DieselPayouts>::Hset((&field, redis_value), redis_entry),
-                    &key,
+                    key,
                 )
                 .await
-                .map_err(|err| err.to_redis_failed_response(&key))?
+                .map_err(|err| err.to_redis_failed_response(&key_str))?
                 .try_into_hset()
                 .change_context(StorageError::KVError)?;
 
@@ -182,14 +196,17 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => database_call().await,
             MerchantStorageScheme::RedisKv => {
-                let key = format!("mid_{merchant_id}_po_{payout_id}");
+                let key = PartitionKey::MerchantIdPayoutId {
+                    merchant_id,
+                    payout_id,
+                };
                 let field = format!("po_{payout_id}");
                 Box::pin(utils::try_redis_get_else_try_database_get(
                     async {
                         kv_wrapper::<DieselPayouts, _, _>(
                             self,
                             KvOperation::<DieselPayouts>::HGet(&field),
-                            &key,
+                            key,
                         )
                         .await?
                         .try_into_hget()
@@ -230,14 +247,17 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                 }))
             }
             MerchantStorageScheme::RedisKv => {
-                let key = format!("mid_{merchant_id}_po_{payout_id}");
+                let key = PartitionKey::MerchantIdPayoutId {
+                    merchant_id,
+                    payout_id,
+                };
                 let field = format!("po_{payout_id}");
                 Box::pin(utils::try_redis_get_else_try_database_get(
                     async {
                         kv_wrapper::<DieselPayouts, _, _>(
                             self,
                             KvOperation::<DieselPayouts>::HGet(&field),
-                            &key,
+                            key,
                         )
                         .await?
                         .try_into_hget()
@@ -316,6 +336,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         &self,
         this: &Payouts,
         payout: PayoutsUpdate,
+        _payout_attempt: &PayoutAttempt,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Payouts, StorageError> {
         let conn = pg_connection_write(self).await?;

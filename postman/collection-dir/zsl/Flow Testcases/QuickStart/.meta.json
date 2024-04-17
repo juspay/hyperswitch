@@ -1,0 +1,8 @@
+{
+  "childrenOrder": [
+    "Merchant Account - Create",
+    "API Key - Create",
+    "Payment Connector - Create",
+    "Payments - Create"
+  ]
+}

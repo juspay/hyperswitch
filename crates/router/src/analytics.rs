@@ -6,6 +6,7 @@ pub mod routes {
         api_event::api_events_core, connector_events::connector_events_core,
         errors::AnalyticsError, lambda_utils::invoke_lambda,
         outgoing_webhook_event::outgoing_webhook_events_core, sdk_events::sdk_events_core,
+        AnalyticsFlow,
     };
     use api_models::analytics::{
         search::{
@@ -17,7 +18,6 @@ pub mod routes {
         GetSdkEventMetricRequest, ReportRequest,
     };
     use error_stack::ResultExt;
-    use router_env::AnalyticsFlow;
 
     use crate::{
         core::api_locking,
@@ -122,7 +122,7 @@ pub mod routes {
             state,
             &req,
             domain.into_inner(),
-            |_, _, domain: analytics::AnalyticsDomain| async {
+            |_, _, domain: analytics::AnalyticsDomain, _| async {
                 analytics::core::get_domain_info(domain)
                     .await
                     .map(ApplicationResponse::Json)
@@ -154,7 +154,7 @@ pub mod routes {
             state,
             &req,
             payload,
-            |state, auth: AuthenticationData, req| async move {
+            |state, auth: AuthenticationData, req, _| async move {
                 analytics::payments::get_metrics(
                     &state.pool,
                     &auth.merchant_account.merchant_id,
@@ -190,7 +190,7 @@ pub mod routes {
             state,
             &req,
             payload,
-            |state, auth: AuthenticationData, req| async move {
+            |state, auth: AuthenticationData, req, _| async move {
                 analytics::refunds::get_metrics(
                     &state.pool,
                     &auth.merchant_account.merchant_id,
@@ -226,7 +226,7 @@ pub mod routes {
             state,
             &req,
             payload,
-            |state, auth: AuthenticationData, req| async move {
+            |state, auth: AuthenticationData, req, _| async move {
                 analytics::sdk_events::get_metrics(
                     &state.pool,
                     auth.merchant_account.publishable_key.as_ref(),
@@ -252,7 +252,7 @@ pub mod routes {
             state,
             &req,
             json_payload.into_inner(),
-            |state, auth: AuthenticationData, req| async move {
+            |state, auth: AuthenticationData, req, _| async move {
                 analytics::payments::get_filters(
                     &state.pool,
                     req,
@@ -278,7 +278,7 @@ pub mod routes {
             state,
             &req,
             json_payload.into_inner(),
-            |state, auth: AuthenticationData, req: GetRefundFilterRequest| async move {
+            |state, auth: AuthenticationData, req: GetRefundFilterRequest, _| async move {
                 analytics::refunds::get_filters(
                     &state.pool,
                     req,
@@ -304,7 +304,7 @@ pub mod routes {
             state,
             &req,
             json_payload.into_inner(),
-            |state, auth: AuthenticationData, req| async move {
+            |state, auth: AuthenticationData, req, _| async move {
                 analytics::sdk_events::get_filters(
                     &state.pool,
                     req,
@@ -330,7 +330,7 @@ pub mod routes {
             state,
             &req,
             json_payload.into_inner(),
-            |state, auth: AuthenticationData, req| async move {
+            |state, auth: AuthenticationData, req, _| async move {
                 api_events_core(&state.pool, req, auth.merchant_account.merchant_id)
                     .await
                     .map(ApplicationResponse::Json)
@@ -354,7 +354,7 @@ pub mod routes {
             state,
             &req,
             json_payload.into_inner(),
-            |state, auth: AuthenticationData, req| async move {
+            |state, auth: AuthenticationData, req, _| async move {
                 outgoing_webhook_events_core(&state.pool, req, auth.merchant_account.merchant_id)
                     .await
                     .map(ApplicationResponse::Json)
@@ -376,7 +376,7 @@ pub mod routes {
             state,
             &req,
             json_payload.into_inner(),
-            |state, auth: AuthenticationData, req| async move {
+            |state, auth: AuthenticationData, req, _| async move {
                 sdk_events_core(
                     &state.pool,
                     req,
@@ -402,7 +402,7 @@ pub mod routes {
             state.clone(),
             &req,
             json_payload.into_inner(),
-            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload| async move {
+            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
                 let user = UserInterface::find_user_by_id(&*state.store, &user_id)
                     .await
                     .change_context(AnalyticsError::UnknownError)?;
@@ -444,7 +444,7 @@ pub mod routes {
             state.clone(),
             &req,
             json_payload.into_inner(),
-            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload| async move {
+            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
                 let user = UserInterface::find_user_by_id(&*state.store, &user_id)
                     .await
                     .change_context(AnalyticsError::UnknownError)?;
@@ -486,7 +486,7 @@ pub mod routes {
             state.clone(),
             &req,
             json_payload.into_inner(),
-            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload| async move {
+            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
                 let user = UserInterface::find_user_by_id(&*state.store, &user_id)
                     .await
                     .change_context(AnalyticsError::UnknownError)?;
@@ -538,7 +538,7 @@ pub mod routes {
             state.clone(),
             &req,
             payload,
-            |state, auth: AuthenticationData, req| async move {
+            |state, auth: AuthenticationData, req, _| async move {
                 analytics::api_event::get_api_event_metrics(
                     &state.pool,
                     &auth.merchant_account.merchant_id,
@@ -564,7 +564,7 @@ pub mod routes {
             state.clone(),
             &req,
             json_payload.into_inner(),
-            |state, auth: AuthenticationData, req| async move {
+            |state, auth: AuthenticationData, req, _| async move {
                 analytics::api_event::get_filters(
                     &state.pool,
                     req,
@@ -590,7 +590,7 @@ pub mod routes {
             state,
             &req,
             json_payload.into_inner(),
-            |state, auth: AuthenticationData, req| async move {
+            |state, auth: AuthenticationData, req, _| async move {
                 connector_events_core(&state.pool, req, auth.merchant_account.merchant_id)
                     .await
                     .map(ApplicationResponse::Json)
@@ -612,7 +612,7 @@ pub mod routes {
             state.clone(),
             &req,
             json_payload.into_inner(),
-            |state, auth: AuthenticationData, req| async move {
+            |state, auth: AuthenticationData, req, _| async move {
                 analytics::search::msearch_results(
                     req,
                     &auth.merchant_account.merchant_id,
@@ -643,7 +643,7 @@ pub mod routes {
             state.clone(),
             &req,
             indexed_req,
-            |state, auth: AuthenticationData, req| async move {
+            |state, auth: AuthenticationData, req, _| async move {
                 analytics::search::search_results(
                     req,
                     &auth.merchant_account.merchant_id,
@@ -669,7 +669,7 @@ pub mod routes {
             state,
             &req,
             json_payload.into_inner(),
-            |state, auth: AuthenticationData, req| async move {
+            |state, auth: AuthenticationData, req, _| async move {
                 analytics::disputes::get_filters(
                     &state.pool,
                     req,
@@ -704,7 +704,7 @@ pub mod routes {
             state,
             &req,
             payload,
-            |state, auth: AuthenticationData, req| async move {
+            |state, auth: AuthenticationData, req, _| async move {
                 analytics::disputes::get_metrics(
                     &state.pool,
                     &auth.merchant_account.merchant_id,
