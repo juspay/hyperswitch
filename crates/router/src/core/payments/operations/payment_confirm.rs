@@ -802,6 +802,9 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                     .authentication_connector_details
                     .clone()
                     .get_required_value("authentication_details")
+                    .change_context(errors::ApiErrorResponse::PreconditionFailed {
+                        message: "authentication_details missing in business profile".to_string(),
+                    })
                     .attach_printable("authentication_details not configured by the merchant")?
                     .parse_value("AuthenticationDetails")
                     .change_context(errors::ApiErrorResponse::UnprocessableEntity {

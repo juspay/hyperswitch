@@ -8,6 +8,7 @@ use common_enums::Currency;
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use error_stack::{report, ResultExt};
 use masking::PeekInterface;
+use serde_json::json;
 
 use super::errors;
 use crate::{
@@ -63,12 +64,12 @@ pub async fn perform_authentication(
     let authentication_response =
         response
             .response
-            .map_err(|err| ApiErrorResponse::ExternalConnectorError {
-                code: err.code,
-                message: err.message,
-                connector: authentication_connector,
-                status_code: err.status_code,
-                reason: err.reason,
+            .map_err(|err| ApiErrorResponse::PaymentAuthenticationFailed {
+                data: Some(json!({
+                    "error_message": err.message,
+                    "error_code": err.code,
+                    "error_reason": err.reason
+                })),
             })?;
     match authentication_response {
         AuthenticationResponseData::AuthNResponse {
