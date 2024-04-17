@@ -1653,7 +1653,7 @@ pub struct ClientRiskInformationRules {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceTokenInformation {
-    payment_instrument: CybersoucrePaymentInstrument,
+    payment_instrument: Option<CybersoucrePaymentInstrument>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -1748,7 +1748,7 @@ fn get_payment_response(
                     .token_information
                     .clone()
                     .map(|token_info| types::MandateReference {
-                        connector_mandate_id: Some(token_info.payment_instrument.id.expose()),
+                        connector_mandate_id: token_info.payment_instrument.map(|payment_instrument| payment_instrument.id.expose()),
                         payment_method_id: None,
                     });
             Ok(types::PaymentsResponseData::TransactionResponse {
@@ -2397,7 +2397,7 @@ impl<F, T>
             CybersourceSetupMandatesResponse::ClientReferenceInformation(info_response) => {
                 let mandate_reference = info_response.token_information.clone().map(|token_info| {
                     types::MandateReference {
-                        connector_mandate_id: Some(token_info.payment_instrument.id.expose()),
+                        connector_mandate_id: token_info.payment_instrument.map(|payment_instrument| payment_instrument.id.expose()),
                         payment_method_id: None,
                     }
                 });
