@@ -418,7 +418,6 @@ pub enum BankDebitData {
     AchBankDebit {
         account_number: Secret<String>,
         routing_number: Secret<String>,
-        card_holder_name: Option<Secret<String>>,
         bank_name: Option<common_enums::BankNames>,
         bank_type: Option<common_enums::BankType>,
         bank_holder_type: Option<common_enums::BankHolderType>,
@@ -434,13 +433,6 @@ pub enum BankDebitData {
         account_number: Secret<String>,
         sort_code: Secret<String>,
     },
-}
-
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Eq, PartialEq)]
-pub struct BankDebitBilling {
-    pub name: Secret<String>,
-    pub email: Email,
-    pub address: Option<api_models::payments::AddressDetails>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -952,8 +944,6 @@ impl From<api_models::payments::BankDebitData> for BankDebitData {
             api_models::payments::BankDebitData::AchBankDebit {
                 account_number,
                 routing_number,
-                card_holder_name,
-
                 bank_name,
                 bank_type,
                 bank_holder_type,
@@ -961,7 +951,6 @@ impl From<api_models::payments::BankDebitData> for BankDebitData {
             } => Self::AchBankDebit {
                 account_number,
                 routing_number,
-                card_holder_name,
                 bank_name,
                 bank_type,
                 bank_holder_type,

@@ -1833,16 +1833,15 @@ impl<'a> TryFrom<(&domain::BankDebitData, &types::PaymentsAuthorizeRouterData)>
             domain::BankDebitData::AchBankDebit {
                 account_number,
                 routing_number,
-                card_holder_name,
                 ..
             } => Ok(AdyenPaymentMethod::AchDirectDebit(Box::new(
                 AchDirectDebitData {
                     payment_type: PaymentType::AchDirectDebit,
                     bank_account_number: account_number.clone(),
                     bank_location_id: routing_number.clone(),
-                    owner_name: card_holder_name.clone().ok_or(
+                    owner_name: item.get_optional_billing_full_name().ok_or(
                         errors::ConnectorError::MissingRequiredField {
-                            field_name: "card_holder_name",
+                            field_name: "billing.full_name",
                         },
                     )?,
                 },
