@@ -38,7 +38,7 @@ pub struct SESConfig {
 pub enum AwsSesError {
     /// An error occurred in the SDK while sending email.
     #[error("Failed to Send Email {0:?}")]
-    SendingFailure(aws_sdk_s3::error::SdkError<SendEmailError>),
+    SendingFailure(aws_sdk_sesv2::error::SdkError<SendEmailError>),
 
     /// Configuration variable is missing to construct the email client
     #[error("Missing configuration variable {0}")]
@@ -150,14 +150,7 @@ impl AwsSes {
         if let Some(proxy_url) = proxy_url {
             let proxy_connector = Self::get_proxy_connector(proxy_url)?;
             let http_client = HyperClientBuilder::new().build(proxy_connector);
-            // let provider_config = aws_config::provider_config::ProviderConfig::default()
-            //     .with_http_client(http_client.clone());
             config = config.http_client(http_client);
-            // let http_connector =
-            //     aws_smithy_client::hyper_ext::Adapter::builder().build(proxy_connector);
-            // config = config
-            //     .configure(provider_config)
-            //     .http_connector(http_connector);
         };
         Ok(config)
     }
@@ -192,7 +185,6 @@ impl EmailClient for AwsSes {
                     .data(intermediate_string.into_inner())
                     .charset("UTF-8")
                     .build()
-                    .into_report()
                     .change_context(EmailError::ContentBuildFailure)?,
             )
             .build();
@@ -229,7 +221,6 @@ impl EmailClient for AwsSes {
                                 Content::builder()
                                     .data(subject)
                                     .build()
-                                    .into_report()
                                     .change_context(EmailError::ContentBuildFailure)?,
                             )
                             .body(body)

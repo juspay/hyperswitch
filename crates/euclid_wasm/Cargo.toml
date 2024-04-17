@@ -30,7 +30,8 @@ kgraph_utils = { version = "0.1.0", path = "../kgraph_utils" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 
 # Third party crates
-once_cell = "1.18.0"
+getrandom = { version = "0.2.12", features = ["js"] }
+once_cell = "1.19.0"
 ron-parser = "0.1.4"
 serde = { version = "1.0", features = [] }
 serde-wasm-bindgen = "0.6.5"

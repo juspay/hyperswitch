@@ -20,10 +20,11 @@ router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store"] }
 
 #Third Party dependencies
-actix-web = "4.3.1"
-async-trait = "0.1.68"
-aws-config = { version = "1.1.8", features = ["behavior-version-latest"] }
-aws-sdk-lambda = { version = "1.15.0" }
+actix-web = "4.5.1"
+async-trait = "0.1.79"
+aws-config = { version = "1.2.0", features = ["behavior-version-latest"] }
+aws-sdk-lambda = { version = "1.21.0" }
+aws-smithy-types = { version = "1.1.8" }
 bigdecimal = { version = "0.3.1", features = ["serde"] }
 error-stack = "0.4.1"
 futures = "0.3.30"
