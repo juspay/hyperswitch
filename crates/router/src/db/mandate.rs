@@ -219,8 +219,9 @@ mod storage {
                             source: "mandate".to_string(),
                             updated_by: storage_scheme.to_string(),
                         };
-                        self.insert_reverse_lookup(rev_lookup, storage_scheme)
-                            .await?;
+                        // dont fail request if reverse lookup entry fails, as it might be inserted during insert
+                        let _ = self.insert_reverse_lookup(rev_lookup, storage_scheme)
+                            .await;
                     }
 
                     let m_update = diesel_models::MandateUpdateInternal::from(mandate_update);
