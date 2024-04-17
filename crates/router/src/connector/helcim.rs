@@ -220,6 +220,7 @@ impl
             errors::ConnectorError::NotImplemented("Setup Mandate flow for Helcim".to_string())
                 .into(),
         )
+        
         // Ok(Some(
         //     services::RequestBuilder::new()
         //         .method(services::Method::Post)
