@@ -41,17 +41,17 @@ To run test cases, follow these steps:
 
 4. Run Cypress test cases
 
-    To run the tests in a browser in interactive mode run the following command
+   To run the tests in a browser in interactive mode run the following command
 
-    ```shell
-    npm run cypress
-    ```
+   ```shell
+   npm run cypress
+   ```
 
-    To run the tests in headless mode run the following command
+   To run the tests in headless mode run the following command
 
-    ```shell
-    npm run cypress:ci
-    ```
+   ```shell
+   npm run cypress:ci
+   ```
 
 ## Additional Resources
 

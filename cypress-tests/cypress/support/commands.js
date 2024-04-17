@@ -25,8 +25,8 @@
 // Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
 
 // commands.js or your custom support file
-import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import ConnectorAuthDetails from "../../creds.json";
+import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 
 
 
@@ -115,7 +115,7 @@ Cypress.Commands.add("createConnectorCallTest", (createConnectorBody, globalStat
       cy.task('cli_log', "res body ->> " + JSON.stringify(response.body));
     }
 
-    
+
   });
 });
 
@@ -159,7 +159,7 @@ Cypress.Commands.add("createPaymentIntentTest", (request, det, authentication_ty
   request.currency = det.currency;
   request.authentication_type = authentication_type;
   request.capture_method = capture_method;
-  request.setup_future_usage= det.setup_future_usage; 
+  request.setup_future_usage = det.setup_future_usage;
   request.customer_id = globalState.get("customerId");
   globalState.set("paymentAmount", request.amount);
   cy.request({
@@ -331,7 +331,7 @@ Cypress.Commands.add("createConfirmPaymentTest", (createConfirmPaymentBody, deta
 });
 
 // This is consequent saved card payment confirm call test(Using payment token)
-Cypress.Commands.add("saveCardConfirmCallTest", (confirmBody,det,globalState) => {
+Cypress.Commands.add("saveCardConfirmCallTest", (confirmBody, det, globalState) => {
   const paymentIntentID = globalState.get("paymentID");
   confirmBody.card_cvc = det.card.card_cvc;
   confirmBody.payment_token = globalState.get("paymentToken");
@@ -346,45 +346,45 @@ Cypress.Commands.add("saveCardConfirmCallTest", (confirmBody,det,globalState) =>
     },
     body: confirmBody,
   })
-  .then((response) => {
-    const xRequestId = response.headers['x-request-id'];
-    if (xRequestId) {
-      cy.task('cli_log', "x-request-id ->> " + xRequestId);
-    } else {
-      cy.task('cli_log', "x-request-id is not available in the response headers");
-    }
-    expect(response.headers["content-type"]).to.include("application/json");
-    console.log(response.body);
-    globalState.set("paymentID", paymentIntentID);
-    if (response.body.capture_method === "automatic") {
-      if (response.body.authentication_type === "three_ds") {
-        expect(response.body).to.have.property("next_action")
-          .to.have.property("redirect_to_url");
-        const nextActionUrl = response.body.next_action.redirect_to_url;
-      } else if (response.body.authentication_type === "no_three_ds") {
-        expect(response.body.status).to.equal(det.paymentSuccessfulStatus);
-        expect(response.body.customer_id).to.equal(globalState.get("customerId"));
+    .then((response) => {
+      const xRequestId = response.headers['x-request-id'];
+      if (xRequestId) {
+        cy.task('cli_log', "x-request-id ->> " + xRequestId);
       } else {
-        // Handle other authentication types as needed
-        throw new Error(`Unsupported authentication type: ${authentication_type}`);
+        cy.task('cli_log', "x-request-id is not available in the response headers");
       }
-    } else if (response.body.capture_method === "manual") {
-      if (response.body.authentication_type === "three_ds") {
-        expect(response.body).to.have.property("next_action")
-        .to.have.property("redirect_to_url")
+      expect(response.headers["content-type"]).to.include("application/json");
+      console.log(response.body);
+      globalState.set("paymentID", paymentIntentID);
+      if (response.body.capture_method === "automatic") {
+        if (response.body.authentication_type === "three_ds") {
+          expect(response.body).to.have.property("next_action")
+            .to.have.property("redirect_to_url");
+          const nextActionUrl = response.body.next_action.redirect_to_url;
+        } else if (response.body.authentication_type === "no_three_ds") {
+          expect(response.body.status).to.equal(det.paymentSuccessfulStatus);
+          expect(response.body.customer_id).to.equal(globalState.get("customerId"));
+        } else {
+          // Handle other authentication types as needed
+          throw new Error(`Unsupported authentication type: ${authentication_type}`);
+        }
+      } else if (response.body.capture_method === "manual") {
+        if (response.body.authentication_type === "three_ds") {
+          expect(response.body).to.have.property("next_action")
+            .to.have.property("redirect_to_url")
+        }
+        else if (response.body.authentication_type === "no_three_ds") {
+          expect(response.body.status).to.equal("requires_capture");
+          expect(response.body.customer_id).to.equal(globalState.get("customerId"));
+        } else {
+          // Handle other authentication types as needed
+          throw new Error(`Unsupported authentication type: ${authentication_type}`);
+        }
       }
-      else if (response.body.authentication_type === "no_three_ds") {
-        expect(response.body.status).to.equal("requires_capture");
-        expect(response.body.customer_id).to.equal(globalState.get("customerId"));
-      } else {
-        // Handle other authentication types as needed
-        throw new Error(`Unsupported authentication type: ${authentication_type}`);
+      else {
+        throw new Error(`Unsupported capture method: ${capture_method}`);
       }
-    }
-    else {
-      throw new Error(`Unsupported capture method: ${capture_method}`);
-    }
-  });
+    });
 });
 
 
@@ -415,13 +415,13 @@ Cypress.Commands.add("captureCallTest", (requestBody, amount_to_capture, payment
       expect(response.body.amount_capturable).to.equal(0);
       expect(response.body.amount_received).to.equal(amount);
       expect(response.body.status).to.equal(paymentSuccessfulStatus);
-    }else if (response.body.status=="processing") {
+    } else if (response.body.status == "processing") {
       expect(response.body.amount).to.equal(amount);
       expect(response.body.amount_capturable).to.equal(amount);
       expect(response.body.amount_received).to.equal(0);
       expect(response.body.status).to.equal(paymentSuccessfulStatus);
     }
-     else {
+    else {
       expect(response.body.amount).to.equal(amount);
       expect(response.body.amount_capturable).to.equal(0);
       expect(response.body.amount_received).to.equal(amount_to_capture);
@@ -533,10 +533,10 @@ Cypress.Commands.add("syncRefundCallTest", (det, globalState) => {
   });
 });
 
-Cypress.Commands.add("citForMandatesCallTest", (requestBody,amount, details, confirm, capture_method, payment_type, globalState) => {
+Cypress.Commands.add("citForMandatesCallTest", (requestBody, amount, details, confirm, capture_method, payment_type, globalState) => {
 
   requestBody.payment_method_data.card = details.card;
-  requestBody.payment_type=payment_type;
+  requestBody.payment_type = payment_type;
   requestBody.confirm = confirm;
   requestBody.amount = amount;
   requestBody.currency = details.currency;
@@ -731,7 +731,7 @@ Cypress.Commands.add("handleRedirection", (globalState, expected_redirection) =>
     cy.window().its('location.origin').should('eq', expected_url.origin);
   } else {
     // workaround for cors to allow cross origin iframe
-    cy.origin(expected_url.origin, { args: { expected_url: expected_url.origin} }, ({expected_url}) => {
+    cy.origin(expected_url.origin, { args: { expected_url: expected_url.origin } }, ({ expected_url }) => {
       cy.window().its('location.origin').should('eq', expected_url);
     })
   }
@@ -760,10 +760,10 @@ Cypress.Commands.add("listCustomerPMCallTest", (globalState) => {
       const paymentToken = response.body.customer_payment_methods[0].payment_token;
       globalState.set("paymentToken", paymentToken); // Set paymentToken in globalState
       expect(paymentToken).to.equal(globalState.get("paymentToken")); // Verify paymentToken
-    } 
+    }
     else {
       throw new Error(`Payment token not found`);
-    } 
+    }
   });
 });
 
@@ -775,7 +775,7 @@ Cypress.Commands.add("listRefundCallTest", (globalState) => {
       "Content-Type": "application/json",
       "api-key": globalState.get("apiKey"),
     },
-    body:{"offset":0}
+    body: { "offset": 0 }
   }).then((response) => {
     const xRequestId = response.headers['x-request-id'];
     if (xRequestId) {
@@ -786,6 +786,6 @@ Cypress.Commands.add("listRefundCallTest", (globalState) => {
     expect(response.headers["content-type"]).to.include("application/json");
     console.log(response.body);
     expect(response.body.data).to.be.an('array').and.not.empty;
-  
-    });
+
   });
+});
