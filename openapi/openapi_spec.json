@@ -6017,12 +6017,14 @@
             "properties": {
               "ach_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/AchBillingDetails"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/AchBillingDetails"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -6037,12 +6039,16 @@
               "sepa_bank_transfer": {
                 "type": "object",
                 "required": [
-                  "billing_details",
                   "country"
                 ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/SepaAndBacsBillingDetails"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/SepaAndBacsBillingDetails"
+                      }
+                    ],
+                    "nullable": true
                   },
                   "country": {
                     "$ref": "#/components/schemas/CountryAlpha2"
@@ -6059,12 +6065,14 @@
             "properties": {
               "bacs_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/SepaAndBacsBillingDetails"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/SepaAndBacsBillingDetails"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -6078,12 +6086,14 @@
             "properties": {
               "multibanco_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/MultibancoBillingDetails"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/MultibancoBillingDetails"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -6097,12 +6107,14 @@
             "properties": {
               "permata_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/DokuBillingDetails"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/DokuBillingDetails"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -6116,12 +6128,14 @@
             "properties": {
               "bca_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/DokuBillingDetails"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/DokuBillingDetails"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -6135,12 +6149,14 @@
             "properties": {
               "bni_va_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/DokuBillingDetails"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/DokuBillingDetails"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -6154,12 +6170,14 @@
             "properties": {
               "bri_va_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/DokuBillingDetails"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/DokuBillingDetails"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -6173,12 +6191,14 @@
             "properties": {
               "cimb_va_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/DokuBillingDetails"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/DokuBillingDetails"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -6192,12 +6212,14 @@
             "properties": {
               "danamon_va_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/DokuBillingDetails"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/DokuBillingDetails"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -6211,12 +6233,14 @@
             "properties": {
               "mandiri_va_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/DokuBillingDetails"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/DokuBillingDetails"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
