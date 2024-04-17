@@ -12208,7 +12208,8 @@
           "logo",
           "seller_name",
           "sdk_layout",
-          "display_sdk_only"
+          "display_sdk_only",
+          "enabled_saved_payment_method"
         ],
         "properties": {
           "theme": {
@@ -12230,6 +12231,10 @@
           "display_sdk_only": {
             "type": "boolean",
             "description": "Display only the sdk for payment link"
+          },
+          "enabled_saved_payment_method": {
+            "type": "boolean",
+            "description": "Enable saved payment method option for payment link"
           }
         }
       },
@@ -12267,6 +12272,13 @@
           "display_sdk_only": {
             "type": "boolean",
             "description": "Display only the sdk for payment link",
+            "default": false,
+            "example": true,
+            "nullable": true
+          },
+          "enabled_saved_payment_method": {
+            "type": "boolean",
+            "description": "Enable saved payment method option for payment link",
             "default": false,
             "example": true,
             "nullable": true

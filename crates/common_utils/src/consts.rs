@@ -71,3 +71,6 @@ pub const DEFAULT_SESSION_EXPIRY: i64 = 15 * 60;
 
 /// Default bool for Display sdk only
 pub const DEFAULT_DISPLAY_SDK_ONLY: bool = false;
+
+/// Default bool to enable saved payment method
+pub const DEFAULT_ENABLE_SAVED_PAYMENT_METHOD: bool = false;
