@@ -505,6 +505,10 @@ pub enum ConnectorAuthType {
     CurrencyAuthKey {
         auth_key_map: HashMap<common_enums::Currency, pii::SecretSerdeValue>,
     },
+    CertificateAuth {
+        certificate: Secret<String>,
+        private_key: Secret<String>,
+    },
     #[default]
     NoKey,
 }
@@ -516,6 +520,12 @@ pub struct MerchantConnectorWebhookDetails {
     pub merchant_secret: Secret<String>,
     #[schema(value_type = String, example = "12345678900987654321")]
     pub additional_secret: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct MerchantConnectorInfo {
+    pub connector_label: String,
+    pub merchant_connector_id: String,
 }
 
 /// Response of creating a new Merchant Connector for the merchant account."

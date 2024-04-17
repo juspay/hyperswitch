@@ -5125,7 +5125,8 @@
       "AuthenticationConnectors": {
         "type": "string",
         "enum": [
-          "threedsecureio"
+          "threedsecureio",
+          "netcetera"
         ]
       },
       "AuthenticationStatus": {
@@ -6993,6 +6994,38 @@
           }
         }
       },
+      "CardDetailUpdate": {
+        "type": "object",
+        "required": [
+          "card_exp_month",
+          "card_exp_year",
+          "card_holder_name"
+        ],
+        "properties": {
+          "card_exp_month": {
+            "type": "string",
+            "description": "Card Expiry Month",
+            "example": "10"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "Card Expiry Year",
+            "example": "25"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "Card Holder Name",
+            "example": "John Doe"
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "Card Holder's Nick Name",
+            "example": "John Doe",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "CardNetwork": {
         "type": "string",
         "description": "Indicates the card network.",
@@ -7156,6 +7189,7 @@
           "klarna",
           "mollie",
           "multisafepay",
+          "netcetera",
           "nexinets",
           "nmi",
           "noon",
@@ -12922,7 +12956,7 @@
           "card": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/CardDetail"
+                "$ref": "#/components/schemas/CardDetailUpdate"
               }
             ],
             "nullable": true
@@ -12955,6 +12989,14 @@
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
             "nullable": true
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK",
+            "example": "secret_k2uj3he2893eiu2d",
+            "nullable": true,
+            "maxLength": 30,
+            "minLength": 30
           }
         },
         "additionalProperties": false
@@ -17530,6 +17572,14 @@
           },
           "initiative_context": {
             "type": "string"
+          },
+          "merchant_business_country": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
           }
         }
       },

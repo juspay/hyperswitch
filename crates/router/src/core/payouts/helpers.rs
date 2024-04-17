@@ -1,4 +1,4 @@
-use api_models::{enums, payouts};
+use api_models::{enums, payment_methods::Card, payouts};
 use common_utils::{
     errors::CustomResult,
     ext_traits::{AsyncExt, StringExt},
@@ -14,9 +14,7 @@ use crate::{
         errors::{self, RouterResult, StorageErrorExt},
         payment_methods::{
             cards,
-            transformers::{
-                self, DataDuplicationCheck, StoreCardReq, StoreGenericReq, StoreLockerReq,
-            },
+            transformers::{DataDuplicationCheck, StoreCardReq, StoreGenericReq, StoreLockerReq},
             vault,
         },
         payments::{
@@ -212,7 +210,7 @@ pub async fn save_payout_data_to_locker(
                 let payload = StoreLockerReq::LockerCard(StoreCardReq {
                     merchant_id: merchant_account.merchant_id.as_ref(),
                     merchant_customer_id: payout_attempt.customer_id.to_owned(),
-                    card: transformers::Card {
+                    card: Card {
                         card_number: card.card_number.to_owned(),
                         name_on_card: card.card_holder_name.to_owned(),
                         card_exp_month: card.expiry_month.to_owned(),
