@@ -386,7 +386,7 @@ impl ConnectorData {
                 enums::Connector::Tsys => Ok(Box::new(&connector::Tsys)),
                 enums::Connector::Volt => Ok(Box::new(&connector::Volt)),
                 enums::Connector::Zen => Ok(Box::new(&connector::Zen)),
-                // enums::Connector::Zsl => Ok(Box::new(&connector::Zsl)), Added as template code for future usage
+                enums::Connector::Zsl => Ok(Box::new(&connector::Zsl)),
                 enums::Connector::Signifyd
                 | enums::Connector::Plaid
                 | enums::Connector::Riskified

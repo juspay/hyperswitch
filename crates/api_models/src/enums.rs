@@ -131,7 +131,7 @@ pub enum Connector {
     Plaid,
     Riskified,
     Zen,
-    // Zsl, Added as template code for future usage
+    Zsl,
 }
 
 impl Connector {
@@ -209,7 +209,7 @@ impl Connector {
             | Self::Worldline
             | Self::Worldpay
             | Self::Zen
-            // | Self::Zsl Added as template code for future usage
+            | Self::Zsl
             | Self::Signifyd
             | Self::Plaid
             | Self::Riskified
@@ -268,7 +268,7 @@ impl Connector {
             | Self::Worldline
             | Self::Worldpay
             | Self::Zen
-            // | Self::Zsl, Added as template code for future usage
+            | Self::Zsl
             | Self::Signifyd
             | Self::Plaid
             | Self::Riskified

@@ -167,7 +167,7 @@ pub enum RoutableConnectors {
     Worldline,
     Worldpay,
     Zen,
-    // Zsl, Added as template code for future usage
+    Zsl,
 }
 
 impl AttemptStatus {
@@ -1163,6 +1163,7 @@ pub enum MerchantStorageScheme {
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
+    strum::EnumIter,
     strum::EnumString,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]

@@ -6,6 +6,7 @@ pub mod routes {
         api_event::api_events_core, connector_events::connector_events_core,
         errors::AnalyticsError, lambda_utils::invoke_lambda,
         outgoing_webhook_event::outgoing_webhook_events_core, sdk_events::sdk_events_core,
+        AnalyticsFlow,
     };
     use api_models::analytics::{
         search::{
@@ -17,7 +18,6 @@ pub mod routes {
         GetSdkEventMetricRequest, ReportRequest,
     };
     use error_stack::ResultExt;
-    use router_env::AnalyticsFlow;
 
     use crate::{
         core::api_locking,

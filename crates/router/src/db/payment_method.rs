@@ -34,6 +34,7 @@ pub trait PaymentMethodInterface {
         merchant_id: &str,
         status: common_enums::PaymentMethodStatus,
         limit: Option<i64>,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError>;
 
     async fn get_payment_method_count_by_customer_id_merchant_id_status(
@@ -356,17 +357,55 @@ mod storage {
             merchant_id: &str,
             status: common_enums::PaymentMethodStatus,
             limit: Option<i64>,
+            storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
-            storage_types::PaymentMethod::find_by_customer_id_merchant_id_status(
-                &conn,
-                customer_id,
-                merchant_id,
-                status,
-                limit,
-            )
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+            let database_call = || async {
+                storage_types::PaymentMethod::find_by_customer_id_merchant_id_status(
+                    &conn,
+                    customer_id,
+                    merchant_id,
+                    status,
+                    limit,
+                )
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))
+            };
+
+            match storage_scheme {
+                MerchantStorageScheme::PostgresOnly => database_call().await,
+                MerchantStorageScheme::RedisKv => {
+                    let key = PartitionKey::MerchantIdCustomerId {
+                        merchant_id,
+                        customer_id,
+                    };
+
+                    let pattern = "payment_method_id_*";
+
+                    let redis_fut = async {
+                        let kv_result = kv_wrapper::<storage_types::PaymentMethod, _, _>(
+                            self,
+                            KvOperation::<storage_types::PaymentMethod>::Scan(pattern),
+                            key,
+                        )
+                        .await?
+                        .try_into_scan();
+                        kv_result.map(|payment_methods| {
+                            payment_methods
+                                .into_iter()
+                                .filter(|pm| pm.status == status)
+                                .collect()
+                        })
+                    };
+
+                    Box::pin(db_utils::find_all_combined_kv_database(
+                        redis_fut,
+                        database_call,
+                        limit,
+                    ))
+                    .await
+                }
+            }
         }
 
         async fn delete_payment_method_by_merchant_id_payment_method_id(
@@ -494,6 +533,7 @@ mod storage {
             merchant_id: &str,
             status: common_enums::PaymentMethodStatus,
             limit: Option<i64>,
+            _storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             storage_types::PaymentMethod::find_by_customer_id_merchant_id_status(
@@ -655,6 +695,7 @@ impl PaymentMethodInterface for MockDb {
         merchant_id: &str,
         status: common_enums::PaymentMethodStatus,
         _limit: Option<i64>,
+        _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError> {
         let payment_methods = self.payment_methods.lock().await;
         let payment_methods_found: Vec<storage_types::PaymentMethod> = payment_methods

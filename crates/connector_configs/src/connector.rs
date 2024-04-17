@@ -284,7 +284,7 @@ impl ConnectorConfig {
             Connector::Worldline => Ok(connector_data.worldline),
             Connector::Worldpay => Ok(connector_data.worldpay),
             Connector::Zen => Ok(connector_data.zen),
-            // Connector::Zsl => Ok(connector_data.zsl), Added as template code for future usage
+            Connector::Zsl => Ok(connector_data.zsl),
             #[cfg(feature = "dummy_connector")]
             Connector::DummyConnector1 => Ok(connector_data.dummy_connector),
             #[cfg(feature = "dummy_connector")]
