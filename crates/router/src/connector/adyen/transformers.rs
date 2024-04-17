@@ -1910,42 +1910,10 @@ impl<'a> TryFrom<(&domain::VoucherData, &types::PaymentsAuthorizeRouterData)>
         match voucher_data {
             domain::VoucherData::Boleto { .. } => Ok(AdyenPaymentMethod::BoletoBancario),
             domain::VoucherData::Alfamart(_) => {
-                Ok(AdyenPaymentMethod::Alfamart(Box::new(DokuBankData {
-                    first_name: item.get_optional_billing_first_name().ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "billing.first_name",
-                        },
-                    )?,
-                    last_name: Some(item.get_optional_billing_last_name().ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "billing.email",
-                        },
-                    )?),
-                    shopper_email: item.get_optional_billing_email().ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "billing.email",
-                        },
-                    )?,
-                })))
+                Ok(AdyenPaymentMethod::Alfamart(DokuBankData::try_from(item)?))
             }
             domain::VoucherData::Indomaret(_) => {
-                Ok(AdyenPaymentMethod::Indomaret(Box::new(DokuBankData {
-                    first_name: item.get_optional_billing_first_name().ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "billing.first_name",
-                        },
-                    )?,
-                    last_name: Some(item.get_optional_billing_last_name().ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "billing.email",
-                        },
-                    )?),
-                    shopper_email: item.get_optional_billing_email().ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "billing.email",
-                        },
-                    )?,
-                })))
+                Ok(AdyenPaymentMethod::Indomaret(DokuBankData::try_from(item)?))
             }
             domain::VoucherData::Oxxo => Ok(AdyenPaymentMethod::Oxxo),
             domain::VoucherData::SevenEleven(_) => Ok(AdyenPaymentMethod::SevenEleven(Box::new(
@@ -2530,6 +2498,31 @@ impl<'a> TryFrom<&domain::BankTransferData> for AdyenPaymentMethod<'a> {
             )
             .into()),
         }
+    }
+}
+
+impl DokuBankData {
+    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Box<Self>, Error> {
+        let first_name = item.get_optional_billing_first_name().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "billing.first_name",
+            },
+        )?;
+        let last_name = Some(item.get_optional_billing_last_name().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "billing.last_name",
+            },
+        )?);
+        let shopper_email = item.get_optional_billing_email().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "billing.email",
+            },
+        )?;
+        Ok(Box::new(Self {
+            first_name,
+            last_name,
+            shopper_email,
+        }))
     }
 }
 
