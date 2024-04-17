@@ -177,6 +177,7 @@ Never share your secret api keys. Keep them guarded and secure.
         // Routes for events
         routes::webhook_events::list_initial_webhook_delivery_attempts,
         routes::webhook_events::list_webhook_delivery_attempts,
+        routes::webhook_events::retry_webhook_delivery_attempt,
     ),
     components(schemas(
         api_models::refunds::RefundRequest,
@@ -203,6 +204,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::CustomerDefaultPaymentMethodResponse,
         api_models::payment_methods::CardDetailFromLocker,
         api_models::payment_methods::CardDetail,
+        api_models::payment_methods::CardDetailUpdate,
         api_models::payment_methods::RequestPaymentMethodTypes,
         api_models::customers::CustomerResponse,
         api_models::admin::AcceptedCountries,

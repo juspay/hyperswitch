@@ -379,12 +379,14 @@ impl ConnectorData {
                 enums::Connector::Worldline => Ok(Box::new(&connector::Worldline)),
                 enums::Connector::Worldpay => Ok(Box::new(&connector::Worldpay)),
                 enums::Connector::Multisafepay => Ok(Box::new(&connector::Multisafepay)),
+                enums::Connector::Netcetera => Ok(Box::new(&connector::Netcetera)),
                 enums::Connector::Nexinets => Ok(Box::new(&connector::Nexinets)),
                 enums::Connector::Paypal => Ok(Box::new(&connector::Paypal)),
                 enums::Connector::Trustpay => Ok(Box::new(&connector::Trustpay)),
                 enums::Connector::Tsys => Ok(Box::new(&connector::Tsys)),
                 enums::Connector::Volt => Ok(Box::new(&connector::Volt)),
                 enums::Connector::Zen => Ok(Box::new(&connector::Zen)),
+                enums::Connector::Zsl => Ok(Box::new(&connector::Zsl)),
                 enums::Connector::Signifyd
                 | enums::Connector::Plaid
                 | enums::Connector::Riskified

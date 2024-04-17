@@ -100,10 +100,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BokuPaymentsRequest {
     }
 }
 
-impl TryFrom<(&types::PaymentsAuthorizeRouterData, &api::WalletData)> for BokuPaymentsRequest {
+impl TryFrom<(&types::PaymentsAuthorizeRouterData, &domain::WalletData)> for BokuPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        value: (&types::PaymentsAuthorizeRouterData, &api::WalletData),
+        value: (&types::PaymentsAuthorizeRouterData, &domain::WalletData),
     ) -> Result<Self, Self::Error> {
         let (item, wallet_data) = value;
         let address = item.get_billing_address()?;
@@ -130,48 +130,36 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, &api::WalletData)> for BokuPa
     }
 }
 
-fn get_wallet_type(wallet_data: &api::WalletData) -> Result<String, errors::ConnectorError> {
+fn get_wallet_type(wallet_data: &domain::WalletData) -> Result<String, errors::ConnectorError> {
     match wallet_data {
-        api_models::payments::WalletData::DanaRedirect { .. } => {
-            Ok(BokuPaymentType::Dana.to_string())
-        }
-        api_models::payments::WalletData::MomoRedirect { .. } => {
-            Ok(BokuPaymentType::Momo.to_string())
-        }
-        api_models::payments::WalletData::GcashRedirect { .. } => {
-            Ok(BokuPaymentType::Gcash.to_string())
-        }
-        api_models::payments::WalletData::GoPayRedirect { .. } => {
-            Ok(BokuPaymentType::GoPay.to_string())
-        }
-        api_models::payments::WalletData::KakaoPayRedirect { .. } => {
-            Ok(BokuPaymentType::Kakaopay.to_string())
-        }
-        api_models::payments::WalletData::AliPayQr(_)
-        | api_models::payments::WalletData::AliPayRedirect(_)
-        | api_models::payments::WalletData::AliPayHkRedirect(_)
-        | api_models::payments::WalletData::ApplePay(_)
-        | api_models::payments::WalletData::ApplePayRedirect(_)
-        | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
-        | api_models::payments::WalletData::GooglePay(_)
-        | api_models::payments::WalletData::GooglePayRedirect(_)
-        | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
-        | api_models::payments::WalletData::MbWayRedirect(_)
-        | api_models::payments::WalletData::MobilePayRedirect(_)
-        | api_models::payments::WalletData::PaypalRedirect(_)
-        | api_models::payments::WalletData::PaypalSdk(_)
-        | api_models::payments::WalletData::SamsungPay(_)
-        | api_models::payments::WalletData::TwintRedirect {}
-        | api_models::payments::WalletData::VippsRedirect {}
-        | api_models::payments::WalletData::TouchNGoRedirect(_)
-        | api_models::payments::WalletData::WeChatPayRedirect(_)
-        | api_models::payments::WalletData::WeChatPayQr(_)
-        | api_models::payments::WalletData::CashappQr(_)
-        | api_models::payments::WalletData::SwishQr(_) => {
-            Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("boku"),
-            ))
-        }
+        domain::WalletData::DanaRedirect { .. } => Ok(BokuPaymentType::Dana.to_string()),
+        domain::WalletData::MomoRedirect { .. } => Ok(BokuPaymentType::Momo.to_string()),
+        domain::WalletData::GcashRedirect { .. } => Ok(BokuPaymentType::Gcash.to_string()),
+        domain::WalletData::GoPayRedirect { .. } => Ok(BokuPaymentType::GoPay.to_string()),
+        domain::WalletData::KakaoPayRedirect { .. } => Ok(BokuPaymentType::Kakaopay.to_string()),
+        domain::WalletData::AliPayQr(_)
+        | domain::WalletData::AliPayRedirect(_)
+        | domain::WalletData::AliPayHkRedirect(_)
+        | domain::WalletData::ApplePay(_)
+        | domain::WalletData::ApplePayRedirect(_)
+        | domain::WalletData::ApplePayThirdPartySdk(_)
+        | domain::WalletData::GooglePay(_)
+        | domain::WalletData::GooglePayRedirect(_)
+        | domain::WalletData::GooglePayThirdPartySdk(_)
+        | domain::WalletData::MbWayRedirect(_)
+        | domain::WalletData::MobilePayRedirect(_)
+        | domain::WalletData::PaypalRedirect(_)
+        | domain::WalletData::PaypalSdk(_)
+        | domain::WalletData::SamsungPay(_)
+        | domain::WalletData::TwintRedirect {}
+        | domain::WalletData::VippsRedirect {}
+        | domain::WalletData::TouchNGoRedirect(_)
+        | domain::WalletData::WeChatPayRedirect(_)
+        | domain::WalletData::WeChatPayQr(_)
+        | domain::WalletData::CashappQr(_)
+        | domain::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
+            utils::get_unimplemented_payment_method_error_message("boku"),
+        )),
     }
 }
 

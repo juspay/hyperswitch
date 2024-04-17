@@ -229,6 +229,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::DisputeNotFound { .. } => {
                 AER::NotFound(ApiError::new("HE", 2, "Dispute does not exist in our records", None))
             },
+            Self::AuthenticationNotFound { .. } => {
+                AER::NotFound(ApiError::new("HE", 2, "Authentication does not exist in our records", None))
+            },
             Self::BusinessProfileNotFound { id } => {
                 AER::NotFound(ApiError::new("HE", 2, format!("Business profile with the given id {id} does not exist"), None))
             }
@@ -291,6 +294,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             }
             Self::PaymentMethodDeleteFailed => {
                 AER::BadRequest(ApiError::new("IR", 25, "Cannot delete the default payment method", None))
+            }
+            Self::InvalidCookie => {
+                AER::BadRequest(ApiError::new("IR", 26, "Invalid Cookie", None))
             }
         }
     }

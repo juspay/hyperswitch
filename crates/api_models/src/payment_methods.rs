@@ -76,7 +76,7 @@ pub struct PaymentMethodUpdate {
     "card_exp_month": "10",
     "card_exp_year": "25",
     "card_holder_name": "John Doe"}))]
-    pub card: Option<CardDetail>,
+    pub card: Option<CardDetailUpdate>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<CardNetwork>,example = "Visa")]
@@ -95,6 +95,10 @@ pub struct PaymentMethodUpdate {
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK
+    #[schema(max_length = 30, min_length = 30, example = "secret_k2uj3he2893eiu2d")]
+    pub client_secret: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -132,6 +136,54 @@ pub struct CardDetail {
 
     /// Card Type
     pub card_type: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CardDetailUpdate {
+    /// Card Expiry Month
+    #[schema(value_type = String,example = "10")]
+    pub card_exp_month: Option<masking::Secret<String>>,
+
+    /// Card Expiry Year
+    #[schema(value_type = String,example = "25")]
+    pub card_exp_year: Option<masking::Secret<String>>,
+
+    /// Card Holder Name
+    #[schema(value_type = String,example = "John Doe")]
+    pub card_holder_name: Option<masking::Secret<String>>,
+
+    /// Card Holder's Nick Name
+    #[schema(value_type = Option<String>,example = "John Doe")]
+    pub nick_name: Option<masking::Secret<String>>,
+}
+
+impl CardDetailUpdate {
+    pub fn apply(&self, card_data_from_locker: Card) -> CardDetail {
+        CardDetail {
+            card_number: card_data_from_locker.card_number,
+            card_exp_month: self
+                .card_exp_month
+                .clone()
+                .unwrap_or(card_data_from_locker.card_exp_month),
+            card_exp_year: self
+                .card_exp_year
+                .clone()
+                .unwrap_or(card_data_from_locker.card_exp_year),
+            card_holder_name: self
+                .card_holder_name
+                .clone()
+                .or(card_data_from_locker.name_on_card),
+            nick_name: self
+                .nick_name
+                .clone()
+                .or(card_data_from_locker.nick_name.map(masking::Secret::new)),
+            card_issuing_country: None,
+            card_network: None,
+            card_issuer: None,
+            card_type: None,
+        }
+    }
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -242,6 +294,17 @@ pub struct BankAccountConnectorDetails {
 pub enum BankAccountAccessCreds {
     AccessToken(masking::Secret<String>),
 }
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct Card {
+    pub card_number: CardNumber,
+    pub name_on_card: Option<masking::Secret<String>>,
+    pub card_exp_month: masking::Secret<String>,
+    pub card_exp_year: masking::Secret<String>,
+    pub card_brand: Option<String>,
+    pub card_isin: Option<String>,
+    pub nick_name: Option<String>,
+}
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct CardDetailFromLocker {
     pub scheme: Option<String>,
@@ -280,6 +343,28 @@ pub struct CardDetailFromLocker {
 
 fn saved_in_locker_default() -> bool {
     true
+}
+
+impl From<CardDetailFromLocker> for payments::AdditionalCardInfo {
+    fn from(item: CardDetailFromLocker) -> Self {
+        Self {
+            card_issuer: item.card_issuer,
+            card_network: item.card_network,
+            card_type: item.card_type,
+            card_issuing_country: item.issuer_country,
+            bank_code: None,
+            last4: item.last4_digits,
+            card_isin: item.card_isin,
+            card_extended_bin: item
+                .card_number
+                .map(|card_number| card_number.get_card_extended_bin()),
+            card_exp_month: item.expiry_month,
+            card_exp_year: item.expiry_year,
+            card_holder_name: item.card_holder_name,
+            payment_checks: None,
+            authentication_data: None,
+        }
+    }
 }
 
 impl From<CardDetailsPaymentMethod> for CardDetailFromLocker {

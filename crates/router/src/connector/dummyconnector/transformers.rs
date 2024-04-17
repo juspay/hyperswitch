@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
+    connector::utils::RouterData,
     core::errors,
     services,
     types::{self, api, domain, storage::enums},
@@ -83,13 +84,13 @@ pub struct DummyConnectorCard {
     cvc: Secret<String>,
 }
 
-impl TryFrom<domain::Card> for DummyConnectorCard {
+impl TryFrom<(domain::Card, Option<Secret<String>>)> for DummyConnectorCard {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: domain::Card) -> Result<Self, Self::Error> {
+    fn try_from(
+        (value, card_holder_name): (domain::Card, Option<Secret<String>>),
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
-            name: value
-                .card_holder_name
-                .unwrap_or(Secret::new("".to_string())),
+            name: card_holder_name.unwrap_or(Secret::new("".to_string())),
             number: value.card_number,
             expiry_month: value.card_exp_month,
             expiry_year: value.card_exp_year,
@@ -108,16 +109,16 @@ pub enum DummyConnectorWallet {
     AliPayHK,
 }
 
-impl TryFrom<api_models::payments::WalletData> for DummyConnectorWallet {
+impl TryFrom<domain::WalletData> for DummyConnectorWallet {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: api_models::payments::WalletData) -> Result<Self, Self::Error> {
+    fn try_from(value: domain::WalletData) -> Result<Self, Self::Error> {
         match value {
-            api_models::payments::WalletData::GooglePayRedirect(_) => Ok(Self::GooglePay),
-            api_models::payments::WalletData::PaypalRedirect(_) => Ok(Self::Paypal),
-            api_models::payments::WalletData::WeChatPayRedirect(_) => Ok(Self::WeChatPay),
-            api_models::payments::WalletData::MbWayRedirect(_) => Ok(Self::MbWay),
-            api_models::payments::WalletData::AliPayRedirect(_) => Ok(Self::AliPay),
-            api_models::payments::WalletData::AliPayHkRedirect(_) => Ok(Self::AliPayHK),
+            domain::WalletData::GooglePayRedirect(_) => Ok(Self::GooglePay),
+            domain::WalletData::PaypalRedirect(_) => Ok(Self::Paypal),
+            domain::WalletData::WeChatPayRedirect(_) => Ok(Self::WeChatPay),
+            domain::WalletData::MbWayRedirect(_) => Ok(Self::MbWay),
+            domain::WalletData::AliPayRedirect(_) => Ok(Self::AliPay),
+            domain::WalletData::AliPayHkRedirect(_) => Ok(Self::AliPayHK),
             _ => Err(errors::ConnectorError::NotImplemented("Dummy wallet".to_string()).into()),
         }
     }
@@ -130,13 +131,13 @@ pub enum DummyConnectorPayLater {
     AfterPayClearPay,
 }
 
-impl TryFrom<api_models::payments::PayLaterData> for DummyConnectorPayLater {
+impl TryFrom<domain::payments::PayLaterData> for DummyConnectorPayLater {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: api_models::payments::PayLaterData) -> Result<Self, Self::Error> {
+    fn try_from(value: domain::payments::PayLaterData) -> Result<Self, Self::Error> {
         match value {
-            api_models::payments::PayLaterData::KlarnaRedirect { .. } => Ok(Self::Klarna),
-            api_models::payments::PayLaterData::AffirmRedirect {} => Ok(Self::Affirm),
-            api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
+            domain::payments::PayLaterData::KlarnaRedirect { .. } => Ok(Self::Klarna),
+            domain::payments::PayLaterData::AffirmRedirect {} => Ok(Self::Affirm),
+            domain::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
                 Ok(Self::AfterPayClearPay)
             }
             _ => Err(errors::ConnectorError::NotImplemented("Dummy pay later".to_string()).into()),
@@ -154,7 +155,11 @@ impl<const T: u8> TryFrom<&types::PaymentsAuthorizeRouterData>
             .payment_method_data
         {
             domain::PaymentMethodData::Card(ref req_card) => {
-                Ok(PaymentMethodData::Card(req_card.clone().try_into()?))
+                let card_holder_name = item.get_optional_billing_full_name();
+                Ok(PaymentMethodData::Card(DummyConnectorCard::try_from((
+                    req_card.clone(),
+                    card_holder_name,
+                ))?))
             }
             domain::PaymentMethodData::Wallet(ref wallet_data) => {
                 Ok(PaymentMethodData::Wallet(wallet_data.clone().try_into()?))

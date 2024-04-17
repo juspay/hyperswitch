@@ -8,22 +8,25 @@ use serde::Serialize;
 use crate::{
     core::{api_locking, errors},
     events::api_logs::ApiEventMetric,
-    routes::{app::AppStateInfo, metrics},
+    routes::{
+        app::{AppStateInfo, ReqState},
+        metrics, AppState,
+    },
     services::{self, api, authentication as auth, logger},
 };
 
 #[instrument(skip(request, payload, state, func, api_authentication))]
-pub async fn compatibility_api_wrap<'a, 'b, A, U, T, Q, F, Fut, S, E, E2>(
+pub async fn compatibility_api_wrap<'a, 'b, U, T, Q, F, Fut, S, E, E2>(
     flow: impl router_env::types::FlowMetric,
-    state: Arc<A>,
+    state: Arc<AppState>,
     request: &'a HttpRequest,
     payload: T,
     func: F,
-    api_authentication: &dyn auth::AuthenticateAndFetch<U, A>,
+    api_authentication: &dyn auth::AuthenticateAndFetch<U, AppState>,
     lock_action: api_locking::LockAction,
 ) -> HttpResponse
 where
-    F: Fn(A, U, T) -> Fut,
+    F: Fn(AppState, U, T, ReqState) -> Fut,
     Fut: Future<Output = CustomResult<api::ApplicationResponse<Q>, E2>>,
     E2: ErrorSwitch<E> + std::error::Error + Send + Sync + 'static,
     Q: Serialize + std::fmt::Debug + 'a + ApiEventMetric,
@@ -32,7 +35,6 @@ where
     error_stack::Report<E>: services::EmbedError,
     errors::ApiErrorResponse: ErrorSwitch<E>,
     T: std::fmt::Debug + Serialize + ApiEventMetric,
-    A: AppStateInfo + Clone,
 {
     let request_method = request.method().as_str();
     let url_path = request.path();
@@ -41,11 +43,13 @@ where
 
     let start_instant = Instant::now();
     logger::info!(tag = ?Tag::BeginRequest, payload = ?payload);
+    let req_state = state.get_req_state();
 
     let server_wrap_util_res = metrics::request::record_request_time_metric(
         api::server_wrap_util(
             &flow,
             state.clone().into(),
+            req_state,
             request,
             payload,
             func,

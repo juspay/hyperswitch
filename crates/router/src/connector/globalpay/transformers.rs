@@ -408,7 +408,7 @@ fn get_payment_method_data(
 
 fn get_return_url(item: &types::PaymentsAuthorizeRouterData) -> Option<String> {
     match item.request.payment_method_data.clone() {
-        domain::PaymentMethodData::Wallet(api_models::payments::WalletData::PaypalRedirect(_)) => {
+        domain::PaymentMethodData::Wallet(domain::WalletData::PaypalRedirect(_)) => {
             item.request.complete_authorize_url.clone()
         }
         _ => item.request.router_return_url.clone(),
@@ -445,16 +445,12 @@ fn get_mandate_details(item: &types::PaymentsAuthorizeRouterData) -> Result<Mand
     })
 }
 
-fn get_wallet_data(
-    wallet_data: &api_models::payments::WalletData,
-) -> Result<PaymentMethodData, Error> {
+fn get_wallet_data(wallet_data: &domain::WalletData) -> Result<PaymentMethodData, Error> {
     match wallet_data {
-        api_models::payments::WalletData::PaypalRedirect(_) => {
-            Ok(PaymentMethodData::Apm(requests::Apm {
-                provider: Some(ApmProvider::Paypal),
-            }))
-        }
-        api_models::payments::WalletData::GooglePay(_) => {
+        domain::WalletData::PaypalRedirect(_) => Ok(PaymentMethodData::Apm(requests::Apm {
+            provider: Some(ApmProvider::Paypal),
+        })),
+        domain::WalletData::GooglePay(_) => {
             Ok(PaymentMethodData::DigitalWallet(requests::DigitalWallet {
                 provider: Some(requests::DigitalWalletProvider::PayByGoogle),
                 payment_token: wallet_data.get_wallet_token_as_json("Google Pay".to_string())?,
@@ -466,22 +462,20 @@ fn get_wallet_data(
     }
 }
 
-impl TryFrom<&api_models::payments::BankRedirectData> for PaymentMethodData {
+impl TryFrom<&domain::BankRedirectData> for PaymentMethodData {
     type Error = Error;
-    fn try_from(value: &api_models::payments::BankRedirectData) -> Result<Self, Self::Error> {
+    fn try_from(value: &domain::BankRedirectData) -> Result<Self, Self::Error> {
         match value {
-            api_models::payments::BankRedirectData::Eps { .. } => Ok(Self::Apm(requests::Apm {
+            domain::BankRedirectData::Eps { .. } => Ok(Self::Apm(requests::Apm {
                 provider: Some(ApmProvider::Eps),
             })),
-            api_models::payments::BankRedirectData::Giropay { .. } => {
-                Ok(Self::Apm(requests::Apm {
-                    provider: Some(ApmProvider::Giropay),
-                }))
-            }
-            api_models::payments::BankRedirectData::Ideal { .. } => Ok(Self::Apm(requests::Apm {
+            domain::BankRedirectData::Giropay { .. } => Ok(Self::Apm(requests::Apm {
+                provider: Some(ApmProvider::Giropay),
+            })),
+            domain::BankRedirectData::Ideal { .. } => Ok(Self::Apm(requests::Apm {
                 provider: Some(ApmProvider::Ideal),
             })),
-            api_models::payments::BankRedirectData::Sofort { .. } => Ok(Self::Apm(requests::Apm {
+            domain::BankRedirectData::Sofort { .. } => Ok(Self::Apm(requests::Apm {
                 provider: Some(ApmProvider::Sofort),
             })),
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
