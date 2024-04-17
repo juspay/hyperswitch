@@ -24,7 +24,7 @@ use crate::{
         utils as core_utils,
     },
     db::StorageInterface,
-    routes::AppState,
+    routes::{app::ReqState, AppState},
     services,
     types::{
         api::{self, ConnectorCallType, PaymentIdTypeExt},
@@ -781,6 +781,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                     token,
                     business_profile,
                     Some(acquirer_details),
+                    Some(payment_data.payment_attempt.payment_id.clone()),
                 )
                 .await?;
                 if authentication.is_separate_authn_required()
@@ -831,6 +832,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     async fn update_trackers<'b>(
         &'b self,
         state: &'b AppState,
+        _req_state: ReqState,
         mut payment_data: PaymentData<F>,
         customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
