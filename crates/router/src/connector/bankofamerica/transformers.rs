@@ -363,7 +363,9 @@ impl<F, T>
             BankOfAmericaSetupMandatesResponse::ClientReferenceInformation(info_response) => {
                 let mandate_reference = info_response.token_information.clone().map(|token_info| {
                     types::MandateReference {
-                        connector_mandate_id: token_info.payment_instrument.map(|payment_instrument| payment_instrument.id.expose()),
+                        connector_mandate_id: token_info
+                            .payment_instrument
+                            .map(|payment_instrument| payment_instrument.id.expose()),
                         payment_method_id: None,
                     }
                 });
@@ -1374,7 +1376,9 @@ fn get_payment_response(
                     .token_information
                     .clone()
                     .map(|token_info| types::MandateReference {
-                        connector_mandate_id: token_info.payment_instrument.map(|payment_instrument| payment_instrument.id.expose()),
+                        connector_mandate_id: token_info
+                            .payment_instrument
+                            .map(|payment_instrument| payment_instrument.id.expose()),
                         payment_method_id: None,
                     });
 
