@@ -376,6 +376,12 @@ impl<F, T>
                 let error_response =
                     get_error_response_if_failure((&info_response, mandate_status, item.http_code));
 
+                    let connector_response = info_response
+                    .processor_information
+                    .as_ref()
+                    .map(types::AdditionalPaymentMethodConnectorResponse::from)
+                    .map(types::ConnectorResponseData::with_additional_payment_method_data);
+
                 Ok(Self {
                     status: mandate_status,
                     response: match error_response {
@@ -398,6 +404,7 @@ impl<F, T>
                             incremental_authorization_allowed: None,
                         }),
                     },
+                    connector_response,
                     ..item.data
                 })
             }
