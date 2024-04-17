@@ -1941,36 +1941,36 @@ pub struct JCSVoucherData {
 pub struct AchBillingDetails {
     /// The Email ID for ACH billing
     #[schema(value_type = String, example = "example@me.com")]
-    pub email: Email,
+    pub email: Option<Email>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct DokuBillingDetails {
     /// The billing first name for Doku
     #[schema(value_type = String, example = "Jane")]
-    pub first_name: Secret<String>,
+    pub first_name: Option<Secret<String>>,
     /// The billing second name for Doku
     #[schema(value_type = String, example = "Doe")]
     pub last_name: Option<Secret<String>>,
     /// The Email ID for Doku billing
     #[schema(value_type = String, example = "example@me.com")]
-    pub email: Email,
+    pub email: Option<Email>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct MultibancoBillingDetails {
     #[schema(value_type = String, example = "example@me.com")]
-    pub email: Email,
+    pub email: Option<Email>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SepaAndBacsBillingDetails {
     /// The Email ID for SEPA and BACS billing
     #[schema(value_type = String, example = "example@me.com")]
-    pub email: Email,
+    pub email: Option<Email>,
     /// The billing name for SEPA and BACS billing
     #[schema(value_type = String, example = "Jane Doe")]
-    pub name: Secret<String>,
+    pub name: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -2030,51 +2030,51 @@ impl GetAddressFromPaymentMethodData for BankRedirectBilling {
 pub enum BankTransferData {
     AchBankTransfer {
         /// The billing details for ACH Bank Transfer
-        billing_details: AchBillingDetails,
+        billing_details: Option<AchBillingDetails>,
     },
     SepaBankTransfer {
         /// The billing details for SEPA
-        billing_details: SepaAndBacsBillingDetails,
+        billing_details: Option<SepaAndBacsBillingDetails>,
 
         /// The two-letter ISO country code for SEPA and BACS
         #[schema(value_type = CountryAlpha2, example = "US")]
-        country: api_enums::CountryAlpha2,
+        country: Option<api_enums::CountryAlpha2>,
     },
     BacsBankTransfer {
         /// The billing details for SEPA
-        billing_details: SepaAndBacsBillingDetails,
+        billing_details: Option<SepaAndBacsBillingDetails>,
     },
     MultibancoBankTransfer {
         /// The billing details for Multibanco
-        billing_details: MultibancoBillingDetails,
+        billing_details: Option<MultibancoBillingDetails>,
     },
     PermataBankTransfer {
         /// The billing details for Permata Bank Transfer
-        billing_details: DokuBillingDetails,
+        billing_details: Option<DokuBillingDetails>,
     },
     BcaBankTransfer {
         /// The billing details for BCA Bank Transfer
-        billing_details: DokuBillingDetails,
+        billing_details: Option<DokuBillingDetails>,
     },
     BniVaBankTransfer {
         /// The billing details for BniVa Bank Transfer
-        billing_details: DokuBillingDetails,
+        billing_details: Option<DokuBillingDetails>,
     },
     BriVaBankTransfer {
         /// The billing details for BniVa Bank Transfer
-        billing_details: DokuBillingDetails,
+        billing_details: Option<DokuBillingDetails>,
     },
     CimbVaBankTransfer {
         /// The billing details for BniVa Bank Transfer
-        billing_details: DokuBillingDetails,
+        billing_details: Option<DokuBillingDetails>,
     },
     DanamonVaBankTransfer {
         /// The billing details for BniVa Bank Transfer
-        billing_details: DokuBillingDetails,
+        billing_details: Option<DokuBillingDetails>,
     },
     MandiriVaBankTransfer {
         /// The billing details for BniVa Bank Transfer
-        billing_details: DokuBillingDetails,
+        billing_details: Option<DokuBillingDetails>,
     },
     Pix {},
     Pse {},
@@ -2086,51 +2086,59 @@ pub enum BankTransferData {
 impl GetAddressFromPaymentMethodData for BankTransferData {
     fn get_billing_address(&self) -> Option<Address> {
         match self {
-            Self::AchBankTransfer { billing_details } => Some(Address {
-                address: None,
-                phone: None,
-                email: Some(billing_details.email.clone()),
-            }),
+            Self::AchBankTransfer { billing_details } => {
+                billing_details.as_ref().map(|details| Address {
+                    address: None,
+                    phone: None,
+                    email: details.email.clone(),
+                })
+            }
             Self::SepaBankTransfer {
                 billing_details,
                 country,
-            } => Some(Address {
+            } => billing_details.as_ref().map(|details| Address {
                 address: Some(AddressDetails {
-                    country: Some(*country),
-                    first_name: Some(billing_details.name.clone()),
+                    country: *country,
+                    first_name: details.name.clone(),
                     ..AddressDetails::default()
                 }),
                 phone: None,
-                email: Some(billing_details.email.clone()),
+                email: details.email.clone(),
             }),
-            Self::BacsBankTransfer { billing_details } => Some(Address {
-                address: Some(AddressDetails {
-                    first_name: Some(billing_details.name.clone()),
-                    ..AddressDetails::default()
-                }),
-                phone: None,
-                email: Some(billing_details.email.clone()),
-            }),
-            Self::MultibancoBankTransfer { billing_details } => Some(Address {
-                address: None,
-                phone: None,
-                email: Some(billing_details.email.clone()),
-            }),
+            Self::BacsBankTransfer { billing_details } => {
+                billing_details.as_ref().map(|details| Address {
+                    address: Some(AddressDetails {
+                        first_name: details.name.clone(),
+                        ..AddressDetails::default()
+                    }),
+                    phone: None,
+                    email: details.email.clone(),
+                })
+            }
+            Self::MultibancoBankTransfer { billing_details } => {
+                billing_details.as_ref().map(|details| Address {
+                    address: None,
+                    phone: None,
+                    email: details.email.clone(),
+                })
+            }
             Self::PermataBankTransfer { billing_details }
             | Self::BcaBankTransfer { billing_details }
             | Self::BniVaBankTransfer { billing_details }
             | Self::BriVaBankTransfer { billing_details }
             | Self::CimbVaBankTransfer { billing_details }
             | Self::DanamonVaBankTransfer { billing_details }
-            | Self::MandiriVaBankTransfer { billing_details } => Some(Address {
-                address: Some(AddressDetails {
-                    first_name: Some(billing_details.first_name.clone()),
-                    last_name: billing_details.last_name.clone(),
-                    ..AddressDetails::default()
-                }),
-                phone: None,
-                email: Some(billing_details.email.clone()),
-            }),
+            | Self::MandiriVaBankTransfer { billing_details } => {
+                billing_details.as_ref().map(|details| Address {
+                    address: Some(AddressDetails {
+                        first_name: details.first_name.clone(),
+                        last_name: details.last_name.clone(),
+                        ..AddressDetails::default()
+                    }),
+                    phone: None,
+                    email: details.email.clone(),
+                })
+            }
             Self::LocalBankTransfer { .. } | Self::Pix {} | Self::Pse {} => None,
         }
     }

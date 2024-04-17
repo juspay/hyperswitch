@@ -2414,63 +2414,42 @@ impl<'a> TryFrom<(&domain::BankRedirectData, Option<bool>)> for AdyenPaymentMeth
     }
 }
 
-impl<'a> TryFrom<&domain::BankTransferData> for AdyenPaymentMethod<'a> {
+impl<'a>
+    TryFrom<(
+        &domain::BankTransferData,
+        &types::PaymentsAuthorizeRouterData,
+    )> for AdyenPaymentMethod<'a>
+{
     type Error = Error;
-    fn try_from(bank_transfer_data: &domain::BankTransferData) -> Result<Self, Self::Error> {
+    fn try_from(
+        (bank_transfer_data, item): (
+            &domain::BankTransferData,
+            &types::PaymentsAuthorizeRouterData,
+        ),
+    ) -> Result<Self, Self::Error> {
         match bank_transfer_data {
-            domain::BankTransferData::PermataBankTransfer {
-                ref billing_details,
-            } => Ok(AdyenPaymentMethod::PermataBankTransfer(Box::new(
-                DokuBankData {
-                    first_name: billing_details.first_name.clone(),
-                    last_name: billing_details.last_name.clone(),
-                    shopper_email: billing_details.email.clone(),
-                },
-            ))),
-            domain::BankTransferData::BcaBankTransfer {
-                ref billing_details,
-            } => Ok(AdyenPaymentMethod::BcaBankTransfer(Box::new(
-                DokuBankData {
-                    first_name: billing_details.first_name.clone(),
-                    last_name: billing_details.last_name.clone(),
-                    shopper_email: billing_details.email.clone(),
-                },
-            ))),
-            domain::BankTransferData::BniVaBankTransfer {
-                ref billing_details,
-            } => Ok(AdyenPaymentMethod::BniVa(Box::new(DokuBankData {
-                first_name: billing_details.first_name.clone(),
-                last_name: billing_details.last_name.clone(),
-                shopper_email: billing_details.email.clone(),
-            }))),
-            domain::BankTransferData::BriVaBankTransfer {
-                ref billing_details,
-            } => Ok(AdyenPaymentMethod::BriVa(Box::new(DokuBankData {
-                first_name: billing_details.first_name.clone(),
-                last_name: billing_details.last_name.clone(),
-                shopper_email: billing_details.email.clone(),
-            }))),
-            domain::BankTransferData::CimbVaBankTransfer {
-                ref billing_details,
-            } => Ok(AdyenPaymentMethod::CimbVa(Box::new(DokuBankData {
-                first_name: billing_details.first_name.clone(),
-                last_name: billing_details.last_name.clone(),
-                shopper_email: billing_details.email.clone(),
-            }))),
-            domain::BankTransferData::DanamonVaBankTransfer {
-                ref billing_details,
-            } => Ok(AdyenPaymentMethod::DanamonVa(Box::new(DokuBankData {
-                first_name: billing_details.first_name.clone(),
-                last_name: billing_details.last_name.clone(),
-                shopper_email: billing_details.email.clone(),
-            }))),
-            domain::BankTransferData::MandiriVaBankTransfer {
-                ref billing_details,
-            } => Ok(AdyenPaymentMethod::MandiriVa(Box::new(DokuBankData {
-                first_name: billing_details.first_name.clone(),
-                last_name: billing_details.last_name.clone(),
-                shopper_email: billing_details.email.clone(),
-            }))),
+            domain::BankTransferData::PermataBankTransfer {} => Ok(
+                AdyenPaymentMethod::PermataBankTransfer(DokuBankData::try_from(item)?),
+            ),
+
+            domain::BankTransferData::BcaBankTransfer {} => Ok(
+                AdyenPaymentMethod::BcaBankTransfer(DokuBankData::try_from(item)?),
+            ),
+            domain::BankTransferData::BniVaBankTransfer {} => {
+                Ok(AdyenPaymentMethod::BniVa(DokuBankData::try_from(item)?))
+            }
+            domain::BankTransferData::BriVaBankTransfer {} => {
+                Ok(AdyenPaymentMethod::BriVa(DokuBankData::try_from(item)?))
+            }
+            domain::BankTransferData::CimbVaBankTransfer {} => {
+                Ok(AdyenPaymentMethod::CimbVa(DokuBankData::try_from(item)?))
+            }
+            domain::BankTransferData::DanamonVaBankTransfer {} => {
+                Ok(AdyenPaymentMethod::DanamonVa(DokuBankData::try_from(item)?))
+            }
+            domain::BankTransferData::MandiriVaBankTransfer {} => {
+                Ok(AdyenPaymentMethod::MandiriVa(DokuBankData::try_from(item)?))
+            }
             domain::BankTransferData::Pix {} => {
                 Ok(AdyenPaymentMethod::Pix(Box::new(PmdForPaymentType {
                     payment_type: PaymentType::Pix,
@@ -2486,6 +2465,31 @@ impl<'a> TryFrom<&domain::BankTransferData> for AdyenPaymentMethod<'a> {
             )
             .into()),
         }
+    }
+}
+
+impl DokuBankData {
+    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Box<Self>, Error> {
+        let first_name = item.get_optional_billing_first_name().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "billing.first_name",
+            },
+        )?;
+        let last_name = Some(item.get_optional_billing_last_name().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "billing.last_name",
+            },
+        )?);
+        let shopper_email = item.get_optional_billing_email().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "billing.email",
+            },
+        )?;
+        Ok(Box::new(DokuBankData {
+            first_name,
+            last_name,
+            shopper_email,
+        }))
     }
 }
 
@@ -2804,7 +2808,7 @@ impl<'a>
         let amount = get_amount_data(item);
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_auth_type)?;
         let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
-        let payment_method = AdyenPaymentMethod::try_from(bank_transfer_data)?;
+        let payment_method = AdyenPaymentMethod::try_from((bank_transfer_data, item.router_data))?;
         let return_url = item.router_data.request.get_return_url()?;
         let request = AdyenPaymentRequest {
             amount,
