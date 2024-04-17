@@ -1149,7 +1149,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
     }
 
     fn get_payment_action(&self) -> services::PaymentAction {
-        services::PaymentAction::CompleteAuthorize
+        services::PaymentAction::PaymentAuthenticateCompleteAuthorize
     }
 }
 
