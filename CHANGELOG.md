@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.04.17.0
+
+### Features
+
+- **payment_link:** Added display_sdk_only option for displaying only sdk without payment details ([#4363](https://github.com/juspay/hyperswitch/pull/4363)) ([`4d99098`](https://github.com/juspay/hyperswitch/commit/4d9909899f493ee28fec08846fde9737867df52b))
+
+### Refactors
+
+- **payment_methods:** Revamp payment methods update endpoint ([#4305](https://github.com/juspay/hyperswitch/pull/4305)) ([`3333bbf`](https://github.com/juspay/hyperswitch/commit/3333bbfe7f5af30b872809629f9942a76a823638))
+
+**Full Changelog:** [`2024.04.16.1...2024.04.17.0`](https://github.com/juspay/hyperswitch/compare/2024.04.16.1...2024.04.17.0)
+
+- - -
+
 ## 2024.04.16.1
 
 ### Features
