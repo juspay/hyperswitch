@@ -3446,16 +3446,8 @@ pub struct PaymentListFiltersV2 {
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct AmountFilter {
-    pub amount: i64,
-    pub filter_option: AmountFilterOption,
-}
-
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
-pub enum AmountFilterOption {
-    Range { end: i64 },
-    LessThan,
-    EqualTo,
-    GreaterThan,
+    pub start_amount: Option<i64>,
+    pub end_amount: Option<i64>,
 }
 
 #[derive(

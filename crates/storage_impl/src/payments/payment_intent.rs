@@ -1,5 +1,7 @@
 #[cfg(feature = "olap")]
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
+#[cfg(feature = "olap")]
+use common_utils::errors::ReportSwitchExt;
 use common_utils::{date_time, ext_traits::Encode};
 #[cfg(feature = "olap")]
 use data_models::payments::payment_intent::PaymentIntentFetchConstraints;
@@ -549,8 +551,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         constraints: &PaymentIntentFetchConstraints,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, StorageError> {
-        use api_models::payments::AmountFilterOption;
-        use common_utils::errors::ReportSwitchExt;
         let conn = connection::pg_connection_read(self).await.switch()?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
         let mut query = DieselPaymentIntent::table()
@@ -615,26 +615,26 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
 
                 query = query.offset(params.offset.into());
 
-                if let Some(amount_filter) = &params.amount_filter {
-                    match &amount_filter.filter_option {
-                        AmountFilterOption::LessThan => {
-                            query = query.filter(pi_dsl::amount.lt(amount_filter.amount))
-                        }
-                        AmountFilterOption::EqualTo => {
-                            query = query.filter(pi_dsl::amount.eq(amount_filter.amount))
-                        }
-                        AmountFilterOption::GreaterThan => {
-                            query = query.filter(pi_dsl::amount.gt(amount_filter.amount))
-                        }
-                        AmountFilterOption::Range { end } => {
-                            query = query.filter(pi_dsl::amount.between(amount_filter.amount, *end))
+                query = match &params.amount_filter {
+                    Some(amount_filter) => {
+                        match (amount_filter.start_amount, amount_filter.end_amount) {
+                            (Some(start_amount), Some(end_amount)) => {
+                                query.filter(pi_dsl::amount.between(start_amount, end_amount))
+                            }
+                            (Some(start_amount), None) => {
+                                query.filter(pi_dsl::amount.ge(start_amount))
+                            }
+                            (None, Some(end_amount)) => query.filter(pi_dsl::amount.le(end_amount)),
+                            (None, None) => query,
                         }
                     }
-                }
+                    None => query,
+                };
 
-                if let Some(currency) = &params.currency {
-                    query = query.filter(pi_dsl::currency.eq_any(currency.clone()));
-                }
+                query = match &params.currency {
+                    Some(currency) => query.filter(pi_dsl::currency.eq_any(currency.clone())),
+                    None => query,
+                };
 
                 let connectors = params
                     .connector
@@ -714,9 +714,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         constraints: &PaymentIntentFetchConstraints,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<String>, StorageError> {
-        use api_models::payments::AmountFilterOption;
-        use common_utils::errors::ReportSwitchExt;
-
         let conn = connection::pg_connection_read(self).await.switch()?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
         let mut query = DieselPaymentIntent::table()
@@ -748,20 +745,18 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 };
 
                 query = match &params.amount_filter {
-                    Some(amount_filter) => match &amount_filter.filter_option {
-                        AmountFilterOption::LessThan => {
-                            query.filter(pi_dsl::amount.lt(amount_filter.amount))
+                    Some(amount_filter) => {
+                        match (amount_filter.start_amount, amount_filter.end_amount) {
+                            (Some(start_amount), Some(end_amount)) => {
+                                query.filter(pi_dsl::amount.between(start_amount, end_amount))
+                            }
+                            (Some(start_amount), None) => {
+                                query.filter(pi_dsl::amount.ge(start_amount))
+                            }
+                            (None, Some(end_amount)) => query.filter(pi_dsl::amount.le(end_amount)),
+                            (None, None) => query,
                         }
-                        AmountFilterOption::EqualTo => {
-                            query.filter(pi_dsl::amount.eq(amount_filter.amount))
-                        }
-                        AmountFilterOption::GreaterThan => {
-                            query.filter(pi_dsl::amount.gt(amount_filter.amount))
-                        }
-                        AmountFilterOption::Range { end } => {
-                            query.filter(pi_dsl::amount.between(amount_filter.amount, *end))
-                        }
-                    },
+                    }
                     None => query,
                 };
 
