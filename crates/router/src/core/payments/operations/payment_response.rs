@@ -137,7 +137,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                 &customer_id.clone(),
                 payment_method_id.clone(),
                 merchant_connector_id.clone(),
-                merchant_account.storage_scheme.clone(),
+                merchant_account.storage_scheme,
             )
             .await?;
             payment_data.payment_attempt.payment_method_id = payment_method_id;
@@ -637,7 +637,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             &Some(customer_id),
             payment_method_id.clone(),
             merchant_connector_id.clone(),
-            merchant_account.storage_scheme.clone(),
+            merchant_account.storage_scheme,
         )
         .await?;
         payment_data.payment_attempt.payment_method_id = payment_method_id;
