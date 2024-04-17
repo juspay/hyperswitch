@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use api_models::{
     enums::{CanadaStatesAbbreviation, UsStatesAbbreviation},
-    payments::{self, BankDebitBilling, OrderDetailsWithAmount},
+    payments::{self, OrderDetailsWithAmount},
 };
 use base64::Engine;
 use common_utils::{
@@ -88,6 +88,8 @@ pub trait RouterData {
 
     fn get_optional_billing(&self) -> Option<&api::Address>;
     fn get_optional_shipping(&self) -> Option<&api::Address>;
+
+    fn get_optional_billing_full_name(&self) -> Option<Secret<String>>;
     fn get_optional_billing_line1(&self) -> Option<Secret<String>>;
     fn get_optional_billing_line2(&self) -> Option<Secret<String>>;
     fn get_optional_billing_city(&self) -> Option<String>;
@@ -96,6 +98,8 @@ pub trait RouterData {
     fn get_optional_billing_state(&self) -> Option<Secret<String>>;
     fn get_optional_billing_first_name(&self) -> Option<Secret<String>>;
     fn get_optional_billing_last_name(&self) -> Option<Secret<String>>;
+    fn get_optional_billing_phone_number(&self) -> Option<Secret<String>>;
+    fn get_optional_billing_email(&self) -> Option<Email>;
 }
 
 pub trait PaymentResponseRouterData {
@@ -298,6 +302,22 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             })
     }
 
+    fn get_optional_billing_phone_number(&self) -> Option<Secret<String>> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .phone
+                    .and_then(|phone_data| phone_data.number)
+            })
+    }
+
+    fn get_optional_billing_email(&self) -> Option<Email> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| billing_address.clone().email)
+    }
     fn to_connector_meta<T>(&self) -> Result<T, Error>
     where
         T: serde::de::DeserializeOwned,
@@ -351,6 +371,12 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
         self.recurring_mandate_payment_data
             .to_owned()
             .ok_or_else(missing_field_err("recurring_mandate_payment_data"))
+    }
+
+    fn get_optional_billing_full_name(&self) -> Option<Secret<String>> {
+        self.get_optional_billing()
+            .and_then(|billing_details| billing_details.address.as_ref())
+            .and_then(|billing_address| billing_address.get_optional_full_name())
     }
 
     #[cfg(feature = "payouts")]
@@ -1107,7 +1133,7 @@ pub trait CryptoData {
     fn get_pay_currency(&self) -> Result<String, Error>;
 }
 
-impl CryptoData for api::CryptoData {
+impl CryptoData for domain::CryptoData {
     fn get_pay_currency(&self) -> Result<String, Error> {
         self.pay_currency
             .clone()
@@ -1168,7 +1194,12 @@ impl AddressDetailsData for api::AddressDetails {
 
     fn get_full_name(&self) -> Result<Secret<String>, Error> {
         let first_name = self.get_first_name()?.peek().to_owned();
-        let last_name = self.get_last_name()?.peek().to_owned();
+        let last_name = self
+            .get_last_name()
+            .ok()
+            .cloned()
+            .unwrap_or(Secret::new("".to_string()));
+        let last_name = last_name.peek();
         let full_name = format!("{} {}", first_name, last_name).trim().to_string();
         Ok(Secret::new(full_name))
     }
@@ -1235,7 +1266,7 @@ pub trait BankRedirectBillingData {
     fn get_billing_name(&self) -> Result<Secret<String>, Error>;
 }
 
-impl BankRedirectBillingData for payments::BankRedirectBilling {
+impl BankRedirectBillingData for domain::BankRedirectBilling {
     fn get_billing_name(&self) -> Result<Secret<String>, Error> {
         self.billing_name
             .clone()
@@ -1247,7 +1278,7 @@ pub trait BankDirectDebitBillingData {
     fn get_billing_country(&self) -> Result<api_models::enums::CountryAlpha2, Error>;
 }
 
-impl BankDirectDebitBillingData for BankDebitBilling {
+impl BankDirectDebitBillingData for domain::BankDebitBilling {
     fn get_billing_country(&self) -> Result<api_models::enums::CountryAlpha2, Error> {
         self.address
             .as_ref()

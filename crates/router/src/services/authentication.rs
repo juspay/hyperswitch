@@ -73,6 +73,17 @@ pub enum AuthenticationType {
     NoAuth,
 }
 
+impl events::EventInfo for AuthenticationType {
+    type Data = Self;
+    fn data(&self) -> error_stack::Result<Self::Data, events::EventsError> {
+        Ok(self.clone())
+    }
+
+    fn key(&self) -> String {
+        "auth_info".to_string()
+    }
+}
+
 impl AuthenticationType {
     pub fn get_merchant_id(&self) -> Option<&str> {
         match self {
@@ -846,6 +857,12 @@ impl ClientSecretFetch for api_models::pm_auth::LinkTokenCreateRequest {
 }
 
 impl ClientSecretFetch for api_models::pm_auth::ExchangeTokenCreateRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref()
+    }
+}
+
+impl ClientSecretFetch for api_models::payment_methods::PaymentMethodUpdate {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
     }
