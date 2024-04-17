@@ -2485,7 +2485,7 @@ impl DokuBankData {
                 field_name: "billing.email",
             },
         )?;
-        Ok(Box::new(DokuBankData {
+        Ok(Box::new(Self {
             first_name,
             last_name,
             shopper_email,

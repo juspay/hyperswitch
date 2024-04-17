@@ -1273,12 +1273,13 @@ fn get_bank_debit_data(
     }
 }
 
-fn create_stripe_payment_method(
+fn create_stripe_payment_method<F, Req, Res>(
     payment_method_data: &domain::PaymentMethodData,
     auth_type: enums::AuthenticationType,
     payment_method_token: Option<types::PaymentMethodToken>,
     is_customer_initiated_mandate_payment: Option<bool>,
     billing_address: StripeBillingAddress,
+    item: &types::RouterData<F, Req, Res>,
 ) -> Result<
     (
         StripePaymentMethodData,
@@ -1341,33 +1342,38 @@ fn create_stripe_payment_method(
         }
         domain::PaymentMethodData::BankTransfer(bank_transfer_data) => {
             match bank_transfer_data.deref() {
-                domain::BankTransferData::AchBankTransfer { billing_details } => Ok((
+                domain::BankTransferData::AchBankTransfer {} => Ok((
                     StripePaymentMethodData::BankTransfer(StripeBankTransferData::AchBankTransfer(
                         Box::new(AchTransferData {
-                            email: billing_details.email.to_owned(),
+                            email: item.get_optional_billing_email().ok_or(
+                                errors::ConnectorError::MissingRequiredField {
+                                    field_name: "billing.email",
+                                },
+                            )?,
                         }),
                     )),
                     None,
                     StripeBillingAddress::default(),
                 )),
-                domain::BankTransferData::MultibancoBankTransfer { billing_details } => Ok((
+                domain::BankTransferData::MultibancoBankTransfer {} => Ok((
                     StripePaymentMethodData::BankTransfer(
                         StripeBankTransferData::MultibancoBankTransfers(Box::new(
                             MultibancoTransferData {
-                                email: billing_details.email.to_owned(),
+                                email: item.get_optional_billing_email().ok_or(
+                                    errors::ConnectorError::MissingRequiredField {
+                                        field_name: "billing.email",
+                                    },
+                                )?,
                             },
                         )),
                     ),
                     None,
                     StripeBillingAddress::default(),
                 )),
-                domain::BankTransferData::SepaBankTransfer {
-                    billing_details,
-                    country,
-                } => {
+                domain::BankTransferData::SepaBankTransfer {} => {
                     let billing_details = StripeBillingAddress {
-                        email: Some(billing_details.email.clone()),
-                        name: Some(billing_details.name.clone()),
+                        email: item.get_optional_billing_email(),
+                        name: item.get_optional_billing_full_name(),
                         ..Default::default()
                     };
                     Ok((
@@ -1379,7 +1385,11 @@ fn create_stripe_payment_method(
                                     bank_transfer_type: BankTransferType::EuBankTransfer,
                                     balance_funding_type: BankTransferType::BankTransfers,
                                     payment_method_type: StripePaymentMethodType::CustomerBalance,
-                                    country: country.to_owned(),
+                                    country: item.get_optional_billing_country().ok_or(
+                                        errors::ConnectorError::MissingRequiredField {
+                                            field_name: "billing.country",
+                                        },
+                                    )?,
                                 },
                             )),
                         ),
@@ -1387,10 +1397,10 @@ fn create_stripe_payment_method(
                         billing_details,
                     ))
                 }
-                domain::BankTransferData::BacsBankTransfer { billing_details } => {
+                domain::BankTransferData::BacsBankTransfer {} => {
                     let billing_details = StripeBillingAddress {
-                        email: Some(billing_details.email.clone()),
-                        name: Some(billing_details.name.clone()),
+                        email: item.get_optional_billing_email(),
+                        name: item.get_optional_billing_full_name(),
                         ..Default::default()
                     };
                     Ok((
@@ -1872,7 +1882,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                             Some(connector_util::PaymentsAuthorizeRequestData::is_customer_initiated_mandate_payment(
                                 &item.request,
                             )),
-                            billing_address
+                            billing_address, item
                         )?;
 
                     validate_shipping_address_against_payment_method(
@@ -2080,6 +2090,7 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
             item.payment_method_token.clone(),
             None,
             StripeBillingAddress::default(),
+            item,
         )?;
         Ok(Self {
             token_data: payment_data.0,
@@ -3654,7 +3665,7 @@ impl
             StripePaymentMethodType,
         ),
     ) -> Result<Self, Self::Error> {
-        let pm_data = item.request.payment_method_data;
+        let pm_data = &item.request.payment_method_data;
         match pm_data {
             domain::PaymentMethodData::Card(ref ccard) => {
                 let payment_method_auth_type = match auth_type {
@@ -3673,7 +3684,7 @@ impl
                 Ok(Self::try_from((wallet_data, None))?)
             }
             domain::PaymentMethodData::BankDebit(bank_debit_data) => {
-                let (_pm_type, bank_data, _) = get_bank_debit_data(&bank_debit_data);
+                let (_pm_type, bank_data, _) = get_bank_debit_data(bank_debit_data);
 
                 Ok(Self::BankDebit(StripeBankDebitData {
                     bank_specific_data: bank_data,
@@ -3712,7 +3723,7 @@ impl
                             errors::ConnectorError::MissingRequiredField {
                                 field_name: "billing.country",
                             },
-                        ),
+                        )?,
                     })),
                 )),
                 domain::BankTransferData::BacsBankTransfer { .. } => Ok(Self::BankTransfer(
