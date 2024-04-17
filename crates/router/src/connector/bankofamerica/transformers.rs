@@ -1391,10 +1391,7 @@ fn get_payment_response(
             resource_id: types::ResponseId::ConnectorTransactionId(info_response.id.clone()),
             redirection_data: None,
             mandate_reference,
-            connector_metadata: info_response
-                .processor_information
-                .as_ref()
-                .map(|processor_information| serde_json::json!({"avs_response": processor_information.avs})),
+            connector_metadata: None,
             network_txn_id: None,
             connector_response_reference_id: Some(
                 info_response
