@@ -712,7 +712,16 @@ pub struct ClientReferenceInformation {
 #[serde(rename_all = "camelCase")]
 pub struct ClientProcessorInformation {
     avs: Option<Avs>,
+    card_verification: Option<CardVerification>,
 }
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CardVerification {
+    result_code: Option<String>,
+    result_code_raw: Option<String>,
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientRiskInformation {
@@ -1845,9 +1854,15 @@ impl<F>
                         || is_setup_mandate_payment(&item.data.request),
                 ));
                 let response = get_payment_response((&info_response, status, item.http_code));
+                let connector_response = info_response
+                    .processor_information
+                    .as_ref()
+                    .map(types::AdditionalPaymentMethodConnectorResponse::from)
+                    .map(types::ConnectorResponseData::with_additional_payment_method_data);
                 Ok(Self {
                     status,
                     response,
+                    connector_response,
                     ..item.data
                 })
             }
@@ -1888,9 +1903,16 @@ impl<F>
                     item.data.request.is_auto_capture()?,
                 ));
                 let response = get_payment_response((&info_response, status, item.http_code));
+                let connector_response = info_response
+                    .processor_information
+                    .as_ref()
+                    .map(types::AdditionalPaymentMethodConnectorResponse::from)
+                    .map(types::ConnectorResponseData::with_additional_payment_method_data);
+
                 Ok(Self {
                     status,
                     response,
+                    connector_response,
                     ..item.data
                 })
             }
@@ -1901,6 +1923,19 @@ impl<F>
                     Some(enums::AttemptStatus::Failure),
                 )))
             }
+        }
+    }
+}
+
+impl From<&ClientProcessorInformation> for types::AdditionalPaymentMethodConnectorResponse {
+    fn from(processor_information: &ClientProcessorInformation) -> Self {
+        let payment_checks = Some(
+            serde_json::json!({"avs_response": processor_information.avs, "card_verification": processor_information.card_verification}),
+        );
+
+        Self::Card {
+            authentication_data: None,
+            payment_checks,
         }
     }
 }
