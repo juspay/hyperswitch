@@ -540,7 +540,7 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
             mcc: Some(connector_meta_data.mcc),
             merchant_country_code: Some(connector_meta_data.merchant_country_code),
             merchant_name: Some(connector_meta_data.merchant_name),
-            notification_url: None,
+            notification_url: request.return_url.clone(),
             three_ds_requestor_id: Some(connector_meta_data.three_ds_requestor_id),
             three_ds_requestor_name: Some(connector_meta_data.three_ds_requestor_name),
             white_list_status: None,
