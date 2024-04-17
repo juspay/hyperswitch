@@ -131,7 +131,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                 ))
                 .await?;
 
-            mandate::mandate_procedure(
+            let mandate_id = mandate::mandate_procedure(
                 state,
                 resp,
                 &customer_id.clone(),
@@ -140,6 +140,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             )
             .await?;
             payment_data.payment_attempt.payment_method_id = payment_method_id;
+            payment_data.payment_attempt.mandate_id = mandate_id;
             Ok(())
         } else {
             let save_payment_data = tokenization::SavePaymentMethodData::from(resp);
@@ -629,7 +630,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             ))
             .await?;
 
-        mandate::mandate_procedure(
+        let mandate_id = mandate::mandate_procedure(
             state,
             resp,
             &Some(customer_id),
@@ -638,6 +639,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         )
         .await?;
         payment_data.payment_attempt.payment_method_id = payment_method_id;
+        payment_data.payment_attempt.mandate_id = mandate_id;
         Ok(())
     }
 }

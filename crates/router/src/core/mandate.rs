@@ -328,10 +328,11 @@ pub async fn mandate_procedure<F, FData>(
     customer_id: &Option<String>,
     pm_id: Option<String>,
     merchant_connector_id: Option<String>,
-) -> errors::RouterResult<()>
+) -> errors::RouterResult<Option<String>>
 where
     FData: MandateBehaviour,
 {
+    let mut res_mandate_id = None;
     match resp.response {
         Err(_) => {}
         Ok(_) => match resp.request.get_mandate_id() {
@@ -381,6 +382,7 @@ where
                         )],
                     );
                 }
+                res_mandate_id = mandate_id.mandate_id.clone();
             }
             None => {
                 if resp.request.get_setup_mandate_details().is_some() {
@@ -450,6 +452,7 @@ where
                         //                 }
                         //             )))
                         //     }));
+                        res_mandate_id = Some(new_mandate_data.mandate_id.clone());
 
                         state
                             .store
@@ -461,12 +464,12 @@ where
                             1,
                             &[metrics::request::add_attributes("connector", connector)],
                         );
-                    };
+                    }
                 }
             }
-        },
+        }
     }
-    Ok(())
+    Ok(res_mandate_id)
 }
 
 #[instrument(skip(state))]
