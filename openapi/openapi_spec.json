@@ -4516,6 +4516,44 @@
           }
         ]
       }
+    },
+    "/poll/status/{poll_id}": {
+      "get": {
+        "tags": [
+          "Poll"
+        ],
+        "summary": "Poll - Retrieve Poll Status",
+        "description": "Poll - Retrieve Poll Status",
+        "operationId": "Retrieve Poll Status",
+        "parameters": [
+          {
+            "name": "poll_id",
+            "in": "path",
+            "description": "The identifier for poll",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The poll status was retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PollResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "publishable_key": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -16228,6 +16266,30 @@
             "nullable": true
           }
         }
+      },
+      "PollResponse": {
+        "type": "object",
+        "required": [
+          "poll_id",
+          "status"
+        ],
+        "properties": {
+          "poll_id": {
+            "type": "string",
+            "description": "The poll id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PollStatus"
+          }
+        }
+      },
+      "PollStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "completed",
+          "not_found"
+        ]
       },
       "PrimaryBusinessDetails": {
         "type": "object",
