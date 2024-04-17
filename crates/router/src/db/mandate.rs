@@ -208,23 +208,38 @@ mod storage {
                     let key_str = key.to_string();
 
                     let m_update = diesel_models::MandateUpdateInternal::from(mandate_update);
-                    
-                    match (mandate.connector_mandate_id.as_ref(), m_update.get_connector_mandate_id())
-                    {
-                        (None, Some(val)) => 
-                        {
-                            add_connector_mandate_id_reverse_lookup(self, key_str.as_str(), field.as_str(), merchant_id, val.as_str(), storage_scheme).await?;
+
+                    match (
+                        mandate.connector_mandate_id.as_ref(),
+                        m_update.get_connector_mandate_id(),
+                    ) {
+                        (None, Some(val)) => {
+                            add_connector_mandate_id_reverse_lookup(
+                                self,
+                                key_str.as_str(),
+                                field.as_str(),
+                                merchant_id,
+                                val.as_str(),
+                                storage_scheme,
+                            )
+                            .await?;
                         }
-                        (Some(old_val), Some(new_val)) =>
-                        {
-                            if old_val.ne(new_val){ 
-                                add_connector_mandate_id_reverse_lookup(self, key_str.as_str(), field.as_str(), merchant_id, new_val.as_str(), storage_scheme).await?;
+                        (Some(old_val), Some(new_val)) => {
+                            if old_val.ne(new_val) {
+                                add_connector_mandate_id_reverse_lookup(
+                                    self,
+                                    key_str.as_str(),
+                                    field.as_str(),
+                                    merchant_id,
+                                    new_val.as_str(),
+                                    storage_scheme,
+                                )
+                                .await?;
                             }
                         }
-                        _ => ()
+                        _ => (),
                     }
 
-                    
                     let updated_mandate = m_update.clone().apply_changeset(mandate.clone());
 
                     let redis_value = serde_json::to_string(&updated_mandate)
@@ -346,12 +361,12 @@ mod storage {
 
     #[inline]
     #[instrument(skip_all)]
-    async fn add_connector_mandate_id_reverse_lookup (
+    async fn add_connector_mandate_id_reverse_lookup(
         store: &Store,
         key: &str,
-        field : &str,
+        field: &str,
         merchant_id: &str,
-        connector_mandate_id : &str,
+        connector_mandate_id: &str,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<diesel_models::ReverseLookup, errors::StorageError> {
         let rev_lookup = diesel_models::ReverseLookupNew {
@@ -361,10 +376,10 @@ mod storage {
             source: "mandate".to_string(),
             updated_by: storage_scheme.to_string(),
         };
-        store.insert_reverse_lookup(rev_lookup, storage_scheme)
+        store
+            .insert_reverse_lookup(rev_lookup, storage_scheme)
             .await
     }
-
 }
 
 #[cfg(not(feature = "kv_store"))]

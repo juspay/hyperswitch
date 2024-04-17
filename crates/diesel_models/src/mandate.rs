@@ -178,7 +178,7 @@ impl MandateUpdateInternal {
         }
     }
 
-    pub fn get_connector_mandate_id(&self) -> Option<&String>{
+    pub fn get_connector_mandate_id(&self) -> Option<&String> {
         self.connector_mandate_id.as_ref()
     }
 }
