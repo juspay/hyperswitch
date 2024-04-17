@@ -648,6 +648,7 @@ pub async fn save_in_locker(
             &card,
             &customer_id,
             merchant_account,
+            None,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
