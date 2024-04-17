@@ -75,6 +75,19 @@
           }
         }
       },
+      "billing": {
+        "address": {
+          "line1": "1467",
+          "line2": "HarrisonStreet",
+          "line3": "HarrisonStreet",
+          "city": "SanFransico",
+          "state": "California",
+          "zip": "94122",
+          "country": "US",
+          "first_name": "Swangi",
+          "last_name": "Kumari"
+        }
+      },
       "metadata": {
         "order_details": {
           "product_name": "Apple iphone 15",
