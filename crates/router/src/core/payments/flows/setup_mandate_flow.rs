@@ -123,6 +123,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                 maybe_customer,
                 pm_id,
                 connector.merchant_connector_id.clone(),
+                merchant_account.storage_scheme,
             )
             .await
         }
@@ -265,6 +266,7 @@ impl types::SetupMandateRouterData {
                     maybe_customer,
                     pm_id,
                     connector.merchant_connector_id.clone(),
+                    merchant_account.storage_scheme,
                 )
                 .await?)
             }
@@ -348,7 +350,11 @@ impl types::SetupMandateRouterData {
             .0;
             let mandate = state
                 .store
-                .find_mandate_by_merchant_id_mandate_id(&merchant_account.merchant_id, &mandate_id)
+                .find_mandate_by_merchant_id_mandate_id(
+                    &merchant_account.merchant_id,
+                    &mandate_id,
+                    merchant_account.storage_scheme,
+                )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
 
@@ -400,6 +406,7 @@ impl types::SetupMandateRouterData {
                         mandate,
                         &merchant_account.merchant_id,
                         pm_id,
+                        merchant_account.storage_scheme,
                     )
                     .await
                 }
