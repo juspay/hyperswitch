@@ -1,8 +1,7 @@
+import captureBody from "../../fixtures/capture-flow-body.json";
 import citConfirmBody from "../../fixtures/create-mandate-cit.json";
 import mitConfirmBody from "../../fixtures/create-mandate-mit.json";
 import getConnectorDetails from "../ConnectorUtils/utils";
-import customerCreateBody from "../../fixtures/create-customer-body.json";
-
 import State from "../../utils/State";
 
 let globalState;
@@ -22,30 +21,30 @@ describe("Card - SingleUse Mandates flow test", () => {
         cy.task('setGlobalState', globalState.data);
     })
 
-    context("Card - NoThreeDS Create + Confirm Automatic CIT and MIT payment flow test", () => {
+    context("Card - NoThreeDS Create + Confirm Automatic CIT and Single use MIT payment flow test", () => {
 
         it("Confirm No 3DS CIT", () => {
-            console.log("confirm -> " + globalState.get("connectorId"));
             let det = getConnectorDetails(globalState.get("connectorId"))["MandateSingleUseNo3DS"];
-            console.log("det -> " + det.card);
-            cy.citForMandatesCallTest(citConfirmBody,7000, det, true, "automatic", "new_mandate", globalState);
+            cy.citForMandatesCallTest(citConfirmBody, 0, det, true, "automatic", "setup_mandate", globalState);
         });
 
         it("Confirm No 3DS MIT", () => {
             cy.mitForMandatesCallTest(mitConfirmBody, 7000, true, "automatic", globalState);
         });
+    });
+    context("Card - NoThreeDS Create + Confirm Automatic CIT and Multi use MIT payment flow test", () => {
 
-        it("list-mandate-call-test", () => {
-            cy.listMandateCallTest(globalState);
+        it("Confirm No 3DS CIT", () => {
+            let det = getConnectorDetails(globalState.get("connectorId"))["MandateSingleUseNo3DS"];
+            cy.citForMandatesCallTest(citConfirmBody,0, det, true, "automatic", "setup_mandate", globalState);
         });
 
-        it("revoke-mandate-call-test", () => {
-            cy.revokeMandateCallTest(globalState);
+        it("Confirm No 3DS MIT", () => {
+            cy.mitForMandatesCallTest(mitConfirmBody, 7000, true, "automatic", globalState);
         });
-
-        it("revoke-revoked-mandate-call-test", () => {
-            cy.revokeMandateCallTest(globalState);
+        it("Confirm No 3DS MIT", () => {
+            cy.mitForMandatesCallTest(mitConfirmBody, 7000, true, "automatic", globalState);
         });
     });
 
-}); 
+});
