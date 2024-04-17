@@ -1991,9 +1991,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             });
 
         let meta_data = get_transaction_metadata(item.request.metadata.clone(), order_id);
-        let browser_info =
-            <Option<types::BrowserInformation> as Clone>::clone(&item.request.browser_info)
-                .map(StripeBrowserInformation::from);
+        let browser_info = item
+            .request
+            .browser_info
+            .clone()
+            .map(StripeBrowserInformation::from);
 
         Ok(Self {
             amount: item.request.amount, //hopefully we don't loose some cents here
@@ -2061,10 +2063,7 @@ fn get_payment_method_type_for_saved_payment_method_payment(
 impl From<types::BrowserInformation> for StripeBrowserInformation {
     fn from(item: types::BrowserInformation) -> Self {
         Self {
-            ip_address: item
-                .ip_address
-                .as_ref()
-                .map(|ip| Secret::new(ip.to_string())),
+            ip_address: item.ip_address.map(|ip| Secret::new(ip.to_string())),
             user_agent: item.user_agent,
         }
     }
