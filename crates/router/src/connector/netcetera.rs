@@ -116,13 +116,11 @@ impl ConnectorCommon for Netcetera {
 }
 
 impl ConnectorValidation for Netcetera {
-    //TODO: implement functions when support enabled
 }
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Netcetera
 {
-    //TODO: implement sessions flow
 }
 
 impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
