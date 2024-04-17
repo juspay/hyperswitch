@@ -1194,7 +1194,12 @@ impl AddressDetailsData for api::AddressDetails {
 
     fn get_full_name(&self) -> Result<Secret<String>, Error> {
         let first_name = self.get_first_name()?.peek().to_owned();
-        let last_name = self.get_last_name()?.peek().to_owned();
+        let last_name = self
+            .get_last_name()
+            .ok()
+            .cloned()
+            .unwrap_or(Secret::new("".to_string()));
+        let last_name = last_name.peek();
         let full_name = format!("{} {}", first_name, last_name).trim().to_string();
         Ok(Secret::new(full_name))
     }

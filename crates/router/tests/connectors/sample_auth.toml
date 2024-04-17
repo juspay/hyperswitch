@@ -207,6 +207,11 @@ api_key="API Key"
 api_key="API Key"
 
 
+[netcetera]
+certificate="Certificate"
+private_key="Private Key"
+
+
 [ebanx]
 api_key="API Key"
 
