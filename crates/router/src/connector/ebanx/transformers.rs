@@ -3,18 +3,22 @@ use api_models::payouts::{Bank, PayoutMethodData};
 use common_enums::Currency;
 #[cfg(feature = "payouts")]
 use common_utils::pii::Email;
-#[cfg(feature = "payouts")]
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
-
+ 
 #[cfg(feature = "payouts")]
-use crate::connector::utils::{self, AddressDetailsData, RouterData};
+use crate::{
+    types::{
+        api,
+        storage::enums as storage_enums
+    },
+    connector::utils::{self, AddressDetailsData, RouterData}
+};
 use crate::{
     core::errors,
     types::{
         self,
-        api::{self, CurrencyUnit},
-        storage::enums as storage_enums,
+        api::CurrencyUnit,
     },
 };
 
