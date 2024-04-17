@@ -540,7 +540,7 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
             mcc: Some(connector_meta_data.mcc),
             merchant_country_code: Some(connector_meta_data.merchant_country_code),
             merchant_name: Some(connector_meta_data.merchant_name),
-            notification_url: request.return_url.clone(),
+            notification_url: None,
             three_ds_requestor_id: Some(connector_meta_data.three_ds_requestor_id),
             three_ds_requestor_name: Some(connector_meta_data.three_ds_requestor_name),
             white_list_status: None,
@@ -631,4 +631,45 @@ pub enum ACSChallengeMandatedIndicator {
     Y,
     /// Challenge is not mandated
     N,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResultsResponseData {
+    /// Universally unique transaction identifier assigned by the 3DS Server to identify a single transaction.
+    /// It has the same value as the authentication request and conforms to the format defined in IETF RFC 4122.
+    #[serde(rename = "threeDSServerTransID")]
+    pub three_ds_server_trans_id: String,
+
+    /// Indicates the status of a transaction in terms of its authentication.
+    ///
+    /// Valid values:
+    /// - `Y`: Authentication / Account verification successful.
+    /// - `N`: Not authenticated / Account not verified; Transaction denied.
+    /// - `U`: Authentication / Account verification could not be performed; technical or other problem.
+    /// - `C`: A challenge is required to complete the authentication.
+    /// - `R`: Authentication / Account verification Rejected. Issuer is rejecting authentication/verification
+    ///       and request that authorization not be attempted.
+    /// - `A`: Attempts processing performed; Not authenticated / verified, but a proof of attempt
+    ///       authentication / verification is provided.
+    /// - `D`: A challenge is required to complete the authentication. Decoupled Authentication confirmed.
+    /// - `I`: Informational Only; 3DS Requestor challenge preference acknowledged.
+    pub trans_status: Option<common_enums::TransactionStatus>,
+
+    /// Payment System-specific value provided as part of the ACS registration for each supported DS.
+    /// Authentication Value may be used to provide proof of authentication.
+    pub authentication_value: Option<String>,
+
+    /// Payment System-specific value provided by the ACS to indicate the results of the attempt to authenticate
+    /// the Cardholder.
+    pub eci: Option<String>,
+
+    /// The received Results Request from the Directory Server.
+    pub results_request: Option<serde_json::Value>,
+
+    /// The sent Results Response to the Directory Server.
+    pub results_response: Option<serde_json::Value>,
+
+    /// Optional object containing error details if any errors occurred during the process.
+    pub error_details: Option<NetceteraErrorDetails>,
 }
