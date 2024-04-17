@@ -1,0 +1,1 @@
+ALTER TABLE authentication DROP COLUMN IF EXISTS payment_id;

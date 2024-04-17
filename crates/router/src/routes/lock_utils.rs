@@ -114,6 +114,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsSessionToken
             | Flow::PaymentsStart
             | Flow::PaymentsList
+            | Flow::PaymentsFilters
             | Flow::PaymentsRedirect
             | Flow::PaymentsIncrementalAuthorization
             | Flow::PaymentsExternalAuthentication
@@ -137,7 +138,8 @@ impl From<Flow> for ApiIdentifier {
             Flow::FrmFulfillment
             | Flow::IncomingWebhookReceive
             | Flow::WebhookEventInitialDeliveryAttemptList
-            | Flow::WebhookEventDeliveryAttemptList => Self::Webhooks,
+            | Flow::WebhookEventDeliveryAttemptList
+            | Flow::WebhookEventDeliveryRetry => Self::Webhooks,
 
             Flow::ApiKeyCreate
             | Flow::ApiKeyRetrieve

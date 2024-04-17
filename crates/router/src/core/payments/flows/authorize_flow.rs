@@ -66,6 +66,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         merchant_account: &domain::MerchantAccount,
         connector_request: Option<services::Request>,
         key_store: &domain::MerchantKeyStore,
+        profile_id: Option<String>,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedConnectorIntegration<
             '_,
@@ -103,6 +104,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                         key_store,
                         Some(resp.request.amount),
                         Some(resp.request.currency),
+                        profile_id,
                     ))
                     .await?;
 
@@ -115,6 +117,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     maybe_customer,
                     payment_method_id,
                     connector.merchant_connector_id.clone(),
+                    merchant_account.storage_scheme,
                 )
                 .await?)
             } else {
@@ -132,6 +135,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     key_store,
                     Some(resp.request.amount),
                     Some(resp.request.currency),
+                    profile_id,
                 ))
                 .await;
 
@@ -140,7 +144,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                         resp.payment_method_id = payment_method_id.clone();
                         resp.payment_method_status = payment_method_status;
                     }
-                    Err(_) => logger::error!("Save pm to locker failed"),
+                    Err(err) => logger::error!("Save pm to locker failed : {err:?}"),
                 }
 
                 Ok(resp)
