@@ -66,11 +66,12 @@ common_merchant_identifier = "COMMON MERCHANT IDENTIFIER"
 applepay_endpoint = "DOMAIN SPECIFIC ENDPOINT"
 
 [locker]
-host = ""
-host_rs = ""
-mock_locker = true
-basilisk_host = ""
+host = "http://localhost:3000"
+host_rs = "http://localhost:3002"
+mock_locker = false
+basilisk_host = "http://localhost:3002"
 locker_enabled = true
+
 
 [forex_api]
 call_delay = 21600
@@ -82,10 +83,57 @@ fallback_api_key = "YOUR API KEY HERE"
 redis_lock_timeout = 26000
 
 [jwekey]
-vault_encryption_key = ""
-rust_locker_encryption_key = ""
-vault_private_key = ""
-tunnel_private_key = ""
+vault_encryption_key = """
+-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwa6siKaSYqD1o4J3AbHq
+Km8oVTvep7GoN/C45qY60C7DO72H1O7Ujt6ZsSiK83EyI0CaUg3ORPS3ayobFNmu
+zR366ckK8GIf3BG7sVI6u/9751z4OvBHZMM9JFWa7Bx/RCPQ8aeM+iJoqf9auuQm
+3NCTlfaZJif45pShswR+xuZTR/bqnsOSP/MFROI9ch0NE7KRogy0tvrZe21lP24i
+Ro2LJJG+bYshxBddhxQf2ryJ85+/Trxdu16PunodGzCl6EMT3bvb4ZC41i15omqU
+aXXV1Z1wYUhlsO0jyd1bVvjyuE/KE1TbBS0gfR/RkacODmmE2zEdZ0EyyiXwqkmc
+oQIDAQAB
+-----END PUBLIC KEY-----
+"""
+rust_locker_encryption_key = """
+-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwa6siKaSYqD1o4J3AbHq
+Km8oVTvep7GoN/C45qY60C7DO72H1O7Ujt6ZsSiK83EyI0CaUg3ORPS3ayobFNmu
+zR366ckK8GIf3BG7sVI6u/9751z4OvBHZMM9JFWa7Bx/RCPQ8aeM+iJoqf9auuQm
+3NCTlfaZJif45pShswR+xuZTR/bqnsOSP/MFROI9ch0NE7KRogy0tvrZe21lP24i
+Ro2LJJG+bYshxBddhxQf2ryJ85+/Trxdu16PunodGzCl6EMT3bvb4ZC41i15omqU
+aXXV1Z1wYUhlsO0jyd1bVvjyuE/KE1TbBS0gfR/RkacODmmE2zEdZ0EyyiXwqkmc
+oQIDAQAB
+-----END PUBLIC KEY-----
+"""
+vault_private_key = """
+-----BEGIN RSA PRIVATE KEY-----
+MIIEowIBAAKCAQEA5Z/K0JWds8iHhWCa+rj0rhOQX1nVs/ArQ1D0vh3UlSPR2vZU
+TrkdP7i3amv4d2XDC+3+5/YWExTkpxqnfl1T9J37leN2guAARed6oYoTDEP/OoKt
+nUrKK2xk/+V5DNOWcRiSpcCrJOOIEoACOlPIrXQSg16KDZQb0QTMntnsiPIJDbsO
+GcdKytRAcNaokiKLnia1v13N3bk6dSplrj1YzawslZfgqD0eov4FjzBMoA19yNtl
+VLLf6kOkLcFQjTKXJLP1tLflLUBPTg8fm9wgAPK2BjMQ2AMkUxx0ubbtw/9CeJ+b
+FWrqGnEhlvfDMlyAV77sAiIdQ4mXs3TLcLb/AQIDAQABAoIBAGNekD1N0e5AZG1S
+zh6cNb6zVrH8xV9WGtLJ0PAJJrrXwnQYT4m10DOIM0+Jo/+/ePXLq5kkRI9DZmPu
+Q/eKWc+tInfN9LZUS6n0r3wCrZWMQ4JFlO5RtEWwZdDbtFPZqOwObz/treKL2JHw
+9YXaRijR50UUf3e61YLRqd9AfX0RNuuG8H+WgU3Gwuh5TwRnljM3JGaDPHsf7HLS
+tNkqJuByp26FEbOLTokZDbHN0sy7/6hufxnIS9AK4vp8y9mZAjghG26Rbg/H71mp
+Z+Q6P1y7xdgAKbhq7usG3/o4Y1e9wnghHvFS7DPwGekHQH2+LsYNEYOir1iRjXxH
+GUXOhfUCgYEA+cR9jONQFco8Zp6z0wdGlBeYoUHVMjThQWEblWL2j4RG/qQd/y0j
+uhVeU0/PmkYK2mgcjrh/pgDTtPymc+QuxBi+lexs89ppuJIAgMvLUiJT67SBHguP
+l4+oL9U78KGh7PfJpMKH+Pk5yc1xucAevk0wWmr5Tz2vKRDavFTPV+MCgYEA61qg
+Y7yN0cDtxtqlZdMC8BJPFCQ1+s3uB0wetAY3BEKjfYc2O/4sMbixXzt5PkZqZy96
+QBUBxhcM/rIolpM3nrgN7h1nmJdk9ljCTjWoTJ6fDk8BUh8+0GrVhTbe7xZ+bFUN
+UioIqvfapr/q/k7Ah2mCBE04wTZFry9fndrH2ssCgYEAh1T2Cj6oiAX6UEgxe2h3
+z4oxgz6efAO3AavSPFFQ81Zi+VqHflpA/3TQlSerfxXwj4LV5mcFkzbjfy9eKXE7
+/bjCm41tQ3vWyNEjQKYr1qcO/aniRBtThHWsVa6eObX6fOGN+p4E+txfeX693j3A
+6q/8QSGxUERGAmRFgMIbTq0CgYAmuTeQkXKII4U75be3BDwEgg6u0rJq/L0ASF74
+4djlg41g1wFuZ4if+bJ9Z8ywGWfiaGZl6s7q59oEgg25kKljHQd1uTLVYXuEKOB3
+e86gJK0o7ojaGTf9lMZi779IeVv9uRTDAxWAA93e987TXuPAo/R3frkq2SIoC9Rg
+paGidwKBgBqYd/iOJWsUZ8cWEhSE1Huu5rDEpjra8JPXHqQdILirxt1iCA5aEQou
+BdDGaDr8sepJbGtjwTyiG8gEaX1DD+KsF2+dQRQdQfcYC40n8fKkvpFwrKjDj1ac
+VuY3OeNxi+dC2r7HppP3O/MJ4gX/RJJfSrcaGP8/Ke1W5+jE97Qy
+-----END RSA PRIVATE KEY-----
+"""
 
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay", "adyen"]
