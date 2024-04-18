@@ -146,7 +146,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             mandate_type.to_owned(),
             merchant_account,
             key_store,
-            payment_attempt.payment_method_id.clone(),
+            None,
         )
         .await?;
         helpers::validate_amount_to_capture_and_capture_method(Some(&payment_attempt), request)?;
