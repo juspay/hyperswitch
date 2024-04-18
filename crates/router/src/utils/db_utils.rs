@@ -49,12 +49,18 @@ where
         futures::Future<Output = error_stack::Result<Vec<T>, redis_interface::errors::RedisError>>,
     DFut: futures::Future<Output = error_stack::Result<Vec<T>, errors::StorageError>>,
 {
-    let trunc = |v: &mut Vec<_>| if let Some(l)
-        = limit.and_then(|v| TryInto::try_into(v).ok())
-    { v.truncate(l); };
+    let trunc = |v: &mut Vec<_>| {
+        if let Some(l) = limit.and_then(|v| TryInto::try_into(v).ok()) {
+            v.truncate(l);
+        }
+    };
 
-    let limit_satisfies = |len : usize, limit : i64| TryInto::try_into(limit).ok().map_or(true,  |val : usize| len >= val);
-    
+    let limit_satisfies = |len: usize, limit: i64| {
+        TryInto::try_into(limit)
+            .ok()
+            .map_or(true, |val: usize| len >= val)
+    };
+
     let redis_output = redis_fut.await;
     match (redis_output, limit) {
         (Ok(mut kv_rows), Some(lim)) if limit_satisfies(kv_rows.len(), lim) => {

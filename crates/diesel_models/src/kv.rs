@@ -11,7 +11,8 @@ use crate::{
     payouts::{Payouts, PayoutsNew, PayoutsUpdate},
     refund::{Refund, RefundNew, RefundUpdate},
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
-    PaymentIntent, PaymentMethod, PaymentMethodNew, PaymentMethodUpdateInternal, PgPooledConn,Mandate, MandateNew, MandateUpdateInternal,
+    Mandate, MandateNew, MandateUpdateInternal, PaymentIntent, PaymentMethod, PaymentMethodNew,
+    PaymentMethodUpdateInternal, PgPooledConn,
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -134,7 +135,8 @@ impl DBOperation {
                         cust.orig.customer_id.clone(),
                         cust.orig.merchant_id.clone(),
                         cust.update_data,
-                    ).await?
+                    )
+                    .await?,
                 )),
                 Updateable::MandateUpdate(m) => DBResult::Mandate(Box::new(
                     Mandate::update_by_merchant_id_mandate_id(

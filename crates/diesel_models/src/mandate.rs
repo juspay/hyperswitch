@@ -170,13 +170,10 @@ impl MandateUpdateInternal {
         Mandate {
             mandate_status: mandate_status.unwrap_or(source.mandate_status),
             amount_captured: amount_captured.map_or(source.amount_captured, Some),
-            connector_mandate_ids: connector_mandate_ids
-                .map_or(source.connector_mandate_ids, Some),
-            connector_mandate_id: connector_mandate_id
-                .map_or(source.connector_mandate_id, Some),
+            connector_mandate_ids: connector_mandate_ids.map_or(source.connector_mandate_ids, Some),
+            connector_mandate_id: connector_mandate_id.map_or(source.connector_mandate_id, Some),
             payment_method_id: payment_method_id.unwrap_or(source.payment_method_id),
-            original_payment_id: original_payment_id
-                .map_or(source.original_payment_id, Some),
+            original_payment_id: original_payment_id.map_or(source.original_payment_id, Some),
             ..source
         }
     }
