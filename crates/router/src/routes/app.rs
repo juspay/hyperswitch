@@ -23,8 +23,6 @@ use super::blocklist;
 use super::dummy_connector::*;
 #[cfg(feature = "payouts")]
 use super::payouts::*;
-#[cfg(feature = "oltp")]
-use super::pm_auth;
 #[cfg(feature = "olap")]
 use super::routing as cloud_routing;
 #[cfg(feature = "olap")]
@@ -41,6 +39,8 @@ use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 use super::{currency, payment_methods::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, webhooks::*};
+#[cfg(feature = "oltp")]
+use super::{pm_auth, poll::retrieve_poll_status};
 use crate::configs::secrets_transformers;
 #[cfg(all(feature = "frm", feature = "oltp"))]
 use crate::routes::fraud_check as frm_routes;
@@ -975,6 +975,17 @@ impl Configs {
                     .route(web::post().to(config_key_update))
                     .route(web::delete().to(config_key_delete)),
             )
+    }
+}
+
+pub struct Poll;
+
+#[cfg(feature = "oltp")]
+impl Poll {
+    pub fn server(config: AppState) -> Scope {
+        web::scope("/poll")
+            .app_data(web::Data::new(config))
+            .service(web::resource("/status/{poll_id}").route(web::get().to(retrieve_poll_status)))
     }
 }
 
