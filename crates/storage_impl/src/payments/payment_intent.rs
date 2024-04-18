@@ -1,4 +1,6 @@
 #[cfg(feature = "olap")]
+use api_models::payments::AmountFilter;
+#[cfg(feature = "olap")]
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 #[cfg(feature = "olap")]
 use common_utils::errors::ReportSwitchExt;
@@ -615,20 +617,20 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
 
                 query = query.offset(params.offset.into());
 
-                query = match &params.amount_filter {
-                    Some(amount_filter) => {
-                        match (amount_filter.start_amount, amount_filter.end_amount) {
-                            (Some(start_amount), Some(end_amount)) => {
-                                query.filter(pi_dsl::amount.between(start_amount, end_amount))
-                            }
-                            (Some(start_amount), None) => {
-                                query.filter(pi_dsl::amount.ge(start_amount))
-                            }
-                            (None, Some(end_amount)) => query.filter(pi_dsl::amount.le(end_amount)),
-                            (None, None) => query,
-                        }
-                    }
-                    None => query,
+                query = match params.amount_filter {
+                    Some(AmountFilter {
+                        start_amount: Some(start),
+                        end_amount: Some(end),
+                    }) => query.filter(pi_dsl::amount.between(start, end)),
+                    Some(AmountFilter {
+                        start_amount: Some(start),
+                        end_amount: None,
+                    }) => query.filter(pi_dsl::amount.ge(start)),
+                    Some(AmountFilter {
+                        start_amount: None,
+                        end_amount: Some(end),
+                    }) => query.filter(pi_dsl::amount.le(end)),
+                    _ => query,
                 };
 
                 query = match &params.currency {
@@ -744,20 +746,20 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     None => query,
                 };
 
-                query = match &params.amount_filter {
-                    Some(amount_filter) => {
-                        match (amount_filter.start_amount, amount_filter.end_amount) {
-                            (Some(start_amount), Some(end_amount)) => {
-                                query.filter(pi_dsl::amount.between(start_amount, end_amount))
-                            }
-                            (Some(start_amount), None) => {
-                                query.filter(pi_dsl::amount.ge(start_amount))
-                            }
-                            (None, Some(end_amount)) => query.filter(pi_dsl::amount.le(end_amount)),
-                            (None, None) => query,
-                        }
-                    }
-                    None => query,
+                query = match params.amount_filter {
+                    Some(AmountFilter {
+                        start_amount: Some(start),
+                        end_amount: Some(end),
+                    }) => query.filter(pi_dsl::amount.between(start, end)),
+                    Some(AmountFilter {
+                        start_amount: Some(start),
+                        end_amount: None,
+                    }) => query.filter(pi_dsl::amount.ge(start)),
+                    Some(AmountFilter {
+                        start_amount: None,
+                        end_amount: Some(end),
+                    }) => query.filter(pi_dsl::amount.le(end)),
+                    _ => query,
                 };
 
                 query = match &params.currency {
