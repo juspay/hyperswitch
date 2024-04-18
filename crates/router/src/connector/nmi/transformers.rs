@@ -116,14 +116,18 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for NmiVaultRequest {
         let auth_type: NmiAuthType = (&item.connector_auth_type).try_into()?;
         let (ccnumber, ccexp, cvv) = get_card_details(item.request.payment_method_data.clone())?;
         let billing_details = item.get_billing_address()?;
+        let first_name = billing_details.get_first_name()?;
 
         Ok(Self {
             security_key: auth_type.api_key,
             ccnumber,
             ccexp,
             cvv,
-            first_name: billing_details.get_first_name()?.to_owned(),
-            last_name: billing_details.get_last_name()?.to_owned(),
+            first_name: first_name.clone(),
+            last_name: billing_details
+                .get_last_name()
+                .unwrap_or(first_name)
+                .clone(),
             address1: billing_details.line1.clone(),
             address2: billing_details.line2.clone(),
             city: billing_details.city.clone(),

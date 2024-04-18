@@ -34,6 +34,7 @@ pub enum ApiIdentifier {
     UserRole,
     ConnectorOnboarding,
     Recon,
+    Poll,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -115,6 +116,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsSessionToken
             | Flow::PaymentsStart
             | Flow::PaymentsList
+            | Flow::PaymentsFilters
             | Flow::PaymentsRedirect
             | Flow::PaymentsIncrementalAuthorization
             | Flow::PaymentsExternalAuthentication
@@ -228,6 +230,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ReconServiceRequest
             | Flow::ReconVerifyToken => Self::Recon,
             Flow::CreateConnectorAgnosticMandateConfig => Self::Routing,
+
+            Flow::RetrievePollStatus => Self::Poll,
         }
     }
 }
