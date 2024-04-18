@@ -1,3 +1,4 @@
+pub mod access_token;
 pub mod helpers;
 #[cfg(feature = "payout_retry")]
 pub mod retry;
@@ -24,7 +25,7 @@ use crate::types::{domain::behaviour::Conversion, transformers::ForeignFrom};
 use crate::{
     core::{
         errors::{self, RouterResponse, RouterResult},
-        payments::{self, access_token, helpers as payment_helpers},
+        payments::{self, helpers as payment_helpers},
         utils as core_utils,
     },
     routes::AppState,
@@ -1313,7 +1314,14 @@ pub async fn create_payout(
     .await?;
 
     // 2. Get/Create access token
-    create_access_token(state, connector_data, merchant_account, &mut router_data).await?;
+    access_token::create_access_token(
+        state,
+        connector_data,
+        merchant_account,
+        &mut router_data,
+        payout_data.payouts.payout_type.to_owned(),
+    )
+    .await?;
 
     // 3. Fetch connector integration details
     let connector_integration: services::BoxedConnectorIntegration<
@@ -1416,30 +1424,6 @@ pub async fn create_payout(
     };
 
     Ok(payout_data.clone())
-}
-
-pub async fn create_access_token<F: Clone + 'static>(
-    state: &AppState,
-    connector_data: &api::ConnectorData,
-    merchant_account: &domain::MerchantAccount,
-    router_data: &mut types::PayoutsRouterData<F>,
-) -> RouterResult<()> {
-    let connector_access_token =
-        access_token::add_access_token(state, connector_data, merchant_account, router_data)
-            .await?;
-
-    if connector_access_token.connector_supports_access_token {
-        match connector_access_token.access_token_result.as_ref() {
-            Ok(access_token) => {
-                router_data.access_token = access_token.clone();
-            }
-            Err(connector_error) => {
-                router_data.response = Err(connector_error.clone());
-            }
-        }
-    }
-
-    Ok(())
 }
 
 pub async fn cancel_payout(
@@ -1570,7 +1554,14 @@ pub async fn fulfill_payout(
     .await?;
 
     // 2. Get/Create access token
-    create_access_token(state, connector_data, merchant_account, &mut router_data).await?;
+    access_token::create_access_token(
+        state,
+        connector_data,
+        merchant_account,
+        &mut router_data,
+        payout_data.payouts.payout_type.to_owned(),
+    )
+    .await?;
 
     // 3. Fetch connector integration details
     let connector_integration: services::BoxedConnectorIntegration<

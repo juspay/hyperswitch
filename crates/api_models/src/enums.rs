@@ -143,8 +143,8 @@ impl Connector {
     pub fn supports_payout_eligibility(&self, payout_method: PayoutType) -> bool {
         matches!((self, payout_method), (_, PayoutType::Card))
     }
-    pub fn supports_access_token_for_payout(&self, _payout_method: PayoutType) -> bool {
-        true
+    pub fn supports_access_token_for_payout(&self, payout_method: PayoutType) -> bool {
+        matches!((self, payout_method), (Self::Paypal, _))
     }
     pub fn supports_access_token(&self, payment_method: PaymentMethod) -> bool {
         matches!(
