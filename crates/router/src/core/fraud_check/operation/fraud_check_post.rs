@@ -1,3 +1,4 @@
+use api_models::payments::HeaderPayload;
 use async_trait::async_trait;
 use common_enums::FrmSuggestion;
 use common_utils::ext_traits::Encode;
@@ -16,22 +17,23 @@ use crate::{
             types::{FrmData, PaymentDetails, PaymentToFrmData, REFUND_INITIATED},
             ConnectorDetailsCore, FrmConfigsObject,
         },
-        payments, refunds,
+        payment_methods::Oss,
+        payments,
     },
     db::StorageInterface,
-    errors, services,
+    errors,
+    services::{self, api},
     types::{
         api::{
             enums::{AttemptStatus, FrmAction, IntentStatus},
-            fraud_check as frm_api,
-            refunds::{RefundRequest, RefundType},
+            fraud_check as frm_api, payments as payment_types, Capture, Void,
         },
         domain,
         fraud_check::{
             FraudCheckResponseData, FraudCheckSaleData, FrmRequest, FrmResponse, FrmRouterData,
         },
         storage::{
-            enums::{FraudCheckLastStep, FraudCheckStatus, FraudCheckType, MerchantDecision},
+            enums::{FraudCheckLastStep, FraudCheckStatus, FraudCheckType},
             fraud_check::{FraudCheckNew, FraudCheckUpdate},
         },
         ResponseId,
@@ -121,7 +123,6 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPost {
                     fraud_check: fraud_check_value,
                     connector_details: payment_data.connector_details,
                     order_details: payment_data.order_details,
-                    refund: None,
                     frm_metadata: payment_data.frm_metadata,
                 };
                 Ok(Some(frm_data))
@@ -184,38 +185,45 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
         key_store: domain::MerchantKeyStore,
         payment_data: &mut payments::PaymentData<F>,
         customer: &Option<domain::Customer>,
+        should_continue_capture: &mut bool,
     ) -> RouterResult<Option<FrmData>> {
         if matches!(frm_data.fraud_check.frm_status, FraudCheckStatus::Fraud)
-            && matches!(frm_configs.frm_action, FrmAction::AutoRefund)
+            && matches!(frm_configs.frm_action, FrmAction::CancelTxn)
             && matches!(
                 frm_data.fraud_check.last_step,
                 FraudCheckLastStep::CheckoutOrSale
             )
         {
-            *frm_suggestion = Some(FrmSuggestion::FrmAutoRefund);
-            let ref_req = RefundRequest {
-                refund_id: None,
-                payment_id: payment_data.payment_intent.payment_id.clone(),
-                merchant_id: Some(merchant_account.merchant_id.clone()),
-                amount: None,
-                reason: frm_data
-                    .fraud_check
-                    .frm_reason
-                    .clone()
-                    .map(|data| data.to_string()),
-                refund_type: Some(RefundType::Instant),
-                metadata: None,
+            *frm_suggestion = Some(FrmSuggestion::FrmCancelTransaction);
+
+            let cancel_req = api_models::payments::PaymentsCancelRequest {
+                payment_id: frm_data.payment_intent.payment_id.clone(),
+                cancellation_reason: frm_data.fraud_check.frm_error.clone(),
                 merchant_connector_details: None,
             };
-            let refund = Box::pin(refunds::refund_create_core(
+            let cancel_res = Box::pin(payments::payments_core::<
+                Void,
+                payment_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                Oss,
+            >(
                 state.clone(),
                 merchant_account.clone(),
                 key_store.clone(),
-                ref_req,
+                payments::PaymentCancel,
+                cancel_req,
+                api::AuthFlow::Merchant,
+                payments::CallConnectorAction::Trigger,
+                None,
+                HeaderPayload::default(),
             ))
             .await?;
-            if let services::ApplicationResponse::Json(new_refund) = refund {
-                frm_data.refund = Some(new_refund);
+            if let services::ApplicationResponse::JsonWithHeaders((payments_response, _)) =
+                cancel_res
+            {
+                payment_data.payment_intent.status = payments_response.status;
             }
             let _router_data = frm_core::call_frm_service::<F, frm_api::RecordReturn, _>(
                 state,
@@ -227,6 +235,46 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
             )
             .await?;
             frm_data.fraud_check.last_step = FraudCheckLastStep::TransactionOrRecordRefund;
+        } else if matches!(frm_data.fraud_check.frm_status, FraudCheckStatus::Fraud)
+            && matches!(frm_configs.frm_action, FrmAction::ManualReview)
+        {
+            *frm_suggestion = Some(FrmSuggestion::FrmManualReview);
+        } else if matches!(frm_data.fraud_check.frm_status, FraudCheckStatus::Legit)
+            && matches!(should_continue_capture, &mut true)
+        {
+            let capture_request = api_models::payments::PaymentsCaptureRequest {
+                payment_id: frm_data.payment_intent.payment_id.clone(),
+                merchant_id: None,
+                amount_to_capture: None,
+                refund_uncaptured_amount: None,
+                statement_descriptor_suffix: None,
+                statement_descriptor_prefix: None,
+                merchant_connector_details: None,
+            };
+            let capture_response = Box::pin(payments::payments_core::<
+                Capture,
+                payment_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                Oss,
+            >(
+                state.clone(),
+                merchant_account.clone(),
+                key_store.clone(),
+                payments::PaymentCapture,
+                capture_request,
+                api::AuthFlow::Merchant,
+                payments::CallConnectorAction::Trigger,
+                None,
+                HeaderPayload::default(),
+            ))
+            .await?;
+            if let services::ApplicationResponse::JsonWithHeaders((payments_response, _)) =
+                capture_response
+            {
+                payment_data.payment_intent.status = payments_response.status;
+            }
         };
         return Ok(Some(frm_data.to_owned()));
     }
@@ -412,15 +460,24 @@ impl<F: Clone + Send> UpdateTracker<FrmData, F> for FraudCheckPost {
             }
         };
 
-        if frm_suggestion == Some(FrmSuggestion::FrmAutoRefund) {
+        if let Some(frm_suggestion) = frm_suggestion {
+            let (payment_attempt_status, payment_intent_status) = match frm_suggestion {
+                FrmSuggestion::FrmCancelTransaction => {
+                    (AttemptStatus::Failure, IntentStatus::Failed)
+                }
+                FrmSuggestion::FrmManualReview => (
+                    AttemptStatus::Unresolved,
+                    IntentStatus::RequiresMerchantAction,
+                ),
+            };
             payment_data.payment_attempt = db
                 .update_payment_attempt_with_attempt_id(
                     payment_data.payment_attempt.clone(),
                     PaymentAttemptUpdate::RejectUpdate {
-                        status: AttemptStatus::Failure,
+                        status: payment_attempt_status,
                         error_code: Some(Some(frm_data.fraud_check.frm_status.to_string())),
                         error_message: Some(Some(REFUND_INITIATED.to_string())),
-                        updated_by: frm_data.merchant_account.storage_scheme.to_string(), // merchant_decision: Some(MerchantDecision::AutoRefunded),
+                        updated_by: frm_data.merchant_account.storage_scheme.to_string(),
                     },
                     frm_data.merchant_account.storage_scheme,
                 )
@@ -431,8 +488,8 @@ impl<F: Clone + Send> UpdateTracker<FrmData, F> for FraudCheckPost {
                 .update_payment_intent(
                     payment_data.payment_intent.clone(),
                     PaymentIntentUpdate::RejectUpdate {
-                        status: IntentStatus::Failed,
-                        merchant_decision: Some(MerchantDecision::AutoRefunded.to_string()),
+                        status: payment_intent_status,
+                        merchant_decision: None,
                         updated_by: frm_data.merchant_account.storage_scheme.to_string(),
                     },
                     frm_data.merchant_account.storage_scheme,

@@ -209,6 +209,7 @@ pub enum PaymentAttemptUpdate {
         currency: storage_enums::Currency,
         status: storage_enums::AttemptStatus,
         authentication_type: Option<storage_enums::AuthenticationType>,
+        capture_method: Option<storage_enums::CaptureMethod>,
         payment_method: Option<storage_enums::PaymentMethod>,
         browser_info: Option<serde_json::Value>,
         connector: Option<String>,
@@ -555,6 +556,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 amount,
                 currency,
                 authentication_type,
+                capture_method,
                 status,
                 payment_method,
                 browser_info,
@@ -606,6 +608,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_method_billing_address_id,
                 fingerprint_id,
                 payment_method_id,
+                capture_method,
                 ..Default::default()
             },
             PaymentAttemptUpdate::VoidUpdate {

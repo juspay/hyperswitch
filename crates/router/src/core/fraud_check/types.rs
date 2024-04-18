@@ -2,7 +2,6 @@ use api_models::{
     enums as api_enums,
     enums::{PaymentMethod, PaymentMethodType},
     payments::Amount,
-    refunds::RefundResponse,
 };
 use common_enums::FrmSuggestion;
 use common_utils::pii::Email;
@@ -55,7 +54,6 @@ pub struct FrmData {
     pub address: PaymentAddress,
     pub connector_details: ConnectorDetailsCore,
     pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
-    pub refund: Option<RefundResponse>,
     pub frm_metadata: Option<serde_json::Value>,
 }
 

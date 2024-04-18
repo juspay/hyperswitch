@@ -295,7 +295,7 @@ where
                             let is_frm_enabled =
                                 is_frm_connector_enabled && is_frm_pm_enabled && is_frm_pmt_enabled;
                             logger::debug!(
-                                "frm_configs {:?} {:?} {:?} {:?}",
+                                "is_frm_connector_enabled {:?}, is_frm_pm_enabled:  {:?},is_frm_pmt_enabled : {:?},  is_frm_enabled :{:?}",
                                 is_frm_connector_enabled,
                                 is_frm_pm_enabled,
                                 is_frm_pmt_enabled,
@@ -437,7 +437,7 @@ pub async fn pre_payment_frm_core<'a, F>(
 where
     F: Send + Clone,
 {
-    if let Some(frm_data) = &mut frm_info.frm_data {
+    let frm_data = if let Some(frm_data) = &mut frm_info.frm_data {
         if matches!(
             frm_configs.frm_preferred_flow_type,
             api_enums::FrmPreferredFlowTypes::Pre
@@ -468,6 +468,7 @@ where
             let frm_fraud_check = frm_data_updated.fraud_check.clone();
             payment_data.frm_message = Some(frm_fraud_check.clone());
             if matches!(frm_fraud_check.frm_status, FraudCheckStatus::Fraud) {
+                *should_continue_transaction = false;
                 if matches!(frm_configs.frm_action, api_enums::FrmAction::CancelTxn) {
                     *should_continue_transaction = false;
                     frm_info.suggested_action = Some(FrmSuggestion::FrmCancelTransaction);
@@ -481,13 +482,20 @@ where
                 frm_info.fraud_check_operation,
                 frm_info.suggested_action
             );
-            Ok(Some(frm_data_updated))
+            Some(frm_data_updated)
+        } else if matches!(
+            frm_configs.frm_preferred_flow_type,
+            api_enums::FrmPreferredFlowTypes::Post
+        ) {
+            *should_continue_capture = false;
+            Some(frm_data.to_owned())
         } else {
-            Ok(Some(frm_data.to_owned()))
+            Some(frm_data.to_owned())
         }
     } else {
-        Ok(None)
-    }
+        None
+    };
+    Ok(frm_data)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -499,15 +507,16 @@ pub async fn post_payment_frm_core<'a, F>(
     frm_configs: FrmConfigsObject,
     customer: &Option<domain::Customer>,
     key_store: domain::MerchantKeyStore,
+    should_continue_capture: &mut bool,
 ) -> RouterResult<Option<FrmData>>
 where
     F: Send + Clone,
 {
     if let Some(frm_data) = &mut frm_info.frm_data {
-        // Allow the Post flow only if the payment is succeeded,
+        // Allow the Post flow only if the payment is authorized,
         // this logic has to be removed if we are going to call /sale or /transaction after failed transaction
         let fraud_check_operation = &mut frm_info.fraud_check_operation;
-        if payment_data.payment_attempt.status == AttemptStatus::Charged {
+        if payment_data.payment_attempt.status == AttemptStatus::Authorized {
             let frm_router_data_opt = fraud_check_operation
                 .to_domain()?
                 .post_payment_frm(
@@ -530,14 +539,18 @@ where
                         frm_router_data.to_owned(),
                     )
                     .await?;
-
-                payment_data.frm_message = Some(frm_data.fraud_check.clone());
-                logger::debug!(
-                    "frm_updated_data: {:?} {:?}",
-                    frm_data,
-                    payment_data.frm_message
-                );
+                let frm_fraud_check = frm_data.fraud_check.clone();
                 let mut frm_suggestion = None;
+                payment_data.frm_message = Some(frm_fraud_check.clone());
+                if matches!(frm_fraud_check.frm_status, FraudCheckStatus::Fraud) {
+                    if matches!(frm_configs.frm_action, api_enums::FrmAction::CancelTxn) {
+                        frm_info.suggested_action = Some(FrmSuggestion::FrmCancelTransaction);
+                    } else if matches!(frm_configs.frm_action, api_enums::FrmAction::ManualReview) {
+                        frm_info.suggested_action = Some(FrmSuggestion::FrmManualReview);
+                    }
+                } else if matches!(frm_fraud_check.frm_status, FraudCheckStatus::ManualReview) {
+                    frm_info.suggested_action = Some(FrmSuggestion::FrmManualReview);
+                }
                 fraud_check_operation
                     .to_domain()?
                     .execute_post_tasks(
@@ -549,6 +562,7 @@ where
                         key_store,
                         payment_data,
                         customer,
+                        should_continue_capture,
                     )
                     .await?;
                 logger::debug!("frm_post_tasks_data: {:?}", frm_data);

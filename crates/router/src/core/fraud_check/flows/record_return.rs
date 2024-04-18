@@ -71,7 +71,7 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
                 amount: self.payment_attempt.amount,
                 refund_method: RefundMethod::OriginalPaymentInstrument, //we dont consume this data now in payments...hence hardcoded
                 currency,
-                refund_transaction_id: self.refund.clone().map(|refund| refund.refund_id),
+                refund_transaction_id: None,
             }, // self.order_details
             response: Ok(FraudCheckResponseData::RecordReturnResponse {
                 resource_id: ResponseId::ConnectorTransactionId("".to_string()),

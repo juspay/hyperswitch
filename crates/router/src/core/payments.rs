@@ -243,6 +243,7 @@ where
                 | (false, Some(storage_enums::CaptureMethod::Scheduled)) => {
                     payment_data.payment_attempt.capture_method =
                         Some(storage_enums::CaptureMethod::Manual);
+                    should_continue_capture = true;
                 }
                 _ => (),
             };
@@ -423,6 +424,7 @@ where
                         .attach_printable("Frm configs label not found")?,
                     &customer,
                     key_store.clone(),
+                    &mut should_continue_capture,
                 ))
                 .await?;
             }

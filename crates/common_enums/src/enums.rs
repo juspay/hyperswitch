@@ -2236,7 +2236,6 @@ pub enum FrmSuggestion {
     #[default]
     FrmCancelTransaction,
     FrmManualReview,
-    FrmAutoRefund,
 }
 
 #[derive(
