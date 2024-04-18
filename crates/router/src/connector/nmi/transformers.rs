@@ -630,9 +630,9 @@ impl TryFrom<(&domain::payments::Card, &types::PaymentsAuthorizeData)> for Payme
             email: item.email.clone(),
             cavv: Some(auth_data.cavv.clone()),
             eci: auth_data.eci.clone(),
-            xid: None,
+            xid: Some(auth_data.threeds_server_transaction_id.clone()),
             cardholder_auth: None,
-            three_ds_version: None,
+            three_ds_version: Some(auth_data.message_version.clone()),
             directory_server_id: None,
         };
 
