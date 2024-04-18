@@ -170,6 +170,8 @@ pub enum ApiErrorResponse {
     ResourceIdNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Mandate does not exist in our records")]
     MandateNotFound,
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Authentication does not exist in our records")]
+    AuthenticationNotFound { id: String },
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Failed to update mandate")]
     MandateUpdateFailed,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "API Key does not exist in our records")]
