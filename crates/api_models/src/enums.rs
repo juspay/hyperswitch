@@ -189,7 +189,6 @@ impl Connector {
             | Self::Mollie
             | Self::Multisafepay
             | Self::Nexinets
-            | Self::Nmi
             | Self::Nuvei
             | Self::Opennode
             | Self::Payme
@@ -218,7 +217,7 @@ impl Connector {
             | Self::Cybersource
             | Self::Noon
             | Self::Stripe => false,
-            Self::Checkout => true,
+            Self::Checkout | Self::Nmi => true,
         }
         #[cfg(not(feature = "dummy_connector"))]
         match self {
