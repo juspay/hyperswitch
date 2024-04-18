@@ -25,6 +25,7 @@
 // Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
 
 // commands.js or your custom support file
+import * as Errors from "../fixtures/errors";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 
 function logRequestId(xRequestId) {
@@ -679,8 +680,6 @@ Cypress.Commands.add("handleRedirection", (globalState, expected_redirection) =>
       cy.get('button[type="submit"]').click();
     })
   }
-
-
   else {
     // If connectorId is neither of adyen, trustpay, nmi, stripe, bankofamerica or cybersource, wait for 10 seconds
     cy.wait(10000);
