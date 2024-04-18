@@ -7,7 +7,10 @@ use time::PrimitiveDateTime;
 
 use super::app::AppState;
 use crate::{
-    core::{api_locking, errors, payment_methods::cards},
+    core::{
+        api_locking, errors,
+        payment_methods::{self as payment_methods_routes, cards},
+    },
     services::{api, authentication as auth, authorization::permissions::Permission},
     types::{
         api::payment_methods::{self, PaymentMethodId},
@@ -179,6 +182,46 @@ pub async fn list_customer_payment_method_api_client(
             )
         },
         &*auth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+/// Generate a form link for collecting payment methods for a customer
+#[utoipa::path(
+    post,
+    path = "/payment_methods/collect",
+    request_body=PaymentMethodCollectLinkRequest,
+    responses(
+        (status = 200, description = "Payment method collect link generated", body = CustomerPaymentMethodCollectLinkResponse),
+        (status = 400, description = "Missing Mandatory fields")
+    ),
+    tag = "Payment Methods Collect",
+    operation_id = "Generate form link for collecting payment methods for a customer",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodCollectLink))]
+pub async fn generate_link_for_collecting_customer_payment_method(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<payment_methods::PaymentMethodCollectLinkRequest>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodCollectLink;
+    let customer_collect_link_payload = json_payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        customer_collect_link_payload,
+        |state, auth, req, _| {
+            payment_methods_routes::create_payment_method_collect_link(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                req,
+            )
+        },
+        &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await

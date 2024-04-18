@@ -481,6 +481,29 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    generic_link (link_id) {
+        #[max_length = 64]
+        link_id -> Varchar,
+        #[max_length = 64]
+        primary_reference -> Varchar,
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        created_at -> Timestamp,
+        last_modified_at -> Timestamp,
+        link_data -> Jsonb,
+        #[max_length = 32]
+        link_status -> Varchar,
+        #[max_length = 32]
+        link_type -> Varchar,
+        #[max_length = 128]
+        url -> Varchar,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     incremental_authorization (authorization_id, merchant_id) {
         #[max_length = 64]
         authorization_id -> Varchar,
@@ -1200,6 +1223,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     file_metadata,
     fraud_check,
     gateway_status_map,
+    generic_link,
     incremental_authorization,
     locker_mock_up,
     mandate,

@@ -869,6 +869,34 @@ pub struct CustomerPaymentMethod {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct PaymentMethodCollectLinkRequest {
+    /// The unique identifier for the collect link.
+    #[schema(value_type = Option<String>, example = "pm_collect_link_2bdacf398vwzq5n422S1")]
+    pub pm_collect_link_id: Option<String>,
+
+    /// The unique identifier of the customer.
+    #[schema(example = "cus_92dnwed8s32bV9D8Snbiasd8v")]
+    pub customer_id: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct PaymentMethodCollectLinkResponse {
+    /// The unique identifier for the collect link.
+    #[schema(value_type = String, example = "pm_collect_link_2bdacf398vwzq5n422S1")]
+    pub pm_collect_link_id: String,
+
+    /// The unique identifier of the customer.
+    #[schema(value_type = String, example = "cus_92dnwed8s32bV9D8Snbiasd8v")]
+    pub customer_id: String,
+
+    /// URL to the form's link generated for collecting payment method details.
+    #[schema(
+        value_type = String, example = "https://sandbox.hyperswitch.io/payment_method/collect/pm_collect_link_2bdacf398vwzq5n422S1"
+    )]
+    pub link: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct MaskedBankDetails {
     pub mask: String,
 }

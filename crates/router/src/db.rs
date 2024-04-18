@@ -17,6 +17,7 @@ pub mod ephemeral_key;
 pub mod events;
 pub mod file;
 pub mod fraud_check;
+pub mod generic_link;
 pub mod gsm;
 pub mod health_check;
 mod kafka_store;
@@ -117,6 +118,7 @@ pub trait StorageInterface:
     + health_check::HealthCheckDbInterface
     + role::RoleInterface
     + authentication::AuthenticationInterface
+    + generic_link::GenericLinkInterface
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;

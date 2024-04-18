@@ -2,23 +2,29 @@ pub mod cards;
 pub mod surcharge_decision_configs;
 pub mod transformers;
 pub mod vault;
-
 pub use api_models::enums::Connector;
-use api_models::payments::CardToken;
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
+use api_models::{payment_methods, payments::CardToken};
 use data_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
-use diesel_models::enums;
+use diesel_models::{enums, GenericLinkNew, GenericLinkS, PaymentMethodCollectLinkData};
+use error_stack::{report, ResultExt};
 
+use super::errors::{RouterResponse, StorageErrorExt};
 use crate::{
-    core::{errors::RouterResult, payments::helpers, pm_auth as core_pm_auth},
-    routes::AppState,
+    core::{
+        errors::{self, RouterResult},
+        payments::helpers,
+        pm_auth as core_pm_auth,
+    },
+    routes::{app::StorageInterface, AppState},
+    services,
     types::{
         api::{self, payments},
         domain, storage,
     },
 };
-
+mod validator;
 pub struct Oss;
 
 #[async_trait::async_trait]
@@ -253,4 +259,61 @@ impl PaymentMethodRetrieve for Oss {
         };
         Ok(token)
     }
+}
+
+pub async fn create_payment_method_collect_link(
+    state: AppState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    req: payment_methods::PaymentMethodCollectLinkRequest,
+) -> RouterResponse<payment_methods::PaymentMethodCollectLinkResponse> {
+    // Validate request and initiate flow
+    let pm_collect_link_data =
+        validator::validate_request_and_initiate_payment_method_collect_link(
+            &state,
+            &merchant_account,
+            &key_store,
+            &req,
+        )
+        .await?;
+
+    // Create DB entries
+    let generic_link_db =
+        create_pm_collect_db_entry(&state, &merchant_account, &pm_collect_link_data).await?;
+
+    // Return response
+    let response = payment_methods::PaymentMethodCollectLinkResponse {
+        pm_collect_link_id: generic_link_db.link_id,
+        customer_id: generic_link_db.primary_reference,
+        link: generic_link_db.url,
+    };
+    Ok(services::ApplicationResponse::Json(response))
+}
+
+pub async fn create_pm_collect_db_entry(
+    state: &AppState,
+    merchant_account: &domain::MerchantAccount,
+    pm_collect_link_data: &PaymentMethodCollectLinkData,
+) -> RouterResult<GenericLinkS> {
+    let db: &dyn StorageInterface = &*state.store;
+
+    let link_data = serde_json::to_value(pm_collect_link_data)
+        .map_err(|_| report!(errors::ApiErrorResponse::InternalServerError))
+        .attach_printable("Failed to convert PaymentMethodCollectLinkData to Value")?;
+
+    let generic_link_new = GenericLinkNew {
+        link_id: pm_collect_link_data.pm_collect_link_id.to_string(),
+        primary_reference: pm_collect_link_data.customer_id.to_string(),
+        merchant_id: merchant_account.merchant_id.to_string(),
+        link_type: common_enums::GenericLinkType::PaymentMethodCollect.to_string(),
+        link_data,
+        url: pm_collect_link_data.link.to_string(),
+        ..Default::default()
+    };
+
+    db.insert_generic_link(generic_link_new)
+        .await
+        .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
+            message: "payment method collect link already exists".to_string(),
+        })
 }

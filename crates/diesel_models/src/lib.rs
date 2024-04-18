@@ -20,6 +20,7 @@ pub mod events;
 pub mod file;
 #[allow(unused)]
 pub mod fraud_check;
+pub mod generic_link;
 pub mod gsm;
 #[cfg(feature = "kv_store")]
 pub mod kv;
@@ -52,7 +53,7 @@ pub type StorageResult<T> = error_stack::Result<T, errors::DatabaseError>;
 pub type PgPooledConn = async_bb8_diesel::Connection<diesel::PgConnection>;
 pub use self::{
     address::*, api_keys::*, cards_info::*, configs::*, customers::*, dispute::*, ephemeral_key::*,
-    events::*, file::*, locker_mock_up::*, mandate::*, merchant_account::*,
+    events::*, file::*, generic_link::*, locker_mock_up::*, mandate::*, merchant_account::*,
     merchant_connector_account::*, payment_attempt::*, payment_intent::*, payment_method::*,
     payout_attempt::*, payouts::*, process_tracker::*, refund::*, reverse_lookup::*,
 };

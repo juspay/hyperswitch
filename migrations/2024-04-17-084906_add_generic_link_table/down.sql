@@ -1,0 +1,1 @@
+DROP TABLE generic_link;

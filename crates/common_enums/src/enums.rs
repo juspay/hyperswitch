@@ -2691,3 +2691,72 @@ pub enum BankHolderType {
     Personal,
     Business,
 }
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    strum::Display,
+    serde::Serialize,
+    strum::EnumIter,
+    strum::EnumString,
+    strum::VariantNames,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum GenericLinkType {
+    #[default]
+    PaymentMethodCollect,
+}
+
+#[derive(Clone, Copy, Debug, Hash, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GenericLinkStatus {
+    PaymentMethodCollect(PaymentMethodCollectStatus),
+}
+
+impl ToString for GenericLinkStatus {
+    fn to_string(&self) -> String {
+        match self {
+            GenericLinkStatus::PaymentMethodCollect(s) => s.to_string(),
+        }
+    }
+}
+
+impl Default for GenericLinkStatus {
+    fn default() -> Self {
+        Self::PaymentMethodCollect(PaymentMethodCollectStatus::default())
+    }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    strum::Display,
+    serde::Serialize,
+    strum::EnumIter,
+    strum::EnumString,
+    strum::VariantNames,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum PaymentMethodCollectStatus {
+    Expired,
+    #[default]
+    Initiated,
+    Invalidated,
+    Submitted,
+}

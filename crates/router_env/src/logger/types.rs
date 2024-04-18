@@ -119,6 +119,8 @@ pub enum Flow {
     CustomersList,
     /// Retrieve countries and currencies for connector and payment method
     ListCountriesCurrencies,
+    /// Payment method create collect link flow.
+    PaymentMethodCollectLink,
     /// Payment methods retrieve flow.
     PaymentMethodsRetrieve,
     /// Payment methods update flow.

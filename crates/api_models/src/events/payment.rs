@@ -4,6 +4,7 @@ use crate::{
     payment_methods::{
         CustomerDefaultPaymentMethodResponse, CustomerPaymentMethodsListResponse,
         DefaultPaymentMethod, ListCountriesCurrenciesRequest, ListCountriesCurrenciesResponse,
+        PaymentMethodCollectLinkRequest, PaymentMethodCollectLinkResponse,
         PaymentMethodDeleteResponse, PaymentMethodListRequest, PaymentMethodListResponse,
         PaymentMethodResponse, PaymentMethodUpdate,
     },
@@ -144,6 +145,18 @@ impl ApiEventMetric for CustomerDefaultPaymentMethodResponse {
             payment_method: Some(self.payment_method),
             payment_method_type: self.payment_method_type,
         })
+    }
+}
+
+impl ApiEventMetric for PaymentMethodCollectLinkRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::PaymentMethodCollectLink)
+    }
+}
+
+impl ApiEventMetric for PaymentMethodCollectLinkResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::PaymentMethodCollectLink)
     }
 }
 

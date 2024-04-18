@@ -17,6 +17,7 @@ pub mod ephemeral_key;
 pub mod events;
 pub mod file;
 pub mod fraud_check;
+pub mod generic_link;
 pub mod gsm;
 #[cfg(feature = "kv_store")]
 pub mod kv;
@@ -58,10 +59,10 @@ pub use self::{
     address::*, api_keys::*, authentication::*, authorization::*, blocklist::*,
     blocklist_fingerprint::*, blocklist_lookup::*, business_profile::*, capture::*, cards_info::*,
     configs::*, customers::*, dashboard_metadata::*, dispute::*, ephemeral_key::*, events::*,
-    file::*, fraud_check::*, gsm::*, locker_mock_up::*, mandate::*, merchant_account::*,
-    merchant_connector_account::*, merchant_key_store::*, payment_link::*, payment_method::*,
-    process_tracker::*, refund::*, reverse_lookup::*, role::*, routing_algorithm::*, user::*,
-    user_role::*,
+    file::*, fraud_check::*, generic_link::*, gsm::*, locker_mock_up::*, mandate::*,
+    merchant_account::*, merchant_connector_account::*, merchant_key_store::*, payment_link::*,
+    payment_method::*, process_tracker::*, refund::*, reverse_lookup::*, role::*,
+    routing_algorithm::*, user::*, user_role::*,
 };
 use crate::types::api::routing;
 
