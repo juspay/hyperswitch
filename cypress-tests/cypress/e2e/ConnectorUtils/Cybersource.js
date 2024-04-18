@@ -35,6 +35,16 @@ export const connectorDetails = {
         "customer_acceptance": null,
         "setup_future_usage": "on_session",
     },
+    "No3DSManual": {
+        "card": successfulNo3DSCardDetails,
+        "currency": "USD",
+        "paymentSuccessfulStatus": "succeeded",
+        "paymentSyncStatus": "succeeded",
+        "refundStatus": "pending",
+        "refundSyncStatus": "pending",
+        "customer_acceptance": null,
+        "setup_future_usage": "on_session",
+    },
     "MandateSingleUse3DS": {
         "card": successfulThreeDSTestCardDetails,
         "currency": "USD",
@@ -64,6 +74,34 @@ export const connectorDetails = {
         }
     },
     "MandateMultiUseNo3DS": {
+        "card": successfulNo3DSCardDetails,
+        "currency": "USD",
+        "paymentSuccessfulStatus": "succeeded",
+        "paymentSyncStatus": "succeeded",
+        "refundStatus": "pending",
+        "refundSyncStatus": "pending",
+        "mandate_type": {
+            "multi_use": {
+                "amount": 8000,
+                "currency": "USD"
+            }
+        }
+    },
+    "MandateSingleUseNo3DSManual": {
+        "card": successfulNo3DSCardDetails,
+        "currency": "USD",
+        "paymentSuccessfulStatus": "succeeded",
+        "paymentSyncStatus": "succeeded",
+        "refundStatus": "pending",
+        "refundSyncStatus": "pending",
+        "mandate_type": {
+            "single_use": {
+                "amount": 8000,
+                "currency": "USD"
+            }
+        }
+    },
+    "MandateMultiUseNo3DSManual": {
         "card": successfulNo3DSCardDetails,
         "currency": "USD",
         "paymentSuccessfulStatus": "succeeded",

@@ -83,7 +83,7 @@ describe("Card - SaveCard payment flow test", () => {
     });
 
     it("capture-call-test", () => {
-      let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
+      let det = getConnectorDetails(globalState.get("connectorId"))["No3DSManual"];
       cy.captureCallTest(captureBody, 6500, det.paymentSuccessfulStatus, globalState);
     });
 
@@ -110,7 +110,7 @@ describe("Card - SaveCard payment flow test", () => {
     });
 
     it("create-payment-call-test", () => {
-      let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
+      let det = getConnectorDetails(globalState.get("connectorId"))["No3DSManual"];
       cy.createPaymentIntentTest(createPaymentBody, det, "no_three_ds", "manual", globalState);
     });
 
@@ -121,7 +121,7 @@ describe("Card - SaveCard payment flow test", () => {
     });
 
     it("capture-call-test", () => {
-      let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
+      let det = getConnectorDetails(globalState.get("connectorId"))["No3DSManual"];
       cy.captureCallTest(captureBody, 5500, det.paymentSuccessfulStatus, globalState);
     });
   });
