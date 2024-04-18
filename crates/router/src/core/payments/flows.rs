@@ -46,8 +46,6 @@ pub trait Feature<F, T> {
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
         connector_request: Option<services::Request>,
-        key_store: &domain::MerchantKeyStore,
-        profile_id: Option<String>,
     ) -> RouterResult<Self>
     where
         Self: Sized,
