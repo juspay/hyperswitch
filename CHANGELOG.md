@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.04.12.1-hotfix2
+
+### Bug Fixes
+
+- **router:** Make payment_instrument optional ([#4390](https://github.com/juspay/hyperswitch/pull/4390)) ([`adfe0a4`](https://github.com/juspay/hyperswitch/commit/adfe0a4398a507f9c3ad8c036c8b465db4433b8d))
+
+- - -
+
 ## 2024.04.12.1-hotfix1
 
 ### Bug Fixes
