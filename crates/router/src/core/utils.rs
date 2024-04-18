@@ -1,11 +1,15 @@
 use std::{marker::PhantomData, str::FromStr};
 
-use api_models::enums::{DisputeStage, DisputeStatus};
-use common_enums::RequestIncrementalAuthorization;
+use api_models::{
+    enums::{DisputeStage, DisputeStatus},
+    poll::PollStatus,
+};
+use common_enums::{IntentStatus, RequestIncrementalAuthorization};
 #[cfg(feature = "payouts")]
 use common_utils::{crypto::Encryptable, pii::Email};
 use common_utils::{errors::CustomResult, ext_traits::AsyncExt};
 use error_stack::{report, ResultExt};
+use maud::{html, PreEscaped};
 use router_env::{instrument, tracing};
 use uuid::Uuid;
 
@@ -1088,6 +1092,138 @@ pub async fn get_profile_id_from_business_details(
             })),
         },
     }
+}
+
+pub fn get_poll_id(merchant_id: String, unique_id: String) -> String {
+    format!("poll_{}_{}", merchant_id, unique_id)
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct PollConfig {
+    pub delay_in_secs: i8,
+    pub frequency: i8,
+}
+
+pub async fn get_html_redirect_response_for_external_authentication(
+    state: &AppState,
+    return_url_with_query_params: String,
+    payment_response: &api_models::payments::PaymentsResponse,
+    payment_id: String,
+    merchant_id: String,
+    connector: String,
+) -> RouterResult<String> {
+    // if intent_status is requires_customer_action then set poll_id, fetch poll config and do a poll_status post message, else do open_url post message to redirect to return_url
+    let html = match payment_response.status {
+            IntentStatus::RequiresCustomerAction => {
+                // Request poll id sent to client for retrieve_poll_status api
+                let req_poll_id = format!("external_authentication_{}", payment_id);
+                let poll_id = get_poll_id(merchant_id.clone(), req_poll_id.clone());
+                let redis_conn = state
+                    .store
+                    .get_redis_conn()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to get redis connection")?;
+                // Set poll_id in redis to allow the fetch status of poll through retrieve_poll_status api from client
+                redis_conn
+                    .set_key_with_expiry(
+                        &poll_id,
+                        PollStatus::Pending.to_string(),
+                        // 15 minutes = 900 seconds
+                        900,
+                    )
+                    .await
+                    .change_context(errors::StorageError::KVError)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to add poll_id in redis")?;
+                let default_poll_config = PollConfig {
+                    delay_in_secs: 2,
+                    frequency: 5,
+                };
+                let default_config_str = serde_json::to_string(&default_poll_config)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Error while stringifying default poll config")?;
+                let poll_config = state
+                        .store
+                        .find_config_by_key_unwrap_or(
+                            &format!("poll_config_external_three_ds_{merchant_id}_{connector}"),
+                            Some(default_config_str),
+                    )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("The poll config was not found in the DB")?;
+                let poll_config = serde_json::from_str::<Option<PollConfig>>(&poll_config.config)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Error while parsing PollConfig")?
+                    .unwrap_or(default_poll_config);
+                let poll_frequency = poll_config.frequency;
+                let poll_delay_in_secs = poll_config.delay_in_secs;
+                html! {
+                    head {
+                        title { "Redirect Form" }
+                        (PreEscaped(format!(r#"
+                                <script>
+                                    let return_url = "{return_url_with_query_params}";
+                                    let poll_status_data = {{
+                                        'poll_id': '{req_poll_id}',
+                                        'frequency': '{poll_frequency}',
+                                        'delay_in_secs': '{poll_delay_in_secs}',
+                                        'return_url_with_query_params': return_url
+                                    }};
+                                    try {{
+                                        // if inside iframe, send post message to parent for redirection
+                                        if (window.self !== window.parent) {{
+                                            window.top.postMessage({{poll_status: poll_status_data}}, '*')
+                                        // if parent, redirect self to return_url
+                                        }} else {{
+                                            window.location.href = return_url
+                                        }}
+                                    }}
+                                    catch(err) {{
+                                        // if error occurs, send post message to parent and wait for 10 secs to redirect. if doesn't redirect, redirect self to return_url
+                                        window.top.postMessage({{poll_status: poll_status_data}}, '*')
+                                        setTimeout(function() {{
+                                            window.location.href = return_url
+                                        }}, 10000);
+                                        console.log(err.message)
+                                    }}
+                                </script>
+                                "#)))
+                    }
+                }
+                .into_string()
+            },
+            _ => {
+                html! {
+                    head {
+                        title { "Redirect Form" }
+                        (PreEscaped(format!(r#"
+                                <script>
+                                    let return_url = "{return_url_with_query_params}";
+                                    try {{
+                                        // if inside iframe, send post message to parent for redirection
+                                        if (window.self !== window.parent) {{
+                                            window.top.postMessage({{openurl: return_url}}, '*')
+                                        // if parent, redirect self to return_url
+                                        }} else {{
+                                            window.location.href = return_url
+                                        }}
+                                    }}
+                                    catch(err) {{
+                                        // if error occurs, send post message to parent and wait for 10 secs to redirect. if doesn't redirect, redirect self to return_url
+                                        window.top.postMessage({{openurl: return_url}}, '*')
+                                        setTimeout(function() {{
+                                            window.location.href = return_url
+                                        }}, 10000);
+                                        console.log(err.message)
+                                    }}
+                                </script>
+                                "#)))
+                    }
+                }
+                .into_string()
+            },
+        };
+    Ok(html)
 }
 
 #[inline]
