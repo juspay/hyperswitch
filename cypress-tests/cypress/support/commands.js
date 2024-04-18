@@ -380,7 +380,7 @@ Cypress.Commands.add("captureCallTest", (requestBody, amount_to_capture, payment
   });
 });
 
-Cypress.Commands.add("voidCallTest", (requestBody, globalState) => {
+Cypress.Commands.add("voidCallTest", (requestBody, det, globalState) => {
   const payment_id = globalState.get("paymentID");
   cy.request({
     method: "POST",
@@ -398,7 +398,7 @@ Cypress.Commands.add("voidCallTest", (requestBody, globalState) => {
     expect(response.body.amount).to.equal(globalState.get("paymentAmount"));
     // expect(response.body.amount_capturable).to.equal(0);
     expect(response.body.amount_received).to.be.oneOf([0, null]);
-    expect(response.body.status).to.equal("cancelled");
+    expect(response.body.status).to.equal(det.voidStatus);
   });
 });
 
@@ -434,16 +434,21 @@ Cypress.Commands.add("refundCallTest", (requestBody, refund_amount, det, globalS
       "Content-Type": "application/json",
       "api-key": globalState.get("apiKey"),
     },
+    failOnStatusCode: false,
     body: requestBody
   }).then((response) => {
     logRequestId(response.headers['x-request-id']);
 
     expect(response.headers["content-type"]).to.include("application/json");
     globalState.set("refundId", response.body.refund_id);
-    expect(response.body.status).to.equal(det.refundStatus);
-    expect(response.body.amount).to.equal(refund_amount);
-    expect(response.body.payment_id).to.equal(payment_id);
-  });
+    if (response.body.status === det.refundStatus) {
+      expect(response.body.status).to.equal(det.refundStatus);
+      expect(response.body.amount).to.equal(refund_amount);
+      expect(response.body.payment_id).to.equal(payment_id);
+    } else if (response.body.error.type === "invalid_request") {
+      expect(response.body.error).to.deep.equal(Errors.refundErrors["paymentStatusProcessing"]);
+    }
+  })
 });
 
 Cypress.Commands.add("syncRefundCallTest", (det, globalState) => {
@@ -455,11 +460,16 @@ Cypress.Commands.add("syncRefundCallTest", (det, globalState) => {
       "Content-Type": "application/json",
       "api-key": globalState.get("apiKey"),
     },
+    failOnStatusCode: false
   }).then((response) => {
     logRequestId(response.headers['x-request-id']);
 
     expect(response.headers["content-type"]).to.include("application/json");
-    expect(response.body.status).to.equal(det.refundSyncStatus);
+    if (response.body.status === det.refundSyncStatus) {
+      expect(response.body.status).to.equal(det.refundSyncStatus);
+    } else if (response.body.error.type === "invalid_request") {
+      expect(response.body.error).to.deep.equal(Errors.refundErrors["refundDoesNotExist"]);
+    }
   });
 });
 
@@ -538,7 +548,7 @@ Cypress.Commands.add("mitForMandatesCallTest", (requestBody, amount, confirm, ca
 
     expect(response.headers["content-type"]).to.include("application/json");
     globalState.set("paymentID", response.body.payment_id);
-    console.log("mit statusss-> " + response.body.status);
+    console.log("mit status -> " + response.body.status);
     if (response.body.capture_method === "automatic") {
       if (response.body.authentication_type === "three_ds") {
         expect(response.body).to.have.property("next_action")

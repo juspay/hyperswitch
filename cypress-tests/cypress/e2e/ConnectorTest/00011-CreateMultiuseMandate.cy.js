@@ -43,13 +43,13 @@ describe("Card - MultiUse Mandates flow test", () => {
 
         it("Confirm No 3DS CIT", () => {
             console.log("confirm -> " + globalState.get("connectorId"));
-            let det = getConnectorDetails(globalState.get("connectorId"))["MandateMultiUseNo3DS"];
+            let det = getConnectorDetails(globalState.get("connectorId"))["MandateMultiUseNo3DSManual"];
             console.log("det -> " + det.card);
             cy.citForMandatesCallTest(citConfirmBody, 7000, det, true, "manual", "new_mandate", globalState);
         });
 
         it("cit-capture-call-test", () => {
-            let det = getConnectorDetails(globalState.get("connectorId"))["MandateMultiUseNo3DS"];
+            let det = getConnectorDetails(globalState.get("connectorId"))["MandateMultiUseNo3DSManual"];
             console.log("det -> " + det.card);
             cy.captureCallTest(captureBody, 7000, det.paymentSuccessfulStatus, globalState);
         });
@@ -59,7 +59,7 @@ describe("Card - MultiUse Mandates flow test", () => {
         });
 
         it("mit-capture-call-test", () => {
-            let det = getConnectorDetails(globalState.get("connectorId"))["MandateMultiUseNo3DS"];
+            let det = getConnectorDetails(globalState.get("connectorId"))["MandateMultiUseNo3DSManual"];
             console.log("det -> " + det.card);
             cy.captureCallTest(captureBody, 7000, det.paymentSuccessfulStatus, globalState);
         });
@@ -69,7 +69,7 @@ describe("Card - MultiUse Mandates flow test", () => {
         });
 
         it("mit-capture-call-test", () => {
-            let det = getConnectorDetails(globalState.get("connectorId"))["MandateMultiUseNo3DS"];
+            let det = getConnectorDetails(globalState.get("connectorId"))["MandateMultiUseNo3DSManual"];
             console.log("det -> " + det.card);
             cy.captureCallTest(captureBody, 7000, det.paymentSuccessfulStatus, globalState);
         });
