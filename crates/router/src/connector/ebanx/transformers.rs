@@ -155,6 +155,7 @@ impl TryFrom<&EbanxRouterData<&types::PayoutsRouterData<api::PoCreate>>>
 }
 
 pub struct EbanxAuthType {
+    #[allow(dead_code)]
     pub(super) integration_key: Secret<String>,
 }
 

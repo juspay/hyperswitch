@@ -58,6 +58,7 @@ impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Eb
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {
+    #[cfg(feature = "payouts")]
     fn build_headers(
         &self,
         _req: &types::RouterData<Flow, Request, Response>,
