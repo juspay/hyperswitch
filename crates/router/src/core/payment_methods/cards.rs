@@ -364,10 +364,17 @@ pub async fn add_payment_method_data(
 
     match pmd {
         api_models::payment_methods::PaymentMethodCreateData::Card(card) => {
-            let resp =
-                add_card_to_locker(&state, req.clone(), &card, &customer_id, &merchant_account)
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError);
+            helpers::validate_card_expiry(&card.card_exp_month, &card.card_exp_year)?;
+            let resp = add_card_to_locker(
+                &state,
+                req.clone(),
+                &card,
+                &customer_id,
+                &merchant_account,
+                None,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError);
 
             match resp {
                 Ok((mut pm_resp, duplication_check)) => {
