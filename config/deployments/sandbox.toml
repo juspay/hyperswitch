@@ -85,6 +85,7 @@ zen.base_url = "https://api.zen-test.com/"
 zen.secondary_base_url = "https://secure.zen-test.com/"
 zsl.base_url = "https://api.sitoffalb.net/"
 threedsecureio.base_url = "https://service.sandbox.3dsecure.io"
+netcetera.base_url = "https://{{merchant_endpoint_prefix}}.3ds-server.prev.netcetera-cloud-payment.ch"
 
 [delayed_session_response]
 connectors_with_delayed_session_response = "trustpay,payme"
@@ -294,6 +295,8 @@ pse = { country = "CO", currency = "COP" }
 red_compra = { country = "CL", currency = "CLP" }
 red_pagos = { country = "UY", currency = "UYU" }
 
+[pm_filters.zsl]
+local_bank_transfer = { country = "CN", currency = "CNY" }
 
 [temp_locker_enable_config]
 bluesnap.payment_method = "card"

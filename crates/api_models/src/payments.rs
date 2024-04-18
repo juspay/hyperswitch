@@ -1,4 +1,8 @@
-use std::{collections::HashMap, fmt, num::NonZeroI64};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt,
+    num::NonZeroI64,
+};
 
 use cards::CardNumber;
 use common_utils::{
@@ -19,8 +23,11 @@ use url::Url;
 use utoipa::ToSchema;
 
 use crate::{
-    admin, disputes, enums as api_enums, ephemeral_key::EphemeralKeyCreateResponse,
-    mandates::RecurringDetails, refunds,
+    admin::{self, MerchantConnectorInfo},
+    disputes, enums as api_enums,
+    ephemeral_key::EphemeralKeyCreateResponse,
+    mandates::RecurringDetails,
+    refunds,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -3419,6 +3426,20 @@ pub struct PaymentListFilters {
     pub authentication_type: Vec<enums::AuthenticationType>,
 }
 
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PaymentListFiltersV2 {
+    /// The list of available connector filters
+    pub connector: HashMap<String, Vec<MerchantConnectorInfo>>,
+    /// The list of available currency filters
+    pub currency: Vec<enums::Currency>,
+    /// The list of available payment status filters
+    pub status: Vec<enums::IntentStatus>,
+    /// The list payment method and their corresponding types
+    pub payment_method: HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
+    /// The list of available authentication types
+    pub authentication_type: Vec<enums::AuthenticationType>,
+}
+
 #[derive(
     Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash, ToSchema,
 )]
@@ -3857,11 +3878,15 @@ pub struct SessionTokenInfo {
     pub display_name: String,
     pub initiative: String,
     pub initiative_context: String,
+    #[schema(value_type = Option<CountryAlpha2>)]
+    pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct SessionTokenForSimplifiedApplePay {
     pub initiative_context: String,
+    #[schema(value_type = Option<CountryAlpha2>)]
+    pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
@@ -4029,7 +4054,7 @@ pub struct SecretInfoToInitiateSdk {
 pub struct ApplePayPaymentRequest {
     /// The code for country
     #[schema(value_type = CountryAlpha2, example = "US")]
-    pub country_code: Option<api_enums::CountryAlpha2>,
+    pub country_code: api_enums::CountryAlpha2,
     /// The code for currency
     #[schema(value_type = Currency, example = "USD")]
     pub currency_code: api_enums::Currency,
@@ -4464,6 +4489,8 @@ pub struct PaymentLinkDetails {
     pub theme: String,
     pub merchant_description: Option<String>,
     pub sdk_layout: String,
+    pub display_sdk_only: bool,
+    pub enabled_saved_payment_method: bool,
 }
 
 #[derive(Debug, serde::Serialize)]

@@ -23,8 +23,6 @@ use super::blocklist;
 use super::dummy_connector::*;
 #[cfg(feature = "payouts")]
 use super::payouts::*;
-#[cfg(feature = "oltp")]
-use super::pm_auth;
 #[cfg(feature = "olap")]
 use super::routing as cloud_routing;
 #[cfg(feature = "olap")]
@@ -41,6 +39,8 @@ use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 use super::{currency, payment_methods::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, webhooks::*};
+#[cfg(feature = "oltp")]
+use super::{pm_auth, poll::retrieve_poll_status};
 use crate::configs::secrets_transformers;
 #[cfg(all(feature = "frm", feature = "oltp"))]
 use crate::routes::fraud_check as frm_routes;
@@ -318,6 +318,7 @@ impl Payments {
                         .route(web::post().to(payments_list_by_filter)),
                 )
                 .service(web::resource("/filter").route(web::post().to(get_filters_for_payments)))
+                .service(web::resource("/filter_v2").route(web::get().to(get_payment_filters)))
         }
         #[cfg(feature = "oltp")]
         {
@@ -775,8 +776,11 @@ impl PaymentMethods {
                 .service(
                     web::resource("/{payment_method_id}")
                         .route(web::get().to(payment_method_retrieve_api))
-                        .route(web::post().to(payment_method_update_api))
                         .route(web::delete().to(payment_method_delete_api)),
+                )
+                .service(
+                    web::resource("/{payment_method_id}/update")
+                        .route(web::post().to(payment_method_update_api)),
                 )
                 .service(
                     web::resource("/auth/link").route(web::post().to(pm_auth::link_token_create)),
@@ -971,6 +975,17 @@ impl Configs {
                     .route(web::post().to(config_key_update))
                     .route(web::delete().to(config_key_delete)),
             )
+    }
+}
+
+pub struct Poll;
+
+#[cfg(feature = "oltp")]
+impl Poll {
+    pub fn server(config: AppState) -> Scope {
+        web::scope("/poll")
+            .app_data(web::Data::new(config))
+            .service(web::resource("/status/{poll_id}").route(web::get().to(retrieve_poll_status)))
     }
 }
 
