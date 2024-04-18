@@ -1243,7 +1243,7 @@ pub async fn complete_create_payout(
     if payout_data.payout_attempt.status == storage_enums::PayoutStatus::RequiresCreation {
         if connector_data
             .connector_name
-            .supports_create_payout_in_router(payout_data.payouts.payout_type)
+            .supports_instant_payout(payout_data.payouts.payout_type)
         {
             // create payout_object only in router
             let db = &*state.store;
