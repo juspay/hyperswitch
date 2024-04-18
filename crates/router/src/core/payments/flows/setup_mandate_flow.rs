@@ -51,14 +51,28 @@ impl
 impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::SetupMandateRouterData {
     async fn decide_flows<'a>(
         self,
-        _state: &AppState,
-        _connector: &api::ConnectorData,
-        _call_connector_action: payments::CallConnectorAction,
-        _connector_request: Option<services::Request>,
-        _key_store: &domain::MerchantKeyStore,
-        _profile_id: Option<String>,
+        state: &AppState,
+        connector: &api::ConnectorData,
+        call_connector_action: payments::CallConnectorAction,
+        connector_request: Option<services::Request>,
     ) -> RouterResult<Self> {
-        Ok(self)
+        let connector_integration: services::BoxedConnectorIntegration<
+            '_,
+            api::SetupMandate,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        > = connector.connector.get_connector_integration();
+
+        let resp = services::execute_connector_processing_step(
+            state,
+            connector_integration,
+            &self,
+            call_connector_action.clone(),
+            connector_request,
+        )
+        .await
+        .to_setup_mandate_failed_response()?;
+        Ok(resp)
     }
 
     async fn add_access_token<'a>(

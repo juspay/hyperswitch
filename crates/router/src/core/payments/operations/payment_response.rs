@@ -592,16 +592,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             .and_then(|billing_details| billing_details.address.as_ref())
             .and_then(|address| address.get_optional_full_name());
         let save_payment_data = tokenization::SavePaymentMethodData::from(resp);
-        let customer_id = payment_data
-            .payment_intent
-            .customer_id
-            .clone()
-            .ok_or_else(|| {
-                logger::error!("Missing required Param customer_id");
-                errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "customer_id",
-                }
-            })?;
+        let customer_id = payment_data.payment_intent.customer_id.clone();
         let profile_id = payment_data.payment_intent.profile_id.clone();
         let connector_name = payment_data
             .payment_attempt
@@ -620,11 +611,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
                 connector_name,
                 merchant_connector_id.clone(),
                 save_payment_data,
-                Some(customer_id.clone()),
+                customer_id.clone(),
                 merchant_account,
                 resp.request.payment_method_type,
                 key_store,
-                Some(resp.request.amount.unwrap_or(0)),
+                resp.request.amount,
                 Some(resp.request.currency),
                 profile_id,
                 billing_name,
@@ -634,7 +625,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         let mandate_id = mandate::mandate_procedure(
             state,
             resp,
-            &Some(customer_id),
+            &customer_id,
             payment_method_id.clone(),
             merchant_connector_id.clone(),
             merchant_account.storage_scheme,

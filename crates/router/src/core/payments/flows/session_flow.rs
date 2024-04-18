@@ -55,8 +55,6 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
         _connector_request: Option<services::Request>,
-        _key_store: &domain::MerchantKeyStore,
-        _profile_id: Option<String>,
     ) -> RouterResult<Self> {
         metrics::SESSION_TOKEN_CREATED.add(
             &metrics::CONTEXT,

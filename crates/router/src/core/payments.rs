@@ -1391,14 +1391,7 @@ where
         // and rely on previous status set in router_data
         router_data.status = payment_data.payment_attempt.status;
         router_data
-            .decide_flows(
-                state,
-                &connector,
-                call_connector_action,
-                connector_request,
-                key_store,
-                payment_data.payment_intent.profile_id.clone(),
-            )
+            .decide_flows(state, &connector, call_connector_action, connector_request)
             .await
     } else {
         Ok(router_data)
@@ -1523,8 +1516,6 @@ where
             &session_connector_data.connector,
             CallConnectorAction::Trigger,
             None,
-            key_store,
-            payment_data.payment_intent.profile_id.clone(),
         );
 
         join_handlers.push(res);
