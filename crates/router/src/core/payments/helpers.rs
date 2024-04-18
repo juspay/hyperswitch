@@ -635,15 +635,16 @@ pub async fn get_token_for_recurring_mandate(
 
         if let Some(payment_method_from_request) = req.payment_method {
             let pm: storage_enums::PaymentMethod = payment_method_from_request;
-            if let Some(p_method) = payment_method.payment_method {
-                if pm != p_method {
-                    Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                        message:
-                            "payment method in request does not match previously provided payment \
+            if payment_method
+                .payment_method
+                .is_some_and(|payment_method| payment_method != pm)
+            {
+                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                    message:
+                        "payment method in request does not match previously provided payment \
                             method information"
-                                .into()
-                    }))?
-                }
+                            .into()
+                }))?
             }
         };
 
