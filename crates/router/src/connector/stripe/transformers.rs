@@ -187,6 +187,8 @@ pub struct SetupIntentRequest {
     pub payment_method_types: Option<StripePaymentMethodType>,
     #[serde(rename = "expand[0]")]
     pub expand: Option<ExpandableObjects>,
+    #[serde(flatten)]
+    pub browser_info: Option<StripeBrowserInformation>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -1991,11 +1993,17 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             });
 
         let meta_data = get_transaction_metadata(item.request.metadata.clone(), order_id);
-        let browser_info = item
-            .request
-            .browser_info
-            .clone()
-            .map(StripeBrowserInformation::from);
+
+        // We pass browser_info only when payment_data exists.
+        // Hence, we're pass Null during recurring payments as payment_method_data[type] is not passed
+        let mut browser_info = None;
+        if payment_data.is_some() {
+            browser_info = item
+                .request
+                .browser_info
+                .clone()
+                .map(StripeBrowserInformation::from);
+        }
 
         Ok(Self {
             amount: item.request.amount, //hopefully we don't loose some cents here
@@ -2085,6 +2093,12 @@ impl TryFrom<&types::SetupMandateRouterData> for SetupIntentRequest {
             item.connector_request_reference_id.clone(),
         ));
 
+        let browser_info = item
+            .request
+            .browser_info
+            .clone()
+            .map(StripeBrowserInformation::from);
+
         Ok(Self {
             confirm: true,
             payment_data,
@@ -2096,6 +2110,7 @@ impl TryFrom<&types::SetupMandateRouterData> for SetupIntentRequest {
             meta_data,
             payment_method_types: Some(pm_type),
             expand: Some(ExpandableObjects::LatestAttempt),
+            browser_info,
         })
     }
 }
