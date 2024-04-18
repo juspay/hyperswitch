@@ -23,6 +23,8 @@ export const connectorDetails = {
         "currency": "USD",
         "paymentSuccessfulStatus": "requires_customer_action",
         "paymentSyncStatus": "succeeded",
+        "voidStatus": "cancelled",
+        "voidStatus": "cancelled",
         "refundStatus": "succeeded",
         "refundSyncStatus": "succeeded",
         "customer_acceptance": null,
@@ -33,6 +35,7 @@ export const connectorDetails = {
         "currency": "USD",
         "paymentSuccessfulStatus": "succeeded",
         "paymentSyncStatus": "succeeded",
+        "voidStatus": "cancelled",
         "refundStatus": "succeeded",
         "refundSyncStatus": "succeeded",
         "customer_acceptance": null,
@@ -43,6 +46,7 @@ export const connectorDetails = {
         "currency": "USD",
         "paymentSuccessfulStatus": "succeeded",
         "paymentSyncStatus": "succeeded",
+        "voidStatus": "cancelled",
         "refundStatus": "succeeded",
         "refundSyncStatus": "succeeded",
         "customer_acceptance": null,
@@ -53,6 +57,7 @@ export const connectorDetails = {
         "currency": "USD",
         "paymentSuccessfulStatus": "requires_customer_action",
         "paymentSyncStatus": "succeeded",
+        "voidStatus": "cancelled",
         "refundStatus": "succeeded",
         "refundSyncStatus": "succeeded",
         "mandate_type": {
@@ -67,6 +72,7 @@ export const connectorDetails = {
         "currency": "USD",
         "paymentSuccessfulStatus": "succeeded",
         "paymentSyncStatus": "succeeded",
+        "voidStatus": "cancelled",
         "refundStatus": "succeeded",
         "refundSyncStatus": "succeeded",
         "mandate_type": {
@@ -81,6 +87,7 @@ export const connectorDetails = {
         "currency": "USD",
         "paymentSuccessfulStatus": "succeeded",
         "paymentSyncStatus": "succeeded",
+        "voidStatus": "cancelled",
         "refundStatus": "succeeded",
         "refundSyncStatus": "succeeded",
         "mandate_type": {
@@ -95,6 +102,7 @@ export const connectorDetails = {
         "currency": "USD",
         "paymentSuccessfulStatus": "succeeded",
         "paymentSyncStatus": "succeeded",
+        "voidStatus": "cancelled",
         "refundStatus": "succeeded",
         "refundSyncStatus": "succeeded",
         "mandate_type": {
@@ -109,6 +117,7 @@ export const connectorDetails = {
         "currency": "USD",
         "paymentSuccessfulStatus": "succeeded",
         "paymentSyncStatus": "succeeded",
+        "voidStatus": "cancelled",
         "refundStatus": "succeeded",
         "refundSyncStatus": "succeeded",
         "mandate_type": {
@@ -123,6 +132,7 @@ export const connectorDetails = {
         "currency": "USD",
         "paymentSuccessfulStatus": "requires_customer_action",
         "paymentSyncStatus": "succeeded",
+        "voidStatus": "cancelled",
         "refundStatus": "succeeded",
         "refundSyncStatus": "succeeded",
         "mandate_type": {
@@ -137,6 +147,7 @@ export const connectorDetails = {
         "currency": "USD",
         "paymentSuccessfulStatus": "succeeded",
         "paymentSyncStatus": "succeeded",
+        "voidStatus": "cancelled",
         "refundStatus": "succeeded",
         "refundSyncStatus": "succeeded",
         "setup_future_usage": "on_session",

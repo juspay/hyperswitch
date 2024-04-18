@@ -21,6 +21,7 @@ export const connectorDetails = {
         "currency": "USD",
         "paymentSuccessfulStatus": "requires_customer_action",
         "paymentSyncStatus": "processing",
+        "voidStatus": "cancelled",
         "customer_acceptance": null,
         "setup_future_usage": "on_session",
 
@@ -30,6 +31,7 @@ export const connectorDetails = {
         "currency": "USD",
         "paymentSuccessfulStatus": "processing",
         "paymentSyncStatus": "processing",
+        "voidStatus": "cancelled",
         "customer_acceptance": null,
         "setup_future_usage": "on_session",
 
@@ -39,6 +41,7 @@ export const connectorDetails = {
         "currency": "USD",
         "paymentSuccessfulStatus": "processing",
         "paymentSyncStatus": "processing",
+        "voidStatus": "cancelled",
         "customer_acceptance": null,
         "setup_future_usage": "on_session",
 
@@ -48,6 +51,7 @@ export const connectorDetails = {
         "currency": "USD",
         "paymentSuccessfulStatus": "requires_customer_action",
         "paymentSyncStatus": "processing",
+        "voidStatus": "cancelled",
         "mandate_type": {
             "single_use": {
                 "amount": 8000,
@@ -60,6 +64,7 @@ export const connectorDetails = {
         "currency": "USD",
         "paymentSuccessfulStatus": "succeeded",
         "paymentSyncStatus": "succeeded",
+        "voidStatus": "cancelled",
         "mandate_type": {
             "single_use": {
                 "amount": 8000,
@@ -72,6 +77,7 @@ export const connectorDetails = {
         "currency": "USD",
         "paymentSuccessfulStatus": "succeeded",
         "paymentSyncStatus": "succeeded",
+        "voidStatus": "cancelled",
         "mandate_type": {
             "multi_use": {
                 "amount": 8000,
@@ -84,6 +90,7 @@ export const connectorDetails = {
         "currency": "USD",
         "paymentSuccessfulStatus": "succeeded",
         "paymentSyncStatus": "succeeded",
+        "voidStatus": "cancelled",
         "mandate_type": {
             "single_use": {
                 "amount": 8000,
@@ -96,6 +103,7 @@ export const connectorDetails = {
         "currency": "USD",
         "paymentSuccessfulStatus": "succeeded",
         "paymentSyncStatus": "succeeded",
+        "voidStatus": "cancelled",
         "mandate_type": {
             "multi_use": {
                 "amount": 8000,
@@ -108,6 +116,7 @@ export const connectorDetails = {
         "currency": "USD",
         "paymentSuccessfulStatus": "requires_customer_action",
         "paymentSyncStatus": "processing",
+        "voidStatus": "cancelled",
         "mandate_type": {
             "multi_use": {
                 "amount": 8000,
@@ -120,6 +129,7 @@ export const connectorDetails = {
         "currency": "USD",
         "paymentSuccessfulStatus": "processing",
         "paymentSyncStatus": "succeeded",
+        "voidStatus": "cancelled",
         "refundStatus": "succeeded",
         "refundSyncStatus": "succeeded",
         "setup_future_usage": "on_session",

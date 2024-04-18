@@ -6,7 +6,7 @@ import getConnectorDetails from "../ConnectorUtils/utils";
 
 let globalState;
 
-describe("Card - NoThreeDS Manual payment flow test", () => {
+describe("Card - NoThreeDS Manual payment void flow test", () => {
 
     before("seed global state", () => {
 
