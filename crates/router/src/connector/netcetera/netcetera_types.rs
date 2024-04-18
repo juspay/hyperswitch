@@ -1564,7 +1564,7 @@ pub enum ThreeDSReqAuthMethod {
     Guest,
     /// Login to the cardholder account at the 3DS Requestor system using 3DS Requestor's own credentials
     #[serde(rename = "02")]
-    ThreeDsRequestorsCredentians,
+    ThreeDsRequestorCredentials,
     /// Login to the cardholder account at the 3DS Requestor system using federated ID
     #[serde(rename = "03")]
     FederatedID,
