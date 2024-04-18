@@ -4,6 +4,22 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.04.18.0
+
+### Features
+
+- **payment_link:** Add support for saved payment method option for payment link ([#4373](https://github.com/juspay/hyperswitch/pull/4373)) ([`14341ca`](https://github.com/juspay/hyperswitch/commit/14341cad27c635d35a7804752a7dd9db4ad45503))
+- **router:** Add retrieve poll status api ([#4358](https://github.com/juspay/hyperswitch/pull/4358)) ([`ca47ea9`](https://github.com/juspay/hyperswitch/commit/ca47ea9b13ff29085f7cc4e408f2b6498b1d6e8a))
+
+### Bug Fixes
+
+- **config:** Remove `merchant_business_country` from the connector configs as enums can not be handled in this toml file ([#4383](https://github.com/juspay/hyperswitch/pull/4383)) ([`2f59143`](https://github.com/juspay/hyperswitch/commit/2f5914392be9bb4c59c9bf5be9f5d4b6c99ef682))
+- **router:** Make payment_instrument optional ([#4389](https://github.com/juspay/hyperswitch/pull/4389)) ([`450dd0f`](https://github.com/juspay/hyperswitch/commit/450dd0fe0d7c2283fbb43b7dfbe0b6214265d124))
+
+**Full Changelog:** [`2024.04.17.0...2024.04.18.0`](https://github.com/juspay/hyperswitch/compare/2024.04.17.0...2024.04.18.0)
+
+- - -
+
 ## 2024.04.17.0
 
 ### Features
