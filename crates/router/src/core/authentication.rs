@@ -37,6 +37,7 @@ pub async fn perform_authentication(
     sdk_information: Option<payments::SdkInformation>,
     threeds_method_comp_ind: api_models::payments::ThreeDsCompletionIndicator,
     email: Option<common_utils::pii::Email>,
+    webhook_url: String,
 ) -> CustomResult<core_types::api::authentication::AuthenticationResponse, ApiErrorResponse> {
     let router_data = transformers::construct_authentication_router_data(
         authentication_connector.clone(),
@@ -56,6 +57,7 @@ pub async fn perform_authentication(
         sdk_information,
         threeds_method_comp_ind,
         email,
+        webhook_url,
     )?;
     let response =
         utils::do_auth_connector_call(state, authentication_connector.clone(), router_data).await?;

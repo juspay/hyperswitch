@@ -546,7 +546,7 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
             white_list_status: None,
             trust_list_status: None,
             seller_info: None,
-            results_response_notification_url: request.return_url,
+            results_response_notification_url: Some(request.webhook_url),
         };
         let browser_information = request.browser_details.map(netcetera_types::Browser::from);
         let sdk_information = request.sdk_information.map(netcetera_types::Sdk::from);
