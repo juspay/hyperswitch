@@ -4489,6 +4489,8 @@ pub struct PaymentLinkDetails {
     pub theme: String,
     pub merchant_description: Option<String>,
     pub sdk_layout: String,
+    pub display_sdk_only: bool,
+    pub enabled_saved_payment_method: bool,
 }
 
 #[derive(Debug, serde::Serialize)]
