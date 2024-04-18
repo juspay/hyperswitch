@@ -136,7 +136,10 @@ pub enum Connector {
 impl Connector {
     #[cfg(feature = "payouts")]
     pub fn supports_instant_payout(&self, payout_method: PayoutType) -> bool {
-        matches!((self, payout_method), (Self::Paypal, PayoutType::Wallet) | (_, PayoutType::Card))
+        matches!(
+            (self, payout_method),
+            (Self::Paypal, PayoutType::Wallet) | (_, PayoutType::Card)
+        )
     }
     #[cfg(feature = "payouts")]
     pub fn supports_create_recipient(&self, payout_method: PayoutType) -> bool {
