@@ -19,7 +19,7 @@ pub mod iso8601 {
 
     const FORMAT_CONFIG: EncodedConfig = Config::DEFAULT
         .set_time_precision(TimePrecision::Second {
-            decimal_digits: NonZeroU8::new(3),
+            decimal_digits: NonZeroU8::new(6),
         })
         .encode();
 
