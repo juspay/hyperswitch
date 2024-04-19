@@ -1,3 +1,4 @@
+use api_models::enums::BankNames;
 use common_utils::pii::{Email, IpAddress};
 use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
@@ -63,6 +64,8 @@ pub enum Gateway {
     Klarna,
     Googlepay,
     Paypal,
+    Ideal,
+    Giropay,
 }
 
 #[serde_with::skip_serializing_none]
@@ -173,12 +176,53 @@ pub enum GatewayInfo {
     Card(CardInfo),
     Wallet(WalletInfo),
     PayLater(PayLaterInfo),
+    BankRedirect(BankRedirectInfo),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum WalletInfo {
     GooglePay(GpayInfo),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(untagged)]
+pub enum BankRedirectInfo {
+    Ideal(IdealInfo),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct IdealInfo {
+    pub issuer_id: Option<String>,
+}
+
+pub struct MultisafepayBankNames<'a>(&'a str);
+
+impl<'a> TryFrom<&BankNames> for MultisafepayBankNames<'a> {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(bank: &BankNames) -> Result<Self, Self::Error> {
+        Ok(match bank {
+            BankNames::AbnAmro => Self("0031"),
+            BankNames::AsnBank => Self("0761"),
+            BankNames::Bunq => Self("4371"),
+            BankNames::Ing => Self("0721"),
+            BankNames::Knab => Self("0801"),
+            BankNames::N26 => Self("9926"),
+            BankNames::NationaleNederlanden => Self("9927"),
+            BankNames::Rabobank => Self("0021"),
+            BankNames::Regiobank => Self("0771"),
+            BankNames::Revolut => Self("1099"),
+            BankNames::SnsBank => Self("0751"),
+            BankNames::TriodosBank => Self("0511"),
+            BankNames::VanLanschot => Self("0161"),
+            BankNames::Yoursafe => Self("0806"),
+            BankNames::Handelsbanken => Self("1235"),
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: String::from("BankRedirect"),
+                connector: "Multisafepay",
+            })?,
+        })
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -311,6 +355,13 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 ))?,
             },
             api::PaymentMethodData::PayLater(ref _paylater) => Type::Redirect,
+            api::PaymentMethodData::BankRedirect(ref bank_data) => match bank_data {
+                api::BankRedirectData::Giropay { .. } => Type::Redirect,
+                api::BankRedirectData::Ideal { .. } => Type::Direct,
+                _ => Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("multisafepay"),
+                ))?,
+            },
             _ => Type::Redirect,
         };
 
@@ -355,9 +406,15 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 },
             ) => Some(Gateway::Klarna),
             api::PaymentMethodData::MandatePayment => None,
+            api::PaymentMethodData::BankRedirect(ref bank_data) => Some(match bank_data {
+                api::BankRedirectData::Giropay { .. } => Gateway::Giropay,
+                api::BankRedirectData::Ideal { .. } => Gateway::Ideal,
+                _ => Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("multisafepay"),
+                ))?,
+            }),
             api::PaymentMethodData::CardRedirect(_)
             | api::PaymentMethodData::PayLater(_)
-            | api::PaymentMethodData::BankRedirect(_)
             | api::PaymentMethodData::BankDebit(_)
             | api::PaymentMethodData::BankTransfer(_)
             | api::PaymentMethodData::Crypto(_)
@@ -503,8 +560,29 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 }))
             }
             api::PaymentMethodData::MandatePayment => None,
+            api::PaymentMethodData::BankRedirect(ref bank_redirect_data) => {
+                match bank_redirect_data {
+                    api::BankRedirectData::Ideal {
+                        billing_details: _,
+                        bank_name,
+                        country: _,
+                    } => Some(GatewayInfo::BankRedirect(BankRedirectInfo::Ideal(
+                        IdealInfo {
+                            issuer_id: Some(
+                                MultisafepayBankNames::try_from(&bank_name.ok_or(
+                                    errors::ConnectorError::MissingRequiredField {
+                                        field_name: "eps.bank_name",
+                                    },
+                                )?)?
+                                .0
+                                .to_string(),
+                            ),
+                        },
+                    ))),
+                    _ => None,
+                }
+            }
             api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::BankRedirect(_)
             | api::PaymentMethodData::BankDebit(_)
             | api::PaymentMethodData::BankTransfer(_)
             | api::PaymentMethodData::Crypto(_)
