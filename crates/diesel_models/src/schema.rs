@@ -111,6 +111,12 @@ diesel::table! {
         acs_trans_id -> Nullable<Varchar>,
         three_dsserver_trans_id -> Nullable<Varchar>,
         acs_signed_content -> Nullable<Varchar>,
+        #[max_length = 64]
+        profile_id -> Varchar,
+        #[max_length = 255]
+        payment_id -> Nullable<Varchar>,
+        #[max_length = 128]
+        merchant_connector_id -> Varchar,
     }
 }
 

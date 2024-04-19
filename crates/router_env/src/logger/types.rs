@@ -153,6 +153,8 @@ pub enum Flow {
     PaymentsStart,
     /// Payments list flow.
     PaymentsList,
+    // Payments filters flow
+    PaymentsFilters,
     #[cfg(feature = "payouts")]
     /// Payouts create flow
     PayoutsCreate,
@@ -402,6 +404,8 @@ pub enum Flow {
     WebhookEventDeliveryAttemptList,
     /// Manually retry the delivery for a webhook event
     WebhookEventDeliveryRetry,
+    /// Retrieve status of the Poll
+    RetrievePollStatus,
 }
 
 ///

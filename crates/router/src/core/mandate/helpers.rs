@@ -1,3 +1,4 @@
+use api_models::payments as api_payments;
 use common_enums::enums;
 use common_utils::errors::CustomResult;
 use data_models::mandates::MandateData;
@@ -7,7 +8,7 @@ use error_stack::ResultExt;
 use crate::{
     core::{errors, payments},
     routes::AppState,
-    types::domain,
+    types::{api, domain},
 };
 
 pub async fn get_profile_id_for_mandate(
@@ -40,6 +41,40 @@ pub async fn get_profile_id_for_mandate(
     Ok(profile_id)
 }
 
+pub fn get_mandate_type(
+    mandate_data: Option<api_payments::MandateData>,
+    off_session: Option<bool>,
+    setup_future_usage: Option<enums::FutureUsage>,
+    customer_acceptance: Option<api_payments::CustomerAcceptance>,
+    token: Option<String>,
+) -> CustomResult<Option<api::MandateTransactionType>, errors::ValidationError> {
+    match (
+        mandate_data.clone(),
+        off_session,
+        setup_future_usage,
+        customer_acceptance.or(mandate_data.and_then(|m_data| m_data.customer_acceptance)),
+        token,
+    ) {
+        (Some(_), Some(_), Some(enums::FutureUsage::OffSession), Some(_), Some(_)) => {
+            Err(errors::ValidationError::InvalidValue {
+                message: "Expected one out of recurring_details and mandate_data but got both"
+                    .to_string(),
+            }
+            .into())
+        }
+        (_, _, Some(enums::FutureUsage::OffSession), Some(_), Some(_))
+        | (_, _, Some(enums::FutureUsage::OffSession), Some(_), _)
+        | (Some(_), _, Some(enums::FutureUsage::OffSession), _, _) => {
+            Ok(Some(api::MandateTransactionType::NewMandateTransaction))
+        }
+
+        (_, _, Some(enums::FutureUsage::OffSession), _, Some(_)) | (_, Some(_), _, _, _) => Ok(
+            Some(api::MandateTransactionType::RecurringMandateTransaction),
+        ),
+
+        _ => Ok(None),
+    }
+}
 #[derive(Clone)]
 pub struct MandateGenericData {
     pub token: Option<String>,

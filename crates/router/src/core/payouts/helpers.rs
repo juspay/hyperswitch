@@ -1,4 +1,4 @@
-use api_models::{enums, payouts};
+use api_models::{enums, payment_methods::Card, payouts};
 use common_utils::{
     errors::CustomResult,
     ext_traits::{AsyncExt, StringExt},
@@ -14,9 +14,7 @@ use crate::{
         errors::{self, RouterResult, StorageErrorExt},
         payment_methods::{
             cards,
-            transformers::{
-                self, DataDuplicationCheck, StoreCardReq, StoreGenericReq, StoreLockerReq,
-            },
+            transformers::{DataDuplicationCheck, StoreCardReq, StoreGenericReq, StoreLockerReq},
             vault,
         },
         payments::{
@@ -50,7 +48,7 @@ pub async fn make_payout_method_data<'a>(
     merchant_id: &str,
     payout_type: Option<&api_enums::PayoutType>,
     merchant_key_store: &domain::MerchantKeyStore,
-    payout_data: Option<&PayoutData>,
+    payout_data: Option<&mut PayoutData>,
     storage_scheme: storage::enums::MerchantStorageScheme,
 ) -> RouterResult<Option<api::PayoutMethodData>> {
     let db = &*state.store;
@@ -168,15 +166,16 @@ pub async fn make_payout_method_data<'a>(
                 let updated_payout_attempt = storage::PayoutAttemptUpdate::PayoutTokenUpdate {
                     payout_token: lookup_key,
                 };
-                db.update_payout_attempt(
-                    &payout_data.payout_attempt,
-                    updated_payout_attempt,
-                    &payout_data.payouts,
-                    storage_scheme,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error updating token in payout attempt")?;
+                payout_data.payout_attempt = db
+                    .update_payout_attempt(
+                        &payout_data.payout_attempt,
+                        updated_payout_attempt,
+                        &payout_data.payouts,
+                        storage_scheme,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Error updating token in payout attempt")?;
             }
             Ok(Some(payout_method.clone()))
         }
@@ -188,7 +187,7 @@ pub async fn make_payout_method_data<'a>(
 
 pub async fn save_payout_data_to_locker(
     state: &AppState,
-    payout_data: &PayoutData,
+    payout_data: &mut PayoutData,
     payout_method_data: &api::PayoutMethodData,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
@@ -211,7 +210,7 @@ pub async fn save_payout_data_to_locker(
                 let payload = StoreLockerReq::LockerCard(StoreCardReq {
                     merchant_id: merchant_account.merchant_id.as_ref(),
                     merchant_customer_id: payout_attempt.customer_id.to_owned(),
-                    card: transformers::Card {
+                    card: Card {
                         card_number: card.card_number.to_owned(),
                         name_on_card: card.card_holder_name.to_owned(),
                         card_exp_month: card.expiry_month.to_owned(),
@@ -561,15 +560,16 @@ pub async fn save_payout_data_to_locker(
     let updated_payout = storage::PayoutsUpdate::PayoutMethodIdUpdate {
         payout_method_id: stored_resp.card_reference.to_owned(),
     };
-    db.update_payout(
-        &payout_data.payouts,
-        updated_payout,
-        payout_attempt,
-        merchant_account.storage_scheme,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Error updating payouts in saved payout method")?;
+    payout_data.payouts = db
+        .update_payout(
+            &payout_data.payouts,
+            updated_payout,
+            payout_attempt,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error updating payouts in saved payout method")?;
 
     Ok(())
 }
@@ -788,6 +788,7 @@ pub async fn decide_payout_connector(
         TransactionData::<()>::Payout(payout_data),
         routing_data,
         eligible_connectors,
+        None,
     )
     .await
 }

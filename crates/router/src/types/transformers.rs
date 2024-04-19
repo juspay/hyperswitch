@@ -234,6 +234,11 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Klarna => Self::Klarna,
             api_enums::Connector::Mollie => Self::Mollie,
             api_enums::Connector::Multisafepay => Self::Multisafepay,
+            api_enums::Connector::Netcetera => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "netcetera is not a routable connector".to_string(),
+                })?
+            }
             api_enums::Connector::Nexinets => Self::Nexinets,
             api_enums::Connector::Nmi => Self::Nmi,
             api_enums::Connector::Noon => Self::Noon,
@@ -613,6 +618,7 @@ impl<'a> From<&'a domain::Address> for api_types::Address {
             && address.line2.is_none()
             && address.line3.is_none()
             && address.state.is_none()
+            && address.country.is_none()
             && address.zip.is_none()
             && address.first_name.is_none()
             && address.last_name.is_none()

@@ -417,6 +417,7 @@ pub async fn get_token_pm_type_mandate_details(
     mandate_type: Option<api::MandateTransactionType>,
     merchant_account: &domain::MerchantAccount,
     merchant_key_store: &domain::MerchantKeyStore,
+    payment_method_id: Option<String>,
 ) -> RouterResult<MandateGenericData> {
     let mandate_data = request.mandate_data.clone().map(MandateData::foreign_from);
     let (
@@ -432,7 +433,7 @@ pub async fn get_token_pm_type_mandate_details(
             request.payment_token.to_owned(),
             request.payment_method,
             request.payment_method_type,
-            Some(mandate_data.clone().get_required_value("mandate_data")?),
+            mandate_data.clone(),
             None,
             None,
             None,
@@ -495,41 +496,61 @@ pub async fn get_token_pm_type_mandate_details(
                     }
                 },
                 None => {
-                    let mandate_id = request
-                        .mandate_id
-                        .clone()
-                        .get_required_value("mandate_id")?;
-                    let mandate_generic_data = get_token_for_recurring_mandate(
-                        state,
-                        request,
-                        merchant_account,
-                        merchant_key_store,
-                        mandate_id,
-                    )
-                    .await?;
-                    (
-                        mandate_generic_data.token,
-                        mandate_generic_data.payment_method,
-                        mandate_generic_data
-                            .payment_method_type
-                            .or(request.payment_method_type),
-                        None,
-                        mandate_generic_data.recurring_mandate_payment_data,
-                        mandate_generic_data.mandate_connector,
-                        None,
-                    )
+                    if let Some(mandate_id) = request.mandate_id.clone() {
+                        let mandate_generic_data = get_token_for_recurring_mandate(
+                            state,
+                            request,
+                            merchant_account,
+                            merchant_key_store,
+                            mandate_id,
+                        )
+                        .await?;
+                        (
+                            mandate_generic_data.token,
+                            mandate_generic_data.payment_method,
+                            mandate_generic_data
+                                .payment_method_type
+                                .or(request.payment_method_type),
+                            None,
+                            mandate_generic_data.recurring_mandate_payment_data,
+                            mandate_generic_data.mandate_connector,
+                            None,
+                        )
+                    } else {
+                        (
+                            request.payment_token.to_owned(),
+                            request.payment_method,
+                            request.payment_method_type,
+                            None,
+                            None,
+                            None,
+                            None,
+                        )
+                    }
                 }
             }
         }
-        None => (
-            request.payment_token.to_owned(),
-            request.payment_method,
-            request.payment_method_type,
-            mandate_data,
-            None,
-            None,
-            None,
-        ),
+        None => {
+            let payment_method_info = payment_method_id
+                .async_map(|payment_method_id| async move {
+                    state
+                        .store
+                        .find_payment_method(&payment_method_id, merchant_account.storage_scheme)
+                        .await
+                        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
+                })
+                .await
+                .transpose()?;
+            (
+                request.payment_token.to_owned(),
+                request.payment_method,
+                request.payment_method_type,
+                mandate_data,
+                None,
+                None,
+                payment_method_info,
+            )
+        }
     };
     Ok(MandateGenericData {
         token: payment_token,
@@ -552,7 +573,11 @@ pub async fn get_token_for_recurring_mandate(
     let db = &*state.store;
 
     let mandate = db
-        .find_mandate_by_merchant_id_mandate_id(&merchant_account.merchant_id, mandate_id.as_str())
+        .find_mandate_by_merchant_id_mandate_id(
+            &merchant_account.merchant_id,
+            mandate_id.as_str(),
+            merchant_account.storage_scheme,
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
 
@@ -623,15 +648,16 @@ pub async fn get_token_for_recurring_mandate(
 
         if let Some(payment_method_from_request) = req.payment_method {
             let pm: storage_enums::PaymentMethod = payment_method_from_request;
-            if let Some(p_method) = payment_method.payment_method {
-                if pm != p_method {
-                    Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                        message:
-                            "payment method in request does not match previously provided payment \
+            if payment_method
+                .payment_method
+                .is_some_and(|payment_method| payment_method != pm)
+            {
+                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                    message:
+                        "payment method in request does not match previously provided payment \
                             method information"
-                                .into()
-                    }))?
-                }
+                            .into()
+                }))?
             }
         };
 
@@ -793,47 +819,57 @@ pub fn validate_card_data(
             },
         )?;
 
-        let exp_month = card
-            .card_exp_month
-            .peek()
-            .to_string()
-            .parse::<u8>()
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "card_exp_month",
-            })?;
-        let month = ::cards::CardExpirationMonth::try_from(exp_month).change_context(
-            errors::ApiErrorResponse::PreconditionFailed {
-                message: "Invalid Expiry Month".to_string(),
-            },
-        )?;
-        let mut year_str = card.card_exp_year.peek().to_string();
-        if year_str.len() == 2 {
-            year_str = format!("20{}", year_str);
-        }
-        let exp_year =
-            year_str
-                .parse::<u16>()
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "card_exp_year",
-                })?;
-        let year = ::cards::CardExpirationYear::try_from(exp_year).change_context(
-            errors::ApiErrorResponse::PreconditionFailed {
-                message: "Invalid Expiry Year".to_string(),
-            },
-        )?;
-
-        let card_expiration = ::cards::CardExpiration { month, year };
-        let is_expired = card_expiration.is_expired().change_context(
-            errors::ApiErrorResponse::PreconditionFailed {
-                message: "Invalid card data".to_string(),
-            },
-        )?;
-        if is_expired {
-            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                message: "Card Expired".to_string()
-            }))?
-        }
+        validate_card_expiry(&card.card_exp_month, &card.card_exp_year)?;
     }
+    Ok(())
+}
+
+#[instrument(skip_all)]
+pub fn validate_card_expiry(
+    card_exp_month: &masking::Secret<String>,
+    card_exp_year: &masking::Secret<String>,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    let exp_month = card_exp_month
+        .peek()
+        .to_string()
+        .parse::<u8>()
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "card_exp_month",
+        })?;
+    let month = ::cards::CardExpirationMonth::try_from(exp_month).change_context(
+        errors::ApiErrorResponse::PreconditionFailed {
+            message: "Invalid Expiry Month".to_string(),
+        },
+    )?;
+
+    let mut year_str = card_exp_year.peek().to_string();
+    if year_str.len() == 2 {
+        year_str = format!("20{}", year_str);
+    }
+    let exp_year =
+        year_str
+            .parse::<u16>()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "card_exp_year",
+            })?;
+    let year = ::cards::CardExpirationYear::try_from(exp_year).change_context(
+        errors::ApiErrorResponse::PreconditionFailed {
+            message: "Invalid Expiry Year".to_string(),
+        },
+    )?;
+
+    let card_expiration = ::cards::CardExpiration { month, year };
+    let is_expired = card_expiration.is_expired().change_context(
+        errors::ApiErrorResponse::PreconditionFailed {
+            message: "Invalid card data".to_string(),
+        },
+    )?;
+    if is_expired {
+        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+            message: "Card Expired".to_string()
+        }))?
+    }
+
     Ok(())
 }
 
