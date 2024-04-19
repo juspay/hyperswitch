@@ -272,7 +272,7 @@ where
                     };
                     let router_data = call_connector_service(
                         state,
-                        req_state,
+                        req_state.clone(),
                         &merchant_account,
                         &key_store,
                         connector,
@@ -360,7 +360,7 @@ where
                         if config_bool && router_data.should_call_gsm() {
                             router_data = retry::do_gsm_actions(
                                 state,
-                                req_state,
+                                req_state.clone(),
                                 &mut payment_data,
                                 connectors,
                                 connector_data,
@@ -424,6 +424,7 @@ where
             if let Some(fraud_info) = &mut frm_info {
                 Box::pin(frm_core::post_payment_frm_core(
                     state,
+                    req_state,
                     &merchant_account,
                     &mut payment_data,
                     fraud_info,

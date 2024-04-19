@@ -31,6 +31,7 @@ use crate::{
         },
         ResponseId,
     },
+    routes::app::ReqState,
     AppState,
 };
 
@@ -137,6 +138,7 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPre {
     async fn post_payment_frm<'a>(
         &'a self,
         state: &'a AppState,
+        _req_state: ReqState,
         payment_data: &mut payments::PaymentData<F>,
         frm_data: &mut FrmData,
         merchant_account: &domain::MerchantAccount,

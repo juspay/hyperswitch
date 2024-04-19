@@ -20,6 +20,7 @@ use crate::{
         payment_methods::Oss,
         payments,
     },
+    routes::app::ReqState,
     db::StorageInterface,
     errors,
     services::{self, api},
@@ -141,6 +142,7 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
     async fn post_payment_frm<'a>(
         &'a self,
         state: &'a AppState,
+        _req_state: ReqState,
         payment_data: &mut payments::PaymentData<F>,
         frm_data: &mut FrmData,
         merchant_account: &domain::MerchantAccount,
@@ -178,6 +180,7 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
     async fn execute_post_tasks(
         &self,
         state: &AppState,
+        req_state: ReqState,
         frm_data: &mut FrmData,
         merchant_account: &domain::MerchantAccount,
         frm_configs: FrmConfigsObject,
@@ -210,6 +213,7 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
                 Oss,
             >(
                 state.clone(),
+                req_state.clone(),
                 merchant_account.clone(),
                 key_store.clone(),
                 payments::PaymentCancel,
@@ -260,6 +264,7 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
                 Oss,
             >(
                 state.clone(),
+                req_state.clone(),
                 merchant_account.clone(),
                 key_store.clone(),
                 payments::PaymentCapture,

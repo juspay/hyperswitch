@@ -26,7 +26,7 @@ use crate::{
         utils as core_utils,
     },
     db::StorageInterface,
-    routes::AppState,
+    routes::{AppState,app::ReqState},
     services,
     types::{
         self as oss_types,
@@ -501,6 +501,7 @@ where
 #[allow(clippy::too_many_arguments)]
 pub async fn post_payment_frm_core<'a, F>(
     state: &AppState,
+    req_state: ReqState,
     merchant_account: &domain::MerchantAccount,
     payment_data: &mut payments::PaymentData<F>,
     frm_info: &mut FrmInfo<F>,
@@ -521,6 +522,7 @@ where
                 .to_domain()?
                 .post_payment_frm(
                     state,
+                    req_state.clone(),
                     payment_data,
                     frm_data,
                     merchant_account,
@@ -555,6 +557,7 @@ where
                     .to_domain()?
                     .execute_post_tasks(
                         state,
+                        req_state,
                         &mut frm_data,
                         merchant_account,
                         frm_configs,
