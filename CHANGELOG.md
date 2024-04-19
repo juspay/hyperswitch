@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.04.12.1-hotfix3
+
+### Features
+
+- Feat(mandate_kv): add kv support for mandate ([#4392](https://github.com/juspay/hyperswitch/pull/4392)) ([`0fb3b53`](https://github.com/juspay/hyperswitch/commit/0fb3b533a287e31e82760320d9037a0bd4d5bda4))
+
+- - -
+
 ## 2024.04.12.1-hotfix2
 
 ### Bug Fixes
