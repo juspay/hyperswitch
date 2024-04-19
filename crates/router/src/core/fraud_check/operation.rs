@@ -88,7 +88,7 @@ pub trait Domain<F>: Send + Sync {
         _key_store: domain::MerchantKeyStore,
         _payment_data: &mut payments::PaymentData<F>,
         _customer: &Option<domain::Customer>,
-        _should_continue_capture: &mut bool, 
+        _should_continue_capture: &mut bool,
     ) -> RouterResult<Option<FrmData>>
     where
         F: Send + Clone,
