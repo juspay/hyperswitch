@@ -11,40 +11,39 @@ use crate::{
     routes::AppState,
     services::{self, execute_connector_processing_step},
     types::{
-        api::{self, ConnectorCallType},
-        authentication::AuthenticationResponseData,
-        domain, storage,
-        transformers::ForeignFrom,
-        RouterData,
+        api, authentication::AuthenticationResponseData, domain, storage,
+        transformers::ForeignFrom, RouterData,
     },
     utils::OptionExt,
 };
 
-pub fn get_connector_name_if_separate_authn_supported(
-    connector_call_type: &ConnectorCallType,
-) -> Option<String> {
+pub fn get_connector_data_if_separate_authn_supported(
+    connector_call_type: &api::ConnectorCallType,
+) -> Option<api::ConnectorData> {
     match connector_call_type {
-        ConnectorCallType::PreDetermined(connector_data) => {
+        api::ConnectorCallType::PreDetermined(connector_data) => {
             if connector_data
                 .connector_name
                 .is_separate_authentication_supported()
             {
-                Some(connector_data.connector_name.to_string())
+                Some(connector_data.clone())
             } else {
                 None
             }
         }
-        ConnectorCallType::Retryable(connectors) => connectors.first().and_then(|connector_data| {
-            if connector_data
-                .connector_name
-                .is_separate_authentication_supported()
-            {
-                Some(connector_data.connector_name.to_string())
-            } else {
-                None
-            }
-        }),
-        ConnectorCallType::SessionMultiple(_) => None,
+        api::ConnectorCallType::Retryable(connectors) => {
+            connectors.first().and_then(|connector_data| {
+                if connector_data
+                    .connector_name
+                    .is_separate_authentication_supported()
+                {
+                    Some(connector_data.clone())
+                } else {
+                    None
+                }
+            })
+        }
+        api::ConnectorCallType::SessionMultiple(_) => None,
     }
 }
 

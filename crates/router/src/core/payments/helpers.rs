@@ -4315,7 +4315,7 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
         .external_three_ds_authentication_attempted
         .unwrap_or(false);
     let connector_supports_separate_authn =
-        authentication::utils::get_connector_name_if_separate_authn_supported(connector_call_type);
+        authentication::utils::get_connector_data_if_separate_authn_supported(connector_call_type);
     logger::info!("is_pre_authn_call {:?}", authentication_id.is_none());
     logger::info!(
         "separate_authentication_requested {:?}",
@@ -4337,7 +4337,7 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
             PaymentExternalAuthenticationFlow::PostAuthenticationFlow { authentication_id }
         })
     } else if separate_authentication_requested && is_authentication_type_3ds {
-        if let Some((payment_connector_name, card_number)) =
+        if let Some((connector_data, card_number)) =
             connector_supports_separate_authn.zip(card_number)
         {
             let token = payment_data
@@ -4354,8 +4354,8 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
                 None,
                 key_store,
                 &business_profile.profile_id,
-                &payment_connector_name,
-                None,
+                connector_data.connector_name.to_string().as_str(),
+                connector_data.merchant_connector_id.as_ref(),
             )
             .await?;
             let acquirer_details: authentication::types::AcquirerDetails = payment_connector_mca
