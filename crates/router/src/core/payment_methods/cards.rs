@@ -2832,6 +2832,7 @@ pub async fn list_customer_payment_method(
             &merchant_account.merchant_id,
             common_enums::PaymentMethodStatus::Active,
             limit,
+            merchant_account.storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;

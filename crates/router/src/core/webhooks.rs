@@ -427,6 +427,7 @@ pub async fn mandates_incoming_webhook_flow(
                 .find_mandate_by_merchant_id_mandate_id(
                     &merchant_account.merchant_id,
                     mandate_id.as_str(),
+                    merchant_account.storage_scheme,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?,
@@ -436,6 +437,7 @@ pub async fn mandates_incoming_webhook_flow(
                 .find_mandate_by_merchant_id_connector_mandate_id(
                     &merchant_account.merchant_id,
                     connector_mandate_id.as_str(),
+                    merchant_account.storage_scheme,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?,
@@ -445,11 +447,14 @@ pub async fn mandates_incoming_webhook_flow(
         let mandate_status = common_enums::MandateStatus::foreign_try_from(event_type)
             .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
             .attach_printable("event type to mandate status mapping failed")?;
+        let mandate_id = mandate.mandate_id.clone();
         let updated_mandate = db
             .update_mandate_by_merchant_id_mandate_id(
                 &merchant_account.merchant_id,
-                &mandate.mandate_id,
+                &mandate_id,
                 storage::MandateUpdate::StatusUpdate { mandate_status },
+                mandate,
+                merchant_account.storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
