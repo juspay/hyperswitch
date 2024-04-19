@@ -11,14 +11,12 @@ use masking::{ExposeInterface, PeekInterface};
 
 use super::errors;
 use crate::{
+    consts::POLL_ID_TTL,
     core::{errors::ApiErrorResponse, payments as payments_core},
     routes::AppState,
     types::{self as core_types, api, authentication::AuthenticationResponseData, storage},
     utils::{check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata, OptionExt},
 };
-
-// 15 minutes = 900 seconds
-const POLL_ID_TTL: i64 = 900;
 
 #[allow(clippy::too_many_arguments)]
 pub async fn perform_authentication(

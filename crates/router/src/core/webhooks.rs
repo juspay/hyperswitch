@@ -548,7 +548,6 @@ pub async fn external_authentication_incoming_webhook_flow<Ctx: PaymentMethodRet
                                 api_models::poll::PollStatus::Completed.to_string(),
                             )
                             .await
-                            .change_context(errors::StorageError::KVError)
                             .change_context(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable("Failed to add poll_id in redis")?;
                         // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
