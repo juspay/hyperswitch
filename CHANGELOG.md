@@ -4,6 +4,21 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.04.19.0
+
+### Features
+
+- **connector:** [NMI] External 3DS flow for Cards ([#4385](https://github.com/juspay/hyperswitch/pull/4385)) ([`4feda8f`](https://github.com/juspay/hyperswitch/commit/4feda8f89049b830f974e82f414720fd12608170))
+- **payments:** Add amount and connector id filter in list ([#4354](https://github.com/juspay/hyperswitch/pull/4354)) ([`53e5307`](https://github.com/juspay/hyperswitch/commit/53e5307c3cc3ae2b9f1d93d6c1e4d8e7827def7c))
+
+### Testing
+
+- **cypress:** Update ConnectorAuth Details ([#4386](https://github.com/juspay/hyperswitch/pull/4386)) ([`ef1914e`](https://github.com/juspay/hyperswitch/commit/ef1914ec9b75240628ad0c6367499ec063d31e3d))
+
+**Full Changelog:** [`2024.04.18.0...2024.04.19.0`](https://github.com/juspay/hyperswitch/compare/2024.04.18.0...2024.04.19.0)
+
+- - -
+
 ## 2024.04.18.0
 
 ### Features

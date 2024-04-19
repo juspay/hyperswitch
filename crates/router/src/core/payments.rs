@@ -1152,7 +1152,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
     }
 
     fn get_payment_action(&self) -> services::PaymentAction {
-        services::PaymentAction::CompleteAuthorize
+        services::PaymentAction::PaymentAuthenticateCompleteAuthorize
     }
 }
 
@@ -1712,6 +1712,12 @@ where
             } else if connector.connector_name == router_types::Connector::Nmi
                 && !matches!(format!("{operation:?}").as_str(), "CompleteAuthorize")
                 && router_data.auth_type == storage_enums::AuthenticationType::ThreeDs
+                && !matches!(
+                    payment_data
+                        .payment_attempt
+                        .external_three_ds_authentication_attempted,
+                    Some(true)
+                )
             {
                 router_data = router_data.preprocessing_steps(state, connector).await?;
 
@@ -2576,6 +2582,7 @@ pub async fn apply_filters_on_payments(
             constraints.payment_method,
             constraints.payment_method_type,
             constraints.authentication_type,
+            constraints.merchant_connector_id,
             merchant.storage_scheme,
         )
         .await

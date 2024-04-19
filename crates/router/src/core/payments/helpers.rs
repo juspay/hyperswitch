@@ -417,6 +417,7 @@ pub async fn get_token_pm_type_mandate_details(
     mandate_type: Option<api::MandateTransactionType>,
     merchant_account: &domain::MerchantAccount,
     merchant_key_store: &domain::MerchantKeyStore,
+    payment_method_id: Option<String>,
 ) -> RouterResult<MandateGenericData> {
     let mandate_data = request.mandate_data.clone().map(MandateData::foreign_from);
     let (
@@ -529,15 +530,27 @@ pub async fn get_token_pm_type_mandate_details(
                 }
             }
         }
-        None => (
-            request.payment_token.to_owned(),
-            request.payment_method,
-            request.payment_method_type,
-            mandate_data,
-            None,
-            None,
-            None,
-        ),
+        None => {
+            let payment_method_info = payment_method_id
+                .async_map(|payment_method_id| async move {
+                    state
+                        .store
+                        .find_payment_method(&payment_method_id, merchant_account.storage_scheme)
+                        .await
+                        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
+                })
+                .await
+                .transpose()?;
+            (
+                request.payment_token.to_owned(),
+                request.payment_method,
+                request.payment_method_type,
+                mandate_data,
+                None,
+                None,
+                payment_method_info,
+            )
+        }
     };
     Ok(MandateGenericData {
         token: payment_token,
