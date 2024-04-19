@@ -282,8 +282,7 @@ where
                                                 currency,
                                                 connector.merchant_connector_id.clone(),
                                                 connector_mandate_id.clone(),
-                                            )
-                                            .await?;
+                                            )?;
 
                                         payment_methods::cards::update_payment_method_connector_mandate_details(db, pm, connector_mandate_details, merchant_account.storage_scheme).await.change_context(
                                         errors::ApiErrorResponse::InternalServerError,
@@ -373,8 +372,7 @@ where
                                                     currency,
                                                     connector.merchant_connector_id.clone(),
                                                     connector_mandate_id.clone(),
-                                                )
-                                                .await?;
+                                                )?;
 
                                             payment_methods::cards::update_payment_method_connector_mandate_details(db, pm.clone(), connector_mandate_details, merchant_account.storage_scheme).await.change_context(
                                             errors::ApiErrorResponse::InternalServerError,
@@ -809,7 +807,7 @@ pub fn add_connector_mandate_details_in_payment_method(
     }
 }
 
-pub async fn update_connector_mandate_details_in_payment_method(
+pub fn update_connector_mandate_details_in_payment_method(
     payment_method: diesel_models::PaymentMethod,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     authorized_amount: Option<i64>,
@@ -866,5 +864,6 @@ pub async fn update_connector_mandate_details_in_payment_method(
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to serialize customer acceptance to value")?;
+
     Ok(connector_mandate_details)
 }
