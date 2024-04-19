@@ -1584,6 +1584,6 @@ pub enum ThreeDSReqAuthMethod {
     #[serde(rename = "08")]
     SRCAssuranceData,
     /// Additionally, 80-99 can be used for PS-specific values, regardless of protocol version.
-    #[serde(rename = "01")]
+    #[serde(untagged)]
     PsSpecificValue(String),
 }
