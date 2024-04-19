@@ -3366,7 +3366,7 @@ pub fn is_network_transaction_id_flow(
         .connector_list;
 
     pg_agnostic == "true"
-        && payment_method_info.payment_method == storage_enums::PaymentMethod::Card
+        && payment_method_info.payment_method == Some(storage_enums::PaymentMethod::Card)
         && ntid_supported_connectors.contains(&connector)
         && payment_method_info.network_transaction_id.is_some()
 }
