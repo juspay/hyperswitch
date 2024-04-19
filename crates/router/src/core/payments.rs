@@ -1124,7 +1124,6 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
             redirect_response.return_url_with_query_params,
             payments_response,
             payment_id,
-            business_profile.merchant_id,
             connector,
         )
         .await?;

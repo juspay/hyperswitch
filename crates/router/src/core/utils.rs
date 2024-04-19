@@ -1,13 +1,13 @@
 use std::{marker::PhantomData, str::FromStr};
 
-use api_models::{
-    enums::{DisputeStage, DisputeStatus},
-    poll::PollStatus,
-};
+use api_models::enums::{DisputeStage, DisputeStatus};
 use common_enums::{IntentStatus, RequestIncrementalAuthorization};
 #[cfg(feature = "payouts")]
 use common_utils::{crypto::Encryptable, pii::Email};
-use common_utils::{errors::CustomResult, ext_traits::AsyncExt};
+use common_utils::{
+    errors::CustomResult,
+    ext_traits::{AsyncExt, Encode},
+};
 use error_stack::{report, ResultExt};
 use maud::{html, PreEscaped};
 use router_env::{instrument, tracing};
@@ -1104,12 +1104,17 @@ pub struct PollConfig {
     pub frequency: i8,
 }
 
+//Default poll config if it's not set for a connector
+const DEFAULT_POLL_CONFIG: PollConfig = PollConfig {
+    delay_in_secs: 2,
+    frequency: 5,
+};
+
 pub async fn get_html_redirect_response_for_external_authentication(
     state: &AppState,
     return_url_with_query_params: String,
     payment_response: &api_models::payments::PaymentsResponse,
     payment_id: String,
-    merchant_id: String,
     connector: String,
 ) -> RouterResult<String> {
     // if intent_status is requires_customer_action then set poll_id, fetch poll config and do a poll_status post message, else do open_url post message to redirect to return_url
@@ -1117,35 +1122,14 @@ pub async fn get_html_redirect_response_for_external_authentication(
             IntentStatus::RequiresCustomerAction => {
                 // Request poll id sent to client for retrieve_poll_status api
                 let req_poll_id = format!("external_authentication_{}", payment_id);
-                let poll_id = get_poll_id(merchant_id.clone(), req_poll_id.clone());
-                let redis_conn = state
-                    .store
-                    .get_redis_conn()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to get redis connection")?;
-                // Set poll_id in redis to allow the fetch status of poll through retrieve_poll_status api from client
-                redis_conn
-                    .set_key_with_expiry(
-                        &poll_id,
-                        PollStatus::Pending.to_string(),
-                        // 15 minutes = 900 seconds
-                        900,
-                    )
-                    .await
-                    .change_context(errors::StorageError::KVError)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to add poll_id in redis")?;
-                let default_poll_config = PollConfig {
-                    delay_in_secs: 2,
-                    frequency: 5,
-                };
-                let default_config_str = serde_json::to_string(&default_poll_config)
+                let default_poll_config = DEFAULT_POLL_CONFIG;
+                let default_config_str = default_poll_config.encode_to_string_of_json()
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Error while stringifying default poll config")?;
                 let poll_config = state
                         .store
                         .find_config_by_key_unwrap_or(
-                            &format!("poll_config_external_three_ds_{merchant_id}_{connector}"),
+                            &format!("poll_config_external_three_ds_{connector}"),
                             Some(default_config_str),
                     )
                         .await
