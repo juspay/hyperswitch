@@ -49,16 +49,16 @@ pub struct ProcessorConnected {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct OnboardingSurvey {
-    pub designation: String,
-    pub about_business: String,
-    pub business_website: String,
-    pub hyperswitch_req: String,
-    pub major_markets: Vec<String>,
-    pub business_size: String,
-    pub required_features: Vec<String>,
-    pub required_processors: Vec<String>,
-    pub planned_live_date: String,
-    pub miscellaneous: String,
+    pub designation: Option<String>,
+    pub about_business: Option<String>,
+    pub business_website: Option<String>,
+    pub hyperswitch_req: Option<String>,
+    pub major_markets: Option<Vec<String>>,
+    pub business_size: Option<String>,
+    pub required_features: Option<Vec<String>>,
+    pub required_processors: Option<Vec<String>>,
+    pub planned_live_date: Option<String>,
+    pub miscellaneous: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
