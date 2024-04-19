@@ -237,14 +237,15 @@ pub async fn get_authentication_connector_data(
             .clone()
             .get_required_value("authentication_details")
             .change_context(errors::ApiErrorResponse::UnprocessableEntity {
-                message: "authentication_connector_details is not available in business profile".into(), 
+                message: "authentication_connector_details is not available in business profile"
+                    .into(),
             })
             .attach_printable("authentication_connector_details not configured by the merchant")?
-            .parse_value("AuthenticationDetails")
-            .change_context(errors::ApiErrorResponse::UnprocessableEntity {
-                message: "Invalid data format found for authentication_connector_details in business profile".into(),
-            })
-            .attach_printable("Error while parsing authentication_connector_details from business_profile")?;
+            .parse_value("AuthenticationConnectorDetails")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "Error while parsing authentication_connector_details from business_profile",
+            )?;
     let authentication_connector = authentication_details
         .authentication_connectors
         .first()
