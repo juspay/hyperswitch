@@ -746,10 +746,6 @@ Cypress.Commands.add("listRefundCallTest", (globalState) => {
 
     expect(response.headers["content-type"]).to.include("application/json");
     console.log(response.body);
-
-    // this is a temporary fix until a better solution is found
-    if (!globalState.get("connectorId") === "adyen") {
-      expect(response.body.data).to.be.an('array').and.not.empty;
-    }
+    expect(response.body.data).to.be.an('array').and.not.empty;
   });
 });
