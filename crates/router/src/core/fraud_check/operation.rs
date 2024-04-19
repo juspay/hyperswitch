@@ -15,7 +15,7 @@ use crate::{
         payments,
     },
     db::StorageInterface,
-    routes::{AppState, app::ReqState},
+    routes::{app::ReqState, AppState},
     types::{domain, fraud_check::FrmRouterData},
 };
 

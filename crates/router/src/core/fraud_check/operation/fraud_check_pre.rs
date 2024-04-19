@@ -18,6 +18,7 @@ use crate::{
     },
     db::StorageInterface,
     errors,
+    routes::app::ReqState,
     types::{
         api::fraud_check as frm_api,
         domain,
@@ -31,7 +32,6 @@ use crate::{
         },
         ResponseId,
     },
-    routes::app::ReqState,
     AppState,
 };
 
