@@ -2,6 +2,8 @@
 #![warn(missing_docs, missing_debug_implementations)]
 #![doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR" ), "/", "README.md"))]
 
+extern crate core;
+
 pub mod consts;
 pub mod crypto;
 pub mod custom_serde;

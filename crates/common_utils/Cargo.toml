@@ -18,8 +18,8 @@ bytes = "1.6.0"
 diesel = "2.1.5"
 error-stack = "0.4.1"
 futures = { version = "0.3.30", optional = true }
-hex = "0.4.3"
 http = "0.2.12"
+faster-hex= { version = "0.9.0",features = ["alloc"] }
 md5 = "0.7.0"
 nanoid = "0.4.0"
 once_cell = "1.19.0"

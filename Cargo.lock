@@ -1944,8 +1944,8 @@ dependencies = [
  "diesel",
  "error-stack",
  "fake",
+ "faster-hex",
  "futures 0.3.30",
- "hex",
  "http 0.2.12",
  "masking",
  "md5",
@@ -2870,6 +2870,15 @@ dependencies = [
  "tokio 1.37.0",
  "url",
  "webdriver",
+]
+
+[[package]]
+name = "faster-hex"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a2a2b11eda1d40935b26cf18f6833c526845ae8c41e58d09af6adeb6f0269183"
+dependencies = [
+ "serde",
 ]
 
 [[package]]

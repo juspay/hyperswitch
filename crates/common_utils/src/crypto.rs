@@ -4,6 +4,7 @@ use std::ops::Deref;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use md5;
+use md5::Digest;
 use ring::{
     aead::{self, BoundKey, OpeningKey, SealingKey, UnboundKey},
     hmac,
@@ -280,7 +281,7 @@ impl DecodeMessage for GcmAes256 {
                     .ok_or(errors::CryptoError::DecodingFailed)
                     .attach_printable("Failed to read the nonce form the encrypted ciphertext")?,
             )
-            .change_context(errors::CryptoError::DecodingFailed)?,
+                .change_context(errors::CryptoError::DecodingFailed)?,
         );
 
         let mut key = OpeningKey::new(key, nonce_sequence);
@@ -303,18 +304,33 @@ pub struct Sha512;
 #[derive(Debug)]
 pub struct Sha256;
 
+pub enum GenerateDigestOutput {
+    RingDigest(ring::digest::Digest),
+    Md5Digest(Digest),
+}
+
+impl AsRef<[u8]> for GenerateDigestOutput {
+    fn as_ref(&self) -> &[u8] {
+        match self {
+            GenerateDigestOutput::RingDigest(digest) => { digest.as_ref() }
+            GenerateDigestOutput::Md5Digest(digest) => { digest.as_ref() }
+        }
+    }
+}
+
 /// Trait for generating a digest for SHA
 pub trait GenerateDigest {
     /// takes a message and creates a digest for it
-    fn generate_digest(&self, message: &[u8]) -> CustomResult<Vec<u8>, errors::CryptoError>;
+    fn generate_digest(&self, message: &[u8]) -> CustomResult<GenerateDigestOutput, errors::CryptoError>;
 }
 
 impl GenerateDigest for Sha512 {
-    fn generate_digest(&self, message: &[u8]) -> CustomResult<Vec<u8>, errors::CryptoError> {
+    fn generate_digest(&self, message: &[u8]) -> CustomResult<GenerateDigestOutput, errors::CryptoError> {
         let digest = ring::digest::digest(&ring::digest::SHA512, message);
-        Ok(digest.as_ref().to_vec())
+        Ok(GenerateDigestOutput::RingDigest(digest))
     }
 }
+
 impl VerifySignature for Sha512 {
     fn verify_signature(
         &self,
@@ -322,25 +338,24 @@ impl VerifySignature for Sha512 {
         signature: &[u8],
         msg: &[u8],
     ) -> CustomResult<bool, errors::CryptoError> {
-        let msg_str = std::str::from_utf8(msg)
-            .change_context(errors::CryptoError::EncodingFailed)?
-            .to_owned();
-        let hashed_digest = hex::encode(
-            Self.generate_digest(msg_str.as_bytes())
-                .change_context(errors::CryptoError::SignatureVerificationFailed)?,
+        let hashed_digest = faster_hex::hex_string(
+            Self.generate_digest(msg)
+                .change_context(errors::CryptoError::SignatureVerificationFailed)?
+                .as_ref()
         );
         let hashed_digest_into_bytes = hashed_digest.into_bytes();
         Ok(hashed_digest_into_bytes == signature)
     }
 }
+
 /// MD5 hash function
 #[derive(Debug)]
 pub struct Md5;
 
 impl GenerateDigest for Md5 {
-    fn generate_digest(&self, message: &[u8]) -> CustomResult<Vec<u8>, errors::CryptoError> {
+    fn generate_digest(&self, message: &[u8]) -> CustomResult<GenerateDigestOutput, errors::CryptoError> {
         let digest = md5::compute(message);
-        Ok(digest.as_ref().to_vec())
+        Ok(GenerateDigestOutput::Md5Digest(digest))
     }
 }
 
@@ -354,14 +369,14 @@ impl VerifySignature for Md5 {
         let hashed_digest = Self
             .generate_digest(msg)
             .change_context(errors::CryptoError::SignatureVerificationFailed)?;
-        Ok(hashed_digest == signature)
+        Ok(hashed_digest.as_ref() == signature)
     }
 }
 
 impl GenerateDigest for Sha256 {
-    fn generate_digest(&self, message: &[u8]) -> CustomResult<Vec<u8>, errors::CryptoError> {
+    fn generate_digest(&self, message: &[u8]) -> CustomResult<GenerateDigestOutput, errors::CryptoError> {
         let digest = ring::digest::digest(&ring::digest::SHA256, message);
-        Ok(digest.as_ref().to_vec())
+        Ok(GenerateDigestOutput::RingDigest(digest))
     }
 }
 
@@ -375,8 +390,7 @@ impl VerifySignature for Sha256 {
         let hashed_digest = Self
             .generate_digest(msg)
             .change_context(errors::CryptoError::SignatureVerificationFailed)?;
-        let hashed_digest_into_bytes = hashed_digest.as_slice();
-        Ok(hashed_digest_into_bytes == signature)
+        Ok(hashed_digest.as_ref() == signature)
     }
 }
 
@@ -458,20 +472,20 @@ impl<T: Clone> Deref for Encryptable<Secret<T>> {
 }
 
 impl<T: Clone> masking::Serialize for Encryptable<T>
-where
-    T: masking::Serialize,
+    where
+        T: masking::Serialize,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
+        where
+            S: serde::Serializer,
     {
         self.inner.serialize(serializer)
     }
 }
 
 impl<T: Clone> PartialEq for Encryptable<T>
-where
-    T: PartialEq,
+    where
+        T: PartialEq,
 {
     fn eq(&self, other: &Self) -> bool {
         self.inner.eq(&other.inner)
@@ -494,6 +508,7 @@ pub type OptionalSecretValue = Option<Secret<serde_json::Value>>;
 #[cfg(test)]
 mod crypto_tests {
     #![allow(clippy::expect_used)]
+
     use super::{DecodeMessage, EncodeMessage, SignMessage, VerifySignature};
     use crate::crypto::GenerateDigest;
 
@@ -501,9 +516,9 @@ mod crypto_tests {
     fn test_hmac_sha256_sign_message() {
         let message = r#"{"type":"payment_intent"}"#.as_bytes();
         let secret = "hmac_secret_1234".as_bytes();
-        let right_signature =
-            hex::decode("d5550730377011948f12cc28889bee590d2a5434d6f54b87562f2dbc2657823e")
-                .expect("Right signature decoding");
+        let mut right_signature = vec![0; 32];
+        faster_hex::hex_decode(b"d5550730377011948f12cc28889bee590d2a5434d6f54b87562f2dbc2657823e", &mut right_signature)
+            .expect("Right signature decoding");
 
         let signature = super::HmacSha256
             .sign_message(secret, message)
@@ -514,12 +529,13 @@ mod crypto_tests {
 
     #[test]
     fn test_hmac_sha256_verify_signature() {
-        let right_signature =
-            hex::decode("d5550730377011948f12cc28889bee590d2a5434d6f54b87562f2dbc2657823e")
-                .expect("Right signature decoding");
-        let wrong_signature =
-            hex::decode("d5550730377011948f12cc28889bee590d2a5434d6f54b87562f2dbc2657823f")
-                .expect("Wrong signature decoding");
+        let mut right_signature = vec![0; 32];
+        faster_hex::hex_decode(b"d5550730377011948f12cc28889bee590d2a5434d6f54b87562f2dbc2657823e", &mut right_signature)
+            .expect("Wrong signature decoding");
+        let mut wrong_signature = vec![0; 32];
+
+        faster_hex::hex_decode(b"d5550730377011948f12cc28889bee590d2a5434d6f54b87562f2dbc2657823f", &mut wrong_signature)
+            .expect("Wrong signature decoding");
         let secret = "hmac_secret_1234".as_bytes();
         let data = r#"{"type":"payment_intent"}"#.as_bytes();
 
@@ -538,12 +554,12 @@ mod crypto_tests {
 
     #[test]
     fn test_sha256_verify_signature() {
-        let right_signature =
-            hex::decode("123250a72f4e961f31661dbcee0fec0f4714715dc5ae1b573f908a0a5381ddba")
-                .expect("Right signature decoding");
-        let wrong_signature =
-            hex::decode("123250a72f4e961f31661dbcee0fec0f4714715dc5ae1b573f908a0a5381ddbb")
-                .expect("Wrong signature decoding");
+        let mut right_signature = vec![0; 32];
+        faster_hex::hex_decode(b"123250a72f4e961f31661dbcee0fec0f4714715dc5ae1b573f908a0a5381ddba", &mut right_signature)
+            .expect("Right signature decoding");
+        let mut wrong_signature = vec![0; 32];
+        faster_hex::hex_decode(b"123250a72f4e961f31661dbcee0fec0f4714715dc5ae1b573f908a0a5381ddbb", &mut wrong_signature)
+            .expect("Wrong signature decoding");
         let secret = "".as_bytes();
         let data = r#"AJHFH9349JASFJHADJ9834115USD2020-11-13.13:22:34711000000021406655APPROVED12345product_id"#.as_bytes();
 
@@ -564,7 +580,10 @@ mod crypto_tests {
     fn test_hmac_sha512_sign_message() {
         let message = r#"{"type":"payment_intent"}"#.as_bytes();
         let secret = "hmac_secret_1234".as_bytes();
-        let right_signature = hex::decode("38b0bc1ea66b14793e39cd58e93d37b799a507442d0dd8d37443fa95dec58e57da6db4742636fea31201c48e57a66e73a308a2e5a5c6bb831e4e39fe2227c00f")
+        let mut right_signature = vec![0; 64];
+        faster_hex::hex_decode(
+            b"38b0bc1ea66b14793e39cd58e93d37b799a507442d0dd8d37443fa95dec58e57da6db4742636fea31201c48e57a66e73a308a2e5a5c6bb831e4e39fe2227c00f"
+            , &mut right_signature)
             .expect("signature decoding");
 
         let signature = super::HmacSha512
@@ -576,11 +595,12 @@ mod crypto_tests {
 
     #[test]
     fn test_hmac_sha512_verify_signature() {
-        let right_signature = hex::decode("38b0bc1ea66b14793e39cd58e93d37b799a507442d0dd8d37443fa95dec58e57da6db4742636fea31201c48e57a66e73a308a2e5a5c6bb831e4e39fe2227c00f")
+        let mut right_signature = vec![0; 64];
+        faster_hex::hex_decode(b"38b0bc1ea66b14793e39cd58e93d37b799a507442d0dd8d37443fa95dec58e57da6db4742636fea31201c48e57a66e73a308a2e5a5c6bb831e4e39fe2227c00f", &mut right_signature)
             .expect("signature decoding");
-        let wrong_signature =
-            hex::decode("d5550730377011948f12cc28889bee590d2a5434d6f54b87562f2dbc2657823f")
-                .expect("Wrong signature decoding");
+        let mut wrong_signature = vec![0; 32];
+        faster_hex::hex_decode(b"d5550730377011948f12cc28889bee590d2a5434d6f54b87562f2dbc2657823f", &mut wrong_signature)
+            .expect("Wrong signature decoding");
         let secret = "hmac_secret_1234".as_bytes();
         let data = r#"{"type":"payment_intent"}"#.as_bytes();
 
@@ -600,9 +620,9 @@ mod crypto_tests {
     #[test]
     fn test_gcm_aes_256_encode_message() {
         let message = r#"{"type":"PAYMENT"}"#.as_bytes();
-        let secret =
-            hex::decode("000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f")
-                .expect("Secret decoding");
+        let mut secret = vec![0; 32];
+        faster_hex::hex_decode(b"000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f", &mut secret)
+            .expect("Secret decoding");
         let algorithm = super::GcmAes256;
 
         let encoded_message = algorithm
@@ -622,30 +642,31 @@ mod crypto_tests {
         // Inputs taken from AES GCM test vectors provided by NIST
         // https://github.com/briansmith/ring/blob/95948b3977013aed16db92ae32e6b8384496a740/tests/aead_aes_256_gcm_tests.txt#L447-L452
 
-        let right_secret =
-            hex::decode("feffe9928665731c6d6a8f9467308308feffe9928665731c6d6a8f9467308308")
-                .expect("Secret decoding");
-        let wrong_secret =
-            hex::decode("feffe9928665731c6d6a8f9467308308feffe9928665731c6d6a8f9467308309")
-                .expect("Secret decoding");
-        let message =
-            // The three parts of the message are the nonce, ciphertext and tag from the test vector
-            hex::decode(
-                "cafebabefacedbaddecaf888\
+        let mut right_secret = vec![0; 32];
+        faster_hex::hex_decode(b"feffe9928665731c6d6a8f9467308308feffe9928665731c6d6a8f9467308308", &mut right_secret)
+            .expect("Secret decoding");
+        let mut wrong_secret = vec![0; 32];
+        faster_hex::hex_decode(b"feffe9928665731c6d6a8f9467308308feffe9928665731c6d6a8f9467308309", &mut wrong_secret)
+            .expect("Secret decoding");
+        let mut message = vec![0; 92];
+        // The three parts of the message are the nonce, ciphertext and tag from the test vector
+        faster_hex::hex_decode(
+            b"cafebabefacedbaddecaf888\
                  522dc1f099567d07f47f37a32a84427d643a8cdcbfe5c0c97598a2bd2555d1aa8cb08e48590dbb3da7b08b1056828838c5f61e6393ba7a0abcc9f662898015ad\
-                 b094dac5d93471bdec1a502270e3cc6c"
-            ).expect("Message decoding");
+                 b094dac5d93471bdec1a502270e3cc6c", &mut message,
+        ).expect("Message decoding");
 
         let algorithm = super::GcmAes256;
 
         let decoded = algorithm
             .decode_message(&right_secret, message.clone().into())
             .expect("Decoded message");
-
+        let mut buf = vec![0; 64];
+        faster_hex::hex_decode(b"d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c95956809532fcf0e2449a6b525b16aedf5aa0de657ba637b391aafd255", &mut buf)
+            .expect("Decoded plaintext message");
         assert_eq!(
             decoded,
-            hex::decode("d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c95956809532fcf0e2449a6b525b16aedf5aa0de657ba637b391aafd255")
-                .expect("Decoded plaintext message")
+            buf
         );
 
         let err_decoded = algorithm.decode_message(&wrong_secret, message.into());
@@ -659,7 +680,7 @@ mod crypto_tests {
         assert_eq!(
             format!(
                 "{}",
-                hex::encode(super::Md5.generate_digest(message).expect("Digest"))
+                faster_hex::hex_string(super::Md5.generate_digest(message).expect("Digest").as_ref())
             ),
             "c3fcd3d76192e4007dfb496cca67e13b"
         );
@@ -667,11 +688,11 @@ mod crypto_tests {
 
     #[test]
     fn test_md5_verify_signature() {
-        let right_signature =
-            hex::decode("c3fcd3d76192e4007dfb496cca67e13b").expect("signature decoding");
-        let wrong_signature =
-            hex::decode("d5550730377011948f12cc28889bee590d2a5434d6f54b87562f2dbc2657823f")
-                .expect("Wrong signature decoding");
+        let mut right_signature = vec![0; 16];
+        faster_hex::hex_decode(b"c3fcd3d76192e4007dfb496cca67e13b", &mut right_signature).expect("signature decoding");
+        let mut wrong_signature = vec![0; 32];
+        faster_hex::hex_decode(b"d5550730377011948f12cc28889bee590d2a5434d6f54b87562f2dbc2657823f", &mut wrong_signature)
+            .expect("Wrong signature decoding");
         let secret = "".as_bytes();
         let data = "abcdefghijklmnopqrstuvwxyz".as_bytes();
 
