@@ -1472,7 +1472,7 @@ impl<F, T>
 
 #[cfg(feature = "payouts")]
 #[derive(Debug, Serialize)]
-pub struct PaypalFullfillRequest {
+pub struct PaypalFulfillRequest {
     sender_batch_header: PayoutBatchHeader,
     items: Vec<PaypalPayoutItem>,
 }
@@ -1534,7 +1534,7 @@ pub struct PayoutAmount {
 }
 
 impl TryFrom<&PaypalRouterData<&types::PayoutsRouterData<api::PoFulfill>>>
-    for PaypalFullfillRequest
+    for PaypalFulfillRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(

@@ -463,7 +463,7 @@ impl ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResp
             req.request.amount,
             req,
         ))?;
-        let connector_req = paypal::PaypalFullfillRequest::try_from(&connector_router_data)?;
+        let connector_req = paypal::PaypalFulfillRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
