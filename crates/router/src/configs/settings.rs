@@ -104,6 +104,7 @@ pub struct Settings<S: SecretState> {
     pub applepay_merchant_configs: SecretStateContainer<ApplepayMerchantConfigs, S>,
     pub lock_settings: LockSettings,
     pub temp_locker_enable_config: TempLockerEnableConfig,
+    pub generic_link: GenericLink,
     pub payment_link: PaymentLink,
     #[cfg(feature = "olap")]
     pub analytics: SecretStateContainer<AnalyticsConfig, S>,
@@ -136,6 +137,16 @@ pub struct Frm {
 #[derive(Debug, Deserialize, Clone)]
 pub struct KvConfig {
     pub ttl: u32,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct GenericLink {
+    pub payment_method_collect: PaymentMethodCollectConfig,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct PaymentMethodCollectConfig {
+    pub sdk_url: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

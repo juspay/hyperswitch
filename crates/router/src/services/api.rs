@@ -1,4 +1,5 @@
 pub mod client;
+pub mod generic_link_response;
 pub mod request;
 use std::{
     collections::HashMap,
@@ -840,16 +841,22 @@ pub enum ApplicationResponse<R> {
     PaymentLinkForm(Box<PaymentLinkAction>),
     FileData((Vec<u8>, mime::Mime)),
     JsonWithHeaders((R, Vec<(String, Maskable<String>)>)),
+    GenericLinkForm(Box<GenericLinks>),
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum GenericLinks {
+    PaymentMethodCollect(GenericLinkFormData),
 }
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum PaymentLinkAction {
-    PaymentLinkFormData(PaymentLinkFormData),
+    PaymentLinkFormData(GenericLinkFormData),
     PaymentLinkStatus(PaymentLinkStatusData),
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PaymentLinkFormData {
+pub struct GenericLinkFormData {
     pub js_script: String,
     pub css_script: String,
     pub sdk_url: String,
@@ -1202,6 +1209,19 @@ where
             )
             .respond_to(request)
             .map_into_boxed_body()
+        }
+
+        Ok(ApplicationResponse::GenericLinkForm(boxed_generic_link_data)) => {
+            match generic_link_response::build_generic_link_html(boxed_generic_link_data) {
+                Ok(rendered_html) => http_response_html_data(rendered_html),
+                Err(_) => http_response_err(
+                    r#"{
+                        "error": {
+                            "message": "Error while rendering payment method collect link"
+                        }
+                    }"#,
+                ),
+            }
         }
 
         Ok(ApplicationResponse::PaymentLinkForm(boxed_payment_link_data)) => {
@@ -1950,7 +1970,7 @@ pub fn build_redirection_form(
 }
 
 pub fn build_payment_link_html(
-    payment_link_data: PaymentLinkFormData,
+    payment_link_data: GenericLinkFormData,
 ) -> CustomResult<String, errors::ApiErrorResponse> {
     let mut tera = Tera::default();
 

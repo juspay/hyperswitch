@@ -490,12 +490,12 @@ diesel::table! {
         merchant_id -> Varchar,
         created_at -> Timestamp,
         last_modified_at -> Timestamp,
+        expiry -> Timestamp,
         link_data -> Jsonb,
         #[max_length = 32]
         link_status -> Varchar,
-        #[max_length = 32]
-        link_type -> Varchar,
-        #[max_length = 128]
+        link_type -> GenericLinkType,
+        #[max_length = 256]
         url -> Varchar,
     }
 }

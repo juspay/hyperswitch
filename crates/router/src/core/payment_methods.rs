@@ -261,7 +261,7 @@ impl PaymentMethodRetrieve for Oss {
     }
 }
 
-pub async fn create_payment_method_collect_link(
+pub async fn initiate_pm_collect_link(
     state: AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
@@ -305,7 +305,7 @@ pub async fn create_pm_collect_db_entry(
         link_id: pm_collect_link_data.pm_collect_link_id.to_string(),
         primary_reference: pm_collect_link_data.customer_id.to_string(),
         merchant_id: merchant_account.merchant_id.to_string(),
-        link_type: common_enums::GenericLinkType::PaymentMethodCollect.to_string(),
+        link_type: common_enums::GenericLinkType::PaymentMethodCollect,
         link_data,
         url: pm_collect_link_data.link.to_string(),
         ..Default::default()
@@ -316,4 +316,51 @@ pub async fn create_pm_collect_db_entry(
         .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
             message: "payment method collect link already exists".to_string(),
         })
+}
+
+pub async fn render_pm_collect_link(
+    state: AppState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    req: payment_methods::PaymentMethodCollectLinkRenderRequest,
+) -> RouterResponse<services::GenericLinkFormData> {
+    // Fetch pm collect link data
+    let db: &dyn StorageInterface = &*state.store;
+
+    let pm_collect_link = db
+        .find_generic_link_by_link_id(&req.pm_collect_link_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "payment method collect link not found".to_string(),
+        })?;
+
+    // Check status and return form data accordingly
+    let has_expired = common_utils::date_time::now() > pm_collect_link.expiry;
+    let status = pm_collect_link.link_status;
+    match status {
+        enums::GenericLinkStatus::PaymentMethodCollect(
+            enums::PaymentMethodCollectStatus::Initiated,
+        ) => {
+            // Check expiry
+            if has_expired {
+                //  Send back expired status page
+                todo!()
+            } else {
+                // Send back link
+                todo!()
+            }
+        }
+        enums::GenericLinkStatus::PaymentMethodCollect(
+            enums::PaymentMethodCollectStatus::Invalidated,
+        ) => {
+            // Send back expired status page
+            todo!()
+        }
+        enums::GenericLinkStatus::PaymentMethodCollect(
+            enums::PaymentMethodCollectStatus::Submitted,
+        ) => {
+            // Send back status page
+            todo!()
+        }
+    }
 }

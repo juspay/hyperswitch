@@ -1,6 +1,6 @@
 use diesel::{Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
-use time::PrimitiveDateTime;
+use time::{Duration, PrimitiveDateTime};
 
 use crate::{enums as storage_enums, schema::generic_link};
 
@@ -15,9 +15,11 @@ pub struct GenericLink {
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub last_modified_at: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub expiry: PrimitiveDateTime,
     pub link_data: serde_json::Value,
     pub link_status: String,
-    pub link_type: String,
+    pub link_type: storage_enums::GenericLinkType,
     pub url: String,
 }
 
@@ -30,6 +32,8 @@ pub struct GenericLinkS {
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub last_modified_at: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub expiry: PrimitiveDateTime,
     pub link_data: GenericLinkData,
     pub link_status: storage_enums::GenericLinkStatus,
     pub link_type: storage_enums::GenericLinkType,
@@ -55,9 +59,11 @@ pub struct GenericLinkNew {
     pub created_at: Option<PrimitiveDateTime>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub last_modified_at: Option<PrimitiveDateTime>,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub expiry: Option<PrimitiveDateTime>,
     pub link_data: serde_json::Value,
     pub link_status: String,
-    pub link_type: String,
+    pub link_type: storage_enums::GenericLinkType,
     pub url: String,
 }
 
@@ -71,9 +77,10 @@ impl Default for GenericLinkNew {
             merchant_id: String::default(),
             created_at: Some(now),
             last_modified_at: Some(now),
+            expiry: Some(now + Duration::minutes(15)),
             link_data: serde_json::Value::default(),
             link_status: common_enums::GenericLinkStatus::default().to_string(),
-            link_type: common_enums::GenericLinkType::default().to_string(),
+            link_type: common_enums::GenericLinkType::default(),
             url: String::default(),
         }
     }

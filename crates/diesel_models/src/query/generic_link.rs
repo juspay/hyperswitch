@@ -50,13 +50,7 @@ impl GenericLink {
 impl TryFrom<GenericLink> for GenericLinkS {
     type Error = Report<errors::ParsingError>;
     fn try_from(db_val: GenericLink) -> Result<Self, Self::Error> {
-        let link_type = common_enums::GenericLinkType::from_str(&db_val.link_type)
-            .map_err(|_| report!(errors::ParsingError::EnumParseFailure("GenericLinkType")))
-            .attach_printable(format!(
-                "Failed to parse link_type - {} for id - {}",
-                db_val.link_type, db_val.link_id
-            ))?;
-        let (link_data, link_status) = match link_type {
+        let (link_data, link_status) = match db_val.link_type {
             common_enums::GenericLinkType::PaymentMethodCollect => {
                 let link_data = db_val
                     .link_data
@@ -85,9 +79,10 @@ impl TryFrom<GenericLink> for GenericLinkS {
             merchant_id: db_val.merchant_id,
             created_at: db_val.created_at,
             last_modified_at: db_val.last_modified_at,
+            expiry: db_val.expiry,
             link_data,
             link_status,
-            link_type,
+            link_type: db_val.link_type,
             url: db_val.url,
         })
     }

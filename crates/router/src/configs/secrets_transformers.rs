@@ -349,6 +349,7 @@ pub(crate) async fn fetch_raw_secrets(
         applepay_merchant_configs,
         lock_settings: conf.lock_settings,
         temp_locker_enable_config: conf.temp_locker_enable_config,
+        generic_link: conf.generic_link,
         payment_link: conf.payment_link,
         #[cfg(feature = "olap")]
         analytics,

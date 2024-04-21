@@ -1,11 +1,13 @@
-use api_models::payment_methods::PaymentMethodCollectLinkRequest;
+use api_models::payment_methods::{
+    PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest,
+};
 use diesel_models::generic_link::PaymentMethodCollectLinkData;
 use error_stack::ResultExt;
 
 use crate::{
     consts,
     core::{
-        errors::{self, RouterResult},
+        errors::{self, RouterResult, StorageErrorExt},
         utils as core_utils,
     },
     routes::{app::StorageInterface, AppState},
@@ -76,3 +78,16 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
         client_secret,
     })
 }
+
+// fn validate_pm_collect_link_status(
+//     state: &AppState,
+//     merchant_account: &domain::MerchantAccount,
+//     key_store: &domain::MerchantKeyStore,
+//     req: &PaymentMethodCollectLinkRenderRequest,
+// ) -> RouterResult<PaymentMethodCollectLinkData> {
+    
+//     let expiry = pm_collect_link.expiry;
+//     if common_utils::date_time::now() > expiry {
+//         Err(errors::ApiErrorResponse::Inva)
+//     }
+// }

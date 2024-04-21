@@ -373,6 +373,7 @@ async fn get_outgoing_webhook_content_and_event_type(
                     | ApplicationResponse::TextPlain(_)
                     | ApplicationResponse::JsonForRedirection(_)
                     | ApplicationResponse::Form(_)
+                    | ApplicationResponse::GenericLinkForm(_)
                     | ApplicationResponse::PaymentLinkForm(_)
                     | ApplicationResponse::FileData(_) => {
                         Err(errors::ProcessTrackerError::ResourceFetchingFailed {
@@ -428,6 +429,7 @@ async fn get_outgoing_webhook_content_and_event_type(
                     | ApplicationResponse::TextPlain(_)
                     | ApplicationResponse::JsonForRedirection(_)
                     | ApplicationResponse::Form(_)
+                    | ApplicationResponse::GenericLinkForm(_)
                     | ApplicationResponse::PaymentLinkForm(_)
                     | ApplicationResponse::FileData(_) => {
                         Err(errors::ProcessTrackerError::ResourceFetchingFailed {
@@ -459,6 +461,7 @@ async fn get_outgoing_webhook_content_and_event_type(
                     | ApplicationResponse::TextPlain(_)
                     | ApplicationResponse::JsonForRedirection(_)
                     | ApplicationResponse::Form(_)
+                    | ApplicationResponse::GenericLinkForm(_)
                     | ApplicationResponse::PaymentLinkForm(_)
                     | ApplicationResponse::FileData(_) => {
                         Err(errors::ProcessTrackerError::ResourceFetchingFailed {

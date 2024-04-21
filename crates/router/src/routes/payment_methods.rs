@@ -201,20 +201,19 @@ pub async fn list_customer_payment_method_api_client(
     security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodCollectLink))]
-pub async fn generate_link_for_collecting_customer_payment_method(
+pub async fn initiate_pm_collect_link_flow(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<payment_methods::PaymentMethodCollectLinkRequest>,
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodCollectLink;
-    let customer_collect_link_payload = json_payload.into_inner();
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        customer_collect_link_payload,
+        json_payload.into_inner(),
         |state, auth, req, _| {
-            payment_methods_routes::create_payment_method_collect_link(
+            payment_methods_routes::initiate_pm_collect_link(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -222,6 +221,36 @@ pub async fn generate_link_for_collecting_customer_payment_method(
             )
         },
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn render_pm_collect_link(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<(String, String)>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodCollectLink;
+    let (merchant_id, pm_collect_link_id) = path.into_inner();
+    let payload = payment_methods::PaymentMethodCollectLinkRenderRequest {
+        merchant_id: merchant_id.clone(),
+        pm_collect_link_id,
+    };
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, req, _| {
+            payment_methods_routes::render_pm_collect_link(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                req,
+            )
+        },
+        &auth::MerchantIdAuth(merchant_id),
         api_locking::LockAction::NotApplicable,
     ))
     .await

@@ -897,6 +897,17 @@ pub struct PaymentMethodCollectLinkResponse {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct PaymentMethodCollectLinkRenderRequest {
+    /// Unique identifier for a merchant.
+    #[schema(example = "merchant_1671528864")]
+    pub merchant_id: String,
+
+    /// The unique identifier for the collect link.
+    #[schema(value_type = String, example = "pm_collect_link_2bdacf398vwzq5n422S1")]
+    pub pm_collect_link_id: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct MaskedBankDetails {
     pub mask: String,
 }
