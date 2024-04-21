@@ -1533,6 +1533,7 @@ pub struct PayoutAmount {
     currency: storage_enums::Currency,
 }
 
+#[cfg(feature = "payouts")]
 impl TryFrom<&PaypalRouterData<&types::PayoutsRouterData<api::PoFulfill>>>
     for PaypalFulfillRequest
 {
@@ -1550,6 +1551,7 @@ impl TryFrom<&PaypalRouterData<&types::PayoutsRouterData<api::PoFulfill>>>
     }
 }
 
+#[cfg(feature = "payouts")]
 impl TryFrom<&PaypalRouterData<&types::PayoutsRouterData<api::PoFulfill>>> for PaypalPayoutItem {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
