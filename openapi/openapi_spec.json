@@ -12881,6 +12881,7 @@
           "twint",
           "upi_collect",
           "vipps",
+          "venmo",
           "walley",
           "we_chat_pay",
           "seven_eleven",
@@ -16125,13 +16126,25 @@
       "Paypal": {
         "type": "object",
         "required": [
-          "email"
+          "email",
+          "telephone_number",
+          "paypal_id"
         ],
         "properties": {
           "email": {
             "type": "string",
             "description": "Email linked with paypal account",
             "example": "john.doe@example.com"
+          },
+          "telephone_number": {
+            "type": "string",
+            "description": "mobile number linked to paypal account",
+            "example": "16608213349"
+          },
+          "paypal_id": {
+            "type": "string",
+            "description": "id of the paypal account",
+            "example": "G83KXTJ5EHCQ2"
           }
         }
       },
@@ -18185,6 +18198,17 @@
             "properties": {
               "paypal": {
                 "$ref": "#/components/schemas/Paypal"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "venmo"
+            ],
+            "properties": {
+              "venmo": {
+                "$ref": "#/components/schemas/Venmo"
               }
             }
           }
