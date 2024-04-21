@@ -674,24 +674,24 @@ impl TryFrom<&domain::BankDebitData> for PaypalPaymentsRequest {
     }
 }
 
-impl TryFrom<&api_models::payments::BankTransferData> for PaypalPaymentsRequest {
+impl TryFrom<&domain::BankTransferData> for PaypalPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: &api_models::payments::BankTransferData) -> Result<Self, Self::Error> {
+    fn try_from(value: &domain::BankTransferData) -> Result<Self, Self::Error> {
         match value {
-            api_models::payments::BankTransferData::AchBankTransfer { .. }
-            | api_models::payments::BankTransferData::SepaBankTransfer { .. }
-            | api_models::payments::BankTransferData::BacsBankTransfer { .. }
-            | api_models::payments::BankTransferData::MultibancoBankTransfer { .. }
-            | api_models::payments::BankTransferData::PermataBankTransfer { .. }
-            | api_models::payments::BankTransferData::BcaBankTransfer { .. }
-            | api_models::payments::BankTransferData::BniVaBankTransfer { .. }
-            | api_models::payments::BankTransferData::BriVaBankTransfer { .. }
-            | api_models::payments::BankTransferData::CimbVaBankTransfer { .. }
-            | api_models::payments::BankTransferData::DanamonVaBankTransfer { .. }
-            | api_models::payments::BankTransferData::MandiriVaBankTransfer { .. }
-            | api_models::payments::BankTransferData::Pix {}
-            | api_models::payments::BankTransferData::Pse {}
-            | api_models::payments::BankTransferData::LocalBankTransfer { .. } => {
+            domain::BankTransferData::AchBankTransfer { .. }
+            | domain::BankTransferData::SepaBankTransfer { .. }
+            | domain::BankTransferData::BacsBankTransfer { .. }
+            | domain::BankTransferData::MultibancoBankTransfer { .. }
+            | domain::BankTransferData::PermataBankTransfer { .. }
+            | domain::BankTransferData::BcaBankTransfer { .. }
+            | domain::BankTransferData::BniVaBankTransfer { .. }
+            | domain::BankTransferData::BriVaBankTransfer { .. }
+            | domain::BankTransferData::CimbVaBankTransfer { .. }
+            | domain::BankTransferData::DanamonVaBankTransfer { .. }
+            | domain::BankTransferData::MandiriVaBankTransfer { .. }
+            | domain::BankTransferData::Pix {}
+            | domain::BankTransferData::Pse {}
+            | domain::BankTransferData::LocalBankTransfer { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),
                 )

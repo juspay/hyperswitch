@@ -1237,7 +1237,7 @@ pub struct CheckoutWebhookBody {
     pub links: Links,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CheckoutDisputeWebhookData {
     pub id: String,
     pub payment_id: Option<String>,
@@ -1382,7 +1382,7 @@ impl TryFrom<&api::IncomingWebhookRequestDetails<'_>> for PaymentsResponse {
         let details: CheckoutWebhookBody = request
             .body
             .parse_struct("CheckoutWebhookBody")
-            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let data = details.data;
         let psync_struct = Self {
             id: data.payment_id.unwrap_or(data.id),
@@ -1400,6 +1400,28 @@ impl TryFrom<&api::IncomingWebhookRequestDetails<'_>> for PaymentsResponse {
         };
 
         Ok(psync_struct)
+    }
+}
+
+impl TryFrom<&api::IncomingWebhookRequestDetails<'_>> for RefundResponse {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(request: &api::IncomingWebhookRequestDetails<'_>) -> Result<Self, Self::Error> {
+        let details: CheckoutWebhookBody = request
+            .body
+            .parse_struct("CheckoutWebhookBody")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let data = details.data;
+        let refund_struct = Self {
+            action_id: data
+                .action_id
+                .ok_or(errors::ConnectorError::WebhookBodyDecodingFailed)?,
+            reference: data
+                .reference
+                .ok_or(errors::ConnectorError::WebhookBodyDecodingFailed)?,
+        };
+
+        Ok(refund_struct)
     }
 }
 

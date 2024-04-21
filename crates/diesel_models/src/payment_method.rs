@@ -27,7 +27,7 @@ pub struct PaymentMethod {
     pub direct_debit_token: Option<String>,
     pub created_at: PrimitiveDateTime,
     pub last_modified: PrimitiveDateTime,
-    pub payment_method: storage_enums::PaymentMethod,
+    pub payment_method: Option<storage_enums::PaymentMethod>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub payment_method_issuer: Option<String>,
     pub payment_method_issuer_code: Option<storage_enums::PaymentMethodIssuerCode>,
@@ -39,6 +39,7 @@ pub struct PaymentMethod {
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::PaymentMethodStatus,
     pub network_transaction_id: Option<String>,
+    pub client_secret: Option<String>,
 }
 
 #[derive(
@@ -49,7 +50,7 @@ pub struct PaymentMethodNew {
     pub customer_id: String,
     pub merchant_id: String,
     pub payment_method_id: String,
-    pub payment_method: storage_enums::PaymentMethod,
+    pub payment_method: Option<storage_enums::PaymentMethod>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub payment_method_issuer: Option<String>,
     pub payment_method_issuer_code: Option<storage_enums::PaymentMethodIssuerCode>,
@@ -73,6 +74,7 @@ pub struct PaymentMethodNew {
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::PaymentMethodStatus,
     pub network_transaction_id: Option<String>,
+    pub client_secret: Option<String>,
 }
 
 impl Default for PaymentMethodNew {
@@ -84,7 +86,7 @@ impl Default for PaymentMethodNew {
             merchant_id: String::default(),
             payment_method_id: String::default(),
             locker_id: Option::default(),
-            payment_method: storage_enums::PaymentMethod::default(),
+            payment_method: Option::default(),
             payment_method_type: Option::default(),
             payment_method_issuer: Option::default(),
             payment_method_issuer_code: Option::default(),
@@ -107,6 +109,7 @@ impl Default for PaymentMethodNew {
             customer_acceptance: Option::default(),
             status: storage_enums::PaymentMethodStatus::Active,
             network_transaction_id: Option::default(),
+            client_secret: Option::default(),
         }
     }
 }
@@ -135,6 +138,12 @@ pub enum PaymentMethodUpdate {
     StatusUpdate {
         status: Option<storage_enums::PaymentMethodStatus>,
     },
+    AdditionalDataUpdate {
+        payment_method_data: Option<Encryption>,
+        status: Option<storage_enums::PaymentMethodStatus>,
+        locker_id: Option<String>,
+        payment_method: Option<storage_enums::PaymentMethod>,
+    },
     ConnectorMandateDetailsUpdate {
         connector_mandate_details: Option<serde_json::Value>,
     },
@@ -150,6 +159,8 @@ pub struct PaymentMethodUpdateInternal {
     last_used_at: Option<PrimitiveDateTime>,
     network_transaction_id: Option<String>,
     status: Option<storage_enums::PaymentMethodStatus>,
+    locker_id: Option<String>,
+    payment_method: Option<storage_enums::PaymentMethod>,
     connector_mandate_details: Option<serde_json::Value>,
 }
 
@@ -168,6 +179,7 @@ impl PaymentMethodUpdateInternal {
             network_transaction_id,
             status,
             connector_mandate_details,
+            ..
         } = self;
 
         PaymentMethod {
@@ -193,6 +205,8 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_used_at: None,
                 network_transaction_id: None,
                 status: None,
+                locker_id: None,
+                payment_method: None,
                 connector_mandate_details: None,
             },
             PaymentMethodUpdate::PaymentMethodDataUpdate {
@@ -203,6 +217,8 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_used_at: None,
                 network_transaction_id: None,
                 status: None,
+                locker_id: None,
+                payment_method: None,
                 connector_mandate_details: None,
             },
             PaymentMethodUpdate::LastUsedUpdate { last_used_at } => Self {
@@ -211,6 +227,8 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_used_at: Some(last_used_at),
                 network_transaction_id: None,
                 status: None,
+                locker_id: None,
+                payment_method: None,
                 connector_mandate_details: None,
             },
             PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
@@ -222,6 +240,8 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_used_at: None,
                 network_transaction_id,
                 status,
+                locker_id: None,
+                payment_method: None,
                 connector_mandate_details: None,
             },
             PaymentMethodUpdate::StatusUpdate { status } => Self {
@@ -230,6 +250,23 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_used_at: None,
                 network_transaction_id: None,
                 status,
+                locker_id: None,
+                payment_method: None,
+                connector_mandate_details: None,
+            },
+            PaymentMethodUpdate::AdditionalDataUpdate {
+                payment_method_data,
+                status,
+                locker_id,
+                payment_method,
+            } => Self {
+                metadata: None,
+                payment_method_data,
+                last_used_at: None,
+                network_transaction_id: None,
+                status,
+                locker_id,
+                payment_method,
                 connector_mandate_details: None,
             },
             PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
@@ -239,6 +276,8 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 payment_method_data: None,
                 last_used_at: None,
                 status: None,
+                locker_id: None,
+                payment_method: None,
                 connector_mandate_details,
                 network_transaction_id: None,
             },
@@ -277,6 +316,7 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             customer_acceptance: payment_method_new.customer_acceptance.clone(),
             status: payment_method_new.status,
             network_transaction_id: payment_method_new.network_transaction_id.clone(),
+            client_secret: payment_method_new.client_secret.clone(),
         }
     }
 }

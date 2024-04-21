@@ -1,8 +1,8 @@
 use api_models::{admin as admin_types, payments::PaymentLinkStatusWrap};
 use common_utils::{
     consts::{
-        DEFAULT_BACKGROUND_COLOR, DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG, DEFAULT_SDK_LAYOUT,
-        DEFAULT_SESSION_EXPIRY,
+        DEFAULT_BACKGROUND_COLOR, DEFAULT_DISPLAY_SDK_ONLY, DEFAULT_ENABLE_SAVED_PAYMENT_METHOD,
+        DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG, DEFAULT_SDK_LAYOUT, DEFAULT_SESSION_EXPIRY,
     },
     ext_traits::{OptionExt, ValueExt},
 };
@@ -86,6 +86,8 @@ pub async fn initiate_payment_link_flow(
             logo: DEFAULT_MERCHANT_LOGO.to_string(),
             seller_name: merchant_name_from_merchant_account,
             sdk_layout: DEFAULT_SDK_LAYOUT.to_owned(),
+            display_sdk_only: DEFAULT_DISPLAY_SDK_ONLY,
+            enabled_saved_payment_method: DEFAULT_ENABLE_SAVED_PAYMENT_METHOD,
         }
     };
 
@@ -213,6 +215,8 @@ pub async fn initiate_payment_link_flow(
         theme: payment_link_config.theme.clone(),
         merchant_description: payment_intent.description,
         sdk_layout: payment_link_config.sdk_layout.clone(),
+        display_sdk_only: payment_link_config.display_sdk_only,
+        enabled_saved_payment_method: payment_link_config.enabled_saved_payment_method,
     };
 
     let js_script = get_js_script(&api_models::payments::PaymentLinkData::PaymentLinkDetails(
@@ -440,11 +444,35 @@ pub fn get_payment_link_config_based_on_priority(
         })
         .unwrap_or(DEFAULT_SDK_LAYOUT.to_owned());
 
+    let display_sdk_only = payment_create_link_config
+        .as_ref()
+        .and_then(|pc_config| {
+            pc_config.config.display_sdk_only.or_else(|| {
+                business_config
+                    .as_ref()
+                    .and_then(|business_config| business_config.display_sdk_only)
+            })
+        })
+        .unwrap_or(DEFAULT_DISPLAY_SDK_ONLY);
+
+    let enabled_saved_payment_method = payment_create_link_config
+        .as_ref()
+        .and_then(|pc_config| {
+            pc_config.config.enabled_saved_payment_method.or_else(|| {
+                business_config
+                    .as_ref()
+                    .and_then(|business_config| business_config.enabled_saved_payment_method)
+            })
+        })
+        .unwrap_or(DEFAULT_ENABLE_SAVED_PAYMENT_METHOD);
+
     let payment_link_config = admin_types::PaymentLinkConfig {
         theme,
         logo,
         seller_name,
         sdk_layout,
+        display_sdk_only,
+        enabled_saved_payment_method,
     };
 
     Ok((payment_link_config, domain_name))
@@ -521,6 +549,8 @@ pub async fn get_payment_link_status(
             logo: DEFAULT_MERCHANT_LOGO.to_string(),
             seller_name: merchant_name_from_merchant_account,
             sdk_layout: DEFAULT_SDK_LAYOUT.to_owned(),
+            display_sdk_only: DEFAULT_DISPLAY_SDK_ONLY,
+            enabled_saved_payment_method: DEFAULT_ENABLE_SAVED_PAYMENT_METHOD,
         }
     };
 

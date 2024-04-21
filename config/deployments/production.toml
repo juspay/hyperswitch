@@ -83,6 +83,7 @@ worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
 zen.base_url = "https://api.zen.com/"
 zen.secondary_base_url = "https://secure.zen.com/"
+zsl.base_url = "https://api.sitoffalb.net/"
 threedsecureio.base_url = "https://service.3dsecure.io"
 
 [delayed_session_response]
@@ -288,6 +289,9 @@ pix = { country = "BR", currency = "BRL" }
 pse = { country = "CO", currency = "COP" }
 red_compra = { country = "CL", currency = "CLP" }
 red_pagos = { country = "UY", currency = "UYU" }
+
+[pm_filters.zsl]
+local_bank_transfer = { country = "CN", currency = "CNY" }
 
 [temp_locker_enable_config]
 bluesnap.payment_method = "card"

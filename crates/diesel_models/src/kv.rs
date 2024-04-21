@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     address::{Address, AddressNew, AddressUpdateInternal},
+    customers::{Customer, CustomerNew, CustomerUpdateInternal},
     errors,
     payment_attempt::{PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate},
     payment_intent::{PaymentIntentNew, PaymentIntentUpdate},
@@ -10,7 +11,8 @@ use crate::{
     payouts::{Payouts, PayoutsNew, PayoutsUpdate},
     refund::{Refund, RefundNew, RefundUpdate},
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
-    PaymentIntent, PaymentMethod, PaymentMethodNew, PaymentMethodUpdateInternal, PgPooledConn,
+    Mandate, MandateNew, MandateUpdateInternal, PaymentIntent, PaymentMethod, PaymentMethodNew,
+    PaymentMethodUpdateInternal, PgPooledConn,
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -36,17 +38,21 @@ impl DBOperation {
                 Insertable::Address(_) => "address",
                 Insertable::Payouts(_) => "payouts",
                 Insertable::PayoutAttempt(_) => "payout_attempt",
+                Insertable::Customer(_) => "customer",
                 Insertable::ReverseLookUp(_) => "reverse_lookup",
                 Insertable::PaymentMethod(_) => "payment_method",
+                Insertable::Mandate(_) => "mandate",
             },
             Self::Update { updatable } => match updatable {
                 Updateable::PaymentIntentUpdate(_) => "payment_intent",
                 Updateable::PaymentAttemptUpdate(_) => "payment_attempt",
                 Updateable::RefundUpdate(_) => "refund",
+                Updateable::CustomerUpdate(_) => "customer",
                 Updateable::AddressUpdate(_) => "address",
                 Updateable::PayoutsUpdate(_) => "payouts",
                 Updateable::PayoutAttemptUpdate(_) => "payout_attempt",
                 Updateable::PaymentMethodUpdate(_) => "payment_method",
+                Updateable::MandateUpdate(_) => " mandate",
             },
         }
     }
@@ -58,10 +64,12 @@ pub enum DBResult {
     PaymentAttempt(Box<PaymentAttempt>),
     Refund(Box<Refund>),
     Address(Box<Address>),
+    Customer(Box<Customer>),
     ReverseLookUp(Box<ReverseLookup>),
     Payouts(Box<Payouts>),
     PayoutAttempt(Box<PayoutAttempt>),
     PaymentMethod(Box<PaymentMethod>),
+    Mandate(Box<Mandate>),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -82,6 +90,9 @@ impl DBOperation {
                 }
                 Insertable::Refund(a) => DBResult::Refund(Box::new(a.insert(conn).await?)),
                 Insertable::Address(addr) => DBResult::Address(Box::new(addr.insert(conn).await?)),
+                Insertable::Customer(cust) => {
+                    DBResult::Customer(Box::new(cust.insert(conn).await?))
+                }
                 Insertable::ReverseLookUp(rev) => {
                     DBResult::ReverseLookUp(Box::new(rev.insert(conn).await?))
                 }
@@ -92,6 +103,7 @@ impl DBOperation {
                 Insertable::PaymentMethod(rev) => {
                     DBResult::PaymentMethod(Box::new(rev.insert(conn).await?))
                 }
+                Insertable::Mandate(m) => DBResult::Mandate(Box::new(m.insert(conn).await?)),
             },
             Self::Update { updatable } => match updatable {
                 Updateable::PaymentIntentUpdate(a) => {
@@ -116,6 +128,24 @@ impl DBOperation {
                     v.orig
                         .update_with_payment_method_id(conn, v.update_data)
                         .await?,
+                )),
+                Updateable::MandateUpdate(m) => DBResult::Mandate(Box::new(
+                    Mandate::update_by_merchant_id_mandate_id(
+                        conn,
+                        &m.orig.merchant_id,
+                        &m.orig.mandate_id,
+                        m.update_data,
+                    )
+                    .await?,
+                )),
+                Updateable::CustomerUpdate(cust) => DBResult::Customer(Box::new(
+                    Customer::update_by_customer_id_merchant_id(
+                        conn,
+                        cust.orig.customer_id.clone(),
+                        cust.orig.merchant_id.clone(),
+                        cust.update_data,
+                    )
+                    .await?,
                 )),
             },
         })
@@ -150,10 +180,12 @@ pub enum Insertable {
     PaymentAttempt(PaymentAttemptNew),
     Refund(RefundNew),
     Address(Box<AddressNew>),
+    Customer(CustomerNew),
     ReverseLookUp(ReverseLookupNew),
     Payouts(PayoutsNew),
     PayoutAttempt(PayoutAttemptNew),
     PaymentMethod(PaymentMethodNew),
+    Mandate(MandateNew),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -162,10 +194,18 @@ pub enum Updateable {
     PaymentIntentUpdate(PaymentIntentUpdateMems),
     PaymentAttemptUpdate(PaymentAttemptUpdateMems),
     RefundUpdate(RefundUpdateMems),
+    CustomerUpdate(CustomerUpdateMems),
     AddressUpdate(Box<AddressUpdateMems>),
     PayoutsUpdate(PayoutsUpdateMems),
     PayoutAttemptUpdate(PayoutAttemptUpdateMems),
     PaymentMethodUpdate(PaymentMethodUpdateMems),
+    MandateUpdate(MandateUpdateMems),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CustomerUpdateMems {
+    pub orig: Customer,
+    pub update_data: CustomerUpdateInternal,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -208,4 +248,10 @@ pub struct PayoutAttemptUpdateMems {
 pub struct PaymentMethodUpdateMems {
     pub orig: PaymentMethod,
     pub update_data: PaymentMethodUpdateInternal,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MandateUpdateMems {
+    pub orig: Mandate,
+    pub update_data: MandateUpdateInternal,
 }
