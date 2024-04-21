@@ -365,7 +365,7 @@ fn get_delay(retry_count: i32, frequencies: &[(i32, i32)]) -> Option<i32> {
     for (frequency, count) in frequencies {
         cumulative_count += count;
         if cumulative_count >= retry_count {
-            return Some(frequency.to_owned());
+            return Some(*frequency);
         }
     }
 
