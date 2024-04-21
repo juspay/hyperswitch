@@ -3623,7 +3623,7 @@ pub async fn get_additional_payment_data(
     match pm_data {
         api_models::payments::PaymentMethodData::Card(card_data) => {
             let card_isin = Some(card_data.card_number.clone().get_card_isin());
-            let card_extended_bin = Some(card_data.card_number.clone().get_card_extended_bin());
+            let card_extended_bin = Some(card_data.card_number.clone().get_extended_card_bin());
             let last4 = Some(card_data.card_number.clone().get_last4());
             if card_data.card_issuer.is_some()
                 && card_data.card_network.is_some()

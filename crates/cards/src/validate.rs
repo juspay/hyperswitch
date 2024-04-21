@@ -24,7 +24,6 @@ impl CardNumber {
     pub fn get_card_isin(self) -> String {
         self.0.peek().chars().take(6).collect::<String>()
     }
-
     pub fn get_extended_card_bin(self) -> String {
         self.0.peek().chars().take(8).collect::<String>()
     }
@@ -41,9 +40,6 @@ impl CardNumber {
             .chars()
             .rev()
             .collect::<String>()
-    }
-    pub fn get_card_extended_bin(self) -> String {
-        self.0.peek().chars().take(8).collect::<String>()
     }
 }
 

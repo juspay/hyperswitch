@@ -379,7 +379,7 @@ impl From<CardDetailFromLocker> for payments::AdditionalCardInfo {
             card_isin: item.card_isin,
             card_extended_bin: item
                 .card_number
-                .map(|card_number| card_number.get_card_extended_bin()),
+                .map(|card_number| card_number.get_extended_card_bin()),
             card_exp_month: item.expiry_month,
             card_exp_year: item.expiry_year,
             card_holder_name: item.card_holder_name,
