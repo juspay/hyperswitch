@@ -1416,6 +1416,7 @@ pub enum PaymentMethodType {
     Twint,
     UpiCollect,
     Vipps,
+    Venmo,
     Walley,
     WeChatPay,
     SevenEleven,
@@ -2126,6 +2127,35 @@ pub enum PayoutType {
     Card,
     Bank,
     Wallet,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PayoutMethodType {
+    #[default]
+    Card,
+    Paypal,
+    Venmo,
+    Sepa,
+    Bacs,
+    Ach,
 }
 
 #[derive(

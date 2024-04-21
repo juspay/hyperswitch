@@ -6,6 +6,7 @@ use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
 use diesel_models::enums;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
+use router_env::{instrument, tracing};
 use transformers as paypal;
 
 use self::transformers::{auth_headers, PaypalAuthResponse, PaypalMeta, PaypalWebhookEventType};
@@ -55,6 +56,12 @@ impl api::Refund for Paypal {}
 impl api::RefundExecute for Paypal {}
 impl api::RefundSync for Paypal {}
 impl api::ConnectorVerifyWebhookSource for Paypal {}
+
+impl api::Payouts for Paypal {}
+#[cfg(feature = "payouts")]
+impl api::PayoutCreate for Paypal {}
+#[cfg(feature = "payouts")]
+impl api::PayoutFulfill for Paypal {}
 
 impl Paypal {
     pub fn get_order_error_response(
@@ -422,6 +429,110 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
             attempt_status: None,
             connector_transaction_id: None,
         })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResponseData>
+    for Paypal
+{
+    fn get_url(
+        &self,
+        _req: &types::PayoutsRouterData<api::PoFulfill>,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}v1/payments/payouts", self.base_url(connectors)))
+    }
+
+    fn get_headers(
+        &self,
+        req: &types::PayoutsRouterData<api::PoFulfill>,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::PayoutsRouterData<api::PoFulfill>,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_router_data = paypal::PaypalRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.destination_currency,
+            req.request.amount,
+            req,
+        ))?;
+        let connector_req = paypal::PaypalFullfillRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PayoutsRouterData<api::PoFulfill>,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let request = services::RequestBuilder::new()
+            .method(services::Method::Post)
+            .url(&types::PayoutFulfillType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(types::PayoutFulfillType::get_headers(
+                self, req, connectors,
+            )?)
+            .set_body(types::PayoutFulfillType::get_request_body(
+                self, req, connectors,
+            )?)
+            .build();
+
+        Ok(Some(request))
+    }
+
+    #[instrument(skip_all)]
+    fn handle_response(
+        &self,
+        data: &types::PayoutsRouterData<api::PoFulfill>,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<types::PayoutsRouterData<api::PoFulfill>, errors::ConnectorError> {
+        let response: paypal::PaypalFulfillResponse = res
+            .response
+            .parse_struct("PaypalFulfillResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+#[async_trait::async_trait]
+#[cfg(feature = "payouts")]
+impl ConnectorIntegration<api::PoCreate, types::PayoutsData, types::PayoutsResponseData>
+    for Paypal
+{
+    fn build_request(
+        &self,
+        _req: &types::PayoutsRouterData<api::PoCreate>,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        // Eligibility check for cards is not implemented
+        Err(
+            errors::ConnectorError::NotImplemented("Payout Eligibility for Paypal".to_string())
+                .into(),
+        )
     }
 }
 

@@ -1,3 +1,4 @@
+use common_enums::PayoutMethodType;
 use common_utils::{
     crypto::{DecodeMessage, EncodeMessage, GcmAes256},
     ext_traits::{BytesExt, Encode},
@@ -419,6 +420,9 @@ impl Vaultable for api::CardPayout {
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedWalletSensitiveValues {
     pub email: Option<Email>,
+    pub telephone_number: Option<masking::Secret<String>>,
+    pub paypal_id: Option<masking::Secret<String>>,
+    pub wallet_type: PayoutMethodType,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -432,6 +436,15 @@ impl Vaultable for api::WalletPayout {
         let value1 = match self {
             Self::Paypal(paypal_data) => TokenizedWalletSensitiveValues {
                 email: paypal_data.email.clone(),
+                telephone_number: paypal_data.telephone_number.clone(),
+                paypal_id: paypal_data.paypal_id.clone(),
+                wallet_type: PayoutMethodType::Paypal,
+            },
+            Self::Venmo(venmo_data) => TokenizedWalletSensitiveValues {
+                email: None,
+                telephone_number: venmo_data.telephone_number.clone(),
+                paypal_id: None,
+                wallet_type: PayoutMethodType::Venmo,
             },
         };
 
@@ -464,9 +477,17 @@ impl Vaultable for api::WalletPayout {
             .change_context(errors::VaultError::ResponseDeserializationFailed)
             .attach_printable("Could not deserialize into wallet data wallet_insensitive_data")?;
 
-        let wallet = Self::Paypal(api_models::payouts::Paypal {
-            email: value1.email,
-        });
+        let wallet = match value1.wallet_type {
+            PayoutMethodType::Paypal => Self::Paypal(api_models::payouts::Paypal {
+                email: value1.email,
+                telephone_number: value1.telephone_number,
+                paypal_id: value1.paypal_id,
+            }),
+            PayoutMethodType::Venmo => Self::Venmo(api_models::payouts::Venmo {
+                telephone_number: value1.telephone_number,
+            }),
+            _ => Err(errors::VaultError::PayoutMethodNotSupported)?,
+        };
         let supp_data = SupplementaryVaultData {
             customer_id: value2.customer_id,
             payment_method_id: None,
