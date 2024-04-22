@@ -874,6 +874,7 @@ pub struct RedirectionFormData {
 pub enum PaymentAction {
     PSync,
     CompleteAuthorize,
+    PaymentAuthenticateCompleteAuthorize,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]

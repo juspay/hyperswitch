@@ -1258,6 +1258,7 @@ impl PaymentAttemptInterface for KafkaStore {
         payment_method: Option<Vec<common_enums::PaymentMethod>>,
         payment_method_type: Option<Vec<common_enums::PaymentMethodType>>,
         authentication_type: Option<Vec<common_enums::AuthenticationType>>,
+        merchant_connector_id: Option<Vec<String>>,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::DataStorageError> {
         self.diesel_store
@@ -1268,6 +1269,7 @@ impl PaymentAttemptInterface for KafkaStore {
                 payment_method,
                 payment_method_type,
                 authentication_type,
+                merchant_connector_id,
                 storage_scheme,
             )
             .await
@@ -1440,6 +1442,7 @@ impl PaymentMethodInterface for KafkaStore {
         merchant_id: &str,
         status: common_enums::PaymentMethodStatus,
         limit: Option<i64>,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<storage::PaymentMethod>, errors::StorageError> {
         self.diesel_store
             .find_payment_method_by_customer_id_merchant_id_status(
@@ -1447,6 +1450,7 @@ impl PaymentMethodInterface for KafkaStore {
                 merchant_id,
                 status,
                 limit,
+                storage_scheme,
             )
             .await
     }
@@ -2642,6 +2646,19 @@ impl AuthenticationInterface for KafkaStore {
     ) -> CustomResult<storage::Authentication, errors::StorageError> {
         self.diesel_store
             .find_authentication_by_merchant_id_authentication_id(merchant_id, authentication_id)
+            .await
+    }
+
+    async fn find_authentication_by_merchant_id_connector_authentication_id(
+        &self,
+        merchant_id: String,
+        connector_authentication_id: String,
+    ) -> CustomResult<storage::Authentication, errors::StorageError> {
+        self.diesel_store
+            .find_authentication_by_merchant_id_connector_authentication_id(
+                merchant_id,
+                connector_authentication_id,
+            )
             .await
     }
 
