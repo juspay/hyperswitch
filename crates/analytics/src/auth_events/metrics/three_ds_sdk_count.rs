@@ -57,6 +57,14 @@ where
             .switch()?;
 
         query_builder
+            .add_filter_clause("category", "USER_EVENT")
+            .switch()?;
+
+        query_builder
+            .add_filter_clause("log_type", "INFO")
+            .switch()?;
+
+        query_builder
             .add_filter_clause("event_name", SdkEventNames::ThreeDsMethod)
             .switch()?;
 
