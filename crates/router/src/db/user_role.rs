@@ -147,15 +147,14 @@ impl UserRoleInterface for Store {
         merchant_id: &str,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        let deleted_user_role = storage::UserRole::delete_by_user_id_merchant_id(
+
+        storage::UserRole::delete_by_user_id_merchant_id(
             &conn,
             user_id.to_owned(),
             merchant_id.to_owned(),
         )
         .await
-        .map_err(|error| report!(errors::StorageError::from(error)))?;
-
-        Ok(deleted_user_role)
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
