@@ -1,6 +1,7 @@
 use common_enums::enums;
 use diesel_models::role as storage;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
+use router_env::{instrument, tracing};
 
 use super::MockDb;
 use crate::{
@@ -48,14 +49,18 @@ pub trait RoleInterface {
 
 #[async_trait::async_trait]
 impl RoleInterface for Store {
+    #[instrument(skip_all)]
     async fn insert_role(
         &self,
         role: storage::RoleNew,
     ) -> CustomResult<storage::Role, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        role.insert(&conn).await.map_err(Into::into).into_report()
+        role.insert(&conn)
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
+    #[instrument(skip_all)]
     async fn find_role_by_role_id(
         &self,
         role_id: &str,
@@ -63,10 +68,10 @@ impl RoleInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::Role::find_by_role_id(&conn, role_id)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
+    #[instrument(skip_all)]
     async fn find_role_by_role_id_in_merchant_scope(
         &self,
         role_id: &str,
@@ -76,10 +81,10 @@ impl RoleInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::Role::find_by_role_id_in_merchant_scope(&conn, role_id, merchant_id, org_id)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
+    #[instrument(skip_all)]
     async fn update_role_by_role_id(
         &self,
         role_id: &str,
@@ -88,10 +93,10 @@ impl RoleInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::Role::update_by_role_id(&conn, role_id, role_update)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
+    #[instrument(skip_all)]
     async fn delete_role_by_role_id(
         &self,
         role_id: &str,
@@ -99,10 +104,10 @@ impl RoleInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::Role::delete_by_role_id(&conn, role_id)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
+    #[instrument(skip_all)]
     async fn list_all_roles(
         &self,
         merchant_id: &str,
@@ -111,8 +116,7 @@ impl RoleInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::Role::list_roles(&conn, merchant_id, org_id)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
 
@@ -133,11 +137,7 @@ impl RoleInterface for MockDb {
             })?
         }
         let role = storage::Role {
-            id: roles
-                .len()
-                .try_into()
-                .into_report()
-                .change_context(errors::StorageError::MockDbError)?,
+            id: i32::try_from(roles.len()).change_context(errors::StorageError::MockDbError)?,
             role_name: role.role_name,
             role_id: role.role_id,
             merchant_id: role.merchant_id,

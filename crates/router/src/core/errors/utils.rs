@@ -160,6 +160,12 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 }
                 .into()
             }
+            errors::ConnectorError::NotSupported { message, connector } => {
+                errors::ApiErrorResponse::NotSupported {
+                    message: format!("{message} is not supported by {connector}"),
+                }
+                .into()
+            }
             errors::ConnectorError::FailedToObtainIntegrationUrl
             | errors::ConnectorError::RequestEncodingFailed
             | errors::ConnectorError::RequestEncodingFailedWithReason(_)
@@ -178,7 +184,6 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
             | errors::ConnectorError::FailedToObtainCertificate
             | errors::ConnectorError::NoConnectorMetaData
             | errors::ConnectorError::FailedToObtainCertificateKey
-            | errors::ConnectorError::NotSupported { .. }
             | errors::ConnectorError::FlowNotSupported { .. }
             | errors::ConnectorError::CaptureMethodNotSupported
             | errors::ConnectorError::MissingConnectorMandateID
@@ -199,7 +204,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
             | errors::ConnectorError::DateFormattingFailed
             | errors::ConnectorError::InvalidDataFormat { .. }
             | errors::ConnectorError::MismatchedPaymentData
-            | errors::ConnectorError::InvalidWalletToken
+            | errors::ConnectorError::InvalidWalletToken { .. }
             | errors::ConnectorError::MissingConnectorRelatedTransactionID { .. }
             | errors::ConnectorError::FileValidationFailed { .. }
             | errors::ConnectorError::MissingConnectorRedirectionPayload { .. }
@@ -260,6 +265,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 errors::ConnectorError::InvalidDataFormat { field_name } => {
                     errors::ApiErrorResponse::InvalidDataValue { field_name }
                 },
+                errors::ConnectorError::InvalidWalletToken {wallet_name} => errors::ApiErrorResponse::InvalidWalletToken {wallet_name: wallet_name.to_string()},
                 errors::ConnectorError::CurrencyNotSupported { message, connector} => errors::ApiErrorResponse::CurrencyNotSupported { message: format!("Credentials for the currency {message} are not configured with the connector {connector}/hyperswitch") },
                 errors::ConnectorError::FailedToObtainAuthType =>  errors::ApiErrorResponse::InvalidConnectorConfiguration {config: "connector_account_details".to_string()},
                 errors::ConnectorError::InvalidConnectorConfig { config }  => errors::ApiErrorResponse::InvalidConnectorConfiguration { config: config.to_string() },
@@ -294,7 +300,6 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 errors::ConnectorError::WebhookResponseEncodingFailed |
                 errors::ConnectorError::InvalidDateFormat |
                 errors::ConnectorError::DateFormattingFailed |
-                errors::ConnectorError::InvalidWalletToken |
                 errors::ConnectorError::MissingConnectorRelatedTransactionID { .. } |
                 errors::ConnectorError::FileValidationFailed { .. } |
                 errors::ConnectorError::MissingConnectorRedirectionPayload { .. } |
@@ -342,6 +347,11 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                         config: field_name.to_string(),
                     }
                 }
+                errors::ConnectorError::InvalidWalletToken { wallet_name } => {
+                    errors::ApiErrorResponse::InvalidWalletToken {
+                        wallet_name: wallet_name.to_string(),
+                    }
+                }
                 errors::ConnectorError::RequestEncodingFailed
                 | errors::ConnectorError::RequestEncodingFailedWithReason(_)
                 | errors::ConnectorError::ParsingFailed
@@ -379,7 +389,6 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 | errors::ConnectorError::DateFormattingFailed
                 | errors::ConnectorError::InvalidDataFormat { .. }
                 | errors::ConnectorError::MismatchedPaymentData
-                | errors::ConnectorError::InvalidWalletToken
                 | errors::ConnectorError::MissingConnectorRelatedTransactionID { .. }
                 | errors::ConnectorError::FileValidationFailed { .. }
                 | errors::ConnectorError::MissingConnectorRedirectionPayload { .. }

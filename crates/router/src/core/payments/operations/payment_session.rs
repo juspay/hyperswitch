@@ -15,7 +15,7 @@ use crate::{
         payments::{self, helpers, operations, PaymentData},
     },
     db::StorageInterface,
-    routes::AppState,
+    routes::{app::ReqState, AppState},
     services,
     types::{
         api::{self, PaymentIdTypeExt},
@@ -39,7 +39,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         request: &api::PaymentsSessionRequest,
-        _mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
@@ -85,26 +84,32 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         let amount = payment_attempt.get_total_amount().into();
 
-        let shipping_address = helpers::create_or_find_address_for_payment_by_request(
+        let shipping_address = helpers::get_address_by_id(
             db,
-            None,
-            payment_intent.shipping_address_id.as_deref(),
-            merchant_id,
-            payment_intent.customer_id.as_ref(),
+            payment_intent.shipping_address_id.clone(),
             key_store,
             &payment_intent.payment_id,
+            merchant_id,
             merchant_account.storage_scheme,
         )
         .await?;
 
-        let billing_address = helpers::create_or_find_address_for_payment_by_request(
+        let billing_address = helpers::get_address_by_id(
             db,
-            None,
-            payment_intent.billing_address_id.as_deref(),
-            merchant_id,
-            payment_intent.customer_id.as_ref(),
+            payment_intent.billing_address_id.clone(),
             key_store,
             &payment_intent.payment_id,
+            merchant_id,
+            merchant_account.storage_scheme,
+        )
+        .await?;
+
+        let payment_method_billing = helpers::get_address_by_id(
+            db,
+            payment_attempt.payment_method_billing_address_id.clone(),
+            key_store,
+            &payment_intent.payment_id,
+            merchant_id,
             merchant_account.storage_scheme,
         )
         .await?;
@@ -161,14 +166,18 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             email: None,
             mandate_id: None,
             mandate_connector: None,
+            customer_acceptance: None,
             token: None,
+            token_data: None,
             setup_mandate: None,
-            address: payments::PaymentAddress {
-                shipping: shipping_address.as_ref().map(|a| a.into()),
-                billing: billing_address.as_ref().map(|a| a.into()),
-            },
+            address: payments::PaymentAddress::new(
+                shipping_address.as_ref().map(From::from),
+                billing_address.as_ref().map(From::from),
+                payment_method_billing.as_ref().map(From::from),
+            ),
             confirm: None,
             payment_method_data: None,
+            payment_method_info: None,
             force_sync: None,
             refunds: vec![],
             disputes: vec![],
@@ -187,7 +196,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             payment_link_data: None,
             incremental_authorization_details: None,
             authorizations: vec![],
+            authentication: None,
             frm_metadata: None,
+            recurring_details: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -195,6 +206,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             customer_details: Some(customer_details),
             payment_data,
             business_profile,
+            mandate_type: None,
         };
 
         Ok(get_trackers_response)
@@ -209,6 +221,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     async fn update_trackers<'b>(
         &'b self,
         state: &'b AppState,
+        _req_state: ReqState,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -264,7 +277,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             operations::ValidateResult {
                 merchant_id: &merchant_account.merchant_id,
                 payment_id: api::PaymentIdType::PaymentIntentId(given_payment_id),
-                mandate_type: None,
                 storage_scheme: merchant_account.storage_scheme,
                 requeue: false,
             },
@@ -288,6 +300,7 @@ where
         payment_data: &mut PaymentData<F>,
         request: Option<payments::CustomerDetails>,
         key_store: &domain::MerchantKeyStore,
+        storage_scheme: common_enums::enums::MerchantStorageScheme,
     ) -> errors::CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsSessionRequest, Ctx>,
@@ -302,6 +315,7 @@ where
             request,
             &key_store.merchant_id,
             key_store,
+            storage_scheme,
         )
         .await
     }
@@ -317,9 +331,10 @@ where
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsSessionRequest, Ctx>,
         Option<api::PaymentMethodData>,
+        Option<String>,
     )> {
         //No payment method data for this operation
-        Ok((Box::new(self), None))
+        Ok((Box::new(self), None, None))
     }
 
     /// Returns `Vec<SessionConnectorData>`

@@ -18,6 +18,7 @@ pub struct ConnectorAuthentication {
     pub authorizedotnet: Option<BodyKey>,
     pub bambora: Option<BodyKey>,
     pub bankofamerica: Option<SignatureKey>,
+    pub billwerk: Option<HeaderKey>,
     pub bitpay: Option<HeaderKey>,
     pub bluesnap: Option<BodyKey>,
     pub boku: Option<BodyKey>,
@@ -29,6 +30,7 @@ pub struct ConnectorAuthentication {
     pub dlocal: Option<SignatureKey>,
     #[cfg(feature = "dummy_connector")]
     pub dummyconnector: Option<HeaderKey>,
+    pub ebanx: Option<HeaderKey>,
     pub fiserv: Option<SignatureKey>,
     pub forte: Option<MultiAuthKey>,
     pub globalpay: Option<BodyKey>,
@@ -38,6 +40,7 @@ pub struct ConnectorAuthentication {
     pub iatapay: Option<SignatureKey>,
     pub mollie: Option<BodyKey>,
     pub multisafepay: Option<HeaderKey>,
+    pub netcetera: Option<HeaderKey>,
     pub nexinets: Option<BodyKey>,
     pub noon: Option<SignatureKey>,
     pub nmi: Option<HeaderKey>,
@@ -56,6 +59,7 @@ pub struct ConnectorAuthentication {
     pub square: Option<BodyKey>,
     pub stax: Option<HeaderKey>,
     pub stripe: Option<HeaderKey>,
+    pub threedsecureio: Option<HeaderKey>,
     pub stripe_au: Option<HeaderKey>,
     pub stripe_uk: Option<HeaderKey>,
     pub trustpay: Option<SignatureKey>,
@@ -65,6 +69,7 @@ pub struct ConnectorAuthentication {
     pub worldpay: Option<BodyKey>,
     pub worldline: Option<SignatureKey>,
     pub zen: Option<HeaderKey>,
+    pub zsl: Option<BodyKey>,
     pub automation_configs: Option<AutomationConfigs>,
 }
 

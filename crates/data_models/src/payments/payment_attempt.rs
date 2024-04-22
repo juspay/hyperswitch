@@ -99,6 +99,7 @@ pub trait PaymentAttemptInterface {
         payment_method: Option<Vec<storage_enums::PaymentMethod>>,
         payment_method_type: Option<Vec<storage_enums::PaymentMethodType>>,
         authentication_type: Option<Vec<storage_enums::AuthenticationType>>,
+        merchant_connector_id: Option<Vec<String>>,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<i64, errors::StorageError>;
 }
@@ -159,7 +160,11 @@ pub struct PaymentAttempt {
     pub merchant_connector_id: Option<String>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
+    pub external_three_ds_authentication_attempted: Option<bool>,
+    pub authentication_connector: Option<String>,
+    pub authentication_id: Option<String>,
     pub mandate_data: Option<MandateDetails>,
+    pub payment_method_billing_address_id: Option<String>,
     pub fingerprint_id: Option<String>,
 }
 
@@ -238,7 +243,11 @@ pub struct PaymentAttemptNew {
     pub merchant_connector_id: Option<String>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
+    pub external_three_ds_authentication_attempted: Option<bool>,
+    pub authentication_connector: Option<String>,
+    pub authentication_id: Option<String>,
     pub mandate_data: Option<MandateDetails>,
+    pub payment_method_billing_address_id: Option<String>,
     pub fingerprint_id: Option<String>,
 }
 
@@ -310,7 +319,12 @@ pub enum PaymentAttemptUpdate {
         surcharge_amount: Option<i64>,
         tax_amount: Option<i64>,
         merchant_connector_id: Option<String>,
+        external_three_ds_authentication_attempted: Option<bool>,
+        authentication_connector: Option<String>,
+        authentication_id: Option<String>,
+        payment_method_billing_address_id: Option<String>,
         fingerprint_id: Option<String>,
+        payment_method_id: Option<String>,
     },
     RejectUpdate {
         status: storage_enums::AttemptStatus,
@@ -334,7 +348,7 @@ pub enum PaymentAttemptUpdate {
         connector: Option<String>,
         connector_transaction_id: Option<String>,
         authentication_type: Option<storage_enums::AuthenticationType>,
-        payment_method_id: Option<Option<String>>,
+        payment_method_id: Option<String>,
         mandate_id: Option<String>,
         connector_metadata: Option<serde_json::Value>,
         payment_token: Option<String>,
@@ -348,12 +362,13 @@ pub enum PaymentAttemptUpdate {
         encoded_data: Option<String>,
         unified_code: Option<Option<String>>,
         unified_message: Option<Option<String>>,
+        payment_method_data: Option<serde_json::Value>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
         connector: Option<String>,
         connector_transaction_id: Option<String>,
-        payment_method_id: Option<Option<String>>,
+        payment_method_id: Option<String>,
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
         error_reason: Option<Option<String>>,
@@ -375,6 +390,7 @@ pub enum PaymentAttemptUpdate {
         unified_code: Option<Option<String>>,
         unified_message: Option<Option<String>>,
         connector_transaction_id: Option<String>,
+        payment_method_data: Option<serde_json::Value>,
     },
     CaptureUpdate {
         amount_to_capture: Option<i64>,
@@ -388,7 +404,7 @@ pub enum PaymentAttemptUpdate {
     },
     PreprocessingUpdate {
         status: storage_enums::AttemptStatus,
-        payment_method_id: Option<Option<String>>,
+        payment_method_id: Option<String>,
         connector_metadata: Option<serde_json::Value>,
         preprocessing_step_id: Option<String>,
         connector_transaction_id: Option<String>,
@@ -405,6 +421,13 @@ pub enum PaymentAttemptUpdate {
     IncrementalAuthorizationAmountUpdate {
         amount: i64,
         amount_capturable: i64,
+    },
+    AuthenticationUpdate {
+        status: storage_enums::AttemptStatus,
+        external_three_ds_authentication_attempted: Option<bool>,
+        authentication_connector: Option<String>,
+        authentication_id: Option<String>,
+        updated_by: String,
     },
 }
 

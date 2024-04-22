@@ -1,6 +1,6 @@
 use common_utils::{ext_traits::Encode, pii};
-use error_stack::{IntoReport, ResultExt};
-use masking::{PeekInterface, Secret};
+use error_stack::ResultExt;
+use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -10,7 +10,7 @@ use crate::{
     },
     core::{errors, mandate::MandateBehaviour},
     services,
-    types::{self, api, storage::enums, transformers::ForeignFrom, ErrorResponse},
+    types::{self, api, domain, storage::enums, transformers::ForeignFrom, ErrorResponse},
 };
 
 // These needs to be accepted from SDK, need to be done after 1.0.0 stability as API contract will change
@@ -124,7 +124,7 @@ pub struct NoonConfiguration {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonSubscription {
-    subscription_identifier: String,
+    subscription_identifier: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -230,24 +230,26 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let (payment_data, currency, category) = match item.request.connector_mandate_id() {
-            Some(subscription_identifier) => (
+            Some(mandate_id) => (
                 NoonPaymentData::Subscription(NoonSubscription {
-                    subscription_identifier,
+                    subscription_identifier: Secret::new(mandate_id),
                 }),
                 None,
                 None,
             ),
             _ => (
                 match item.request.payment_method_data.clone() {
-                    api::PaymentMethodData::Card(req_card) => Ok(NoonPaymentData::Card(NoonCard {
-                        name_on_card: req_card.card_holder_name.clone(),
-                        number_plain: req_card.card_number.clone(),
-                        expiry_month: req_card.card_exp_month.clone(),
-                        expiry_year: req_card.get_expiry_year_4_digit(),
-                        cvv: req_card.card_cvc,
-                    })),
-                    api::PaymentMethodData::Wallet(wallet_data) => match wallet_data.clone() {
-                        api_models::payments::WalletData::GooglePay(google_pay_data) => {
+                    domain::PaymentMethodData::Card(req_card) => {
+                        Ok(NoonPaymentData::Card(NoonCard {
+                            name_on_card: item.get_optional_billing_full_name(),
+                            number_plain: req_card.card_number.clone(),
+                            expiry_month: req_card.card_exp_month.clone(),
+                            expiry_year: req_card.get_expiry_year_4_digit(),
+                            cvv: req_card.card_cvc,
+                        }))
+                    }
+                    domain::PaymentMethodData::Wallet(wallet_data) => match wallet_data.clone() {
+                        domain::WalletData::GooglePay(google_pay_data) => {
                             Ok(NoonPaymentData::GooglePay(NoonGooglePay {
                                 api_version_minor: GOOGLEPAY_API_VERSION_MINOR,
                                 api_version: GOOGLEPAY_API_VERSION,
@@ -256,10 +258,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                                 ),
                             }))
                         }
-                        api_models::payments::WalletData::ApplePay(apple_pay_data) => {
+                        domain::WalletData::ApplePay(apple_pay_data) => {
                             let payment_token_data = NoonApplePayTokenData {
                                 token: NoonApplePayData {
-                                    payment_data: wallet_data.get_wallet_token_as_json()?,
+                                    payment_data: wallet_data
+                                        .get_wallet_token_as_json("Apple Pay".to_string())?,
                                     payment_method: NoonApplePayPaymentMethod {
                                         display_name: apple_pay_data.payment_method.display_name,
                                         network: apple_pay_data.payment_method.network,
@@ -278,51 +281,51 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                                 payment_info: Secret::new(payment_token),
                             }))
                         }
-                        api_models::payments::WalletData::PaypalRedirect(_) => {
+                        domain::WalletData::PaypalRedirect(_) => {
                             Ok(NoonPaymentData::PayPal(NoonPayPal {
                                 return_url: item.request.get_router_return_url()?,
                             }))
                         }
-                        api_models::payments::WalletData::AliPayQr(_)
-                        | api_models::payments::WalletData::AliPayRedirect(_)
-                        | api_models::payments::WalletData::AliPayHkRedirect(_)
-                        | api_models::payments::WalletData::MomoRedirect(_)
-                        | api_models::payments::WalletData::KakaoPayRedirect(_)
-                        | api_models::payments::WalletData::GoPayRedirect(_)
-                        | api_models::payments::WalletData::GcashRedirect(_)
-                        | api_models::payments::WalletData::ApplePayRedirect(_)
-                        | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
-                        | api_models::payments::WalletData::DanaRedirect {}
-                        | api_models::payments::WalletData::GooglePayRedirect(_)
-                        | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
-                        | api_models::payments::WalletData::MbWayRedirect(_)
-                        | api_models::payments::WalletData::MobilePayRedirect(_)
-                        | api_models::payments::WalletData::PaypalSdk(_)
-                        | api_models::payments::WalletData::SamsungPay(_)
-                        | api_models::payments::WalletData::TwintRedirect {}
-                        | api_models::payments::WalletData::VippsRedirect {}
-                        | api_models::payments::WalletData::TouchNGoRedirect(_)
-                        | api_models::payments::WalletData::WeChatPayRedirect(_)
-                        | api_models::payments::WalletData::WeChatPayQr(_)
-                        | api_models::payments::WalletData::CashappQr(_)
-                        | api_models::payments::WalletData::SwishQr(_) => {
+                        domain::WalletData::AliPayQr(_)
+                        | domain::WalletData::AliPayRedirect(_)
+                        | domain::WalletData::AliPayHkRedirect(_)
+                        | domain::WalletData::MomoRedirect(_)
+                        | domain::WalletData::KakaoPayRedirect(_)
+                        | domain::WalletData::GoPayRedirect(_)
+                        | domain::WalletData::GcashRedirect(_)
+                        | domain::WalletData::ApplePayRedirect(_)
+                        | domain::WalletData::ApplePayThirdPartySdk(_)
+                        | domain::WalletData::DanaRedirect {}
+                        | domain::WalletData::GooglePayRedirect(_)
+                        | domain::WalletData::GooglePayThirdPartySdk(_)
+                        | domain::WalletData::MbWayRedirect(_)
+                        | domain::WalletData::MobilePayRedirect(_)
+                        | domain::WalletData::PaypalSdk(_)
+                        | domain::WalletData::SamsungPay(_)
+                        | domain::WalletData::TwintRedirect {}
+                        | domain::WalletData::VippsRedirect {}
+                        | domain::WalletData::TouchNGoRedirect(_)
+                        | domain::WalletData::WeChatPayRedirect(_)
+                        | domain::WalletData::WeChatPayQr(_)
+                        | domain::WalletData::CashappQr(_)
+                        | domain::WalletData::SwishQr(_) => {
                             Err(errors::ConnectorError::NotImplemented(
                                 conn_utils::get_unimplemented_payment_method_error_message("Noon"),
                             ))
                         }
                     },
-                    api::PaymentMethodData::CardRedirect(_)
-                    | api::PaymentMethodData::PayLater(_)
-                    | api::PaymentMethodData::BankRedirect(_)
-                    | api::PaymentMethodData::BankDebit(_)
-                    | api::PaymentMethodData::BankTransfer(_)
-                    | api::PaymentMethodData::Crypto(_)
-                    | api::PaymentMethodData::MandatePayment {}
-                    | api::PaymentMethodData::Reward {}
-                    | api::PaymentMethodData::Upi(_)
-                    | api::PaymentMethodData::Voucher(_)
-                    | api::PaymentMethodData::GiftCard(_)
-                    | api::PaymentMethodData::CardToken(_) => {
+                    domain::PaymentMethodData::CardRedirect(_)
+                    | domain::PaymentMethodData::PayLater(_)
+                    | domain::PaymentMethodData::BankRedirect(_)
+                    | domain::PaymentMethodData::BankDebit(_)
+                    | domain::PaymentMethodData::BankTransfer(_)
+                    | domain::PaymentMethodData::Crypto(_)
+                    | domain::PaymentMethodData::MandatePayment {}
+                    | domain::PaymentMethodData::Reward {}
+                    | domain::PaymentMethodData::Upi(_)
+                    | domain::PaymentMethodData::Voucher(_)
+                    | domain::PaymentMethodData::GiftCard(_)
+                    | domain::PaymentMethodData::CardToken(_) => {
                         Err(errors::ConnectorError::NotImplemented(
                             conn_utils::get_unimplemented_payment_method_error_message("Noon"),
                         ))
@@ -351,19 +354,17 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
         let channel = NoonChannels::Web;
 
         let billing = item
-            .address
-            .billing
-            .clone()
-            .and_then(|billing_address| billing_address.address)
+            .get_optional_billing()
+            .and_then(|billing_address| billing_address.address.as_ref())
             .map(|address| NoonBilling {
                 address: NoonBillingAddress {
-                    street: address.line1,
-                    street2: address.line2,
-                    city: address.city,
+                    street: address.line1.clone(),
+                    street2: address.line2.clone(),
+                    city: address.city.clone(),
                     // If state is passed in request, country becomes mandatory, keep a check while debugging failed payments
-                    state_province: address.state,
+                    state_province: address.state.clone(),
                     country: address.country,
-                    postal_code: address.zip,
+                    postal_code: address.zip.clone(),
                 },
             });
 
@@ -380,13 +381,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                         Err(errors::ConnectorError::MissingRequiredField {
                             field_name:
                                 "setup_future_usage.mandate_data.mandate_type.multi_use.amount",
-                        })
-                        .into_report()
+                        }
+                        .into())
                     }
                     None => Err(errors::ConnectorError::MissingRequiredField {
                         field_name: "setup_future_usage.mandate_data.mandate_type",
-                    })
-                    .into_report(),
+                    }
+                    .into()),
                 }?;
 
                 Ok::<NoonSubscriptionData, error_stack::Report<errors::ConnectorError>>(
@@ -512,7 +513,7 @@ impl ForeignFrom<(NoonPaymentStatus, Self)> for enums::AttemptStatus {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NoonSubscriptionObject {
-    identifier: String,
+    identifier: Secret<String>,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -566,7 +567,7 @@ impl<F, T>
                 .result
                 .subscription
                 .map(|subscription_data| types::MandateReference {
-                    connector_mandate_id: Some(subscription_data.identifier),
+                    connector_mandate_id: Some(subscription_data.identifier.expose()),
                     payment_method_id: None,
                 });
         Ok(Self {
@@ -678,7 +679,7 @@ impl TryFrom<&types::MandateRevokeRouterData> for NoonRevokeMandateRequest {
         Ok(Self {
             api_operation: NoonApiOperations::CancelSubscription,
             subscription: NoonSubscriptionObject {
-                identifier: item.request.get_connector_mandate_id()?,
+                identifier: Secret::new(item.request.get_connector_mandate_id()?),
             },
         })
     }

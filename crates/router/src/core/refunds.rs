@@ -1,7 +1,7 @@
 pub mod validator;
 
 use common_utils::ext_traits::AsyncExt;
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 use scheduler::{consumer::types::process_data, utils as process_tracker_utils};
 
@@ -68,7 +68,6 @@ pub async fn refund_create_core(
         .amount
         .or(payment_intent.amount_captured)
         .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .into_report()
         .attach_printable("amount captured is none in a successful payment")?;
 
     //[#299]: Can we change the flow based on some workflow idea
@@ -106,7 +105,7 @@ pub async fn refund_create_core(
         .await
         .transpose()?;
 
-    validate_and_create_refund(
+    Box::pin(validate_and_create_refund(
         &state,
         &merchant_account,
         &key_store,
@@ -115,7 +114,7 @@ pub async fn refund_create_core(
         amount,
         req,
         creds_identifier,
-    )
+    ))
     .await
     .map(services::ApplicationResponse::Json)
 }
@@ -134,7 +133,6 @@ pub async fn trigger_refund_to_gateway(
         .connector
         .clone()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .into_report()
         .attach_printable("Failed to retrieve connector from payment attempt")?;
 
     let storage_scheme = merchant_account.storage_scheme;
@@ -216,6 +214,16 @@ pub async fn trigger_refund_to_gateway(
                                     .to_string(),
                             ),
                             refund_error_code: Some("NOT_IMPLEMENTED".to_string()),
+                            updated_by: storage_scheme.to_string(),
+                        })
+                    }
+                    errors::ConnectorError::NotSupported { message, connector } => {
+                        Some(storage::RefundUpdate::ErrorUpdate {
+                            refund_status: Some(enums::RefundStatus::Failure),
+                            refund_error_message: Some(format!(
+                                "{message} is not supported by {connector}"
+                            )),
+                            refund_error_code: Some("NOT_SUPPORTED".to_string()),
                             updated_by: storage_scheme.to_string(),
                         })
                     }
@@ -627,7 +635,6 @@ pub async fn validate_and_create_refund(
         .connector
         .clone()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .into_report()
         .attach_printable("No connector populated in payment attempt")?;
 
     let refund_create_req = storage::RefundNew::default()
@@ -869,7 +876,6 @@ pub async fn sync_refund_with_gateway_workflow(
 ) -> Result<(), errors::ProcessTrackerError> {
     let refund_core =
         serde_json::from_value::<storage::RefundCoreWorkflow>(refund_tracker.tracking_data.clone())
-            .into_report()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable_lazy(|| {
                 format!(
@@ -891,7 +897,7 @@ pub async fn sync_refund_with_gateway_workflow(
         .find_merchant_account_by_merchant_id(&refund_core.merchant_id, &key_store)
         .await?;
 
-    let response = refund_retrieve_core(
+    let response = Box::pin(refund_retrieve_core(
         state.clone(),
         merchant_account,
         key_store,
@@ -900,7 +906,7 @@ pub async fn sync_refund_with_gateway_workflow(
             force_sync: Some(true),
             merchant_connector_details: None,
         },
-    )
+    ))
     .await?;
     let terminal_status = [
         enums::RefundStatus::Success,
@@ -956,7 +962,6 @@ pub async fn trigger_refund_execute_workflow(
     let db = &*state.store;
     let refund_core =
         serde_json::from_value::<storage::RefundCoreWorkflow>(refund_tracker.tracking_data.clone())
-            .into_report()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable_lazy(|| {
                 format!(
@@ -1166,35 +1171,4 @@ pub async fn get_refund_sync_process_schedule_time(
         process_tracker_utils::get_schedule_time(mapping, merchant_id, retry_count + 1);
 
     Ok(process_tracker_utils::get_time_from_delta(time_delta))
-}
-
-pub async fn retry_refund_sync_task(
-    db: &dyn db::StorageInterface,
-    connector: String,
-    merchant_id: String,
-    pt: storage::ProcessTracker,
-) -> Result<(), errors::ProcessTrackerError> {
-    let schedule_time =
-        get_refund_sync_process_schedule_time(db, &connector, &merchant_id, pt.retry_count).await?;
-
-    match schedule_time {
-        Some(s_time) => {
-            let retry_schedule = db
-                .as_scheduler()
-                .retry_process(pt, s_time)
-                .await
-                .map_err(Into::into);
-            metrics::TASKS_RESET_COUNT.add(
-                &metrics::CONTEXT,
-                1,
-                &[metrics::request::add_attributes("flow", "Refund")],
-            );
-            retry_schedule
-        }
-        None => db
-            .as_scheduler()
-            .finish_process_with_business_status(pt, "RETRIES_EXCEEDED".to_string())
-            .await
-            .map_err(Into::into),
-    }
 }

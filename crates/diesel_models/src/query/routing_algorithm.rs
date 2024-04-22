@@ -1,7 +1,6 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, QueryDsl};
-use error_stack::{IntoReport, ResultExt};
-use router_env::tracing::{self, instrument};
+use error_stack::{report, ResultExt};
 use time::PrimitiveDateTime;
 
 use crate::{
@@ -14,12 +13,10 @@ use crate::{
 };
 
 impl RoutingAlgorithm {
-    #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Self> {
         generics::generic_insert(conn, self).await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_by_algorithm_id_merchant_id(
         conn: &PgPooledConn,
         algorithm_id: &str,
@@ -34,7 +31,6 @@ impl RoutingAlgorithm {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_by_algorithm_id_profile_id(
         conn: &PgPooledConn,
         algorithm_id: &str,
@@ -49,7 +45,6 @@ impl RoutingAlgorithm {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_metadata_by_algorithm_id_profile_id(
         conn: &PgPooledConn,
         algorithm_id: &str,
@@ -83,12 +78,10 @@ impl RoutingAlgorithm {
                 enums::TransactionType,
             )>(conn)
             .await
-            .into_report()
             .change_context(DatabaseError::Others)?
             .into_iter()
             .next()
-            .ok_or(DatabaseError::NotFound)
-            .into_report()
+            .ok_or(report!(DatabaseError::NotFound))
             .map(
                 |(
                     profile_id,
@@ -114,7 +107,6 @@ impl RoutingAlgorithm {
             )
     }
 
-    #[instrument(skip(conn))]
     pub async fn list_metadata_by_profile_id(
         conn: &PgPooledConn,
         profile_id: &str,
@@ -144,7 +136,6 @@ impl RoutingAlgorithm {
                 enums::TransactionType,
             )>(conn)
             .await
-            .into_report()
             .change_context(DatabaseError::Others)?
             .into_iter()
             .map(
@@ -171,7 +162,6 @@ impl RoutingAlgorithm {
             .collect())
     }
 
-    #[instrument(skip(conn))]
     pub async fn list_metadata_by_merchant_id(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -204,7 +194,6 @@ impl RoutingAlgorithm {
                 enums::TransactionType,
             )>(conn)
             .await
-            .into_report()
             .change_context(DatabaseError::Others)?
             .into_iter()
             .map(
@@ -233,7 +222,6 @@ impl RoutingAlgorithm {
             .collect())
     }
 
-    #[instrument(skip(conn))]
     pub async fn list_metadata_by_merchant_id_transaction_type(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -268,7 +256,6 @@ impl RoutingAlgorithm {
                 enums::TransactionType,
             )>(conn)
             .await
-            .into_report()
             .change_context(DatabaseError::Others)?
             .into_iter()
             .map(

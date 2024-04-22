@@ -1,7 +1,7 @@
 use std::{fmt::Debug, sync::Arc};
 
 use common_utils::errors::CustomResult;
-use error_stack::IntoReport;
+use error_stack::report;
 use redis_interface::errors::RedisError;
 use router_derive::TryGetEnumVariant;
 use router_env::logger;
@@ -25,11 +25,27 @@ pub enum PartitionKey<'a> {
         merchant_id: &'a str,
         payment_id: &'a str,
     },
-    MerchantIdPaymentIdCombination {
+    CombinationKey {
         combination: &'a str,
     },
+    MerchantIdCustomerId {
+        merchant_id: &'a str,
+        customer_id: &'a str,
+    },
+    MerchantIdPayoutId {
+        merchant_id: &'a str,
+        payout_id: &'a str,
+    },
+    MerchantIdPayoutAttemptId {
+        merchant_id: &'a str,
+        payout_attempt_id: &'a str,
+    },
+    MerchantIdMandateId {
+        merchant_id: &'a str,
+        mandate_id: &'a str,
+    },
 }
-
+// PartitionKey::MerchantIdPaymentId {merchant_id, payment_id}
 impl<'a> std::fmt::Display for PartitionKey<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match *self {
@@ -37,9 +53,23 @@ impl<'a> std::fmt::Display for PartitionKey<'a> {
                 merchant_id,
                 payment_id,
             } => f.write_str(&format!("mid_{merchant_id}_pid_{payment_id}")),
-            PartitionKey::MerchantIdPaymentIdCombination { combination } => {
-                f.write_str(combination)
-            }
+            PartitionKey::CombinationKey { combination } => f.write_str(combination),
+            PartitionKey::MerchantIdCustomerId {
+                merchant_id,
+                customer_id,
+            } => f.write_str(&format!("mid_{merchant_id}_cust_{customer_id}")),
+            PartitionKey::MerchantIdPayoutId {
+                merchant_id,
+                payout_id,
+            } => f.write_str(&format!("mid_{merchant_id}_po_{payout_id}")),
+            PartitionKey::MerchantIdPayoutAttemptId {
+                merchant_id,
+                payout_attempt_id,
+            } => f.write_str(&format!("mid_{merchant_id}_poa_{payout_attempt_id}")),
+            PartitionKey::MerchantIdMandateId {
+                merchant_id,
+                mandate_id,
+            } => f.write_str(&format!("mid_{merchant_id}_mandate_{mandate_id}")),
         }
     }
 }
@@ -90,7 +120,7 @@ where
 pub async fn kv_wrapper<'a, T, D, S>(
     store: &KVRouterStore<D>,
     op: KvOperation<'a, S>,
-    key: impl AsRef<str>,
+    partition_key: PartitionKey<'a>,
 ) -> CustomResult<KvResult<T>, RedisError>
 where
     T: de::DeserializeOwned,
@@ -99,13 +129,12 @@ where
 {
     let redis_conn = store.get_redis_conn()?;
 
-    let key = key.as_ref();
+    let key = format!("{}", partition_key);
+
     let type_name = std::any::type_name::<T>();
     let operation = op.to_string();
 
     let ttl = store.ttl_for_kv;
-
-    let partition_key = PartitionKey::MerchantIdPaymentIdCombination { combination: key };
 
     let result = async {
         match op {
@@ -113,7 +142,7 @@ where
                 logger::debug!(kv_operation= %operation, value = ?value);
 
                 redis_conn
-                    .set_hash_fields(key, value, Some(ttl.into()))
+                    .set_hash_fields(&key, value, Some(ttl.into()))
                     .await?;
 
                 store
@@ -125,18 +154,18 @@ where
 
             KvOperation::HGet(field) => {
                 let result = redis_conn
-                    .get_hash_field_and_deserialize(key, field, type_name)
+                    .get_hash_field_and_deserialize(&key, field, type_name)
                     .await?;
                 Ok(KvResult::HGet(result))
             }
 
             KvOperation::Scan(pattern) => {
                 let result: Vec<T> = redis_conn
-                    .hscan_and_deserialize(key, pattern, None)
+                    .hscan_and_deserialize(&key, pattern, None)
                     .await
                     .and_then(|result| {
                         if result.is_empty() {
-                            Err(RedisError::NotFound).into_report()
+                            Err(report!(RedisError::NotFound))
                         } else {
                             Ok(result)
                         }
@@ -150,7 +179,7 @@ where
                 value.check_for_constraints(&redis_conn).await?;
 
                 let result = redis_conn
-                    .serialize_and_set_hash_field_if_not_exist(key, field, value, Some(ttl))
+                    .serialize_and_set_hash_field_if_not_exist(&key, field, value, Some(ttl))
                     .await?;
 
                 if matches!(result, redis_interface::HsetnxReply::KeySet) {
@@ -159,7 +188,7 @@ where
                         .await?;
                     Ok(KvResult::HSetNx(result))
                 } else {
-                    Err(RedisError::SetNxFailed).into_report()
+                    Err(report!(RedisError::SetNxFailed))
                 }
             }
 
@@ -167,7 +196,7 @@ where
                 logger::debug!(kv_operation= %operation, value = ?value);
 
                 let result = redis_conn
-                    .serialize_and_set_key_if_not_exist(key, value, Some(ttl.into()))
+                    .serialize_and_set_key_if_not_exist(&key, value, Some(ttl.into()))
                     .await?;
 
                 value.check_for_constraints(&redis_conn).await?;
@@ -178,12 +207,12 @@ where
                         .await?;
                     Ok(KvResult::SetNx(result))
                 } else {
-                    Err(RedisError::SetNxFailed).into_report()
+                    Err(report!(RedisError::SetNxFailed))
                 }
             }
 
             KvOperation::Get => {
-                let result = redis_conn.get_and_deserialize_key(key, type_name).await?;
+                let result = redis_conn.get_and_deserialize_key(&key, type_name).await?;
                 Ok(KvResult::Get(result))
             }
         }

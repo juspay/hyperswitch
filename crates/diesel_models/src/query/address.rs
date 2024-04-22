@@ -1,5 +1,4 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
-use router_env::{instrument, tracing};
 
 use super::generics;
 use crate::{
@@ -10,14 +9,12 @@ use crate::{
 };
 
 impl AddressNew {
-    #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Address> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl Address {
-    #[instrument(skip(conn))]
     pub async fn find_by_address_id<'a>(
         conn: &PgPooledConn,
         address_id: &str,
@@ -26,7 +23,6 @@ impl Address {
             .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn update_by_address_id(
         conn: &PgPooledConn,
         address_id: String,
@@ -56,7 +52,6 @@ impl Address {
         }
     }
 
-    #[instrument(skip(conn))]
     pub async fn update(
         self,
         conn: &PgPooledConn,
@@ -82,7 +77,6 @@ impl Address {
         }
     }
 
-    #[instrument(skip(conn))]
     pub async fn delete_by_address_id(
         conn: &PgPooledConn,
         address_id: &str,
@@ -110,7 +104,6 @@ impl Address {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_by_merchant_id_payment_id_address_id<'a>(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -140,7 +133,6 @@ impl Address {
         }
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_optional_by_address_id<'a>(
         conn: &PgPooledConn,
         address_id: &str,

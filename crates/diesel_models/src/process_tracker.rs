@@ -190,27 +190,6 @@ impl From<ProcessTrackerUpdate> for ProcessTrackerUpdateInternal {
     }
 }
 
-#[allow(dead_code)]
-pub struct SchedulerOptions {
-    looper_interval: common_utils::date_time::Milliseconds,
-    db_name: String,
-    cache_name: String,
-    schema_name: String,
-    cache_expiry: i32,
-    runners: Vec<String>,
-    fetch_limit: i32,
-    fetch_limit_product_factor: i32,
-    query_order: String,
-}
-
-#[derive(Debug, Clone)]
-#[allow(dead_code)]
-pub struct ProcessData {
-    db_name: String,
-    cache_name: String,
-    process_tracker: ProcessTracker,
-}
-
 #[derive(
     serde::Serialize,
     serde::Deserialize,
@@ -229,6 +208,7 @@ pub enum ProcessTrackerRunner {
     RefundWorkflowRouter,
     DeleteTokenizeDataWorkflow,
     ApiKeyExpiryWorkflow,
+    OutgoingWebhookRetryWorkflow,
 }
 
 #[cfg(test)]

@@ -1,4 +1,4 @@
-use error_stack::IntoReport;
+use error_stack::report;
 use router_env::{instrument, tracing};
 use storage_impl::MockDb;
 
@@ -41,10 +41,10 @@ impl BlocklistLookupInterface for Store {
         blocklist_lookup_entry
             .insert(&conn)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
+    #[instrument(skip_all)]
     async fn find_blocklist_lookup_entry_by_merchant_id_fingerprint(
         &self,
         merchant_id: &str,
@@ -53,10 +53,10 @@ impl BlocklistLookupInterface for Store {
         let conn = connection::pg_connection_read(self).await?;
         storage::BlocklistLookup::find_by_merchant_id_fingerprint(&conn, merchant_id, fingerprint)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
+    #[instrument(skip_all)]
     async fn delete_blocklist_lookup_entry_by_merchant_id_fingerprint(
         &self,
         merchant_id: &str,
@@ -65,8 +65,7 @@ impl BlocklistLookupInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::BlocklistLookup::delete_by_merchant_id_fingerprint(&conn, merchant_id, fingerprint)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
 
@@ -109,6 +108,7 @@ impl BlocklistLookupInterface for KafkaStore {
             .await
     }
 
+    #[instrument(skip_all)]
     async fn find_blocklist_lookup_entry_by_merchant_id_fingerprint(
         &self,
         merchant_id: &str,
@@ -119,6 +119,7 @@ impl BlocklistLookupInterface for KafkaStore {
             .await
     }
 
+    #[instrument(skip_all)]
     async fn delete_blocklist_lookup_entry_by_merchant_id_fingerprint(
         &self,
         merchant_id: &str,

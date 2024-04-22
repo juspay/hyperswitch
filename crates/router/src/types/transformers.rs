@@ -1,21 +1,28 @@
 // use actix_web::HttpMessage;
 use actix_web::http::header::HeaderMap;
-use api_models::{enums as api_enums, gsm as gsm_api_types, payments, routing::ConnectorSelection};
+use api_models::{
+    enums as api_enums, gsm as gsm_api_types, payment_methods, payments,
+    routing::ConnectorSelection,
+};
 use common_utils::{
     consts::X_HS_LATENCY,
     crypto::Encryptable,
     ext_traits::{StringExt, ValueExt},
+    fp_utils::when,
     pii,
 };
 use diesel_models::enums as storage_enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 
 use super::domain;
 use crate::{
     core::errors,
     services::authentication::get_header_value_by_key,
-    types::{api as api_types, api::routing as routing_types, storage},
+    types::{
+        api::{self as api_types, routing as routing_types},
+        storage,
+    },
 };
 
 pub trait ForeignInto<T> {
@@ -63,6 +70,28 @@ impl ForeignFrom<api_models::refunds::RefundType> for storage_enums::RefundType 
         match item {
             api_models::refunds::RefundType::Instant => Self::InstantRefund,
             api_models::refunds::RefundType::Scheduled => Self::RegularRefund,
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::PaymentMethod> for payment_methods::PaymentMethodResponse {
+    fn foreign_from(item: diesel_models::PaymentMethod) -> Self {
+        Self {
+            merchant_id: item.merchant_id,
+            customer_id: Some(item.customer_id),
+            payment_method_id: item.payment_method_id,
+            payment_method: item.payment_method,
+            payment_method_type: item.payment_method_type,
+            card: None,
+            recurring_enabled: false,
+            installment_payment_enabled: false,
+            payment_experience: None,
+            metadata: item.metadata,
+            created: Some(item.created_at),
+            #[cfg(feature = "payouts")]
+            bank_transfer: None,
+            last_used_at: None,
+            client_secret: item.client_secret,
         }
     }
 }
@@ -184,6 +213,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Authorizedotnet => Self::Authorizedotnet,
             api_enums::Connector::Bambora => Self::Bambora,
             api_enums::Connector::Bankofamerica => Self::Bankofamerica,
+            api_enums::Connector::Billwerk => Self::Billwerk,
             api_enums::Connector::Bitpay => Self::Bitpay,
             api_enums::Connector::Bluesnap => Self::Bluesnap,
             api_enums::Connector::Boku => Self::Boku,
@@ -204,6 +234,11 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Klarna => Self::Klarna,
             api_enums::Connector::Mollie => Self::Mollie,
             api_enums::Connector::Multisafepay => Self::Multisafepay,
+            api_enums::Connector::Netcetera => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "netcetera is not a routable connector".to_string(),
+                })?
+            }
             api_enums::Connector::Nexinets => Self::Nexinets,
             api_enums::Connector::Nmi => Self::Nmi,
             api_enums::Connector::Noon => Self::Noon,
@@ -216,8 +251,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Plaid => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "plaid is not a routable connector".to_string(),
-                })
-                .into_report()?
+                })?
             }
             api_enums::Connector::Powertranz => Self::Powertranz,
             api_enums::Connector::Prophetpay => Self::Prophetpay,
@@ -226,14 +260,12 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Signifyd => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "signifyd is not a routable connector".to_string(),
-                })
-                .into_report()?
+                })?
             }
             api_enums::Connector::Riskified => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "riskified is not a routable connector".to_string(),
-                })
-                .into_report()?
+                })?
             }
             api_enums::Connector::Square => Self::Square,
             api_enums::Connector::Stax => Self::Stax,
@@ -245,6 +277,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Worldline => Self::Worldline,
             api_enums::Connector::Worldpay => Self::Worldpay,
             api_enums::Connector::Zen => Self::Zen,
+            api_enums::Connector::Zsl => Self::Zsl,
             #[cfg(feature = "dummy_connector")]
             api_enums::Connector::DummyConnector1 => Self::DummyConnector1,
             #[cfg(feature = "dummy_connector")]
@@ -259,6 +292,11 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::DummyConnector6 => Self::DummyConnector6,
             #[cfg(feature = "dummy_connector")]
             api_enums::Connector::DummyConnector7 => Self::DummyConnector7,
+            api_enums::Connector::Threedsecureio => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "threedsecureio is not a routable connector".to_string(),
+                })?
+            }
         })
     }
 }
@@ -446,6 +484,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::CimbVa
             | api_enums::PaymentMethodType::DanamonVa
             | api_enums::PaymentMethodType::MandiriVa
+            | api_enums::PaymentMethodType::LocalBankTransfer
             | api_enums::PaymentMethodType::Pix => Self::BankTransfer,
             api_enums::PaymentMethodType::Givex | api_enums::PaymentMethodType::PaySafeCard => {
                 Self::GiftCard
@@ -573,8 +612,20 @@ impl<'a> ForeignFrom<&'a api_types::ConfigUpdate> for storage::ConfigUpdate {
 
 impl<'a> From<&'a domain::Address> for api_types::Address {
     fn from(address: &domain::Address) -> Self {
-        Self {
-            address: Some(api_types::AddressDetails {
+        // If all the fields of address are none, then pass the address as None
+        let address_details = if address.city.is_none()
+            && address.line1.is_none()
+            && address.line2.is_none()
+            && address.line3.is_none()
+            && address.state.is_none()
+            && address.country.is_none()
+            && address.zip.is_none()
+            && address.first_name.is_none()
+            && address.last_name.is_none()
+        {
+            None
+        } else {
+            Some(api_types::AddressDetails {
                 city: address.city.clone(),
                 country: address.country,
                 line1: address.line1.clone().map(Encryptable::into_inner),
@@ -584,11 +635,22 @@ impl<'a> From<&'a domain::Address> for api_types::Address {
                 zip: address.zip.clone().map(Encryptable::into_inner),
                 first_name: address.first_name.clone().map(Encryptable::into_inner),
                 last_name: address.last_name.clone().map(Encryptable::into_inner),
-            }),
-            phone: Some(api_types::PhoneDetails {
+            })
+        };
+
+        // If all the fields of phone are none, then pass the phone as None
+        let phone_details = if address.phone_number.is_none() && address.country_code.is_none() {
+            None
+        } else {
+            Some(api_types::PhoneDetails {
                 number: address.phone_number.clone().map(Encryptable::into_inner),
                 country_code: address.country_code.clone(),
-            }),
+            })
+        };
+
+        Self {
+            address: address_details,
+            phone: phone_details,
             email: address.email.clone().map(pii::Email::from),
         }
     }
@@ -709,6 +771,24 @@ impl ForeignFrom<storage::Authorization> for payments::IncrementalAuthorizationR
             error_code: authorization.error_code,
             error_message: authorization.error_message,
             previously_authorized_amount: authorization.previously_authorized_amount,
+        }
+    }
+}
+
+impl ForeignFrom<&storage::Authentication> for payments::ExternalAuthenticationDetailsResponse {
+    fn foreign_from(authn_data: &storage::Authentication) -> Self {
+        let version = authn_data
+            .maximum_supported_version
+            .as_ref()
+            .map(|version| version.to_string());
+        Self {
+            authentication_flow: authn_data.authentication_type,
+            electronic_commerce_indicator: authn_data.eci.clone(),
+            status: authn_data.authentication_status,
+            ds_transaction_id: authn_data.threeds_server_transaction_id.clone(),
+            version,
+            error_code: authn_data.error_code.clone(),
+            error_message: authn_data.error_message.clone(),
         }
     }
 }
@@ -862,6 +942,7 @@ impl ForeignFrom<storage::Capture> for api_models::payments::CaptureResponse {
     }
 }
 
+#[cfg(feature = "payouts")]
 impl ForeignFrom<api_models::payouts::PayoutMethodData> for api_enums::PaymentMethodType {
     fn foreign_from(value: api_models::payouts::PayoutMethodData) -> Self {
         match value {
@@ -872,6 +953,7 @@ impl ForeignFrom<api_models::payouts::PayoutMethodData> for api_enums::PaymentMe
     }
 }
 
+#[cfg(feature = "payouts")]
 impl ForeignFrom<api_models::payouts::Bank> for api_enums::PaymentMethodType {
     fn foreign_from(value: api_models::payouts::Bank) -> Self {
         match value {
@@ -882,6 +964,7 @@ impl ForeignFrom<api_models::payouts::Bank> for api_enums::PaymentMethodType {
     }
 }
 
+#[cfg(feature = "payouts")]
 impl ForeignFrom<api_models::payouts::Wallet> for api_enums::PaymentMethodType {
     fn foreign_from(value: api_models::payouts::Wallet) -> Self {
         match value {
@@ -890,6 +973,7 @@ impl ForeignFrom<api_models::payouts::Wallet> for api_enums::PaymentMethodType {
     }
 }
 
+#[cfg(feature = "payouts")]
 impl ForeignFrom<api_models::payouts::PayoutMethodData> for api_enums::PaymentMethod {
     fn foreign_from(value: api_models::payouts::PayoutMethodData) -> Self {
         match value {
@@ -900,6 +984,7 @@ impl ForeignFrom<api_models::payouts::PayoutMethodData> for api_enums::PaymentMe
     }
 }
 
+#[cfg(feature = "payouts")]
 impl ForeignFrom<api_models::enums::PayoutType> for api_enums::PaymentMethod {
     fn foreign_from(value: api_models::enums::PayoutType) -> Self {
         match value {
@@ -928,11 +1013,19 @@ impl ForeignTryFrom<&HeaderMap> for api_models::payments::HeaderPayload {
                         )
                 })
                 .transpose()?;
-
+        when(
+            payment_confirm_source.is_some_and(|payment_confirm_source| {
+                payment_confirm_source.is_for_internal_use_only()
+            }),
+            || {
+                Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Invalid data received in payment_confirm_source header".into(),
+                }))
+            },
+        )?;
         let x_hs_latency = get_header_value_by_key(X_HS_LATENCY.into(), headers)
             .map(|value| value == Some("true"))
             .unwrap_or(false);
-
         Ok(Self {
             payment_confirm_source,
             x_hs_latency: Some(x_hs_latency),
@@ -1067,5 +1160,134 @@ impl ForeignFrom<storage::GatewayStatusMap> for gsm_api_types::GsmResponse {
             unified_code: value.unified_code,
             unified_message: value.unified_message,
         }
+    }
+}
+
+impl ForeignFrom<&domain::Customer> for api_models::payments::CustomerDetails {
+    fn foreign_from(customer: &domain::Customer) -> Self {
+        Self {
+            id: customer.customer_id.clone(),
+            name: customer
+                .name
+                .as_ref()
+                .map(|name| name.get_inner().to_owned()),
+            email: customer.email.clone().map(Into::into),
+            phone: customer
+                .phone
+                .as_ref()
+                .map(|phone| phone.get_inner().to_owned()),
+            phone_country_code: customer.phone_country_code.clone(),
+        }
+    }
+}
+
+#[cfg(feature = "olap")]
+impl ForeignTryFrom<api_types::webhook_events::EventListConstraints>
+    for api_types::webhook_events::EventListConstraintsInternal
+{
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn foreign_try_from(
+        item: api_types::webhook_events::EventListConstraints,
+    ) -> Result<Self, Self::Error> {
+        if item.object_id.is_some()
+            && (item.created_after.is_some()
+                || item.created_before.is_some()
+                || item.limit.is_some()
+                || item.offset.is_some())
+        {
+            return Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                message:
+                    "Either only `object_id` must be specified, or one or more of \
+                          `created_after`, `created_before`, `limit` and `offset` must be specified"
+                        .to_string()
+            }));
+        }
+
+        match item.object_id {
+            Some(object_id) => Ok(Self::ObjectIdFilter { object_id }),
+            None => Ok(Self::GenericFilter {
+                created_after: item.created_after,
+                created_before: item.created_before,
+                limit: item.limit.map(i64::from),
+                offset: item.offset.map(i64::from),
+            }),
+        }
+    }
+}
+
+#[cfg(feature = "olap")]
+impl TryFrom<domain::Event> for api_models::webhook_events::EventListItemResponse {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(item: domain::Event) -> Result<Self, Self::Error> {
+        use crate::utils::OptionExt;
+
+        // We only allow retrieving events with merchant_id, business_profile_id
+        // and initial_attempt_id populated.
+        // We cannot retrieve events with only some of these fields populated.
+        let merchant_id = item
+            .merchant_id
+            .get_required_value("merchant_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        let profile_id = item
+            .business_profile_id
+            .get_required_value("business_profile_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        let initial_attempt_id = item
+            .initial_attempt_id
+            .get_required_value("initial_attempt_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        Ok(Self {
+            event_id: item.event_id,
+            merchant_id,
+            profile_id,
+            object_id: item.primary_object_id,
+            event_type: item.event_type,
+            event_class: item.event_class,
+            is_delivery_successful: item.is_webhook_notified,
+            initial_attempt_id,
+            created: item.created_at,
+        })
+    }
+}
+
+#[cfg(feature = "olap")]
+impl TryFrom<domain::Event> for api_models::webhook_events::EventRetrieveResponse {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(item: domain::Event) -> Result<Self, Self::Error> {
+        use crate::utils::OptionExt;
+
+        // We only allow retrieving events with all required fields in `EventListItemResponse`, and
+        // `request` and `response` populated.
+        // We cannot retrieve events with only some of these fields populated.
+        let event_information =
+            api_models::webhook_events::EventListItemResponse::try_from(item.clone())?;
+
+        let request = item
+            .request
+            .get_required_value("request")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?
+            .peek()
+            .parse_struct("OutgoingWebhookRequestContent")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse webhook event request information")?;
+        let response = item
+            .response
+            .get_required_value("response")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?
+            .peek()
+            .parse_struct("OutgoingWebhookResponseContent")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse webhook event response information")?;
+
+        Ok(Self {
+            event_information,
+            request,
+            response,
+            delivery_attempt: item.delivery_attempt,
+        })
     }
 }

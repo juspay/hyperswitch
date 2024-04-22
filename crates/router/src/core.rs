@@ -1,6 +1,7 @@
 pub mod admin;
 pub mod api_keys;
 pub mod api_locking;
+pub mod authentication;
 pub mod blocklist;
 pub mod cache;
 pub mod cards_info;
@@ -27,6 +28,7 @@ pub mod payments;
 #[cfg(feature = "payouts")]
 pub mod payouts;
 pub mod pm_auth;
+pub mod poll;
 pub mod refunds;
 pub mod routing;
 pub mod surcharge_decision_config;

@@ -1,7 +1,7 @@
 use common_utils::date_time;
 #[cfg(feature = "email")]
 use diesel_models::{api_keys::ApiKey, enums as storage_enums};
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use masking::{PeekInterface, StrongSecret};
 use router_env::{instrument, tracing};
 
@@ -33,12 +33,10 @@ impl settings::ApiKeys {
         HASH_KEY.get_or_try_init(|| {
             <[u8; PlaintextApiKey::HASH_KEY_LEN]>::try_from(
                 hex::decode(self.hash_key.peek())
-                    .into_report()
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("API key hash key has invalid hexadecimal data")?
                     .as_slice(),
             )
-            .into_report()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("The API hashing key has incorrect length")
             .map(StrongSecret::new)
@@ -165,7 +163,6 @@ pub async fn create_api_key(
 
             add_api_key_expiry_task(store, &api_key, expiry_reminder_days)
                 .await
-                .into_report()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to insert API key expiry reminder to process tracker")?;
         }
@@ -197,7 +194,6 @@ pub async fn add_api_key_expiry_task(
             })
         })
         .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .into_report()
         .attach_printable("Failed to obtain initial process tracker schedule time")?;
 
     if schedule_time <= current_time {
@@ -207,6 +203,8 @@ pub async fn add_api_key_expiry_task(
     let api_key_expiry_tracker = storage::ApiKeyExpiryTrackingData {
         key_id: api_key.key_id.clone(),
         merchant_id: api_key.merchant_id.clone(),
+        api_key_name: api_key.name.clone(),
+        prefix: api_key.prefix.clone(),
         // We need API key expiry too, because we need to decide on the schedule_time in
         // execute_workflow() where we won't be having access to the Api key object.
         api_key_expiry: api_key.expires_at,
@@ -255,7 +253,7 @@ pub async fn retrieve_api_key(
         .find_api_key_by_merchant_id_key_id_optional(merchant_id, key_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError) // If retrieve failed
-        .attach_printable("Failed to retrieve new API key")?
+        .attach_printable("Failed to retrieve API key")?
         .ok_or(report!(errors::ApiErrorResponse::ApiKeyNotFound))?; // If retrieve returned `None`
 
     Ok(ApplicationResponse::Json(api_key.foreign_into()))
@@ -300,7 +298,6 @@ pub async fn update_api_key(
                 // Process exist in process, update the process with new schedule_time
                 update_api_key_expiry_task(store, &api_key, expiry_reminder_days)
                     .await
-                    .into_report()
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable(
                         "Failed to update API key expiry reminder task in process tracker",
@@ -311,7 +308,6 @@ pub async fn update_api_key(
                 // Process exist in process, revoke it
                 revoke_api_key_expiry_task(store, &key_id)
                     .await
-                    .into_report()
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable(
                         "Failed to revoke API key expiry reminder task in process tracker",
@@ -325,7 +321,6 @@ pub async fn update_api_key(
             // schedule_time based on new expiry set.
             add_api_key_expiry_task(store, &api_key, expiry_reminder_days)
                 .await
-                .into_report()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(
                     "Failed to insert API key expiry reminder task to process tracker",
@@ -369,12 +364,13 @@ pub async fn update_api_key_expiry_task(
     let updated_tracking_data = &storage::ApiKeyExpiryTrackingData {
         key_id: api_key.key_id.clone(),
         merchant_id: api_key.merchant_id.clone(),
+        api_key_name: api_key.name.clone(),
+        prefix: api_key.prefix.clone(),
         api_key_expiry: api_key.expires_at,
         expiry_reminder_days,
     };
 
     let updated_api_key_expiry_workflow_model = serde_json::to_value(updated_tracking_data)
-        .into_report()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
             format!("unable to serialize API key expiry tracker: {updated_tracking_data:?}")
@@ -428,7 +424,6 @@ pub async fn revoke_api_key(
         if existing_process_tracker_task.is_some() {
             revoke_api_key_expiry_task(store, key_id)
                 .await
-                .into_report()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(
                     "Failed to revoke API key expiry reminder task in process tracker",

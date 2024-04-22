@@ -1,5 +1,6 @@
 {{ css_color_scheme }}
 
+
 html,
 body {
   height: 100%;
@@ -608,7 +609,7 @@ body {
 #payment-form {
   max-width: 560px;
   width: 100%;
-  min-height: 500px;
+  /* min-height: 500px; */
   max-height: 90vh;
   height: 100%;
   overflow: scroll;

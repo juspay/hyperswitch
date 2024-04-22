@@ -32,10 +32,12 @@ use crate::{
         payment_methods::PaymentMethodRetrieve,
     },
     db::StorageInterface,
-    routes::AppState,
+    routes::{app::ReqState, AppState},
     services,
     types::{
-        self, api, domain,
+        self,
+        api::{self, ConnectorCallType},
+        domain,
         storage::{self, enums},
         PaymentsResponseData,
     },
@@ -77,7 +79,6 @@ pub trait Operation<F: Clone, T, Ctx: PaymentMethodRetrieve>: Send + std::fmt::D
 pub struct ValidateResult<'a> {
     pub merchant_id: &'a str,
     pub payment_id: api::PaymentIdType,
-    pub mandate_type: Option<api::MandateTransactionType>,
     pub storage_scheme: enums::MerchantStorageScheme,
     pub requeue: bool,
 }
@@ -96,6 +97,7 @@ pub struct GetTrackerResponse<'a, F: Clone, R, Ctx> {
     pub customer_details: Option<CustomerDetails>,
     pub payment_data: PaymentData<F>,
     pub business_profile: storage::business_profile::BusinessProfile,
+    pub mandate_type: Option<api::MandateTransactionType>,
 }
 
 #[async_trait]
@@ -106,7 +108,6 @@ pub trait GetTracker<F: Clone, D, R, Ctx: PaymentMethodRetrieve>: Send {
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         request: &R,
-        mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
         mechant_key_store: &domain::MerchantKeyStore,
         auth_flow: services::AuthFlow,
@@ -123,6 +124,7 @@ pub trait Domain<F: Clone, R, Ctx: PaymentMethodRetrieve>: Send + Sync {
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
         merchant_key_store: &domain::MerchantKeyStore,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<(BoxedOperation<'a, F, R, Ctx>, Option<domain::Customer>), errors::StorageError>;
 
     #[allow(clippy::too_many_arguments)]
@@ -136,6 +138,7 @@ pub trait Domain<F: Clone, R, Ctx: PaymentMethodRetrieve>: Send + Sync {
     ) -> RouterResult<(
         BoxedOperation<'a, F, R, Ctx>,
         Option<api::PaymentMethodData>,
+        Option<String>,
     )>;
 
     async fn add_task_to_process_tracker<'a>(
@@ -166,6 +169,18 @@ pub trait Domain<F: Clone, R, Ctx: PaymentMethodRetrieve>: Send + Sync {
         Ok(())
     }
 
+    async fn call_external_three_ds_authentication_if_eligible<'a>(
+        &'a self,
+        _state: &AppState,
+        _payment_data: &mut PaymentData<F>,
+        _should_continue_confirm_transaction: &mut bool,
+        _connector_call_type: &ConnectorCallType,
+        _merchant_account: &storage::BusinessProfile,
+        _key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        Ok(())
+    }
+
     #[instrument(skip_all)]
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
@@ -183,6 +198,7 @@ pub trait UpdateTracker<F, D, Req, Ctx: PaymentMethodRetrieve>: Send {
     async fn update_trackers<'b>(
         &'b self,
         db: &'b AppState,
+        req_state: ReqState,
         payment_data: D,
         customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
@@ -225,6 +241,7 @@ where
         payment_data: &mut PaymentData<F>,
         _request: Option<CustomerDetails>,
         merchant_key_store: &domain::MerchantKeyStore,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRetrieveRequest, Ctx>,
@@ -240,6 +257,7 @@ where
                 &merchant_key_store.merchant_id,
                 payment_data,
                 merchant_key_store,
+                storage_scheme,
             )
             .await?,
         ))
@@ -261,12 +279,13 @@ where
         &'a self,
         state: &'a AppState,
         payment_data: &mut PaymentData<F>,
-        _storage_scheme: enums::MerchantStorageScheme,
+        storage_scheme: enums::MerchantStorageScheme,
         merchant_key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRetrieveRequest, Ctx>,
         Option<api::PaymentMethodData>,
+        Option<String>,
     )> {
         helpers::make_pm_data(
             Box::new(self),
@@ -274,6 +293,7 @@ where
             payment_data,
             merchant_key_store,
             customer,
+            storage_scheme,
         )
         .await
     }
@@ -305,6 +325,7 @@ where
         payment_data: &mut PaymentData<F>,
         _request: Option<CustomerDetails>,
         merchant_key_store: &domain::MerchantKeyStore,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsCaptureRequest, Ctx>,
@@ -320,6 +341,7 @@ where
                 &merchant_key_store.merchant_id,
                 payment_data,
                 merchant_key_store,
+                storage_scheme,
             )
             .await?,
         ))
@@ -335,8 +357,9 @@ where
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCaptureRequest, Ctx>,
         Option<api::PaymentMethodData>,
+        Option<String>,
     )> {
-        Ok((Box::new(self), None))
+        Ok((Box::new(self), None, None))
     }
 
     async fn get_connector<'a>(
@@ -377,6 +400,7 @@ where
         payment_data: &mut PaymentData<F>,
         _request: Option<CustomerDetails>,
         merchant_key_store: &domain::MerchantKeyStore,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsCancelRequest, Ctx>,
@@ -392,6 +416,7 @@ where
                 &merchant_key_store.merchant_id,
                 payment_data,
                 merchant_key_store,
+                storage_scheme,
             )
             .await?,
         ))
@@ -408,8 +433,9 @@ where
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCancelRequest, Ctx>,
         Option<api::PaymentMethodData>,
+        Option<String>,
     )> {
-        Ok((Box::new(self), None))
+        Ok((Box::new(self), None, None))
     }
 
     async fn get_connector<'a>(
@@ -450,6 +476,7 @@ where
         _payment_data: &mut PaymentData<F>,
         _request: Option<CustomerDetails>,
         _merchant_key_store: &domain::MerchantKeyStore,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRejectRequest, Ctx>,
@@ -471,8 +498,9 @@ where
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRejectRequest, Ctx>,
         Option<api::PaymentMethodData>,
+        Option<String>,
     )> {
-        Ok((Box::new(self), None))
+        Ok((Box::new(self), None, None))
     }
 
     async fn get_connector<'a>(

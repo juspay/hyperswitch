@@ -11,7 +11,7 @@ use common_utils::{
     pii,
 };
 use diesel_models::configs;
-use error_stack::{report, FutureExt, IntoReport, ResultExt};
+use error_stack::{report, FutureExt, ResultExt};
 use futures::future::try_join_all;
 use masking::{PeekInterface, Secret};
 use pm_auth::connector::plaid::transformers::PlaidAuthType;
@@ -185,7 +185,7 @@ pub async fn create_merchant_account(
         });
 
     let mut merchant_account = async {
-        Ok(domain::MerchantAccount {
+        Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(domain::MerchantAccount {
             merchant_id: req.merchant_id,
             merchant_name: req
                 .merchant_name
@@ -216,7 +216,10 @@ pub async fn create_merchant_account(
             modified_at: date_time::now(),
             intent_fulfillment_time: None,
             frm_routing_algorithm: req.frm_routing_algorithm,
+            #[cfg(feature = "payouts")]
             payout_routing_algorithm: req.payout_routing_algorithm,
+            #[cfg(not(feature = "payouts"))]
+            payout_routing_algorithm: None,
             id: None,
             organization_id,
             is_recon_enabled: false,
@@ -286,8 +289,7 @@ pub async fn create_merchant_account(
     .ok();
 
     Ok(service_api::ApplicationResponse::Json(
-        merchant_account
-            .try_into()
+        api::MerchantAccountResponse::try_from(merchant_account)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed while generating response")?,
     ))
@@ -307,11 +309,11 @@ pub async fn list_merchant_account(
     let merchant_accounts = merchant_accounts
         .into_iter()
         .map(|merchant_account| {
-            merchant_account
-                .try_into()
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            api::MerchantAccountResponse::try_from(merchant_account).change_context(
+                errors::ApiErrorResponse::InvalidDataValue {
                     field_name: "merchant_account",
-                })
+                },
+            )
         })
         .collect::<Result<Vec<_>, _>>()?;
 
@@ -337,8 +339,7 @@ pub async fn get_merchant_account(
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     Ok(service_api::ApplicationResponse::Json(
-        merchant_account
-            .try_into()
+        api::MerchantAccountResponse::try_from(merchant_account)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct response")?,
     ))
@@ -442,10 +443,12 @@ pub async fn update_business_profile_cascade(
             routing_algorithm: None,
             intent_fulfillment_time: None,
             frm_routing_algorithm: None,
+            #[cfg(feature = "payouts")]
             payout_routing_algorithm: None,
             applepay_verified_domains: None,
             payment_link_config: None,
             session_expiry: None,
+            authentication_connector_details: None,
         };
 
         let update_futures = business_profiles.iter().map(|business_profile| async {
@@ -598,7 +601,10 @@ pub async fn merchant_account_update(
         primary_business_details,
         frm_routing_algorithm: req.frm_routing_algorithm,
         intent_fulfillment_time: None,
+        #[cfg(feature = "payouts")]
         payout_routing_algorithm: req.payout_routing_algorithm,
+        #[cfg(not(feature = "payouts"))]
+        payout_routing_algorithm: None,
         default_profile: business_profile_id_update,
         payment_link_config: None,
     };
@@ -611,8 +617,7 @@ pub async fn merchant_account_update(
     // If there are any new business labels generated, create business profile
 
     Ok(service_api::ApplicationResponse::Json(
-        response
-            .try_into()
+        api::MerchantAccountResponse::try_from(response)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed while generating response")?,
     ))
@@ -791,20 +796,28 @@ pub async fn create_payment_connector(
 
     let pm_auth_connector =
         api_enums::convert_pm_auth_connector(req.connector_name.to_string().as_str());
+    let authentication_connector =
+        api_enums::convert_authentication_connector(req.connector_name.to_string().as_str());
 
     if pm_auth_connector.is_some() {
         if req.connector_type != api_enums::ConnectorType::PaymentMethodAuth {
             return Err(errors::ApiErrorResponse::InvalidRequestData {
                 message: "Invalid connector type given".to_string(),
-            })
-            .into_report();
+            }
+            .into());
+        }
+    } else if authentication_connector.is_some() {
+        if req.connector_type != api_enums::ConnectorType::AuthenticationProcessor {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Invalid connector type given".to_string(),
+            }
+            .into());
         }
     } else {
         let routable_connector_option = req
             .connector_name
             .to_string()
-            .parse()
-            .into_report()
+            .parse::<api_enums::RoutableConnectors>()
             .change_context(errors::ApiErrorResponse::InvalidRequestData {
                 message: "Invalid connector name given".to_string(),
             })?;
@@ -1040,7 +1053,6 @@ async fn validate_pm_auth(
     profile_id: &Option<String>,
 ) -> RouterResponse<()> {
     let config = serde_json::from_value::<api_models::pm_auth::PaymentMethodAuthConfig>(val)
-        .into_report()
         .change_context(errors::ApiErrorResponse::InvalidRequestData {
             message: "invalid data received for payment method auth config".to_string(),
         })
@@ -1064,15 +1076,14 @@ async fn validate_pm_auth(
             .find(|mca| mca.merchant_connector_id == conn_choice.mca_id)
             .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
                 message: "payment method auth connector account not found".to_string(),
-            })
-            .into_report()?;
+            })?;
 
         if &pm_auth_mca.profile_id != profile_id {
             return Err(errors::ApiErrorResponse::GenericNotFoundError {
                 message: "payment method auth profile_id differs from connector profile_id"
                     .to_string(),
-            })
-            .into_report();
+            }
+            .into());
         }
     }
 
@@ -1195,34 +1206,34 @@ pub async fn update_payment_connector(
             field_name: "connector_account_details".to_string(),
             expected_format: "auth_type and api_key".to_string(),
         })?;
+    let metadata = req.metadata.clone().or(mca.metadata.clone());
     let connector_name = mca.connector_name.as_ref();
     let connector_enum = api_models::enums::Connector::from_str(connector_name)
-        .into_report()
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "connector",
         })
         .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
-    validate_auth_and_metadata_type(connector_enum, &auth, &req.metadata).map_err(
-        |err| match *err.current_context() {
-            errors::ConnectorError::InvalidConnectorName => {
-                err.change_context(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "The connector name is invalid".to_string(),
-                })
-            }
-            errors::ConnectorError::InvalidConnectorConfig { config: field_name } => err
-                .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                    message: format!("The {} is invalid", field_name),
-                }),
-            errors::ConnectorError::FailedToObtainAuthType => {
-                err.change_context(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "The auth type is invalid for the connector".to_string(),
-                })
-            }
-            _ => err.change_context(errors::ApiErrorResponse::InvalidRequestData {
-                message: "The request body is invalid".to_string(),
+    validate_auth_and_metadata_type(connector_enum, &auth, &metadata).map_err(|err| match *err
+        .current_context()
+    {
+        errors::ConnectorError::InvalidConnectorName => {
+            err.change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "The connector name is invalid".to_string(),
+            })
+        }
+        errors::ConnectorError::InvalidConnectorConfig { config: field_name } => err
+            .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: format!("The {} is invalid", field_name),
             }),
-        },
-    )?;
+        errors::ConnectorError::FailedToObtainAuthType => {
+            err.change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "The auth type is invalid for the connector".to_string(),
+            })
+        }
+        _ => err.change_context(errors::ApiErrorResponse::InvalidRequestData {
+            message: "The request body is invalid".to_string(),
+        }),
+    })?;
 
     let (connector_status, disabled) =
         validate_status_and_disabled(req.status, req.disabled, auth, mca.status)?;
@@ -1289,7 +1300,6 @@ pub async fn update_payment_connector(
         .profile_id
         .clone()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .into_report()
         .attach_printable("Missing `profile_id` in merchant connector account")?;
 
     let request_connector_label = req.connector_label;
@@ -1660,11 +1670,22 @@ pub async fn update_business_profile(
         routing_algorithm: request.routing_algorithm,
         intent_fulfillment_time: request.intent_fulfillment_time.map(i64::from),
         frm_routing_algorithm: request.frm_routing_algorithm,
+        #[cfg(feature = "payouts")]
         payout_routing_algorithm: request.payout_routing_algorithm,
+        #[cfg(not(feature = "payouts"))]
+        payout_routing_algorithm: None,
         is_recon_enabled: None,
         applepay_verified_domains: request.applepay_verified_domains,
         payment_link_config,
         session_expiry: request.session_expiry.map(i64::from),
+        authentication_connector_details: request
+            .authentication_connector_details
+            .as_ref()
+            .map(Encode::encode_to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "authentication_connector_details",
+            })?,
     };
 
     let updated_business_profile = db
@@ -1705,6 +1726,7 @@ pub(crate) fn validate_auth_and_metadata_type(
         }
         api_enums::Connector::Adyen => {
             adyen::transformers::AdyenAuthType::try_from(val)?;
+            adyen::transformers::AdyenConnectorMetadataObject::try_from(connector_meta_data)?;
             Ok(())
         }
         api_enums::Connector::Airwallex => {
@@ -1717,6 +1739,10 @@ pub(crate) fn validate_auth_and_metadata_type(
         }
         api_enums::Connector::Bankofamerica => {
             bankofamerica::transformers::BankOfAmericaAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Billwerk => {
+            billwerk::transformers::BillwerkAuthType::try_from(val)?;
             Ok(())
         }
         api_enums::Connector::Bitpay => {
@@ -1806,6 +1832,10 @@ pub(crate) fn validate_auth_and_metadata_type(
         }
         api_enums::Connector::Multisafepay => {
             multisafepay::transformers::MultisafepayAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Netcetera => {
+            netcetera::transformers::NetceteraAuthType::try_from(val)?;
             Ok(())
         }
         api_enums::Connector::Nexinets => {
@@ -1900,6 +1930,10 @@ pub(crate) fn validate_auth_and_metadata_type(
             zen::transformers::ZenAuthType::try_from(val)?;
             Ok(())
         }
+        api_enums::Connector::Zsl => {
+            zsl::transformers::ZslAuthType::try_from(val)?;
+            Ok(())
+        }
         api_enums::Connector::Signifyd => {
             signifyd::transformers::SignifydAuthType::try_from(val)?;
             Ok(())
@@ -1910,6 +1944,10 @@ pub(crate) fn validate_auth_and_metadata_type(
         }
         api_enums::Connector::Plaid => {
             PlaidAuthType::foreign_try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Threedsecureio => {
+            threedsecureio::transformers::ThreedsecureioAuthType::try_from(val)?;
             Ok(())
         }
     }

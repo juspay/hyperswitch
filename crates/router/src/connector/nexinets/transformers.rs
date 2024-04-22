@@ -1,9 +1,9 @@
-use api_models::payments::PaymentMethodData;
 use base64::Engine;
 use cards::CardNumber;
 use common_utils::errors::CustomResult;
-use error_stack::{IntoReport, ResultExt};
-use masking::{PeekInterface, Secret};
+use domain::PaymentMethodData;
+use error_stack::ResultExt;
+use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -14,7 +14,7 @@ use crate::{
     consts,
     core::errors,
     services,
-    types::{self, api, storage::enums, transformers::ForeignFrom},
+    types::{self, api, domain, storage::enums, transformers::ForeignFrom},
 };
 
 #[derive(Debug, Serialize)]
@@ -86,7 +86,7 @@ pub struct CardDetails {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentInstrument {
-    payment_instrument_id: Option<String>,
+    payment_instrument_id: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -252,20 +252,20 @@ impl ForeignFrom<(NexinetsPaymentStatus, NexinetsTransactionType)> for enums::At
     }
 }
 
-impl TryFrom<&api_models::enums::BankNames> for NexinetsBIC {
+impl TryFrom<&common_enums::enums::BankNames> for NexinetsBIC {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(bank: &api_models::enums::BankNames) -> Result<Self, Self::Error> {
+    fn try_from(bank: &common_enums::enums::BankNames) -> Result<Self, Self::Error> {
         match bank {
-            api_models::enums::BankNames::AbnAmro => Ok(Self::AbnAmro),
-            api_models::enums::BankNames::AsnBank => Ok(Self::AsnBank),
-            api_models::enums::BankNames::Bunq => Ok(Self::Bunq),
-            api_models::enums::BankNames::Ing => Ok(Self::Ing),
-            api_models::enums::BankNames::Knab => Ok(Self::Knab),
-            api_models::enums::BankNames::Rabobank => Ok(Self::Rabobank),
-            api_models::enums::BankNames::Regiobank => Ok(Self::Regiobank),
-            api_models::enums::BankNames::SnsBank => Ok(Self::SnsBank),
-            api_models::enums::BankNames::TriodosBank => Ok(Self::TriodosBank),
-            api_models::enums::BankNames::VanLanschot => Ok(Self::VanLanschot),
+            common_enums::enums::BankNames::AbnAmro => Ok(Self::AbnAmro),
+            common_enums::enums::BankNames::AsnBank => Ok(Self::AsnBank),
+            common_enums::enums::BankNames::Bunq => Ok(Self::Bunq),
+            common_enums::enums::BankNames::Ing => Ok(Self::Ing),
+            common_enums::enums::BankNames::Knab => Ok(Self::Knab),
+            common_enums::enums::BankNames::Rabobank => Ok(Self::Rabobank),
+            common_enums::enums::BankNames::Regiobank => Ok(Self::Regiobank),
+            common_enums::enums::BankNames::SnsBank => Ok(Self::SnsBank),
+            common_enums::enums::BankNames::TriodosBank => Ok(Self::TriodosBank),
+            common_enums::enums::BankNames::VanLanschot => Ok(Self::VanLanschot),
             _ => Err(errors::ConnectorError::FlowNotSupported {
                 flow: bank.to_string(),
                 connector: "Nexinets".to_string(),
@@ -339,7 +339,6 @@ impl<F, T>
             order_id: Some(item.response.order_id.clone()),
             psync_flow: item.response.transaction_type.clone(),
         })
-        .into_report()
         .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
         let redirection_data = item
             .response
@@ -357,7 +356,7 @@ impl<F, T>
             .payment_instrument
             .payment_instrument_id
             .map(|id| types::MandateReference {
-                connector_mandate_id: Some(id),
+                connector_mandate_id: Some(id.expose()),
                 payment_method_id: None,
             });
         Ok(Self {
@@ -436,7 +435,6 @@ impl<F, T>
             order_id: Some(item.response.order.order_id.clone()),
             psync_flow: item.response.transaction_type.clone(),
         })
-        .into_report()
         .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
         let resource_id = match item.response.transaction_type.clone() {
             NexinetsTransactionType::Debit | NexinetsTransactionType::Capture => {
@@ -582,11 +580,9 @@ fn get_payment_details_and_product(
         )),
         PaymentMethodData::Wallet(wallet) => Ok(get_wallet_details(wallet)?),
         PaymentMethodData::BankRedirect(bank_redirect) => match bank_redirect {
-            api_models::payments::BankRedirectData::Eps { .. } => Ok((None, NexinetsProduct::Eps)),
-            api_models::payments::BankRedirectData::Giropay { .. } => {
-                Ok((None, NexinetsProduct::Giropay))
-            }
-            api_models::payments::BankRedirectData::Ideal { bank_name, .. } => Ok((
+            domain::BankRedirectData::Eps { .. } => Ok((None, NexinetsProduct::Eps)),
+            domain::BankRedirectData::Giropay { .. } => Ok((None, NexinetsProduct::Giropay)),
+            domain::BankRedirectData::Ideal { bank_name, .. } => Ok((
                 Some(NexinetsPaymentDetails::BankRedirects(Box::new(
                     NexinetsBankRedirects {
                         bic: bank_name
@@ -596,22 +592,20 @@ fn get_payment_details_and_product(
                 ))),
                 NexinetsProduct::Ideal,
             )),
-            api_models::payments::BankRedirectData::Sofort { .. } => {
-                Ok((None, NexinetsProduct::Sofort))
-            }
-            api_models::payments::BankRedirectData::BancontactCard { .. }
-            | api_models::payments::BankRedirectData::Blik { .. }
-            | api_models::payments::BankRedirectData::Bizum { .. }
-            | api_models::payments::BankRedirectData::Interac { .. }
-            | api_models::payments::BankRedirectData::OnlineBankingCzechRepublic { .. }
-            | api_models::payments::BankRedirectData::OnlineBankingFinland { .. }
-            | api_models::payments::BankRedirectData::OnlineBankingPoland { .. }
-            | api_models::payments::BankRedirectData::OnlineBankingSlovakia { .. }
-            | api_models::payments::BankRedirectData::OpenBankingUk { .. }
-            | api_models::payments::BankRedirectData::Przelewy24 { .. }
-            | api_models::payments::BankRedirectData::Trustly { .. }
-            | api_models::payments::BankRedirectData::OnlineBankingFpx { .. }
-            | api_models::payments::BankRedirectData::OnlineBankingThailand { .. } => {
+            domain::BankRedirectData::Sofort { .. } => Ok((None, NexinetsProduct::Sofort)),
+            domain::BankRedirectData::BancontactCard { .. }
+            | domain::BankRedirectData::Blik { .. }
+            | domain::BankRedirectData::Bizum { .. }
+            | domain::BankRedirectData::Interac { .. }
+            | domain::BankRedirectData::OnlineBankingCzechRepublic { .. }
+            | domain::BankRedirectData::OnlineBankingFinland { .. }
+            | domain::BankRedirectData::OnlineBankingPoland { .. }
+            | domain::BankRedirectData::OnlineBankingSlovakia { .. }
+            | domain::BankRedirectData::OpenBankingUk { .. }
+            | domain::BankRedirectData::Przelewy24 { .. }
+            | domain::BankRedirectData::Trustly { .. }
+            | domain::BankRedirectData::OnlineBankingFpx { .. }
+            | domain::BankRedirectData::OnlineBankingThailand { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("nexinets"),
                 ))?
@@ -635,13 +629,13 @@ fn get_payment_details_and_product(
 
 fn get_card_data(
     item: &types::PaymentsAuthorizeRouterData,
-    card: &api_models::payments::Card,
+    card: &domain::payments::Card,
 ) -> Result<NexinetsPaymentDetails, errors::ConnectorError> {
     let (card_data, cof_contract) = match item.request.is_mandate_payment() {
         true => {
             let card_data = match item.request.off_session {
                 Some(true) => CardDataDetails::PaymentInstrument(Box::new(PaymentInstrument {
-                    payment_instrument_id: item.request.connector_mandate_id(),
+                    payment_instrument_id: item.request.connector_mandate_id().map(Secret::new),
                 })),
                 _ => CardDataDetails::CardDetails(Box::new(get_card_details(card)?)),
             };
@@ -662,10 +656,10 @@ fn get_card_data(
 }
 
 fn get_applepay_details(
-    wallet_data: &api_models::payments::WalletData,
-    applepay_data: &api_models::payments::ApplePayWalletData,
+    wallet_data: &domain::WalletData,
+    applepay_data: &domain::ApplePayWalletData,
 ) -> CustomResult<ApplePayDetails, errors::ConnectorError> {
-    let payment_data = wallet_data.get_wallet_token_as_json()?;
+    let payment_data = wallet_data.get_wallet_token_as_json("Apple Pay".to_string())?;
     Ok(ApplePayDetails {
         payment_data,
         payment_method: ApplepayPaymentMethod {
@@ -678,7 +672,7 @@ fn get_applepay_details(
 }
 
 fn get_card_details(
-    req_card: &api_models::payments::Card,
+    req_card: &domain::payments::Card,
 ) -> Result<CardDetails, errors::ConnectorError> {
     Ok(CardDetails {
         card_number: req_card.card_number.clone(),
@@ -689,14 +683,14 @@ fn get_card_details(
 }
 
 fn get_wallet_details(
-    wallet: &api_models::payments::WalletData,
+    wallet: &domain::WalletData,
 ) -> Result<
     (Option<NexinetsPaymentDetails>, NexinetsProduct),
     error_stack::Report<errors::ConnectorError>,
 > {
     match wallet {
-        api_models::payments::WalletData::PaypalRedirect(_) => Ok((None, NexinetsProduct::Paypal)),
-        api_models::payments::WalletData::ApplePay(applepay_data) => Ok((
+        domain::WalletData::PaypalRedirect(_) => Ok((None, NexinetsProduct::Paypal)),
+        domain::WalletData::ApplePay(applepay_data) => Ok((
             Some(NexinetsPaymentDetails::Wallet(Box::new(
                 NexinetsWalletDetails::ApplePayToken(Box::new(get_applepay_details(
                     wallet,
@@ -705,34 +699,32 @@ fn get_wallet_details(
             ))),
             NexinetsProduct::Applepay,
         )),
-        api_models::payments::WalletData::AliPayQr(_)
-        | api_models::payments::WalletData::AliPayRedirect(_)
-        | api_models::payments::WalletData::AliPayHkRedirect(_)
-        | api_models::payments::WalletData::MomoRedirect(_)
-        | api_models::payments::WalletData::KakaoPayRedirect(_)
-        | api_models::payments::WalletData::GoPayRedirect(_)
-        | api_models::payments::WalletData::GcashRedirect(_)
-        | api_models::payments::WalletData::ApplePayRedirect(_)
-        | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
-        | api_models::payments::WalletData::DanaRedirect { .. }
-        | api_models::payments::WalletData::GooglePay(_)
-        | api_models::payments::WalletData::GooglePayRedirect(_)
-        | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
-        | api_models::payments::WalletData::MbWayRedirect(_)
-        | api_models::payments::WalletData::MobilePayRedirect(_)
-        | api_models::payments::WalletData::PaypalSdk(_)
-        | api_models::payments::WalletData::SamsungPay(_)
-        | api_models::payments::WalletData::TwintRedirect { .. }
-        | api_models::payments::WalletData::VippsRedirect { .. }
-        | api_models::payments::WalletData::TouchNGoRedirect(_)
-        | api_models::payments::WalletData::WeChatPayRedirect(_)
-        | api_models::payments::WalletData::WeChatPayQr(_)
-        | api_models::payments::WalletData::CashappQr(_)
-        | api_models::payments::WalletData::SwishQr(_) => {
-            Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("nexinets"),
-            ))?
-        }
+        domain::WalletData::AliPayQr(_)
+        | domain::WalletData::AliPayRedirect(_)
+        | domain::WalletData::AliPayHkRedirect(_)
+        | domain::WalletData::MomoRedirect(_)
+        | domain::WalletData::KakaoPayRedirect(_)
+        | domain::WalletData::GoPayRedirect(_)
+        | domain::WalletData::GcashRedirect(_)
+        | domain::WalletData::ApplePayRedirect(_)
+        | domain::WalletData::ApplePayThirdPartySdk(_)
+        | domain::WalletData::DanaRedirect { .. }
+        | domain::WalletData::GooglePay(_)
+        | domain::WalletData::GooglePayRedirect(_)
+        | domain::WalletData::GooglePayThirdPartySdk(_)
+        | domain::WalletData::MbWayRedirect(_)
+        | domain::WalletData::MobilePayRedirect(_)
+        | domain::WalletData::PaypalSdk(_)
+        | domain::WalletData::SamsungPay(_)
+        | domain::WalletData::TwintRedirect { .. }
+        | domain::WalletData::VippsRedirect { .. }
+        | domain::WalletData::TouchNGoRedirect(_)
+        | domain::WalletData::WeChatPayRedirect(_)
+        | domain::WalletData::WeChatPayQr(_)
+        | domain::WalletData::CashappQr(_)
+        | domain::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
+            utils::get_unimplemented_payment_method_error_message("nexinets"),
+        ))?,
     }
 }
 

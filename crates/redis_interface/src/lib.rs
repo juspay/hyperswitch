@@ -23,7 +23,7 @@ pub mod types;
 use std::sync::{atomic, Arc};
 
 use common_utils::errors::CustomResult;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 pub use fred::interfaces::PubsubInterface;
 use fred::{interfaces::ClientLike, prelude::EventInterface};
 use router_env::logger;
@@ -61,7 +61,6 @@ impl RedisClient {
         client
             .wait_for_connect()
             .await
-            .into_report()
             .change_context(errors::RedisError::RedisConnectionError)?;
         Ok(Self { inner: client })
     }
@@ -83,7 +82,6 @@ impl SubscriberClient {
         client
             .wait_for_connect()
             .await
-            .into_report()
             .change_context(errors::RedisError::RedisConnectionError)?;
         Ok(Self { inner: client })
     }
@@ -118,7 +116,6 @@ impl RedisConnectionPool {
             ),
         };
         let mut config = fred::types::RedisConfig::from_url(&redis_connection_url)
-            .into_report()
             .change_context(errors::RedisError::RedisConnectionError)?;
 
         let perf = fred::types::PerformanceConfig {
@@ -130,6 +127,11 @@ impl RedisConnectionPool {
                 max_in_flight_commands: conf.max_in_flight_commands,
                 policy: fred::types::BackpressurePolicy::Drain,
             },
+        };
+
+        let connection_config = fred::types::ConnectionConfig {
+            unresponsive_timeout: std::time::Duration::from_secs(conf.unresponsive_timeout),
+            ..fred::types::ConnectionConfig::default()
         };
 
         if !conf.use_legacy_version {
@@ -151,17 +153,15 @@ impl RedisConnectionPool {
         let pool = fred::prelude::RedisPool::new(
             config,
             Some(perf),
-            None,
+            Some(connection_config),
             Some(reconnect_policy),
             conf.pool_size,
         )
-        .into_report()
         .change_context(errors::RedisError::RedisConnectionError)?;
 
         pool.connect();
         pool.wait_for_connect()
             .await
-            .into_report()
             .change_context(errors::RedisError::RedisConnectionError)?;
 
         let config = RedisConfig::from(conf);
@@ -200,6 +200,15 @@ impl RedisConnectionPool {
                 }
             }
         }
+    }
+
+    pub async fn on_unresponsive(&self) {
+        let _ = self.pool.clients().iter().map(|client| {
+            client.on_unresponsive(|server| {
+                logger::warn!(redis_server =?server.host, "Redis server is unresponsive");
+                Ok(())
+            })
+        });
     }
 }
 

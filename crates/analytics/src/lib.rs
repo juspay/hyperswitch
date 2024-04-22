@@ -12,9 +12,17 @@ pub mod connector_events;
 pub mod health_check;
 pub mod outgoing_webhook_event;
 pub mod sdk_events;
+pub mod search;
 mod sqlx;
 mod types;
 use api_event::metrics::{ApiEventMetric, ApiEventMetricRow};
+use common_utils::errors::CustomResult;
+use disputes::metrics::{DisputeMetric, DisputeMetricRow};
+use hyperswitch_interfaces::secrets_interface::{
+    secret_handler::SecretsHandler,
+    secret_state::{RawSecret, SecretStateContainer, SecuredSecret},
+    SecretManagementInterface, SecretsManagementError,
+};
 pub use types::AnalyticsDomain;
 pub mod lambda_utils;
 pub mod utils;
@@ -25,6 +33,7 @@ use api_models::analytics::{
     api_event::{
         ApiEventDimensions, ApiEventFilters, ApiEventMetrics, ApiEventMetricsBucketIdentifier,
     },
+    disputes::{DisputeDimensions, DisputeFilters, DisputeMetrics, DisputeMetricsBucketIdentifier},
     payments::{PaymentDimensions, PaymentFilters, PaymentMetrics, PaymentMetricsBucketIdentifier},
     refunds::{RefundDimensions, RefundFilters, RefundMetrics, RefundMetricsBucketIdentifier},
     sdk_events::{
@@ -34,12 +43,14 @@ use api_models::analytics::{
 };
 use clickhouse::ClickhouseClient;
 pub use clickhouse::ClickhouseConfig;
-use error_stack::IntoReport;
+use error_stack::report;
 use router_env::{
     logger,
     tracing::{self, instrument},
+    types::FlowMetric,
 };
 use storage_impl::config::Database;
+use strum::Display;
 
 use self::{
     payments::{
@@ -393,6 +404,106 @@ impl AnalyticsProvider {
         .await
     }
 
+    pub async fn get_dispute_metrics(
+        &self,
+        metric: &DisputeMetrics,
+        dimensions: &[DisputeDimensions],
+        merchant_id: &str,
+        filters: &DisputeFilters,
+        granularity: &Option<Granularity>,
+        time_range: &TimeRange,
+    ) -> types::MetricsResult<Vec<(DisputeMetricsBucketIdentifier, DisputeMetricRow)>> {
+        // Metrics to get the fetch time for each refund metric
+        metrics::request::record_operation_time(
+            async {
+                        match self {
+                            Self::Sqlx(pool) => {
+                                metric
+                                    .load_metrics(
+                                        dimensions,
+                                        merchant_id,
+                                        filters,
+                                        granularity,
+                                        time_range,
+                                        pool,
+                                    )
+                                    .await
+                            }
+                            Self::Clickhouse(pool) => {
+                                metric
+                                    .load_metrics(
+                                        dimensions,
+                                        merchant_id,
+                                        filters,
+                                        granularity,
+                                        time_range,
+                                        pool,
+                                    )
+                                    .await
+                            }
+                            Self::CombinedCkh(sqlx_pool, ckh_pool) => {
+                                let (ckh_result, sqlx_result) = tokio::join!(
+                                    metric.load_metrics(
+                                        dimensions,
+                                        merchant_id,
+                                        filters,
+                                        granularity,
+                                        time_range,
+                                        ckh_pool,
+                                    ),
+                                    metric.load_metrics(
+                                        dimensions,
+                                        merchant_id,
+                                        filters,
+                                        granularity,
+                                        time_range,
+                                        sqlx_pool,
+                                    )
+                                );
+                                match (&sqlx_result, &ckh_result) {
+                                    (Ok(ref sqlx_res), Ok(ref ckh_res)) if sqlx_res != ckh_res => {
+                                        logger::error!(clickhouse_result=?ckh_res, postgres_result=?sqlx_res, "Mismatch between clickhouse & postgres disputes analytics metrics")
+                                    }
+                                    _ => {}
+                                };
+                                ckh_result
+                            }
+                            Self::CombinedSqlx(sqlx_pool, ckh_pool) => {
+                                let (ckh_result, sqlx_result) = tokio::join!(
+                                    metric.load_metrics(
+                                        dimensions,
+                                        merchant_id,
+                                        filters,
+                                        granularity,
+                                        time_range,
+                                        ckh_pool,
+                                    ),
+                                    metric.load_metrics(
+                                        dimensions,
+                                        merchant_id,
+                                        filters,
+                                        granularity,
+                                        time_range,
+                                        sqlx_pool,
+                                    )
+                                );
+                                match (&sqlx_result, &ckh_result) {
+                                    (Ok(ref sqlx_res), Ok(ref ckh_res)) if sqlx_res != ckh_res => {
+                                        logger::error!(clickhouse_result=?ckh_res, postgres_result=?sqlx_res, "Mismatch between clickhouse & postgres disputes analytics metrics")
+                                    }
+                                    _ => {}
+                                };
+                                sqlx_result
+                            }
+                        }
+                    },
+                   &metrics::METRIC_FETCH_TIME,
+       metric,
+            self,
+        )
+        .await
+    }
+
     pub async fn get_sdk_event_metrics(
         &self,
         metric: &SdkEventMetrics,
@@ -403,7 +514,7 @@ impl AnalyticsProvider {
         time_range: &TimeRange,
     ) -> types::MetricsResult<Vec<(SdkEventMetricsBucketIdentifier, SdkEventMetricRow)>> {
         match self {
-            Self::Sqlx(_pool) => Err(MetricsError::NotImplemented).into_report(),
+            Self::Sqlx(_pool) => Err(report!(MetricsError::NotImplemented)),
             Self::Clickhouse(pool) => {
                 metric
                     .load_metrics(dimensions, pub_key, filters, granularity, time_range, pool)
@@ -435,7 +546,7 @@ impl AnalyticsProvider {
         time_range: &TimeRange,
     ) -> types::MetricsResult<Vec<(ApiEventMetricsBucketIdentifier, ApiEventMetricRow)>> {
         match self {
-            Self::Sqlx(_pool) => Err(MetricsError::NotImplemented).into_report(),
+            Self::Sqlx(_pool) => Err(report!(MetricsError::NotImplemented)),
             Self::Clickhouse(ckh_pool)
             | Self::CombinedCkh(_, ckh_pool)
             | Self::CombinedSqlx(_, ckh_pool) => {
@@ -496,6 +607,51 @@ pub enum AnalyticsConfig {
     },
 }
 
+#[async_trait::async_trait]
+impl SecretsHandler for AnalyticsConfig {
+    async fn convert_to_raw_secret(
+        value: SecretStateContainer<Self, SecuredSecret>,
+        secret_management_client: &dyn SecretManagementInterface,
+    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
+        let analytics_config = value.get_inner();
+        let decrypted_password = match analytics_config {
+            // Todo: Perform kms decryption of clickhouse password
+            Self::Clickhouse { .. } => masking::Secret::new(String::default()),
+            Self::Sqlx { sqlx }
+            | Self::CombinedCkh { sqlx, .. }
+            | Self::CombinedSqlx { sqlx, .. } => {
+                secret_management_client
+                    .get_secret(sqlx.password.clone())
+                    .await?
+            }
+        };
+
+        Ok(value.transition_state(|conf| match conf {
+            Self::Sqlx { sqlx } => Self::Sqlx {
+                sqlx: Database {
+                    password: decrypted_password,
+                    ..sqlx
+                },
+            },
+            Self::Clickhouse { clickhouse } => Self::Clickhouse { clickhouse },
+            Self::CombinedCkh { sqlx, clickhouse } => Self::CombinedCkh {
+                sqlx: Database {
+                    password: decrypted_password,
+                    ..sqlx
+                },
+                clickhouse,
+            },
+            Self::CombinedSqlx { sqlx, clickhouse } => Self::CombinedSqlx {
+                sqlx: Database {
+                    password: decrypted_password,
+                    ..sqlx
+                },
+                clickhouse,
+            },
+        }))
+    }
+}
+
 impl Default for AnalyticsConfig {
     fn default() -> Self {
         Self::Sqlx {
@@ -511,3 +667,74 @@ pub struct ReportConfig {
     pub dispute_function: String,
     pub region: String,
 }
+
+#[derive(Clone, Debug, serde::Deserialize)]
+#[serde(tag = "auth")]
+#[serde(rename_all = "lowercase")]
+pub enum OpensearchAuth {
+    Basic { username: String, password: String },
+    Aws { region: String },
+}
+
+#[derive(Clone, Debug, serde::Deserialize)]
+pub struct OpensearchIndexes {
+    pub payment_attempts: String,
+    pub payment_intents: String,
+    pub refunds: String,
+    pub disputes: String,
+}
+
+#[derive(Clone, Debug, serde::Deserialize)]
+pub struct OpensearchConfig {
+    host: String,
+    auth: OpensearchAuth,
+    indexes: OpensearchIndexes,
+}
+
+impl Default for OpensearchConfig {
+    fn default() -> Self {
+        Self {
+            host: "https://localhost:9200".to_string(),
+            auth: OpensearchAuth::Basic {
+                username: "admin".to_string(),
+                password: "admin".to_string(),
+            },
+            indexes: OpensearchIndexes {
+                payment_attempts: "hyperswitch-payment-attempt-events".to_string(),
+                payment_intents: "hyperswitch-payment-intent-events".to_string(),
+                refunds: "hyperswitch-refund-events".to_string(),
+                disputes: "hyperswitch-dispute-events".to_string(),
+            },
+        }
+    }
+}
+
+/// Analytics Flow routes Enums
+/// Info - Dimensions and filters available for the domain
+/// Filters - Set of values present for the dimension
+/// Metrics - Analytical data on dimensions and metrics
+#[derive(Debug, Display, Clone, PartialEq, Eq)]
+pub enum AnalyticsFlow {
+    GetInfo,
+    GetPaymentMetrics,
+    GetRefundsMetrics,
+    GetSdkMetrics,
+    GetPaymentFilters,
+    GetRefundFilters,
+    GetSdkEventFilters,
+    GetApiEvents,
+    GetSdkEvents,
+    GeneratePaymentReport,
+    GenerateDisputeReport,
+    GenerateRefundReport,
+    GetApiEventMetrics,
+    GetApiEventFilters,
+    GetConnectorEvents,
+    GetOutgoingWebhookEvents,
+    GetGlobalSearchResults,
+    GetSearchResults,
+    GetDisputeFilters,
+    GetDisputeMetrics,
+}
+
+impl FlowMetric for AnalyticsFlow {}

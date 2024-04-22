@@ -68,6 +68,22 @@ macro_rules! capture_method_not_supported {
     };
 }
 
+#[macro_export]
+macro_rules! unimplemented_payment_method {
+    ($payment_method:expr, $connector:expr) => {
+        errors::ConnectorError::NotImplemented(format!(
+            "{} through {}",
+            $payment_method, $connector
+        ))
+    };
+    ($payment_method:expr, $flow:expr, $connector:expr) => {
+        errors::ConnectorError::NotImplemented(format!(
+            "{} {} through {}",
+            $payment_method, $flow, $connector
+        ))
+    };
+}
+
 macro_rules! impl_error_type {
     ($name: ident, $arg: tt) => {
         #[derive(Debug)]
@@ -179,8 +195,8 @@ pub enum ConnectorError {
     InvalidDataFormat { field_name: &'static str },
     #[error("Payment Method data / Payment Method Type / Payment Experience Mismatch ")]
     MismatchedPaymentData,
-    #[error("Failed to parse Wallet token")]
-    InvalidWalletToken,
+    #[error("Failed to parse {wallet_name} wallet token")]
+    InvalidWalletToken { wallet_name: String },
     #[error("Missing Connector Related Transaction ID")]
     MissingConnectorRelatedTransactionID { id: String },
     #[error("File Validation failed")]
@@ -259,39 +275,45 @@ pub enum WebhooksFlowError {
     #[error("Webhook details for merchant not configured")]
     MerchantWebhookDetailsNotFound,
     #[error("Merchant does not have a webhook URL configured")]
-    MerchantWebhookURLNotConfigured,
-    #[error("Payments core flow failed")]
-    PaymentsCoreFailed,
-    #[error("Refunds core flow failed")]
-    RefundsCoreFailed,
-    #[error("Dispuste core flow failed")]
-    DisputeCoreFailed,
-    #[error("Webhook event creation failed")]
-    WebhookEventCreationFailed,
+    MerchantWebhookUrlNotConfigured,
     #[error("Webhook event updation failed")]
     WebhookEventUpdationFailed,
     #[error("Outgoing webhook body signing failed")]
     OutgoingWebhookSigningFailed,
-    #[error("Unable to fork webhooks flow for outgoing webhooks")]
-    ForkFlowFailed,
     #[error("Webhook api call to merchant failed")]
     CallToMerchantFailed,
     #[error("Webhook not received by merchant")]
     NotReceivedByMerchant,
-    #[error("Resource not found")]
-    ResourceNotFound,
-    #[error("Webhook source verification failed")]
-    WebhookSourceVerificationFailed,
-    #[error("Webhook event object creation failed")]
-    WebhookEventObjectCreationFailed,
-    #[error("Not implemented")]
-    NotImplemented,
     #[error("Dispute webhook status validation failed")]
     DisputeWebhookValidationFailed,
     #[error("Outgoing webhook body encoding failed")]
     OutgoingWebhookEncodingFailed,
-    #[error("Missing required field: {field_name}")]
-    MissingRequiredField { field_name: &'static str },
+    #[error("Failed to update outgoing webhook process tracker task")]
+    OutgoingWebhookProcessTrackerTaskUpdateFailed,
+    #[error("Failed to schedule retry attempt for outgoing webhook")]
+    OutgoingWebhookRetrySchedulingFailed,
+    #[error("Outgoing webhook response encoding failed")]
+    OutgoingWebhookResponseEncodingFailed,
+}
+
+impl WebhooksFlowError {
+    pub(crate) fn is_webhook_delivery_retryable_error(&self) -> bool {
+        match self {
+            Self::MerchantConfigNotFound
+            | Self::MerchantWebhookDetailsNotFound
+            | Self::MerchantWebhookUrlNotConfigured
+            | Self::OutgoingWebhookResponseEncodingFailed => false,
+
+            Self::WebhookEventUpdationFailed
+            | Self::OutgoingWebhookSigningFailed
+            | Self::CallToMerchantFailed
+            | Self::NotReceivedByMerchant
+            | Self::DisputeWebhookValidationFailed
+            | Self::OutgoingWebhookEncodingFailed
+            | Self::OutgoingWebhookProcessTrackerTaskUpdateFailed
+            | Self::OutgoingWebhookRetrySchedulingFailed => true,
+        }
+    }
 }
 
 #[derive(Debug, thiserror::Error)]

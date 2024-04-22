@@ -1,4 +1,5 @@
-use data_models::payments::payment_attempt::PaymentAttempt;
+// use diesel_models::enums::MandateDetails;
+use data_models::{mandates::MandateDetails, payments::payment_attempt::PaymentAttempt};
 use diesel_models::enums as storage_enums;
 use time::OffsetDateTime;
 
@@ -39,6 +40,15 @@ pub struct KafkaPaymentAttempt<'a> {
     // TODO: These types should implement copy ideally
     pub payment_experience: Option<&'a storage_enums::PaymentExperience>,
     pub payment_method_type: Option<&'a storage_enums::PaymentMethodType>,
+    pub payment_method_data: Option<String>,
+    pub error_reason: Option<&'a String>,
+    pub multiple_capture_count: Option<i16>,
+    pub amount_capturable: i64,
+    pub merchant_connector_id: Option<&'a String>,
+    pub net_amount: i64,
+    pub unified_code: Option<&'a String>,
+    pub unified_message: Option<&'a String>,
+    pub mandate_data: Option<&'a MandateDetails>,
 }
 
 impl<'a> KafkaPaymentAttempt<'a> {
@@ -74,6 +84,15 @@ impl<'a> KafkaPaymentAttempt<'a> {
             connector_metadata: attempt.connector_metadata.as_ref().map(|v| v.to_string()),
             payment_experience: attempt.payment_experience.as_ref(),
             payment_method_type: attempt.payment_method_type.as_ref(),
+            payment_method_data: attempt.payment_method_data.as_ref().map(|v| v.to_string()),
+            error_reason: attempt.error_reason.as_ref(),
+            multiple_capture_count: attempt.multiple_capture_count,
+            amount_capturable: attempt.amount_capturable,
+            merchant_connector_id: attempt.merchant_connector_id.as_ref(),
+            net_amount: attempt.net_amount,
+            unified_code: attempt.unified_code.as_ref(),
+            unified_message: attempt.unified_message.as_ref(),
+            mandate_data: attempt.mandate_data.as_ref(),
         }
     }
 }
@@ -88,5 +107,9 @@ impl<'a> super::KafkaMessage for KafkaPaymentAttempt<'a> {
 
     fn creation_timestamp(&self) -> Option<i64> {
         Some(self.modified_at.unix_timestamp())
+    }
+
+    fn event_type(&self) -> crate::events::EventType {
+        crate::events::EventType::PaymentAttempt
     }
 }

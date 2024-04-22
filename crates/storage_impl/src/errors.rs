@@ -12,30 +12,6 @@ use crate::{errors as storage_errors, store::errors::DatabaseError};
 
 pub type ApplicationResult<T> = Result<T, ApplicationError>;
 
-macro_rules! impl_error_display {
-    ($st: ident, $arg: tt) => {
-        impl Display for $st {
-            fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                write!(
-                    fmt,
-                    "{{ error_type: {:?}, error_description: {} }}",
-                    self, $arg
-                )
-            }
-        }
-    };
-}
-macro_rules! impl_error_type {
-    ($name: ident, $arg: tt) => {
-        #[derive(Debug)]
-        pub struct $name;
-
-        impl_error_display!($name, $arg);
-
-        impl std::error::Error for $name {}
-    };
-}
-
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {
     #[error("DatabaseError: {0:?}")]
@@ -176,8 +152,6 @@ impl RedisErrorExt for error_stack::Report<RedisError> {
     }
 }
 
-impl_error_type!(EncryptionError, "Encryption error");
-
 #[derive(Debug, thiserror::Error)]
 pub enum ApplicationError {
     // Display's impl can be overridden by the attribute error marco.
@@ -207,12 +181,6 @@ impl From<MetricsError> for ApplicationError {
 impl From<std::io::Error> for ApplicationError {
     fn from(err: std::io::Error) -> Self {
         Self::IoError(err)
-    }
-}
-
-impl From<ring::error::Unspecified> for EncryptionError {
-    fn from(_: ring::error::Unspecified) -> Self {
-        Self
     }
 }
 
@@ -374,7 +342,7 @@ pub enum ConnectorError {
     #[error("Payment Method data / Payment Method Type / Payment Experience Mismatch ")]
     MismatchedPaymentData,
     #[error("Failed to parse Wallet token")]
-    InvalidWalletToken,
+    InvalidWalletToken { wallet_name: String },
     #[error("Missing Connector Related Transaction ID")]
     MissingConnectorRelatedTransactionID { id: String },
     #[error("File Validation failed")]

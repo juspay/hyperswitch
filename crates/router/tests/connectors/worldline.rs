@@ -43,17 +43,20 @@ impl utils::Connector for WorldlineTest {
 impl WorldlineTest {
     fn get_payment_info() -> Option<PaymentInfo> {
         Some(PaymentInfo {
-            address: Some(PaymentAddress {
-                billing: Some(Address {
+            address: Some(PaymentAddress::new(
+                None,
+                Some(Address {
                     address: Some(AddressDetails {
                         country: Some(api_models::enums::CountryAlpha2::US),
+                        first_name: Some(Secret::new(String::from("John"))),
+                        last_name: Some(Secret::new(String::from("Dough"))),
                         ..Default::default()
                     }),
                     phone: None,
                     email: None,
                 }),
-                ..Default::default()
-            }),
+                None,
+            )),
             ..Default::default()
         })
     }
@@ -68,11 +71,10 @@ impl WorldlineTest {
         Some(types::PaymentsAuthorizeData {
             amount: 3500,
             currency: enums::Currency::USD,
-            payment_method_data: types::api::PaymentMethodData::Card(types::api::Card {
+            payment_method_data: types::domain::PaymentMethodData::Card(types::domain::Card {
                 card_number: cards::CardNumber::from_str(card_number).unwrap(),
                 card_exp_month: Secret::new(card_exp_month.to_string()),
                 card_exp_year: Secret::new(card_exp_year.to_string()),
-                card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
                 card_cvc: Secret::new(card_cvc.to_string()),
                 card_issuer: None,
                 card_network: None,
@@ -106,6 +108,8 @@ impl WorldlineTest {
             surcharge_details: None,
             request_incremental_authorization: false,
             metadata: None,
+            authentication_data: None,
+            customer_acceptance: None,
         })
     }
 }
@@ -175,9 +179,7 @@ async fn should_throw_missing_required_field_for_country() {
         .make_payment(
             authorize_data,
             Some(PaymentInfo {
-                address: Some(PaymentAddress {
-                    ..Default::default()
-                }),
+                address: Some(PaymentAddress::new(None, None, None)),
                 ..Default::default()
             }),
         )

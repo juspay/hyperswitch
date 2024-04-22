@@ -1,13 +1,13 @@
 use cards::CardNumber;
 use common_utils::ext_traits::Encode;
 use error_stack::ResultExt;
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, CardData},
+    connector::utils::{self, CardData, RouterData},
     core::errors,
-    types::{self, api, storage::enums, transformers::ForeignFrom},
+    types::{self, api, domain, storage::enums, transformers::ForeignFrom},
 };
 #[derive(Debug, Serialize)]
 pub struct PayeezyRouterData<T> {
@@ -108,7 +108,7 @@ pub struct StoredCredentials {
     pub sequence: Sequence,
     pub initiator: Initiator,
     pub is_scheduled: bool,
-    pub cardbrand_original_transaction_id: Option<String>,
+    pub cardbrand_original_transaction_id: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -203,7 +203,7 @@ fn get_transaction_type_and_stored_creds(
                     },
                     is_scheduled: true,
                     // In case of first mandate payment connector_mandate_id would be None, otherwise holds some value
-                    cardbrand_original_transaction_id: connector_mandate_id,
+                    cardbrand_original_transaction_id: connector_mandate_id.map(Secret::new),
                 }),
             )
         } else {
@@ -237,13 +237,13 @@ fn get_payment_method_data(
     item: &PayeezyRouterData<&types::PaymentsAuthorizeRouterData>,
 ) -> Result<PayeezyPaymentMethod, error_stack::Report<errors::ConnectorError>> {
     match item.router_data.request.payment_method_data {
-        api::PaymentMethodData::Card(ref card) => {
+        domain::PaymentMethodData::Card(ref card) => {
             let card_type = PayeezyCardType::try_from(card.get_card_issuer()?)?;
             let payeezy_card = PayeezyCard {
                 card_type,
-                cardholder_name: card
-                    .card_holder_name
-                    .clone()
+                cardholder_name: item
+                    .router_data
+                    .get_optional_billing_full_name()
                     .unwrap_or(Secret::new("".to_string())),
                 card_number: card.card_number.clone(),
                 exp_date: card.get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?,
@@ -252,19 +252,19 @@ fn get_payment_method_data(
             Ok(PayeezyPaymentMethod::PayeezyCard(payeezy_card))
         }
 
-        api::PaymentMethodData::CardRedirect(_)
-        | api::PaymentMethodData::Wallet(_)
-        | api::PaymentMethodData::PayLater(_)
-        | api::PaymentMethodData::BankRedirect(_)
-        | api::PaymentMethodData::BankDebit(_)
-        | api::PaymentMethodData::BankTransfer(_)
-        | api::PaymentMethodData::Crypto(_)
-        | api::PaymentMethodData::MandatePayment
-        | api::PaymentMethodData::Reward
-        | api::PaymentMethodData::Upi(_)
-        | api::PaymentMethodData::Voucher(_)
-        | api::PaymentMethodData::GiftCard(_)
-        | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+        domain::PaymentMethodData::CardRedirect(_)
+        | domain::PaymentMethodData::Wallet(_)
+        | domain::PaymentMethodData::PayLater(_)
+        | domain::PaymentMethodData::BankRedirect(_)
+        | domain::PaymentMethodData::BankDebit(_)
+        | domain::PaymentMethodData::BankTransfer(_)
+        | domain::PaymentMethodData::Crypto(_)
+        | domain::PaymentMethodData::MandatePayment
+        | domain::PaymentMethodData::Reward
+        | domain::PaymentMethodData::Upi(_)
+        | domain::PaymentMethodData::Voucher(_)
+        | domain::PaymentMethodData::GiftCard(_)
+        | domain::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("Payeezy"),
         ))?,
     }
@@ -329,7 +329,7 @@ pub struct PayeezyPaymentsResponse {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PaymentsStoredCredentials {
-    cardbrand_original_transaction_id: String,
+    cardbrand_original_transaction_id: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -416,7 +416,7 @@ impl<F, T>
             .stored_credentials
             .map(|credentials| credentials.cardbrand_original_transaction_id)
             .map(|id| types::MandateReference {
-                connector_mandate_id: Some(id),
+                connector_mandate_id: Some(id.expose()),
                 payment_method_id: None,
             });
         let status = enums::AttemptStatus::foreign_from((

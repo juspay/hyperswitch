@@ -6,7 +6,7 @@ use api_models::{
     surcharge_decision_configs::{self, SurchargeDecisionConfigs, SurchargeDecisionManagerRecord},
 };
 use common_utils::{ext_traits::StringExt, static_cache::StaticCache, types as common_utils_types};
-use error_stack::{self, IntoReport, ResultExt};
+use error_stack::{self, ResultExt};
 use euclid::{
     backend,
     backend::{inputs as dsl_inputs, EuclidBackend},
@@ -42,7 +42,6 @@ impl TryFrom<SurchargeDecisionManagerRecord> for VirInterpreterBackendCacheWrapp
 
     fn try_from(value: SurchargeDecisionManagerRecord) -> Result<Self, Self::Error> {
         let cached_alogorith = backend::VirInterpreterBackend::with_program(value.algorithm)
-            .into_report()
             .change_context(ConfigError::DslBackendInitError)
             .attach_printable("Error initializing DSL interpreter backend")?;
         let merchant_surcharge_configs = value.merchant_surcharge_configs;
@@ -127,7 +126,6 @@ pub async fn perform_surcharge_decision_management_for_payment_method_list(
             .await?;
             let cached_algo = CONF_CACHE
                 .retrieve(&key)
-                .into_report()
                 .change_context(ConfigError::CacheMiss)
                 .attach_printable(
                     "Unable to retrieve cached routing algorithm even after refresh",
@@ -182,7 +180,6 @@ pub async fn perform_surcharge_decision_management_for_payment_method_list(
                                 &surcharge_details,
                                 payment_attempt,
                             ))
-                            .into_report()
                             .change_context(ConfigError::DslExecutionError)
                             .attach_printable("Error while constructing Surcharge response type")
                         })
@@ -208,7 +205,6 @@ pub async fn perform_surcharge_decision_management_for_payment_method_list(
                             &surcharge_details,
                             payment_attempt,
                         ))
-                        .into_report()
                         .change_context(ConfigError::DslExecutionError)
                         .attach_printable("Error while constructing Surcharge response type")
                     })
@@ -247,7 +243,6 @@ where
             .await?;
             let cached_algo = CONF_CACHE
                 .retrieve(&key)
-                .into_report()
                 .change_context(ConfigError::CacheMiss)
                 .attach_printable(
                     "Unable to retrieve cached routing algorithm even after refresh",
@@ -259,7 +254,7 @@ where
     let mut backend_input = make_dsl_input_for_surcharge(
         &payment_data.payment_attempt,
         &payment_data.payment_intent,
-        payment_data.address.billing.clone(),
+        payment_data.address.get_payment_method_billing().cloned(),
     )
     .change_context(ConfigError::InputConstructionError)?;
     for payment_method_type in payment_method_type_list {
@@ -306,7 +301,6 @@ pub async fn perform_surcharge_decision_management_for_saved_cards(
             .await?;
             let cached_algo = CONF_CACHE
                 .retrieve(&key)
-                .into_report()
                 .change_context(ConfigError::CacheMiss)
                 .attach_printable(
                     "Unable to retrieve cached routing algorithm even after refresh",
@@ -345,7 +339,6 @@ pub async fn perform_surcharge_decision_management_for_saved_cards(
         customer_payment_method.surcharge_details = surcharge_details
             .map(|surcharge_details| {
                 SurchargeDetailsResponse::foreign_try_from((&surcharge_details, payment_attempt))
-                    .into_report()
                     .change_context(ConfigError::DslParsingError)
             })
             .transpose()?;
@@ -402,12 +395,10 @@ pub async fn ensure_algorithm_cached(
     let key = format!("surcharge_dsl_{merchant_id}");
     let present = CONF_CACHE
         .present(&key)
-        .into_report()
         .change_context(ConfigError::DslCachePoisoned)
         .attach_printable("Error checking presence of DSL")?;
     let expired = CONF_CACHE
         .expired(&key, timestamp)
-        .into_report()
         .change_context(ConfigError::DslCachePoisoned)
         .attach_printable("Error checking presence of DSL")?;
 
@@ -437,7 +428,6 @@ pub async fn refresh_surcharge_algorithm_cache(
     let value_to_cache = VirInterpreterBackendCacheWrapper::try_from(record)?;
     CONF_CACHE
         .save(key, value_to_cache, timestamp)
-        .into_report()
         .change_context(ConfigError::DslCachePoisoned)
         .attach_printable("Error saving DSL to cache")?;
     Ok(())
@@ -450,7 +440,6 @@ pub fn execute_dsl_and_get_conditional_config(
     let routing_output = interpreter
         .execute(backend_input)
         .map(|out| out.connector_selection)
-        .into_report()
         .change_context(ConfigError::DslExecutionError)?;
     Ok(routing_output)
 }

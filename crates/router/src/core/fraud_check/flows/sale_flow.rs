@@ -80,6 +80,7 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
             payment_method_token: None,
             connector_customer: None,
             preprocessing_id: None,
+            payment_method_status: None,
             connector_request_reference_id: uuid::Uuid::new_v4().to_string(),
             test_mode: None,
             recurring_mandate_payment_data: None,
@@ -95,6 +96,7 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
             frm_metadata: None,
             refund_id: None,
             dispute_id: None,
+            connector_response: None,
         };
 
         Ok(router_data)

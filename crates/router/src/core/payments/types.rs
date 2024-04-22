@@ -1,10 +1,15 @@
 use std::{collections::HashMap, num::TryFromIntError};
 
 use api_models::{payment_methods::SurchargeDetailsResponse, payments::RequestSurchargeDetails};
-use common_utils::{consts, errors::CustomResult, ext_traits::Encode, types as common_types};
+use common_utils::{
+    consts,
+    errors::CustomResult,
+    ext_traits::{Encode, OptionExt},
+    types as common_types,
+};
 use data_models::payments::payment_attempt::PaymentAttempt;
 use diesel_models::business_profile::BusinessProfile;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use redis_interface::errors::RedisError;
 use router_env::{instrument, tracing};
 
@@ -37,7 +42,6 @@ impl MultipleCaptureData {
         let latest_capture = captures
             .last()
             .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .into_report()
             .attach_printable("Cannot create MultipleCaptureData with empty captures list")?
             .clone();
         let multiple_capture_data = Self {
@@ -100,7 +104,6 @@ impl MultipleCaptureData {
     }
     pub fn get_captures_count(&self) -> RouterResult<i16> {
         i16::try_from(self.all_captures.len())
-            .into_report()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error while converting from usize to i16")
     }
@@ -369,5 +372,49 @@ impl SurchargeMetadata {
         redis_conn
             .get_hash_field_and_deserialize(&redis_key, &value_key, "SurchargeDetails")
             .await
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct AuthenticationData {
+    pub eci: Option<String>,
+    pub cavv: String,
+    pub threeds_server_transaction_id: String,
+    pub message_version: String,
+}
+
+impl ForeignTryFrom<&storage::Authentication> for AuthenticationData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+    fn foreign_try_from(authentication: &storage::Authentication) -> Result<Self, Self::Error> {
+        if authentication.authentication_status == common_enums::AuthenticationStatus::Success {
+            let threeds_server_transaction_id = authentication
+                .threeds_server_transaction_id
+                .clone()
+                .get_required_value("threeds_server_transaction_id")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("threeds_server_transaction_id must not be null when authentication_status is success")?;
+            let message_version = authentication
+                .message_version
+                .clone()
+                .get_required_value("message_version")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "message_version must not be null when authentication_status is success",
+                )?;
+            let cavv = authentication
+                .cavv
+                .clone()
+                .get_required_value("cavv")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("cavv must not be null when authentication_status is success")?;
+            Ok(Self {
+                eci: authentication.eci.clone(),
+                cavv,
+                threeds_server_transaction_id,
+                message_version: message_version.to_string(),
+            })
+        } else {
+            Err(errors::ApiErrorResponse::PaymentAuthenticationFailed { data: None }.into())
+        }
     }
 }

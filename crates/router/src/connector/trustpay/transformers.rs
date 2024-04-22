@@ -1,12 +1,11 @@
 use std::collections::HashMap;
 
-use api_models::payments::BankRedirectData;
 use common_utils::{
     errors::CustomResult,
     pii::{self, Email},
 };
 use error_stack::{report, ResultExt};
-use masking::{PeekInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
@@ -18,7 +17,7 @@ use crate::{
     consts,
     core::errors,
     services,
-    types::{self, api, storage::enums, BrowserInformation},
+    types::{self, domain, storage::enums, BrowserInformation},
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -112,7 +111,7 @@ pub struct Amount {
 #[derive(Default, Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct Reason {
-    pub code: String,
+    pub code: Option<String>,
     pub reject_reason: Option<String>,
 }
 
@@ -229,27 +228,27 @@ pub struct TrustpayMandatoryParams {
     pub billing_first_name: Secret<String>,
 }
 
-impl TryFrom<&BankRedirectData> for TrustpayPaymentMethod {
+impl TryFrom<&domain::BankRedirectData> for TrustpayPaymentMethod {
     type Error = Error;
-    fn try_from(value: &BankRedirectData) -> Result<Self, Self::Error> {
+    fn try_from(value: &domain::BankRedirectData) -> Result<Self, Self::Error> {
         match value {
-            api_models::payments::BankRedirectData::Giropay { .. } => Ok(Self::Giropay),
-            api_models::payments::BankRedirectData::Eps { .. } => Ok(Self::Eps),
-            api_models::payments::BankRedirectData::Ideal { .. } => Ok(Self::IDeal),
-            api_models::payments::BankRedirectData::Sofort { .. } => Ok(Self::Sofort),
-            api_models::payments::BankRedirectData::Blik { .. } => Ok(Self::Blik),
-            api_models::payments::BankRedirectData::BancontactCard { .. }
-            | api_models::payments::BankRedirectData::Bizum {}
-            | api_models::payments::BankRedirectData::Interac { .. }
-            | api_models::payments::BankRedirectData::OnlineBankingCzechRepublic { .. }
-            | api_models::payments::BankRedirectData::OnlineBankingFinland { .. }
-            | api_models::payments::BankRedirectData::OnlineBankingPoland { .. }
-            | api_models::payments::BankRedirectData::OnlineBankingSlovakia { .. }
-            | api_models::payments::BankRedirectData::OpenBankingUk { .. }
-            | api_models::payments::BankRedirectData::Przelewy24 { .. }
-            | api_models::payments::BankRedirectData::Trustly { .. }
-            | api_models::payments::BankRedirectData::OnlineBankingFpx { .. }
-            | api_models::payments::BankRedirectData::OnlineBankingThailand { .. } => {
+            domain::BankRedirectData::Giropay { .. } => Ok(Self::Giropay),
+            domain::BankRedirectData::Eps { .. } => Ok(Self::Eps),
+            domain::BankRedirectData::Ideal { .. } => Ok(Self::IDeal),
+            domain::BankRedirectData::Sofort { .. } => Ok(Self::Sofort),
+            domain::BankRedirectData::Blik { .. } => Ok(Self::Blik),
+            domain::BankRedirectData::BancontactCard { .. }
+            | domain::BankRedirectData::Bizum {}
+            | domain::BankRedirectData::Interac { .. }
+            | domain::BankRedirectData::OnlineBankingCzechRepublic { .. }
+            | domain::BankRedirectData::OnlineBankingFinland { .. }
+            | domain::BankRedirectData::OnlineBankingPoland { .. }
+            | domain::BankRedirectData::OnlineBankingSlovakia { .. }
+            | domain::BankRedirectData::OpenBankingUk { .. }
+            | domain::BankRedirectData::Przelewy24 { .. }
+            | domain::BankRedirectData::Trustly { .. }
+            | domain::BankRedirectData::OnlineBankingFpx { .. }
+            | domain::BankRedirectData::OnlineBankingThailand { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("trustpay"),
                 )
@@ -281,7 +280,7 @@ fn get_card_request_data(
     browser_info: &BrowserInformation,
     params: TrustpayMandatoryParams,
     amount: String,
-    ccard: &api_models::payments::Card,
+    ccard: &domain::payments::Card,
     return_url: String,
 ) -> Result<TrustpayPaymentsRequest, Error> {
     let email = item.request.get_email()?;
@@ -358,7 +357,7 @@ fn get_debtor_info(
 
 fn get_bank_redirection_request_data(
     item: &types::PaymentsAuthorizeRouterData,
-    bank_redirection_data: &BankRedirectData,
+    bank_redirection_data: &domain::BankRedirectData,
     params: TrustpayMandatoryParams,
     amount: String,
     auth: TrustpayAuthType,
@@ -418,7 +417,7 @@ impl TryFrom<&TrustpayRouterData<&types::PaymentsAuthorizeRouterData>> for Trust
         let auth = TrustpayAuthType::try_from(&item.router_data.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         match item.router_data.request.payment_method_data {
-            api::PaymentMethodData::Card(ref ccard) => Ok(get_card_request_data(
+            domain::PaymentMethodData::Card(ref ccard) => Ok(get_card_request_data(
                 item.router_data,
                 &default_browser_info,
                 params,
@@ -426,7 +425,7 @@ impl TryFrom<&TrustpayRouterData<&types::PaymentsAuthorizeRouterData>> for Trust
                 ccard,
                 item.router_data.request.get_return_url()?,
             )?),
-            api::PaymentMethodData::BankRedirect(ref bank_redirection_data) => {
+            domain::PaymentMethodData::BankRedirect(ref bank_redirection_data) => {
                 get_bank_redirection_request_data(
                     item.router_data,
                     bank_redirection_data,
@@ -435,21 +434,23 @@ impl TryFrom<&TrustpayRouterData<&types::PaymentsAuthorizeRouterData>> for Trust
                     auth,
                 )
             }
-            api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::Wallet(_)
-            | api::PaymentMethodData::PayLater(_)
-            | api::PaymentMethodData::BankDebit(_)
-            | api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::Crypto(_)
-            | api::PaymentMethodData::MandatePayment
-            | api::PaymentMethodData::Reward
-            | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("trustpay"),
-            )
-            .into()),
+            domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("trustpay"),
+                )
+                .into())
+            }
         }
     }
 }
@@ -461,6 +462,10 @@ fn is_payment_failed(payment_status: &str) -> (bool, &'static str) {
         "100.380.401" => (true, "User authentication failed"),
         "100.380.501" => (true, "Risk management transaction timeout"),
         "100.390.103" => (true, "PARes validation failed - problem with signature"),
+        "100.390.105" => (
+            true,
+            "Transaction rejected because of technical error in 3DSecure system",
+        ),
         "100.390.111" => (
             true,
             "Communication error to VISA/Mastercard Directory Server",
@@ -487,6 +492,7 @@ fn is_payment_failed(payment_status: &str) -> (bool, &'static str) {
         ),
         "700.500.001" => (true, "Referenced session contains too many transactions"),
         "700.500.003" => (true, "Test accounts not allowed in production"),
+        "800.100.100" => (true, "Transaction declined for unknown reason"),
         "800.100.151" => (true, "Transaction declined (invalid card)"),
         "800.100.152" => (true, "Transaction declined by authorization system"),
         "800.100.153" => (true, "Transaction declined (invalid CVV)"),
@@ -506,6 +512,7 @@ fn is_payment_failed(payment_status: &str) -> (bool, &'static str) {
         "800.100.172" => (true, "Transaction declined (account blocked)"),
         "800.100.190" => (true, "Transaction declined (invalid configuration data)"),
         "800.100.202" => (true, "Account Closed"),
+        "800.100.203" => (true, "Insufficient Funds"),
         "800.120.100" => (true, "Rejected by throttling"),
         "800.300.102" => (true, "Country blacklisted"),
         "800.300.401" => (true, "Bin blacklisted"),
@@ -819,9 +826,16 @@ fn handle_bank_redirects_sync_response(
             .status_reason_information
             .unwrap_or_default();
         Some(types::ErrorResponse {
-            code: reason_info.reason.code.clone(),
+            code: reason_info
+                .reason
+                .code
+                .clone()
+                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
             // message vary for the same code, so relying on code alone as it is unique
-            message: reason_info.reason.code,
+            message: reason_info
+                .reason
+                .code
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason: reason_info.reason.reject_reason,
             status_code,
             attempt_status: None,
@@ -871,9 +885,16 @@ pub fn handle_webhook_response(
             .status_reason_information
             .unwrap_or_default();
         Some(types::ErrorResponse {
-            code: reason_info.reason.code.clone(),
+            code: reason_info
+                .reason
+                .code
+                .clone()
+                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
             // message vary for the same code, so relying on code alone as it is unique
-            message: reason_info.reason.code,
+            message: reason_info
+                .reason
+                .code
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason: reason_info.reason.reject_reason,
             status_code,
             attempt_status: None,
@@ -1069,8 +1090,8 @@ pub struct GooglePayTransactionInfo {
 #[derive(Clone, Default, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GooglePayMerchantInfo {
-    pub merchant_name: String,
-    pub merchant_id: String,
+    pub merchant_name: Secret<String>,
+    pub merchant_id: Secret<String>,
 }
 
 #[derive(Clone, Default, Debug, Deserialize, Serialize)]
@@ -1086,7 +1107,7 @@ pub struct GooglePayAllowedPaymentMethods {
 #[serde(rename_all = "camelCase")]
 pub struct GpayTokenParameters {
     pub gateway: String,
-    pub gateway_merchant_id: String,
+    pub gateway_merchant_id: Secret<String>,
 }
 
 #[derive(Clone, Default, Debug, Deserialize, Serialize)]
@@ -1201,7 +1222,7 @@ pub fn get_apple_pay_session<F, T>(
                             },
                         ),
                     payment_request_data: Some(api_models::payments::ApplePayPaymentRequest {
-                        country_code: Some(apple_pay_init_result.country_code),
+                        country_code: apple_pay_init_result.country_code,
                         currency_code: apple_pay_init_result.currency_code,
                         supported_networks: Some(apple_pay_init_result.supported_networks.clone()),
                         merchant_capabilities: Some(
@@ -1291,8 +1312,8 @@ impl From<GooglePayTransactionInfo> for api_models::payments::GpayTransactionInf
 impl From<GooglePayMerchantInfo> for api_models::payments::GpayMerchantInfo {
     fn from(value: GooglePayMerchantInfo) -> Self {
         Self {
-            merchant_id: Some(value.merchant_id),
-            merchant_name: value.merchant_name,
+            merchant_id: Some(value.merchant_id.expose()),
+            merchant_name: value.merchant_name.expose(),
         }
     }
 }
@@ -1329,7 +1350,7 @@ impl From<GpayTokenParameters> for api_models::payments::GpayTokenParameters {
     fn from(value: GpayTokenParameters) -> Self {
         Self {
             gateway: value.gateway,
-            gateway_merchant_id: Some(value.gateway_merchant_id),
+            gateway_merchant_id: Some(value.gateway_merchant_id.expose()),
             stripe_version: None,
             stripe_publishable_key: None,
         }
@@ -1479,9 +1500,16 @@ fn handle_webhooks_refund_response(
     let error = if utils::is_refund_failure(refund_status) {
         let reason_info = response.status_reason_information.unwrap_or_default();
         Some(types::ErrorResponse {
-            code: reason_info.reason.code.clone(),
+            code: reason_info
+                .reason
+                .code
+                .clone()
+                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
             // message vary for the same code, so relying on code alone as it is unique
-            message: reason_info.reason.code,
+            message: reason_info
+                .reason
+                .code
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason: reason_info.reason.reject_reason,
             status_code,
             attempt_status: None,
@@ -1536,9 +1564,16 @@ fn handle_bank_redirects_refund_sync_response(
             .status_reason_information
             .unwrap_or_default();
         Some(types::ErrorResponse {
-            code: reason_info.reason.code.clone(),
+            code: reason_info
+                .reason
+                .code
+                .clone()
+                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
             // message vary for the same code, so relying on code alone as it is unique
-            message: reason_info.reason.code,
+            message: reason_info
+                .reason
+                .code
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason: reason_info.reason.reject_reason,
             status_code,
             attempt_status: None,

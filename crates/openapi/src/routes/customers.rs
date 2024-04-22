@@ -95,24 +95,8 @@ pub async fn customers_delete() {}
         (status = 200, description = "Customers retrieved", body = Vec<CustomerResponse>),
         (status = 400, description = "Invalid Data"),
     ),
-    tag = "Customers List",
+    tag = "Customers",
     operation_id = "List all Customers for a Merchant",
     security(("api_key" = []))
 )]
 pub async fn customers_list() {}
-
-/// Customers - Mandates List
-///
-/// Lists all the mandates for a particular customer id.
-#[utoipa::path(
-    post,
-    path = "/customers/{customer_id}/mandates",
-    responses(
-        (status = 200, description = "List of retrieved mandates for a customer", body = Vec<MandateResponse>),
-        (status = 400, description = "Invalid Data"),
-    ),
-    tag = "Customers Mandates List",
-    operation_id = "List all Mandates for a Customer",
-    security(("api_key" = []))
-)]
-pub async fn customers_mandates_list() {}

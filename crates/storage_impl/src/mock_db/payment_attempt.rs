@@ -42,6 +42,7 @@ impl PaymentAttemptInterface for MockDb {
         _payment_method: Option<Vec<PaymentMethod>>,
         _payment_method_type: Option<Vec<PaymentMethodType>>,
         _authentication_type: Option<Vec<AuthenticationType>>,
+        _merchanat_connector_id: Option<Vec<String>>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<i64, StorageError> {
         Err(StorageError::MockDbError)?
@@ -147,7 +148,12 @@ impl PaymentAttemptInterface for MockDb {
             merchant_connector_id: payment_attempt.merchant_connector_id,
             unified_code: payment_attempt.unified_code,
             unified_message: payment_attempt.unified_message,
+            external_three_ds_authentication_attempted: payment_attempt
+                .external_three_ds_authentication_attempted,
+            authentication_connector: payment_attempt.authentication_connector,
+            authentication_id: payment_attempt.authentication_id,
             mandate_data: payment_attempt.mandate_data,
+            payment_method_billing_address_id: payment_attempt.payment_method_billing_address_id,
             fingerprint_id: payment_attempt.fingerprint_id,
         };
         payment_attempts.push(payment_attempt.clone());

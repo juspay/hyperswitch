@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 #[cfg(feature = "olap")]
 use common_utils::date_time;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use redis_interface::RedisConnectionPool;
 
 use super::{AuthToken, UserAuthToken};
@@ -17,6 +17,7 @@ use crate::{
 use crate::{
     core::errors::{UserErrors, UserResult},
     routes::AppState,
+    services::authorization as authz,
 };
 
 #[cfg(feature = "olap")]
@@ -48,7 +49,20 @@ pub async fn insert_role_in_blacklist(state: &AppState, role_id: &str) -> UserRe
             expiry,
         )
         .await
+        .change_context(UserErrors::InternalServerError)?;
+    invalidate_role_cache(state, role_id)
+        .await
         .change_context(UserErrors::InternalServerError)
+}
+
+#[cfg(feature = "olap")]
+async fn invalidate_role_cache(state: &AppState, role_id: &str) -> RouterResult<()> {
+    let redis_conn = get_redis_connection(state)?;
+    redis_conn
+        .delete_key(authz::get_cache_key_from_role_id(role_id).as_str())
+        .await
+        .map(|_| ())
+        .change_context(ApiErrorResponse::InternalServerError)
 }
 
 pub async fn check_user_in_blacklist<A: AppStateInfo>(
@@ -117,10 +131,7 @@ fn get_redis_connection<A: AppStateInfo>(state: &A) -> RouterResult<Arc<RedisCon
 }
 
 fn expiry_to_i64(expiry: u64) -> RouterResult<i64> {
-    expiry
-        .try_into()
-        .into_report()
-        .change_context(ApiErrorResponse::InternalServerError)
+    i64::try_from(expiry).change_context(ApiErrorResponse::InternalServerError)
 }
 
 #[async_trait::async_trait]

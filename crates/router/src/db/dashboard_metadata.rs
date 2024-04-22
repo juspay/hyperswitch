@@ -1,5 +1,6 @@
 use diesel_models::{enums, user::dashboard_metadata as storage};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
+use router_env::{instrument, tracing};
 use storage_impl::MockDb;
 
 use crate::{
@@ -55,6 +56,7 @@ pub trait DashboardMetadataInterface {
 
 #[async_trait::async_trait]
 impl DashboardMetadataInterface for Store {
+    #[instrument(skip_all)]
     async fn insert_metadata(
         &self,
         metadata: storage::DashboardMetadataNew,
@@ -63,10 +65,10 @@ impl DashboardMetadataInterface for Store {
         metadata
             .insert(&conn)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
+    #[instrument(skip_all)]
     async fn update_metadata(
         &self,
         user_id: Option<String>,
@@ -85,10 +87,10 @@ impl DashboardMetadataInterface for Store {
             dashboard_metadata_update,
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
+    #[instrument(skip_all)]
     async fn find_user_scoped_dashboard_metadata(
         &self,
         user_id: &str,
@@ -105,10 +107,10 @@ impl DashboardMetadataInterface for Store {
             data_keys,
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
+    #[instrument(skip_all)]
     async fn find_merchant_scoped_dashboard_metadata(
         &self,
         merchant_id: &str,
@@ -123,9 +125,10 @@ impl DashboardMetadataInterface for Store {
             data_keys,
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
+
+    #[instrument(skip_all)]
     async fn delete_all_user_scoped_dashboard_metadata_by_merchant_id(
         &self,
         user_id: &str,
@@ -138,10 +141,10 @@ impl DashboardMetadataInterface for Store {
             merchant_id.to_owned(),
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
+    #[instrument(skip_all)]
     async fn delete_user_scoped_dashboard_metadata_by_merchant_id_data_key(
         &self,
         user_id: &str,
@@ -156,8 +159,7 @@ impl DashboardMetadataInterface for Store {
             data_key,
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
 
@@ -180,10 +182,7 @@ impl DashboardMetadataInterface for MockDb {
             })?
         }
         let metadata_new = storage::DashboardMetadata {
-            id: dashboard_metadata
-                .len()
-                .try_into()
-                .into_report()
+            id: i32::try_from(dashboard_metadata.len())
                 .change_context(errors::StorageError::MockDbError)?,
             user_id: metadata.user_id,
             merchant_id: metadata.merchant_id,
