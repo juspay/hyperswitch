@@ -1449,6 +1449,8 @@ pub async fn webhooks_wrapper<W: types::OutgoingWebhookType, Ctx: PaymentMethodR
         ))
         .await?;
 
+    logger::info!(incoming_webhook_payload = ?serialized_req);
+
     let request_duration = Instant::now()
         .saturating_duration_since(start_instant)
         .as_millis();
