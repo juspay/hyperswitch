@@ -4,6 +4,7 @@ use api_models::{
     analytics::{
         self as analytics_api,
         api_event::ApiEventDimensions,
+        auth_events::AuthEventFlows,
         disputes::DisputeDimensions,
         payments::{PaymentDimensions, PaymentDistributions},
         refunds::{RefundDimensions, RefundType},
@@ -386,6 +387,8 @@ impl_to_sql_for_to_string!(
 
 impl_to_sql_for_to_string!(&SdkEventDimensions, SdkEventDimensions, SdkEventNames);
 
+impl_to_sql_for_to_string!(AuthEventFlows);
+
 impl_to_sql_for_to_string!(&ApiEventDimensions, ApiEventDimensions);
 
 impl_to_sql_for_to_string!(&DisputeDimensions, DisputeDimensions, DisputeStage);
@@ -510,6 +513,14 @@ where
         value: impl ToSql<T>,
     ) -> QueryResult<()> {
         self.add_custom_filter_clause(key, value, FilterTypes::EqualBool)
+    }
+
+    pub fn add_negative_filter_clause(
+        &mut self,
+        key: impl ToSql<T>,
+        value: impl ToSql<T>,
+    ) -> QueryResult<()> {
+        self.add_custom_filter_clause(key, value, FilterTypes::NotEqual)
     }
 
     pub fn add_custom_filter_clause(

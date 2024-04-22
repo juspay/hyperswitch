@@ -13,9 +13,9 @@ pub mod routes {
             GetGlobalSearchRequest, GetSearchRequest, GetSearchRequestWithIndex, SearchIndex,
         },
         GenerateReportRequest, GetApiEventFiltersRequest, GetApiEventMetricRequest,
-        GetDisputeMetricRequest, GetPaymentFiltersRequest, GetPaymentMetricRequest,
-        GetRefundFilterRequest, GetRefundMetricRequest, GetSdkEventFiltersRequest,
-        GetSdkEventMetricRequest, ReportRequest,
+        GetAuthEventMetricRequest, GetDisputeMetricRequest, GetPaymentFiltersRequest,
+        GetPaymentMetricRequest, GetRefundFilterRequest, GetRefundMetricRequest,
+        GetSdkEventFiltersRequest, GetSdkEventMetricRequest, ReportRequest,
     };
     use error_stack::ResultExt;
 
@@ -73,6 +73,10 @@ pub mod routes {
                     .service(
                         web::resource("filters/sdk_events")
                             .route(web::post().to(get_sdk_event_filters)),
+                    )
+                    .service(
+                        web::resource("metrics/auth_events")
+                            .route(web::post().to(get_auth_event_metrics)),
                     )
                     .service(web::resource("api_event_logs").route(web::get().to(get_api_events)))
                     .service(web::resource("sdk_event_logs").route(web::post().to(get_sdk_events)))
@@ -229,6 +233,43 @@ pub mod routes {
             |state, auth: AuthenticationData, req, _| async move {
                 analytics::sdk_events::get_metrics(
                     &state.pool,
+                    auth.merchant_account.publishable_key.as_ref(),
+                    req,
+                )
+                .await
+                .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::Analytics),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    /// # Panics
+    ///
+    /// Panics if `json_payload` array does not contain one `GetAuthEventMetricRequest` element.
+    pub async fn get_auth_event_metrics(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<[GetAuthEventMetricRequest; 1]>,
+    ) -> impl Responder {
+        // safety: This shouldn't panic owing to the data type
+        #[allow(clippy::expect_used)]
+        let payload = json_payload
+            .into_inner()
+            .to_vec()
+            .pop()
+            .expect("Couldn't get GetAuthEventMetricRequest");
+        let flow = AnalyticsFlow::GetAuthMetrics;
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            payload,
+            |state, auth: AuthenticationData, req| async move {
+                analytics::auth_events::get_metrics(
+                    &state.pool,
+                    &auth.merchant_account.merchant_id,
                     auth.merchant_account.publishable_key.as_ref(),
                     req,
                 )

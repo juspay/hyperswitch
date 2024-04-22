@@ -15,6 +15,7 @@ use crate::errors::AnalyticsError;
 pub enum AnalyticsDomain {
     Payments,
     Refunds,
+    AuthEvents,
     SdkEvents,
     ApiEvents,
     Dispute,
@@ -30,6 +31,7 @@ pub enum AnalyticsCollection {
     ConnectorEvents,
     OutgoingWebhookEvent,
     Dispute,
+    AuthEvents,
 }
 
 #[allow(dead_code)]
@@ -67,6 +69,7 @@ where
 
 pub trait RefundAnalytics {}
 pub trait SdkEventAnalytics {}
+pub trait AuthEventAnalytics {}
 
 #[async_trait::async_trait]
 pub trait AnalyticsDataSource

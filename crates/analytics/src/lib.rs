@@ -8,6 +8,7 @@ mod query;
 pub mod refunds;
 
 pub mod api_event;
+pub mod auth_events;
 pub mod connector_events;
 pub mod health_check;
 pub mod outgoing_webhook_event;
@@ -33,6 +34,7 @@ use api_models::analytics::{
     api_event::{
         ApiEventDimensions, ApiEventFilters, ApiEventMetrics, ApiEventMetricsBucketIdentifier,
     },
+    auth_events::{AuthEventMetrics, AuthEventMetricsBucketIdentifier},
     disputes::{DisputeDimensions, DisputeFilters, DisputeMetrics, DisputeMetricsBucketIdentifier},
     payments::{PaymentDimensions, PaymentFilters, PaymentMetrics, PaymentMetricsBucketIdentifier},
     refunds::{RefundDimensions, RefundFilters, RefundMetrics, RefundMetricsBucketIdentifier},
@@ -53,6 +55,7 @@ use storage_impl::config::Database;
 use strum::Display;
 
 use self::{
+    auth_events::metrics::{AuthEventMetric, AuthEventMetricRow},
     payments::{
         distribution::{PaymentDistribution, PaymentDistributionRow},
         metrics::{PaymentMetric, PaymentMetricRow},
@@ -536,6 +539,36 @@ impl AnalyticsProvider {
         }
     }
 
+    pub async fn get_auth_event_metrics(
+        &self,
+        metric: &AuthEventMetrics,
+        merchant_id: &str,
+        publishable_key: &str,
+        granularity: &Option<Granularity>,
+        time_range: &TimeRange,
+    ) -> types::MetricsResult<Vec<(AuthEventMetricsBucketIdentifier, AuthEventMetricRow)>> {
+        match self {
+            Self::Sqlx(_pool) => Err(report!(MetricsError::NotImplemented)),
+            Self::Clickhouse(pool) => {
+                metric
+                    .load_metrics(merchant_id, publishable_key, granularity, time_range, pool)
+                    .await
+            }
+            Self::CombinedCkh(_sqlx_pool, ckh_pool) | Self::CombinedSqlx(_sqlx_pool, ckh_pool) => {
+                metric
+                    .load_metrics(
+                        merchant_id,
+                        publishable_key,
+                        granularity,
+                        // Since API events are ckh only use ckh here
+                        time_range,
+                        ckh_pool,
+                    )
+                    .await
+            }
+        }
+    }
+
     pub async fn get_api_event_metrics(
         &self,
         metric: &ApiEventMetrics,
@@ -719,6 +752,7 @@ pub enum AnalyticsFlow {
     GetPaymentMetrics,
     GetRefundsMetrics,
     GetSdkMetrics,
+    GetAuthMetrics,
     GetPaymentFilters,
     GetRefundFilters,
     GetSdkEventFilters,

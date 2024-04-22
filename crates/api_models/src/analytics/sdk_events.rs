@@ -108,6 +108,7 @@ pub enum SdkEventNames {
     DisplayBankTransferInfoPage,
     DisplayQrCodeInfoPage,
     AuthenticationCall,
+    AuthenticationCallInit,
     ThreeDsMethodCall,
     ThreeDsMethodResult,
     ThreeDsMethod,

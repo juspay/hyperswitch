@@ -7,6 +7,7 @@ use router_env::logger;
 use time::PrimitiveDateTime;
 
 use super::{
+    auth_events::metrics::AuthEventMetricRow,
     health_check::HealthCheck,
     payments::{
         distribution::PaymentDistributionRow, filters::FilterRow, metrics::PaymentMetricRow,
@@ -132,10 +133,11 @@ impl AnalyticsDataSource for ClickhouseClient {
             | AnalyticsCollection::Dispute => {
                 TableEngine::CollapsingMergeTree { sign: "sign_flag" }
             }
-            AnalyticsCollection::SdkEvents => TableEngine::BasicTree,
-            AnalyticsCollection::ApiEvents => TableEngine::BasicTree,
-            AnalyticsCollection::ConnectorEvents => TableEngine::BasicTree,
-            AnalyticsCollection::OutgoingWebhookEvent => TableEngine::BasicTree,
+            AnalyticsCollection::SdkEvents
+            | AnalyticsCollection::ApiEvents
+            | AnalyticsCollection::ConnectorEvents
+            | AnalyticsCollection::AuthEvents
+            | AnalyticsCollection::OutgoingWebhookEvent => TableEngine::BasicTree,
         }
     }
 }
@@ -158,6 +160,7 @@ impl super::refunds::filters::RefundFilterAnalytics for ClickhouseClient {}
 impl super::sdk_events::filters::SdkEventFilterAnalytics for ClickhouseClient {}
 impl super::sdk_events::metrics::SdkEventMetricAnalytics for ClickhouseClient {}
 impl super::sdk_events::events::SdkEventsFilterAnalytics for ClickhouseClient {}
+impl super::auth_events::metrics::AuthEventMetricAnalytics for ClickhouseClient {}
 impl super::api_event::events::ApiLogsFilterAnalytics for ClickhouseClient {}
 impl super::api_event::filters::ApiEventFilterAnalytics for ClickhouseClient {}
 impl super::api_event::metrics::ApiEventMetricAnalytics for ClickhouseClient {}
@@ -320,6 +323,16 @@ impl TryInto<SdkEventFilter> for serde_json::Value {
     }
 }
 
+impl TryInto<AuthEventMetricRow> for serde_json::Value {
+    type Error = Report<ParsingError>;
+
+    fn try_into(self) -> Result<AuthEventMetricRow, Self::Error> {
+        serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
+            "Failed to parse AuthEventMetricRow in clickhouse results",
+        ))
+    }
+}
+
 impl TryInto<ApiEventFilter> for serde_json::Value {
     type Error = Report<ParsingError>;
 
@@ -360,7 +373,7 @@ impl ToSql<ClickhouseClient> for AnalyticsCollection {
             Self::Payment => Ok("payment_attempts".to_string()),
             Self::Refund => Ok("refunds".to_string()),
             Self::SdkEvents => Ok("sdk_events_audit".to_string()),
-            Self::ApiEvents => Ok("api_events_audit".to_string()),
+            Self::ApiEvents | Self::AuthEvents => Ok("api_events_audit".to_string()),
             Self::PaymentIntent => Ok("payment_intents".to_string()),
             Self::ConnectorEvents => Ok("connector_events_audit".to_string()),
             Self::OutgoingWebhookEvent => Ok("outgoing_webhook_events_audit".to_string()),

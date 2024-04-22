@@ -512,6 +512,8 @@ impl ToSql<SqlxClient> for AnalyticsCollection {
             Self::Refund => Ok("refund".to_string()),
             Self::SdkEvents => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("SdkEvents table is not implemented for Sqlx"))?,
+            Self::AuthEvents => Err(error_stack::report!(ParsingError::UnknownError)
+                .attach_printable("ApiEvents table is not implemented for Sqlx"))?,
             Self::ApiEvents => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("ApiEvents table is not implemented for Sqlx"))?,
             Self::PaymentIntent => Ok("payment_intent".to_string()),
