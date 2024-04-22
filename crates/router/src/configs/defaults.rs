@@ -280,7 +280,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.first_name".to_string(),
+                                                "billing.address.first_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.first_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -289,7 +289,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.last_name".to_string(),
+                                                "billing.address.last_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.last_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -485,7 +485,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.first_name".to_string(),
+                                                "billing.address.first_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.first_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -494,7 +494,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.last_name".to_string(),
+                                                "billing.address.last_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.last_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -815,7 +815,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.first_name".to_string(),
+                                                "billing.address.first_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.first_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -824,7 +824,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.last_name".to_string(),
+                                                "billing.address.last_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.last_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -955,7 +955,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                            (
-                                                "payment_method_data.billing.address.first_name".to_string(),
+                                                "billing.address.first_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.first_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -964,7 +964,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.last_name".to_string(),
+                                                "billing.address.last_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.last_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -1098,7 +1098,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.first_name".to_string(),
+                                                "billing.address.first_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.first_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -1107,7 +1107,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.last_name".to_string(),
+                                                "billing.address.last_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.last_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -1317,7 +1317,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.first_name".to_string(),
+                                                "billing.address.first_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.first_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -1326,7 +1326,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.last_name".to_string(),
+                                                "billing.address.last_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.last_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -1618,7 +1618,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.first_name".to_string(),
+                                                "billing.address.first_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.first_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -1627,7 +1627,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.last_name".to_string(),
+                                                "billing.address.last_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.last_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -1850,7 +1850,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.first_name".to_string(),
+                                                "billing.address.first_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.first_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -1859,7 +1859,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.last_name".to_string(),
+                                                "billing.address.last_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.last_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -1915,7 +1915,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.first_name".to_string(),
+                                                "billing.address.first_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.first_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -1924,7 +1924,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.last_name".to_string(),
+                                                "billing.address.last_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.last_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -2026,7 +2026,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.first_name".to_string(),
+                                                "billing.address.first_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.first_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -2035,7 +2035,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.last_name".to_string(),
+                                                "billing.address.last_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.last_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -2138,7 +2138,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.first_name".to_string(),
+                                                "billing.address.first_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.first_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -2147,7 +2147,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.last_name".to_string(),
+                                                "billing.address.last_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.last_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -2437,7 +2437,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.first_name".to_string(),
+                                                "billing.address.first_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.first_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -2446,7 +2446,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.last_name".to_string(),
+                                                "billing.address.last_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.last_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -2642,7 +2642,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.first_name".to_string(),
+                                                "billing.address.first_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.first_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -2651,7 +2651,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.last_name".to_string(),
+                                                "billing.address.last_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.last_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -2971,7 +2971,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.first_name".to_string(),
+                                                "billing.address.first_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.first_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -2980,7 +2980,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.last_name".to_string(),
+                                                "billing.address.last_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.last_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -3112,7 +3112,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.first_name".to_string(),
+                                                "billing.address.first_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.first_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -3121,7 +3121,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.last_name".to_string(),
+                                                "billing.address.last_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.last_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -3255,7 +3255,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.first_name".to_string(),
+                                                "billing.address.first_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.first_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -3264,7 +3264,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.last_name".to_string(),
+                                                "billing.address.last_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.last_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -3474,7 +3474,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.first_name".to_string(),
+                                                "billing.address.first_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.first_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -3483,7 +3483,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.last_name".to_string(),
+                                                "billing.address.last_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.last_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -3775,7 +3775,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.first_name".to_string(),
+                                                "billing.address.first_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.first_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -3784,7 +3784,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.last_name".to_string(),
+                                                "billing.address.last_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.last_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -4007,7 +4007,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.first_name".to_string(),
+                                                "billing.address.first_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.first_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -4016,7 +4016,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.last_name".to_string(),
+                                                "billing.address.last_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.last_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -4072,7 +4072,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.first_name".to_string(),
+                                                "billing.address.first_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.first_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -4081,7 +4081,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.last_name".to_string(),
+                                                "billing.address.last_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.last_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -4183,7 +4183,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.first_name".to_string(),
+                                                "billing.address.first_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.first_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -4192,7 +4192,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.last_name".to_string(),
+                                                "billing.address.last_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.last_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -4295,7 +4295,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.first_name".to_string(),
+                                                "billing.address.first_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.first_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
@@ -4304,7 +4304,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.billing.address.last_name".to_string(),
+                                                "billing.address.last_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.address.last_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
