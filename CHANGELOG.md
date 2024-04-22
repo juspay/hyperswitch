@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.04.12.1-hotfix4
+
+### Bug Fixes
+
+- **connectors:** Mask fields for webhook_resource_object ([#4407](https://github.com/juspay/hyperswitch/pull/4407)) ([`bec0ee0`](https://github.com/juspay/hyperswitch/commit/bec0ee034bae0c052d5d6a4484c3452d1e31d218))
+
+- - -
+
 ## 2024.04.12.1-hotfix3
 
 ### Features
