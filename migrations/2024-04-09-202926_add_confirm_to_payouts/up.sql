@@ -1,1 +1,1 @@
-ALTER TABLE payouts ADD COLUMN confirm bool;
+ALTER TABLE payouts ADD COLUMN IF NOT EXISTS confirm bool;

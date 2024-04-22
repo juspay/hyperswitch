@@ -133,7 +133,6 @@ pub async fn construct_payout_router_data<'a, F>(
         match api_models::enums::PayoutConnectors::try_from(connector_name.to_owned()).map_err(
             |err| report!(errors::ApiErrorResponse::InternalServerError).attach_printable(err),
         )? {
-            api_models::enums::PayoutConnectors::Adyen => None,
             api_models::enums::PayoutConnectors::Stripe => {
                 payout_data.payouts.metadata.to_owned().and_then(|meta| {
                     let val = meta
@@ -144,7 +143,7 @@ pub async fn construct_payout_router_data<'a, F>(
                     val
                 })
             }
-            api_models::enums::PayoutConnectors::Wise => None,
+            _ => None,
         };
 
     let router_data = types::RouterData {

@@ -484,13 +484,13 @@ pub struct PayoutActionRequest {
     pub payout_id: String,
 }
 
-#[derive(Default, DebugAsDisplay, Debug, ToSchema, Clone, Deserialize)]
+#[derive(Default, Debug, ToSchema, Clone, Deserialize)]
 pub struct PayoutVendorAccountDetails {
     pub vendor_details: PayoutVendorDetails,
     pub individual_details: PayoutIndividualDetails,
 }
 
-#[derive(Default, DebugAsDisplay, Debug, Serialize, ToSchema, Clone, Deserialize)]
+#[derive(Default, Debug, Serialize, ToSchema, Clone, Deserialize)]
 pub struct PayoutVendorDetails {
     pub account_type: String,
     pub business_type: String,
@@ -509,7 +509,7 @@ pub struct PayoutVendorDetails {
     pub capabilities_transfers: Option<bool>,
 }
 
-#[derive(Default, DebugAsDisplay, Debug, Serialize, ToSchema, Clone, Deserialize)]
+#[derive(Default, Debug, Serialize, ToSchema, Clone, Deserialize)]
 pub struct PayoutIndividualDetails {
     pub tos_acceptance_date: Option<i64>,
     pub tos_acceptance_ip: Option<Secret<String>>,

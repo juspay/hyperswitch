@@ -1,1 +1,1 @@
-ALTER TABLE payouts DROP COLUMN confirm;
+ALTER TABLE payouts DROP COLUMN IF EXISTS confirm;
