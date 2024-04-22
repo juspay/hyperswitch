@@ -948,9 +948,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                     .get_amount_capturable(&payment_data, updated_attempt_status),
                                 payment_method_id,
                                 mandate_id: payment_data
-                                    .mandate_id
-                                    .clone()
-                                    .and_then(|mandate| mandate.mandate_id),
+                                            .payment_attempt
+                                            .mandate_id
+                                            .clone(),
                                 connector_metadata,
                                 payment_token: None,
                                 error_code: error_status.clone(),
