@@ -125,6 +125,7 @@ pub fn mk_app(
             .service(routes::EphemeralKey::server(state.clone()))
             .service(routes::Webhooks::server(state.clone()))
             .service(routes::PaymentMethods::server(state.clone()))
+            .service(routes::Poll::server(state.clone()))
     }
 
     #[cfg(feature = "olap")]

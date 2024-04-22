@@ -1569,7 +1569,8 @@ impl services::ConnectorRedirectResponse for Braintree {
                 }
                 None => Ok(payments::CallConnectorAction::Avoid),
             },
-            services::PaymentAction::CompleteAuthorize => {
+            services::PaymentAction::CompleteAuthorize
+            | services::PaymentAction::PaymentAuthenticateCompleteAuthorize => {
                 Ok(payments::CallConnectorAction::Trigger)
             }
         }
