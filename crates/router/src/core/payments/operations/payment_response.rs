@@ -138,12 +138,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             profile_id,
             billing_name,
         ));
-        if connector_mandate {
-            // The mandate is created on connector's end.
-            let (payment_method_id, _payment_method_status) = save_payment_call_future.await?;
-            payment_data.payment_attempt.payment_method_id = payment_method_id;
-            Ok(())
-        } else if hs_mandate {
+        if hs_mandate {
             // Mandate is created on hyperswitch's end
             let (payment_method_id, _payment_method_status) = save_payment_call_future.await?;
 
@@ -158,6 +153,11 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             .await?;
             payment_data.payment_attempt.payment_method_id = payment_method_id;
             payment_data.payment_attempt.mandate_id = mandate_id;
+            Ok(())
+        } else if connector_mandate {
+            // The mandate is created on connector's end.
+            let (payment_method_id, _payment_method_status) = save_payment_call_future.await?;
+            payment_data.payment_attempt.payment_method_id = payment_method_id;
             Ok(())
         } else {
             // Save card flow
@@ -947,10 +947,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                     .request
                                     .get_amount_capturable(&payment_data, updated_attempt_status),
                                 payment_method_id,
-                                mandate_id: payment_data
-                                            .payment_attempt
-                                            .mandate_id
-                                            .clone(),
+                                mandate_id: payment_data.payment_attempt.mandate_id.clone(),
                                 connector_metadata,
                                 payment_token: None,
                                 error_code: error_status.clone(),
