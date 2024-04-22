@@ -4,6 +4,7 @@
   "private": true,
   "description": "This is just to run automated newman tests for this service",
   "devDependencies": {
+    "cypress": "^13.7.3",
     "newman": "git+ssh://git@github.com:knutties/newman.git#7106e194c15d49d066fa09d9a2f18b2238f3dba8"
   }
 }

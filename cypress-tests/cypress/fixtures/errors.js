@@ -38,5 +38,48 @@ export const refundErrors = {
         "type": "invalid_request",
         "message": "Refund does not exist in our records.",
         "code": "HE_02"
+    },
+    "paymentStatusRequiresPaymentMethod": {
+        "type": "invalid_request",
+        "message": "This Payment could not be refund because it has a status of requires_payment_method. The expected state is succeeded, partially_captured",
+        "code": "IR_14"
     }
 };
+
+export const captureErrors = {
+    "paymentStatusRequiresPaymentMethod": {
+        "type": "invalid_request",
+        "message": "This Payment could not be captured because it has a payment.status of requires_payment_method. The expected state is requires_capture, partially_captured_and_capturable, processing",
+        "code": "IR_14"
+        },
+};
+
+// Connector specific
+export const paymentMethodErrors = {
+    "trustpay" : {
+        "paymentMethodUnsupportedError": {
+            "type": "invalid_request",
+            "message": "Payment method type not supported",
+            "code": "HE_03",
+            "reason": "manual is not supported by trustpay"
+        }
+    },
+};
+
+// Connector agnostic
+export const paymentMethodCAErrors = {
+   "paymentMethodDoesNotExist": {
+        "type": "invalid_request",
+        "message": "Payment method does not exist in our records",
+        "code": "HE_02"
+    }
+};
+
+export const paymentErrors = {
+    "paymentDoesNotExist": {
+        "type": "invalid_request",
+        "message": "Payment does not exist in our records",
+        "code": "HE_02"
+    }
+}
+
