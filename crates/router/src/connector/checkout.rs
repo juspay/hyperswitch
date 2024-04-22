@@ -2,11 +2,7 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::{
-    crypto,
-    ext_traits::{ByteSliceExt, Encode},
-    request::RequestContent,
-};
+use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
 use diesel_models::enums;
 use error_stack::ResultExt;
 use masking::PeekInterface;
@@ -1295,27 +1291,19 @@ impl api::IncomingWebhook for Checkout {
         let event_type_data: checkout::CheckoutWebhookEventTypeBody = request
             .body
             .parse_struct("CheckoutWebhookBody")
-            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-        let resource_object = if checkout::is_chargeback_event(&event_type_data.transaction_type)
-            || checkout::is_refund_event(&event_type_data.transaction_type)
-        {
-            // if other event, just return the json data.
-            let resource_object_data: checkout::CheckoutWebhookObjectResource = request
-                .body
-                .parse_struct("CheckoutWebhookObjectResource")
-                .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-            resource_object_data.data
-        } else {
-            // if payment_event, construct PaymentResponse and then serialize it to json and return.
-            let payment_response = checkout::PaymentsResponse::try_from(request)?;
-            payment_response
-                .encode_to_value()
-                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?
-        };
-        // Ideally this should be a strict type that has type information
-        // PII information is likely being logged here when this response will be logged.
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
-        Ok(Box::new(resource_object))
+        if checkout::is_chargeback_event(&event_type_data.transaction_type) {
+            let dispute_webhook_body: checkout::CheckoutDisputeWebhookBody = request
+                .body
+                .parse_struct("CheckoutDisputeWebhookBody")
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+            Ok(Box::new(dispute_webhook_body.data))
+        } else if checkout::is_refund_event(&event_type_data.transaction_type) {
+            Ok(Box::new(checkout::RefundResponse::try_from(request)?))
+        } else {
+            Ok(Box::new(checkout::PaymentsResponse::try_from(request)?))
+        }
     }
 
     fn get_dispute_details(
