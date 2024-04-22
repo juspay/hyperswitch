@@ -4,12 +4,12 @@ use time::PrimitiveDateTime;
 use url::Url;
 
 use crate::{
-    connector::utils::PaymentsAuthorizeRequestData,
+    connector::utils::{PaymentsAuthorizeRequestData, RouterData},
     consts,
     core::errors,
     pii::Secret,
     services,
-    types::{self, api, storage::enums, transformers::ForeignFrom},
+    types::{self, api, domain, storage::enums, transformers::ForeignFrom},
     utils::OptionExt,
 };
 
@@ -124,15 +124,16 @@ impl TryFrom<&RapydRouterData<&types::PaymentsAuthorizeRouterData>> for RapydPay
             _ => (None, None),
         };
         let payment_method = match item.router_data.request.payment_method_data {
-            api_models::payments::PaymentMethodData::Card(ref ccard) => {
+            domain::PaymentMethodData::Card(ref ccard) => {
                 Some(PaymentMethod {
                     pm_type: "in_amex_card".to_owned(), //[#369] Map payment method type based on country
                     fields: Some(PaymentFields {
                         number: ccard.card_number.to_owned(),
                         expiration_month: ccard.card_exp_month.to_owned(),
                         expiration_year: ccard.card_exp_year.to_owned(),
-                        name: ccard
-                            .card_holder_name
+                        name: item
+                            .router_data
+                            .get_optional_billing_full_name()
                             .to_owned()
                             .unwrap_or(Secret::new("".to_string())),
                         cvv: ccard.card_cvc.to_owned(),
@@ -141,13 +142,13 @@ impl TryFrom<&RapydRouterData<&types::PaymentsAuthorizeRouterData>> for RapydPay
                     digital_wallet: None,
                 })
             }
-            api_models::payments::PaymentMethodData::Wallet(ref wallet_data) => {
+            domain::PaymentMethodData::Wallet(ref wallet_data) => {
                 let digital_wallet = match wallet_data {
-                    api_models::payments::WalletData::GooglePay(data) => Some(RapydWallet {
+                    domain::WalletData::GooglePay(data) => Some(RapydWallet {
                         payment_type: "google_pay".to_string(),
                         token: Some(Secret::new(data.tokenization_data.token.to_owned())),
                     }),
-                    api_models::payments::WalletData::ApplePay(data) => Some(RapydWallet {
+                    domain::WalletData::ApplePay(data) => Some(RapydWallet {
                         payment_type: "apple_pay".to_string(),
                         token: Some(Secret::new(data.payment_data.to_string())),
                     }),
@@ -357,7 +358,7 @@ pub struct RefundResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RefundResponseData {
-    //Some field related to forign exchange and split payment can be added as and when implemented
+    //Some field related to foreign exchange and split payment can be added as and when implemented
     pub id: String,
     pub payment: String,
     pub amount: i64,

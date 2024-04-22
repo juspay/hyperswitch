@@ -29,18 +29,17 @@ use error_stack::ResultExt;
 use masking::Secret;
 use serde::Serialize;
 
-use self::{api::payments, storage::enums as storage_enums};
+use self::storage::enums as storage_enums;
 pub use crate::core::payments::{payment_address::PaymentAddress, CustomerDetails};
 #[cfg(feature = "payouts")]
 use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW;
 use crate::{
     core::{
-        errors::{self, RouterResult},
+        errors::{self},
         payments::{types, PaymentData, RecurringMandatePaymentData},
     },
     services,
     types::{transformers::ForeignFrom, types::AuthenticationData},
-    utils::OptionExt,
 };
 pub type PaymentsAuthorizeRouterData =
     RouterData<api::Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
@@ -412,7 +411,7 @@ pub struct PayoutsFulfillResponseData {
 
 #[derive(Debug, Clone)]
 pub struct PaymentsAuthorizeData {
-    pub payment_method_data: payments::PaymentMethodData,
+    pub payment_method_data: domain::payments::PaymentMethodData,
     /// total amount (original_amount + surcharge_amount + tax_on_surcharge_amount)
     /// If connector supports separate field for surcharge amount, consider using below functions defined on `PaymentsAuthorizeData` to fetch original amount and surcharge amount separately
     /// ```
@@ -497,12 +496,12 @@ pub struct ConnectorCustomerData {
     pub phone: Option<Secret<String>>,
     pub name: Option<Secret<String>>,
     pub preprocessing_id: Option<String>,
-    pub payment_method_data: payments::PaymentMethodData,
+    pub payment_method_data: domain::PaymentMethodData,
 }
 
 #[derive(Debug, Clone)]
 pub struct PaymentMethodTokenizationData {
-    pub payment_method_data: payments::PaymentMethodData,
+    pub payment_method_data: domain::payments::PaymentMethodData,
     pub browser_info: Option<BrowserInformation>,
     pub currency: storage_enums::Currency,
     pub amount: Option<i64>,
@@ -510,7 +509,7 @@ pub struct PaymentMethodTokenizationData {
 
 #[derive(Debug, Clone)]
 pub struct PaymentsPreProcessingData {
-    pub payment_method_data: Option<payments::PaymentMethodData>,
+    pub payment_method_data: Option<domain::payments::PaymentMethodData>,
     pub amount: Option<i64>,
     pub email: Option<Email>,
     pub currency: Option<storage_enums::Currency>,
@@ -529,7 +528,7 @@ pub struct PaymentsPreProcessingData {
 
 #[derive(Debug, Clone)]
 pub struct CompleteAuthorizeData {
-    pub payment_method_data: Option<payments::PaymentMethodData>,
+    pub payment_method_data: Option<domain::PaymentMethodData>,
     pub amount: i64,
     pub email: Option<Email>,
     pub currency: storage_enums::Currency,
@@ -610,7 +609,7 @@ pub struct PaymentsSessionData {
 #[derive(Debug, Clone)]
 pub struct SetupMandateRequestData {
     pub currency: storage_enums::Currency,
-    pub payment_method_data: payments::PaymentMethodData,
+    pub payment_method_data: domain::PaymentMethodData,
     pub amount: Option<i64>,
     pub confirm: bool,
     pub statement_descriptor_suffix: Option<String>,
@@ -1201,6 +1200,10 @@ pub enum ConnectorAuthType {
     CurrencyAuthKey {
         auth_key_map: HashMap<storage_enums::Currency, pii::SecretSerdeValue>,
     },
+    CertificateAuth {
+        certificate: Secret<String>,
+        private_key: Secret<String>,
+    },
     #[default]
     NoKey,
 }
@@ -1239,6 +1242,13 @@ impl From<api_models::admin::ConnectorAuthType> for ConnectorAuthType {
                 Self::CurrencyAuthKey { auth_key_map }
             }
             api_models::admin::ConnectorAuthType::NoKey => Self::NoKey,
+            api_models::admin::ConnectorAuthType::CertificateAuth {
+                certificate,
+                private_key,
+            } => Self::CertificateAuth {
+                certificate,
+                private_key,
+            },
         }
     }
 }
@@ -1273,6 +1283,13 @@ impl ForeignFrom<ConnectorAuthType> for api_models::admin::ConnectorAuthType {
                 Self::CurrencyAuthKey { auth_key_map }
             }
             ConnectorAuthType::NoKey => Self::NoKey,
+            ConnectorAuthType::CertificateAuth {
+                certificate,
+                private_key,
+            } => Self::CertificateAuth {
+                certificate,
+                private_key,
+            },
         }
     }
 }
@@ -1393,32 +1410,20 @@ impl<F> From<&RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>>
 }
 
 pub trait Tokenizable {
-    fn get_pm_data(&self) -> RouterResult<payments::PaymentMethodData>;
     fn set_session_token(&mut self, token: Option<String>);
 }
 
 impl Tokenizable for SetupMandateRequestData {
-    fn get_pm_data(&self) -> RouterResult<payments::PaymentMethodData> {
-        Ok(self.payment_method_data.clone())
-    }
     fn set_session_token(&mut self, _token: Option<String>) {}
 }
 
 impl Tokenizable for PaymentsAuthorizeData {
-    fn get_pm_data(&self) -> RouterResult<payments::PaymentMethodData> {
-        Ok(self.payment_method_data.clone())
-    }
     fn set_session_token(&mut self, token: Option<String>) {
         self.session_token = token;
     }
 }
 
 impl Tokenizable for CompleteAuthorizeData {
-    fn get_pm_data(&self) -> RouterResult<payments::PaymentMethodData> {
-        self.payment_method_data
-            .clone()
-            .get_required_value("payment_method_data")
-    }
     fn set_session_token(&mut self, _token: Option<String>) {}
 }
 

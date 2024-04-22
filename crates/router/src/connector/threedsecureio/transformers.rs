@@ -18,6 +18,7 @@ use crate::{
         self,
         api::{self, MessageCategory},
         authentication::ChallengeParams,
+        domain,
     },
     utils::OptionExt,
 };
@@ -106,7 +107,7 @@ impl
                             )
                             .change_context(errors::ConnectorError::ParsingFailed)?,
                         connector_authentication_id: pre_authn_response.threeds_server_trans_id,
-                        three_ds_method_data: three_ds_method_data_base64,
+                        three_ds_method_data: Some(three_ds_method_data_base64),
                         three_ds_method_url: pre_authn_response.threeds_method_url,
                         message_version: common_utils::types::SemanticVersion::from_str(
                             &pre_authn_response.acs_end_protocol_version,
@@ -244,10 +245,10 @@ impl TryFrom<&types::ConnectorAuthType> for ThreedsecureioAuthType {
 }
 
 fn get_card_details(
-    payment_method_data: api_models::payments::PaymentMethodData,
-) -> Result<api_models::payments::Card, errors::ConnectorError> {
+    payment_method_data: domain::PaymentMethodData,
+) -> Result<domain::payments::Card, errors::ConnectorError> {
     match payment_method_data {
-        api_models::payments::PaymentMethodData::Card(details) => Ok(details),
+        domain::PaymentMethodData::Card(details) => Ok(details),
         _ => Err(errors::ConnectorError::NotSupported {
             message: SELECTED_PAYMENT_METHOD.to_string(),
             connector: "threedsecureio",
@@ -327,6 +328,9 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
             })?;
         let meta: ThreeDSecureIoConnectorMetaData =
             to_connector_meta(request.pre_authentication_data.connector_metadata.clone())?;
+
+        let card_holder_name = billing_address.get_optional_full_name();
+
         Ok(Self {
             ds_start_protocol_version: meta.ds_start_protocol_version.clone(),
             ds_end_protocol_version: meta.ds_end_protocol_version.clone(),
@@ -451,7 +455,7 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
                 }),
                 DeviceChannel::Browser => None,
             },
-            cardholder_name: card_details.card_holder_name,
+            cardholder_name: card_holder_name,
             email: request.email.clone(),
         })
     }

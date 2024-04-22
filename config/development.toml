@@ -108,6 +108,7 @@ cards = [
     "cybersource",
     "dlocal",
     "dummyconnector",
+    "ebanx",
     "fiserv",
     "forte",
     "globalpay",
@@ -117,6 +118,7 @@ cards = [
     "iatapay",
     "mollie",
     "multisafepay",
+    "netcetera",
     "nexinets",
     "nmi",
     "noon",
@@ -142,6 +144,7 @@ cards = [
     "worldline",
     "worldpay",
     "zen",
+    "zsl",
 ]
 
 [refund]
@@ -167,6 +170,7 @@ authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 bambora.base_url = "https://api.na.bambora.com"
 bankofamerica.base_url = "https://apitest.merchant-services.bankofamerica.com/"
 billwerk.base_url = "https://api.reepay.com/"
+billwerk.secondary_base_url = "https://card.reepay.com/"
 bitpay.base_url = "https://test.bitpay.com"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
 bluesnap.secondary_base_url = "https://sandpay.bluesnap.com/"
@@ -180,6 +184,7 @@ cryptopay.base_url = "https://business-sandbox.cryptopay.me"
 cybersource.base_url = "https://apitest.cybersource.com/"
 dlocal.base_url = "https://sandbox.dlocal.com/"
 dummyconnector.base_url = "http://localhost:8080/dummy-connector"
+ebanx.base_url = "https://sandbox.ebanxpay.com/"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
 forte.base_url = "https://sandbox.forte.net/api/v3"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
@@ -191,6 +196,7 @@ klarna.base_url = "https://api-na.playground.klarna.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
 mollie.secondary_base_url = "https://api.cc.mollie.com/v1/"
 multisafepay.base_url = "https://testapi.multisafepay.com/"
+netcetera.base_url = "https://{{merchant_endpoint_prefix}}.3ds-server.prev.netcetera-cloud-payment.ch"
 nexinets.base_url = "https://apitest.payengine.de/v1"
 nmi.base_url = "https://secure.nmi.com/"
 noon.base_url = "https://api-test.noonpayments.com/"
@@ -224,6 +230,7 @@ volt.base_url = "https://api.sandbox.volt.io/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 zen.base_url = "https://api.zen-test.com/"
 zen.secondary_base_url = "https://secure.zen-test.com/"
+zsl.base_url = "https://api.sitoffalb.net/"
 
 [scheduler]
 stream = "SCHEDULER_STREAM"
@@ -401,6 +408,9 @@ pix = { country = "BR", currency = "BRL" }
 red_compra = { country = "CL", currency = "CLP" }
 red_pagos = { country = "UY", currency = "UYU" }
 
+[pm_filters.zsl]
+local_bank_transfer = { country = "CN", currency = "CNY" }
+
 [pm_filters.aci]
 credit = { not_available_flows = { capture_method = "manual" } }
 debit = { not_available_flows = { capture_method = "manual" } }
@@ -450,6 +460,7 @@ square = { long_lived_token = false, payment_method = "card" }
 braintree = { long_lived_token = false, payment_method = "card" }
 payme = { long_lived_token = false, payment_method = "card" }
 gocardless = { long_lived_token = true, payment_method = "bank_debit" }
+billwerk = { long_lived_token = false, payment_method = "card" }
 
 [temp_locker_enable_config]
 stripe = { payment_method = "bank_transfer" }
@@ -493,11 +504,11 @@ connectors_with_webhook_source_verification_call = "paypal"
 
 [mandates.supported_payment_methods]
 pay_later.klarna = { connector_list = "adyen" }
-wallet.google_pay = { connector_list = "stripe,adyen,cybersource" }
-wallet.apple_pay = { connector_list = "stripe,adyen,cybersource,noon" }
+wallet.google_pay = { connector_list = "stripe,adyen,cybersource,bankofamerica" }
+wallet.apple_pay = { connector_list = "stripe,adyen,cybersource,noon,bankofamerica" }
 wallet.paypal = { connector_list = "adyen" }
-card.credit = { connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon" }
-card.debit = { connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon" }
+card.credit = { connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica" }
+card.debit = { connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica" }
 bank_debit.ach = { connector_list = "gocardless" }
 bank_debit.becs = { connector_list = "gocardless" }
 bank_debit.sepa = { connector_list = "gocardless" }
@@ -508,6 +519,9 @@ bank_redirect.giropay = { connector_list = "adyen,globalpay" }
 [mandates.update_mandate_supported]
 card.credit = { connector_list = "cybersource" }
 card.debit = { connector_list = "cybersource" }
+
+[network_transaction_id_supported_connectors]
+connector_list = "stripe,adyen,cybersource"
 
 [connector_request_reference_id_config]
 merchant_ids_send_payment_id_as_connector_request_id = []
@@ -554,6 +568,7 @@ connector_logs_topic = "hyperswitch-connector-api-events"
 outgoing_webhook_logs_topic = "hyperswitch-outgoing-webhook-events"
 dispute_analytics_topic = "hyperswitch-dispute-events"
 audit_events_topic = "hyperswitch-audit-events"
+payout_analytics_topic = "hyperswitch-payout-events"
 
 [analytics]
 source = "sqlx"

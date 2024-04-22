@@ -26,80 +26,75 @@ dummy_connector = ["api_models/dummy_connector", "euclid/dummy_connector", "kgra
 connector_choice_mca_id = ["api_models/connector_choice_mca_id", "euclid/connector_choice_mca_id", "kgraph_utils/connector_choice_mca_id"]
 external_access_dc = ["dummy_connector"]
 detailed_errors = ["api_models/detailed_errors", "error-stack/serde"]
-payouts = [
-  "api_models/payouts",
-  "common_enums/payouts",
-  "data_models/payouts",
-  "storage_impl/payouts"
-]
+payouts = ["api_models/payouts", "common_enums/payouts", "data_models/payouts", "storage_impl/payouts"]
 payout_retry = ["payouts"]
 recon = ["email", "api_models/recon"]
 retry = []
 
 [dependencies]
-actix-cors = "0.6.4"
-actix-multipart = "0.6.0"
-actix-rt = "2.8.0"
-actix-web = "4.3.1"
+actix-cors = "0.6.5"
+actix-multipart = "0.6.1"
+actix-rt = "2.9.0"
+actix-web = "4.5.1"
 async-bb8-diesel = { git = "https://github.com/jarnura/async-bb8-diesel", rev = "53b4ab901aab7635c8215fd1c2d542c8db443094" }
-argon2 = { version = "0.5.0", features = ["std"] }
-async-trait = "0.1.68"
-base64 = "0.21.2"
+argon2 = { version = "0.5.3", features = ["std"] }
+async-trait = "0.1.79"
+base64 = "0.22.0"
 bb8 = "0.8"
 bigdecimal = "0.3.1"
-blake3 = "1.3.3"
-bytes = "1.4.0"
-clap = { version = "4.3.2", default-features = false, features = ["std", "derive", "help", "usage"] }
-config = { version = "0.13.3", features = ["toml"] }
-cookie = "0.18.0"
-diesel = { version = "2.1.0", features = ["postgres"] }
-digest = "0.9"
-dyn-clone = "1.0.11"
-encoding_rs = "0.8.32"
+blake3 = "1.5.1"
+bytes = "1.6.0"
+clap = { version = "4.4.18", default-features = false, features = ["std", "derive", "help", "usage"] }
+config = { version = "0.14.0", features = ["toml"] }
+cookie = "0.18.1"
+diesel = { version = "2.1.5", features = ["postgres"] }
+digest = "0.10.7"
+dyn-clone = "1.0.17"
+encoding_rs = "0.8.33"
 error-stack = "0.4.1"
-futures = "0.3.28"
+futures = "0.3.30"
 hex = "0.4.3"
-http = "0.2.9"
-hyper = "0.14.27"
-image = "0.23.14"
-infer = "0.13.0"
-josekit = "0.8.3"
-jsonwebtoken = "8.3.0"
-maud = { version = "0.25", features = ["actix-web"] }
+http = "0.2.12"
+hyper = "0.14.28"
+image = { version = "0.25.1", default-features = false, features = ["png"] }
+infer = "0.15.0"
+josekit = "0.8.6"
+jsonwebtoken = "9.2.0"
+maud = { version = "0.26.0", features = ["actix-web"] }
 mimalloc = { version = "0.1", optional = true }
 mime = "0.3.17"
 nanoid = "0.4.0"
-num_cpus = "1.15.0"
-once_cell = "1.18.0"
-openssl = "0.10.60"
-qrcode = "0.12.0"
+num_cpus = "1.16.0"
+once_cell = "1.19.0"
+openssl = "0.10.64"
+qrcode = "0.14.0"
 rand = "0.8.5"
 rand_chacha = "0.3.1"
-regex = "1.8.4"
-reqwest = { version = "0.11.18", features = ["json", "native-tls", "gzip", "multipart"] }
-ring = "0.16.20"
-roxmltree = "0.18.0"
-rust_decimal = { version = "1.30.0", features = ["serde-with-float", "serde-with-str"] }
+regex = "1.10.4"
+reqwest = { version = "0.11.27", features = ["json", "native-tls", "gzip", "multipart"] }
+ring = "0.17.8"
+roxmltree = "0.19.0"
+rust_decimal = { version = "1.35.0", features = ["serde-with-float", "serde-with-str"] }
 rustc-hash = "1.1.0"
-serde = { version = "1.0.193", features = ["derive"] }
-serde_json = "1.0.108"
-serde_path_to_error = "0.1.14"
+serde = { version = "1.0.197", features = ["derive"] }
+serde_json = "1.0.115"
+serde_path_to_error = "0.1.16"
 serde_qs = { version = "0.12.0", optional = true }
 serde_urlencoded = "0.7.1"
-serde_with = "3.4.0"
-sha-1 = { version = "0.9" }
-sqlx = { version = "0.6.3", features = ["postgres", "runtime-actix", "runtime-actix-native-tls", "time", "bigdecimal"] }
-strum = { version = "0.25", features = ["derive"] }
+serde_with = "3.7.0"
+sha1 = { version = "0.10.6" }
+sqlx = { version = "0.7.3", features = ["postgres", "runtime-tokio", "runtime-tokio-native-tls", "time", "bigdecimal"] }
+strum = { version = "0.26", features = ["derive"] }
 tera = "1.19.1"
-thiserror = "1.0.40"
-time = { version = "0.3.21", features = ["serde", "serde-well-known", "std"] }
-tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread"] }
-unicode-segmentation = "1.10.1"
-url = { version = "2.4.0", features = ["serde"] }
-utoipa = { version = "3.5.0", features = ["preserve_order", "preserve_path_order", "time"] }
-uuid = { version = "1.7.0", features = ["v4"] }
-validator = "0.16.0"
-x509-parser = "0.15.0"
+thiserror = "1.0.58"
+time = { version = "0.3.35", features = ["serde", "serde-well-known", "std"] }
+tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"] }
+unicode-segmentation = "1.11.0"
+url = { version = "2.5.0", features = ["serde"] }
+utoipa = { version = "4.2.0", features = ["preserve_order", "preserve_path_order", "time"] }
+uuid = { version = "1.8.0", features = ["v4"] }
+validator = "0.17.0"
+x509-parser = "0.16.0"
 tracing-futures = { version = "0.2.5", features = ["tokio"] }
 
 # First party crates
@@ -123,25 +118,26 @@ router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra
 scheduler = { version = "0.1.0", path = "../scheduler", default-features = false }
 storage_impl = { version = "0.1.0", path = "../storage_impl", default-features = false }
 openapi = { version = "0.1.0", path = "../openapi", optional = true }
-erased-serde = "0.3.31"
+erased-serde = "0.4.4"
 quick-xml = { version = "0.31.0", features = ["serialize"] }
-rdkafka = "0.36.0"
+rdkafka = "0.36.2"
 isocountry = "0.3.2"
 iso_currency = "0.4.4"
-actix-http = "3.3.1"
+actix-http = "3.6.0"
+events = { version = "0.1.0", path = "../events" }
 
 [build-dependencies]
 router_env = { version = "0.1.0", path = "../router_env", default-features = false }
 
 [dev-dependencies]
-actix-http = "3.3.1"
-awc = { version = "3.1.1", features = ["rustls"] }
+actix-http = "3.6.0"
+awc = { version = "3.4.0", features = ["rustls"] }
 derive_deref = "1.1.1"
 rand = "0.8.5"
-serial_test = "2.0.0"
-time = { version = "0.3.21", features = ["macros"] }
-tokio = "1.36.0"
-wiremock = "0.5.18"
+serial_test = "3.0.0"
+time = { version = "0.3.35", features = ["macros"] }
+tokio = "1.37.0"
+wiremock = "0.6.0"
 
 
 # First party dev-dependencies
