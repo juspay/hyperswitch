@@ -96,6 +96,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         let customer_id = payment_data.payment_intent.customer_id.clone();
         let save_payment_data = tokenization::SavePaymentMethodData::from(resp);
         let profile_id = payment_data.payment_intent.profile_id.clone();
+
         let connector_mandate = resp.request.customer_acceptance.is_some()
             && matches!(
                 resp.request.setup_future_usage,
