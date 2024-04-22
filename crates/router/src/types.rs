@@ -1364,6 +1364,12 @@ impl From<api_models::admin::MerchantRecipientData> for MerchantRecipientData {
     }
 }
 
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AdditionalMerchantData {
+    OpenBankingRecipientData(MerchantRecipientData),
+}
+
 // Different patterns of authentication.
 #[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(tag = "auth_type")]
@@ -1389,11 +1395,6 @@ pub enum ConnectorAuthType {
     },
     CurrencyAuthKey {
         auth_key_map: HashMap<storage_enums::Currency, pii::SecretSerdeValue>,
-    },
-    OpenBankingAuth {
-        api_key: Secret<String>,
-        key1: Secret<String>,
-        merchant_data: MerchantRecipientData,
     },
     #[default]
     NoKey,
@@ -1433,15 +1434,6 @@ impl From<api_models::admin::ConnectorAuthType> for ConnectorAuthType {
                 Self::CurrencyAuthKey { auth_key_map }
             }
             api_models::admin::ConnectorAuthType::NoKey => Self::NoKey,
-            api_models::admin::ConnectorAuthType::OpenBankingAuth {
-                api_key,
-                key1,
-                merchant_data,
-            } => Self::OpenBankingAuth {
-                api_key,
-                key1,
-                merchant_data: merchant_data.into(),
-            },
         }
     }
 }
@@ -1476,17 +1468,6 @@ impl ForeignFrom<ConnectorAuthType> for api_models::admin::ConnectorAuthType {
                 Self::CurrencyAuthKey { auth_key_map }
             }
             ConnectorAuthType::NoKey => Self::NoKey,
-            ConnectorAuthType::OpenBankingAuth {
-                api_key,
-                key1,
-                merchant_data,
-            } => Self::OpenBankingAuth {
-                api_key,
-                key1,
-                merchant_data: api_models::admin::MerchantRecipientData::foreign_from(
-                    merchant_data,
-                ),
-            },
         }
     }
 }

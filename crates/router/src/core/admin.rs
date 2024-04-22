@@ -11,7 +11,7 @@ use common_utils::{
     pii,
 };
 use diesel_models::{configs, encryption};
-use error_stack::{report, FutureExt, IntoReport, ResultExt};
+use error_stack::{report, FutureExt, ResultExt};
 use futures::future::try_join_all;
 use masking::{PeekInterface, Secret};
 use pm_auth::{connector::plaid::transformers::PlaidAuthType, types as pm_auth_types};
@@ -861,15 +861,26 @@ pub async fn create_payment_connector(
             expected_format: "auth_type and api_key".to_string(),
         })?;
 
-    let auth = process_open_banking_connectors(
-        &state,
-        merchant_id.as_str(),
-        &key_store,
-        auth,
-        &req.connector_type,
-        &req.connector_name,
-    )
-    .await?;
+    let merchant_recipient_data = if let Some(data) = &req.additional_merchant_data {
+        Some(
+            process_open_banking_connectors(
+                &state,
+                merchant_id.as_str(),
+                &key_store,
+                &auth,
+                &req.connector_type,
+                &req.connector_name,
+                data.clone(),
+            )
+            .await?,
+        )
+    } else {
+        None
+    }
+    .map(serde_json::to_value)
+    .transpose()
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to get MerchantRecipientData")?;
 
     validate_auth_and_metadata_type(req.connector_name, &auth, &req.metadata).map_err(|err| {
         match *err.current_context() {
@@ -932,7 +943,6 @@ pub async fn create_payment_connector(
     }
 
     let connector_auth = serde_json::to_value(auth)
-        .into_report()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while encoding to serde_json::Value, ConnectorAuthType")?;
     let conn_auth = Secret::new(connector_auth);
@@ -976,6 +986,17 @@ pub async fn create_payment_connector(
         applepay_verified_domains: None,
         pm_auth_config: req.pm_auth_config.clone(),
         status: connector_status,
+        additional_merchant_data: if let Some(mcd) =  merchant_recipient_data {
+            Some(domain_types::encrypt(
+                Secret::new(mcd),
+                key_store.key.peek(),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt connector account details")?)
+        } else {
+            None
+        },
     };
 
     let transaction_type = match req.connector_type {
@@ -2020,26 +2041,27 @@ async fn process_open_banking_connectors(
     state: &AppState,
     merchant_id: &str,
     key_store: &domain::MerchantKeyStore,
-    auth: types::ConnectorAuthType,
+    auth: &types::ConnectorAuthType,
     connector_type: &api_enums::ConnectorType,
     connector: &api_enums::Connector,
-) -> RouterResult<types::ConnectorAuthType> {
-    match &auth {
-        types::ConnectorAuthType::OpenBankingAuth {
-            api_key,
-            key1,
-            merchant_data,
-        } => {
-            // incorporate a connector check as well
-            if connector_type != &api_enums::ConnectorType::PaymentProcessor {
-                return Err(errors::ApiErrorResponse::InvalidConnectorConfiguration {
-                    config: "OpenBankingAuth type needs to be coupled with a payment connector"
-                        .to_string(),
-                }
-                .into());
-            }
+    merchant_data: serde_json::Value,
+) -> RouterResult<types::MerchantRecipientData> {
+    // incorporate a connector check as well
+    if connector_type != &api_enums::ConnectorType::PaymentProcessor {
+        return Err(errors::ApiErrorResponse::InvalidConnectorConfiguration {
+            config: "OpenBankingAuth type needs to be coupled with a payment connector".to_string(),
+        }
+        .into());
+    }
 
-            let new_auth = match merchant_data {
+    let additional_merchant_data =
+        serde_json::from_value::<types::AdditionalMerchantData>(merchant_data)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed to decode MerchantRecipientData")?;
+
+    let new_merchant_data = match additional_merchant_data {
+        types::AdditionalMerchantData::OpenBankingRecipientData(merchant_data) => {
+            match &merchant_data {
                 types::MerchantRecipientData::AccountData(acc_data) => {
                     validate_bank_account_data(acc_data)?;
 
@@ -2058,7 +2080,7 @@ async fn process_open_banking_connectors(
                             state,
                             merchant_id,
                             connector_name,
-                            &auth,
+                            auth,
                             acc_data,
                         )
                         .await
@@ -2098,19 +2120,14 @@ async fn process_open_banking_connectors(
                         },
                     };
 
-                    types::ConnectorAuthType::OpenBankingAuth {
-                        api_key: api_key.clone(),
-                        key1: key1.clone(),
-                        merchant_data: types::MerchantRecipientData::AccountData(account_data),
-                    }
+                    types::MerchantRecipientData::AccountData(account_data)
                 }
-                _ => auth.clone(),
-            };
-
-            Ok(new_auth)
+                _ => merchant_data.clone(),
+            }
         }
-        _ => Ok(auth.clone()),
-    }
+    };
+
+    Ok(new_merchant_data)
 }
 
 fn validate_bank_account_data(data: &types::MerchantAccountData) -> RouterResult<()> {
@@ -2123,7 +2140,6 @@ fn validate_bank_account_data(data: &types::MerchantAccountData) -> RouterResult
                 .into());
             }
             let pattern = Regex::new(r"^[A-Z0-9]*$")
-                .into_report()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("failed to create regex pattern")?;
 
@@ -2164,7 +2180,6 @@ fn validate_bank_account_data(data: &types::MerchantAccountData) -> RouterResult
 
             let num = result
                 .parse::<u128>()
-                .into_report()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("failed to validate IBAN")?;
 
@@ -2206,7 +2221,6 @@ async fn connector_recipient_create_call(
     )?;
 
     let auth = pm_auth_types::ConnectorAuthType::foreign_try_from(auth.clone())
-        .into_report()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while converting ConnectorAuthType")?;
 
@@ -2291,7 +2305,6 @@ async fn locker_recipient_create_call(
                 crate::logger::error!("Error while encoding merchant bank account data: {}", err);
                 errors::VaultError::SavePaymentMethodFailed
             })
-            .into_report()
             .change_context(errors::VaultError::SavePaymentMethodFailed)
             .attach_printable("Unable to encode merchant bank account data")
             .ok()

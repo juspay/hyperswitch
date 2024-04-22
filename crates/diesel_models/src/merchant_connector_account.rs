@@ -43,6 +43,7 @@ pub struct MerchantConnectorAccount {
     pub applepay_verified_domains: Option<Vec<String>>,
     pub pm_auth_config: Option<serde_json::Value>,
     pub status: storage_enums::ConnectorStatus,
+    pub additional_merchant_data: Option<Encryption>,
 }
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -72,6 +73,7 @@ pub struct MerchantConnectorAccountNew {
     pub applepay_verified_domains: Option<Vec<String>>,
     pub pm_auth_config: Option<serde_json::Value>,
     pub status: storage_enums::ConnectorStatus,
+    pub additional_merchant_data: Option<Encryption>,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]

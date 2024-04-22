@@ -3,7 +3,7 @@ pub mod api;
 use std::marker::PhantomData;
 
 use api::auth_service::{BankAccountCredentials, ExchangeToken, LinkToken, RecipientCreate};
-use common_enums::{CountryAlpha2, PaymentMethodType};
+use common_enums::{CountryAlpha2, PaymentMethod, PaymentMethodType};
 use masking::Secret;
 
 #[derive(Debug, Clone)]

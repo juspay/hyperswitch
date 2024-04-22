@@ -42,15 +42,15 @@ impl ForeignTryFrom<types::ConnectorAuthType> for pm_auth_types::ConnectorAuthTy
                     secret: key1.to_owned(),
                 })
             }
-            types::ConnectorAuthType::OpenBankingAuth {
-                api_key,
-                key1,
-                merchant_data,
-            } => Ok::<Self, errors::ConnectorError>(Self::OpenBankingAuth {
-                api_key,
-                key1,
-                merchant_data: merchant_data.into(),
-            }),
+            // types::ConnectorAuthType::OpenBankingAuth {
+            //     api_key,
+            //     key1,
+            //     merchant_data,
+            // } => Ok::<Self, errors::ConnectorError>(Self::OpenBankingAuth {
+            //     api_key,
+            //     key1,
+            //     merchant_data: merchant_data.into(),
+            // }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType),
         }
     }

@@ -477,6 +477,8 @@ pub struct MerchantConnectorCreate {
 
     #[schema(value_type = Option<ConnectorStatus>, example = "inactive")]
     pub status: Option<api_enums::ConnectorStatus>,
+
+    pub additional_merchant_data: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -506,12 +508,6 @@ pub enum MerchantRecipientData {
     WalletId(Secret<String>),
     AccountData(MerchantAccountData),
 }
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-pub struct OpenBankingAuthType {
-    pub api_key: Secret<String>,
-    pub key1: Secret<String>,
-    pub merchant_data: MerchantRecipientData,
-}
 
 // Different patterns of authentication.
 #[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -538,11 +534,6 @@ pub enum ConnectorAuthType {
     },
     CurrencyAuthKey {
         auth_key_map: HashMap<common_enums::Currency, pii::SecretSerdeValue>,
-    },
-    OpenBankingAuth {
-        api_key: Secret<String>,
-        key1: Secret<String>,
-        merchant_data: MerchantRecipientData,
     },
     #[default]
     NoKey,
@@ -659,6 +650,8 @@ pub struct MerchantConnectorResponse {
 
     #[schema(value_type = ConnectorStatus, example = "inactive")]
     pub status: api_enums::ConnectorStatus,
+
+    pub additional_merchant_data: Option<pii::SecretSerdeValue>,
 }
 
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
