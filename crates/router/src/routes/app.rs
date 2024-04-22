@@ -23,8 +23,6 @@ use super::blocklist;
 use super::dummy_connector::*;
 #[cfg(feature = "payouts")]
 use super::payouts::*;
-#[cfg(feature = "oltp")]
-use super::pm_auth;
 #[cfg(feature = "olap")]
 use super::routing as cloud_routing;
 #[cfg(feature = "olap")]
@@ -41,6 +39,8 @@ use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 use super::{currency, payment_methods::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, webhooks::*};
+#[cfg(feature = "oltp")]
+use super::{pm_auth, poll::retrieve_poll_status};
 #[cfg(feature = "olap")]
 pub use crate::analytics::opensearch::OpenSearchClient;
 use crate::configs::secrets_transformers;
@@ -58,6 +58,11 @@ pub use crate::{
     routes::cards_info::card_iin_info,
     services::get_store,
 };
+
+#[derive(Clone)]
+pub struct ReqState {
+    pub event_context: events::EventContext<crate::events::EventType, EventsHandler>,
+}
 
 #[derive(Clone)]
 pub struct AppState {
@@ -253,6 +258,12 @@ impl AppState {
         ))
         .await
     }
+
+    pub fn get_req_state(&self) -> ReqState {
+        ReqState {
+            event_context: events::EventContext::new(self.event_handler.clone()),
+        }
+    }
 }
 
 pub struct Health;
@@ -321,6 +332,7 @@ impl Payments {
                         .route(web::post().to(payments_list_by_filter)),
                 )
                 .service(web::resource("/filter").route(web::post().to(get_filters_for_payments)))
+                .service(web::resource("/filter_v2").route(web::get().to(get_payment_filters)))
         }
         #[cfg(feature = "oltp")]
         {
@@ -778,8 +790,15 @@ impl PaymentMethods {
                 .service(
                     web::resource("/{payment_method_id}")
                         .route(web::get().to(payment_method_retrieve_api))
-                        .route(web::post().to(payment_method_update_api))
                         .route(web::delete().to(payment_method_delete_api)),
+                )
+                .service(
+                    web::resource("/{payment_method_id}/update")
+                        .route(web::post().to(payment_method_update_api)),
+                )
+                .service(
+                    web::resource("/{payment_method_id}/save")
+                        .route(web::post().to(save_payment_method_api)),
                 )
                 .service(
                     web::resource("/auth/link").route(web::post().to(pm_auth::link_token_create)),
@@ -977,6 +996,17 @@ impl Configs {
     }
 }
 
+pub struct Poll;
+
+#[cfg(feature = "oltp")]
+impl Poll {
+    pub fn server(config: AppState) -> Scope {
+        web::scope("/poll")
+            .app_data(web::Data::new(config))
+            .service(web::resource("/status/{poll_id}").route(web::get().to(retrieve_poll_status)))
+    }
+}
+
 pub struct ApiKeys;
 
 #[cfg(feature = "olap")]
@@ -1149,7 +1179,9 @@ impl User {
                 web::resource("/create_merchant")
                     .route(web::post().to(user_merchant_account_create)),
             )
-            .service(web::resource("/switch/list").route(web::get().to(list_merchant_ids_for_user)))
+            // TODO: Remove this endpoint once migration to /merchants/list is done
+            .service(web::resource("/switch/list").route(web::get().to(list_merchants_for_user)))
+            .service(web::resource("/merchants/list").route(web::get().to(list_merchants_for_user)))
             .service(web::resource("/permission_info").route(web::get().to(get_authorization_info)))
             .service(web::resource("/update").route(web::post().to(update_user_account_details)))
             .service(

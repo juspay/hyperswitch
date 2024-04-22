@@ -17,7 +17,7 @@ use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
         mandate,
-        payment_methods::PaymentMethodRetrieve,
+        payment_methods::{self, PaymentMethodRetrieve},
         payments::{
             self,
             helpers::{
@@ -867,6 +867,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         &mut payment_data,
         router_data.status,
         router_data.response.clone(),
+        storage_scheme,
     )
     .await?;
     let m_db = state.clone().store;
@@ -884,6 +885,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         }
         .in_current_span(),
     );
+
+    // When connector requires redirection for mandate creation it can update the connector mandate_id in payment_methods during Psync and CompleteAuthorize
 
     let flow_name = core_utils::get_flow_name::<F>()?;
     if flow_name == "PSync" || flow_name == "CompleteAuthorize" {
@@ -903,23 +906,31 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             },
             Err(_) => None,
         };
-        if let Some(ref payment_method) = payment_data.payment_method_info {
-            payments::tokenization::update_connector_mandate_details_in_payment_method(
+        if let Some(payment_method) = payment_data.payment_method_info.clone() {
+            let connector_mandate_details =
+                payments::tokenization::update_connector_mandate_details_in_payment_method(
+                    payment_method.clone(),
+                    payment_method.payment_method_type,
+                    Some(payment_data.payment_attempt.amount),
+                    payment_data.payment_attempt.currency,
+                    payment_data.payment_attempt.merchant_connector_id.clone(),
+                    connector_mandate_id,
+                )?;
+            payment_methods::cards::update_payment_method_connector_mandate_details(
+                &*state.store,
                 payment_method.clone(),
-                payment_method.payment_method_type,
-                Some(payment_data.payment_attempt.amount),
-                payment_data.payment_attempt.currency,
-                payment_data.payment_attempt.merchant_connector_id.clone(),
-                connector_mandate_id,
+                connector_mandate_details,
+                storage_scheme,
             )
-            .await?;
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to update payment method in db")?
         }
     }
-
     // When connector requires redirection for mandate creation it can update the connector mandate_id during Psync and CompleteAuthorize
     let m_db = state.clone().store;
-    let m_payment_method_id = payment_data.payment_attempt.payment_method_id.clone();
     let m_router_data_merchant_id = router_data.merchant_id.clone();
+    let m_payment_method_id = payment_data.payment_attempt.payment_method_id.clone();
     let m_payment_data_mandate_id =
         payment_data
             .payment_attempt
@@ -938,6 +949,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 m_payment_data_mandate_id,
                 m_payment_method_id,
                 m_router_data_response,
+                storage_scheme,
             )
             .await
         }
@@ -965,11 +977,12 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
     payment_data: &mut PaymentData<F>,
     attempt_status: common_enums::AttemptStatus,
     payment_response: Result<types::PaymentsResponseData, ErrorResponse>,
+    storage_scheme: enums::MerchantStorageScheme,
 ) -> RouterResult<()> {
     if let Some(id) = &payment_data.payment_attempt.payment_method_id {
         let pm = state
             .store
-            .find_payment_method(id)
+            .find_payment_method(id, storage_scheme)
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
@@ -1001,12 +1014,13 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("The pg_agnostic config was not found in the DB")?;
 
-                if &pg_agnostic.config == "true" {
+                if &pg_agnostic.config == "true"
+                    && payment_data.payment_intent.setup_future_usage
+                        == Some(diesel_models::enums::FutureUsage::OffSession)
+                {
                     Some(network_transaction_id)
                 } else {
-                    logger::info!(
-                        "Skip storing network transaction id as pg_agnostic config is not enabled"
-                    );
+                    logger::info!("Skip storing network transaction id");
                     None
                 }
             } else {
@@ -1035,7 +1049,7 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
 
         state
             .store
-            .update_payment_method(pm, pm_update)
+            .update_payment_method(pm, pm_update, storage_scheme)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to update payment method in db")?;
