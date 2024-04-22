@@ -484,25 +484,24 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                     utils::get_unimplemented_payment_method_error_message("multisafepay"),
                 ))?,
             },
-            api::PaymentMethodData::PayLater(ref _paylater) => Type::Redirect,
-            api::PaymentMethodData::BankRedirect(ref bank_data) => match bank_data {
-                api::BankRedirectData::Giropay { .. } => Type::Redirect,
-                api::BankRedirectData::Ideal { .. } => Type::Direct,
-                api::BankRedirectData::BancontactCard { .. }
-                | api::BankRedirectData::Bizum { .. }
-                | api::BankRedirectData::Blik { .. }
-                | api::BankRedirectData::Eps { .. }
-                | api::BankRedirectData::Interac { .. }
-                | api::BankRedirectData::OnlineBankingCzechRepublic { .. }
-                | api::BankRedirectData::OnlineBankingFinland { .. }
-                | api::BankRedirectData::OnlineBankingPoland { .. }
-                | api::BankRedirectData::OnlineBankingSlovakia { .. }
-                | api::BankRedirectData::OpenBankingUk { .. }
-                | api::BankRedirectData::Przelewy24 { .. }
-                | api::BankRedirectData::Sofort { .. }
-                | api::BankRedirectData::Trustly { .. }
-                | api::BankRedirectData::OnlineBankingFpx { .. }
-                | api::BankRedirectData::OnlineBankingThailand { .. } => {
+            domain::PaymentMethodData::BankRedirect(ref bank_data) => match bank_data {
+                domain::BankRedirectData::Giropay { .. } => Type::Redirect,
+                domain::BankRedirectData::Ideal { .. } => Type::Direct,
+                domain::BankRedirectData::BancontactCard { .. }
+                | domain::BankRedirectData::Bizum { .. }
+                | domain::BankRedirectData::Blik { .. }
+                | domain::BankRedirectData::Eps { .. }
+                | domain::BankRedirectData::Interac { .. }
+                | domain::BankRedirectData::OnlineBankingCzechRepublic { .. }
+                | domain::BankRedirectData::OnlineBankingFinland { .. }
+                | domain::BankRedirectData::OnlineBankingPoland { .. }
+                | domain::BankRedirectData::OnlineBankingSlovakia { .. }
+                | domain::BankRedirectData::OpenBankingUk { .. }
+                | domain::BankRedirectData::Przelewy24 { .. }
+                | domain::BankRedirectData::Sofort { .. }
+                | domain::BankRedirectData::Trustly { .. }
+                | domain::BankRedirectData::OnlineBankingFpx { .. }
+                | domain::BankRedirectData::OnlineBankingThailand { .. } => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("multisafepay"),
                     ))?
@@ -550,7 +549,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 billing_email: _,
                 billing_country: _,
             }) => Some(Gateway::Klarna),
-                domain::PaymentMethodData::BankRedirect(ref bank_data) => Some(match bank_data {
+            domain::PaymentMethodData::BankRedirect(ref bank_data) => Some(match bank_data {
                 domain::BankRedirectData::Giropay { .. } => Gateway::Giropay,
                 domain::BankRedirectData::Ideal { .. } => Gateway::Ideal,
                 domain::BankRedirectData::BancontactCard { .. }
@@ -576,7 +575,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
             domain::PaymentMethodData::MandatePayment => None,
             domain::PaymentMethodData::CardRedirect(_)
             | domain::PaymentMethodData::PayLater(_)
-            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
             | domain::PaymentMethodData::BankTransfer(_)
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::Reward
@@ -727,7 +726,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
             }
             domain::PaymentMethodData::BankRedirect(ref bank_redirect_data) => {
                 match bank_redirect_data {
-                    api::BankRedirectData::Ideal {
+                    domain::BankRedirectData::Ideal {
                         billing_details: _,
                         bank_name,
                         country: _,
