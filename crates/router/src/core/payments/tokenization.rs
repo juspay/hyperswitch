@@ -304,8 +304,7 @@ where
                                                 currency,
                                                 merchant_connector_id.clone(),
                                                 connector_mandate_id.clone(),
-                                            )
-                                            .await?;
+                                            )?;
 
                                         payment_methods::cards::update_payment_method_connector_mandate_details(db, pm, connector_mandate_details, merchant_account.storage_scheme).await.change_context(
                                         errors::ApiErrorResponse::InternalServerError,
@@ -329,6 +328,7 @@ where
                                             pm_data_encrypted,
                                             key_store,
                                             connector_mandate_details,
+                                            None,
                                             network_transaction_id,
                                             merchant_account.storage_scheme,
                                         )
@@ -395,8 +395,7 @@ where
                                                     currency,
                                                     merchant_connector_id.clone(),
                                                     connector_mandate_id.clone(),
-                                                )
-                                                .await?;
+                                                )?;
 
                                             payment_methods::cards::update_payment_method_connector_mandate_details(db, pm.clone(), connector_mandate_details, merchant_account.storage_scheme).await.change_context(
                                             errors::ApiErrorResponse::InternalServerError,
@@ -527,11 +526,13 @@ where
                     None => {
                         let pm_metadata = create_payment_method_metadata(None, connector_token)?;
 
-                        locker_id = if resp.payment_method == PaymentMethod::Card {
-                            Some(resp.payment_method_id)
-                        } else {
-                            None
-                        };
+                        locker_id = resp.payment_method.and_then(|pm| {
+                            if pm == PaymentMethod::Card {
+                                Some(resp.payment_method_id)
+                            } else {
+                                None
+                            }
+                        });
 
                         resp.payment_method_id = generate_id(consts::ID_LENGTH, "pm");
                         payment_methods::cards::create_payment_method(
@@ -546,6 +547,7 @@ where
                             pm_data_encrypted,
                             key_store,
                             connector_mandate_details,
+                            None,
                             network_transaction_id,
                             merchant_account.storage_scheme,
                         )
@@ -622,6 +624,7 @@ async fn skip_saving_card_in_locker(
                 #[cfg(feature = "payouts")]
                 bank_transfer: None,
                 last_used_at: Some(common_utils::date_time::now()),
+                client_secret: None,
             };
 
             Ok((pm_resp, None))
@@ -643,6 +646,7 @@ async fn skip_saving_card_in_locker(
                 #[cfg(feature = "payouts")]
                 bank_transfer: None,
                 last_used_at: Some(common_utils::date_time::now()),
+                client_secret: None,
             };
             Ok((payment_method_response, None))
         }
@@ -692,6 +696,7 @@ pub async fn save_in_locker(
                 installment_payment_enabled: false, //[#219]
                 payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), //[#219]
                 last_used_at: Some(common_utils::date_time::now()),
+                client_secret: None,
             };
             Ok((payment_method_response, None))
         }
@@ -831,7 +836,7 @@ pub fn add_connector_mandate_details_in_payment_method(
     }
 }
 
-pub async fn update_connector_mandate_details_in_payment_method(
+pub fn update_connector_mandate_details_in_payment_method(
     payment_method: diesel_models::PaymentMethod,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     authorized_amount: Option<i64>,
@@ -888,5 +893,6 @@ pub async fn update_connector_mandate_details_in_payment_method(
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to serialize customer acceptance to value")?;
+
     Ok(connector_mandate_details)
 }

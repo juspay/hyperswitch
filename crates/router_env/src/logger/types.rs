@@ -113,6 +113,8 @@ pub enum Flow {
     PaymentMethodsCreate,
     /// Payment methods list flow.
     PaymentMethodsList,
+    /// Payment method save flow
+    PaymentMethodSave,
     /// Customer payment methods list flow.
     CustomerPaymentMethodsList,
     /// List Customers for a merchant
@@ -402,6 +404,8 @@ pub enum Flow {
     WebhookEventDeliveryAttemptList,
     /// Manually retry the delivery for a webhook event
     WebhookEventDeliveryRetry,
+    /// Retrieve status of the Poll
+    RetrievePollStatus,
 }
 
 ///
