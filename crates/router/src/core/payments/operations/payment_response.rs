@@ -97,17 +97,6 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         let save_payment_data = tokenization::SavePaymentMethodData::from(resp);
         let profile_id = payment_data.payment_intent.profile_id.clone();
 
-        let connector_mandate = resp.request.customer_acceptance.is_some()
-            && matches!(
-                resp.request.setup_future_usage,
-                Some(enums::FutureUsage::OffSession)
-            );
-
-        let hs_mandate = resp.request.setup_mandate_details.is_some()
-            && matches!(
-                resp.request.setup_future_usage,
-                Some(enums::FutureUsage::OffSession)
-            );
         let connector_name = payment_data
             .payment_attempt
             .connector
@@ -124,9 +113,10 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             .get_payment_method_billing()
             .and_then(|billing_details| billing_details.address.as_ref())
             .and_then(|address| address.get_optional_full_name());
+
         let save_payment_call_future = Box::pin(tokenization::save_payment_method(
             state,
-            connector_name,
+            connector_name.clone(),
             merchant_connector_id.clone(),
             save_payment_data,
             customer_id.clone(),
@@ -136,10 +126,23 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             Some(resp.request.amount),
             Some(resp.request.currency),
             profile_id,
-            billing_name,
+            billing_name.clone(),
         ));
-        if hs_mandate {
-            // Mandate is created on hyperswitch's end
+
+        let is_connector_mandate = resp.request.customer_acceptance.is_some()
+            && matches!(
+                resp.request.setup_future_usage,
+                Some(enums::FutureUsage::OffSession)
+            );
+
+        let is_legacy_mandate = resp.request.setup_mandate_details.is_some()
+            && matches!(
+                resp.request.setup_future_usage,
+                Some(enums::FutureUsage::OffSession)
+            );
+
+        if is_legacy_mandate {
+            // Mandate is created on the application side and at the connector.
             let (payment_method_id, _payment_method_status) = save_payment_call_future.await?;
 
             let mandate_id = mandate::mandate_procedure(
@@ -154,34 +157,20 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             payment_data.payment_attempt.payment_method_id = payment_method_id;
             payment_data.payment_attempt.mandate_id = mandate_id;
             Ok(())
-        } else if connector_mandate {
+        } else if is_connector_mandate {
             // The mandate is created on connector's end.
             let (payment_method_id, _payment_method_status) = save_payment_call_future.await?;
             payment_data.payment_attempt.payment_method_id = payment_method_id;
             Ok(())
         } else {
             // Save card flow
-            // We aren't performing any mandate related operation the code performs a save card
-            // operation to locker which intern generates a payment_method_id( updated in payment_method table ) and further more the
-            // payment goes in.
-
             let save_payment_data = tokenization::SavePaymentMethodData::from(resp);
             let merchant_account = merchant_account.clone();
             let key_store = key_store.clone();
             let state = state.clone();
             let customer_id = payment_data.payment_intent.customer_id.clone();
             let profile_id = payment_data.payment_intent.profile_id.clone();
-            let connector_name =
-                payment_data
-                    .payment_attempt
-                    .connector
-                    .clone()
-                    .ok_or_else(|| {
-                        logger::error!("Missing required Param connector_name");
-                        errors::ApiErrorResponse::MissingRequiredField {
-                            field_name: "connector_name",
-                        }
-                    })?;
+
             let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
             let payment_attempt = payment_data.payment_attempt.clone();
 
@@ -189,11 +178,6 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             let currency = resp.request.currency;
             let payment_method_type = resp.request.payment_method_type;
             let storage_scheme = merchant_account.clone().storage_scheme;
-            let billing_name = resp
-                .address
-                .get_payment_method_billing()
-                .and_then(|billing_details| billing_details.address.as_ref())
-                .and_then(|address| address.get_optional_full_name());
 
             logger::info!("Call to save_payment_method in locker");
             let _task_handle = tokio::spawn(
