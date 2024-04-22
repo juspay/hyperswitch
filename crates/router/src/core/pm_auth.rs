@@ -311,7 +311,7 @@ async fn store_bank_details_in_payment_methods(
     > = HashMap::new();
 
     for pm in payment_methods {
-        if pm.payment_method == enums::PaymentMethod::BankDebit {
+        if pm.payment_method == Some(enums::PaymentMethod::BankDebit) {
             let bank_details_pm_data = decrypt::<serde_json::Value, masking::WithType>(
                 pm.payment_method_data.clone(),
                 key,
@@ -442,7 +442,7 @@ async fn store_bank_details_in_payment_methods(
                 customer_id: customer_id.clone(),
                 merchant_id: merchant_account.merchant_id.clone(),
                 payment_method_id: pm_id,
-                payment_method: enums::PaymentMethod::BankDebit,
+                payment_method: Some(enums::PaymentMethod::BankDebit),
                 payment_method_type: Some(creds.payment_method_type),
                 payment_method_issuer: None,
                 scheme: None,

@@ -2,8 +2,8 @@ pub use api_models::payment_methods::{
     CardDetail, CardDetailFromLocker, CardDetailsPaymentMethod, CustomerPaymentMethod,
     CustomerPaymentMethodsListResponse, DefaultPaymentMethod, DeleteTokenizeByTokenRequest,
     GetTokenizePayloadRequest, GetTokenizePayloadResponse, ListCountriesCurrenciesRequest,
-    PaymentMethodCreate, PaymentMethodDeleteResponse, PaymentMethodId, PaymentMethodList,
-    PaymentMethodListRequest, PaymentMethodListResponse, PaymentMethodResponse,
+    PaymentMethodCreate, PaymentMethodCreateData, PaymentMethodDeleteResponse, PaymentMethodId,
+    PaymentMethodList, PaymentMethodListRequest, PaymentMethodListResponse, PaymentMethodResponse,
     PaymentMethodUpdate, PaymentMethodsData, TokenizePayloadEncrypted, TokenizePayloadRequest,
     TokenizedCardValue1, TokenizedCardValue2, TokenizedWalletValue1, TokenizedWalletValue2,
 };
@@ -21,15 +21,14 @@ pub(crate) trait PaymentMethodCreateExt {
 // convert self.payment_method_type to payment_method and compare it against self.payment_method
 impl PaymentMethodCreateExt for PaymentMethodCreate {
     fn validate(&self) -> RouterResult<()> {
-        if let Some(payment_method_type) = self.payment_method_type {
-            if !validate_payment_method_type_against_payment_method(
-                self.payment_method,
-                payment_method_type,
-            ) {
-                return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "Invalid 'payment_method_type' provided".to_string()
-                })
-                .attach_printable("Invalid payment method type"));
+        if let Some(pm) = self.payment_method {
+            if let Some(payment_method_type) = self.payment_method_type {
+                if !validate_payment_method_type_against_payment_method(pm, payment_method_type) {
+                    return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                        message: "Invalid 'payment_method_type' provided".to_string()
+                    })
+                    .attach_printable("Invalid payment method type"));
+                }
             }
         }
         Ok(())
