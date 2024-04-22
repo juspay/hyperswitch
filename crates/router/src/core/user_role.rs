@@ -283,7 +283,7 @@ pub async fn delete_user_role(
     };
 
     if user_roles.len() > 1 {
-        state
+        let deleted_user_role = state
             .store
             .delete_user_role_by_user_id_merchant_id(
                 user_from_db.get_user_id(),
@@ -292,6 +292,8 @@ pub async fn delete_user_role(
             .await
             .change_context(UserErrors::InternalServerError)
             .attach_printable("Error while deleting user role")?;
+
+        auth::blacklist::insert_user_in_blacklist(&state, &deleted_user_role.user_id).await?;
 
         Ok(ApplicationResponse::StatusOk)
     } else {
@@ -302,7 +304,7 @@ pub async fn delete_user_role(
             .change_context(UserErrors::InternalServerError)
             .attach_printable("Error while deleting user entry")?;
 
-        state
+        let deleted_user_role = state
             .store
             .delete_user_role_by_user_id_merchant_id(
                 user_from_db.get_user_id(),
@@ -312,6 +314,7 @@ pub async fn delete_user_role(
             .change_context(UserErrors::InternalServerError)
             .attach_printable("Error while deleting user role")?;
 
+        auth::blacklist::insert_user_in_blacklist(&state, &deleted_user_role.user_id).await?;
         Ok(ApplicationResponse::StatusOk)
     }
 }
