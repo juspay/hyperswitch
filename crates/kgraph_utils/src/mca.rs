@@ -168,8 +168,16 @@ fn compile_request_pm_types(
         let any_aggregator = builder
             .make_any_aggregator(
                 &[
-                    (zero_amt_id, cgraph::Relation::Positive),
-                    (or_node_neighbor_id, cgraph::Relation::Positive),
+                    (
+                        zero_amt_id,
+                        cgraph::Relation::Positive,
+                        cgraph::Strength::Strong,
+                    ),
+                    (
+                        or_node_neighbor_id,
+                        cgraph::Relation::Positive,
+                        cgraph::Strength::Strong,
+                    ),
                 ],
                 Some("zero_plus_limits_amount_aggregator"),
                 None::<()>,
@@ -207,12 +215,16 @@ fn compile_payment_method_enabled(
             None::<()>,
         );
 
-        let mut agg_nodes: Vec<(cgraph::NodeId, cgraph::Relation)> = Vec::new();
+        let mut agg_nodes: Vec<(cgraph::NodeId, cgraph::Relation, cgraph::Strength)> = Vec::new();
 
         if let Some(pm_types) = enabled.payment_method_types {
             for pm_type in pm_types {
                 let node_id = compile_request_pm_types(builder, pm_type, enabled.payment_method)?;
-                agg_nodes.push((node_id, cgraph::Relation::Positive));
+                agg_nodes.push((
+                    node_id,
+                    cgraph::Relation::Positive,
+                    cgraph::Strength::Strong,
+                ));
             }
         }
 
@@ -253,13 +265,17 @@ fn compile_merchant_connector_graph(
     let connector = common_enums::RoutableConnectors::from_str(&mca.connector_name)
         .map_err(|_| KgraphError::InvalidConnectorName(mca.connector_name.clone()))?;
 
-    let mut agg_nodes: Vec<(cgraph::NodeId, cgraph::Relation)> = Vec::new();
+    let mut agg_nodes: Vec<(cgraph::NodeId, cgraph::Relation, cgraph::Strength)> = Vec::new();
 
     if let Some(pms_enabled) = mca.payment_methods_enabled {
         for pm_enabled in pms_enabled {
             let maybe_pm_enabled_id = compile_payment_method_enabled(builder, pm_enabled)?;
             if let Some(pm_enabled_id) = maybe_pm_enabled_id {
-                agg_nodes.push((pm_enabled_id, cgraph::Relation::Positive));
+                agg_nodes.push((
+                    pm_enabled_id,
+                    cgraph::Relation::Positive,
+                    cgraph::Strength::Strong,
+                ));
             }
         }
     }
@@ -298,7 +314,7 @@ pub fn make_mca_graph<'a>(
     let mut builder = cgraph::ConstraintGraphBuilder::new();
     let _domain = builder.make_domain(
         DOMAIN_IDENTIFIER,
-        "Payment methods enabled for MerchantConnectorAccount".to_string(),
+        "Payment methods enabled for MerchantConnectorAccount",
     );
     for acct in accts {
         compile_merchant_connector_graph(&mut builder, acct)?;

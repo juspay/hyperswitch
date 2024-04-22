@@ -490,7 +490,7 @@ where
          -> Result<DomainId, GraphError<V>> {
             node_builder.make_domain(
                 domain.domain_identifier.into_inner(),
-                domain.domain_description,
+                &domain.domain_description,
             )
         };
 

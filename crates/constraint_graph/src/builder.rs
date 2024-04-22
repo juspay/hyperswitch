@@ -83,7 +83,7 @@ where
     pub fn make_domain(
         &mut self,
         domain_identifier: &'a str,
-        domain_description: String,
+        domain_description: &str,
     ) -> Result<DomainId, GraphError<V>> {
         let domain_identifier = DomainIdentifier::new(domain_identifier);
         Ok(self
@@ -94,7 +94,7 @@ where
                 || {
                     let domain_id = self.domain.push(DomainInfo {
                         domain_identifier,
-                        domain_description,
+                        domain_description: domain_description.to_string(),
                     });
                     self.domain_identifier_map
                         .insert(domain_identifier, domain_id);
@@ -210,14 +210,14 @@ where
 
     pub fn make_any_aggregator<M: Metadata>(
         &mut self,
-        nodes: &[(NodeId, Relation)],
+        nodes: &[(NodeId, Relation, Strength)],
         info: Option<&'static str>,
         metadata: Option<M>,
         domain: Option<&str>,
     ) -> Result<NodeId, GraphError<V>> {
         nodes
             .iter()
-            .try_for_each(|(node_id, _)| self.ensure_node_exists(*node_id))?;
+            .try_for_each(|(node_id, _, _)| self.ensure_node_exists(*node_id))?;
 
         let aggregator_id = self.nodes.push(Node::new(NodeType::AnyAggregator));
         let _aggregator_info_id = self.node_info.push(info);
@@ -226,8 +226,8 @@ where
             .node_metadata
             .push(metadata.map(|meta| -> Arc<dyn Metadata> { Arc::new(meta) }));
 
-        for (node_id, relation) in nodes {
-            self.make_edge(*node_id, aggregator_id, Strength::Strong, *relation, domain)?;
+        for (node_id, relation, strength) in nodes {
+            self.make_edge(*node_id, aggregator_id, *strength, *relation, domain)?;
         }
 
         Ok(aggregator_id)
