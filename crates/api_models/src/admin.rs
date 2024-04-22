@@ -522,7 +522,7 @@ pub struct MerchantConnectorWebhookDetails {
     pub additional_secret: Option<Secret<String>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, ToSchema)]
 pub struct MerchantConnectorInfo {
     pub connector_label: String,
     pub merchant_connector_id: String,

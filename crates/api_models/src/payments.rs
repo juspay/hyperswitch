@@ -3444,7 +3444,7 @@ pub struct PaymentListFiltersV2 {
     pub authentication_type: Vec<enums::AuthenticationType>,
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct AmountFilter {
     pub start_amount: Option<i64>,
     pub end_amount: Option<i64>,

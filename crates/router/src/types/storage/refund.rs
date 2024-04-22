@@ -1,3 +1,4 @@
+use api_models::payments::AmountFilter;
 use async_bb8_diesel::AsyncRunQueryDsl;
 use common_utils::errors::CustomResult;
 use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
@@ -104,8 +105,28 @@ impl RefundDbExt for Refund {
             }
         }
 
+        filter = match refund_list_details.amount_filter {
+            Some(AmountFilter {
+                start_amount: Some(start),
+                end_amount: Some(end),
+            }) => filter.filter(dsl::refund_amount.between(start, end)),
+            Some(AmountFilter {
+                start_amount: Some(start),
+                end_amount: None,
+            }) => filter.filter(dsl::refund_amount.ge(start)),
+            Some(AmountFilter {
+                start_amount: None,
+                end_amount: Some(end),
+            }) => filter.filter(dsl::refund_amount.le(end)),
+            _ => filter,
+        };
+
         if let Some(connector) = refund_list_details.clone().connector {
             filter = filter.filter(dsl::connector.eq_any(connector));
+        }
+
+        if let Some(merchant_connector_id) = refund_list_details.clone().merchant_connector_id {
+            filter = filter.filter(dsl::merchant_connector_id.eq_any(merchant_connector_id));
         }
 
         if let Some(filter_currency) = &refund_list_details.currency {
@@ -227,8 +248,28 @@ impl RefundDbExt for Refund {
             }
         }
 
-        if let Some(connector) = refund_list_details.clone().connector {
+        filter = match refund_list_details.amount_filter {
+            Some(AmountFilter {
+                start_amount: Some(start),
+                end_amount: Some(end),
+            }) => filter.filter(dsl::refund_amount.between(start, end)),
+            Some(AmountFilter {
+                start_amount: Some(start),
+                end_amount: None,
+            }) => filter.filter(dsl::refund_amount.ge(start)),
+            Some(AmountFilter {
+                start_amount: None,
+                end_amount: Some(end),
+            }) => filter.filter(dsl::refund_amount.le(end)),
+            _ => filter,
+        };
+
+        if let Some(connector) = refund_list_details.connector.clone() {
             filter = filter.filter(dsl::connector.eq_any(connector));
+        }
+
+        if let Some(merchant_connector_id) = refund_list_details.merchant_connector_id.clone() {
+            filter = filter.filter(dsl::merchant_connector_id.eq_any(merchant_connector_id))
         }
 
         if let Some(filter_currency) = &refund_list_details.currency {

@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use super::payments::TimeRange;
+use super::payments::{AmountFilter, TimeRange};
 use crate::{
     admin::{self, MerchantConnectorInfo},
     enums,
@@ -151,11 +151,15 @@ pub struct RefundListRequest {
     pub limit: Option<i64>,
     /// The starting point within a list of objects
     pub offset: Option<i64>,
-    /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
+    /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc)
     #[serde(flatten)]
     pub time_range: Option<TimeRange>,
+    /// The amount to filter reufnds list. Amount takes two option fields start_amount and end_amount from which objects can be filtered as per required scenarios (less_than, greater_than, equal_to and range)
+    pub amount_filter: Option<AmountFilter>,
     /// The list of connectors to filter refunds list
     pub connector: Option<Vec<String>>,
+    /// The list of merchant connector ids to filter the refunds list for selected label
+    pub merchant_connector_id: Option<Vec<String>>,
     /// The list of currencies to filter refunds list
     #[schema(value_type = Option<Vec<Currency>>)]
     pub currency: Option<Vec<enums::Currency>>,
