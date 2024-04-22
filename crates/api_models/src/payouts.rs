@@ -5,7 +5,6 @@ use common_utils::{
     pii::{self, Email},
 };
 use masking::Secret;
-use router_derive::DebugAsDisplay;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
