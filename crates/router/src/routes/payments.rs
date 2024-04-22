@@ -922,14 +922,10 @@ pub async fn payments_list_by_filter(
         state,
         &req,
         payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             payments::apply_filters_on_payments(state, auth.merchant_account, req)
         },
-        auth::auth_type(
-            &auth::ApiKeyAuth,
-            &auth::JWTAuth(Permission::PaymentRead),
-            req.headers(),
-        ),
+        &auth::JWTAuth(Permission::PaymentRead),
         api_locking::LockAction::NotApplicable,
     )
     .await
@@ -948,12 +944,31 @@ pub async fn get_filters_for_payments(
         state,
         &req,
         payload,
-        |state, auth, req, _| payments::get_filters_for_payments(state, auth.merchant_account, req),
-        auth::auth_type(
-            &auth::ApiKeyAuth,
-            &auth::JWTAuth(Permission::PaymentRead),
-            req.headers(),
-        ),
+        |state, auth: auth::AuthenticationData, req, _| {
+            payments::get_filters_for_payments(state, auth.merchant_account, req)
+        },
+        &auth::JWTAuth(Permission::PaymentRead),
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsFilters))]
+#[cfg(feature = "olap")]
+pub async fn get_payment_filters(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+) -> impl Responder {
+    let flow = Flow::PaymentsFilters;
+    api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth: auth::AuthenticationData, _, _| {
+            payments::get_payment_filters(state, auth.merchant_account)
+        },
+        &auth::JWTAuth(Permission::PaymentRead),
         api_locking::LockAction::NotApplicable,
     )
     .await

@@ -11,8 +11,12 @@ pub mod tokenization;
 pub mod transformers;
 pub mod types;
 
+#[cfg(feature = "olap")]
+use std::collections::{HashMap, HashSet};
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant, vec::IntoIter};
 
+#[cfg(feature = "olap")]
+use api_models::admin::MerchantConnectorInfo;
 use api_models::{
     self, enums,
     mandates::RecurringDetails,
@@ -33,6 +37,8 @@ use router_env::{instrument, tracing};
 #[cfg(feature = "olap")]
 use router_types::transformers::ForeignFrom;
 use scheduler::utils as pt_utils;
+#[cfg(feature = "olap")]
+use strum::IntoEnumIterator;
 use time;
 
 pub use self::operations::{
@@ -1144,7 +1150,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
     }
 
     fn get_payment_action(&self) -> services::PaymentAction {
-        services::PaymentAction::CompleteAuthorize
+        services::PaymentAction::PaymentAuthenticateCompleteAuthorize
     }
 }
 
@@ -1704,6 +1710,12 @@ where
             } else if connector.connector_name == router_types::Connector::Nmi
                 && !matches!(format!("{operation:?}").as_str(), "CompleteAuthorize")
                 && router_data.auth_type == storage_enums::AuthenticationType::ThreeDs
+                && !matches!(
+                    payment_data
+                        .payment_attempt
+                        .external_three_ds_authentication_attempted,
+                    Some(true)
+                )
             {
                 router_data = router_data.preprocessing_steps(state, connector).await?;
 
@@ -2584,6 +2596,7 @@ pub async fn apply_filters_on_payments(
             constraints.payment_method,
             constraints.payment_method_type,
             constraints.authentication_type,
+            constraints.merchant_connector_id,
             merchant.storage_scheme,
         )
         .await
@@ -2632,6 +2645,89 @@ pub async fn get_filters_for_payments(
             payment_method: filters.payment_method,
             payment_method_type: filters.payment_method_type,
             authentication_type: filters.authentication_type,
+        },
+    ))
+}
+
+#[cfg(feature = "olap")]
+pub async fn get_payment_filters(
+    state: AppState,
+    merchant: domain::MerchantAccount,
+) -> RouterResponse<api::PaymentListFiltersV2> {
+    let merchant_connector_accounts = if let services::ApplicationResponse::Json(data) =
+        super::admin::list_payment_connectors(state, merchant.merchant_id).await?
+    {
+        data
+    } else {
+        return Err(errors::ApiErrorResponse::InternalServerError.into());
+    };
+
+    let mut connector_map: HashMap<String, Vec<MerchantConnectorInfo>> = HashMap::new();
+    let mut payment_method_types_map: HashMap<
+        enums::PaymentMethod,
+        HashSet<enums::PaymentMethodType>,
+    > = HashMap::new();
+
+    // populate connector map
+    merchant_connector_accounts
+        .iter()
+        .filter_map(|merchant_connector_account| {
+            merchant_connector_account
+                .connector_label
+                .as_ref()
+                .map(|label| {
+                    let info = MerchantConnectorInfo {
+                        connector_label: label.clone(),
+                        merchant_connector_id: merchant_connector_account
+                            .merchant_connector_id
+                            .clone(),
+                    };
+                    (merchant_connector_account.connector_name.clone(), info)
+                })
+        })
+        .for_each(|(connector_name, info)| {
+            connector_map
+                .entry(connector_name.clone())
+                .or_default()
+                .push(info);
+        });
+
+    // populate payment method type map
+    merchant_connector_accounts
+        .iter()
+        .flat_map(|merchant_connector_account| {
+            merchant_connector_account.payment_methods_enabled.as_ref()
+        })
+        .map(|payment_methods_enabled| {
+            payment_methods_enabled
+                .iter()
+                .filter_map(|payment_method_enabled| {
+                    payment_method_enabled
+                        .payment_method_types
+                        .as_ref()
+                        .map(|types_vec| (payment_method_enabled.payment_method, types_vec.clone()))
+                })
+        })
+        .for_each(|payment_methods_enabled| {
+            payment_methods_enabled.for_each(|(payment_method, payment_method_types_vec)| {
+                payment_method_types_map
+                    .entry(payment_method)
+                    .or_default()
+                    .extend(
+                        payment_method_types_vec
+                            .iter()
+                            .map(|p| p.payment_method_type),
+                    );
+            });
+        });
+
+    Ok(services::ApplicationResponse::Json(
+        api::PaymentListFiltersV2 {
+            connector: connector_map,
+            currency: enums::Currency::iter().collect(),
+            status: enums::IntentStatus::iter().collect(),
+            payment_method: payment_method_types_map,
+            authentication_type: enums::AuthenticationType::iter().collect(),
         },
     ))
 }
@@ -3287,7 +3383,7 @@ pub fn is_network_transaction_id_flow(
         .connector_list;
 
     pg_agnostic == "true"
-        && payment_method_info.payment_method == storage_enums::PaymentMethod::Card
+        && payment_method_info.payment_method == Some(storage_enums::PaymentMethod::Card)
         && ntid_supported_connectors.contains(&connector)
         && payment_method_info.network_transaction_id.is_some()
 }

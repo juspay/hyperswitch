@@ -1218,6 +1218,10 @@ pub enum ConnectorAuthType {
     CurrencyAuthKey {
         auth_key_map: HashMap<storage_enums::Currency, pii::SecretSerdeValue>,
     },
+    CertificateAuth {
+        certificate: Secret<String>,
+        private_key: Secret<String>,
+    },
     #[default]
     NoKey,
 }
@@ -1256,6 +1260,13 @@ impl From<api_models::admin::ConnectorAuthType> for ConnectorAuthType {
                 Self::CurrencyAuthKey { auth_key_map }
             }
             api_models::admin::ConnectorAuthType::NoKey => Self::NoKey,
+            api_models::admin::ConnectorAuthType::CertificateAuth {
+                certificate,
+                private_key,
+            } => Self::CertificateAuth {
+                certificate,
+                private_key,
+            },
         }
     }
 }
@@ -1290,6 +1301,13 @@ impl ForeignFrom<ConnectorAuthType> for api_models::admin::ConnectorAuthType {
                 Self::CurrencyAuthKey { auth_key_map }
             }
             ConnectorAuthType::NoKey => Self::NoKey,
+            ConnectorAuthType::CertificateAuth {
+                certificate,
+                private_key,
+            } => Self::CertificateAuth {
+                certificate,
+                private_key,
+            },
         }
     }
 }

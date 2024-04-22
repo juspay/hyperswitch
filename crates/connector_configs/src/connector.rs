@@ -55,6 +55,10 @@ pub enum ConnectorAuthType {
     CurrencyAuthKey {
         auth_key_map: HashMap<String, CurrencyAuthKeyType>,
     },
+    CertificateAuth {
+        certificate: String,
+        private_key: String,
+    },
     #[default]
     NoKey,
 }
@@ -83,6 +87,8 @@ pub struct ConfigMetadata {
     pub merchant_name: Option<String>,
     pub acquirer_bin: Option<String>,
     pub acquirer_merchant_id: Option<String>,
+    pub three_ds_requestor_name: Option<String>,
+    pub three_ds_requestor_id: Option<String>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -159,6 +165,7 @@ pub struct ConnectorConfig {
     pub signifyd: Option<ConnectorTomlConfig>,
     pub trustpay: Option<ConnectorTomlConfig>,
     pub threedsecureio: Option<ConnectorTomlConfig>,
+    pub netcetera: Option<ConnectorTomlConfig>,
     pub tsys: Option<ConnectorTomlConfig>,
     pub volt: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
@@ -219,6 +226,7 @@ impl ConnectorConfig {
         let connector_data = Self::new()?;
         match connector {
             AuthenticationConnectors::Threedsecureio => Ok(connector_data.threedsecureio),
+            AuthenticationConnectors::Netcetera => Ok(connector_data.netcetera),
         }
     }
 
@@ -296,6 +304,7 @@ impl ConnectorConfig {
             Connector::DummyConnector6 => Ok(connector_data.dummy_connector),
             #[cfg(feature = "dummy_connector")]
             Connector::DummyConnector7 => Ok(connector_data.paypal_test),
+            Connector::Netcetera => Ok(connector_data.netcetera),
         }
     }
 }
