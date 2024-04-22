@@ -266,7 +266,7 @@ pub mod routes {
             state,
             &req,
             payload,
-            |state, auth: AuthenticationData, req| async move {
+            |state, auth: AuthenticationData, req, _| async move {
                 analytics::auth_events::get_metrics(
                     &state.pool,
                     &auth.merchant_account.merchant_id,
