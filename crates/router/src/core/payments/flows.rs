@@ -1606,6 +1606,7 @@ default_imp_for_payouts_recipient_account!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Netcetera,
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
