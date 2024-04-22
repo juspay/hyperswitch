@@ -1891,43 +1891,43 @@ impl GetAddressFromPaymentMethodData for BankRedirectData {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct AlfamartVoucherData {
     /// The billing first name for Alfamart
-    #[schema(value_type = String, example = "Jane")]
+    #[schema(value_type = Option<String>, example = "Jane")]
     pub first_name: Option<Secret<String>>,
     /// The billing second name for Alfamart
-    #[schema(value_type = String, example = "Doe")]
+    #[schema(value_type = Option<String>, example = "Doe")]
     pub last_name: Option<Secret<String>>,
     /// The Email ID for Alfamart
-    #[schema(value_type = String, example = "example@me.com")]
+    #[schema(value_type = Option<String>, example = "example@me.com")]
     pub email: Option<Email>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct IndomaretVoucherData {
     /// The billing first name for Alfamart
-    #[schema(value_type = String, example = "Jane")]
+    #[schema(value_type = Option<String>, example = "Jane")]
     pub first_name: Option<Secret<String>>,
     /// The billing second name for Alfamart
-    #[schema(value_type = String, example = "Doe")]
+    #[schema(value_type = Option<String>, example = "Doe")]
     pub last_name: Option<Secret<String>>,
     /// The Email ID for Alfamart
-    #[schema(value_type = String, example = "example@me.com")]
+    #[schema(value_type = Option<String>, example = "example@me.com")]
     pub email: Option<Email>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct JCSVoucherData {
     /// The billing first name for Japanese convenience stores
-    #[schema(value_type = String, example = "Jane")]
-    pub first_name: Secret<String>,
+    #[schema(value_type = Option<String>, example = "Jane")]
+    pub first_name: Option<Secret<String>>,
     /// The billing second name Japanese convenience stores
-    #[schema(value_type = String, example = "Doe")]
+    #[schema(value_type = Option<String>, example = "Doe")]
     pub last_name: Option<Secret<String>>,
     /// The Email ID for Japanese convenience stores
-    #[schema(value_type = String, example = "example@me.com")]
-    pub email: Email,
+    #[schema(value_type = Option<String>, example = "example@me.com")]
+    pub email: Option<Email>,
     /// The telephone number for Japanese convenience stores
-    #[schema(value_type = String, example = "9999999999")]
-    pub phone_number: String,
+    #[schema(value_type = Option<String>, example = "9999999999")]
+    pub phone_number: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -2470,12 +2470,12 @@ impl GetAddressFromPaymentMethodData for VoucherData {
             }),
             Self::Indomaret(voucher_data) => Some(Address {
                 address: Some(AddressDetails {
-                    first_name: Some(voucher_data.first_name.clone()?),
+                    first_name: voucher_data.first_name.clone(),
                     last_name: voucher_data.last_name.clone(),
                     ..AddressDetails::default()
                 }),
                 phone: None,
-                email: Some(voucher_data.email.clone()?),
+                email: voucher_data.email.clone(),
             }),
             Self::Lawson(voucher_data)
             | Self::MiniStop(voucher_data)
@@ -2484,15 +2484,15 @@ impl GetAddressFromPaymentMethodData for VoucherData {
             | Self::PayEasy(voucher_data)
             | Self::SevenEleven(voucher_data) => Some(Address {
                 address: Some(AddressDetails {
-                    first_name: Some(voucher_data.first_name.clone()),
+                    first_name: voucher_data.first_name.clone(),
                     last_name: voucher_data.last_name.clone(),
                     ..AddressDetails::default()
                 }),
                 phone: Some(PhoneDetails {
-                    number: Some(voucher_data.phone_number.clone().into()),
+                    number: voucher_data.phone_number.clone().map(Secret::new),
                     country_code: None,
                 }),
-                email: Some(voucher_data.email.clone()),
+                email: voucher_data.email.clone(),
             }),
             Self::Boleto(_)
             | Self::Efecty

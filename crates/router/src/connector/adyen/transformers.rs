@@ -740,22 +740,18 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for JCSVoucherData {
         Ok(Self {
             first_name: item.get_optional_billing_first_name().ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "billing.first_name",
+                    field_name: "payment_method_data.billing.address.first_name",
                 },
             )?,
-            last_name: Some(item.get_optional_billing_last_name().ok_or(
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "billing.email",
-                },
-            )?),
+            last_name: item.get_optional_billing_last_name(),
             shopper_email: item.get_optional_billing_email().ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "billing.email",
+                    field_name: "payment_method_data.billing.email",
                 },
             )?,
             telephone_number: item.get_optional_billing_phone_number().ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "billing.email",
+                    field_name: "payment_method_data.billing.email",
                 },
             )?,
         })
@@ -2505,17 +2501,13 @@ impl DokuBankData {
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Box<Self>, Error> {
         let first_name = item.get_optional_billing_first_name().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "billing.first_name",
+                field_name: "payment_method_data.billing.address.first_name",
             },
         )?;
-        let last_name = Some(item.get_optional_billing_last_name().ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "billing.last_name",
-            },
-        )?);
+        let last_name = item.get_optional_billing_last_name();
         let shopper_email = item.get_optional_billing_email().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "billing.email",
+                field_name: "payment_method_data.billing.email",
             },
         )?;
         Ok(Box::new(Self {
