@@ -96,7 +96,9 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         let customer_id = payment_data.payment_intent.customer_id.clone();
         let save_payment_data = tokenization::SavePaymentMethodData::from(resp);
         let profile_id = payment_data.payment_intent.profile_id.clone();
-        let is_mandate = &resp.request.setup_mandate_details.is_some();
+        let connector_mandate = &resp.request.setup_mandate_details.is_some();
+        let hyperswitch_mandate = resp.request.setup_mandate_details.is_some() && matches!(resp.request.setup_future_usage, Some(enums::FutureUsage::OffSession));
+        let save_card_flow = matches!(resp.request.setup_future_usage, Some(enums::FutureUsage::OnSession));
         let connector_name = payment_data
             .payment_attempt
             .connector
@@ -113,9 +115,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             .get_payment_method_billing()
             .and_then(|billing_details| billing_details.address.as_ref())
             .and_then(|address| address.get_optional_full_name());
-        if *is_mandate {
-            let (payment_method_id, _payment_method_status) =
-                Box::pin(tokenization::save_payment_method(
+        let save_payment_call_future = Box::pin(tokenization::save_payment_method(
                     state,
                     connector_name,
                     merchant_connector_id.clone(),
@@ -128,8 +128,15 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                     Some(resp.request.currency),
                     profile_id,
                     billing_name,
-                ))
-                .await?;
+                ));
+        if *connector_mandate {
+            // The mandate is created on connector's end.
+            let (payment_method_id, _payment_method_status) = save_payment_call_future.await?;
+            payment_data.payment_attempt.payment_method_id = payment_method_id;
+            Ok(())
+        } else if hyperswitch_mandate {
+            // Mandate is created on hyperswitch's end
+            let (payment_method_id, _payment_method_status) = save_payment_call_future.await?;
 
             let mandate_id = mandate::mandate_procedure(
                 state,
@@ -143,7 +150,11 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             payment_data.payment_attempt.payment_method_id = payment_method_id;
             payment_data.payment_attempt.mandate_id = mandate_id;
             Ok(())
-        } else {
+        } else if save_card_flow {
+            // We aren't performing any mandate related operation the code performs a save card
+            // operation to locker which intern generates a payment_method_id( updated in payment_method table ) and further more the
+            // payment goes in.
+
             let save_payment_data = tokenization::SavePaymentMethodData::from(resp);
             let merchant_account = merchant_account.clone();
             let key_store = key_store.clone();
@@ -218,6 +229,8 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                 }
                 .in_current_span(),
             );
+            Ok(())
+        } else {
             Ok(())
         }
     }
