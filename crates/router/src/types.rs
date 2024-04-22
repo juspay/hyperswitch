@@ -1146,6 +1146,25 @@ pub struct RetrieveFileResponse {
     pub file_data: Vec<u8>,
 }
 
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct PollConfig {
+    pub delay_in_secs: i8,
+    pub frequency: i8,
+}
+
+#[derive(Clone, Debug)]
+pub struct RedirectCallPaymentFlowResponse {
+    pub payments_response: api_models::payments::PaymentsResponse,
+    pub business_profile: diesel_models::business_profile::BusinessProfile,
+}
+
+#[derive(Clone, Debug)]
+pub struct AuthenticateCallPaymentFlowResponse {
+    pub payments_response: api_models::payments::PaymentsResponse,
+    pub poll_config: PollConfig,
+    pub business_profile: diesel_models::business_profile::BusinessProfile,
+}
+
 #[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]
 pub struct ConnectorResponse {
     pub merchant_id: String,

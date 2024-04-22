@@ -4,10 +4,7 @@ use api_models::enums::{DisputeStage, DisputeStatus};
 use common_enums::{IntentStatus, RequestIncrementalAuthorization};
 #[cfg(feature = "payouts")]
 use common_utils::{crypto::Encryptable, pii::Email};
-use common_utils::{
-    errors::CustomResult,
-    ext_traits::{AsyncExt, Encode},
-};
+use common_utils::{errors::CustomResult, ext_traits::AsyncExt};
 use error_stack::{report, ResultExt};
 use maud::{html, PreEscaped};
 use router_env::{instrument, tracing};
@@ -27,7 +24,7 @@ use crate::{
     types::{
         self, domain,
         storage::{self, enums},
-        ErrorResponse,
+        ErrorResponse, PollConfig,
     },
     utils::{generate_id, generate_uuid, OptionExt, ValueExt},
 };
@@ -1098,47 +1095,23 @@ pub fn get_poll_id(merchant_id: String, unique_id: String) -> String {
     format!("poll_{}_{}", merchant_id, unique_id)
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-pub struct PollConfig {
-    pub delay_in_secs: i8,
-    pub frequency: i8,
-}
-
 //Default poll config if it's not set for a connector
-const DEFAULT_POLL_CONFIG: PollConfig = PollConfig {
+pub const DEFAULT_POLL_CONFIG: PollConfig = PollConfig {
     delay_in_secs: 2,
     frequency: 5,
 };
 
-pub async fn get_html_redirect_response_for_external_authentication(
-    state: &AppState,
+pub fn get_html_redirect_response_for_external_authentication(
     return_url_with_query_params: String,
     payment_response: &api_models::payments::PaymentsResponse,
     payment_id: String,
-    connector: String,
+    poll_config: &PollConfig,
 ) -> RouterResult<String> {
     // if intent_status is requires_customer_action then set poll_id, fetch poll config and do a poll_status post message, else do open_url post message to redirect to return_url
     let html = match payment_response.status {
             IntentStatus::RequiresCustomerAction => {
                 // Request poll id sent to client for retrieve_poll_status api
                 let req_poll_id = format!("external_authentication_{}", payment_id);
-                let default_poll_config = DEFAULT_POLL_CONFIG;
-                let default_config_str = default_poll_config.encode_to_string_of_json()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Error while stringifying default poll config")?;
-                let poll_config = state
-                        .store
-                        .find_config_by_key_unwrap_or(
-                            &format!("poll_config_external_three_ds_{connector}"),
-                            Some(default_config_str),
-                    )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("The poll config was not found in the DB")?;
-                let poll_config = serde_json::from_str::<Option<PollConfig>>(&poll_config.config)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Error while parsing PollConfig")?
-                    .unwrap_or(default_poll_config);
                 let poll_frequency = poll_config.frequency;
                 let poll_delay_in_secs = poll_config.delay_in_secs;
                 html! {
