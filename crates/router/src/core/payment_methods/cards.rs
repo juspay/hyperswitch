@@ -1167,7 +1167,7 @@ pub async fn add_card_hs(
             name_on_card: card.card_holder_name.to_owned(),
             card_exp_month: card.card_exp_month.to_owned(),
             card_exp_year: card.card_exp_year.to_owned(),
-            card_brand: None,
+            card_brand: card.card_network.as_ref().map(ToString::to_string),
             card_isin: None,
             nick_name: card.nick_name.as_ref().map(masking::Secret::peek).cloned(),
         },
