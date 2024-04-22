@@ -25,7 +25,7 @@
 // Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
 
 // commands.js or your custom support file
-import ConnectorAuthDetails from "/Users/likhin.bopanna/Desktop/creds.json";
+import ConnectorAuthDetails from "../../../.github/secrets/creds.json";
 import * as Errors from "../fixtures/errors";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 
