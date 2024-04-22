@@ -25,7 +25,7 @@
 // Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
 
 // commands.js or your custom support file
-import ConnectorAuthDetails from "../../../.github/secrets/creds.json";
+import ConnectorAuthDetails from "/Users/likhin.bopanna/Desktop/creds.json";
 import * as Errors from "../fixtures/errors";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 
@@ -664,8 +664,11 @@ Cypress.Commands.add("mitForMandatesCallTest", (requestBody, amount, confirm, ca
       }
     }
     else if(response.body.error.type === "invalid_request") {
-      if(response.body.error.message === "Payment method type not supported") {
-        expect(response.body.error).to.deep.equal(Errors.paymentMethodErrors.paymentMethodDoesNotExist);
+      if(response.body.error.message === Errors.paymentMethodCAErrors.paymentMethodDoesNotExist["message"]) {
+        expect(response.body.error).to.deep.equal(Errors.paymentMethodCAErrors.paymentMethodDoesNotExist);
+      } else if (response.body.error.message === Errors.paymentMethodCAErrors.tokenOrMethodDataMissing["message"]) {
+        expect(response.body.error).to.deep.equal(Errors.paymentMethodCAErrors.tokenOrMethodDataMissing)
+        
       }
     }
   });

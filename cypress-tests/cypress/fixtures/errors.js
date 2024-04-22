@@ -72,7 +72,12 @@ export const paymentMethodCAErrors = {
         "type": "invalid_request",
         "message": "Payment method does not exist in our records",
         "code": "HE_02"
-    }
+    },
+    "tokenOrMethodDataMissing": {
+        "type": "invalid_request",
+        "message": "A payment token or payment method data is required",
+        "code": "IR_06"
+    },
 };
 
 export const paymentErrors = {
