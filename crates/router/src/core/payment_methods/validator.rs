@@ -68,26 +68,19 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
     );
 
     // Fetch SDK host
-    let sdk_host = "".to_string();
+    let sdk_host = state
+        .conf
+        .generic_link
+        .payment_method_collect
+        .sdk_url
+        .clone();
+    let domain = state.conf.server.base_url.clone();
 
     Ok(PaymentMethodCollectLinkData {
         pm_collect_link_id: pm_collect_link_id.clone(),
         customer_id,
-        link: format!("https://host/payment_methods/collect/{pm_collect_link_id}"),
+        link: format!("{domain}/payment_methods/collect/{merchant_id}/{pm_collect_link_id}"),
         sdk_host,
         client_secret,
     })
 }
-
-// fn validate_pm_collect_link_status(
-//     state: &AppState,
-//     merchant_account: &domain::MerchantAccount,
-//     key_store: &domain::MerchantKeyStore,
-//     req: &PaymentMethodCollectLinkRenderRequest,
-// ) -> RouterResult<PaymentMethodCollectLinkData> {
-    
-//     let expiry = pm_collect_link.expiry;
-//     if common_utils::date_time::now() > expiry {
-//         Err(errors::ApiErrorResponse::Inva)
-//     }
-// }

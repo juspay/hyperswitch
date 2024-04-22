@@ -18,7 +18,7 @@ use crate::{
         pm_auth as core_pm_auth,
     },
     routes::{app::StorageInterface, AppState},
-    services,
+    services::{self, GenericLinks},
     types::{
         api::{self, payments},
         domain, storage,
@@ -324,9 +324,9 @@ pub async fn render_pm_collect_link(
     key_store: domain::MerchantKeyStore,
     req: payment_methods::PaymentMethodCollectLinkRenderRequest,
 ) -> RouterResponse<services::GenericLinkFormData> {
-    // Fetch pm collect link data
     let db: &dyn StorageInterface = &*state.store;
 
+    // Fetch pm collect link
     let pm_collect_link = db
         .find_generic_link_by_link_id(&req.pm_collect_link_id)
         .await
@@ -341,13 +341,71 @@ pub async fn render_pm_collect_link(
         enums::GenericLinkStatus::PaymentMethodCollect(
             enums::PaymentMethodCollectStatus::Initiated,
         ) => {
-            // Check expiry
+            // if expired, send back expired status page
             if has_expired {
-                //  Send back expired status page
                 todo!()
+
+            // else, send back form link
             } else {
-                // Send back link
-                todo!()
+                // Fetch customer
+                let customer = db
+                    .find_customer_by_customer_id_merchant_id(
+                        &pm_collect_link.primary_reference,
+                        &req.merchant_id,
+                        &key_store,
+                        merchant_account.storage_scheme,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                        message: format!(
+                            "Customer [{}] not found for link_id - {}",
+                            pm_collect_link.primary_reference, pm_collect_link.link_id
+                        ),
+                    })
+                    .attach_printable(format!(
+                        "customer [{}] not found",
+                        pm_collect_link.primary_reference
+                    ))?;
+
+                let link_data = pm_collect_link
+                    .link_data
+                    .get_payment_method_collect_data()
+                    .map_err(|e| report!(errors::ApiErrorResponse::InternalServerError))?;
+
+                let theme = payment_methods::PaymentMethodCollectLinkTheme {
+                    primary_color: "#1a1a1a".to_string(),
+                };
+
+                let js_data = payment_methods::PaymentMethodCollectLinkDetails {
+                    pub_key: merchant_account.publishable_key.ok_or(
+                        errors::ApiErrorResponse::MissingRequiredField {
+                            field_name: "pub_key",
+                        },
+                    )?,
+                    client_secret: link_data.client_secret.clone(),
+                    pm_collect_link_id: pm_collect_link.link_id,
+                    customer_id: customer.customer_id,
+                    session_expiry: pm_collect_link.expiry,
+                    return_url: "".to_string(),
+                    theme,
+                };
+
+                let css_data = "";
+
+                let generic_form_data = services::GenericLinkFormData {
+                    js_data: serialize_dynamic_content(&js_data)?,
+                    css_data: css_data.to_string(),
+                    sdk_url: state
+                        .conf
+                        .generic_link
+                        .payment_method_collect
+                        .sdk_url
+                        .clone(),
+                    html_meta_tags: "".to_string(),
+                };
+                Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
+                    GenericLinks::PaymentMethodCollect(generic_form_data),
+                )))
             }
         }
         enums::GenericLinkStatus::PaymentMethodCollect(
@@ -363,4 +421,13 @@ pub async fn render_pm_collect_link(
             todo!()
         }
     }
+}
+
+fn serialize_dynamic_content(
+    js_data: &payment_methods::PaymentMethodCollectLinkDetails,
+) -> RouterResult<String> {
+    let js_data_str = serde_json::to_string(js_data)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to serialize PaymentMethodCollectLinkDetails")?;
+    Ok(format!("window.__PM_COLLECT_DETAILS = {js_data_str};"))
 }

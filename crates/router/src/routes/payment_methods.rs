@@ -226,6 +226,22 @@ pub async fn initiate_pm_collect_link_flow(
     .await
 }
 
+/// Generate a form link for collecting payment methods for a customer
+#[utoipa::path(
+    post,
+    path = "/payment_methods/collect/{merchant_id}/{collect_id}",
+    params (
+        ("merchant_id" = String, Path, description = "The identifier for the merchant"),
+        ("collect_id" = String, Path, description = "The identifier for the payment method collect link")
+    ),
+    responses(
+        (status = 200, description = "Payment method collect link rendered")
+    ),
+    tag = "Payment Methods Collect",
+    operation_id = "Render form link for collecting payment methods for a customer",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodCollectLink))]
 pub async fn render_pm_collect_link(
     state: web::Data<AppState>,
     req: HttpRequest,

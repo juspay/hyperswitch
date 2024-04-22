@@ -907,6 +907,23 @@ pub struct PaymentMethodCollectLinkRenderRequest {
     pub pm_collect_link_id: String,
 }
 
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PaymentMethodCollectLinkDetails {
+    pub pub_key: String,
+    pub client_secret: String,
+    pub pm_collect_link_id: String,
+    pub customer_id: String,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub session_expiry: time::PrimitiveDateTime,
+    pub return_url: String,
+    pub theme: PaymentMethodCollectLinkTheme,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PaymentMethodCollectLinkTheme {
+    pub primary_color: String,
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct MaskedBankDetails {
     pub mask: String,

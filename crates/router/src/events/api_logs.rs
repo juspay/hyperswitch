@@ -17,7 +17,7 @@ use crate::{
     core::payments::PaymentsRedirectResponseData,
     services::{
         authentication::AuthenticationType, kafka::KafkaMessage, ApplicationResponse,
-        GenericLinkFormData,
+        GenericLinkFormData, PaymentLinkFormData,
     },
     types::api::{
         AttachEvidenceRequest, Config, ConfigUpdate, CreateFileRequest, DisputeId, FileId,
@@ -115,6 +115,7 @@ impl_misc_api_event_type!(
     CreateFileRequest,
     FileId,
     AttachEvidenceRequest,
+    PaymentLinkFormData,
     GenericLinkFormData,
     ConfigUpdate
 );

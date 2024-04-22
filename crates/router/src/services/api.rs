@@ -846,17 +846,34 @@ pub enum ApplicationResponse<R> {
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum GenericLinks {
+    ExpiredLink(GenericExpiredLinkData),
     PaymentMethodCollect(GenericLinkFormData),
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub enum PaymentLinkAction {
-    PaymentLinkFormData(GenericLinkFormData),
-    PaymentLinkStatus(PaymentLinkStatusData),
+    PaymentMethodCollectStatus(GenericLinkFormData),
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GenericLinkFormData {
+    pub js_data: String,
+    pub css_data: String,
+    pub sdk_url: String,
+    pub html_meta_tags: String,
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GenericExpiredLinkData {
+    pub title: String,
+    pub message: String,
+    pub theme: String,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum PaymentLinkAction {
+    PaymentLinkFormData(PaymentLinkFormData),
+    PaymentLinkStatus(PaymentLinkStatusData),
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaymentLinkFormData {
     pub js_script: String,
     pub css_script: String,
     pub sdk_url: String,
@@ -1970,7 +1987,7 @@ pub fn build_redirection_form(
 }
 
 pub fn build_payment_link_html(
-    payment_link_data: GenericLinkFormData,
+    payment_link_data: PaymentLinkFormData,
 ) -> CustomResult<String, errors::ApiErrorResponse> {
     let mut tera = Tera::default();
 

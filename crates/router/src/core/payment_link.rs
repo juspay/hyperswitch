@@ -51,7 +51,7 @@ pub async fn initiate_payment_link_flow(
     merchant_account: domain::MerchantAccount,
     merchant_id: String,
     payment_id: String,
-) -> RouterResponse<services::GenericLinkFormData> {
+) -> RouterResponse<services::PaymentLinkFormData> {
     let db = &*state.store;
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
@@ -221,7 +221,7 @@ pub async fn initiate_payment_link_flow(
 
     let html_meta_tags = get_meta_tags_html(payment_details);
 
-    let payment_link_data = services::GenericLinkFormData {
+    let payment_link_data = services::PaymentLinkFormData {
         js_script,
         sdk_url: state.conf.payment_link.sdk_url.clone(),
         css_script,
@@ -475,7 +475,7 @@ pub async fn get_payment_link_status(
     merchant_account: domain::MerchantAccount,
     merchant_id: String,
     payment_id: String,
-) -> RouterResponse<services::GenericLinkFormData> {
+) -> RouterResponse<services::PaymentLinkFormData> {
     let db = &*state.store;
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(

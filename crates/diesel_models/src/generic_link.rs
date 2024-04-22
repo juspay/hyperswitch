@@ -92,6 +92,15 @@ pub enum GenericLinkData {
     PaymentMethodCollect(PaymentMethodCollectLinkData),
 }
 
+impl GenericLinkData {
+    pub fn get_payment_method_collect_data(&self) -> Result<&PaymentMethodCollectLinkData, String> {
+        match self {
+            Self::PaymentMethodCollect(pm) => Ok(pm),
+            _ => Err("invalid variant for fetching payment_method_collect data".to_string()),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaymentMethodCollectLinkData {
     pub pm_collect_link_id: String,
