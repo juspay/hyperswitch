@@ -386,7 +386,6 @@ where
                             .await;
                     let external_latency = current_time.elapsed().as_millis();
                     logger::info!(raw_connector_request=?masked_request_body);
-                    logger::info!(raw_connector_response=?response);
                     let status_code = response
                         .as_ref()
                         .map(|i| {
@@ -874,6 +873,7 @@ pub struct RedirectionFormData {
 pub enum PaymentAction {
     PSync,
     CompleteAuthorize,
+    PaymentAuthenticateCompleteAuthorize,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -951,7 +951,7 @@ pub enum AuthFlow {
 pub async fn server_wrap_util<'a, 'b, U, T, Q, F, Fut, E, OErr>(
     flow: &'a impl router_env::types::FlowMetric,
     state: web::Data<AppState>,
-    request_state: ReqState,
+    mut request_state: ReqState,
     request: &'a HttpRequest,
     payload: T,
     func: F,
@@ -973,6 +973,12 @@ where
         .attach_printable("Unable to extract request id from request")
         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?;
 
+    request_state.event_context.record_info(request_id);
+    request_state
+        .event_context
+        .record_info(("flow".to_string(), flow.to_string()));
+    // request_state.event_context.record_info(request.clone());
+
     let mut app_state = state.get_ref().clone();
 
     app_state.add_request_id(request_id);
@@ -988,6 +994,8 @@ where
         .authenticate_and_fetch(request.headers(), &app_state)
         .await
         .switch()?;
+
+    request_state.event_context.record_info(auth_type.clone());
 
     let merchant_id = auth_type
         .get_merchant_id()

@@ -1,6 +1,9 @@
 // use actix_web::HttpMessage;
 use actix_web::http::header::HeaderMap;
-use api_models::{enums as api_enums, gsm as gsm_api_types, payments, routing::ConnectorSelection};
+use api_models::{
+    enums as api_enums, gsm as gsm_api_types, payment_methods, payments,
+    routing::ConnectorSelection,
+};
 use common_utils::{
     consts::X_HS_LATENCY,
     crypto::Encryptable,
@@ -67,6 +70,28 @@ impl ForeignFrom<api_models::refunds::RefundType> for storage_enums::RefundType 
         match item {
             api_models::refunds::RefundType::Instant => Self::InstantRefund,
             api_models::refunds::RefundType::Scheduled => Self::RegularRefund,
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::PaymentMethod> for payment_methods::PaymentMethodResponse {
+    fn foreign_from(item: diesel_models::PaymentMethod) -> Self {
+        Self {
+            merchant_id: item.merchant_id,
+            customer_id: Some(item.customer_id),
+            payment_method_id: item.payment_method_id,
+            payment_method: item.payment_method,
+            payment_method_type: item.payment_method_type,
+            card: None,
+            recurring_enabled: false,
+            installment_payment_enabled: false,
+            payment_experience: None,
+            metadata: item.metadata,
+            created: Some(item.created_at),
+            #[cfg(feature = "payouts")]
+            bank_transfer: None,
+            last_used_at: None,
+            client_secret: item.client_secret,
         }
     }
 }
@@ -209,6 +234,11 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Klarna => Self::Klarna,
             api_enums::Connector::Mollie => Self::Mollie,
             api_enums::Connector::Multisafepay => Self::Multisafepay,
+            api_enums::Connector::Netcetera => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "netcetera is not a routable connector".to_string(),
+                })?
+            }
             api_enums::Connector::Nexinets => Self::Nexinets,
             api_enums::Connector::Nmi => Self::Nmi,
             api_enums::Connector::Noon => Self::Noon,
@@ -588,6 +618,7 @@ impl<'a> From<&'a domain::Address> for api_types::Address {
             && address.line2.is_none()
             && address.line3.is_none()
             && address.state.is_none()
+            && address.country.is_none()
             && address.zip.is_none()
             && address.first_name.is_none()
             && address.last_name.is_none()

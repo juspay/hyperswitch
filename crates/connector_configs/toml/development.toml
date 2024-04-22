@@ -2340,6 +2340,12 @@ pay_wall_secret="Pay Wall Secret"
 terminal_uuid="Terminal UUID"
 pay_wall_secret="Pay Wall Secret"
 
+[zsl]
+[[zsl.bank_transfer]]
+  payment_method_type = "local_bank_transfer"
+[zsl.connector_auth.BodyKey]
+api_key = "Key"
+key1 = "Merchant ID"
 
 [dummy_connector]
 [[dummy_connector.credit]]

@@ -417,6 +417,7 @@ pub async fn get_token_pm_type_mandate_details(
     mandate_type: Option<api::MandateTransactionType>,
     merchant_account: &domain::MerchantAccount,
     merchant_key_store: &domain::MerchantKeyStore,
+    payment_method_id: Option<String>,
 ) -> RouterResult<MandateGenericData> {
     let mandate_data = request.mandate_data.clone().map(MandateData::foreign_from);
     let (
@@ -432,7 +433,7 @@ pub async fn get_token_pm_type_mandate_details(
             request.payment_token.to_owned(),
             request.payment_method,
             request.payment_method_type,
-            Some(mandate_data.clone().get_required_value("mandate_data")?),
+            mandate_data.clone(),
             None,
             None,
             None,
@@ -485,7 +486,7 @@ pub async fn get_token_pm_type_mandate_details(
 
                         (
                             None,
-                            Some(payment_method_info.payment_method),
+                            payment_method_info.payment_method,
                             payment_method_info.payment_method_type,
                             None,
                             None,
@@ -495,41 +496,61 @@ pub async fn get_token_pm_type_mandate_details(
                     }
                 },
                 None => {
-                    let mandate_id = request
-                        .mandate_id
-                        .clone()
-                        .get_required_value("mandate_id")?;
-                    let mandate_generic_data = get_token_for_recurring_mandate(
-                        state,
-                        request,
-                        merchant_account,
-                        merchant_key_store,
-                        mandate_id,
-                    )
-                    .await?;
-                    (
-                        mandate_generic_data.token,
-                        mandate_generic_data.payment_method,
-                        mandate_generic_data
-                            .payment_method_type
-                            .or(request.payment_method_type),
-                        None,
-                        mandate_generic_data.recurring_mandate_payment_data,
-                        mandate_generic_data.mandate_connector,
-                        None,
-                    )
+                    if let Some(mandate_id) = request.mandate_id.clone() {
+                        let mandate_generic_data = get_token_for_recurring_mandate(
+                            state,
+                            request,
+                            merchant_account,
+                            merchant_key_store,
+                            mandate_id,
+                        )
+                        .await?;
+                        (
+                            mandate_generic_data.token,
+                            mandate_generic_data.payment_method,
+                            mandate_generic_data
+                                .payment_method_type
+                                .or(request.payment_method_type),
+                            None,
+                            mandate_generic_data.recurring_mandate_payment_data,
+                            mandate_generic_data.mandate_connector,
+                            None,
+                        )
+                    } else {
+                        (
+                            request.payment_token.to_owned(),
+                            request.payment_method,
+                            request.payment_method_type,
+                            None,
+                            None,
+                            None,
+                            None,
+                        )
+                    }
                 }
             }
         }
-        None => (
-            request.payment_token.to_owned(),
-            request.payment_method,
-            request.payment_method_type,
-            mandate_data,
-            None,
-            None,
-            None,
-        ),
+        None => {
+            let payment_method_info = payment_method_id
+                .async_map(|payment_method_id| async move {
+                    state
+                        .store
+                        .find_payment_method(&payment_method_id, merchant_account.storage_scheme)
+                        .await
+                        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
+                })
+                .await
+                .transpose()?;
+            (
+                request.payment_token.to_owned(),
+                request.payment_method,
+                request.payment_method_type,
+                mandate_data,
+                None,
+                None,
+                payment_method_info,
+            )
+        }
     };
     Ok(MandateGenericData {
         token: payment_token,
@@ -552,7 +573,11 @@ pub async fn get_token_for_recurring_mandate(
     let db = &*state.store;
 
     let mandate = db
-        .find_mandate_by_merchant_id_mandate_id(&merchant_account.merchant_id, mandate_id.as_str())
+        .find_mandate_by_merchant_id_mandate_id(
+            &merchant_account.merchant_id,
+            mandate_id.as_str(),
+            merchant_account.storage_scheme,
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
 
@@ -610,7 +635,7 @@ pub async fn get_token_for_recurring_mandate(
         merchant_connector_id: mandate.merchant_connector_id,
     };
 
-    if let diesel_models::enums::PaymentMethod::Card = payment_method.payment_method {
+    if let Some(diesel_models::enums::PaymentMethod::Card) = payment_method.payment_method {
         if state.conf.locker.locker_enabled {
             let _ = cards::get_lookup_key_from_locker(
                 state,
@@ -623,11 +648,14 @@ pub async fn get_token_for_recurring_mandate(
 
         if let Some(payment_method_from_request) = req.payment_method {
             let pm: storage_enums::PaymentMethod = payment_method_from_request;
-            if pm != payment_method.payment_method {
+            if payment_method
+                .payment_method
+                .is_some_and(|payment_method| payment_method != pm)
+            {
                 Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                     message:
                         "payment method in request does not match previously provided payment \
-                        method information"
+                            method information"
                             .into()
                 }))?
             }
@@ -635,7 +663,7 @@ pub async fn get_token_for_recurring_mandate(
 
         Ok(MandateGenericData {
             token: Some(token),
-            payment_method: Some(payment_method.payment_method),
+            payment_method: payment_method.payment_method,
             recurring_mandate_payment_data: Some(payments::RecurringMandatePaymentData {
                 payment_method_type,
                 original_payment_authorized_amount,
@@ -649,7 +677,7 @@ pub async fn get_token_for_recurring_mandate(
     } else {
         Ok(MandateGenericData {
             token: None,
-            payment_method: Some(payment_method.payment_method),
+            payment_method: payment_method.payment_method,
             recurring_mandate_payment_data: Some(payments::RecurringMandatePaymentData {
                 payment_method_type,
                 original_payment_authorized_amount,
@@ -791,47 +819,57 @@ pub fn validate_card_data(
             },
         )?;
 
-        let exp_month = card
-            .card_exp_month
-            .peek()
-            .to_string()
-            .parse::<u8>()
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "card_exp_month",
-            })?;
-        let month = ::cards::CardExpirationMonth::try_from(exp_month).change_context(
-            errors::ApiErrorResponse::PreconditionFailed {
-                message: "Invalid Expiry Month".to_string(),
-            },
-        )?;
-        let mut year_str = card.card_exp_year.peek().to_string();
-        if year_str.len() == 2 {
-            year_str = format!("20{}", year_str);
-        }
-        let exp_year =
-            year_str
-                .parse::<u16>()
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "card_exp_year",
-                })?;
-        let year = ::cards::CardExpirationYear::try_from(exp_year).change_context(
-            errors::ApiErrorResponse::PreconditionFailed {
-                message: "Invalid Expiry Year".to_string(),
-            },
-        )?;
-
-        let card_expiration = ::cards::CardExpiration { month, year };
-        let is_expired = card_expiration.is_expired().change_context(
-            errors::ApiErrorResponse::PreconditionFailed {
-                message: "Invalid card data".to_string(),
-            },
-        )?;
-        if is_expired {
-            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                message: "Card Expired".to_string()
-            }))?
-        }
+        validate_card_expiry(&card.card_exp_month, &card.card_exp_year)?;
     }
+    Ok(())
+}
+
+#[instrument(skip_all)]
+pub fn validate_card_expiry(
+    card_exp_month: &masking::Secret<String>,
+    card_exp_year: &masking::Secret<String>,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    let exp_month = card_exp_month
+        .peek()
+        .to_string()
+        .parse::<u8>()
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "card_exp_month",
+        })?;
+    let month = ::cards::CardExpirationMonth::try_from(exp_month).change_context(
+        errors::ApiErrorResponse::PreconditionFailed {
+            message: "Invalid Expiry Month".to_string(),
+        },
+    )?;
+
+    let mut year_str = card_exp_year.peek().to_string();
+    if year_str.len() == 2 {
+        year_str = format!("20{}", year_str);
+    }
+    let exp_year =
+        year_str
+            .parse::<u16>()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "card_exp_year",
+            })?;
+    let year = ::cards::CardExpirationYear::try_from(exp_year).change_context(
+        errors::ApiErrorResponse::PreconditionFailed {
+            message: "Invalid Expiry Year".to_string(),
+        },
+    )?;
+
+    let card_expiration = ::cards::CardExpiration { month, year };
+    let is_expired = card_expiration.is_expired().change_context(
+        errors::ApiErrorResponse::PreconditionFailed {
+            message: "Invalid card data".to_string(),
+        },
+    )?;
+    if is_expired {
+        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+            message: "Card Expired".to_string()
+        }))?
+    }
+
     Ok(())
 }
 
@@ -1229,7 +1267,7 @@ pub(crate) async fn get_payment_method_create_request(
                     };
                     let customer_id = customer.customer_id.clone();
                     let payment_method_request = api::PaymentMethodCreate {
-                        payment_method,
+                        payment_method: Some(payment_method),
                         payment_method_type,
                         payment_method_issuer: card.card_issuer.clone(),
                         payment_method_issuer_code: None,
@@ -1244,12 +1282,14 @@ pub(crate) async fn get_payment_method_create_request(
                             .card_network
                             .as_ref()
                             .map(|card_network| card_network.to_string()),
+                        client_secret: None,
+                        payment_method_data: None,
                     };
                     Ok(payment_method_request)
                 }
                 _ => {
                     let payment_method_request = api::PaymentMethodCreate {
-                        payment_method,
+                        payment_method: Some(payment_method),
                         payment_method_type,
                         payment_method_issuer: None,
                         payment_method_issuer_code: None,
@@ -1261,6 +1301,8 @@ pub(crate) async fn get_payment_method_create_request(
                         metadata: None,
                         customer_id: Some(customer.customer_id.to_owned()),
                         card_network: None,
+                        client_secret: None,
+                        payment_method_data: None,
                     };
 
                     Ok(payment_method_request)
@@ -1865,7 +1907,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
 
     if payment_data.token_data.is_none() {
         if let Some(payment_method_info) = &payment_data.payment_method_info {
-            if payment_method_info.payment_method == storage_enums::PaymentMethod::Card {
+            if payment_method_info.payment_method == Some(storage_enums::PaymentMethod::Card) {
                 payment_data.token_data =
                     Some(storage::PaymentTokenData::PermanentCard(CardTokenData {
                         payment_method_id: Some(payment_method_info.payment_method_id.clone()),

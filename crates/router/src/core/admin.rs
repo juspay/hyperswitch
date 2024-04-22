@@ -1863,6 +1863,10 @@ pub(crate) fn validate_auth_and_metadata_type(
             multisafepay::transformers::MultisafepayAuthType::try_from(val)?;
             Ok(())
         }
+        api_enums::Connector::Netcetera => {
+            netcetera::transformers::NetceteraAuthType::try_from(val)?;
+            Ok(())
+        }
         api_enums::Connector::Nexinets => {
             nexinets::transformers::NexinetsAuthType::try_from(val)?;
             Ok(())

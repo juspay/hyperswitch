@@ -1,6 +1,6 @@
 use std::{marker::PhantomData, str::FromStr};
 
-use api_models::payments::{Address, AddressDetails};
+use api_models::payments::{Address, AddressDetails, PhoneDetails};
 use masking::Secret;
 use router::{
     configs::settings::Settings,
@@ -87,7 +87,10 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
                     last_name: Some(Secret::new("Doe".to_string())),
                     ..Default::default()
                 }),
-                phone: None,
+                phone: Some(PhoneDetails {
+                    number: Some(Secret::new("8056594427".to_string())),
+                    country_code: Some("+351".to_string()),
+                }),
                 email: None,
             }),
         ),
