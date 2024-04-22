@@ -1095,11 +1095,9 @@ pub fn get_poll_id(merchant_id: String, unique_id: String) -> String {
     format!("poll_{}_{}", merchant_id, unique_id)
 }
 
-//Default poll config if it's not set for a connector
-pub const DEFAULT_POLL_CONFIG: PollConfig = PollConfig {
-    delay_in_secs: 2,
-    frequency: 5,
-};
+pub fn get_external_authentication_request_poll_id(payment_id: &String) -> String {
+    format!("external_authentication_{}", payment_id)
+}
 
 pub fn get_html_redirect_response_for_external_authentication(
     return_url_with_query_params: String,
@@ -1111,7 +1109,7 @@ pub fn get_html_redirect_response_for_external_authentication(
     let html = match payment_response.status {
             IntentStatus::RequiresCustomerAction => {
                 // Request poll id sent to client for retrieve_poll_status api
-                let req_poll_id = format!("external_authentication_{}", payment_id);
+                let req_poll_id = get_external_authentication_request_poll_id(&payment_id);
                 let poll_frequency = poll_config.frequency;
                 let poll_delay_in_secs = poll_config.delay_in_secs;
                 html! {

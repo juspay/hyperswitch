@@ -157,9 +157,8 @@ pub async fn perform_post_authentication<F: Clone + Send>(
             }
             // When authentication status is non-terminal, Set poll_id in redis to allow the fetch status of poll through retrieve_poll_status api from client
             if !authentication_status.is_terminal_status() {
-                let req_poll_id = format!(
-                    "external_authentication_{}",
-                    payment_data.payment_intent.payment_id
+                let req_poll_id = super::utils::get_external_authentication_request_poll_id(
+                    &payment_data.payment_intent.payment_id,
                 );
                 let poll_id = super::utils::get_poll_id(
                     business_profile.merchant_id.clone(),

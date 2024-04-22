@@ -535,7 +535,7 @@ pub async fn external_authentication_incoming_webhook_flow<Ctx: PaymentMethodRet
                         // Set poll_id as completed in redis to allow the fetch status of poll through retrieve_poll_status api from client
                         let poll_id = super::utils::get_poll_id(
                             merchant_account.merchant_id.clone(),
-                            format!("external_authentication_{}", payment_id),
+                            super::utils::get_external_authentication_request_poll_id(&payment_id),
                         );
                         let redis_conn = state
                             .store

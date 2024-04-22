@@ -34,6 +34,7 @@ pub use crate::core::payments::{payment_address::PaymentAddress, CustomerDetails
 #[cfg(feature = "payouts")]
 use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW;
 use crate::{
+    consts,
     core::{
         errors::{self},
         payments::{types, PaymentData, RecurringMandatePaymentData},
@@ -1152,14 +1153,23 @@ pub struct PollConfig {
     pub frequency: i8,
 }
 
+impl Default for PollConfig {
+    fn default() -> Self {
+        Self {
+            delay_in_secs: consts::DEFAULT_POLL_DELAY_IN_SECS,
+            frequency: consts::DEFAULT_POLL_FREQUENCY,
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
-pub struct RedirectCallPaymentFlowResponse {
+pub struct RedirectPaymentFlowResponse {
     pub payments_response: api_models::payments::PaymentsResponse,
     pub business_profile: diesel_models::business_profile::BusinessProfile,
 }
 
 #[derive(Clone, Debug)]
-pub struct AuthenticateCallPaymentFlowResponse {
+pub struct AuthenticatePaymentFlowResponse {
     pub payments_response: api_models::payments::PaymentsResponse,
     pub poll_config: PollConfig,
     pub business_profile: diesel_models::business_profile::BusinessProfile,

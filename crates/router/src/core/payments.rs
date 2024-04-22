@@ -765,7 +765,7 @@ pub struct PaymentsRedirectResponseData {
 #[async_trait::async_trait]
 pub trait PaymentRedirectFlow<Ctx: PaymentMethodRetrieve>: Sync {
     // Associated type for call_payment_flow response
-    type CallPaymentFlowResponse;
+    type PaymentFlowResponse;
 
     #[allow(clippy::too_many_arguments)]
     async fn call_payment_flow(
@@ -777,13 +777,13 @@ pub trait PaymentRedirectFlow<Ctx: PaymentMethodRetrieve>: Sync {
         req: PaymentsRedirectResponseData,
         connector_action: CallConnectorAction,
         connector: String,
-    ) -> RouterResult<Self::CallPaymentFlowResponse>;
+    ) -> RouterResult<Self::PaymentFlowResponse>;
 
     fn get_payment_action(&self) -> services::PaymentAction;
 
     fn generate_response(
         &self,
-        call_payment_flow_response: &Self::CallPaymentFlowResponse,
+        payment_flow_response: &Self::PaymentFlowResponse,
         payment_id: String,
         connector: String,
     ) -> RouterResult<services::ApplicationResponse<api::RedirectionResponse>>;
@@ -839,7 +839,7 @@ pub trait PaymentRedirectFlow<Ctx: PaymentMethodRetrieve>: Sync {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to decide the response flow")?;
 
-        let call_payment_flow_response = self
+        let payment_flow_response = self
             .call_payment_flow(
                 &state,
                 req_state,
@@ -851,7 +851,7 @@ pub trait PaymentRedirectFlow<Ctx: PaymentMethodRetrieve>: Sync {
             )
             .await?;
 
-        self.generate_response(&call_payment_flow_response, resource_id, connector)
+        self.generate_response(&payment_flow_response, resource_id, connector)
     }
 }
 
@@ -860,7 +860,7 @@ pub struct PaymentRedirectCompleteAuthorize;
 
 #[async_trait::async_trait]
 impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectCompleteAuthorize {
-    type CallPaymentFlowResponse = router_types::RedirectCallPaymentFlowResponse;
+    type PaymentFlowResponse = router_types::RedirectPaymentFlowResponse;
 
     #[allow(clippy::too_many_arguments)]
     async fn call_payment_flow(
@@ -872,7 +872,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectCom
         req: PaymentsRedirectResponseData,
         connector_action: CallConnectorAction,
         _connector: String,
-    ) -> RouterResult<Self::CallPaymentFlowResponse> {
+    ) -> RouterResult<Self::PaymentFlowResponse> {
         let payment_confirm_req = api::PaymentsRequest {
             payment_id: Some(req.resource_id.clone()),
             merchant_id: req.merchant_id.clone(),
@@ -921,7 +921,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectCom
             .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
                 id: profile_id.to_string(),
             })?;
-        Ok(router_types::RedirectCallPaymentFlowResponse {
+        Ok(router_types::RedirectPaymentFlowResponse {
             payments_response,
             business_profile,
         })
@@ -933,11 +933,11 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectCom
 
     fn generate_response(
         &self,
-        call_payment_flow_response: &Self::CallPaymentFlowResponse,
+        payment_flow_response: &Self::PaymentFlowResponse,
         payment_id: String,
         connector: String,
     ) -> RouterResult<services::ApplicationResponse<api::RedirectionResponse>> {
-        let payments_response = &call_payment_flow_response.payments_response;
+        let payments_response = &payment_flow_response.payments_response;
         // There might be multiple redirections needed for some flows
         // If the status is requires customer action, then send the startpay url again
         // The redirection data must have been provided and updated by the connector
@@ -973,7 +973,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectCom
             | api_models::enums::IntentStatus::Failed
             | api_models::enums::IntentStatus::Cancelled | api_models::enums::IntentStatus::RequiresCapture| api_models::enums::IntentStatus::Processing=> helpers::get_handle_response_url(
                 payment_id,
-                &call_payment_flow_response.business_profile,
+                &payment_flow_response.business_profile,
                 payments_response,
                 connector,
             ),
@@ -990,7 +990,7 @@ pub struct PaymentRedirectSync;
 
 #[async_trait::async_trait]
 impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectSync {
-    type CallPaymentFlowResponse = router_types::RedirectCallPaymentFlowResponse;
+    type PaymentFlowResponse = router_types::RedirectPaymentFlowResponse;
 
     #[allow(clippy::too_many_arguments)]
     async fn call_payment_flow(
@@ -1002,7 +1002,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectSyn
         req: PaymentsRedirectResponseData,
         connector_action: CallConnectorAction,
         _connector: String,
-    ) -> RouterResult<Self::CallPaymentFlowResponse> {
+    ) -> RouterResult<Self::PaymentFlowResponse> {
         let payment_sync_req = api::PaymentsRetrieveRequest {
             resource_id: req.resource_id,
             merchant_id: req.merchant_id,
@@ -1056,22 +1056,22 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectSyn
             .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
                 id: profile_id.to_string(),
             })?;
-        Ok(router_types::RedirectCallPaymentFlowResponse {
+        Ok(router_types::RedirectPaymentFlowResponse {
             payments_response,
             business_profile,
         })
     }
     fn generate_response(
         &self,
-        call_payment_flow_response: &Self::CallPaymentFlowResponse,
+        payment_flow_response: &Self::PaymentFlowResponse,
         payment_id: String,
         connector: String,
     ) -> RouterResult<services::ApplicationResponse<api::RedirectionResponse>> {
         Ok(services::ApplicationResponse::JsonForRedirection(
             helpers::get_handle_response_url(
                 payment_id,
-                &call_payment_flow_response.business_profile,
-                &call_payment_flow_response.payments_response,
+                &payment_flow_response.business_profile,
+                &payment_flow_response.payments_response,
                 connector,
             )?,
         ))
@@ -1087,7 +1087,7 @@ pub struct PaymentAuthenticateCompleteAuthorize;
 
 #[async_trait::async_trait]
 impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticateCompleteAuthorize {
-    type CallPaymentFlowResponse = router_types::AuthenticateCallPaymentFlowResponse;
+    type PaymentFlowResponse = router_types::AuthenticatePaymentFlowResponse;
 
     #[allow(clippy::too_many_arguments)]
     async fn call_payment_flow(
@@ -1099,7 +1099,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
         req: PaymentsRedirectResponseData,
         connector_action: CallConnectorAction,
         connector: String,
-    ) -> RouterResult<Self::CallPaymentFlowResponse> {
+    ) -> RouterResult<Self::PaymentFlowResponse> {
         let payment_confirm_req = api::PaymentsRequest {
             payment_id: Some(req.resource_id.clone()),
             merchant_id: req.merchant_id.clone(),
@@ -1137,7 +1137,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
             _ => Err(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to get the response in json"),
         }?;
-        let default_poll_config = utils::DEFAULT_POLL_CONFIG;
+        let default_poll_config = router_types::PollConfig::default();
         let default_config_str = default_poll_config
             .encode_to_string_of_json()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1167,7 +1167,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
             .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
                 id: profile_id.to_string(),
             })?;
-        Ok(router_types::AuthenticateCallPaymentFlowResponse {
+        Ok(router_types::AuthenticatePaymentFlowResponse {
             payments_response,
             poll_config,
             business_profile,
@@ -1175,14 +1175,14 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
     }
     fn generate_response(
         &self,
-        call_payment_flow_response: &Self::CallPaymentFlowResponse,
+        payment_flow_response: &Self::PaymentFlowResponse,
         payment_id: String,
         connector: String,
     ) -> RouterResult<services::ApplicationResponse<api::RedirectionResponse>> {
-        let payments_response = &call_payment_flow_response.payments_response;
+        let payments_response = &payment_flow_response.payments_response;
         let redirect_response = helpers::get_handle_response_url(
             payment_id.clone(),
-            &call_payment_flow_response.business_profile,
+            &payment_flow_response.business_profile,
             payments_response,
             connector.clone(),
         )?;
@@ -1191,7 +1191,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
             redirect_response.return_url_with_query_params,
             payments_response,
             payment_id,
-            &call_payment_flow_response.poll_config,
+            &payment_flow_response.poll_config,
         )?;
         Ok(services::ApplicationResponse::Form(Box::new(
             services::RedirectionFormData {
