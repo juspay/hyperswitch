@@ -6,6 +6,7 @@ use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
 use diesel_models::enums;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
+#[cfg(feature = "payouts")]
 use router_env::{instrument, tracing};
 use transformers as paypal;
 

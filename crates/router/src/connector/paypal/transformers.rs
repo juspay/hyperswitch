@@ -1,6 +1,8 @@
 use api_models::enums;
 use base64::Engine;
-use common_utils::{errors::CustomResult, pii::Email};
+use common_utils::errors::CustomResult;
+#[cfg(feature = "payouts")]
+use common_utils::pii::Email;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -21,6 +23,7 @@ use crate::{
     },
 };
 
+#[cfg(feature = "payouts")]
 const LANGUAGE: &str = "en-US";
 
 #[derive(Debug, Serialize)]
