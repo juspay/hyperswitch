@@ -217,7 +217,136 @@ impl<'a> TryFrom<&BankNames> for MultisafepayBankNames<'a> {
             BankNames::VanLanschot => Self("0161"),
             BankNames::Yoursafe => Self("0806"),
             BankNames::Handelsbanken => Self("1235"),
-            _ => Err(errors::ConnectorError::NotSupported {
+            BankNames::AmericanExpress
+            | BankNames::AffinBank
+            | BankNames::AgroBank
+            | BankNames::AllianceBank
+            | BankNames::AmBank
+            | BankNames::BankOfAmerica
+            | BankNames::BankIslam
+            | BankNames::BankMuamalat
+            | BankNames::BankRakyat
+            | BankNames::BankSimpananNasional
+            | BankNames::Barclays
+            | BankNames::BlikPSP
+            | BankNames::CapitalOne
+            | BankNames::Chase
+            | BankNames::Citi
+            | BankNames::CimbBank
+            | BankNames::Discover
+            | BankNames::NavyFederalCreditUnion
+            | BankNames::PentagonFederalCreditUnion
+            | BankNames::SynchronyBank
+            | BankNames::WellsFargo
+            | BankNames::HongLeongBank
+            | BankNames::HsbcBank
+            | BankNames::KuwaitFinanceHouse
+            | BankNames::Moneyou
+            | BankNames::ArzteUndApothekerBank
+            | BankNames::AustrianAnadiBankAg
+            | BankNames::BankAustria
+            | BankNames::Bank99Ag
+            | BankNames::BankhausCarlSpangler
+            | BankNames::BankhausSchelhammerUndSchatteraAg
+            | BankNames::BankMillennium
+            | BankNames::BankPEKAOSA
+            | BankNames::BawagPskAg
+            | BankNames::BksBankAg
+            | BankNames::BrullKallmusBankAg
+            | BankNames::BtvVierLanderBank
+            | BankNames::CapitalBankGraweGruppeAg
+            | BankNames::CeskaSporitelna
+            | BankNames::Dolomitenbank
+            | BankNames::EasybankAg
+            | BankNames::EPlatbyVUB
+            | BankNames::ErsteBankUndSparkassen
+            | BankNames::FrieslandBank
+            | BankNames::HypoAlpeadriabankInternationalAg
+            | BankNames::HypoNoeLbFurNiederosterreichUWien
+            | BankNames::HypoOberosterreichSalzburgSteiermark
+            | BankNames::HypoTirolBankAg
+            | BankNames::HypoVorarlbergBankAg
+            | BankNames::HypoBankBurgenlandAktiengesellschaft
+            | BankNames::KomercniBanka
+            | BankNames::MBank
+            | BankNames::MarchfelderBank
+            | BankNames::Maybank
+            | BankNames::OberbankAg
+            | BankNames::OsterreichischeArzteUndApothekerbank
+            | BankNames::OcbcBank
+            | BankNames::PayWithING
+            | BankNames::PlaceZIPKO
+            | BankNames::PlatnoscOnlineKartaPlatnicza
+            | BankNames::PosojilnicaBankEGen
+            | BankNames::PostovaBanka
+            | BankNames::PublicBank
+            | BankNames::RaiffeisenBankengruppeOsterreich
+            | BankNames::RhbBank
+            | BankNames::SchelhammerCapitalBankAg
+            | BankNames::StandardCharteredBank
+            | BankNames::SchoellerbankAg
+            | BankNames::SpardaBankWien
+            | BankNames::SporoPay
+            | BankNames::SantanderPrzelew24
+            | BankNames::TatraPay
+            | BankNames::Viamo
+            | BankNames::VolksbankGruppe
+            | BankNames::VolkskreditbankAg
+            | BankNames::VrBankBraunau
+            | BankNames::UobBank
+            | BankNames::PayWithAliorBank
+            | BankNames::BankiSpoldzielcze
+            | BankNames::PayWithInteligo
+            | BankNames::BNPParibasPoland
+            | BankNames::BankNowySA
+            | BankNames::CreditAgricole
+            | BankNames::PayWithBOS
+            | BankNames::PayWithCitiHandlowy
+            | BankNames::PayWithPlusBank
+            | BankNames::ToyotaBank
+            | BankNames::VeloBank
+            | BankNames::ETransferPocztowy24
+            | BankNames::PlusBank
+            | BankNames::EtransferPocztowy24
+            | BankNames::BankiSpbdzielcze
+            | BankNames::BankNowyBfgSa
+            | BankNames::GetinBank
+            | BankNames::Blik
+            | BankNames::NoblePay
+            | BankNames::IdeaBank
+            | BankNames::EnveloBank
+            | BankNames::NestPrzelew
+            | BankNames::MbankMtransfer
+            | BankNames::Inteligo
+            | BankNames::PbacZIpko
+            | BankNames::BnpParibas
+            | BankNames::BankPekaoSa
+            | BankNames::VolkswagenBank
+            | BankNames::AliorBank
+            | BankNames::Boz
+            | BankNames::BangkokBank
+            | BankNames::KrungsriBank
+            | BankNames::KrungThaiBank
+            | BankNames::TheSiamCommercialBank
+            | BankNames::KasikornBank
+            | BankNames::OpenBankSuccess
+            | BankNames::OpenBankFailure
+            | BankNames::OpenBankCancelled
+            | BankNames::Aib
+            | BankNames::BankOfScotland
+            | BankNames::DanskeBank
+            | BankNames::FirstDirect
+            | BankNames::FirstTrust
+            | BankNames::Halifax
+            | BankNames::Lloyds
+            | BankNames::Monzo
+            | BankNames::NatWest
+            | BankNames::NationwideBank
+            | BankNames::RoyalBankOfScotland
+            | BankNames::Starling
+            | BankNames::TsbBank
+            | BankNames::TescoBank
+            | BankNames::UlsterBank => Err(errors::ConnectorError::NotSupported {
                 message: String::from("BankRedirect"),
                 connector: "Multisafepay",
             })?,
@@ -358,9 +487,25 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
             api::PaymentMethodData::BankRedirect(ref bank_data) => match bank_data {
                 api::BankRedirectData::Giropay { .. } => Type::Redirect,
                 api::BankRedirectData::Ideal { .. } => Type::Direct,
-                _ => Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("multisafepay"),
-                ))?,
+                api::BankRedirectData::BancontactCard { .. }
+                | api::BankRedirectData::Bizum { .. }
+                | api::BankRedirectData::Blik { .. }
+                | api::BankRedirectData::Eps { .. }
+                | api::BankRedirectData::Interac { .. }
+                | api::BankRedirectData::OnlineBankingCzechRepublic { .. }
+                | api::BankRedirectData::OnlineBankingFinland { .. }
+                | api::BankRedirectData::OnlineBankingPoland { .. }
+                | api::BankRedirectData::OnlineBankingSlovakia { .. }
+                | api::BankRedirectData::OpenBankingUk { .. }
+                | api::BankRedirectData::Przelewy24 { .. }
+                | api::BankRedirectData::Sofort { .. }
+                | api::BankRedirectData::Trustly { .. }
+                | api::BankRedirectData::OnlineBankingFpx { .. }
+                | api::BankRedirectData::OnlineBankingThailand { .. } => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("multisafepay"),
+                    ))?
+                }
             },
             _ => Type::Redirect,
         };
@@ -409,9 +554,25 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
             api::PaymentMethodData::BankRedirect(ref bank_data) => Some(match bank_data {
                 api::BankRedirectData::Giropay { .. } => Gateway::Giropay,
                 api::BankRedirectData::Ideal { .. } => Gateway::Ideal,
-                _ => Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("multisafepay"),
-                ))?,
+                api::BankRedirectData::BancontactCard { .. }
+                | api::BankRedirectData::Bizum { .. }
+                | api::BankRedirectData::Blik { .. }
+                | api::BankRedirectData::Eps { .. }
+                | api::BankRedirectData::Interac { .. }
+                | api::BankRedirectData::OnlineBankingCzechRepublic { .. }
+                | api::BankRedirectData::OnlineBankingFinland { .. }
+                | api::BankRedirectData::OnlineBankingPoland { .. }
+                | api::BankRedirectData::OnlineBankingSlovakia { .. }
+                | api::BankRedirectData::OpenBankingUk { .. }
+                | api::BankRedirectData::Przelewy24 { .. }
+                | api::BankRedirectData::Sofort { .. }
+                | api::BankRedirectData::Trustly { .. }
+                | api::BankRedirectData::OnlineBankingFpx { .. }
+                | api::BankRedirectData::OnlineBankingThailand { .. } => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("multisafepay"),
+                    ))?
+                }
             }),
             api::PaymentMethodData::CardRedirect(_)
             | api::PaymentMethodData::PayLater(_)
@@ -571,7 +732,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                             issuer_id: Some(
                                 MultisafepayBankNames::try_from(&bank_name.ok_or(
                                     errors::ConnectorError::MissingRequiredField {
-                                        field_name: "eps.bank_name",
+                                        field_name: "ideal.bank_name",
                                     },
                                 )?)?
                                 .0
@@ -579,7 +740,22 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                             ),
                         },
                     ))),
-                    _ => None,
+                    api::BankRedirectData::BancontactCard { .. }
+                    | api::BankRedirectData::Bizum { .. }
+                    | api::BankRedirectData::Blik { .. }
+                    | api::BankRedirectData::Eps { .. }
+                    | api::BankRedirectData::Giropay { .. }
+                    | api::BankRedirectData::Interac { .. }
+                    | api::BankRedirectData::OnlineBankingCzechRepublic { .. }
+                    | api::BankRedirectData::OnlineBankingFinland { .. }
+                    | api::BankRedirectData::OnlineBankingPoland { .. }
+                    | api::BankRedirectData::OnlineBankingSlovakia { .. }
+                    | api::BankRedirectData::OpenBankingUk { .. }
+                    | api::BankRedirectData::Przelewy24 { .. }
+                    | api::BankRedirectData::Sofort { .. }
+                    | api::BankRedirectData::Trustly { .. }
+                    | api::BankRedirectData::OnlineBankingFpx { .. }
+                    | api::BankRedirectData::OnlineBankingThailand { .. } => None,
                 }
             }
             api::PaymentMethodData::CardRedirect(_)
