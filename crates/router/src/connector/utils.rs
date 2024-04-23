@@ -226,12 +226,9 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
                     .address
                     .and_then(|billing_address_details| billing_address_details.first_name.clone())
             })
-            .ok_or(
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "payment_method_data.billing.address.first_name",
-                }
-                .into(),
-            )
+            .ok_or_else(missing_field_err(
+                "payment_method_data.billing.address.first_name",
+            ))
     }
 
     fn get_billing_email(&self) -> Result<Email, Error> {
@@ -246,18 +243,10 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
     fn get_billing_phone_number(&self) -> Result<Secret<String>, Error> {
         self.address
             .get_payment_method_billing()
-            .and_then(|billing_address| {
-                billing_address
-                    .clone()
-                    .phone
-                    .and_then(|billing_address_details| billing_address_details.number.clone())
-            })
-            .ok_or(
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "payment_method_data.billing.address.phone.number",
-                }
-                .into(),
-            )
+            .and_then(|billing_address| billing_address.clone().phone)
+            .map(|phone_details| phone_details.get_number_with_country_code())
+            .transpose()?
+            .ok_or_else(missing_field_err("payment_method_data.billing.phone"))
     }
 
     fn get_optional_billing_line1(&self) -> Option<Secret<String>> {
