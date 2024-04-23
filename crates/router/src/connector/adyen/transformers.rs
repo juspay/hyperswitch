@@ -751,7 +751,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for JCSVoucherData {
             )?,
             telephone_number: item.get_optional_billing_phone_number().ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "payment_method_data.billing.email",
+                    field_name: "payment_method_data.billing.phone.number",
                 },
             )?,
         })
