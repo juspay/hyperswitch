@@ -174,7 +174,7 @@ impl api::IncomingWebhook for Netcetera {
     ) -> CustomResult<api::webhooks::ObjectReferenceId, errors::ConnectorError> {
         let webhook_body: netcetera::ResultsResponseData = request
             .body
-            .parse_struct("nmi NmiWebhookBody")
+            .parse_struct("netcetera ResultsResponseData")
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         Ok(api::webhooks::ObjectReferenceId::ExternalAuthenticationID(
             api::webhooks::AuthenticationIdType::ConnectorAuthenticationId(
@@ -185,7 +185,7 @@ impl api::IncomingWebhook for Netcetera {
 
     fn get_webhook_event_type(
         &self,
-        _1request: &api::IncomingWebhookRequestDetails<'_>,
+        _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
         Ok(api::IncomingWebhookEvent::ExternalAuthenticationARes)
     }
@@ -194,9 +194,9 @@ impl api::IncomingWebhook for Netcetera {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        let webhook_body_value: serde_json::Value = request
+        let webhook_body_value: netcetera::ResultsResponseData = request
             .body
-            .parse_struct("serde_json::Value")
+            .parse_struct("netcetera ResultsResponseDatae")
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         Ok(Box::new(webhook_body_value))
     }
@@ -207,8 +207,8 @@ impl api::IncomingWebhook for Netcetera {
     ) -> CustomResult<api::ExternalAuthenticationPayload, errors::ConnectorError> {
         let webhook_body: netcetera::ResultsResponseData = request
             .body
-            .parse_struct("nmi NmiWebhookBody")
-            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+            .parse_struct("netcetera ResultsResponseData")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(api::ExternalAuthenticationPayload {
             trans_status: webhook_body
                 .trans_status
