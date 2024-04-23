@@ -72,6 +72,9 @@ pub trait RouterData {
     fn get_shipping_address_with_phone_number(&self) -> Result<&api::Address, Error>;
     fn get_connector_meta(&self) -> Result<pii::SecretSerdeValue, Error>;
     fn get_session_token(&self) -> Result<String, Error>;
+    fn get_billing_first_name(&self) -> Result<Secret<String>, Error>;
+    fn get_billing_email(&self) -> Result<Email, Error>;
+    fn get_billing_phone_number(&self) -> Result<Secret<String>, Error>;
     fn to_connector_meta<T>(&self) -> Result<T, Error>
     where
         T: serde::de::DeserializeOwned;
@@ -212,6 +215,49 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
         self.session_token
             .clone()
             .ok_or_else(missing_field_err("session_token"))
+    }
+
+    fn get_billing_first_name(&self) -> Result<Secret<String>, Error> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_address_details| billing_address_details.first_name.clone())
+            })
+            .ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "payment_method_data.billing.address.first_name",
+                }
+                .into(),
+            )
+    }
+
+    fn get_billing_email(&self) -> Result<Email, Error> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| billing_address.email.clone())
+            .ok_or_else(missing_field_err(
+                "payment_method_data.billing.address.email",
+            ))
+    }
+
+    fn get_billing_phone_number(&self) -> Result<Secret<String>, Error> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .phone
+                    .and_then(|billing_address_details| billing_address_details.number.clone())
+            })
+            .ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "payment_method_data.billing.address.phone.number",
+                }
+                .into(),
+            )
     }
 
     fn get_optional_billing_line1(&self) -> Option<Secret<String>> {

@@ -738,22 +738,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for JCSVoucherData {
     type Error = Error;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
-            first_name: item.get_optional_billing_first_name().ok_or(
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "payment_method_data.billing.address.first_name",
-                },
-            )?,
+            first_name: item.get_billing_first_name()?,
             last_name: item.get_optional_billing_last_name(),
-            shopper_email: item.get_optional_billing_email().ok_or(
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "payment_method_data.billing.email",
-                },
-            )?,
-            telephone_number: item.get_optional_billing_phone_number().ok_or(
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "payment_method_data.billing.phone.number",
-                },
-            )?,
+            shopper_email: item.get_billing_email()?,
+            telephone_number: item.get_billing_phone_number()?,
         })
     }
 }
