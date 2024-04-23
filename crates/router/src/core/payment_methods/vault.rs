@@ -534,7 +534,7 @@ impl Vaultable for api::BankPayout {
                 bank_sort_code: None,
                 iban: None,
                 pix_key: Some(b.pix_key.to_owned()),
-                tax_id: Some(b.tax_id.to_owned()),
+                tax_id: b.tax_id.to_owned(),
             },
         };
 
@@ -635,7 +635,7 @@ impl Vaultable for api::BankPayout {
                     bank_city: bank_insensitive_data.bank_city,
                 })
             }
-            (Some(ban), None, None, None, None, Some(pix_key), Some(tax_id)) => {
+            (Some(ban), None, None, None, None, Some(pix_key), tax_id) => {
                 Self::Pix(payouts::PixBankTransfer {
                     bank_account_number: ban,
                     bank_branch: bank_insensitive_data.bank_branch,

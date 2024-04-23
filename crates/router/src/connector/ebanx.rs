@@ -115,7 +115,6 @@ impl ConnectorCommon for Ebanx {
     }
 }
 
-#[async_trait::async_trait]
 #[cfg(feature = "payouts")]
 impl ConnectorIntegration<api::PoCreate, types::PayoutsData, types::PayoutsResponseData> for Ebanx {
     fn get_url(
@@ -432,7 +431,6 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 
 impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Ebanx {}
 
-#[async_trait::async_trait]
 impl api::IncomingWebhook for Ebanx {
     fn get_webhook_object_reference_id(
         &self,

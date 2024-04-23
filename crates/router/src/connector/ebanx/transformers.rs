@@ -118,18 +118,20 @@ impl TryFrom<&EbanxRouterData<&types::PayoutsRouterData<api::PoCreate>>>
                     },
                 )?;
 
-                let document_type = if pix_data.tax_id.clone().expose().len() == 11 {
-                    Some(EbanxDocumentType::NaturalPersonsRegister)
-                } else {
-                    Some(EbanxDocumentType::NationalRegistryOfLegalEntities)
-                };
+                let document_type = pix_data.tax_id.clone().map(|tax_id| {
+                    if tax_id.clone().expose().len() == 11 {
+                        EbanxDocumentType::NaturalPersonsRegister
+                    } else {
+                        EbanxDocumentType::NationalRegistryOfLegalEntities
+                    }
+                });
 
                 let payee = EbanxPayoutDetails {
                     name: billing_address.get_full_name()?,
                     email: customer_details.email.clone(),
                     bank_info,
                     document_type,
-                    document: Some(pix_data.tax_id.to_owned()),
+                    document: pix_data.tax_id.to_owned(),
                 };
                 Ok(Self {
                     amount: item.amount,

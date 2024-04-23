@@ -281,7 +281,7 @@ pub struct PixBankTransfer {
     pub pix_key: Secret<String>,
 
     /// Individual taxpayer identification number
-    pub tax_id: Secret<String>,
+    pub tax_id: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
