@@ -611,9 +611,7 @@ where
     T: serde::de::DeserializeOwned,
     A: AppStateInfo + Sync,
 {
-    let token = match get_cookie_from_header(headers)
-        .and_then(cookies::parse_cookie)
-    {
+    let token = match get_cookie_from_header(headers).and_then(cookies::parse_cookie) {
         Ok(cookies) => cookies,
         Err(e) => {
             let token = get_jwt_from_authorization_header(headers);
