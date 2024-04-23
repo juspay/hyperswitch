@@ -10704,6 +10704,9 @@
               }
             ],
             "nullable": true
+          },
+          "additional_merchant_data": {
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -10938,6 +10941,14 @@
           },
           "status": {
             "$ref": "#/components/schemas/ConnectorStatus"
+          },
+          "additional_merchant_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/pii.SecretSerdeValue"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
