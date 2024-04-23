@@ -106,7 +106,7 @@ pub async fn signin_without_invite_checks(
 ) -> UserResponse<user_api::DashboardEntryResponse> {
     let user_from_db: domain::UserFromStorage = state
         .store
-        .find_user_by_email(request.email.clone().expose().expose().as_str())
+        .find_user_by_email(&request.email)
         .await
         .map_err(|e| {
             if e.current_context().is_db_not_found() {
@@ -134,7 +134,7 @@ pub async fn signin(
 ) -> UserResponse<user_api::SignInResponse> {
     let user_from_db: domain::UserFromStorage = state
         .store
-        .find_user_by_email(request.email.clone().expose().expose().as_str())
+        .find_user_by_email(&request.email)
         .await
         .map_err(|e| {
             if e.current_context().is_db_not_found() {
@@ -179,7 +179,7 @@ pub async fn connect_account(
 ) -> UserResponse<user_api::ConnectAccountResponse> {
     let find_user = state
         .store
-        .find_user_by_email(request.email.clone().expose().expose().as_str())
+        .find_user_by_email(&request.email.expose())
         .await;
 
     if let Ok(found_user) = find_user {
@@ -340,7 +340,7 @@ pub async fn forgot_password(
 
     let user_from_db = state
         .store
-        .find_user_by_email(user_email.get_secret().expose().as_str())
+        .find_user_by_email(&user_email.into_inner())
         .await
         .map_err(|e| {
             if e.current_context().is_db_not_found() {
@@ -389,7 +389,9 @@ pub async fn reset_password(
     let user = state
         .store
         .update_user_by_email(
-            email_token.get_email(),
+            email_token
+                .get_email()
+                .change_context(errors::UserErrors::EmailParsingError)?,
             storage_user::UserUpdate::AccountUpdate {
                 name: None,
                 password: Some(hash_password),
@@ -462,7 +464,7 @@ pub async fn invite_user(
 
     let invitee_user = state
         .store
-        .find_user_by_email(invitee_email.clone().get_secret().expose().as_str())
+        .find_user_by_email(&invitee_email.into_inner())
         .await;
 
     if let Ok(invitee_user) = invitee_user {
@@ -684,7 +686,7 @@ async fn handle_invitation(
     let invitee_email = domain::UserEmail::from_pii_email(request.email.clone())?;
     let invitee_user = state
         .store
-        .find_user_by_email(invitee_email.clone().get_secret().expose().as_str())
+        .find_user_by_email(&invitee_email.into_inner())
         .await;
 
     if let Ok(invitee_user) = invitee_user {
@@ -882,7 +884,7 @@ pub async fn resend_invite(
     let invitee_email = domain::UserEmail::from_pii_email(request.email)?;
     let user: domain::UserFromStorage = state
         .store
-        .find_user_by_email(invitee_email.clone().get_secret().expose().as_str())
+        .find_user_by_email(&invitee_email.into_inner())
         .await
         .map_err(|e| {
             if e.current_context().is_db_not_found() {
@@ -949,7 +951,11 @@ pub async fn accept_invite_from_email(
 
     let user: domain::UserFromStorage = state
         .store
-        .find_user_by_email(email_token.get_email())
+        .find_user_by_email(
+            email_token
+                .get_email()
+                .change_context(UserErrors::EmailParsingError)?,
+        )
         .await
         .change_context(UserErrors::InternalServerError)?
         .into();
@@ -1326,7 +1332,11 @@ pub async fn verify_email_without_invite_checks(
     auth::blacklist::check_email_token_in_blacklist(&state, &token).await?;
     let user = state
         .store
-        .find_user_by_email(email_token.get_email())
+        .find_user_by_email(
+            email_token
+                .get_email()
+                .change_context(UserErrors::EmailParsingError)?,
+        )
         .await
         .change_context(UserErrors::InternalServerError)?;
     let user = state
@@ -1362,7 +1372,11 @@ pub async fn verify_email(
 
     let user = state
         .store
-        .find_user_by_email(email_token.get_email())
+        .find_user_by_email(
+            email_token
+                .get_email()
+                .change_context(UserErrors::EmailParsingError)?,
+        )
         .await
         .change_context(UserErrors::InternalServerError)?;
 
@@ -1411,7 +1425,7 @@ pub async fn send_verification_mail(
     let user_email = domain::UserEmail::try_from(req.email)?;
     let user = state
         .store
-        .find_user_by_email(user_email.clone().get_secret().expose().as_str())
+        .find_user_by_email(&user_email.into_inner())
         .await
         .map_err(|e| {
             if e.current_context().is_db_not_found() {
