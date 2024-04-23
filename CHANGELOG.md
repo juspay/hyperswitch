@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.04.12.1-hotfix5
+
+### Features
+
+- **router:** [BOA/CYBS] add avs_response and cvv validation result in the response ([#4440](https://github.com/juspay/hyperswitch/pull/4440)) ([`0d80fc0`](https://github.com/juspay/hyperswitch/commit/0d80fc00d60ce1dba2a4102e2292ab76c19f9bda))
+
+- - -
+
 ## 2024.04.12.1-hotfix4
 
 ### Bug Fixes
