@@ -3619,11 +3619,27 @@ mod test {
 pub async fn get_additional_payment_data(
     pm_data: &api_models::payments::PaymentMethodData,
     db: &dyn StorageInterface,
+    profile_id: &str,
 ) -> api_models::payments::AdditionalPaymentData {
     match pm_data {
         api_models::payments::PaymentMethodData::Card(card_data) => {
             let card_isin = Some(card_data.card_number.clone().get_card_isin());
-            let card_extended_bin = Some(card_data.card_number.clone().get_card_extended_bin());
+            let enable_extended_bin =db
+            .find_config_by_key_unwrap_or(profile_id, Some("false".to_string()))
+            .await.map_err(|err| services::logger::error!(message="Failed to fetch the config", extended_card_bin_error=?err)).ok();
+
+            let card_extended_bin = match enable_extended_bin {
+                Some(config) if config.config == "true" => {
+                    Some(card_data.card_number.clone().get_card_extended_bin())
+                }
+                _ => None,
+            };
+            // let card_extended_bin =
+            //     if let Some(config) = enable_extended_bin.map(|config| config.config == "true") {
+            //         Some(card_data.card_number.clone().get_card_extended_bin())
+            //     } else {
+            //         None
+            //     };
             let last4 = Some(card_data.card_number.clone().get_last4());
             if card_data.card_issuer.is_some()
                 && card_data.card_network.is_some()
