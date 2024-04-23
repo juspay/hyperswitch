@@ -2376,7 +2376,7 @@ impl UserRoleInterface for KafkaStore {
         &self,
         user_id: &str,
         merchant_id: &str,
-    ) -> CustomResult<bool, errors::StorageError> {
+    ) -> CustomResult<user_storage::UserRole, errors::StorageError> {
         self.diesel_store
             .delete_user_role_by_user_id_merchant_id(user_id, merchant_id)
             .await
