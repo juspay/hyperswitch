@@ -4771,6 +4771,21 @@
           }
         }
       },
+      "AdditionalMerchantData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "open_banking_recipient_data"
+            ],
+            "properties": {
+              "open_banking_recipient_data": {
+                "$ref": "#/components/schemas/MerchantRecipientData"
+              }
+            }
+          }
+        ]
+      },
       "Address": {
         "type": "object",
         "properties": {
@@ -10270,6 +10285,76 @@
         },
         "additionalProperties": false
       },
+      "MerchantAccountData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "Iban"
+            ],
+            "properties": {
+              "Iban": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "iban": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "connector_recipient_id": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/RecipientIdType"
+                      }
+                    ],
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "Bacs"
+            ],
+            "properties": {
+              "Bacs": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "account_number": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "sort_code": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "connector_recipient_id": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/RecipientIdType"
+                      }
+                    ],
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
       "MerchantAccountDeleteResponse": {
         "type": "object",
         "required": [
@@ -10706,6 +10791,11 @@
             "nullable": true
           },
           "additional_merchant_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AdditionalMerchantData"
+              }
+            ],
             "nullable": true
           }
         },
@@ -11154,6 +11244,45 @@
           }
         },
         "additionalProperties": false
+      },
+      "MerchantRecipientData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "ConnectorRecipientId"
+            ],
+            "properties": {
+              "ConnectorRecipientId": {
+                "type": "string",
+                "nullable": true
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "WalletId"
+            ],
+            "properties": {
+              "WalletId": {
+                "type": "string",
+                "nullable": true
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "AccountData"
+            ],
+            "properties": {
+              "AccountData": {
+                "$ref": "#/components/schemas/MerchantAccountData"
+              }
+            }
+          }
+        ]
       },
       "MerchantRoutingAlgorithm": {
         "type": "object",
@@ -16439,6 +16568,34 @@
             "nullable": true
           }
         }
+      },
+      "RecipientIdType": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "ConnectorId"
+            ],
+            "properties": {
+              "ConnectorId": {
+                "type": "string",
+                "nullable": true
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "LockerId"
+            ],
+            "properties": {
+              "LockerId": {
+                "type": "string",
+                "nullable": true
+              }
+            }
+          }
+        ]
       },
       "ReconStatus": {
         "type": "string",

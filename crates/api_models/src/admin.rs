@@ -478,33 +478,47 @@ pub struct MerchantConnectorCreate {
     #[schema(value_type = Option<ConnectorStatus>, example = "inactive")]
     pub status: Option<api_enums::ConnectorStatus>,
 
-    pub additional_merchant_data: Option<serde_json::Value>,
+    #[schema(value_type = Option<AdditionalMerchantData>)]
+    pub additional_merchant_data: Option<pii::SecretSerdeValue>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub enum RecipientIdType {
+    #[schema(value_type= Option<String>)]
     ConnectorId(Secret<String>),
+    #[schema(value_type= Option<String>)]
     LockerId(Secret<String>),
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum AdditionalMerchantData {
+    OpenBankingRecipientData(MerchantRecipientData),
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub enum MerchantAccountData {
     Iban {
+        #[schema(value_type= Option<String>)]
         iban: Secret<String>,
         name: String,
         connector_recipient_id: Option<RecipientIdType>,
     },
     Bacs {
+        #[schema(value_type= Option<String>)]
         account_number: Secret<String>,
+        #[schema(value_type= Option<String>)]
         sort_code: Secret<String>,
         name: String,
         connector_recipient_id: Option<RecipientIdType>,
     },
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub enum MerchantRecipientData {
+    #[schema(value_type= Option<String>)]
     ConnectorRecipientId(Secret<String>),
+    #[schema(value_type= Option<String>)]
     WalletId(Secret<String>),
     AccountData(MerchantAccountData),
 }

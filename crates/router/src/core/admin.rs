@@ -13,7 +13,7 @@ use common_utils::{
 use diesel_models::{configs, encryption};
 use error_stack::{report, FutureExt, ResultExt};
 use futures::future::try_join_all;
-use masking::{PeekInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use pm_auth::{connector::plaid::transformers::PlaidAuthType, types as pm_auth_types};
 use regex::Regex;
 use serde_json;
@@ -2048,7 +2048,7 @@ async fn process_open_banking_connectors(
     auth: &types::ConnectorAuthType,
     connector_type: &api_enums::ConnectorType,
     connector: &api_enums::Connector,
-    merchant_data: serde_json::Value,
+    merchant_data: Secret<serde_json::Value>,
 ) -> RouterResult<types::MerchantRecipientData> {
     // incorporate a connector check as well
     if connector_type != &api_enums::ConnectorType::PaymentProcessor {
@@ -2059,7 +2059,7 @@ async fn process_open_banking_connectors(
     }
 
     let additional_merchant_data =
-        serde_json::from_value::<types::AdditionalMerchantData>(merchant_data)
+        serde_json::from_value::<types::AdditionalMerchantData>(merchant_data.expose())
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("failed to decode MerchantRecipientData")?;
 
