@@ -1,5 +1,7 @@
 use error_stack::report;
 use router_env::{instrument, tracing};
+#[cfg(feature = "accounts_cache")]
+use storage_impl::redis::cache::{CacheKind, ACCOUNTS_CACHE};
 
 use super::Store;
 use crate::{
@@ -8,8 +10,6 @@ use crate::{
     db::MockDb,
     types::storage::{self, business_profile},
 };
-#[cfg(feature = "accounts_cache")]
-use storage_impl::redis::cache::{CacheKind, ACCOUNTS_CACHE};
 
 #[async_trait::async_trait]
 pub trait BusinessProfileInterface {
@@ -66,8 +66,9 @@ impl BusinessProfileInterface for Store {
         &self,
         profile_id: &str,
     ) -> CustomResult<business_profile::BusinessProfile, errors::StorageError> {
-        let db_func = || async { let conn = connection::pg_connection_read(self).await?;
-                storage::business_profile::BusinessProfile::find_by_profile_id(&conn, profile_id)
+        let db_func = || async {
+            let conn = connection::pg_connection_read(self).await?;
+            storage::business_profile::BusinessProfile::find_by_profile_id(&conn, profile_id)
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
         };
@@ -89,21 +90,20 @@ impl BusinessProfileInterface for Store {
         merchant_id: &str,
     ) -> CustomResult<business_profile::BusinessProfile, errors::StorageError> {
         let db_func = || async {
-                let conn = connection::pg_connection_read(self).await?;
-                storage::business_profile::BusinessProfile::find_by_profile_name_merchant_id(
-                    &conn,
-                    profile_name,
-                    merchant_id,
-                )
-                .await
-                .map_err(|error| report!(errors::StorageError::from(error)))
+            let conn = connection::pg_connection_read(self).await?;
+            storage::business_profile::BusinessProfile::find_by_profile_name_merchant_id(
+                &conn,
+                profile_name,
+                merchant_id,
+            )
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
         };
 
-        #[cfg(feature= "accounts_cache")]
-        {   
-            let key = format!("{}_{}", profile_name ,merchant_id);
-            super::cache::get_or_populate_in_memory(self, &key, db_func, &ACCOUNTS_CACHE)
-                .await
+        #[cfg(feature = "accounts_cache")]
+        {
+            let key = format!("{}_{}", profile_name, merchant_id);
+            super::cache::get_or_populate_in_memory(self, &key, db_func, &ACCOUNTS_CACHE).await
         }
 
         #[cfg(not(feature = "accounts_cache"))]
@@ -126,7 +126,7 @@ impl BusinessProfileInterface for Store {
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))?;
-        
+
         #[cfg(feature = "accounts_cache")]
         {
             publish_and_redact_business_profile_cache(self, &updated_profile).await?;
@@ -141,13 +141,14 @@ impl BusinessProfileInterface for Store {
         merchant_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        let db_func = || async { storage::business_profile::BusinessProfile::delete_by_profile_id_merchant_id(
-                    &conn,
-                    profile_id,
-                    merchant_id,
-                )
-                .await
-                .map_err(|error| report!(errors::StorageError::from(error)))
+        let db_func = || async {
+            storage::business_profile::BusinessProfile::delete_by_profile_id_merchant_id(
+                &conn,
+                profile_id,
+                merchant_id,
+            )
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
         };
 
         #[cfg(not(feature = "accounts_cache"))]
@@ -157,8 +158,7 @@ impl BusinessProfileInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            let business_profile = self.find_business_profile_by_profile_id(profile_id)
-                .await?;
+            let business_profile = self.find_business_profile_by_profile_id(profile_id).await?;
             let result: bool = db_func().await?;
             publish_and_redact_business_profile_cache(self, &business_profile).await?;
             Ok(result)
@@ -183,10 +183,14 @@ impl BusinessProfileInterface for Store {
 #[cfg(feature = "accounts_cache")]
 async fn publish_and_redact_business_profile_cache(
     store: &dyn super::StorageInterface,
-    business_profile : &business_profile::BusinessProfile,
+    business_profile: &business_profile::BusinessProfile,
 ) -> CustomResult<(), errors::StorageError> {
     let key1 = CacheKind::Accounts(business_profile.profile_id.as_str().into());
-    let str_key = format!("{}_{}", business_profile.profile_name.as_str(), business_profile.merchant_id.as_str());
+    let str_key = format!(
+        "{}_{}",
+        business_profile.profile_name.as_str(),
+        business_profile.merchant_id.as_str()
+    );
     let key2 = CacheKind::Accounts(str_key.as_str().into());
     let keys = vec![key1, key2];
     super::cache::publish_into_redact_channel(store, keys).await?;
