@@ -611,19 +611,19 @@ where
     T: serde::de::DeserializeOwned,
     A: AppStateInfo + Sync,
 {
-    let token = get_jwt_from_authorization_header(headers)?;
-    if let Some(token_from_cookies) = get_cookie_from_header(headers)
-        .ok()
-        .and_then(|cookies| cookies::parse_cookie(cookies).ok())
+    let token = match get_cookie_from_header(headers)
+        .and_then(cookies::parse_cookie)
     {
-        logger::info!(
-            "Cookie header and authorization header JWT comparison result: {}",
-            token == token_from_cookies
-        );
-    }
-    let payload = decode_jwt(token, state).await?;
-
-    Ok(payload)
+        Ok(cookies) => cookies,
+        Err(e) => {
+            let token = get_jwt_from_authorization_header(headers);
+            if token.is_err() {
+                logger::error!(?e);
+            }
+            token?.to_owned()
+        }
+    };
+    decode_jwt(&token, state).await
 }
 
 #[async_trait]
@@ -949,6 +949,9 @@ pub async fn is_ephemeral_auth<A: AppStateInfo + Sync>(
 
 pub fn is_jwt_auth(headers: &HeaderMap) -> bool {
     headers.get(crate::headers::AUTHORIZATION).is_some()
+        || get_cookie_from_header(headers)
+            .and_then(cookies::parse_cookie)
+            .is_ok()
 }
 
 pub async fn decode_jwt<T>(token: &str, state: &impl AppStateInfo) -> RouterResult<T>
