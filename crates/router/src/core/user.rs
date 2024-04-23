@@ -388,7 +388,7 @@ pub async fn reset_password(
         .update_user_by_email(
             &email_token
                 .get_email()
-                .change_context(UserErrors::EmailParsingError)?,
+                .change_context(UserErrors::InternalServerError)?,
             storage_user::UserUpdate::AccountUpdate {
                 name: None,
                 password: Some(hash_password),
@@ -951,7 +951,7 @@ pub async fn accept_invite_from_email(
         .find_user_by_email(
             &email_token
                 .get_email()
-                .change_context(UserErrors::EmailParsingError)?,
+                .change_context(UserErrors::InternalServerError)?,
         )
         .await
         .change_context(UserErrors::InternalServerError)?
@@ -1332,7 +1332,7 @@ pub async fn verify_email_without_invite_checks(
         .find_user_by_email(
             &email_token
                 .get_email()
-                .change_context(UserErrors::EmailParsingError)?,
+                .change_context(UserErrors::InternalServerError)?,
         )
         .await
         .change_context(UserErrors::InternalServerError)?;
@@ -1372,7 +1372,7 @@ pub async fn verify_email(
         .find_user_by_email(
             &email_token
                 .get_email()
-                .change_context(UserErrors::EmailParsingError)?,
+                .change_context(UserErrors::InternalServerError)?,
         )
         .await
         .change_context(UserErrors::InternalServerError)?;
