@@ -4,6 +4,25 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.04.23.0
+
+### Features
+
+- **euclied_wasm:** [NMI] Add configs for extended 3DS ([#4422](https://github.com/juspay/hyperswitch/pull/4422)) ([`b8be10d`](https://github.com/juspay/hyperswitch/commit/b8be10de52e40d2327819d33c6c1ec40a459bdd5))
+- **router:** Add poll ability in external 3ds authorization flow ([#4393](https://github.com/juspay/hyperswitch/pull/4393)) ([`4476553`](https://github.com/juspay/hyperswitch/commit/447655382bcf2fdd69a1ec6a56e5e4df8a8feef2))
+
+### Refactors
+
+- **wallet:** Use `billing.phone` instead of `telephone_number` ([#4329](https://github.com/juspay/hyperswitch/pull/4329)) ([`3e6bc19`](https://github.com/juspay/hyperswitch/commit/3e6bc191fd5804feface9ee1a0cb7ddbbe025569))
+
+### Miscellaneous Tasks
+
+- Add wasm toml configs for netcetera authnetication connector ([#4426](https://github.com/juspay/hyperswitch/pull/4426)) ([`4851da1`](https://github.com/juspay/hyperswitch/commit/4851da1595074dbb2760e76f83403e8ac9f7895f))
+
+**Full Changelog:** [`2024.04.22.0...2024.04.23.0`](https://github.com/juspay/hyperswitch/compare/2024.04.22.0...2024.04.23.0)
+
+- - -
+
 ## 2024.04.22.0
 
 ### Features

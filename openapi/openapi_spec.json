@@ -4546,6 +4546,9 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "Poll not found"
           }
         },
         "security": [
