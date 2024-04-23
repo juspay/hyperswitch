@@ -1335,12 +1335,12 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
         match self {
             Self::Card(card_data) => card_data.get_billing_address(),
             Self::CardRedirect(_) => None,
-            Self::Wallet(_) => None,
+            Self::Wallet(wallet_data) => wallet_data.get_billing_address(),
             Self::PayLater(_) => None,
             Self::BankRedirect(_) => None,
             Self::BankDebit(_) => None,
             Self::BankTransfer(_) => None,
-            Self::Voucher(_) => None,
+            Self::Voucher(voucher_data) => voucher_data.get_billing_address(),
             Self::Crypto(_)
             | Self::Reward
             | Self::Upi(_)
