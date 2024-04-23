@@ -197,7 +197,7 @@ impl api::IncomingWebhook for Netcetera {
         let webhook_body_value: netcetera::ResultsResponseData = request
             .body
             .parse_struct("netcetera ResultsResponseDatae")
-            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(Box::new(webhook_body_value))
     }
 
