@@ -3233,15 +3233,6 @@ pub async fn list_customer_payment_method(
     limit: Option<i64>,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
-
-    if let Some(ref payment_intent) = payment_intent {
-        if payment_intent.payment_link_id.is_some() {
-            Err(errors::ApiErrorResponse::AccessForbidden {
-                resource: "saved payment methods".to_string(),
-            })?
-        }
-    };
-
     let off_session_payment_flag = payment_intent
         .as_ref()
         .map(|pi| {
