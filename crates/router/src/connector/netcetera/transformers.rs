@@ -548,7 +548,7 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
             white_list_status: None,
             trust_list_status: None,
             seller_info: None,
-            results_response_notification_url: request.return_url,
+            results_response_notification_url: Some(request.webhook_url),
         };
         let browser_information = request.browser_details.map(netcetera_types::Browser::from);
         let sdk_information = request.sdk_information.map(netcetera_types::Sdk::from);
@@ -633,4 +633,45 @@ pub enum ACSChallengeMandatedIndicator {
     Y,
     /// Challenge is not mandated
     N,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResultsResponseData {
+    /// Universally unique transaction identifier assigned by the 3DS Server to identify a single transaction.
+    /// It has the same value as the authentication request and conforms to the format defined in IETF RFC 4122.
+    #[serde(rename = "threeDSServerTransID")]
+    pub three_ds_server_trans_id: String,
+
+    /// Indicates the status of a transaction in terms of its authentication.
+    ///
+    /// Valid values:
+    /// - `Y`: Authentication / Account verification successful.
+    /// - `N`: Not authenticated / Account not verified; Transaction denied.
+    /// - `U`: Authentication / Account verification could not be performed; technical or other problem.
+    /// - `C`: A challenge is required to complete the authentication.
+    /// - `R`: Authentication / Account verification Rejected. Issuer is rejecting authentication/verification
+    ///       and request that authorization not be attempted.
+    /// - `A`: Attempts processing performed; Not authenticated / verified, but a proof of attempt
+    ///       authentication / verification is provided.
+    /// - `D`: A challenge is required to complete the authentication. Decoupled Authentication confirmed.
+    /// - `I`: Informational Only; 3DS Requestor challenge preference acknowledged.
+    pub trans_status: Option<common_enums::TransactionStatus>,
+
+    /// Payment System-specific value provided as part of the ACS registration for each supported DS.
+    /// Authentication Value may be used to provide proof of authentication.
+    pub authentication_value: Option<String>,
+
+    /// Payment System-specific value provided by the ACS to indicate the results of the attempt to authenticate
+    /// the Cardholder.
+    pub eci: Option<String>,
+
+    /// The received Results Request from the Directory Server.
+    pub results_request: Option<serde_json::Value>,
+
+    /// The sent Results Response to the Directory Server.
+    pub results_response: Option<serde_json::Value>,
+
+    /// Optional object containing error details if any errors occurred during the process.
+    pub error_details: Option<NetceteraErrorDetails>,
 }
