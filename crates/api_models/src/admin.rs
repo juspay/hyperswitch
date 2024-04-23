@@ -478,6 +478,7 @@ pub struct MerchantConnectorCreate {
     #[schema(value_type = Option<ConnectorStatus>, example = "inactive")]
     pub status: Option<api_enums::ConnectorStatus>,
 
+    /// In case the merchant needs to store any additional sensitive data
     #[schema(value_type = Option<AdditionalMerchantData>)]
     pub additional_merchant_data: Option<pii::SecretSerdeValue>,
 }
@@ -675,6 +676,7 @@ pub struct MerchantConnectorResponse {
     #[schema(value_type = ConnectorStatus, example = "inactive")]
     pub status: api_enums::ConnectorStatus,
 
+    #[schema(value_type = Option<AdditionalMerchantData>)]
     pub additional_merchant_data: Option<pii::SecretSerdeValue>,
 }
 

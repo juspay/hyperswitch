@@ -11035,7 +11035,7 @@
           "additional_merchant_data": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/pii.SecretSerdeValue"
+                "$ref": "#/components/schemas/AdditionalMerchantData"
               }
             ],
             "nullable": true
