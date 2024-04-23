@@ -3,6 +3,7 @@ use serde::Serialize;
 use time::PrimitiveDateTime;
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(tag = "event_type")]
 pub enum AuditEventType {
     Error { error_message: String },
     PaymentCreated,
@@ -16,6 +17,7 @@ pub enum AuditEventType {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct AuditEvent {
+    #[serde(flatten)]
     event_type: AuditEventType,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     created_at: PrimitiveDateTime,

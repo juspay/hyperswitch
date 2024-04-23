@@ -12,7 +12,7 @@ pub enum PaymentMethodData {
     PayLater(PayLaterData),
     BankRedirect(BankRedirectData),
     BankDebit(BankDebitData),
-    BankTransfer(Box<api_models::payments::BankTransferData>),
+    BankTransfer(Box<BankTransferData>),
     Crypto(CryptoData),
     MandatePayment,
     Reward,
@@ -182,10 +182,7 @@ pub struct GcashRedirection {}
 pub struct MobilePayRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
-pub struct MbWayRedirection {
-    /// Telephone number of the shopper. Should be Portuguese phone number.
-    pub telephone_number: Secret<String>,
-}
+pub struct MbWayRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 
@@ -443,6 +440,92 @@ pub struct BankDebitBilling {
     pub address: Option<api_models::payments::AddressDetails>,
 }
 
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BankTransferData {
+    AchBankTransfer {
+        /// The billing details for ACH Bank Transfer
+        billing_details: AchBillingDetails,
+    },
+    SepaBankTransfer {
+        /// The billing details for SEPA
+        billing_details: SepaAndBacsBillingDetails,
+
+        /// The two-letter ISO country code for SEPA and BACS
+        country: api_models::enums::CountryAlpha2,
+    },
+    BacsBankTransfer {
+        /// The billing details for SEPA
+        billing_details: SepaAndBacsBillingDetails,
+    },
+    MultibancoBankTransfer {
+        /// The billing details for Multibanco
+        billing_details: MultibancoBillingDetails,
+    },
+    PermataBankTransfer {
+        /// The billing details for Permata Bank Transfer
+        billing_details: DokuBillingDetails,
+    },
+    BcaBankTransfer {
+        /// The billing details for BCA Bank Transfer
+        billing_details: DokuBillingDetails,
+    },
+    BniVaBankTransfer {
+        /// The billing details for BniVa Bank Transfer
+        billing_details: DokuBillingDetails,
+    },
+    BriVaBankTransfer {
+        /// The billing details for BniVa Bank Transfer
+        billing_details: DokuBillingDetails,
+    },
+    CimbVaBankTransfer {
+        /// The billing details for BniVa Bank Transfer
+        billing_details: DokuBillingDetails,
+    },
+    DanamonVaBankTransfer {
+        /// The billing details for BniVa Bank Transfer
+        billing_details: DokuBillingDetails,
+    },
+    MandiriVaBankTransfer {
+        /// The billing details for BniVa Bank Transfer
+        billing_details: DokuBillingDetails,
+    },
+    Pix {},
+    Pse {},
+    LocalBankTransfer {
+        bank_code: Option<String>,
+    },
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct AchBillingDetails {
+    /// The Email ID for ACH billing
+    pub email: Email,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct DokuBillingDetails {
+    /// The billing first name for Doku
+    pub first_name: Secret<String>,
+    /// The billing second name for Doku
+    pub last_name: Option<Secret<String>>,
+    /// The Email ID for Doku billing
+    pub email: Email,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct MultibancoBillingDetails {
+    pub email: Email,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct SepaAndBacsBillingDetails {
+    /// The Email ID for SEPA and BACS billing
+    pub email: Email,
+    /// The billing name for SEPA and BACS billing
+    pub name: Secret<String>,
+}
+
 impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
     fn from(api_model_payment_method_data: api_models::payments::PaymentMethodData) -> Self {
         match api_model_payment_method_data {
@@ -465,7 +548,7 @@ impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
                 Self::BankDebit(From::from(bank_debit_data))
             }
             api_models::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
-                Self::BankTransfer(bank_transfer_data)
+                Self::BankTransfer(Box::new(From::from(*bank_transfer_data)))
             }
             api_models::payments::PaymentMethodData::Crypto(crypto_data) => {
                 Self::Crypto(From::from(crypto_data))
@@ -571,10 +654,8 @@ impl From<api_models::payments::WalletData> for WalletData {
             api_models::payments::WalletData::GooglePayThirdPartySdk(_) => {
                 Self::GooglePayThirdPartySdk(Box::new(GooglePayThirdPartySdkData {}))
             }
-            api_models::payments::WalletData::MbWayRedirect(mbway_redirect_data) => {
-                Self::MbWayRedirect(Box::new(MbWayRedirection {
-                    telephone_number: mbway_redirect_data.telephone_number,
-                }))
+            api_models::payments::WalletData::MbWayRedirect(..) => {
+                Self::MbWayRedirect(Box::new(MbWayRedirection {}))
             }
             api_models::payments::WalletData::MobilePayRedirect(_) => {
                 Self::MobilePayRedirect(Box::new(MobilePayRedirection {}))
@@ -919,6 +1000,95 @@ impl From<api_models::payments::BankDebitData> for BankDebitData {
                 sort_code,
                 bank_account_holder_name,
             },
+        }
+    }
+}
+
+impl From<api_models::payments::BankTransferData> for BankTransferData {
+    fn from(value: api_models::payments::BankTransferData) -> Self {
+        match value {
+            api_models::payments::BankTransferData::AchBankTransfer { billing_details } => {
+                Self::AchBankTransfer {
+                    billing_details: AchBillingDetails {
+                        email: billing_details.email,
+                    },
+                }
+            }
+            api_models::payments::BankTransferData::SepaBankTransfer {
+                billing_details,
+                country,
+            } => Self::SepaBankTransfer {
+                billing_details: SepaAndBacsBillingDetails {
+                    email: billing_details.email,
+                    name: billing_details.name,
+                },
+                country,
+            },
+            api_models::payments::BankTransferData::BacsBankTransfer { billing_details } => {
+                Self::BacsBankTransfer {
+                    billing_details: SepaAndBacsBillingDetails {
+                        email: billing_details.email,
+                        name: billing_details.name,
+                    },
+                }
+            }
+            api_models::payments::BankTransferData::MultibancoBankTransfer { billing_details } => {
+                Self::MultibancoBankTransfer {
+                    billing_details: MultibancoBillingDetails {
+                        email: billing_details.email,
+                    },
+                }
+            }
+            api_models::payments::BankTransferData::PermataBankTransfer { billing_details } => {
+                Self::PermataBankTransfer {
+                    billing_details: DokuBillingDetails::from(billing_details),
+                }
+            }
+            api_models::payments::BankTransferData::BcaBankTransfer { billing_details } => {
+                Self::BcaBankTransfer {
+                    billing_details: DokuBillingDetails::from(billing_details),
+                }
+            }
+            api_models::payments::BankTransferData::BniVaBankTransfer { billing_details } => {
+                Self::BniVaBankTransfer {
+                    billing_details: DokuBillingDetails::from(billing_details),
+                }
+            }
+            api_models::payments::BankTransferData::BriVaBankTransfer { billing_details } => {
+                Self::BriVaBankTransfer {
+                    billing_details: DokuBillingDetails::from(billing_details),
+                }
+            }
+            api_models::payments::BankTransferData::CimbVaBankTransfer { billing_details } => {
+                Self::CimbVaBankTransfer {
+                    billing_details: DokuBillingDetails::from(billing_details),
+                }
+            }
+            api_models::payments::BankTransferData::DanamonVaBankTransfer { billing_details } => {
+                Self::DanamonVaBankTransfer {
+                    billing_details: DokuBillingDetails::from(billing_details),
+                }
+            }
+            api_models::payments::BankTransferData::MandiriVaBankTransfer { billing_details } => {
+                Self::MandiriVaBankTransfer {
+                    billing_details: DokuBillingDetails::from(billing_details),
+                }
+            }
+            api_models::payments::BankTransferData::Pix {} => Self::Pix {},
+            api_models::payments::BankTransferData::Pse {} => Self::Pse {},
+            api_models::payments::BankTransferData::LocalBankTransfer { bank_code } => {
+                Self::LocalBankTransfer { bank_code }
+            }
+        }
+    }
+}
+
+impl From<api_models::payments::DokuBillingDetails> for DokuBillingDetails {
+    fn from(billing: api_models::payments::DokuBillingDetails) -> Self {
+        Self {
+            first_name: billing.first_name,
+            last_name: billing.last_name,
+            email: billing.email,
         }
     }
 }

@@ -410,9 +410,13 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
             .address
             .as_ref()
             .ok_or_else(utils::missing_field_err("billing.address"))?;
+        let first_name = billing_address.get_first_name()?;
         let delivery = DeliveryObject {
-            first_name: billing_address.get_first_name()?.to_owned(),
-            last_name: billing_address.get_last_name()?.to_owned(),
+            first_name: first_name.clone(),
+            last_name: billing_address
+                .get_last_name()
+                .unwrap_or(first_name)
+                .clone(),
             address1: billing_address.get_line1()?.to_owned(),
             house_number: billing_address.get_line2()?.to_owned(),
             zip_code: billing_address.get_zip()?.to_owned(),
@@ -911,7 +915,7 @@ impl From<MultisafepayErrorResponse> for Option<AttemptStatus> {
             | 1031 // IncorrectItemPrice
             | 1035 // InvalidSignatureRefund
             | 1036 // InvalidIdealIssuerID
-            | 5001 // CartDataNotValidated 
+            | 5001 // CartDataNotValidated
             | 1032 // InvalidAPIKey
             => {
                 Some(AttemptStatus::AuthenticationFailed)
@@ -919,7 +923,7 @@ impl From<MultisafepayErrorResponse> for Option<AttemptStatus> {
 
             1034 // CannotRefundTransaction
             | 1022 // CannotInitiateTransaction
-            | 1024 //TransactionDeclined 
+            | 1024 //TransactionDeclined
             => Some(AttemptStatus::Failure),
             1017 // InsufficientFunds
             => Some(AttemptStatus::AuthorizationFailed),

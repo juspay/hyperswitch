@@ -148,25 +148,25 @@ impl TryFrom<&ZslRouterData<&types::PaymentsAuthorizeRouterData>> for ZslPayment
         let payment_method = match item.router_data.request.payment_method_data.clone() {
             domain::PaymentMethodData::BankTransfer(bank_transfer_data) => {
                 match *bank_transfer_data {
-                    api_models::payments::BankTransferData::LocalBankTransfer { bank_code } => Ok(
+                    domain::BankTransferData::LocalBankTransfer { bank_code } => Ok(
                         ZslPaymentMethods::LocalBankTransfer(LocalBankTransaferRequest {
                             bank_code,
                             pay_method: None,
                         }),
                     ),
-                    api_models::payments::BankTransferData::AchBankTransfer { .. }
-                    | api_models::payments::BankTransferData::SepaBankTransfer { .. }
-                    | api_models::payments::BankTransferData::BacsBankTransfer { .. }
-                    | api_models::payments::BankTransferData::MultibancoBankTransfer { .. }
-                    | api_models::payments::BankTransferData::PermataBankTransfer { .. }
-                    | api_models::payments::BankTransferData::BcaBankTransfer { .. }
-                    | api_models::payments::BankTransferData::BniVaBankTransfer { .. }
-                    | api_models::payments::BankTransferData::BriVaBankTransfer { .. }
-                    | api_models::payments::BankTransferData::CimbVaBankTransfer { .. }
-                    | api_models::payments::BankTransferData::DanamonVaBankTransfer { .. }
-                    | api_models::payments::BankTransferData::MandiriVaBankTransfer { .. }
-                    | api_models::payments::BankTransferData::Pix {}
-                    | api_models::payments::BankTransferData::Pse {} => {
+                    domain::BankTransferData::AchBankTransfer { .. }
+                    | domain::BankTransferData::SepaBankTransfer { .. }
+                    | domain::BankTransferData::BacsBankTransfer { .. }
+                    | domain::BankTransferData::MultibancoBankTransfer { .. }
+                    | domain::BankTransferData::PermataBankTransfer { .. }
+                    | domain::BankTransferData::BcaBankTransfer { .. }
+                    | domain::BankTransferData::BniVaBankTransfer { .. }
+                    | domain::BankTransferData::BriVaBankTransfer { .. }
+                    | domain::BankTransferData::CimbVaBankTransfer { .. }
+                    | domain::BankTransferData::DanamonVaBankTransfer { .. }
+                    | domain::BankTransferData::MandiriVaBankTransfer { .. }
+                    | domain::BankTransferData::Pix {}
+                    | domain::BankTransferData::Pse {} => {
                         Err(errors::ConnectorError::NotImplemented(
                             connector_utils::get_unimplemented_payment_method_error_message(
                                 item.router_data.connector.as_str(),
@@ -221,11 +221,7 @@ impl TryFrom<&ZslRouterData<&types::PaymentsAuthorizeRouterData>> for ZslPayment
         let family_name = item.router_data.get_optional_billing_last_name();
         let router_url = item.router_data.request.get_router_return_url()?;
         let webhook_url = item.router_data.request.get_webhook_url()?;
-        let billing_country = item.router_data.get_optional_billing_country().ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "billing.address.country",
-            },
-        )?;
+        let billing_country = item.router_data.get_billing_country()?;
 
         let lang = item
             .router_data
