@@ -386,7 +386,6 @@ where
                             .await;
                     let external_latency = current_time.elapsed().as_millis();
                     logger::info!(raw_connector_request=?masked_request_body);
-                    logger::info!(raw_connector_response=?response);
                     let status_code = response
                         .as_ref()
                         .map(|i| {
