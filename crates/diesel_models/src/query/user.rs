@@ -4,7 +4,6 @@ use diesel::{
     associations::HasTable, debug_query, result::Error as DieselError, ExpressionMethods,
     JoinOnDsl, QueryDsl,
 };
-
 use error_stack::report;
 use router_env::logger;
 pub mod sample_data;
