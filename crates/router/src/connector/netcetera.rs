@@ -212,7 +212,7 @@ impl api::IncomingWebhook for Netcetera {
         Ok(api::ExternalAuthenticationPayload {
             trans_status: webhook_body
                 .trans_status
-                .unwrap_or(common_enums::TransactionStatus::Failure),
+                .unwrap_or(common_enums::TransactionStatus::InformationOnly),
             authentication_value: webhook_body.authentication_value,
             eci: webhook_body.eci,
         })
