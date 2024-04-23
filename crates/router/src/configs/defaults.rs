@@ -588,7 +588,7 @@ impl Default for super::settings::RequiredFields {
                                             (
                                                 "billing.address.state".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "billing.address.state".to_string(),
+                                                    required_field: "payment_method_data.billing.address.state".to_string(),
                                                     display_name: "state".to_string(),
                                                     field_type: enums::FieldType::UserAddressState,
                                                     value: None,
@@ -880,7 +880,7 @@ impl Default for super::settings::RequiredFields {
                                             (
                                                 "billing.address.state".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "billing.address.state".to_string(),
+                                                    required_field: "payment_method_data.billing.address.state".to_string(),
                                                     display_name: "state".to_string(),
                                                     field_type: enums::FieldType::UserAddressState,
                                                     value: None,
@@ -2745,7 +2745,7 @@ impl Default for super::settings::RequiredFields {
                                             (
                                                 "billing.address.state".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "billing.address.state".to_string(),
+                                                    required_field: "payment_method_data.billing.address.state".to_string(),
                                                     display_name: "state".to_string(),
                                                     field_type: enums::FieldType::UserAddressState,
                                                     value: None,
@@ -3036,7 +3036,7 @@ impl Default for super::settings::RequiredFields {
                                             (
                                                 "billing.address.state".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "billing.address.state".to_string(),
+                                                    required_field: "payment_method_data.billing.address.state".to_string(),
                                                     display_name: "state".to_string(),
                                                     field_type: enums::FieldType::UserAddressState,
                                                     value: None,
@@ -5926,7 +5926,7 @@ impl Default for super::settings::RequiredFields {
                                                 (
                                                     "billing.address.state".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "billing.address.state".to_string(),
+                                                        required_field: "payment_method_data.billing.address.state".to_string(),
                                                         display_name: "state".to_string(),
                                                         field_type: enums::FieldType::UserAddressState,
                                                         value: None,
@@ -6013,7 +6013,7 @@ impl Default for super::settings::RequiredFields {
                                                 (
                                                     "billing.address.state".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "billing.address.state".to_string(),
+                                                        required_field: "payment_method_data.billing.address.state".to_string(),
                                                         display_name: "state".to_string(),
                                                         field_type: enums::FieldType::UserAddressState,
                                                         value: None,
@@ -6115,7 +6115,7 @@ impl Default for super::settings::RequiredFields {
                                                 (
                                                     "billing.address.state".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "billing.address.state".to_string(),
+                                                        required_field: "payment_method_data.billing.address.state".to_string(),
                                                         display_name: "state".to_string(),
                                                         field_type: enums::FieldType::UserAddressState,
                                                         value: None,
@@ -6248,7 +6248,7 @@ impl Default for super::settings::RequiredFields {
                                         (
                                             "billing.address.state".to_string(),
                                             RequiredFieldInfo {
-                                                required_field: "billing.address.state".to_string(),
+                                                required_field: "payment_method_data.billing.address.state".to_string(),
                                                 display_name: "state".to_string(),
                                                 field_type: enums::FieldType::UserAddressState,
                                                 value: None,
@@ -6342,7 +6342,7 @@ impl Default for super::settings::RequiredFields {
                                                 (
                                                     "billing.address.state".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "billing.address.state".to_string(),
+                                                        required_field: "payment_method_data.billing.address.state".to_string(),
                                                         display_name: "state".to_string(),
                                                         field_type: enums::FieldType::UserAddressState,
                                                         value: None,
