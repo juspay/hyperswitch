@@ -159,9 +159,8 @@ impl BusinessProfileInterface for Store {
         #[cfg(feature = "accounts_cache")]
         {
             let business_profile = self.find_business_profile_by_profile_id(profile_id).await?;
-            let result: bool = db_func().await?;
             publish_and_redact_business_profile_cache(self, &business_profile).await?;
-            Ok(result)
+            db_func().await
         }
     }
 
