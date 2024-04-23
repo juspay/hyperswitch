@@ -9,7 +9,10 @@ use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
 use tracing_futures::Instrument;
 
-use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
+use super::{
+    BoxedFlow, BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest,
+    ValidateRequestFlow,
+};
 use crate::{
     core::{
         authentication,
@@ -27,7 +30,7 @@ use crate::{
     routes::{app::ReqState, AppState},
     services,
     types::{
-        api::{self, ConnectorCallType, PaymentIdTypeExt},
+        api::{self, ConnectorCallType, PaymentIdTypeExt, SetupMandate},
         domain,
         storage::{self, enums as storage_enums},
     },
@@ -1214,7 +1217,10 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
         operations::ValidateResult<'a>,
     )> {
         helpers::validate_customer_details_in_request(request)?;
-
+        let flow: BoxedFlow<'_, api::PaymentsRequest, Ctx> = Box::new(F);
+        let a = flow
+            .to_validate_request_flow()?
+            .validate_request_for_flow(request, merchant_account)?;
         let request_merchant_id = request.merchant_id.as_deref();
         helpers::validate_merchant_id(&merchant_account.merchant_id, request_merchant_id)
             .change_context(errors::ApiErrorResponse::InvalidDataFormat {
@@ -1250,5 +1256,18 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
                 ),
             },
         ))
+    }
+}
+
+impl<Ctx: PaymentMethodRetrieve> ValidateRequestFlow<api::PaymentsRetrieveRequest, Ctx>
+    for SetupMandate
+{
+    fn validate_request_for_flow<'a>(
+        &'a self,
+        request: &api::PaymentsRetrieveRequest,
+        merchant_account: &'a domain::MerchantAccount,
+    ) -> RouterResult<()> {
+        println!("CALLED7");
+        Ok(())
     }
 }
