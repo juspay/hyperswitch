@@ -146,8 +146,7 @@ pub trait ConnectorCommon {
             reason: None,
             attempt_status: None,
             connector_transaction_id: None,
-        })
-    }
+        }) }
 }
 
 /// Extended trait for connector common to allow functions with generic type

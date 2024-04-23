@@ -291,6 +291,40 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             _ => Ok((None, true)),
         }
     }
+
+    fn check_connector_integrity(
+        &self
+    ) -> RouterResult<(String,bool)>{
+        let router_data = self;
+        let request = router_data.request;
+        let integrity_object = router_data.integrity_object.unwrap();
+        let router_amount = crate::connector::utils::get_amount_as_string(
+            &integrity_object.currency_unit,
+            request.amount,
+            request.currency,
+        )?;
+
+        let amount_integrity_check = integrity_object.amount.map_or(true, |response_amount| {
+            response_amount == router_amount
+        });
+
+        let currency_check = integrity_object.currency.map_or(true, |response_currency| {
+            response_currency == request.currency.to_string()
+        });
+
+        if !amount_integrity_check && !currency_check {
+            Ok(("AMOUNT AND CURRECY CHECK FAILED".to_string(),false))
+        }
+        else if !amount_integrity_check {
+            Ok(("AMOUNT CHECK FAILED".to_string(),false))
+        }
+        else if !currency_check{
+            Ok(("CURRECY CHECK FAILED".to_string(),false))
+        }
+        else{
+            Ok(("INTEGRITY CHECK PASSED".to_string(), true))
+        }
+    }  
 }
 
 impl types::PaymentsAuthorizeRouterData {

@@ -688,6 +688,8 @@ impl FromStr for AciPaymentStatus {
 #[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AciPaymentsResponse {
+    pub amount: Option<String>,
+    pub currency: Option<String>,
     id: String,
     registration_id: Option<Secret<String>>,
     // ndc is an internal unique identifier for the request.
@@ -751,7 +753,6 @@ impl<F, T>
                     .iter()
                     .map(|parameter| (parameter.name.clone(), parameter.value.clone())),
             );
-
             // If method is Get, parameters are appended to URL
             // If method is post, we http Post the method to URL
             services::RedirectForm::Form {
@@ -762,7 +763,6 @@ impl<F, T>
                 form_fields,
             }
         });
-
         let mandate_reference = item
             .response
             .registration_id
@@ -770,6 +770,12 @@ impl<F, T>
                 connector_mandate_id: Some(id.expose()),
                 payment_method_id: None,
             });
+
+        let integrity_object = Some(types::IntegrityObject{
+            amount: item.response.amount,
+            currency : item.response.currency,
+            currency_unit: types::api::ConnectorCommon::get_currency_unit(&super::Aci)
+        });
 
         Ok(Self {
             status: {
@@ -790,10 +796,13 @@ impl<F, T>
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
             }),
+            integrity_object,
             ..item.data
         })
     }
 }
+
+
 
 #[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]

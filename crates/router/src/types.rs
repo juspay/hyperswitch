@@ -324,6 +324,7 @@ pub struct RouterData<Flow, Request, Response> {
     /// This field is used to store various data regarding the response from connector
     pub connector_response: Option<ConnectorResponseData>,
     pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
+    pub integrity_object: F,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -871,6 +872,17 @@ pub struct MandateReference {
     pub payment_method_id: Option<String>,
 }
 
+#[derive(serde::Serialize, Debug, Clone)]
+pub struct AuthzIntegrityObj {
+    pub amount: String,
+    pub currency: String,
+    pub currency_unit: api::CurrencyUnit
+}
+
+struct Authz {
+    intergrity: Option<AuthzIntegrityObj>
+}
+
 #[derive(Debug, Clone)]
 pub enum CaptureSyncResponse {
     Success {
@@ -1303,7 +1315,7 @@ pub struct ConnectorsList {
 pub struct Response {
     pub headers: Option<http::HeaderMap>,
     pub response: bytes::Bytes,
-    pub status_code: u16,
+    pub status_code: u16
 }
 
 #[derive(Clone, Debug, serde::Serialize)]

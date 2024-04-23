@@ -116,6 +116,13 @@ pub trait Feature<F, T> {
     ) -> RouterResult<(Option<services::Request>, bool)> {
         Ok((None, true))
     }
+
+    fn check_connector_integrity(
+        &self
+        // _integrity_object: types::IntegrityObject
+    ) -> RouterResult<Option<(String,bool)>>{
+        Ok(None)
+    }
 }
 
 macro_rules! default_imp_for_complete_authorize {

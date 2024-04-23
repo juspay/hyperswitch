@@ -1381,6 +1381,7 @@ where
     } else {
         Ok(router_data)
     };
+    let integrity_check = router_data_res.ok().unwrap().check_connector_integrity()?;
 
     let etime_connector = Instant::now();
     let duration_connector = etime_connector.saturating_duration_since(stime_connector);

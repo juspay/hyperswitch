@@ -25,6 +25,7 @@ use crate::{
     utils::BytesExt,
 };
 
+
 #[derive(Debug, Clone)]
 pub struct Aci;
 
@@ -237,10 +238,11 @@ impl
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+        let req = data.request;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
-            http_code: res.status_code,
+            http_code: res.status_code
         })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
@@ -446,6 +448,7 @@ impl
             response,
             data: data.clone(),
             http_code: res.status_code,
+            integrity_check: None
         })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
@@ -551,6 +554,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             response,
             data: data.clone(),
             http_code: res.status_code,
+            integrity_check: None
         })
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)
     }
