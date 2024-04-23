@@ -58,7 +58,6 @@ pub async fn add_access_token_for_payout<F: Clone + 'static>(
         .connector_name
         .supports_access_token_for_payout(payout_type)
     {
-        // requires_later
         let merchant_id = &merchant_account.merchant_id;
         let store = &*state.store;
         let old_access_token = store
