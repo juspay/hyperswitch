@@ -2000,7 +2000,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             item.request
                 .browser_info
                 .clone()
-                .map(StripeBrowserInformation)
+                .map(StripeBrowserInformation::from)
         } else {
             None
         };
