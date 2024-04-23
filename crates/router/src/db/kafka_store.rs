@@ -1258,6 +1258,7 @@ impl PaymentAttemptInterface for KafkaStore {
         payment_method: Option<Vec<common_enums::PaymentMethod>>,
         payment_method_type: Option<Vec<common_enums::PaymentMethodType>>,
         authentication_type: Option<Vec<common_enums::AuthenticationType>>,
+        merchant_connector_id: Option<Vec<String>>,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::DataStorageError> {
         self.diesel_store
@@ -1268,6 +1269,7 @@ impl PaymentAttemptInterface for KafkaStore {
                 payment_method,
                 payment_method_type,
                 authentication_type,
+                merchant_connector_id,
                 storage_scheme,
             )
             .await
@@ -2374,7 +2376,7 @@ impl UserRoleInterface for KafkaStore {
         &self,
         user_id: &str,
         merchant_id: &str,
-    ) -> CustomResult<bool, errors::StorageError> {
+    ) -> CustomResult<user_storage::UserRole, errors::StorageError> {
         self.diesel_store
             .delete_user_role_by_user_id_merchant_id(user_id, merchant_id)
             .await

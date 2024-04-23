@@ -1,3 +1,4 @@
+pub mod netcetera_types;
 pub mod transformers;
 
 use std::fmt::Debug;
@@ -9,7 +10,6 @@ use transformers as netcetera;
 
 use crate::{
     configs::settings,
-    consts,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
     headers,
@@ -107,11 +107,8 @@ impl ConnectorCommon for Netcetera {
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.error_details.error_code,
-            message: response
-                .error_details
-                .error_description
-                .unwrap_or(consts::NO_ERROR_MESSAGE.into()),
-            reason: response.error_details.error_detail,
+            message: response.error_details.error_description,
+            reason: Some(response.error_details.error_detail),
             attempt_status: None,
             connector_transaction_id: None,
         })
@@ -123,7 +120,6 @@ impl ConnectorValidation for Netcetera {}
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Netcetera
 {
-    //TODO: implement sessions flow
 }
 
 impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
@@ -313,6 +309,110 @@ impl
         types::authentication::AuthenticationResponseData,
     > for Netcetera
 {
+    fn get_headers(
+        &self,
+        req: &types::authentication::ConnectorAuthenticationRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &types::authentication::ConnectorAuthenticationRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let base_url = build_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
+        Ok(format!("{}/3ds/authentication", base_url,))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::authentication::ConnectorAuthenticationRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_router_data = netcetera::NetceteraRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request
+                .currency
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "currency",
+                })?,
+            req.request
+                .amount
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "amount",
+                })?,
+            req,
+        ))?;
+        let req_obj = netcetera::NetceteraAuthenticationRequest::try_from(&connector_router_data);
+        Ok(RequestContent::Json(Box::new(req_obj?)))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::authentication::ConnectorAuthenticationRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let netcetera_auth_type = netcetera::NetceteraAuthType::try_from(&req.connector_auth_type)?;
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(
+                    &types::authentication::ConnectorAuthenticationType::get_url(
+                        self, req, connectors,
+                    )?,
+                )
+                .attach_default_headers()
+                .headers(
+                    types::authentication::ConnectorAuthenticationType::get_headers(
+                        self, req, connectors,
+                    )?,
+                )
+                .set_body(
+                    types::authentication::ConnectorAuthenticationType::get_request_body(
+                        self, req, connectors,
+                    )?,
+                )
+                .add_certificate(Some(netcetera_auth_type.certificate.expose()))
+                .add_certificate_key(Some(netcetera_auth_type.private_key.expose()))
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::authentication::ConnectorAuthenticationRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<
+        types::authentication::ConnectorAuthenticationRouterData,
+        errors::ConnectorError,
+    > {
+        let response: netcetera::NetceteraAuthenticationResponse = res
+            .response
+            .parse_struct("NetceteraAuthenticationResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
 }
 
 impl
