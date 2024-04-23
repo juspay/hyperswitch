@@ -175,7 +175,7 @@ impl api::IncomingWebhook for Netcetera {
         let webhook_body: netcetera::ResultsResponseData = request
             .body
             .parse_struct("netcetera ResultsResponseData")
-            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(api::webhooks::ObjectReferenceId::ExternalAuthenticationID(
             api::webhooks::AuthenticationIdType::ConnectorAuthenticationId(
                 webhook_body.three_ds_server_trans_id,
