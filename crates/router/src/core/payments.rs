@@ -2377,6 +2377,7 @@ where
     pub authentication: Option<storage::Authentication>,
     pub frm_metadata: Option<serde_json::Value>,
     pub recurring_details: Option<RecurringDetails>,
+    pub poll_config: Option<router_types::PollConfig>,
 }
 
 #[derive(Clone, serde::Serialize, Debug)]
