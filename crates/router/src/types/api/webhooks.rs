@@ -1,7 +1,7 @@
 use api_models::admin::MerchantConnectorWebhookDetails;
 pub use api_models::webhooks::{
-    IncomingWebhookDetails, IncomingWebhookEvent, MerchantWebhookConfig, ObjectReferenceId,
-    OutgoingWebhook, OutgoingWebhookContent, WebhookFlow,
+    AuthenticationIdType, IncomingWebhookDetails, IncomingWebhookEvent, MerchantWebhookConfig,
+    ObjectReferenceId, OutgoingWebhook, OutgoingWebhookContent, WebhookFlow,
 };
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;

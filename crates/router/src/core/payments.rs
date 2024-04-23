@@ -3812,6 +3812,11 @@ pub async fn payment_external_authentication(
         &payment_attempt.clone(),
         payment_connector_name,
     ));
+    let webhook_url = helpers::create_webhook_url(
+        &state.conf.server.base_url,
+        merchant_id,
+        &authentication_connector,
+    );
 
     let business_profile = state
         .store
@@ -3845,6 +3850,7 @@ pub async fn payment_external_authentication(
         req.sdk_information,
         req.threeds_method_comp_ind,
         optional_customer.and_then(|customer| customer.email.map(common_utils::pii::Email::from)),
+        webhook_url,
     ))
     .await?;
     Ok(services::ApplicationResponse::Json(
