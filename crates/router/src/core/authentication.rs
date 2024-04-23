@@ -7,14 +7,15 @@ use api_models::payments;
 use common_enums::Currency;
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use error_stack::{report, ResultExt};
-use masking::PeekInterface;
+use masking::{ExposeInterface, PeekInterface};
 
 use super::errors;
 use crate::{
+    consts::POLL_ID_TTL,
     core::{errors::ApiErrorResponse, payments as payments_core},
     routes::AppState,
     types::{self as core_types, api, authentication::AuthenticationResponseData, storage},
-    utils::OptionExt,
+    utils::{check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata, OptionExt},
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -119,12 +120,19 @@ pub async fn perform_post_authentication<F: Clone + Send>(
             authentication,
             should_continue_confirm_transaction,
         } => {
-            // let (auth, authentication_data) = authentication;
+            let is_pull_mechanism_enabled =
+                check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
+                    merchant_connector_account
+                        .get_metadata()
+                        .map(|metadata| metadata.expose()),
+                );
             let authentication_status =
-                if !authentication.authentication_status.is_terminal_status() {
+                if !authentication.authentication_status.is_terminal_status()
+                    && is_pull_mechanism_enabled
+                {
                     let router_data = transformers::construct_post_authentication_router_data(
                         authentication_connector.clone(),
-                        business_profile,
+                        business_profile.clone(),
                         merchant_connector_account,
                         &authentication,
                     )?;
@@ -134,7 +142,7 @@ pub async fn perform_post_authentication<F: Clone + Send>(
                     let updated_authentication = utils::update_trackers(
                         state,
                         router_data,
-                        authentication,
+                        authentication.clone(),
                         payment_data.token.clone(),
                         None,
                     )
@@ -148,6 +156,31 @@ pub async fn perform_post_authentication<F: Clone + Send>(
             //If authentication is not successful, skip the payment connector flows and mark the payment as failure
             if !(authentication_status == api_models::enums::AuthenticationStatus::Success) {
                 *should_continue_confirm_transaction = false;
+            }
+            // When authentication status is non-terminal, Set poll_id in redis to allow the fetch status of poll through retrieve_poll_status api from client
+            if !authentication_status.is_terminal_status() {
+                let req_poll_id = super::utils::get_external_authentication_request_poll_id(
+                    &payment_data.payment_intent.payment_id,
+                );
+                let poll_id = super::utils::get_poll_id(
+                    business_profile.merchant_id.clone(),
+                    req_poll_id.clone(),
+                );
+                let redis_conn = state
+                    .store
+                    .get_redis_conn()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to get redis connection")?;
+                redis_conn
+                    .set_key_with_expiry(
+                        &poll_id,
+                        api_models::poll::PollStatus::Pending.to_string(),
+                        POLL_ID_TTL,
+                    )
+                    .await
+                    .change_context(errors::StorageError::KVError)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to add poll_id in redis")?;
             }
         }
         types::PostAuthenthenticationFlowInput::PaymentMethodAuthNFlow { other_fields: _ } => {
