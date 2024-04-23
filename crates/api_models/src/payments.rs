@@ -1011,10 +1011,10 @@ pub enum PayLaterData {
     /// For KlarnaRedirect as PayLater Option
     KlarnaRedirect {
         /// The billing email
-        #[schema(value_type = String)]
+        #[schema(value_type = Option<String>)]
         billing_email: Option<Email>,
         // The billing country code
-        #[schema(value_type = CountryAlpha2, example = "US")]
+        #[schema(value_type = Option<CountryAlpha2>, example = "US")]
         billing_country: Option<api_enums::CountryAlpha2>,
     },
     /// For Klarna Sdk as PayLater Option
@@ -1027,10 +1027,10 @@ pub enum PayLaterData {
     /// For AfterpayClearpay redirect as PayLater Option
     AfterpayClearpayRedirect {
         /// The billing email
-        #[schema(value_type = String)]
+        #[schema(value_type = Option<String>)]
         billing_email: Option<Email>,
         /// The billing name
-        #[schema(value_type = String)]
+        #[schema(value_type = Option<String>)]
         billing_name: Option<Secret<String>>,
     },
     /// For PayBright Redirect as PayLater Option
@@ -1343,7 +1343,7 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
             Self::Card(card_data) => card_data.get_billing_address(),
             Self::CardRedirect(_) => None,
             Self::Wallet(_) => None,
-            Self::PayLater(_) => None,
+            Self::PayLater(pay_later) => pay_later.get_billing_address(),
             Self::BankRedirect(_) => None,
             Self::BankDebit(_) => None,
             Self::BankTransfer(_) => None,
