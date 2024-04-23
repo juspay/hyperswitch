@@ -7,12 +7,14 @@ use api_models::payments;
 use common_enums::Currency;
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
+use masking::ExposeInterface;
 
 use super::errors::{self, StorageErrorExt};
 use crate::{
     core::{errors::ApiErrorResponse, payments as payments_core},
     routes::AppState,
     types::{self as core_types, api, domain, storage},
+    utils::check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -79,6 +81,12 @@ pub async fn perform_post_authentication(
 ) -> CustomResult<storage::Authentication, ApiErrorResponse> {
     let (authentication_connector, three_ds_connector_account) =
         utils::get_authentication_connector_data(state, key_store, &business_profile).await?;
+    let is_pull_mechanism_enabled =
+        check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
+            three_ds_connector_account
+                .get_metadata()
+                .map(|metadata| metadata.expose()),
+        );
     let authentication = state
         .store
         .find_authentication_by_merchant_id_authentication_id(
@@ -88,7 +96,7 @@ pub async fn perform_post_authentication(
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| format!("Error while fetching authentication record with authentication_id {authentication_id}"))?;
-    if !authentication.authentication_status.is_terminal_status() {
+    if !authentication.authentication_status.is_terminal_status() && is_pull_mechanism_enabled {
         let router_data = transformers::construct_post_authentication_router_data(
             authentication_connector.to_string(),
             business_profile,

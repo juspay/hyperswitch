@@ -2235,7 +2235,7 @@ impl GetAddressFromPaymentMethodData for WalletData {
                 let phone = PhoneDetails {
                     // Portuguese country code, this payment method is applicable only in portugal
                     country_code: Some("+351".into()),
-                    number: Some(mb_way_redirect.telephone_number.clone()),
+                    number: mb_way_redirect.telephone_number.clone(),
                 };
 
                 Some(Address {
@@ -2360,7 +2360,7 @@ pub struct MobilePayRedirection {}
 pub struct MbWayRedirection {
     /// Telephone number of the shopper. Should be Portuguese phone number.
     #[schema(value_type = String)]
-    pub telephone_number: Secret<String>,
+    pub telephone_number: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -3394,6 +3394,8 @@ pub struct PaymentListFilterConstraints {
     pub limit: u32,
     /// The starting point within a list of objects
     pub offset: Option<u32>,
+    /// The amount to filter payments list
+    pub amount_filter: Option<AmountFilter>,
     /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
     #[serde(flatten)]
     pub time_range: Option<TimeRange>,
@@ -3409,6 +3411,8 @@ pub struct PaymentListFilterConstraints {
     pub payment_method_type: Option<Vec<enums::PaymentMethodType>>,
     /// The list of authentication types to filter payments list
     pub authentication_type: Option<Vec<enums::AuthenticationType>>,
+    /// The list of merchant connector ids to filter payments list for selected label
+    pub merchant_connector_id: Option<Vec<String>>,
 }
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct PaymentListFilters {
@@ -3438,6 +3442,12 @@ pub struct PaymentListFiltersV2 {
     pub payment_method: HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
     /// The list of available authentication types
     pub authentication_type: Vec<enums::AuthenticationType>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct AmountFilter {
+    pub start_amount: Option<i64>,
+    pub end_amount: Option<i64>,
 }
 
 #[derive(
@@ -4489,6 +4499,8 @@ pub struct PaymentLinkDetails {
     pub theme: String,
     pub merchant_description: Option<String>,
     pub sdk_layout: String,
+    pub display_sdk_only: bool,
+    pub enabled_saved_payment_method: bool,
 }
 
 #[derive(Debug, serde::Serialize)]
