@@ -2598,7 +2598,7 @@ api_key="Api Key"
 mcc="MCC"
 merchant_country_code="3 digit numeric country code"
 merchant_name="Name of the merchant"
-pull_mechanism_for_external_3ds_enabled="Pull Mechanism Enabled"
+pull_mechanism_for_external_3ds_enabled=true
 
 [netcetera]
 [netcetera.connector_auth.CertificateAuth]
