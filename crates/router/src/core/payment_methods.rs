@@ -7,8 +7,11 @@ pub use api_models::enums::Connector;
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 use api_models::{payment_methods, payments::CardToken};
 use data_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
-use diesel_models::{enums, GenericLinkNew, GenericLinkS, PaymentMethodCollectLinkData};
+use diesel_models::{
+    enums, GenericLinkNew, PaymentMethodCollectLink, PaymentMethodCollectLinkData,
+};
 use error_stack::{report, ResultExt};
+use time::Duration;
 
 use super::errors::{RouterResponse, StorageErrorExt};
 use crate::{
@@ -278,14 +281,17 @@ pub async fn initiate_pm_collect_link(
         .await?;
 
     // Create DB entries
-    let generic_link_db =
-        create_pm_collect_db_entry(&state, &merchant_account, &pm_collect_link_data).await?;
+    let pm_collect_link =
+        create_pm_collect_db_entry(&state, &merchant_account, &pm_collect_link_data, &req).await?;
 
     // Return response
     let response = payment_methods::PaymentMethodCollectLinkResponse {
-        pm_collect_link_id: generic_link_db.link_id,
-        customer_id: generic_link_db.primary_reference,
-        link: generic_link_db.url,
+        pm_collect_link_id: pm_collect_link.link_id,
+        customer_id: pm_collect_link.primary_reference,
+        expiry: pm_collect_link.expiry,
+        link: pm_collect_link.url,
+        return_url: pm_collect_link.return_url,
+        config: pm_collect_link.link_data.config,
     };
     Ok(services::ApplicationResponse::Json(response))
 }
@@ -294,24 +300,28 @@ pub async fn create_pm_collect_db_entry(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
     pm_collect_link_data: &PaymentMethodCollectLinkData,
-) -> RouterResult<GenericLinkS> {
+    req: &payment_methods::PaymentMethodCollectLinkRequest,
+) -> RouterResult<PaymentMethodCollectLink> {
     let db: &dyn StorageInterface = &*state.store;
 
     let link_data = serde_json::to_value(pm_collect_link_data)
         .map_err(|_| report!(errors::ApiErrorResponse::InternalServerError))
         .attach_printable("Failed to convert PaymentMethodCollectLinkData to Value")?;
 
-    let generic_link_new = GenericLinkNew {
+    let pm_collect_link = GenericLinkNew {
         link_id: pm_collect_link_data.pm_collect_link_id.to_string(),
         primary_reference: pm_collect_link_data.customer_id.to_string(),
         merchant_id: merchant_account.merchant_id.to_string(),
         link_type: common_enums::GenericLinkType::PaymentMethodCollect,
         link_data,
-        url: pm_collect_link_data.link.to_string(),
+        url: pm_collect_link_data.link.clone(),
+        return_url: req.return_url.clone(),
+        expiry: common_utils::date_time::now()
+            + Duration::seconds(pm_collect_link_data.session_expiry.into()),
         ..Default::default()
     };
 
-    db.insert_generic_link(generic_link_new)
+    db.insert_pm_collect_link(pm_collect_link)
         .await
         .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
             message: "payment method collect link already exists".to_string(),
@@ -328,7 +338,7 @@ pub async fn render_pm_collect_link(
 
     // Fetch pm collect link
     let pm_collect_link = db
-        .find_generic_link_by_link_id(&req.pm_collect_link_id)
+        .find_pm_collect_link_by_link_id(&req.pm_collect_link_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
             message: "payment method collect link not found".to_string(),
@@ -337,13 +347,19 @@ pub async fn render_pm_collect_link(
     // Check status and return form data accordingly
     let has_expired = common_utils::date_time::now() > pm_collect_link.expiry;
     let status = pm_collect_link.link_status;
+    let link_data = pm_collect_link.link_data;
     match status {
-        enums::GenericLinkStatus::PaymentMethodCollect(
-            enums::PaymentMethodCollectStatus::Initiated,
-        ) => {
+        enums::PaymentMethodCollectStatus::Initiated => {
             // if expired, send back expired status page
             if has_expired {
-                todo!()
+                let expired_link_data = services::GenericExpiredLinkData {
+                    title: "Payment collect link has expired".to_string(),
+                    message: "This payment collect link has expired.".to_string(),
+                    theme: link_data.config.theme,
+                };
+                Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
+                    GenericLinks::ExpiredLink(expired_link_data),
+                )))
 
             // else, send back form link
             } else {
@@ -367,40 +383,30 @@ pub async fn render_pm_collect_link(
                         pm_collect_link.primary_reference
                     ))?;
 
-                let link_data = pm_collect_link
-                    .link_data
-                    .get_payment_method_collect_data()
-                    .map_err(|e| report!(errors::ApiErrorResponse::InternalServerError))?;
-
-                let theme = payment_methods::PaymentMethodCollectLinkTheme {
-                    primary_color: "#1a1a1a".to_string(),
-                };
-
                 let js_data = payment_methods::PaymentMethodCollectLinkDetails {
-                    pub_key: merchant_account.publishable_key.ok_or(
-                        errors::ApiErrorResponse::MissingRequiredField {
+                    pub_key: merchant_account
+                        .publishable_key
+                        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
                             field_name: "pub_key",
-                        },
-                    )?,
+                        })?
+                        .into(),
                     client_secret: link_data.client_secret.clone(),
                     pm_collect_link_id: pm_collect_link.link_id,
                     customer_id: customer.customer_id,
                     session_expiry: pm_collect_link.expiry,
-                    return_url: "".to_string(),
-                    theme,
+                    return_url: pm_collect_link.return_url,
+                    config: link_data.config,
                 };
 
-                let css_data = "";
+                let serialized_css_content = "".to_string();
+
+                let serialized_js_content =
+                    format!("window.__PM_COLLECT_DETAILS = {}", serialize(&js_data)?);
 
                 let generic_form_data = services::GenericLinkFormData {
-                    js_data: serialize_dynamic_content(&js_data)?,
-                    css_data: css_data.to_string(),
-                    sdk_url: state
-                        .conf
-                        .generic_link
-                        .payment_method_collect
-                        .sdk_url
-                        .clone(),
+                    js_data: serialized_js_content,
+                    css_data: serialized_css_content,
+                    sdk_url: link_data.sdk_host.clone(),
                     html_meta_tags: "".to_string(),
                 };
                 Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
@@ -408,26 +414,42 @@ pub async fn render_pm_collect_link(
                 )))
             }
         }
-        enums::GenericLinkStatus::PaymentMethodCollect(
-            enums::PaymentMethodCollectStatus::Invalidated,
-        ) => {
-            // Send back expired status page
-            todo!()
-        }
-        enums::GenericLinkStatus::PaymentMethodCollect(
-            enums::PaymentMethodCollectStatus::Submitted,
-        ) => {
-            // Send back status page
-            todo!()
+
+        // Send back status page
+        status => {
+            let js_data = payment_methods::PaymentMethodCollectLinkStatusDetails {
+                pm_collect_link_id: pm_collect_link.link_id,
+                customer_id: link_data.customer_id,
+                session_expiry: pm_collect_link.expiry,
+                return_url: pm_collect_link.return_url,
+                config: link_data.config,
+                status,
+            };
+
+            let serialized_css_content = "".to_string();
+
+            let serialized_js_content =
+                format!("window.__PM_COLLECT_DETAILS = {}", serialize(&js_data)?);
+
+            let generic_status_data = services::GenericLinkStatusData {
+                js_data: serialized_js_content,
+                css_data: serialized_css_content,
+            };
+            Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
+                GenericLinks::PaymentMethodCollectStatus(generic_status_data),
+            )))
         }
     }
 }
 
-fn serialize_dynamic_content(
-    js_data: &payment_methods::PaymentMethodCollectLinkDetails,
-) -> RouterResult<String> {
-    let js_data_str = serde_json::to_string(js_data)
+fn serialize<D>(data: &D) -> RouterResult<String>
+where
+    D: serde::Serialize,
+{
+    serde_json::to_string(data)
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to serialize PaymentMethodCollectLinkDetails")?;
-    Ok(format!("window.__PM_COLLECT_DETAILS = {js_data_str};"))
+        .attach_printable(format!(
+            "Failed to serialize {}",
+            std::any::type_name::<D>()
+        ))
 }

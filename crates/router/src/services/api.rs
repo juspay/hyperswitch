@@ -848,7 +848,7 @@ pub enum ApplicationResponse<R> {
 pub enum GenericLinks {
     ExpiredLink(GenericExpiredLinkData),
     PaymentMethodCollect(GenericLinkFormData),
-    PaymentMethodCollectStatus(GenericLinkFormData),
+    PaymentMethodCollectStatus(GenericLinkStatusData),
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
@@ -864,6 +864,12 @@ pub struct GenericExpiredLinkData {
     pub title: String,
     pub message: String,
     pub theme: String,
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GenericLinkStatusData {
+    pub js_data: String,
+    pub css_data: String,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -1229,7 +1235,7 @@ where
         }
 
         Ok(ApplicationResponse::GenericLinkForm(boxed_generic_link_data)) => {
-            match generic_link_response::build_generic_link_html(boxed_generic_link_data) {
+            match generic_link_response::build_generic_link_html(*boxed_generic_link_data) {
                 Ok(rendered_html) => http_response_html_data(rendered_html),
                 Err(_) => http_response_err(
                     r#"{

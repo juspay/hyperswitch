@@ -2725,7 +2725,7 @@ pub enum GenericLinkStatus {
 impl ToString for GenericLinkStatus {
     fn to_string(&self) -> String {
         match self {
-            GenericLinkStatus::PaymentMethodCollect(s) => s.to_string(),
+            Self::PaymentMethodCollect(s) => s.to_string(),
         }
     }
 }
@@ -2758,4 +2758,11 @@ pub enum PaymentMethodCollectStatus {
     Initiated,
     Invalidated,
     Submitted,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct CollectLinkConfig {
+    pub theme: String,
+    pub logo: String,
+    pub collector_name: masking::Secret<String>,
 }

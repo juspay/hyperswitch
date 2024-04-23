@@ -174,6 +174,17 @@ pub async fn create_merchant_account(
         organization.org_id
     };
 
+    let pm_collect_link_config = req
+        .pm_collect_link_config
+        .as_ref()
+        .map(|c| {
+            c.encode_to_value()
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "pm_collect_link_config",
+                })
+        })
+        .transpose()?;
+
     let mut merchant_account = async {
         Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(domain::MerchantAccount {
             merchant_id: req.merchant_id,
@@ -216,6 +227,7 @@ pub async fn create_merchant_account(
             default_profile: None,
             recon_status: diesel_models::enums::ReconStatus::NotRequested,
             payment_link_config: None,
+            pm_collect_link_config,
         })
     }
     .await
@@ -507,6 +519,17 @@ pub async fn merchant_account_update(
         })
         .transpose()?;
 
+    let pm_collect_link_config = req
+        .pm_collect_link_config
+        .as_ref()
+        .map(|c| {
+            c.encode_to_value()
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "pm_collect_link_config",
+                })
+        })
+        .transpose()?;
+
     // In order to support backwards compatibility, if a business_labels are passed in the update
     // call, then create new business_profiles with the profile_name as business_label
     req.primary_business_details
@@ -597,6 +620,7 @@ pub async fn merchant_account_update(
         payout_routing_algorithm: None,
         default_profile: business_profile_id_update,
         payment_link_config: None,
+        pm_collect_link_config,
     };
 
     let response = db

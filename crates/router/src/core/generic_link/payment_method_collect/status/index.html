@@ -4,16 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Collected!</title>
-    <style>
-      .main {
-        background-color: "{{ theme }}";
-      }
-    </style>
+    {{ css_style_tag }}
   </head>
   <body>
-    <div class="main">
-      <div class="heading">{{ title }}</div>
-      <div class="message">{{ message }}</div>
-    </div>
+    <div class="main"></div>
+    {{ js_script_tag }}
   </body>
 </html>

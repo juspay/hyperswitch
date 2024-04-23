@@ -497,6 +497,8 @@ diesel::table! {
         link_type -> GenericLinkType,
         #[max_length = 256]
         url -> Varchar,
+        #[max_length = 256]
+        return_url -> Nullable<Varchar>,
     }
 }
 
@@ -646,6 +648,7 @@ diesel::table! {
         default_profile -> Nullable<Varchar>,
         recon_status -> ReconStatus,
         payment_link_config -> Nullable<Jsonb>,
+        pm_collect_link_config -> Nullable<Jsonb>,
     }
 }
 

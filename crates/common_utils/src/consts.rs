@@ -68,3 +68,13 @@ pub const DEFAULT_SDK_LAYOUT: &str = "tabs";
 
 /// Payment intent default client secret expiry (in seconds)
 pub const DEFAULT_SESSION_EXPIRY: i64 = 15 * 60;
+
+/// Payment method collect link's expiry time (in seconds)
+pub const DEFAULT_PM_COLLECT_LINK_EXPIRY: u32 = 15 * 60;
+
+/// Payment method collect link's default primary color
+pub const DEFAULT_PM_COLLECT_LINK_THEME: &str = "#1A1A1A";
+
+/// Payment method collect link's default logo
+pub const DEFAULT_PM_COLLECT_LINK_LOGO: &str =
+    "https://i.pinimg.com/736x/4d/83/5c/4d835ca8aafbbb15f84d07d926fda473.jpg";

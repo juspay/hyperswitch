@@ -140,7 +140,7 @@ where
         }
 
         Ok(api::ApplicationResponse::GenericLinkForm(boxed_generic_link_data)) => {
-            match api::generic_link_response::build_generic_link_html(boxed_generic_link_data) {
+            match api::generic_link_response::build_generic_link_html(*boxed_generic_link_data) {
                 Ok(rendered_html) => api::http_response_html_data(rendered_html),
                 Err(_) => api::http_response_err(
                     r#"{

@@ -2714,10 +2714,28 @@ impl GenericLinkInterface for KafkaStore {
             .await
     }
 
+    async fn find_pm_collect_link_by_link_id(
+        &self,
+        link_id: &str,
+    ) -> CustomResult<storage::PaymentMethodCollectLink, errors::StorageError> {
+        self.diesel_store
+            .find_pm_collect_link_by_link_id(link_id)
+            .await
+    }
+
     async fn insert_generic_link(
         &self,
         generic_link: storage::GenericLinkNew,
     ) -> CustomResult<storage::GenericLinkS, errors::StorageError> {
         self.diesel_store.insert_generic_link(generic_link).await
+    }
+
+    async fn insert_pm_collect_link(
+        &self,
+        pm_collect_link: storage::GenericLinkNew,
+    ) -> CustomResult<storage::PaymentMethodCollectLink, errors::StorageError> {
+        self.diesel_store
+            .insert_pm_collect_link(pm_collect_link)
+            .await
     }
 }

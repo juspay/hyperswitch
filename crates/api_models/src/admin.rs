@@ -94,6 +94,9 @@ pub struct MerchantAccountCreate {
 
     /// The id of the organization to which the merchant belongs to
     pub organization_id: Option<String>,
+
+    /// Default payment method collect link config
+    pub pm_collect_link_config: Option<MerchantCollectLinkConfig>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -185,6 +188,9 @@ pub struct MerchantAccountUpdate {
     /// To unset this field, pass an empty string
     #[schema(max_length = 64)]
     pub default_profile: Option<String>,
+
+    /// Default payment method collect link config
+    pub pm_collect_link_config: Option<MerchantCollectLinkConfig>,
 }
 
 #[derive(Clone, Debug, ToSchema, Serialize)]
@@ -276,6 +282,9 @@ pub struct MerchantAccountResponse {
     /// Used to indicate the status of the recon module for a merchant account
     #[schema(value_type = ReconStatus, example = "not_requested")]
     pub recon_status: enums::ReconStatus,
+
+    /// Default payment method collect link config
+    pub pm_collect_link_config: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -1032,6 +1041,28 @@ pub struct BusinessProfileUpdate {
 
     /// External 3DS authentication details
     pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+pub struct MerchantCollectLinkConfig {
+    pub domain_name: Option<String>,
+    #[serde(flatten)]
+    pub config: CollectLinkConfigRequest,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+pub struct CollectLinkConfigRequest {
+    /// Primary color to be used in the form represented in hex format
+    #[schema(value_type = Option<String>, max_length = 255, example = "#4E6ADD")]
+    pub theme: Option<String>,
+
+    /// Merchant's display logo
+    #[schema(value_type = Option<String>, max_length = 255, example = "https://i.pinimg.com/736x/4d/83/5c/4d835ca8aafbbb15f84d07d926fda473.jpg")]
+    pub logo: Option<String>,
+
+    /// Custom merchant name for collect link
+    #[schema(value_type = Option<Secret<String>>, max_length = 255, example = "hyperswitch")]
+    pub collector_name: Option<Secret<String>>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]

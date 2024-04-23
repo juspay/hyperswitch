@@ -20,6 +20,7 @@ strum = { version = "0.26", features = ["derive"] }
 utoipa = { version = "4.2.0", features = ["preserve_order", "preserve_path_order"] }
 
 # First party crates
+masking = { version = "0.1.0", path = "../masking" }
 router_derive = { version = "0.1.0", path = "../router_derive" }
 
 [dev-dependencies]
