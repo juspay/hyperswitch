@@ -4923,7 +4923,7 @@
           "end_amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The end amount to filter list transactions  which are less than or equal to the end amount",
+            "description": "The end amount to filter list of transactions which are less than or equal to the end amount",
             "nullable": true
           }
         }
