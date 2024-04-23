@@ -467,10 +467,7 @@ impl UserRoleInterface for MockDb {
             .iter()
             .position(|role| role.user_id == user_id && role.merchant_id == merchant_id)
         {
-            Some(index) => {
-                let deleted_user_role = user_roles.remove(index);
-                Ok(deleted_user_role)
-            }
+            Some(index) => Ok(user_roles.remove(index)),
             None => Err(errors::StorageError::ValueNotFound(
                 "Cannot find user role to delete".to_string(),
             )
