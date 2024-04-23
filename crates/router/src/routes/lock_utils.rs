@@ -34,6 +34,7 @@ pub enum ApiIdentifier {
     UserRole,
     ConnectorOnboarding,
     Recon,
+    Poll,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -97,7 +98,9 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentMethodsUpdate
             | Flow::PaymentMethodsDelete
             | Flow::ValidatePaymentMethod
-            | Flow::DefaultPaymentMethodsSet => Self::PaymentMethods,
+            | Flow::ListCountriesCurrencies
+            | Flow::DefaultPaymentMethodsSet
+            | Flow::PaymentMethodSave => Self::PaymentMethods,
 
             Flow::PmAuthLinkTokenCreate | Flow::PmAuthExchangeToken => Self::PaymentMethodAuth,
 
@@ -113,6 +116,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsSessionToken
             | Flow::PaymentsStart
             | Flow::PaymentsList
+            | Flow::PaymentsFilters
             | Flow::PaymentsRedirect
             | Flow::PaymentsIncrementalAuthorization
             | Flow::PaymentsExternalAuthentication
@@ -123,6 +127,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PayoutsUpdate
             | Flow::PayoutsCancel
             | Flow::PayoutsFulfill
+            | Flow::PayoutsList
+            | Flow::PayoutsFilter
             | Flow::PayoutsAccounts => Self::Payouts,
 
             Flow::RefundsCreate
@@ -131,7 +137,11 @@ impl From<Flow> for ApiIdentifier {
             | Flow::RefundsUpdate
             | Flow::RefundsList => Self::Refunds,
 
-            Flow::FrmFulfillment | Flow::IncomingWebhookReceive => Self::Webhooks,
+            Flow::FrmFulfillment
+            | Flow::IncomingWebhookReceive
+            | Flow::WebhookEventInitialDeliveryAttemptList
+            | Flow::WebhookEventDeliveryAttemptList
+            | Flow::WebhookEventDeliveryRetry => Self::Webhooks,
 
             Flow::ApiKeyCreate
             | Flow::ApiKeyRetrieve
@@ -219,6 +229,9 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ReconTokenRequest
             | Flow::ReconServiceRequest
             | Flow::ReconVerifyToken => Self::Recon,
+            Flow::CreateConnectorAgnosticMandateConfig => Self::Routing,
+
+            Flow::RetrievePollStatus => Self::Poll,
         }
     }
 }

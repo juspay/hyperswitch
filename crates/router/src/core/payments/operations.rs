@@ -32,7 +32,7 @@ use crate::{
         payment_methods::PaymentMethodRetrieve,
     },
     db::StorageInterface,
-    routes::AppState,
+    routes::{app::ReqState, AppState},
     services,
     types::{
         self,
@@ -79,7 +79,6 @@ pub trait Operation<F: Clone, T, Ctx: PaymentMethodRetrieve>: Send + std::fmt::D
 pub struct ValidateResult<'a> {
     pub merchant_id: &'a str,
     pub payment_id: api::PaymentIdType,
-    pub mandate_type: Option<api::MandateTransactionType>,
     pub storage_scheme: enums::MerchantStorageScheme,
     pub requeue: bool,
 }
@@ -107,6 +106,7 @@ pub struct GetTrackerResponse<'a, F: Clone, R, Ctx> {
     pub customer_details: Option<CustomerDetails>,
     pub payment_data: PaymentData<F>,
     pub business_profile: storage::business_profile::BusinessProfile,
+    pub mandate_type: Option<api::MandateTransactionType>,
 }
 
 #[async_trait]
@@ -117,7 +117,6 @@ pub trait GetTracker<F: Clone, D, R, Ctx: PaymentMethodRetrieve>: Send {
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         request: &R,
-        mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
         mechant_key_store: &domain::MerchantKeyStore,
         auth_flow: services::AuthFlow,
@@ -134,6 +133,7 @@ pub trait Domain<F: Clone, R, Ctx: PaymentMethodRetrieve>: Send + Sync {
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
         merchant_key_store: &domain::MerchantKeyStore,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<(BoxedOperation<'a, F, R, Ctx>, Option<domain::Customer>), errors::StorageError>;
 
     #[allow(clippy::too_many_arguments)]
@@ -207,6 +207,7 @@ pub trait UpdateTracker<F, D, Req, Ctx: PaymentMethodRetrieve>: Send {
     async fn update_trackers<'b>(
         &'b self,
         db: &'b AppState,
+        req_state: ReqState,
         payment_data: D,
         customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
@@ -249,6 +250,7 @@ where
         payment_data: &mut PaymentData<F>,
         _request: Option<CustomerDetails>,
         merchant_key_store: &domain::MerchantKeyStore,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRetrieveRequest, Ctx>,
@@ -264,6 +266,7 @@ where
                 &merchant_key_store.merchant_id,
                 payment_data,
                 merchant_key_store,
+                storage_scheme,
             )
             .await?,
         ))
@@ -285,7 +288,7 @@ where
         &'a self,
         state: &'a AppState,
         payment_data: &mut PaymentData<F>,
-        _storage_scheme: enums::MerchantStorageScheme,
+        storage_scheme: enums::MerchantStorageScheme,
         merchant_key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
     ) -> RouterResult<(
@@ -299,6 +302,7 @@ where
             payment_data,
             merchant_key_store,
             customer,
+            storage_scheme,
         )
         .await
     }
@@ -330,6 +334,7 @@ where
         payment_data: &mut PaymentData<F>,
         _request: Option<CustomerDetails>,
         merchant_key_store: &domain::MerchantKeyStore,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsCaptureRequest, Ctx>,
@@ -345,6 +350,7 @@ where
                 &merchant_key_store.merchant_id,
                 payment_data,
                 merchant_key_store,
+                storage_scheme,
             )
             .await?,
         ))
@@ -403,6 +409,7 @@ where
         payment_data: &mut PaymentData<F>,
         _request: Option<CustomerDetails>,
         merchant_key_store: &domain::MerchantKeyStore,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsCancelRequest, Ctx>,
@@ -418,6 +425,7 @@ where
                 &merchant_key_store.merchant_id,
                 payment_data,
                 merchant_key_store,
+                storage_scheme,
             )
             .await?,
         ))
@@ -477,6 +485,7 @@ where
         _payment_data: &mut PaymentData<F>,
         _request: Option<CustomerDetails>,
         _merchant_key_store: &domain::MerchantKeyStore,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRejectRequest, Ctx>,

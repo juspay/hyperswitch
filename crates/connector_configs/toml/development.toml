@@ -335,6 +335,8 @@ merchant_secret="Source verification key"
 [[authorizedotnet.debit]]
   payment_method_type = "UnionPay"
 [[authorizedotnet.wallet]]
+  payment_method_type = "apple_pay"
+[[authorizedotnet.wallet]]
   payment_method_type = "google_pay"
 [[authorizedotnet.wallet]]
   payment_method_type = "paypal"
@@ -345,6 +347,17 @@ key1="Transaction Key"
 merchant_name="Google Pay Merchant Name"
 gateway_merchant_id="Google Pay Merchant Key"
 merchant_id="Google Pay Merchant ID"
+[authorizedotnet.metadata.apple_pay.session_token_data]
+certificate="Merchant Certificate (Base64 Encoded)"
+certificate_keys="Merchant PrivateKey (Base64 Encoded)"
+merchant_identifier="Apple Merchant Identifier"
+display_name="Display Name"
+initiative="Domain"
+initiative_context="Domain Name"
+[authorizedotnet.metadata.apple_pay.payment_request_data]
+supported_networks=["visa","masterCard","amex","discover"]
+merchant_capabilities=["supports3DS"]
+label="apple"
 [authorizedotnet.connector_webhook_details]
 merchant_secret="Source verification key"
 
@@ -743,8 +756,6 @@ merchant_secret="Source verification key"
   payment_method_type = "apple_pay"
 [[checkout.wallet]]
   payment_method_type = "google_pay"
-[[checkout.wallet]]
-  payment_method_type = "paypal"
 [checkout.connector_auth.SignatureKey]
 api_key="Checkout API Public Key"
 key1="Processing Channel ID"
@@ -768,6 +779,10 @@ initiative_context="Domain Name"
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
 label="apple"
+
+[checkout.metadata]
+acquirer_bin = "Acquirer Bin"
+acquirer_merchant_id = "Acquirer Merchant ID"
 
 [coinbase]
 [[coinbase.crypto]]
@@ -1309,6 +1324,10 @@ api_key="API Key"
 key1="Public Key"
 [nmi.connector_webhook_details]
 merchant_secret="Source verification key"
+
+[nmi.metadata]
+acquirer_bin = "Acquirer Bin"
+acquirer_merchant_id = "Acquirer Merchant ID"
 
 [nmi.metadata.google_pay]
 merchant_name="Google Pay Merchant Name"
@@ -2325,6 +2344,12 @@ pay_wall_secret="Pay Wall Secret"
 terminal_uuid="Terminal UUID"
 pay_wall_secret="Pay Wall Secret"
 
+[zsl]
+[[zsl.bank_transfer]]
+  payment_method_type = "local_bank_transfer"
+[zsl.connector_auth.BodyKey]
+api_key = "Key"
+key1 = "Merchant ID"
 
 [dummy_connector]
 [[dummy_connector.credit]]
@@ -2573,3 +2598,56 @@ api_key="Api Key"
 mcc="MCC"
 merchant_country_code="3 digit numeric country code"
 merchant_name="Name of the merchant"
+
+[netcetera]
+[netcetera.connector_auth.CertificateAuth]
+certificate="Base64 encoded PEM formatted certificate chain"
+private_key="Base64 encoded PEM formatted private key"
+[netcetera.metadata]
+mcc="MCC"
+merchant_country_code="3 digit numeric country code"
+merchant_name="Name of the merchant"
+endpoint_prefix="string that will replace '{prefix}' in this base url 'https://{prefix}.3ds-server.prev.netcetera-cloud-payment.ch'"
+three_ds_requestor_name="ThreeDS requestor name"
+three_ds_requestor_id="ThreeDS request id"
+
+[billwerk]
+[[billwerk.credit]]
+  payment_method_type = "Mastercard"
+[[billwerk.credit]]
+  payment_method_type = "Visa"
+[[billwerk.credit]]
+  payment_method_type = "Interac"
+[[billwerk.credit]]
+  payment_method_type = "AmericanExpress"
+[[billwerk.credit]]
+  payment_method_type = "JCB"
+[[billwerk.credit]]
+  payment_method_type = "DinersClub"
+[[billwerk.credit]]
+  payment_method_type = "Discover"
+[[billwerk.credit]]
+  payment_method_type = "CartesBancaires"
+[[billwerk.credit]]
+  payment_method_type = "UnionPay"
+[[billwerk.debit]]
+  payment_method_type = "Mastercard"
+[[billwerk.debit]]
+  payment_method_type = "Visa"
+[[billwerk.debit]]
+  payment_method_type = "Interac"
+[[billwerk.debit]]
+  payment_method_type = "AmericanExpress"
+[[billwerk.debit]]
+  payment_method_type = "JCB"
+[[billwerk.debit]]
+  payment_method_type = "DinersClub"
+[[billwerk.debit]]
+  payment_method_type = "Discover"
+[[billwerk.debit]]
+  payment_method_type = "CartesBancaires"
+[[billwerk.debit]]
+  payment_method_type = "UnionPay"
+[billwerk.connector_auth.BodyKey]
+api_key="Private Api Key"
+key1="Public Api Key"

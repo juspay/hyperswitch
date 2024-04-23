@@ -6,7 +6,7 @@ use api_models::{enums::PaymentMethodType, webhooks::IncomingWebhookEvent};
 use base64::Engine;
 use common_utils::request::RequestContent;
 use diesel_models::{enums as storage_enums, enums};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
 use ring::hmac;
 use router_env::{instrument, tracing};
@@ -202,6 +202,7 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Becs
                 | PaymentMethodType::ClassicReward
                 | PaymentMethodType::Pse
+                | PaymentMethodType::LocalBankTransfer
                 | PaymentMethodType::Efecty
                 | PaymentMethodType::PagoEfectivo
                 | PaymentMethodType::RedCompra
@@ -568,7 +569,6 @@ impl
         let adyen_redirection_type = serde_urlencoded::from_str::<
             transformers::AdyenRedirectRequestTypes,
         >(encoded_data.as_str())
-        .into_report()
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         let connector_req = match adyen_redirection_type {
@@ -1649,8 +1649,7 @@ fn get_webhook_object_from_body(
         .drain(..)
         .next()
         // TODO: ParsingError doesn't seem to be an apt error for this case
-        .ok_or(errors::ParsingError::UnknownError)
-        .into_report()?;
+        .ok_or(errors::ParsingError::UnknownError)?;
 
     Ok(item_object.notification_request_item)
 }
@@ -1729,7 +1728,6 @@ impl api::IncomingWebhook for Adyen {
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         let raw_key = hex::decode(connector_webhook_secrets.secret)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookVerificationSecretInvalid)?;
 
         let signing_key = hmac::Key::new(hmac::HMAC_SHA256, &raw_key);
@@ -1761,7 +1759,7 @@ impl api::IncomingWebhook for Adyen {
         }
         if adyen::is_refund_event(&notif.event_code) {
             return Ok(api_models::webhooks::ObjectReferenceId::RefundId(
-                api_models::webhooks::RefundIdType::ConnectorRefundId(notif.psp_reference),
+                api_models::webhooks::RefundIdType::RefundId(notif.merchant_reference),
             ));
         }
         if adyen::is_chargeback_event(&notif.event_code) {
@@ -1773,7 +1771,7 @@ impl api::IncomingWebhook for Adyen {
                 ),
             ));
         }
-        Err(errors::ConnectorError::WebhookReferenceIdNotFound).into_report()
+        Err(report!(errors::ConnectorError::WebhookReferenceIdNotFound))
     }
 
     fn get_webhook_event_type(

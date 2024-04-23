@@ -1,3 +1,4 @@
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{core::errors, types};
@@ -124,12 +125,14 @@ impl Exemption {
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Issuer {
-    pub authorization_code: String,
+    pub authorization_code: Secret<String>,
 }
 
 impl Issuer {
-    pub fn new(authorization_code: String) -> Self {
-        Self { authorization_code }
+    pub fn new(code: String) -> Self {
+        Self {
+            authorization_code: Secret::new(code),
+        }
     }
 }
 
@@ -187,9 +190,9 @@ impl PaymentInstrumentCard {
 #[serde(rename_all = "camelCase")]
 pub struct PaymentInstrumentCardExpiryDate {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub month: Option<i32>,
+    pub month: Option<Secret<i32>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub year: Option<i32>,
+    pub year: Option<Secret<i32>>,
 }
 
 impl PaymentInstrumentCardExpiryDate {

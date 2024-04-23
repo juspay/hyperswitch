@@ -3,13 +3,14 @@ use common_utils::events::{ApiEventMetric, ApiEventsType};
 use crate::{
     payment_methods::{
         CustomerDefaultPaymentMethodResponse, CustomerPaymentMethodsListResponse,
-        DefaultPaymentMethod, PaymentMethodDeleteResponse, PaymentMethodListRequest,
-        PaymentMethodListResponse, PaymentMethodResponse, PaymentMethodUpdate,
+        DefaultPaymentMethod, ListCountriesCurrenciesRequest, ListCountriesCurrenciesResponse,
+        PaymentMethodDeleteResponse, PaymentMethodListRequest, PaymentMethodListResponse,
+        PaymentMethodResponse, PaymentMethodUpdate,
     },
     payments::{
         PaymentIdType, PaymentListConstraints, PaymentListFilterConstraints, PaymentListFilters,
-        PaymentListResponse, PaymentListResponseV2, PaymentsApproveRequest, PaymentsCancelRequest,
-        PaymentsCaptureRequest, PaymentsExternalAuthenticationRequest,
+        PaymentListFiltersV2, PaymentListResponse, PaymentListResponseV2, PaymentsApproveRequest,
+        PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsExternalAuthenticationRequest,
         PaymentsExternalAuthenticationResponse, PaymentsIncrementalAuthorizationRequest,
         PaymentsRejectRequest, PaymentsRequest, PaymentsResponse, PaymentsRetrieveRequest,
         PaymentsStartRequest, RedirectionResponse,
@@ -89,7 +90,7 @@ impl ApiEventMetric for PaymentMethodResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::PaymentMethod {
             payment_method_id: self.payment_method_id.clone(),
-            payment_method: Some(self.payment_method),
+            payment_method: self.payment_method,
             payment_method_type: self.payment_method_type,
         })
     }
@@ -131,6 +132,9 @@ impl ApiEventMetric for PaymentMethodListRequest {
     }
 }
 
+impl ApiEventMetric for ListCountriesCurrenciesRequest {}
+
+impl ApiEventMetric for ListCountriesCurrenciesResponse {}
 impl ApiEventMetric for PaymentMethodListResponse {}
 
 impl ApiEventMetric for CustomerDefaultPaymentMethodResponse {
@@ -150,6 +154,11 @@ impl ApiEventMetric for PaymentListFilterConstraints {
 }
 
 impl ApiEventMetric for PaymentListFilters {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::ResourceListAPI)
+    }
+}
+impl ApiEventMetric for PaymentListFiltersV2 {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::ResourceListAPI)
     }

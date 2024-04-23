@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
 use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use transformers as authorizedotnet;
 
 use crate::{
@@ -685,8 +685,8 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         let intermediate_response =
             bytes::Bytes::copy_from_slice(intermediate_response.0.as_bytes());
 
-        let response: authorizedotnet::AuthorizedotnetSyncResponse = intermediate_response
-            .parse_struct("AuthorizedotnetSyncResponse")
+        let response: authorizedotnet::AuthorizedotnetRSyncResponse = intermediate_response
+            .parse_struct("AuthorizedotnetRSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -833,18 +833,13 @@ impl api::IncomingWebhook for Authorizedotnet {
                     .to_str()
                     .map(String::from)
                     .map_err(|_| errors::ConnectorError::WebhookSignatureNotFound)
-                    .into_report()
             })
-            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)
-            .into_report()??
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)??
             .to_lowercase();
         let (_, sig_value) = security_header
             .split_once('=')
-            .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)
-            .into_report()?;
-        hex::decode(sig_value)
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookSignatureNotFound)
+            .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        hex::decode(sig_value).change_context(errors::ConnectorError::WebhookSignatureNotFound)
     }
 
     fn get_webhook_source_verification_message(
@@ -872,11 +867,17 @@ impl api::IncomingWebhook for Authorizedotnet {
                     ),
                 ))
             }
-            _ => Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                api_models::payments::PaymentIdType::ConnectorTransactionId(
-                    authorizedotnet::get_trans_id(&details)?,
-                ),
-            )),
+            authorizedotnet::AuthorizedotnetWebhookEvent::AuthorizationCreated
+            | authorizedotnet::AuthorizedotnetWebhookEvent::PriorAuthCapture
+            | authorizedotnet::AuthorizedotnetWebhookEvent::AuthCapCreated
+            | authorizedotnet::AuthorizedotnetWebhookEvent::CaptureCreated
+            | authorizedotnet::AuthorizedotnetWebhookEvent::VoidCreated => {
+                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                    api_models::payments::PaymentIdType::ConnectorTransactionId(
+                        authorizedotnet::get_trans_id(&details)?,
+                    ),
+                ))
+            }
         }
     }
 
@@ -973,7 +974,9 @@ impl services::ConnectorRedirectResponse for Authorizedotnet {
         action: services::PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
         match action {
-            services::PaymentAction::PSync | services::PaymentAction::CompleteAuthorize => {
+            services::PaymentAction::PSync
+            | services::PaymentAction::CompleteAuthorize
+            | services::PaymentAction::PaymentAuthenticateCompleteAuthorize => {
                 Ok(payments::CallConnectorAction::Trigger)
             }
         }

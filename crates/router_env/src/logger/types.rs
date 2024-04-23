@@ -113,10 +113,14 @@ pub enum Flow {
     PaymentMethodsCreate,
     /// Payment methods list flow.
     PaymentMethodsList,
+    /// Payment method save flow
+    PaymentMethodSave,
     /// Customer payment methods list flow.
     CustomerPaymentMethodsList,
     /// List Customers for a merchant
     CustomersList,
+    /// Retrieve countries and currencies for connector and payment method
+    ListCountriesCurrencies,
     /// Payment methods retrieve flow.
     PaymentMethodsRetrieve,
     /// Payment methods update flow.
@@ -149,6 +153,8 @@ pub enum Flow {
     PaymentsStart,
     /// Payments list flow.
     PaymentsList,
+    // Payments filters flow
+    PaymentsFilters,
     #[cfg(feature = "payouts")]
     /// Payouts create flow
     PayoutsCreate,
@@ -164,6 +170,12 @@ pub enum Flow {
     #[cfg(feature = "payouts")]
     /// Payouts fulfill flow.
     PayoutsFulfill,
+    #[cfg(feature = "payouts")]
+    /// Payouts list flow.
+    PayoutsList,
+    #[cfg(feature = "payouts")]
+    /// Payouts filter flow.
+    PayoutsFilter,
     /// Payouts accounts flow.
     PayoutsAccounts,
     /// Payments Redirect flow.
@@ -198,6 +210,8 @@ pub enum Flow {
     RoutingRetrieveConfig,
     /// Routing retrieve active config
     RoutingRetrieveActiveConfig,
+    /// Update connector agnostic mandate config
+    CreateConnectorAgnosticMandateConfig,
     /// Routing retrieve default config
     RoutingRetrieveDefaultConfig,
     /// Routing retrieve dictionary
@@ -384,6 +398,14 @@ pub enum Flow {
     CreateRole,
     /// Update Role
     UpdateRole,
+    /// List initial webhook delivery attempts
+    WebhookEventInitialDeliveryAttemptList,
+    /// List delivery attempts for a webhook event
+    WebhookEventDeliveryAttemptList,
+    /// Manually retry the delivery for a webhook event
+    WebhookEventDeliveryRetry,
+    /// Retrieve status of the Poll
+    RetrievePollStatus,
 }
 
 ///

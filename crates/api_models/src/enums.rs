@@ -35,7 +35,7 @@ pub enum RoutingAlgorithm {
     ToSchema,
     serde::Deserialize,
     serde::Serialize,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     strum::EnumIter,
     strum::Display,
     strum::EnumString,
@@ -78,6 +78,7 @@ pub enum Connector {
     Authorizedotnet,
     Bambora,
     Bankofamerica,
+    Billwerk,
     Bitpay,
     Bluesnap,
     Boku,
@@ -88,6 +89,7 @@ pub enum Connector {
     Cryptopay,
     Cybersource,
     Dlocal,
+    // Ebanx,
     Fiserv,
     Forte,
     Globalpay,
@@ -98,6 +100,7 @@ pub enum Connector {
     Klarna,
     Mollie,
     Multisafepay,
+    Netcetera,
     Nexinets,
     Nmi,
     Noon,
@@ -124,10 +127,11 @@ pub enum Connector {
     Wise,
     Worldline,
     Worldpay,
-    Zen,
     Signifyd,
     Plaid,
     Riskified,
+    Zen,
+    Zsl,
 }
 
 impl Connector {
@@ -165,6 +169,7 @@ impl Connector {
             | Self::Authorizedotnet
             | Self::Bambora
             | Self::Bankofamerica
+            | Self::Billwerk
             | Self::Bitpay
             | Self::Bluesnap
             | Self::Boku
@@ -184,7 +189,6 @@ impl Connector {
             | Self::Mollie
             | Self::Multisafepay
             | Self::Nexinets
-            | Self::Nmi
             | Self::Nuvei
             | Self::Opennode
             | Self::Payme
@@ -204,14 +208,16 @@ impl Connector {
             | Self::Worldline
             | Self::Worldpay
             | Self::Zen
+            | Self::Zsl
             | Self::Signifyd
             | Self::Plaid
             | Self::Riskified
             | Self::Threedsecureio
+            | Self::Netcetera
             | Self::Cybersource
             | Self::Noon
             | Self::Stripe => false,
-            Self::Checkout => true,
+            Self::Checkout | Self::Nmi => true,
         }
         #[cfg(not(feature = "dummy_connector"))]
         match self {
@@ -221,6 +227,7 @@ impl Connector {
             | Self::Authorizedotnet
             | Self::Bambora
             | Self::Bankofamerica
+            | Self::Billwerk
             | Self::Bitpay
             | Self::Bluesnap
             | Self::Boku
@@ -260,12 +267,14 @@ impl Connector {
             | Self::Worldline
             | Self::Worldpay
             | Self::Zen
+            | Self::Zsl
             | Self::Signifyd
             | Self::Plaid
             | Self::Riskified
             | Self::Threedsecureio
             | Self::Cybersource
             | Self::Noon
+            | Self::Netcetera
             | Self::Stripe => false,
             Self::Checkout => true,
         }
@@ -289,6 +298,7 @@ impl Connector {
 #[strum(serialize_all = "snake_case")]
 pub enum AuthenticationConnectors {
     Threedsecureio,
+    Netcetera,
 }
 
 #[cfg(feature = "payouts")]
@@ -364,210 +374,6 @@ pub enum FrmConnectors {
     /// Signifyd Risk Manager. Official docs: https://docs.signifyd.com/
     Signifyd,
     Riskified,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    ToSchema,
-)]
-#[strum(serialize_all = "snake_case")]
-#[serde(rename_all = "snake_case")]
-pub enum BankType {
-    Checking,
-    Savings,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    ToSchema,
-)]
-#[strum(serialize_all = "snake_case")]
-#[serde(rename_all = "snake_case")]
-pub enum BankHolderType {
-    Personal,
-    Business,
-}
-
-/// Name of banks supported by Hyperswitch
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    ToSchema,
-)]
-#[strum(serialize_all = "snake_case")]
-#[serde(rename_all = "snake_case")]
-pub enum BankNames {
-    AmericanExpress,
-    AffinBank,
-    AgroBank,
-    AllianceBank,
-    AmBank,
-    BankOfAmerica,
-    BankIslam,
-    BankMuamalat,
-    BankRakyat,
-    BankSimpananNasional,
-    Barclays,
-    BlikPSP,
-    CapitalOne,
-    Chase,
-    Citi,
-    CimbBank,
-    Discover,
-    NavyFederalCreditUnion,
-    PentagonFederalCreditUnion,
-    SynchronyBank,
-    WellsFargo,
-    AbnAmro,
-    AsnBank,
-    Bunq,
-    Handelsbanken,
-    HongLeongBank,
-    HsbcBank,
-    Ing,
-    Knab,
-    KuwaitFinanceHouse,
-    Moneyou,
-    Rabobank,
-    Regiobank,
-    Revolut,
-    SnsBank,
-    TriodosBank,
-    VanLanschot,
-    ArzteUndApothekerBank,
-    AustrianAnadiBankAg,
-    BankAustria,
-    Bank99Ag,
-    BankhausCarlSpangler,
-    BankhausSchelhammerUndSchatteraAg,
-    BankMillennium,
-    BankPEKAOSA,
-    BawagPskAg,
-    BksBankAg,
-    BrullKallmusBankAg,
-    BtvVierLanderBank,
-    CapitalBankGraweGruppeAg,
-    CeskaSporitelna,
-    Dolomitenbank,
-    EasybankAg,
-    EPlatbyVUB,
-    ErsteBankUndSparkassen,
-    FrieslandBank,
-    HypoAlpeadriabankInternationalAg,
-    HypoNoeLbFurNiederosterreichUWien,
-    HypoOberosterreichSalzburgSteiermark,
-    HypoTirolBankAg,
-    HypoVorarlbergBankAg,
-    HypoBankBurgenlandAktiengesellschaft,
-    KomercniBanka,
-    MBank,
-    MarchfelderBank,
-    Maybank,
-    OberbankAg,
-    OsterreichischeArzteUndApothekerbank,
-    OcbcBank,
-    PayWithING,
-    PlaceZIPKO,
-    PlatnoscOnlineKartaPlatnicza,
-    PosojilnicaBankEGen,
-    PostovaBanka,
-    PublicBank,
-    RaiffeisenBankengruppeOsterreich,
-    RhbBank,
-    SchelhammerCapitalBankAg,
-    StandardCharteredBank,
-    SchoellerbankAg,
-    SpardaBankWien,
-    SporoPay,
-    SantanderPrzelew24,
-    TatraPay,
-    Viamo,
-    VolksbankGruppe,
-    VolkskreditbankAg,
-    VrBankBraunau,
-    UobBank,
-    PayWithAliorBank,
-    BankiSpoldzielcze,
-    PayWithInteligo,
-    BNPParibasPoland,
-    BankNowySA,
-    CreditAgricole,
-    PayWithBOS,
-    PayWithCitiHandlowy,
-    PayWithPlusBank,
-    ToyotaBank,
-    VeloBank,
-    ETransferPocztowy24,
-    PlusBank,
-    EtransferPocztowy24,
-    BankiSpbdzielcze,
-    BankNowyBfgSa,
-    GetinBank,
-    Blik,
-    NoblePay,
-    IdeaBank,
-    EnveloBank,
-    NestPrzelew,
-    MbankMtransfer,
-    Inteligo,
-    PbacZIpko,
-    BnpParibas,
-    BankPekaoSa,
-    VolkswagenBank,
-    AliorBank,
-    Boz,
-    BangkokBank,
-    KrungsriBank,
-    KrungThaiBank,
-    TheSiamCommercialBank,
-    KasikornBank,
-    OpenBankSuccess,
-    OpenBankFailure,
-    OpenBankCancelled,
-    Aib,
-    BankOfScotland,
-    DanskeBank,
-    FirstDirect,
-    FirstTrust,
-    Halifax,
-    Lloyds,
-    Monzo,
-    NatWest,
-    NationwideBank,
-    RoyalBankOfScotland,
-    Starling,
-    TsbBank,
-    TescoBank,
-    UlsterBank,
-    Yoursafe,
-    N26,
-    NationaleNederlanden,
 }
 
 #[derive(

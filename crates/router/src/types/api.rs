@@ -15,22 +15,28 @@ pub mod mandates;
 pub mod payment_link;
 pub mod payment_methods;
 pub mod payments;
+#[cfg(feature = "payouts")]
 pub mod payouts;
+pub mod poll;
 pub mod refunds;
 pub mod routing;
 #[cfg(feature = "olap")]
 pub mod verify_connector;
+#[cfg(feature = "olap")]
+pub mod webhook_events;
 pub mod webhooks;
 
 use std::{fmt::Debug, str::FromStr};
 
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 
 #[cfg(feature = "frm")]
 pub use self::fraud_check::*;
+#[cfg(feature = "payouts")]
+pub use self::payouts::*;
 pub use self::{
     admin::*, api_keys::*, authentication::*, configs::*, customers::*, disputes::*, files::*,
-    payment_link::*, payment_methods::*, payments::*, payouts::*, refunds::*, webhooks::*,
+    payment_link::*, payment_methods::*, payments::*, poll::*, refunds::*, webhooks::*,
 };
 use super::ErrorResponse;
 use crate::{
@@ -275,7 +281,6 @@ impl ConnectorData {
     ) -> CustomResult<Self, errors::ApiErrorResponse> {
         let connector = Self::convert_connector(connectors, name)?;
         let connector_name = api_enums::Connector::from_str(name)
-            .into_report()
             .change_context(errors::ConnectorError::InvalidConnectorName)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable_lazy(|| format!("unable to parse connector name {connector:?}"))?;
@@ -287,6 +292,7 @@ impl ConnectorData {
         })
     }
 
+    #[cfg(feature = "payouts")]
     pub fn get_payout_connector_by_name(
         connectors: &Connectors,
         name: &str,
@@ -295,7 +301,6 @@ impl ConnectorData {
     ) -> CustomResult<Self, errors::ApiErrorResponse> {
         let connector = Self::convert_connector(connectors, name)?;
         let payout_connector_name = api_enums::PayoutConnectors::from_str(name)
-            .into_report()
             .change_context(errors::ConnectorError::InvalidConnectorName)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable_lazy(|| {
@@ -322,6 +327,7 @@ impl ConnectorData {
                 enums::Connector::Authorizedotnet => Ok(Box::new(&connector::Authorizedotnet)),
                 enums::Connector::Bambora => Ok(Box::new(&connector::Bambora)),
                 enums::Connector::Bankofamerica => Ok(Box::new(&connector::Bankofamerica)),
+                enums::Connector::Billwerk => Ok(Box::new(&connector::Billwerk)),
                 enums::Connector::Bitpay => Ok(Box::new(&connector::Bitpay)),
                 enums::Connector::Bluesnap => Ok(Box::new(&connector::Bluesnap)),
                 enums::Connector::Boku => Ok(Box::new(&connector::Boku)),
@@ -374,12 +380,14 @@ impl ConnectorData {
                 enums::Connector::Worldline => Ok(Box::new(&connector::Worldline)),
                 enums::Connector::Worldpay => Ok(Box::new(&connector::Worldpay)),
                 enums::Connector::Multisafepay => Ok(Box::new(&connector::Multisafepay)),
+                enums::Connector::Netcetera => Ok(Box::new(&connector::Netcetera)),
                 enums::Connector::Nexinets => Ok(Box::new(&connector::Nexinets)),
                 enums::Connector::Paypal => Ok(Box::new(&connector::Paypal)),
                 enums::Connector::Trustpay => Ok(Box::new(&connector::Trustpay)),
                 enums::Connector::Tsys => Ok(Box::new(&connector::Tsys)),
                 enums::Connector::Volt => Ok(Box::new(&connector::Volt)),
                 enums::Connector::Zen => Ok(Box::new(&connector::Zen)),
+                enums::Connector::Zsl => Ok(Box::new(&connector::Zsl)),
                 enums::Connector::Signifyd
                 | enums::Connector::Plaid
                 | enums::Connector::Riskified
@@ -409,6 +417,20 @@ pub trait FraudCheck:
 
 #[cfg(not(feature = "frm"))]
 pub trait FraudCheck {}
+
+#[cfg(feature = "payouts")]
+pub trait Payouts:
+    ConnectorCommon
+    + PayoutCancel
+    + PayoutCreate
+    + PayoutEligibility
+    + PayoutFulfill
+    + PayoutQuote
+    + PayoutRecipient
+{
+}
+#[cfg(not(feature = "payouts"))]
+pub trait Payouts {}
 
 #[cfg(test)]
 mod test {

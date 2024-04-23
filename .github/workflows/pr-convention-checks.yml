@@ -51,7 +51,9 @@ jobs:
       - name: Verify commit message follows conventional commit standards
         if: ${{ github.event_name == 'merge_group' }}
         shell: bash
-        run: cog verify '${{ github.event.merge_group.head_commit.message }}'
+        env:
+          COMMIT_MESSAGE: ${{ github.event.merge_group.head_commit.message }}
+        run: cog verify "$COMMIT_MESSAGE"
 
   pr_linked_issues_check:
     name: Verify PR contains one or more linked issues

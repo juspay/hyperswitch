@@ -6,7 +6,7 @@ use api_models::webhooks::IncomingWebhookEvent;
 use base64::Engine;
 use common_utils::{crypto, ext_traits::XmlExt, request::RequestContent};
 use diesel_models::enums;
-use error_stack::{IntoReport, Report, ResultExt};
+use error_stack::{report, Report, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 use ring::hmac;
 use sha1::{Digest, Sha1};
@@ -92,8 +92,7 @@ impl ConnectorCommon for Braintree {
         &self,
         auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth: braintree::BraintreeAuthType = auth_type
-            .try_into()
+        let auth = braintree::BraintreeAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
@@ -631,7 +630,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
                 Ok(RequestContent::Json(Box::new(connector_req)))
             }
-            false => Err(errors::ConnectorError::RequestEncodingFailed).into_report(),
+            false => Err(report!(errors::ConnectorError::RequestEncodingFailed)),
         }
     }
 
@@ -978,7 +977,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
                     braintree_graphql_transformers::BraintreeCancelRequest::try_from(req)?;
                 Ok(RequestContent::Json(Box::new(connector_req)))
             }
-            false => Err(errors::ConnectorError::RequestEncodingFailed).into_report(),
+            false => Err(report!(errors::ConnectorError::RequestEncodingFailed)),
         }
     }
 
@@ -1242,7 +1241,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
                     braintree_graphql_transformers::BraintreeRSyncRequest::try_from(req)?;
                 Ok(RequestContent::Json(Box::new(connector_req)))
             }
-            false => Err(errors::ConnectorError::RequestEncodingFailed).into_report(),
+            false => Err(report!(errors::ConnectorError::RequestEncodingFailed)),
         }
     }
 
@@ -1419,7 +1418,7 @@ impl api::IncomingWebhook for Braintree {
                     dispute_data.transaction.id,
                 ),
             )),
-            None => Err(errors::ConnectorError::WebhookReferenceIdNotFound).into_report(),
+            None => Err(report!(errors::ConnectorError::WebhookReferenceIdNotFound)),
         }
     }
 
@@ -1471,7 +1470,6 @@ impl api::IncomingWebhook for Braintree {
                 let currency = diesel_models::enums::Currency::from_str(
                     dispute_data.currency_iso_code.as_str(),
                 )
-                .into_report()
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
                 Ok(api::disputes::DisputePayload {
                     amount: connector_utils::to_currency_lower_unit(
@@ -1512,7 +1510,6 @@ fn get_webhook_object_from_body(
     body: &[u8],
 ) -> CustomResult<braintree_graphql_transformers::BraintreeWebhookResponse, errors::ParsingError> {
     serde_urlencoded::from_bytes::<braintree_graphql_transformers::BraintreeWebhookResponse>(body)
-        .into_report()
         .change_context(errors::ParsingError::StructParseFailure(
             "BraintreeWebhookResponse",
         ))
@@ -1523,16 +1520,13 @@ fn decode_webhook_payload(
 ) -> CustomResult<braintree_graphql_transformers::Notification, errors::ConnectorError> {
     let decoded_response = consts::BASE64_ENGINE
         .decode(payload)
-        .into_report()
         .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
     let xml_response = String::from_utf8(decoded_response)
-        .into_report()
         .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
     xml_response
         .parse_xml::<braintree_graphql_transformers::Notification>()
-        .into_report()
         .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
 }
 
@@ -1547,7 +1541,7 @@ impl services::ConnectorRedirectResponse for Braintree {
             services::PaymentAction::PSync => match json_payload {
                 Some(payload) => {
                     let redirection_response:braintree_graphql_transformers::BraintreeRedirectionResponse = serde_json::from_value(payload)
-                            .into_report()
+
                             .change_context(
                                 errors::ConnectorError::MissingConnectorRedirectionPayload {
                                     field_name: "redirection_response",
@@ -1575,7 +1569,8 @@ impl services::ConnectorRedirectResponse for Braintree {
                 }
                 None => Ok(payments::CallConnectorAction::Avoid),
             },
-            services::PaymentAction::CompleteAuthorize => {
+            services::PaymentAction::CompleteAuthorize
+            | services::PaymentAction::PaymentAuthenticateCompleteAuthorize => {
                 Ok(payments::CallConnectorAction::Trigger)
             }
         }

@@ -1,11 +1,12 @@
 use std::{marker::PhantomData, str::FromStr};
 
 use api_models::enums::{DisputeStage, DisputeStatus};
-use common_enums::RequestIncrementalAuthorization;
+use common_enums::{IntentStatus, RequestIncrementalAuthorization};
 #[cfg(feature = "payouts")]
 use common_utils::{crypto::Encryptable, pii::Email};
 use common_utils::{errors::CustomResult, ext_traits::AsyncExt};
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
+use maud::{html, PreEscaped};
 use router_env::{instrument, tracing};
 use uuid::Uuid;
 
@@ -23,7 +24,7 @@ use crate::{
     types::{
         self, domain,
         storage::{self, enums},
-        ErrorResponse,
+        ErrorResponse, PollConfig,
     },
     utils::{generate_id, generate_uuid, OptionExt, ValueExt},
 };
@@ -186,6 +187,7 @@ pub async fn construct_payout_router_data<'a, F>(
         frm_metadata: None,
         refund_id: None,
         dispute_id: None,
+        connector_response: None,
     };
 
     Ok(router_data)
@@ -253,7 +255,6 @@ pub async fn construct_refund_router_data<'a, F>(
         .multiple_api_version_supported_connectors
         .supported_connectors;
     let connector_enum = api_models::enums::Connector::from_str(connector_id)
-        .into_report()
         .change_context(errors::ConnectorError::InvalidConnectorName)
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "connector",
@@ -341,6 +342,7 @@ pub async fn construct_refund_router_data<'a, F>(
         frm_metadata: None,
         refund_id: Some(refund.refund_id.clone()),
         dispute_id: None,
+        connector_response: None,
     };
 
     Ok(router_data)
@@ -574,6 +576,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         frm_metadata: None,
         dispute_id: Some(dispute.dispute_id.clone()),
         refund_id: None,
+        connector_response: None,
     };
     Ok(router_data)
 }
@@ -665,6 +668,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         frm_metadata: None,
         refund_id: None,
         dispute_id: Some(dispute.dispute_id.clone()),
+        connector_response: None,
     };
     Ok(router_data)
 }
@@ -762,6 +766,7 @@ pub async fn construct_upload_file_router_data<'a>(
         frm_metadata: None,
         refund_id: None,
         dispute_id: None,
+        connector_response: None,
     };
     Ok(router_data)
 }
@@ -856,6 +861,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         frm_metadata: None,
         refund_id: None,
         dispute_id: Some(dispute.dispute_id.clone()),
+        connector_response: None,
     };
     Ok(router_data)
 }
@@ -874,7 +880,6 @@ pub async fn construct_retrieve_file_router_data<'a>(
         .ok_or(errors::ApiErrorResponse::MissingRequiredField {
             field_name: "profile_id",
         })
-        .into_report()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("profile_id is not set in file_metadata")?;
 
@@ -918,7 +923,6 @@ pub async fn construct_retrieve_file_router_data<'a>(
                 .provider_file_id
                 .clone()
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .into_report()
                 .attach_printable("Missing provider file id")?,
         },
         response: Err(types::ErrorResponse::default()),
@@ -943,6 +947,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         frm_metadata: None,
         refund_id: None,
         dispute_id: None,
+        connector_response: None,
     };
     Ok(router_data)
 }
@@ -993,13 +998,13 @@ pub async fn validate_and_get_business_profile(
             if business_profile.merchant_id.ne(merchant_id) {
                 Err(errors::ApiErrorResponse::AccessForbidden {
                     resource: business_profile.profile_id,
-                })
+                }
+                .into())
             } else {
                 Ok(business_profile)
             }
         })
         .transpose()
-        .into_report()
 }
 
 fn connector_needs_business_sub_label(connector_name: &str) -> bool {
@@ -1086,6 +1091,96 @@ pub async fn get_profile_id_from_business_details(
     }
 }
 
+pub fn get_poll_id(merchant_id: String, unique_id: String) -> String {
+    format!("poll_{}_{}", merchant_id, unique_id)
+}
+
+pub fn get_external_authentication_request_poll_id(payment_id: &String) -> String {
+    format!("external_authentication_{}", payment_id)
+}
+
+pub fn get_html_redirect_response_for_external_authentication(
+    return_url_with_query_params: String,
+    payment_response: &api_models::payments::PaymentsResponse,
+    payment_id: String,
+    poll_config: &PollConfig,
+) -> RouterResult<String> {
+    // if intent_status is requires_customer_action then set poll_id, fetch poll config and do a poll_status post message, else do open_url post message to redirect to return_url
+    let html = match payment_response.status {
+            IntentStatus::RequiresCustomerAction => {
+                // Request poll id sent to client for retrieve_poll_status api
+                let req_poll_id = get_external_authentication_request_poll_id(&payment_id);
+                let poll_frequency = poll_config.frequency;
+                let poll_delay_in_secs = poll_config.delay_in_secs;
+                html! {
+                    head {
+                        title { "Redirect Form" }
+                        (PreEscaped(format!(r#"
+                                <script>
+                                    let return_url = "{return_url_with_query_params}";
+                                    let poll_status_data = {{
+                                        'poll_id': '{req_poll_id}',
+                                        'frequency': '{poll_frequency}',
+                                        'delay_in_secs': '{poll_delay_in_secs}',
+                                        'return_url_with_query_params': return_url
+                                    }};
+                                    try {{
+                                        // if inside iframe, send post message to parent for redirection
+                                        if (window.self !== window.parent) {{
+                                            window.top.postMessage({{poll_status: poll_status_data}}, '*')
+                                        // if parent, redirect self to return_url
+                                        }} else {{
+                                            window.location.href = return_url
+                                        }}
+                                    }}
+                                    catch(err) {{
+                                        // if error occurs, send post message to parent and wait for 10 secs to redirect. if doesn't redirect, redirect self to return_url
+                                        window.top.postMessage({{poll_status: poll_status_data}}, '*')
+                                        setTimeout(function() {{
+                                            window.location.href = return_url
+                                        }}, 10000);
+                                        console.log(err.message)
+                                    }}
+                                </script>
+                                "#)))
+                    }
+                }
+                .into_string()
+            },
+            _ => {
+                html! {
+                    head {
+                        title { "Redirect Form" }
+                        (PreEscaped(format!(r#"
+                                <script>
+                                    let return_url = "{return_url_with_query_params}";
+                                    try {{
+                                        // if inside iframe, send post message to parent for redirection
+                                        if (window.self !== window.parent) {{
+                                            window.top.postMessage({{openurl: return_url}}, '*')
+                                        // if parent, redirect self to return_url
+                                        }} else {{
+                                            window.location.href = return_url
+                                        }}
+                                    }}
+                                    catch(err) {{
+                                        // if error occurs, send post message to parent and wait for 10 secs to redirect. if doesn't redirect, redirect self to return_url
+                                        window.top.postMessage({{openurl: return_url}}, '*')
+                                        setTimeout(function() {{
+                                            window.location.href = return_url
+                                        }}, 10000);
+                                        console.log(err.message)
+                                    }}
+                                </script>
+                                "#)))
+                    }
+                }
+                .into_string()
+            },
+        };
+    Ok(html)
+}
+
 #[inline]
 pub fn get_flow_name<F>() -> RouterResult<String> {
     Ok(std::any::type_name::<F>()
@@ -1093,7 +1188,6 @@ pub fn get_flow_name<F>() -> RouterResult<String> {
         .rsplit("::")
         .next()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .into_report()
         .attach_printable("Flow stringify failed")?
         .to_string())
 }
@@ -1106,7 +1200,7 @@ pub fn get_request_incremental_authorization_value(
         .map(|request_incremental_authorization| {
             if request_incremental_authorization {
                 if capture_method == Some(common_enums::CaptureMethod::Automatic) {
-                    Err(errors::ApiErrorResponse::NotSupported { message: "incremental authorization is not supported when capture_method is automatic".to_owned() }).into_report()?
+                    Err(errors::ApiErrorResponse::NotSupported { message: "incremental authorization is not supported when capture_method is automatic".to_owned() })?
                 }
                 Ok(RequestIncrementalAuthorization::True)
             } else {

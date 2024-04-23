@@ -51,6 +51,12 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::CardError, code = "invalid_card_type", message = "Card data is invalid")]
     InvalidCardType,
 
+    #[error(
+        error_type = StripeErrorType::ConnectorError, code = "invalid_wallet_token",
+        message = "Invalid {wallet_name} wallet token"
+    )]
+    InvalidWalletToken { wallet_name: String },
+
     #[error(error_type = StripeErrorType::ApiError, code = "refund_failed", message = "refund has failed")]
     RefundFailed, // stripe error code
 
@@ -119,6 +125,9 @@ pub enum StripeErrorCode {
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such payout")]
     PayoutNotFound,
+
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such event")]
+    EventNotFound,
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "Duplicate payout request")]
     DuplicatePayout { payout_id: String },
@@ -418,6 +427,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             | errors::ApiErrorResponse::InvalidJwtToken
             | errors::ApiErrorResponse::GenericUnauthorized { .. }
             | errors::ApiErrorResponse::AccessForbidden { .. }
+            | errors::ApiErrorResponse::InvalidCookie
             | errors::ApiErrorResponse::InvalidEphemeralKey => Self::Unauthorized,
             errors::ApiErrorResponse::InvalidRequestUrl
             | errors::ApiErrorResponse::InvalidHttpMethod
@@ -518,6 +528,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::MandateNotFound => Self::MandateNotFound,
             errors::ApiErrorResponse::ApiKeyNotFound => Self::ApiKeyNotFound,
             errors::ApiErrorResponse::PayoutNotFound => Self::PayoutNotFound,
+            errors::ApiErrorResponse::EventNotFound => Self::EventNotFound,
             errors::ApiErrorResponse::MandateValidationFailed { reason } => {
                 Self::PaymentIntentMandateInvalid { message: reason }
             }
@@ -580,8 +591,16 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 object: "dispute".to_owned(),
                 id: dispute_id,
             },
+            errors::ApiErrorResponse::AuthenticationNotFound { id } => Self::ResourceMissing {
+                object: "authentication".to_owned(),
+                id,
+            },
             errors::ApiErrorResponse::BusinessProfileNotFound { id } => Self::ResourceMissing {
                 object: "business_profile".to_owned(),
+                id,
+            },
+            errors::ApiErrorResponse::PollNotFound { id } => Self::ResourceMissing {
+                object: "poll".to_owned(),
                 id,
             },
             errors::ApiErrorResponse::DisputeStatusValidationFailed { reason } => {
@@ -621,6 +640,9 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             }
             errors::ApiErrorResponse::CurrencyConversionFailed => Self::CurrencyConversionFailed,
             errors::ApiErrorResponse::PaymentMethodDeleteFailed => Self::PaymentMethodDeleteFailed,
+            errors::ApiErrorResponse::InvalidWalletToken { wallet_name } => {
+                Self::InvalidWalletToken { wallet_name }
+            }
         }
     }
 }
@@ -656,6 +678,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::MandateNotFound
             | Self::ApiKeyNotFound
             | Self::PayoutNotFound
+            | Self::EventNotFound
             | Self::DuplicateMerchantAccount
             | Self::DuplicateMerchantConnectorAccount { .. }
             | Self::DuplicatePaymentMethod
@@ -666,6 +689,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::PaymentIntentInvalidParameter { .. }
             | Self::SerdeQsError { .. }
             | Self::InvalidRequestData { .. }
+            | Self::InvalidWalletToken { .. }
             | Self::PreconditionFailed { .. }
             | Self::DuplicateMandate
             | Self::SuccessfulPaymentNotFound

@@ -1,5 +1,6 @@
 use std::{marker::PhantomData, str::FromStr};
 
+use api_models::payments::{Address, AddressDetails, PhoneDetails};
 use masking::Secret;
 use router::{
     configs::settings::Settings,
@@ -36,11 +37,10 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         request: types::PaymentsAuthorizeData {
             amount: 1000,
             currency: enums::Currency::USD,
-            payment_method_data: types::api::PaymentMethodData::Card(types::api::Card {
+            payment_method_data: types::domain::PaymentMethodData::Card(types::domain::Card {
                 card_number: cards::CardNumber::from_str("4200000000000000").unwrap(),
                 card_exp_month: Secret::new("10".to_string()),
                 card_exp_year: Secret::new("2025".to_string()),
-                card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
                 card_cvc: Secret::new("999".to_string()),
                 card_issuer: None,
                 card_network: None,
@@ -78,7 +78,22 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
             customer_acceptance: None,
         },
         response: Err(types::ErrorResponse::default()),
-        address: PaymentAddress::default(),
+        address: PaymentAddress::new(
+            None,
+            None,
+            Some(Address {
+                address: Some(AddressDetails {
+                    first_name: Some(Secret::new("John".to_string())),
+                    last_name: Some(Secret::new("Doe".to_string())),
+                    ..Default::default()
+                }),
+                phone: Some(PhoneDetails {
+                    number: Some(Secret::new("8056594427".to_string())),
+                    country_code: Some("+351".to_string()),
+                }),
+                email: None,
+            }),
+        ),
         connector_meta_data: None,
         amount_captured: None,
         access_token: None,
@@ -87,7 +102,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         payment_method_token: None,
         connector_customer: None,
         recurring_mandate_payment_data: None,
-
+        connector_response: None,
         preprocessing_id: None,
         connector_request_reference_id: uuid::Uuid::new_v4().to_string(),
         #[cfg(feature = "payouts")]
@@ -149,7 +164,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         payment_method_token: None,
         connector_customer: None,
         recurring_mandate_payment_data: None,
-
+        connector_response: None,
         preprocessing_id: None,
         connector_request_reference_id: uuid::Uuid::new_v4().to_string(),
         #[cfg(feature = "payouts")]
@@ -174,12 +189,12 @@ async fn payments_create_success() {
     let conf = Settings::new().unwrap();
     let tx: oneshot::Sender<()> = oneshot::channel().0;
 
-    let state = routes::AppState::with_storage(
+    let state = Box::pin(routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
-    )
+    ))
     .await;
 
     static CV: aci::Aci = aci::Aci;
@@ -219,12 +234,12 @@ async fn payments_create_failure() {
         static CV: aci::Aci = aci::Aci;
         let tx: oneshot::Sender<()> = oneshot::channel().0;
 
-        let state = routes::AppState::with_storage(
+        let state = Box::pin(routes::AppState::with_storage(
             conf,
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
-        )
+        ))
         .await;
         let connector = types::api::ConnectorData {
             connector: Box::new(&CV),
@@ -240,11 +255,10 @@ async fn payments_create_failure() {
         > = connector.connector.get_connector_integration();
         let mut request = construct_payment_router_data();
         request.request.payment_method_data =
-            types::api::PaymentMethodData::Card(types::api::Card {
+            types::domain::PaymentMethodData::Card(types::domain::Card {
                 card_number: cards::CardNumber::from_str("4200000000000000").unwrap(),
                 card_exp_month: Secret::new("10".to_string()),
                 card_exp_year: Secret::new("2025".to_string()),
-                card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
                 card_cvc: Secret::new("99".to_string()),
                 card_issuer: None,
                 card_network: None,
@@ -281,12 +295,12 @@ async fn refund_for_successful_payments() {
     };
     let tx: oneshot::Sender<()> = oneshot::channel().0;
 
-    let state = routes::AppState::with_storage(
+    let state = Box::pin(routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
-    )
+    ))
     .await;
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
@@ -350,12 +364,12 @@ async fn refunds_create_failure() {
     };
     let tx: oneshot::Sender<()> = oneshot::channel().0;
 
-    let state = routes::AppState::with_storage(
+    let state = Box::pin(routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
-    )
+    ))
     .await;
     let connector_integration: services::BoxedConnectorIntegration<
         '_,

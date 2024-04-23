@@ -1,11 +1,10 @@
-use api_models::payments;
 use cards::CardNumber;
 use common_utils::pii::Email;
 use serde::{Deserialize, Serialize};
 
 use super::{
     api::{self, authentication},
-    storage, BrowserInformation, RouterData,
+    domain, BrowserInformation, RouterData,
 };
 use crate::services;
 
@@ -13,20 +12,20 @@ use crate::services;
 pub enum AuthenticationResponseData {
     PreAuthNResponse {
         threeds_server_transaction_id: String,
-        maximum_supported_3ds_version: (i64, i64, i64),
+        maximum_supported_3ds_version: common_utils::types::SemanticVersion,
         connector_authentication_id: String,
-        three_ds_method_data: String,
+        three_ds_method_data: Option<String>,
         three_ds_method_url: Option<String>,
-        message_version: String,
+        message_version: common_utils::types::SemanticVersion,
         connector_metadata: Option<serde_json::Value>,
     },
     AuthNResponse {
         authn_flow_type: AuthNFlowType,
         authentication_value: Option<String>,
-        trans_status: api_models::payments::TransactionStatus,
+        trans_status: common_enums::TransactionStatus,
     },
     PostAuthNResponse {
-        trans_status: api_models::payments::TransactionStatus,
+        trans_status: common_enums::TransactionStatus,
         authentication_value: Option<String>,
         eci: Option<String>,
     },
@@ -48,6 +47,50 @@ pub enum AuthNFlowType {
     Frictionless,
 }
 
+impl AuthNFlowType {
+    pub fn get_acs_url(&self) -> Option<String> {
+        if let Self::Challenge(challenge_params) = self {
+            challenge_params.acs_url.as_ref().map(ToString::to_string)
+        } else {
+            None
+        }
+    }
+    pub fn get_challenge_request(&self) -> Option<String> {
+        if let Self::Challenge(challenge_params) = self {
+            challenge_params.challenge_request.clone()
+        } else {
+            None
+        }
+    }
+    pub fn get_acs_reference_number(&self) -> Option<String> {
+        if let Self::Challenge(challenge_params) = self {
+            challenge_params.acs_reference_number.clone()
+        } else {
+            None
+        }
+    }
+    pub fn get_acs_trans_id(&self) -> Option<String> {
+        if let Self::Challenge(challenge_params) = self {
+            challenge_params.acs_trans_id.clone()
+        } else {
+            None
+        }
+    }
+    pub fn get_acs_signed_content(&self) -> Option<String> {
+        if let Self::Challenge(challenge_params) = self {
+            challenge_params.acs_signed_content.clone()
+        } else {
+            None
+        }
+    }
+    pub fn get_decoupled_authentication_type(&self) -> common_enums::DecoupledAuthenticationType {
+        match self {
+            Self::Challenge(_) => common_enums::DecoupledAuthenticationType::Challenge,
+            Self::Frictionless => common_enums::DecoupledAuthenticationType::Frictionless,
+        }
+    }
+}
+
 #[derive(Clone, Default, Debug)]
 pub struct PreAuthNRequestData {
     // card number
@@ -57,7 +100,7 @@ pub struct PreAuthNRequestData {
 
 #[derive(Clone, Debug)]
 pub struct ConnectorAuthenticationRequestData {
-    pub payment_method_data: payments::PaymentMethodData,
+    pub payment_method_data: domain::PaymentMethodData,
     pub billing_address: api_models::payments::Address,
     pub shipping_address: Option<api_models::payments::Address>,
     pub browser_details: Option<BrowserInformation>,
@@ -65,10 +108,7 @@ pub struct ConnectorAuthenticationRequestData {
     pub currency: Option<common_enums::Currency>,
     pub message_category: authentication::MessageCategory,
     pub device_channel: api_models::payments::DeviceChannel,
-    pub authentication_data: (
-        crate::core::authentication::types::AuthenticationData,
-        storage::Authentication,
-    ),
+    pub pre_authentication_data: crate::core::authentication::types::PreAuthenticationData,
     pub return_url: Option<String>,
     pub sdk_information: Option<api_models::payments::SdkInformation>,
     pub email: Option<Email>,
@@ -78,7 +118,7 @@ pub struct ConnectorAuthenticationRequestData {
 
 #[derive(Clone, Debug)]
 pub struct ConnectorPostAuthenticationRequestData {
-    pub authentication_data: crate::core::authentication::types::AuthenticationData,
+    pub threeds_server_transaction_id: String,
 }
 
 pub type PreAuthNRouterData =

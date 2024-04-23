@@ -1,14 +1,14 @@
 pub mod paypal;
 pub mod stripe;
 
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 
 use crate::{
     consts,
     core::errors,
     services,
     services::ConnectorIntegration,
-    types::{self, api, storage::enums as storage_enums},
+    types::{self, api, domain, storage::enums as storage_enums},
     AppState,
 };
 
@@ -16,13 +16,13 @@ use crate::{
 pub struct VerifyConnectorData {
     pub connector: &'static (dyn types::api::Connector + Sync),
     pub connector_auth: types::ConnectorAuthType,
-    pub card_details: api::Card,
+    pub card_details: domain::Card,
 }
 
 impl VerifyConnectorData {
     fn get_payment_authorize_data(&self) -> types::PaymentsAuthorizeData {
         types::PaymentsAuthorizeData {
-            payment_method_data: api::PaymentMethodData::Card(self.card_details.clone()),
+            payment_method_data: domain::PaymentMethodData::Card(self.card_details.clone()),
             email: None,
             customer_name: None,
             amount: 1000,
@@ -105,6 +105,7 @@ impl VerifyConnectorData {
             frm_metadata: None,
             refund_id: None,
             dispute_id: None,
+            connector_response: None,
         }
     }
 }
@@ -127,9 +128,10 @@ pub trait VerifyConnector {
             })?
             .ok_or(errors::ApiErrorResponse::InternalServerError)?;
 
-        let response = services::call_connector_api(&state.to_owned(), request)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        let response =
+            services::call_connector_api(&state.to_owned(), request, "verify_connector_request")
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         match response {
             Ok(_) => Ok(services::ApplicationResponse::StatusOk),
@@ -165,8 +167,8 @@ pub trait VerifyConnector {
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
         Err(errors::ApiErrorResponse::InvalidRequestData {
             message: error.reason.unwrap_or(error.message),
-        })
-        .into_report()
+        }
+        .into())
     }
 
     async fn handle_access_token_error_response<F, R1, R2>(
@@ -181,7 +183,7 @@ pub trait VerifyConnector {
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
         Err(errors::ApiErrorResponse::InvalidRequestData {
             message: error.reason.unwrap_or(error.message),
-        })
-        .into_report()
+        }
+        .into())
     }
 }

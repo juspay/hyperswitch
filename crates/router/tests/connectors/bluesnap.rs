@@ -3,7 +3,7 @@ use std::str::FromStr;
 use api_models::payments::{Address, AddressDetails};
 use common_utils::pii::Email;
 use masking::Secret;
-use router::types::{self, api, storage::enums, ConnectorAuthType, PaymentAddress};
+use router::types::{self, domain, storage::enums, ConnectorAuthType, PaymentAddress};
 
 use crate::{
     connector_auth,
@@ -401,8 +401,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
+                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
                     card_cvc: Secret::new("12345".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -427,8 +426,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
+                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
                     card_exp_month: Secret::new("20".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -453,8 +451,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
+                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
                     card_exp_year: Secret::new("2000".to_string()),
                     ..utils::CCardType::default().0
                 }),

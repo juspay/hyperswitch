@@ -18,33 +18,30 @@ pub mod transformers;
 
 use std::{collections::HashMap, marker::PhantomData};
 
-pub use api_models::{
-    enums::{Connector, PayoutConnectors},
-    mandates, payouts as payout_types,
-};
+pub use api_models::{enums::Connector, mandates};
+#[cfg(feature = "payouts")]
+pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 use common_enums::MandateStatus;
-pub use common_utils::request::{RequestBody, RequestContent};
+pub use common_utils::request::RequestContent;
 use common_utils::{pii, pii::Email};
 use data_models::mandates::{CustomerAcceptance, MandateData};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::Secret;
 use serde::Serialize;
 
-use self::{api::payments, storage::enums as storage_enums};
+use self::storage::enums as storage_enums;
 pub use crate::core::payments::{payment_address::PaymentAddress, CustomerDetails};
 #[cfg(feature = "payouts")]
 use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW;
 use crate::{
+    consts,
     core::{
-        authentication as authentication_core,
-        errors::{self, RouterResult},
+        errors::{self},
         payments::{types, PaymentData, RecurringMandatePaymentData},
     },
     services,
-    types::transformers::ForeignFrom,
-    utils::OptionExt,
+    types::{transformers::ForeignFrom, types::AuthenticationData},
 };
-
 pub type PaymentsAuthorizeRouterData =
     RouterData<api::Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
 pub type PaymentsPreProcessingRouterData =
@@ -324,7 +321,35 @@ pub struct RouterData<Flow, Request, Response> {
 
     pub dispute_id: Option<String>,
     pub refund_id: Option<String>,
+
+    /// This field is used to store various data regarding the response from connector
+    pub connector_response: Option<ConnectorResponseData>,
     pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum AdditionalPaymentMethodConnectorResponse {
+    Card {
+        /// Details regarding the authentication details of the connector, if this is a 3ds payment.
+        authentication_data: Option<serde_json::Value>,
+        /// Various payment checks that are done for a payment
+        payment_checks: Option<serde_json::Value>,
+    },
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ConnectorResponseData {
+    pub additional_payment_method_data: Option<AdditionalPaymentMethodConnectorResponse>,
+}
+
+impl ConnectorResponseData {
+    pub fn with_additional_payment_method_data(
+        additional_payment_method_data: AdditionalPaymentMethodConnectorResponse,
+    ) -> Self {
+        Self {
+            additional_payment_method_data: Some(additional_payment_method_data),
+        }
+    }
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -387,7 +412,7 @@ pub struct PayoutsFulfillResponseData {
 
 #[derive(Debug, Clone)]
 pub struct PaymentsAuthorizeData {
-    pub payment_method_data: payments::PaymentMethodData,
+    pub payment_method_data: domain::payments::PaymentMethodData,
     /// total amount (original_amount + surcharge_amount + tax_on_surcharge_amount)
     /// If connector supports separate field for surcharge amount, consider using below functions defined on `PaymentsAuthorizeData` to fetch original amount and surcharge amount separately
     /// ```
@@ -425,7 +450,7 @@ pub struct PaymentsAuthorizeData {
     pub customer_id: Option<String>,
     pub request_incremental_authorization: bool,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub authentication_data: Option<authentication_core::types::AuthenticationData>,
+    pub authentication_data: Option<AuthenticationData>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -472,12 +497,12 @@ pub struct ConnectorCustomerData {
     pub phone: Option<Secret<String>>,
     pub name: Option<Secret<String>>,
     pub preprocessing_id: Option<String>,
-    pub payment_method_data: payments::PaymentMethodData,
+    pub payment_method_data: domain::PaymentMethodData,
 }
 
 #[derive(Debug, Clone)]
 pub struct PaymentMethodTokenizationData {
-    pub payment_method_data: payments::PaymentMethodData,
+    pub payment_method_data: domain::payments::PaymentMethodData,
     pub browser_info: Option<BrowserInformation>,
     pub currency: storage_enums::Currency,
     pub amount: Option<i64>,
@@ -485,7 +510,7 @@ pub struct PaymentMethodTokenizationData {
 
 #[derive(Debug, Clone)]
 pub struct PaymentsPreProcessingData {
-    pub payment_method_data: Option<payments::PaymentMethodData>,
+    pub payment_method_data: Option<domain::payments::PaymentMethodData>,
     pub amount: Option<i64>,
     pub email: Option<Email>,
     pub currency: Option<storage_enums::Currency>,
@@ -504,7 +529,7 @@ pub struct PaymentsPreProcessingData {
 
 #[derive(Debug, Clone)]
 pub struct CompleteAuthorizeData {
-    pub payment_method_data: Option<payments::PaymentMethodData>,
+    pub payment_method_data: Option<domain::PaymentMethodData>,
     pub amount: i64,
     pub email: Option<Email>,
     pub currency: storage_enums::Currency,
@@ -585,7 +610,7 @@ pub struct PaymentsSessionData {
 #[derive(Debug, Clone)]
 pub struct SetupMandateRequestData {
     pub currency: storage_enums::Currency,
-    pub payment_method_data: payments::PaymentMethodData,
+    pub payment_method_data: domain::PaymentMethodData,
     pub amount: Option<i64>,
     pub confirm: bool,
     pub statement_descriptor_suffix: Option<String>,
@@ -698,9 +723,9 @@ impl Capturable for PaymentsCaptureData {
         let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
         match intent_status {
             common_enums::IntentStatus::Succeeded
-            | common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::Processing => Some(0),
-            common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::PartiallyCaptured => Some(0),
+            common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
@@ -957,7 +982,6 @@ impl ResponseId {
             _ => Err(errors::ValidationError::IncorrectValueProvided {
                 field_name: "connector_transaction_id",
             })
-            .into_report()
             .attach_printable("Expected connector transaction ID not found"),
         }
     }
@@ -1123,6 +1147,34 @@ pub struct RetrieveFileResponse {
     pub file_data: Vec<u8>,
 }
 
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct PollConfig {
+    pub delay_in_secs: i8,
+    pub frequency: i8,
+}
+
+impl Default for PollConfig {
+    fn default() -> Self {
+        Self {
+            delay_in_secs: consts::DEFAULT_POLL_DELAY_IN_SECS,
+            frequency: consts::DEFAULT_POLL_FREQUENCY,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct RedirectPaymentFlowResponse {
+    pub payments_response: api_models::payments::PaymentsResponse,
+    pub business_profile: diesel_models::business_profile::BusinessProfile,
+}
+
+#[derive(Clone, Debug)]
+pub struct AuthenticatePaymentFlowResponse {
+    pub payments_response: api_models::payments::PaymentsResponse,
+    pub poll_config: PollConfig,
+    pub business_profile: diesel_models::business_profile::BusinessProfile,
+}
+
 #[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]
 pub struct ConnectorResponse {
     pub merchant_id: String,
@@ -1177,6 +1229,10 @@ pub enum ConnectorAuthType {
     CurrencyAuthKey {
         auth_key_map: HashMap<storage_enums::Currency, pii::SecretSerdeValue>,
     },
+    CertificateAuth {
+        certificate: Secret<String>,
+        private_key: Secret<String>,
+    },
     #[default]
     NoKey,
 }
@@ -1215,6 +1271,13 @@ impl From<api_models::admin::ConnectorAuthType> for ConnectorAuthType {
                 Self::CurrencyAuthKey { auth_key_map }
             }
             api_models::admin::ConnectorAuthType::NoKey => Self::NoKey,
+            api_models::admin::ConnectorAuthType::CertificateAuth {
+                certificate,
+                private_key,
+            } => Self::CertificateAuth {
+                certificate,
+                private_key,
+            },
         }
     }
 }
@@ -1249,6 +1312,13 @@ impl ForeignFrom<ConnectorAuthType> for api_models::admin::ConnectorAuthType {
                 Self::CurrencyAuthKey { auth_key_map }
             }
             ConnectorAuthType::NoKey => Self::NoKey,
+            ConnectorAuthType::CertificateAuth {
+                certificate,
+                private_key,
+            } => Self::CertificateAuth {
+                certificate,
+                private_key,
+            },
         }
     }
 }
@@ -1369,32 +1439,20 @@ impl<F> From<&RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>>
 }
 
 pub trait Tokenizable {
-    fn get_pm_data(&self) -> RouterResult<payments::PaymentMethodData>;
     fn set_session_token(&mut self, token: Option<String>);
 }
 
 impl Tokenizable for SetupMandateRequestData {
-    fn get_pm_data(&self) -> RouterResult<payments::PaymentMethodData> {
-        Ok(self.payment_method_data.clone())
-    }
     fn set_session_token(&mut self, _token: Option<String>) {}
 }
 
 impl Tokenizable for PaymentsAuthorizeData {
-    fn get_pm_data(&self) -> RouterResult<payments::PaymentMethodData> {
-        Ok(self.payment_method_data.clone())
-    }
     fn set_session_token(&mut self, token: Option<String>) {
         self.session_token = token;
     }
 }
 
 impl Tokenizable for CompleteAuthorizeData {
-    fn get_pm_data(&self) -> RouterResult<payments::PaymentMethodData> {
-        self.payment_method_data
-            .clone()
-            .get_required_value("payment_method_data")
-    }
     fn set_session_token(&mut self, _token: Option<String>) {}
 }
 
@@ -1482,6 +1540,7 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             frm_metadata: data.frm_metadata.clone(),
             dispute_id: data.dispute_id.clone(),
             refund_id: data.refund_id.clone(),
+            connector_response: data.connector_response.clone(),
         }
     }
 }
@@ -1541,6 +1600,7 @@ impl<F1, F2>
             frm_metadata: None,
             refund_id: None,
             dispute_id: None,
+            connector_response: data.connector_response.clone(),
         }
     }
 }

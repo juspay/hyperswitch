@@ -76,7 +76,7 @@ where
 #[cfg(not(feature = "kv_store"))]
 mod storage {
     use common_utils::ext_traits::AsyncExt;
-    use error_stack::{IntoReport, ResultExt};
+    use error_stack::{report, ResultExt};
     use router_env::{instrument, tracing};
 
     use super::AddressInterface;
@@ -103,8 +103,7 @@ mod storage {
             let conn = connection::pg_connection_read(self).await?;
             storage_types::Address::find_by_address_id(&conn, address_id)
                 .await
-                .map_err(Into::into)
-                .into_report()
+                .map_err(|error| report!(errors::StorageError::from(error)))
                 .async_and_then(|address| async {
                     address
                         .convert(key_store.key.get_inner())
@@ -131,8 +130,7 @@ mod storage {
                 address_id,
             )
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
             .async_and_then(|address| async {
                 address
                     .convert(key_store.key.get_inner())
@@ -152,8 +150,7 @@ mod storage {
             let conn = connection::pg_connection_write(self).await?;
             storage_types::Address::update_by_address_id(&conn, address_id, address.into())
                 .await
-                .map_err(Into::into)
-                .into_report()
+                .map_err(|error| report!(errors::StorageError::from(error)))
                 .async_and_then(|address| async {
                     address
                         .convert(key_store.key.get_inner())
@@ -179,8 +176,7 @@ mod storage {
             address
                 .update(&conn, address_update.into())
                 .await
-                .map_err(Into::into)
-                .into_report()
+                .map_err(|error| report!(errors::StorageError::from(error)))
                 .async_and_then(|address| async {
                     address
                         .convert(key_store.key.get_inner())
@@ -205,8 +201,7 @@ mod storage {
                 .change_context(errors::StorageError::EncryptionError)?
                 .insert(&conn)
                 .await
-                .map_err(Into::into)
-                .into_report()
+                .map_err(|error| report!(errors::StorageError::from(error)))
                 .async_and_then(|address| async {
                     address
                         .convert(key_store.key.get_inner())
@@ -229,8 +224,7 @@ mod storage {
                 .change_context(errors::StorageError::EncryptionError)?
                 .insert(&conn)
                 .await
-                .map_err(Into::into)
-                .into_report()
+                .map_err(|error| report!(errors::StorageError::from(error)))
                 .async_and_then(|address| async {
                     address
                         .convert(key_store.key.get_inner())
@@ -256,8 +250,7 @@ mod storage {
                 address.into(),
             )
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
             .async_and_then(|addresses| async {
                 let mut output = Vec::with_capacity(addresses.len());
                 for address in addresses.into_iter() {
@@ -279,10 +272,10 @@ mod storage {
 mod storage {
     use common_utils::ext_traits::AsyncExt;
     use diesel_models::{enums::MerchantStorageScheme, AddressUpdateInternal};
-    use error_stack::{IntoReport, ResultExt};
+    use error_stack::{report, ResultExt};
     use redis_interface::HsetnxReply;
     use router_env::{instrument, tracing};
-    use storage_impl::redis::kv_store::{kv_wrapper, KvOperation};
+    use storage_impl::redis::kv_store::{kv_wrapper, KvOperation, PartitionKey};
 
     use super::AddressInterface;
     use crate::{
@@ -309,8 +302,7 @@ mod storage {
             let conn = connection::pg_connection_read(self).await?;
             storage_types::Address::find_by_address_id(&conn, address_id)
                 .await
-                .map_err(Into::into)
-                .into_report()
+                .map_err(|error| report!(errors::StorageError::from(error)))
                 .async_and_then(|address| async {
                     address
                         .convert(key_store.key.get_inner())
@@ -338,13 +330,15 @@ mod storage {
                     address_id,
                 )
                 .await
-                .map_err(Into::into)
-                .into_report()
+                .map_err(|error| report!(errors::StorageError::from(error)))
             };
             let address = match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => database_call().await,
                 MerchantStorageScheme::RedisKv => {
-                    let key = format!("mid_{}_pid_{}", merchant_id, payment_id);
+                    let key = PartitionKey::MerchantIdPaymentId {
+                        merchant_id,
+                        payment_id,
+                    };
                     let field = format!("add_{}", address_id);
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
@@ -377,8 +371,7 @@ mod storage {
             let conn = connection::pg_connection_write(self).await?;
             storage_types::Address::update_by_address_id(&conn, address_id, address.into())
                 .await
-                .map_err(Into::into)
-                .into_report()
+                .map_err(|error| report!(errors::StorageError::from(error)))
                 .async_and_then(|address| async {
                     address
                         .convert(key_store.key.get_inner())
@@ -406,8 +399,7 @@ mod storage {
                     address
                         .update(&conn, address_update.into())
                         .await
-                        .map_err(Into::into)
-                        .into_report()
+                        .map_err(|error| report!(errors::StorageError::from(error)))
                         .async_and_then(|address| async {
                             address
                                 .convert(key_store.key.get_inner())
@@ -417,12 +409,15 @@ mod storage {
                         .await
                 }
                 MerchantStorageScheme::RedisKv => {
-                    let key = format!("mid_{}_pid_{}", address.merchant_id.clone(), payment_id);
+                    let merchant_id = address.merchant_id.clone();
+                    let key = PartitionKey::MerchantIdPaymentId {
+                        merchant_id: &merchant_id,
+                        payment_id: &payment_id,
+                    };
                     let field = format!("add_{}", address.address_id);
                     let updated_address = AddressUpdateInternal::from(address_update.clone())
                         .create_address(address.clone());
                     let redis_value = serde_json::to_string(&updated_address)
-                        .into_report()
                         .change_context(errors::StorageError::KVError)?;
 
                     let redis_entry = kv::TypedSql {
@@ -442,7 +437,7 @@ mod storage {
                             (&field, redis_value),
                             redis_entry,
                         ),
-                        &key,
+                        key,
                     )
                     .await
                     .change_context(errors::StorageError::KVError)?
@@ -477,8 +472,7 @@ mod storage {
                     address_new
                         .insert(&conn)
                         .await
-                        .map_err(Into::into)
-                        .into_report()
+                        .map_err(|error| report!(errors::StorageError::from(error)))
                         .async_and_then(|address| async {
                             address
                                 .convert(key_store.key.get_inner())
@@ -488,7 +482,10 @@ mod storage {
                         .await
                 }
                 MerchantStorageScheme::RedisKv => {
-                    let key = format!("mid_{}_pid_{}", merchant_id, payment_id);
+                    let key = PartitionKey::MerchantIdPaymentId {
+                        merchant_id: &merchant_id,
+                        payment_id,
+                    };
                     let field = format!("add_{}", &address_new.address_id);
                     let created_address = diesel_models::Address {
                         id: Some(0i32),
@@ -526,7 +523,7 @@ mod storage {
                             &created_address,
                             redis_entry,
                         ),
-                        &key,
+                        key,
                     )
                     .await
                     .change_context(errors::StorageError::KVError)?
@@ -535,8 +532,8 @@ mod storage {
                         Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
                             entity: "address",
                             key: Some(created_address.address_id),
-                        })
-                        .into_report(),
+                        }
+                        .into()),
                         Ok(HsetnxReply::KeySet) => Ok(created_address
                             .convert(key_store.key.get_inner())
                             .await
@@ -560,8 +557,7 @@ mod storage {
                 .change_context(errors::StorageError::EncryptionError)?
                 .insert(&conn)
                 .await
-                .map_err(Into::into)
-                .into_report()
+                .map_err(|error| report!(errors::StorageError::from(error)))
                 .async_and_then(|address| async {
                     address
                         .convert(key_store.key.get_inner())
@@ -587,8 +583,7 @@ mod storage {
                 address.into(),
             )
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
             .async_and_then(|addresses| async {
                 let mut output = Vec::with_capacity(addresses.len());
                 for address in addresses.into_iter() {

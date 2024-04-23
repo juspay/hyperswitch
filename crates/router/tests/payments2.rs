@@ -35,12 +35,12 @@ async fn payments_create_core() {
     use router::configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");
     let tx: oneshot::Sender<()> = oneshot::channel().0;
-    let state = routes::AppState::with_storage(
+    let state = Box::pin(routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
-    )
+    ))
     .await;
 
     let key_store = state
@@ -133,7 +133,8 @@ async fn payments_create_core() {
         _,
         Oss,
     >(
-        state,
+        state.clone(),
+        state.get_req_state(),
         merchant_account,
         key_store,
         payments::PaymentCreate,
@@ -223,12 +224,12 @@ async fn payments_create_core_adyen_no_redirect() {
     let conf = Settings::new().expect("invalid settings");
     let tx: oneshot::Sender<()> = oneshot::channel().0;
 
-    let state = routes::AppState::with_storage(
+    let state = Box::pin(routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
-    )
+    ))
     .await;
 
     let customer_id = format!("cust_{}", Uuid::new_v4());
@@ -323,7 +324,8 @@ async fn payments_create_core_adyen_no_redirect() {
         _,
         Oss,
     >(
-        state,
+        state.clone(),
+        state.get_req_state(),
         merchant_account,
         key_store,
         payments::PaymentCreate,
