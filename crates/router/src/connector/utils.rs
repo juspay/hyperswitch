@@ -235,9 +235,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
         self.address
             .get_payment_method_billing()
             .and_then(|billing_address| billing_address.email.clone())
-            .ok_or_else(missing_field_err(
-                "payment_method_data.billing.address.email",
-            ))
+            .ok_or_else(missing_field_err("payment_method_data.billing.email"))
     }
 
     fn get_billing_phone_number(&self) -> Result<Secret<String>, Error> {
