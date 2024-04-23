@@ -15,10 +15,6 @@ All notable changes to HyperSwitch will be documented here.
 
 - **wallet:** Use `billing.phone` instead of `telephone_number` ([#4329](https://github.com/juspay/hyperswitch/pull/4329)) ([`3e6bc19`](https://github.com/juspay/hyperswitch/commit/3e6bc191fd5804feface9ee1a0cb7ddbbe025569))
 
-### Documentation Changes
-
-- **try_local_system:** Add a note about increasing WSL's allowed memory to resolve a SIGKILL error when running `cargo build`
-
 ### Miscellaneous Tasks
 
 - Add wasm toml configs for netcetera authnetication connector ([#4426](https://github.com/juspay/hyperswitch/pull/4426)) ([`4851da1`](https://github.com/juspay/hyperswitch/commit/4851da1595074dbb2760e76f83403e8ac9f7895f))
