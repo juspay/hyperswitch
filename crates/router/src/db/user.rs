@@ -72,7 +72,7 @@ impl UserInterface for Store {
         user_email: &pii::Email,
     ) -> CustomResult<storage::User, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::User::find_by_user_email(&conn, &user_email)
+        storage::User::find_by_user_email(&conn, user_email)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
