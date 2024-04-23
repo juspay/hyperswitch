@@ -158,7 +158,9 @@ impl
                             },
                         ))
                     }
-                    _ => types::authentication::AuthNFlowType::Frictionless,
+                    Some(ACSChallengeMandatedIndicator::N) | None => {
+                        types::authentication::AuthNFlowType::Frictionless
+                    }
                 };
                 Ok(
                     types::authentication::AuthenticationResponseData::AuthNResponse {
@@ -465,7 +467,7 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
             three_ds_requestor_authentication_info: Some(
                 netcetera_types::SingleOrListElement::new_single(
                     netcetera_types::ThreeDSRequestorAuthenticationInformation {
-                        three_ds_req_auth_method: "01".to_string(),
+                        three_ds_req_auth_method: netcetera_types::ThreeDSReqAuthMethod::Guest,
                         three_ds_req_auth_timestamp,
                         three_ds_req_auth_data: None,
                     },

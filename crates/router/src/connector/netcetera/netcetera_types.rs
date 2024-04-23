@@ -182,7 +182,7 @@ pub struct ThreeDSRequestorAuthenticationInformation {
     /// - 08 -> SRC Assurance Data.
     /// - Additionally, 80-99 can be used for PS-specific values, regardless of protocol version.
     #[serde(rename = "threeDSReqAuthMethod")]
-    pub three_ds_req_auth_method: String,
+    pub three_ds_req_auth_method: ThreeDSReqAuthMethod,
     /// Date and time converted into UTC of the cardholder authentication. Field is limited to 12 characters and accepted format is YYYYMMDDHHMM
     #[serde(rename = "threeDSReqAuthTimestamp")]
     pub three_ds_req_auth_timestamp: String,
@@ -1555,4 +1555,35 @@ pub struct MessageExtensionAttribute {
     name: String,
     criticality_indicator: bool,
     data: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum ThreeDSReqAuthMethod {
+    /// No 3DS Requestor authentication occurred (i.e. cardholder "logged in" as guest)
+    #[serde(rename = "01")]
+    Guest,
+    /// Login to the cardholder account at the 3DS Requestor system using 3DS Requestor's own credentials
+    #[serde(rename = "02")]
+    ThreeDsRequestorCredentials,
+    /// Login to the cardholder account at the 3DS Requestor system using federated ID
+    #[serde(rename = "03")]
+    FederatedID,
+    /// Login to the cardholder account at the 3DS Requestor system using issuer credentials
+    #[serde(rename = "04")]
+    IssuerCredentials,
+    /// Login to the cardholder account at the 3DS Requestor system using third-party authentication
+    #[serde(rename = "05")]
+    ThirdPartyAuthentication,
+    /// Login to the cardholder account at the 3DS Requestor system using FIDO Authenticator.
+    #[serde(rename = "06")]
+    FidoAuthenticator,
+    /// Login to the cardholder account at the 3DS Requestor system using FIDO Authenticator(FIDO assurance data signed).
+    #[serde(rename = "07")]
+    FidoAssuranceData,
+    /// SRC Assurance Data.
+    #[serde(rename = "08")]
+    SRCAssuranceData,
+    /// Additionally, 80-99 can be used for PS-specific values, regardless of protocol version.
+    #[serde(untagged)]
+    PsSpecificValue(String),
 }
