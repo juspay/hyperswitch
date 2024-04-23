@@ -1997,10 +1997,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
         // We pass browser_info only when payment_data exists.
         // Hence, we're pass Null during recurring payments as payment_method_data[type] is not passed
         let browser_info = if payment_data.is_some() {
-            item.request.browser_info.clone().map(StripeBrowserInformation)
+            item.request
+                .browser_info
+                .clone()
+                .map(StripeBrowserInformation)
         } else {
             None
-        }
+        };
 
         Ok(Self {
             amount: item.request.amount, //hopefully we don't loose some cents here
