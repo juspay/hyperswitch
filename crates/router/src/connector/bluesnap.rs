@@ -1159,10 +1159,7 @@ impl services::ConnectorRedirectResponse for Bluesnap {
         action: services::PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
         match action {
-            services::PaymentAction::PSync
-            | services::PaymentAction::PaymentAuthenticateCompleteAuthorize => {
-                Ok(payments::CallConnectorAction::Trigger)
-            }
+            services::PaymentAction::PSync => Ok(payments::CallConnectorAction::Trigger),
             services::PaymentAction::CompleteAuthorize => {
                 let redirection_response: bluesnap::BluesnapRedirectionResponse = json_payload
                     .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {

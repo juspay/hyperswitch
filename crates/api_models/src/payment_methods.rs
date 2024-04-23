@@ -22,7 +22,7 @@ use crate::{
 pub struct PaymentMethodCreate {
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethod,example = "card")]
-    pub payment_method: Option<api_enums::PaymentMethod>,
+    pub payment_method: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
     #[schema(value_type = Option<PaymentMethodType>,example = "credit")]
@@ -65,16 +65,6 @@ pub struct PaymentMethodCreate {
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<Wallet>)]
     pub wallet: Option<payouts::Wallet>,
-
-    /// For Client based calls, SDK will use the client_secret
-    /// in order to call /payment_methods
-    /// Client secret will be generated whenever a new
-    /// payment method is created
-    pub client_secret: Option<String>,
-
-    /// Payment method data to be passed in case of client
-    /// based flow
-    pub payment_method_data: Option<PaymentMethodCreateData>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -86,7 +76,7 @@ pub struct PaymentMethodUpdate {
     "card_exp_month": "10",
     "card_exp_year": "25",
     "card_holder_name": "John Doe"}))]
-    pub card: Option<CardDetailUpdate>,
+    pub card: Option<CardDetail>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<CardNetwork>,example = "Visa")]
@@ -105,19 +95,6 @@ pub struct PaymentMethodUpdate {
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
-
-    /// This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK
-    #[schema(max_length = 30, min_length = 30, example = "secret_k2uj3he2893eiu2d")]
-    pub client_secret: Option<String>,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-#[serde(deny_unknown_fields)]
-#[serde(rename_all = "snake_case")]
-#[serde(rename = "payment_method_data")]
-
-pub enum PaymentMethodCreateData {
-    Card(CardDetail),
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -157,54 +134,6 @@ pub struct CardDetail {
     pub card_type: Option<String>,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-#[serde(deny_unknown_fields)]
-pub struct CardDetailUpdate {
-    /// Card Expiry Month
-    #[schema(value_type = String,example = "10")]
-    pub card_exp_month: Option<masking::Secret<String>>,
-
-    /// Card Expiry Year
-    #[schema(value_type = String,example = "25")]
-    pub card_exp_year: Option<masking::Secret<String>>,
-
-    /// Card Holder Name
-    #[schema(value_type = String,example = "John Doe")]
-    pub card_holder_name: Option<masking::Secret<String>>,
-
-    /// Card Holder's Nick Name
-    #[schema(value_type = Option<String>,example = "John Doe")]
-    pub nick_name: Option<masking::Secret<String>>,
-}
-
-impl CardDetailUpdate {
-    pub fn apply(&self, card_data_from_locker: Card) -> CardDetail {
-        CardDetail {
-            card_number: card_data_from_locker.card_number,
-            card_exp_month: self
-                .card_exp_month
-                .clone()
-                .unwrap_or(card_data_from_locker.card_exp_month),
-            card_exp_year: self
-                .card_exp_year
-                .clone()
-                .unwrap_or(card_data_from_locker.card_exp_year),
-            card_holder_name: self
-                .card_holder_name
-                .clone()
-                .or(card_data_from_locker.name_on_card),
-            nick_name: self
-                .nick_name
-                .clone()
-                .or(card_data_from_locker.nick_name.map(masking::Secret::new)),
-            card_issuing_country: None,
-            card_network: None,
-            card_issuer: None,
-            card_type: None,
-        }
-    }
-}
-
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentMethodResponse {
     /// Unique identifier for a merchant
@@ -221,7 +150,7 @@ pub struct PaymentMethodResponse {
 
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethod, example = "card")]
-    pub payment_method: Option<api_enums::PaymentMethod>,
+    pub payment_method: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
     #[schema(value_type = Option<PaymentMethodType>, example = "credit")]
@@ -261,9 +190,6 @@ pub struct PaymentMethodResponse {
     #[schema(value_type = Option<PrimitiveDateTime>, example = "2024-02-24T11:04:09.922Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_used_at: Option<time::PrimitiveDateTime>,
-
-    /// For Client based calls
-    pub client_secret: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -315,17 +241,6 @@ pub struct BankAccountConnectorDetails {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum BankAccountAccessCreds {
     AccessToken(masking::Secret<String>),
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
-pub struct Card {
-    pub card_number: CardNumber,
-    pub name_on_card: Option<masking::Secret<String>>,
-    pub card_exp_month: masking::Secret<String>,
-    pub card_exp_year: masking::Secret<String>,
-    pub card_brand: Option<String>,
-    pub card_isin: Option<String>,
-    pub nick_name: Option<String>,
 }
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct CardDetailFromLocker {

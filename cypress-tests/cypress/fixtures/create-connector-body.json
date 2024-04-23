@@ -28,7 +28,7 @@
                         "UnionPay",
                         "RuPay"
                     ],
-                    "minimum_amount": 0,
+                    "minimum_amount": 1,
                     "maximum_amount": 68607706,
                     "recurring_enabled": false,
                     "installment_payment_enabled": true
@@ -46,7 +46,7 @@
                         "UnionPay",
                         "RuPay"
                     ],
-                    "minimum_amount": 0,
+                    "minimum_amount": 1,
                     "maximum_amount": 68607706,
                     "recurring_enabled": false,
                     "installment_payment_enabled": true

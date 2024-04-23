@@ -1,9 +1,6 @@
 // use actix_web::HttpMessage;
 use actix_web::http::header::HeaderMap;
-use api_models::{
-    enums as api_enums, gsm as gsm_api_types, payment_methods, payments,
-    routing::ConnectorSelection,
-};
+use api_models::{enums as api_enums, gsm as gsm_api_types, payments, routing::ConnectorSelection};
 use common_utils::{
     consts::X_HS_LATENCY,
     crypto::Encryptable,
@@ -70,28 +67,6 @@ impl ForeignFrom<api_models::refunds::RefundType> for storage_enums::RefundType 
         match item {
             api_models::refunds::RefundType::Instant => Self::InstantRefund,
             api_models::refunds::RefundType::Scheduled => Self::RegularRefund,
-        }
-    }
-}
-
-impl ForeignFrom<diesel_models::PaymentMethod> for payment_methods::PaymentMethodResponse {
-    fn foreign_from(item: diesel_models::PaymentMethod) -> Self {
-        Self {
-            merchant_id: item.merchant_id,
-            customer_id: Some(item.customer_id),
-            payment_method_id: item.payment_method_id,
-            payment_method: item.payment_method,
-            payment_method_type: item.payment_method_type,
-            card: None,
-            recurring_enabled: false,
-            installment_payment_enabled: false,
-            payment_experience: None,
-            metadata: item.metadata,
-            created: Some(item.created_at),
-            #[cfg(feature = "payouts")]
-            bank_transfer: None,
-            last_used_at: None,
-            client_secret: item.client_secret,
         }
     }
 }

@@ -21,9 +21,7 @@ export const connectorDetails = {
         "paymentSuccessfulStatus": "requires_customer_action",
         "paymentSyncStatus": "succeeded",
         "refundStatus": "pending",
-        "refundSyncStatus": "succeeded",
-        "customer_acceptance":null,
-        "setup_future_usage": "on_session",
+        "refundSyncStatus": "succeeded"
 
     },
     "No3DS": {
@@ -32,9 +30,7 @@ export const connectorDetails = {
         "paymentSuccessfulStatus": "processing",
         "paymentSyncStatus": "succeeded",
         "refundStatus": "pending",
-        "refundSyncStatus": "succeeded",
-        "customer_acceptance":null,
-        "setup_future_usage": "on_session",
+        "refundSyncStatus": "succeeded"
     },
     "MandateSingleUse3DS": {
         "card": successfulThreeDSTestCardDetails,
@@ -91,22 +87,5 @@ export const connectorDetails = {
                 "currency": "USD"
             }
         }
-    },
-    "SaveCardUseNo3DS": {
-        "card": successfulNo3DSCardDetails,
-        "currency":"USD",
-        "paymentSuccessfulStatus": "processing",
-        "paymentSyncStatus": "succeeded",
-        "refundStatus": "pending",
-        "refundSyncStatus": "succeeded",
-        "setup_future_usage": "on_session",
-        "customer_acceptance": {
-            "acceptance_type": "offline",
-            "accepted_at": "1963-05-03T04:07:52.723Z",
-            "online": {
-                "ip_address": "127.0.0.1",
-                "user_agent": "amet irure esse"
-            }
-        },
     },
 };

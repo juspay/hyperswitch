@@ -119,7 +119,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             mandate_type.to_owned(),
             merchant_account,
             key_store,
-            payment_attempt.payment_method_id.clone(),
         )
         .await?;
         let token = token.or_else(|| payment_attempt.payment_token.clone());

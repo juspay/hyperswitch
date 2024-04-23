@@ -190,7 +190,10 @@ pub struct GcashRedirection {}
 pub struct MobilePayRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
-pub struct MbWayRedirection {}
+pub struct MbWayRedirection {
+    /// Telephone number of the shopper. Should be Portuguese phone number.
+    pub telephone_number: Secret<String>,
+}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 
@@ -662,8 +665,10 @@ impl From<api_models::payments::WalletData> for WalletData {
             api_models::payments::WalletData::GooglePayThirdPartySdk(_) => {
                 Self::GooglePayThirdPartySdk(Box::new(GooglePayThirdPartySdkData {}))
             }
-            api_models::payments::WalletData::MbWayRedirect(..) => {
-                Self::MbWayRedirect(Box::new(MbWayRedirection {}))
+            api_models::payments::WalletData::MbWayRedirect(mbway_redirect_data) => {
+                Self::MbWayRedirect(Box::new(MbWayRedirection {
+                    telephone_number: mbway_redirect_data.telephone_number,
+                }))
             }
             api_models::payments::WalletData::MobilePayRedirect(_) => {
                 Self::MobilePayRedirect(Box::new(MobilePayRedirection {}))

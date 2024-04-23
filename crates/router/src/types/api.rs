@@ -17,7 +17,6 @@ pub mod payment_methods;
 pub mod payments;
 #[cfg(feature = "payouts")]
 pub mod payouts;
-pub mod poll;
 pub mod refunds;
 pub mod routing;
 #[cfg(feature = "olap")]
@@ -36,7 +35,7 @@ pub use self::fraud_check::*;
 pub use self::payouts::*;
 pub use self::{
     admin::*, api_keys::*, authentication::*, configs::*, customers::*, disputes::*, files::*,
-    payment_link::*, payment_methods::*, payments::*, poll::*, refunds::*, webhooks::*,
+    payment_link::*, payment_methods::*, payments::*, refunds::*, webhooks::*,
 };
 use super::ErrorResponse;
 use crate::{

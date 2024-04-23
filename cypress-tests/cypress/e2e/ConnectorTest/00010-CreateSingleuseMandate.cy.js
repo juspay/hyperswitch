@@ -27,7 +27,7 @@ describe("Card - SingleUse Mandates flow test", () => {
             console.log("confirm -> " + globalState.get("connectorId"));
             let det = getConnectorDetails(globalState.get("connectorId"))["MandateSingleUseNo3DS"];
             console.log("det -> " + det.card);
-            cy.citForMandatesCallTest(citConfirmBody,7000, det, true, "automatic", "new_mandate", globalState);
+            cy.citForMandatesCallTest(citConfirmBody, det, true, "automatic", globalState);
         });
 
         it("Confirm No 3DS MIT", () => {
@@ -41,7 +41,7 @@ describe("Card - SingleUse Mandates flow test", () => {
             console.log("confirm -> " + globalState.get("connectorId"));
             let det = getConnectorDetails(globalState.get("connectorId"))["MandateSingleUseNo3DS"];
             console.log("det -> " + det.card);
-            cy.citForMandatesCallTest(citConfirmBody,7000, det, true, "manual", "new_mandate", globalState);
+            cy.citForMandatesCallTest(citConfirmBody, det, true, "manual", globalState);
         });
 
         it("cit-capture-call-test", () => {
@@ -71,7 +71,7 @@ describe("Card - SingleUse Mandates flow test", () => {
             console.log("confirm -> " + globalState.get("connectorId"));
             let det = getConnectorDetails(globalState.get("connectorId"))["MandateSingleUse3DS"];
             console.log("det -> " + det.card);
-            cy.citForMandatesCallTest(citConfirmBody,6500, det, true, "automatic", "new_mandate", globalState);
+            cy.citForMandatesCallTest(citConfirmBody, det, true, "automatic", globalState);
         });
 
         it("cit-capture-call-test", () => {

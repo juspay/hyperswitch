@@ -134,7 +134,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             mandate_type.clone(),
             merchant_account,
             merchant_key_store,
-            None,
         )
         .await?;
 

@@ -24,7 +24,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
     context("Card - void payment in Requires_capture state flow test", () => {
         it("create-payment-call-test", () => {
             let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
-            cy.createPaymentIntentTest(createPaymentBody, det, "no_three_ds", "manual", globalState);
+            cy.createPaymentIntentTest(createPaymentBody, det.currency, "no_three_ds", "manual", globalState);
         });
 
         it("payment_methods-call-test", () => {
@@ -46,7 +46,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
     context("Card - void payment in Requires_payment_method state flow test", () => {
         it("create-payment-call-test", () => {
             let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
-            cy.createPaymentIntentTest(createPaymentBody, det, "no_three_ds", "manual", globalState);
+            cy.createPaymentIntentTest(createPaymentBody, det.currency, "no_three_ds", "manual", globalState);
         });
 
         it("payment_methods-call-test", () => {
@@ -61,7 +61,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
     context("Card - void payment in Requires_payment_method state flow test", () => {
         it("create-payment-call-test", () => {
             let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
-            cy.createPaymentIntentTest(createPaymentBody, det, "no_three_ds", "manual", globalState);
+            cy.createPaymentIntentTest(createPaymentBody, det.currency, "no_three_ds", "manual", globalState);
         });
 
         it("payment_methods-call-test", () => {

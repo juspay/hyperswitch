@@ -102,10 +102,3 @@ pub const AUTHENTICATION_ID_PREFIX: &str = "authn";
 
 // URL for checking the outgoing call
 pub const OUTGOING_CALL_URL: &str = "https://api.stripe.com/healthcheck";
-
-// 15 minutes = 900 seconds
-pub const POLL_ID_TTL: i64 = 900;
-
-// Default Poll Config
-pub const DEFAULT_POLL_DELAY_IN_SECS: i8 = 2;
-pub const DEFAULT_POLL_FREQUENCY: i8 = 5;

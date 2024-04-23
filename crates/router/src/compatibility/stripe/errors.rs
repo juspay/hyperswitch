@@ -599,10 +599,6 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 object: "business_profile".to_owned(),
                 id,
             },
-            errors::ApiErrorResponse::PollNotFound { id } => Self::ResourceMissing {
-                object: "poll".to_owned(),
-                id,
-            },
             errors::ApiErrorResponse::DisputeStatusValidationFailed { reason } => {
                 Self::InternalServerError
             }

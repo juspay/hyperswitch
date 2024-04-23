@@ -4,6 +4,7 @@
   "confirm": true,
   "capture_method": "automatic",
   "capture_on": "2022-09-10T10:11:12Z",
+  "amount_to_capture": 7000,
   "customer_id": "StripeCustomer",
   "email": "guest@example.com",
   "name": "John Doe",
@@ -40,7 +41,6 @@
       }
     }
   },
-  "payment_type":"setup_mandate",
   "billing": {
     "address": {
       "line1": "1467",

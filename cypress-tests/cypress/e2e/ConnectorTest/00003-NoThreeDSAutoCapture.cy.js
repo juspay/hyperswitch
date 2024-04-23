@@ -25,7 +25,7 @@ describe("Card - NoThreeDS payment flow test", () => {
 
     it("create-payment-call-test", () => {
       let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
-      cy.createPaymentIntentTest(createPaymentBody, det, "no_three_ds", "automatic", globalState);
+      cy.createPaymentIntentTest(createPaymentBody, det.currency, "no_three_ds", "automatic", globalState);
     });
 
     it("payment_methods-call-test", () => {

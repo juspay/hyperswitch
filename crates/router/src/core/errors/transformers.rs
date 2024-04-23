@@ -238,9 +238,6 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::FileNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "File does not exist in our records", None))
             }
-            Self::PollNotFound { .. } => {
-                AER::NotFound(ApiError::new("HE", 2, "Poll does not exist in our records", None))
-            },
             Self::FileNotAvailable => {
                 AER::NotFound(ApiError::new("HE", 2, "File not available", None))
             }

@@ -49,21 +49,6 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::SetFailed)
     }
 
-    pub async fn set_key_without_modifying_ttl<V>(
-        &self,
-        key: &str,
-        value: V,
-    ) -> CustomResult<(), errors::RedisError>
-    where
-        V: TryInto<RedisValue> + Debug + Send + Sync,
-        V::Error: Into<fred::error::RedisError> + Send + Sync,
-    {
-        self.pool
-            .set(key, value, Some(Expiration::KEEPTTL), None, false)
-            .await
-            .change_context(errors::RedisError::SetFailed)
-    }
-
     pub async fn set_multiple_keys_if_not_exist<V>(
         &self,
         value: V,
@@ -109,23 +94,6 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::JsonSerializationFailed)?;
 
         self.set_key(key, serialized.as_slice()).await
-    }
-
-    #[instrument(level = "DEBUG", skip(self))]
-    pub async fn serialize_and_set_key_without_modifying_ttl<V>(
-        &self,
-        key: &str,
-        value: V,
-    ) -> CustomResult<(), errors::RedisError>
-    where
-        V: serde::Serialize + Debug,
-    {
-        let serialized = value
-            .encode_to_vec()
-            .change_context(errors::RedisError::JsonSerializationFailed)?;
-
-        self.set_key_without_modifying_ttl(key, serialized.as_slice())
-            .await
     }
 
     #[instrument(level = "DEBUG", skip(self))]

@@ -246,6 +246,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+merchant_business_country="Merchant Business Country"
 [adyen.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -354,6 +355,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+merchant_business_country="Merchant Business Country"
 [authorizedotnet.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -414,6 +416,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+merchant_business_country="Merchant Business Country"
 [bambora.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -474,6 +477,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+merchant_business_country="Merchant Business Country"
 [bankofamerica.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -551,6 +555,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+merchant_business_country="Merchant Business Country"
 [bluesnap.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -775,6 +780,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+merchant_business_country="Merchant Business Country"
 [checkout.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -856,6 +862,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+merchant_business_country="Merchant Business Country"
 [cybersource.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -1271,6 +1278,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+merchant_business_country="Merchant Business Country"
 [nexinets.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -1325,10 +1333,6 @@ key1="Public Key"
 [nmi.connector_webhook_details]
 merchant_secret="Source verification key"
 
-[nmi.metadata]
-acquirer_bin = "Acquirer Bin"
-acquirer_merchant_id = "Acquirer Merchant ID"
-
 [nmi.metadata.google_pay]
 merchant_name="Google Pay Merchant Name"
 gateway_merchant_id="Google Pay Merchant Key"
@@ -1341,6 +1345,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+merchant_business_country="Merchant Business Country"
 [nmi.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -1408,6 +1413,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+merchant_business_country="Merchant Business Country"
 [noon.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -1487,6 +1493,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+merchant_business_country="Merchant Business Country"
 [nuvei.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -1794,6 +1801,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+merchant_business_country="Merchant Business Country"
 [rapyd.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -1948,6 +1956,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+merchant_business_country="Merchant Business Country"
 [stripe.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -2105,6 +2114,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+merchant_business_country="Merchant Business Country"
 [trustpay.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -2272,6 +2282,7 @@ merchant_identifier="Apple Merchant Identifier"
 display_name="Display Name"
 initiative="Domain"
 initiative_context="Domain Name"
+merchant_business_country="Merchant Business Country"
 [worldpay.metadata.apple_pay.payment_request_data]
 supported_networks=["visa","masterCard","amex","discover"]
 merchant_capabilities=["supports3DS"]
@@ -2600,18 +2611,6 @@ api_key="Api Key"
 mcc="MCC"
 merchant_country_code="3 digit numeric country code"
 merchant_name="Name of the merchant"
-
-[netcetera]
-[netcetera.connector_auth.CertificateAuth]
-certificate="Base64 encoded PEM formatted certificate chain"
-private_key="Base64 encoded PEM formatted private key"
-[netcetera.metadata]
-mcc="MCC"
-merchant_country_code="3 digit numeric country code"
-merchant_name="Name of the merchant"
-endpoint_prefix="string that will replace '{prefix}' in this base url 'https://{prefix}.3ds-server.prev.netcetera-cloud-payment.ch'"
-three_ds_requestor_name="ThreeDS requestor name"
-three_ds_requestor_id="ThreeDS request id"
 
 [billwerk]
 [[billwerk.credit]]
