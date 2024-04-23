@@ -378,6 +378,12 @@ impl<F, T>
                 let error_response =
                     get_error_response_if_failure((&info_response, mandate_status, item.http_code));
 
+                let connector_response = info_response
+                    .processor_information
+                    .as_ref()
+                    .map(types::AdditionalPaymentMethodConnectorResponse::from)
+                    .map(types::ConnectorResponseData::with_additional_payment_method_data);
+
                 Ok(Self {
                     status: mandate_status,
                     response: match error_response {
@@ -400,6 +406,7 @@ impl<F, T>
                             incremental_authorization_allowed: None,
                         }),
                     },
+                    connector_response,
                     ..item.data
                 })
             }
@@ -714,7 +721,16 @@ pub struct ClientReferenceInformation {
 #[serde(rename_all = "camelCase")]
 pub struct ClientProcessorInformation {
     avs: Option<Avs>,
+    card_verification: Option<CardVerification>,
 }
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CardVerification {
+    result_code: Option<String>,
+    result_code_raw: Option<String>,
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientRiskInformation {
@@ -1383,23 +1399,20 @@ fn get_payment_response(
                     });
 
             Ok(types::PaymentsResponseData::TransactionResponse {
-            resource_id: types::ResponseId::ConnectorTransactionId(info_response.id.clone()),
-            redirection_data: None,
-            mandate_reference,
-            connector_metadata: info_response
-                .processor_information
-                .as_ref()
-                .map(|processor_information| serde_json::json!({"avs_response": processor_information.avs})),
-            network_txn_id: None,
-            connector_response_reference_id: Some(
-                info_response
-                    .client_reference_information
-                    .code
-                    .clone()
-                    .unwrap_or(info_response.id.clone()),
-            ),
-            incremental_authorization_allowed: None,
-        })
+                resource_id: types::ResponseId::ConnectorTransactionId(info_response.id.clone()),
+                redirection_data: None,
+                mandate_reference,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: Some(
+                    info_response
+                        .client_reference_information
+                        .code
+                        .clone()
+                        .unwrap_or(info_response.id.clone()),
+                ),
+                incremental_authorization_allowed: None,
+            })
         }
     }
 }
@@ -1849,9 +1862,15 @@ impl<F>
                         || is_setup_mandate_payment(&item.data.request),
                 ));
                 let response = get_payment_response((&info_response, status, item.http_code));
+                let connector_response = info_response
+                    .processor_information
+                    .as_ref()
+                    .map(types::AdditionalPaymentMethodConnectorResponse::from)
+                    .map(types::ConnectorResponseData::with_additional_payment_method_data);
                 Ok(Self {
                     status,
                     response,
+                    connector_response,
                     ..item.data
                 })
             }
@@ -1892,9 +1911,16 @@ impl<F>
                     item.data.request.is_auto_capture()?,
                 ));
                 let response = get_payment_response((&info_response, status, item.http_code));
+                let connector_response = info_response
+                    .processor_information
+                    .as_ref()
+                    .map(types::AdditionalPaymentMethodConnectorResponse::from)
+                    .map(types::ConnectorResponseData::with_additional_payment_method_data);
+
                 Ok(Self {
                     status,
                     response,
+                    connector_response,
                     ..item.data
                 })
             }
@@ -1905,6 +1931,19 @@ impl<F>
                     Some(enums::AttemptStatus::Failure),
                 )))
             }
+        }
+    }
+}
+
+impl From<&ClientProcessorInformation> for types::AdditionalPaymentMethodConnectorResponse {
+    fn from(processor_information: &ClientProcessorInformation) -> Self {
+        let payment_checks = Some(
+            serde_json::json!({"avs_response": processor_information.avs, "card_verification": processor_information.card_verification}),
+        );
+
+        Self::Card {
+            authentication_data: None,
+            payment_checks,
         }
     }
 }

@@ -4546,6 +4546,9 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "Poll not found"
           }
         },
         "security": [
@@ -12498,9 +12501,37 @@
               }
             ],
             "nullable": true
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "For Client based calls, SDK will use the client_secret\nin order to call /payment_methods\nClient secret will be generated whenever a new\npayment method is created",
+            "nullable": true
+          },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodCreateData"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
+      },
+      "PaymentMethodCreateData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "card"
+            ],
+            "properties": {
+              "card": {
+                "$ref": "#/components/schemas/CardDetail"
+              }
+            }
+          }
+        ]
       },
       "PaymentMethodData": {
         "oneOf": [
@@ -12887,6 +12918,11 @@
             "format": "date-time",
             "example": "2024-02-24T11:04:09.922Z",
             "nullable": true
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "For Client based calls",
+            "nullable": true
           }
         }
       },
@@ -12895,7 +12931,8 @@
         "enum": [
           "active",
           "inactive",
-          "processing"
+          "processing",
+          "awaiting_data"
         ]
       },
       "PaymentMethodType": {

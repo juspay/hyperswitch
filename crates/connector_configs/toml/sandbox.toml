@@ -1325,6 +1325,10 @@ key1="Public Key"
 [nmi.connector_webhook_details]
 merchant_secret="Source verification key"
 
+[nmi.metadata]
+acquirer_bin = "Acquirer Bin"
+acquirer_merchant_id = "Acquirer Merchant ID"
+
 [nmi.metadata.google_pay]
 merchant_name="Google Pay Merchant Name"
 gateway_merchant_id="Google Pay Merchant Key"
@@ -2596,6 +2600,18 @@ api_key="Api Key"
 mcc="MCC"
 merchant_country_code="3 digit numeric country code"
 merchant_name="Name of the merchant"
+
+[netcetera]
+[netcetera.connector_auth.CertificateAuth]
+certificate="Base64 encoded PEM formatted certificate chain"
+private_key="Base64 encoded PEM formatted private key"
+[netcetera.metadata]
+mcc="MCC"
+merchant_country_code="3 digit numeric country code"
+merchant_name="Name of the merchant"
+endpoint_prefix="string that will replace '{prefix}' in this base url 'https://{prefix}.3ds-server.prev.netcetera-cloud-payment.ch'"
+three_ds_requestor_name="ThreeDS requestor name"
+three_ds_requestor_id="ThreeDS request id"
 
 [billwerk]
 [[billwerk.credit]]
