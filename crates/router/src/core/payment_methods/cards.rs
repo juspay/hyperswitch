@@ -1701,7 +1701,7 @@ pub async fn list_payment_methods(
                 })?;
 
             let payment_method = db
-                .find_payment_method(pm_id)
+                .find_payment_method(pm_id, merchant_account.storage_scheme)
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
                 .attach_printable("Unable to find payment method")?;
