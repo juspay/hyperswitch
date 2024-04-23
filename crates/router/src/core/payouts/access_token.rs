@@ -33,12 +33,12 @@ pub async fn create_access_token<F: Clone + 'static>(
     .await?;
 
     if connector_access_token.connector_supports_access_token {
-        match connector_access_token.access_token_result.as_ref() {
+        match connector_access_token.access_token_result {
             Ok(access_token) => {
-                router_data.access_token = access_token.clone();
+                router_data.access_token = access_token;
             }
             Err(connector_error) => {
-                router_data.response = Err(connector_error.clone());
+                router_data.response = Err(connector_error);
             }
         }
     }
