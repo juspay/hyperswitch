@@ -3446,7 +3446,9 @@ pub struct PaymentListFiltersV2 {
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct AmountFilter {
+    /// The start amount to filter list of transactions which are greater than or equal to the start amount
     pub start_amount: Option<i64>,
+    /// The end amount to filter list of transactions which are less than or equal to the end amount
     pub end_amount: Option<i64>,
 }
 

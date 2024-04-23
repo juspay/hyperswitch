@@ -4911,6 +4911,23 @@
       "AliPayRedirection": {
         "type": "object"
       },
+      "AmountFilter": {
+        "type": "object",
+        "properties": {
+          "start_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The start amount to filter list of transactions which are greater than or equal to the start amount",
+            "nullable": true
+          },
+          "end_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The end amount to filter list transactions  which are less than or equal to the end amount",
+            "nullable": true
+          }
+        }
+      },
       "AmountInfo": {
         "type": "object",
         "required": [
@@ -16500,12 +16517,28 @@
                 "description": "The starting point within a list of objects",
                 "nullable": true
               },
+              "amount_filter": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/AmountFilter"
+                  }
+                ],
+                "nullable": true
+              },
               "connector": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
                 "description": "The list of connectors to filter refunds list",
+                "nullable": true
+              },
+              "merchant_connector_id": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "The list of merchant connector ids to filter the refunds list for selected label",
                 "nullable": true
               },
               "currency": {
