@@ -88,7 +88,8 @@ vault_private_key = ""
 tunnel_private_key = ""
 
 [connectors.supported]
-wallets = ["klarna", "braintree", "applepay", "adyen"]
+wallets = ["klarna",
+    "mifinity", "braintree", "applepay", "adyen"]
 rewards = ["cashtocode", "zen"]
 cards = [
     "aci",
@@ -193,6 +194,7 @@ gocardless.base_url = "https://api-sandbox.gocardless.com"
 helcim.base_url = "https://api.helcim.com/"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
 klarna.base_url = "https://api-na.playground.klarna.com/"
+mifinity.base_url = "https://demo.mifinity.com"
 mollie.base_url = "https://api.mollie.com/v2/"
 mollie.secondary_base_url = "https://api.cc.mollie.com/v1/"
 multisafepay.base_url = "https://testapi.multisafepay.com/"

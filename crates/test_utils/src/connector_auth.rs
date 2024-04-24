@@ -38,6 +38,7 @@ pub struct ConnectorAuthentication {
     pub gocardless: Option<HeaderKey>,
     pub helcim: Option<HeaderKey>,
     pub iatapay: Option<SignatureKey>,
+    pub mifinity: Option<HeaderKey>,
     pub mollie: Option<BodyKey>,
     pub multisafepay: Option<HeaderKey>,
     pub netcetera: Option<HeaderKey>,

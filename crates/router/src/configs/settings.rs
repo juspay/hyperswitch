@@ -509,6 +509,7 @@ pub struct Connectors {
     pub helcim: ConnectorParams,
     pub iatapay: ConnectorParams,
     pub klarna: ConnectorParams,
+    pub mifinity: ConnectorParams,
     pub mollie: ConnectorParams,
     pub multisafepay: ConnectorParams,
     pub netcetera: ConnectorParams,

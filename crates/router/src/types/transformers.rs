@@ -232,6 +232,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Helcim => Self::Helcim,
             api_enums::Connector::Iatapay => Self::Iatapay,
             api_enums::Connector::Klarna => Self::Klarna,
+            // api_enums::Connector::Mifinity => Self::Mifinity, Added as template code for future usage
             api_enums::Connector::Mollie => Self::Mollie,
             api_enums::Connector::Multisafepay => Self::Multisafepay,
             api_enums::Connector::Netcetera => {
