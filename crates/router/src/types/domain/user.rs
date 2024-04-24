@@ -515,7 +515,7 @@ impl NewUser {
     pub async fn check_if_already_exists_in_db(&self, state: AppState) -> UserResult<()> {
         if state
             .store
-            .find_user_by_email(self.get_email().into_inner().expose().expose().as_str())
+            .find_user_by_email(&self.get_email().into_inner())
             .await
             .is_ok()
         {

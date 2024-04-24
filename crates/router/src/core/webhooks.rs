@@ -532,6 +532,24 @@ pub async fn external_authentication_incoming_webhook_flow<Ctx: PaymentMethodRet
                         let status = payments_response.status;
                         let event_type: Option<enums::EventType> =
                             payments_response.status.foreign_into();
+                        // Set poll_id as completed in redis to allow the fetch status of poll through retrieve_poll_status api from client
+                        let poll_id = super::utils::get_poll_id(
+                            merchant_account.merchant_id.clone(),
+                            super::utils::get_external_authentication_request_poll_id(&payment_id),
+                        );
+                        let redis_conn = state
+                            .store
+                            .get_redis_conn()
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to get redis connection")?;
+                        redis_conn
+                            .set_key_without_modifying_ttl(
+                                &poll_id,
+                                api_models::poll::PollStatus::Completed.to_string(),
+                            )
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to add poll_id in redis")?;
                         // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
                         if let Some(outgoing_event_type) = event_type {
                             let primary_object_created_at = payments_response.created;
