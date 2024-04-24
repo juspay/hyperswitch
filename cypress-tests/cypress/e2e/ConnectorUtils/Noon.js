@@ -1,47 +1,48 @@
 const successfulNo3DSCardDetails = {
-    "card_number": "4242424242424242",
-    "card_exp_month": "01",
+    "card_number": "4000000000002503",
+    "card_exp_month": "08",
     "card_exp_year": "25",
     "card_holder_name": "joseph Doe",
-    "card_cvc": "123"
+    "card_cvc": "999"
 };
 
 const successfulThreeDSTestCardDetails = {
-    "card_number": "4000000000001091",
-    "card_exp_month": "01",
+    "card_number": "4000000000002503",
+    "card_exp_month": "10",
     "card_exp_year": "25",
-    "card_holder_name": "joseph Doe",
-    "card_cvc": "123"
+    "card_holder_name": "morino",
+    "card_cvc": "999"
 };
 
 export const connectorDetails = {
     "3DS": {
         "card": successfulThreeDSTestCardDetails,
-        "currency": "USD",
+        "currency": "AED",
         "paymentSuccessfulStatus": "requires_customer_action",
         "paymentSyncStatus": "succeeded",
         "refundStatus": "pending",
-        "refundSyncStatus": "pending",
+        "refundSyncStatus": "succeeded",
         "customer_acceptance":null,
         "setup_future_usage": "on_session",
+
     },
     "No3DS": {
         "card": successfulNo3DSCardDetails,
-        "currency": "USD",
-        "paymentSuccessfulStatus": "succeeded",
+        "currency": "AED",
+        "paymentSuccessfulStatus": "requires_customer_action",
         "paymentSyncStatus": "succeeded",
         "refundStatus": "pending",
-        "refundSyncStatus": "pending",
+        "refundSyncStatus": "succeeded",
         "customer_acceptance":null,
         "setup_future_usage": "on_session",
     },
     "MandateSingleUse3DS": {
         "card": successfulThreeDSTestCardDetails,
-        "currency": "USD",
+        "currency": "AED",
         "paymentSuccessfulStatus": "requires_customer_action",
-        "paymentSyncStatus": "succeeded",
+        "paymentSyncStatus": "processing",
         "refundStatus": "pending",
-        "refundSyncStatus": "pending",
+        "refundSyncStatus": "succeeded",
         "mandate_type": {
             "single_use": {
                 "amount": 8000,
@@ -51,11 +52,11 @@ export const connectorDetails = {
     },
     "MandateSingleUseNo3DS": {
         "card": successfulNo3DSCardDetails,
-        "currency": "USD",
-        "paymentSuccessfulStatus": "succeeded",
+        "currency": "AED",
+        "paymentSuccessfulStatus": "requires_customer_action",
         "paymentSyncStatus": "succeeded",
         "refundStatus": "pending",
-        "refundSyncStatus": "pending",
+        "refundSyncStatus": "succeeded",
         "mandate_type": {
             "single_use": {
                 "amount": 8000,
@@ -65,11 +66,11 @@ export const connectorDetails = {
     },
     "MandateMultiUseNo3DS": {
         "card": successfulNo3DSCardDetails,
-        "currency": "USD",
-        "paymentSuccessfulStatus": "succeeded",
+        "currency": "AED",
+        "paymentSuccessfulStatus": "requires_customer_action",
         "paymentSyncStatus": "succeeded",
         "refundStatus": "pending",
-        "refundSyncStatus": "pending",
+        "refundSyncStatus": "succeeded",
         "mandate_type": {
             "multi_use": {
                 "amount": 8000,
@@ -79,11 +80,11 @@ export const connectorDetails = {
     },
     "MandateMultiUse3DS": {
         "card": successfulThreeDSTestCardDetails,
-        "currency": "USD",
+        "currency": "AED",
         "paymentSuccessfulStatus": "requires_customer_action",
         "paymentSyncStatus": "succeeded",
         "refundStatus": "pending",
-        "refundSyncStatus": "pending",
+        "refundSyncStatus": "succeeded",
         "mandate_type": {
             "multi_use": {
                 "amount": 8000,
@@ -93,10 +94,10 @@ export const connectorDetails = {
     },
     "SaveCardUseNo3DS": {
         "card": successfulNo3DSCardDetails,
-        "currency":"USD",
-        "paymentSuccessfulStatus": "succeeded",
+        "currency":"AED",
+        "paymentSuccessfulStatus": "requires_customer_action",
         "paymentSyncStatus": "succeeded",
-        "refundStatus": "succeeded",
+        "refundStatus": "pending",
         "refundSyncStatus": "succeeded",
         "setup_future_usage": "on_session",
         "customer_acceptance": {

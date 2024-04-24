@@ -27,7 +27,7 @@
     "address": {
       "state": "New York",
       "city": "New York",
-      "country": "US",
+      "country": "AE",
       "first_name": "john",
       "last_name": "doe",
       "zip": "10001",
@@ -36,6 +36,11 @@
       "line3": "123 Main Street Apt 4B"
     }
   },
+  "connector_metadata": {
+    "noon": {
+        "order_category": "pay"
+    }
+},
   "email": "hyperswitch_sdk_demo_id@gmail.com",
   "browser_info": {
     "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",

@@ -49,7 +49,7 @@
       "city": "San Fransico",
       "state": "California",
       "zip": "94122",
-      "country": "US",
+      "country": "AE",
       "first_name": "john",
       "last_name": "Doe"
     }
@@ -74,6 +74,11 @@
     "new_customer": "true",
     "login_date": "2019-09-10T10:11:12Z"
   },
+  "connector_metadata": {
+    "noon": {
+        "order_category": "pay"
+    }
+},
   "browser_info": {
     "ip_address": "129.0.0.1",
     "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",

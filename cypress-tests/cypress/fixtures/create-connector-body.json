@@ -9,7 +9,7 @@
         "api_key": "api-key",
         "key1": "value1"
     },
-    "test_mode": false,
+    "test_mode": true,
     "disabled": false,
     "payment_methods_enabled": [
         {
