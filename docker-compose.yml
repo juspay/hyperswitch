@@ -131,8 +131,6 @@ services:
     build:
       context: ./docker
       dockerfile: web.Dockerfile
-    networks:
-      - router_net
     env_file:
       - ./.env
     environment:
