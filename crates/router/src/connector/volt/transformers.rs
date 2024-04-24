@@ -639,6 +639,7 @@ fn is_payment_failure(status: enums::AttemptStatus) -> bool {
         | common_enums::AttemptStatus::PartialCharged
         | common_enums::AttemptStatus::PartialChargedAndChargeable
         | common_enums::AttemptStatus::Unresolved
+        | common_enums::AttemptStatus::FrmUnresolved
         | common_enums::AttemptStatus::Pending
         | common_enums::AttemptStatus::PaymentMethodAwaited
         | common_enums::AttemptStatus::ConfirmationAwaited

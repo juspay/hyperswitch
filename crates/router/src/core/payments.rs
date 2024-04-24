@@ -223,7 +223,7 @@ where
         };
         #[cfg(feature = "frm")]
         logger::debug!(
-            "frm_configs: {:?}\nshould_cancel_transaction: {:?}\nshould_continue_capture: {:?}",
+            "frm_configs: {:?}\nshould_continue_transaction: {:?}\nshould_continue_capture: {:?}",
             frm_configs,
             should_continue_transaction,
             should_continue_capture,
@@ -240,6 +240,20 @@ where
                 &key_store,
             )
             .await?;
+        if matches!(
+            frm_info.as_ref().and_then(|frm_info| frm_info
+                .frm_data
+                .as_ref()
+                .map(|frm_data| frm_data.fraud_check.frm_capture_method)),
+            Some(Some(storage_enums::CaptureMethod::Manual))
+        ) && matches!(
+            payment_data.payment_attempt.status,
+            api_models::enums::AttemptStatus::FrmUnresolved
+        ) {
+            should_continue_transaction = false;
+            payment_data.payment_intent.status = enums::IntentStatus::RequiresCapture;
+            payment_data.payment_attempt.status = enums::AttemptStatus::Authorized;
+        };
 
         if should_continue_transaction {
             #[cfg(feature = "frm")]
@@ -251,7 +265,12 @@ where
                 | (false, Some(storage_enums::CaptureMethod::Scheduled)) => {
                     payment_data.payment_attempt.capture_method =
                         Some(storage_enums::CaptureMethod::Manual);
-                    should_continue_capture = true;
+                    if let Some(info) = &mut frm_info {
+                        if let Some(frm_data) = &mut info.frm_data {
+                            frm_data.fraud_check.frm_capture_method =
+                                Some(storage_enums::CaptureMethod::Automatic);
+                        }
+                    }
                 }
                 _ => (),
             };
@@ -2436,6 +2455,7 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
                 storage_enums::IntentStatus::Processing
                     | storage_enums::IntentStatus::RequiresCustomerAction
                     | storage_enums::IntentStatus::RequiresMerchantAction
+                    | storage_enums::IntentStatus::FrmRequiresMerchantAction
                     | storage_enums::IntentStatus::RequiresCapture
                     | storage_enums::IntentStatus::PartiallyCapturedAndCapturable
             ) && payment_data.force_sync.unwrap_or(false)

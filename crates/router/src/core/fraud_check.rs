@@ -26,11 +26,14 @@ use crate::{
         utils as core_utils,
     },
     db::StorageInterface,
-    routes::{AppState,app::ReqState},
+    routes::{app::ReqState, AppState},
     services,
     types::{
         self as oss_types,
-        api::{routing::FrmRoutingAlgorithm, Connector, FraudCheckConnectorData, Fulfillment},
+        api::{
+            fraud_check as frm_api, routing::FrmRoutingAlgorithm, Connector,
+            FraudCheckConnectorData, Fulfillment,
+        },
         domain, fraud_check as frm_types,
         storage::{
             enums::{
@@ -423,7 +426,7 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn pre_payment_frm_core<'a, F>(
+pub async fn pre_payment_frm_core<'a, F, Req, Ctx>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
     payment_data: &mut payments::PaymentData<F>,
@@ -433,68 +436,81 @@ pub async fn pre_payment_frm_core<'a, F>(
     should_continue_transaction: &mut bool,
     should_continue_capture: &mut bool,
     key_store: domain::MerchantKeyStore,
+    operation: &BoxedOperation<'_, F, Req, Ctx>,
 ) -> RouterResult<Option<FrmData>>
 where
     F: Send + Clone,
 {
-    let frm_data = if let Some(frm_data) = &mut frm_info.frm_data {
-        if matches!(
-            frm_configs.frm_preferred_flow_type,
-            api_enums::FrmPreferredFlowTypes::Pre
-        ) {
-            let fraud_check_operation = &mut frm_info.fraud_check_operation;
+    let mut frm_data = None;
+    if is_operation_allowed(operation) {
+        frm_data = if let Some(frm_data) = &mut frm_info.frm_data {
+            if matches!(
+                frm_configs.frm_preferred_flow_type,
+                api_enums::FrmPreferredFlowTypes::Pre
+            ) {
+                let fraud_check_operation = &mut frm_info.fraud_check_operation;
 
-            let frm_router_data = fraud_check_operation
-                .to_domain()?
-                .pre_payment_frm(
+                let frm_router_data = fraud_check_operation
+                    .to_domain()?
+                    .pre_payment_frm(
+                        state,
+                        payment_data,
+                        frm_data,
+                        merchant_account,
+                        customer,
+                        key_store.clone(),
+                    )
+                    .await?;
+                let frm_data_updated = fraud_check_operation
+                    .to_update_tracker()?
+                    .update_tracker(
+                        &*state.store,
+                        frm_data.clone(),
+                        payment_data,
+                        None,
+                        frm_router_data,
+                    )
+                    .await?;
+                let frm_fraud_check = frm_data_updated.fraud_check.clone();
+                payment_data.frm_message = Some(frm_fraud_check.clone());
+                if matches!(frm_fraud_check.frm_status, FraudCheckStatus::Fraud) {
+                    *should_continue_transaction = false;
+                    if matches!(frm_configs.frm_action, api_enums::FrmAction::CancelTxn) {
+                        *should_continue_transaction = false;
+                        frm_info.suggested_action = Some(FrmSuggestion::FrmCancelTransaction);
+                    } else if matches!(frm_configs.frm_action, api_enums::FrmAction::ManualReview) {
+                        *should_continue_capture = false;
+                        frm_info.suggested_action = Some(FrmSuggestion::FrmManualReview);
+                    }
+                }
+                let _router_data = call_frm_service::<F, frm_api::Transaction, _>(
                     state,
                     payment_data,
-                    frm_data,
+                    &mut frm_data.to_owned(),
                     merchant_account,
+                    &key_store,
                     customer,
-                    key_store,
                 )
                 .await?;
-            let frm_data_updated = fraud_check_operation
-                .to_update_tracker()?
-                .update_tracker(
-                    &*state.store,
-                    frm_data.clone(),
-                    payment_data,
-                    None,
-                    frm_router_data,
-                )
-                .await?;
-            let frm_fraud_check = frm_data_updated.fraud_check.clone();
-            payment_data.frm_message = Some(frm_fraud_check.clone());
-            if matches!(frm_fraud_check.frm_status, FraudCheckStatus::Fraud) {
-                *should_continue_transaction = false;
-                if matches!(frm_configs.frm_action, api_enums::FrmAction::CancelTxn) {
-                    *should_continue_transaction = false;
-                    frm_info.suggested_action = Some(FrmSuggestion::FrmCancelTransaction);
-                } else if matches!(frm_configs.frm_action, api_enums::FrmAction::ManualReview) {
-                    *should_continue_capture = false;
-                    frm_info.suggested_action = Some(FrmSuggestion::FrmManualReview);
-                }
+                logger::debug!(
+                    "frm_updated_data: {:?} {:?}",
+                    frm_info.fraud_check_operation,
+                    frm_info.suggested_action
+                );
+                Some(frm_data_updated)
+            } else if matches!(
+                frm_configs.frm_preferred_flow_type,
+                api_enums::FrmPreferredFlowTypes::Post
+            ) {
+                *should_continue_capture = false;
+                Some(frm_data.to_owned())
+            } else {
+                Some(frm_data.to_owned())
             }
-            logger::debug!(
-                "frm_updated_data: {:?} {:?}",
-                frm_info.fraud_check_operation,
-                frm_info.suggested_action
-            );
-            Some(frm_data_updated)
-        } else if matches!(
-            frm_configs.frm_preferred_flow_type,
-            api_enums::FrmPreferredFlowTypes::Post
-        ) {
-            *should_continue_capture = false;
-            Some(frm_data.to_owned())
         } else {
-            Some(frm_data.to_owned())
-        }
-    } else {
-        None
-    };
+            None
+        };
+    }
     Ok(frm_data)
 }
 
@@ -605,51 +621,55 @@ pub async fn call_frm_before_connector_call<'a, F, Req, Ctx>(
 where
     F: Send + Clone,
 {
-    if is_operation_allowed(operation) {
-        let (is_frm_enabled, frm_routing_algorithm, frm_connector_label, frm_configs) =
-            should_call_frm(merchant_account, payment_data, db, key_store.clone()).await?;
-        if let Some((frm_routing_algorithm_val, profile_id)) =
-            frm_routing_algorithm.zip(frm_connector_label)
-        {
-            if let Some(frm_configs) = frm_configs.clone() {
-                let mut updated_frm_info = make_frm_data_and_fraud_check_operation(
-                    db,
+    let (is_frm_enabled, frm_routing_algorithm, frm_connector_label, frm_configs) =
+        should_call_frm(merchant_account, payment_data, db, key_store.clone()).await?;
+    if let Some((frm_routing_algorithm_val, profile_id)) =
+        frm_routing_algorithm.zip(frm_connector_label)
+    {
+        if let Some(frm_configs) = frm_configs.clone() {
+            let mut updated_frm_info = make_frm_data_and_fraud_check_operation(
+                db,
+                state,
+                merchant_account,
+                payment_data.to_owned(),
+                frm_routing_algorithm_val,
+                profile_id,
+                frm_configs.clone(),
+                customer,
+            )
+            .await?;
+
+            if is_frm_enabled {
+                pre_payment_frm_core(
                     state,
                     merchant_account,
-                    payment_data.to_owned(),
-                    frm_routing_algorithm_val,
-                    profile_id,
-                    frm_configs.clone(),
+                    payment_data,
+                    &mut updated_frm_info,
+                    frm_configs,
                     customer,
+                    should_continue_transaction,
+                    should_continue_capture,
+                    key_store,
+                    operation,
                 )
                 .await?;
-
-                if is_frm_enabled {
-                    pre_payment_frm_core(
-                        state,
-                        merchant_account,
-                        payment_data,
-                        &mut updated_frm_info,
-                        frm_configs,
-                        customer,
-                        should_continue_transaction,
-                        should_continue_capture,
-                        key_store,
-                    )
-                    .await?;
-                }
-                *frm_info = Some(updated_frm_info);
             }
+            *frm_info = Some(updated_frm_info);
         }
-        logger::debug!("frm_configs: {:?} {:?}", frm_configs, is_frm_enabled);
-        return Ok(frm_configs);
     }
-    Ok(None)
+    logger::debug!("frm_configs: {:?} {:?}", frm_configs, is_frm_enabled);
+    Ok(frm_configs)
 }
 
 pub fn is_operation_allowed<Op: Debug>(operation: &Op) -> bool {
-    !["PaymentSession", "PaymentApprove", "PaymentReject"]
-        .contains(&format!("{operation:?}").as_str())
+    ![
+        "PaymentSession",
+        "PaymentApprove",
+        "PaymentReject",
+        "PaymentCapture",
+        "PaymentsCancel",
+    ]
+    .contains(&format!("{operation:?}").as_str())
 }
 
 impl From<PaymentToFrmData> for PaymentDetails {
@@ -776,6 +796,7 @@ pub async fn make_fulfillment_api_call(
         metadata: fraud_check.metadata,
         modified_at: common_utils::date_time::now(),
         last_step: FraudCheckLastStep::Fulfillment,
+        frm_capture_method: fraud_check.frm_capture_method,
     };
     let _updated = db
         .update_fraud_check_response_with_attempt_id(fraud_check_copy, fraud_check_update)

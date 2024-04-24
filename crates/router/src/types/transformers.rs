@@ -87,6 +87,7 @@ impl ForeignFrom<storage_enums::AttemptStatus> for storage_enums::IntentStatus {
                 Self::RequiresCustomerAction
             }
             storage_enums::AttemptStatus::Unresolved => Self::RequiresMerchantAction,
+            storage_enums::AttemptStatus::FrmUnresolved => Self::FrmRequiresMerchantAction,
 
             storage_enums::AttemptStatus::PartialCharged => Self::PartiallyCaptured,
             storage_enums::AttemptStatus::PartialChargedAndChargeable => {
@@ -139,6 +140,7 @@ impl ForeignTryFrom<storage_enums::AttemptStatus> for storage_enums::CaptureStat
             | storage_enums::AttemptStatus::VoidFailed
             | storage_enums::AttemptStatus::AutoRefunded
             | storage_enums::AttemptStatus::Unresolved
+            | storage_enums::AttemptStatus::FrmUnresolved
             | storage_enums::AttemptStatus::PaymentMethodAwaited
             | storage_enums::AttemptStatus::ConfirmationAwaited
             | storage_enums::AttemptStatus::DeviceDataCollectionPending
@@ -362,6 +364,7 @@ impl ForeignFrom<api_enums::IntentStatus> for Option<storage_enums::EventType> {
                 Some(storage_enums::EventType::PaymentProcessing)
             }
             api_enums::IntentStatus::RequiresMerchantAction
+            | api_enums::IntentStatus::FrmRequiresMerchantAction
             | api_enums::IntentStatus::RequiresCustomerAction => {
                 Some(storage_enums::EventType::ActionRequired)
             }

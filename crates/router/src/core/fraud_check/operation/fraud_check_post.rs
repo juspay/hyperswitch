@@ -1,6 +1,6 @@
 use api_models::payments::HeaderPayload;
 use async_trait::async_trait;
-use common_enums::FrmSuggestion;
+use common_enums::{CaptureMethod, FrmSuggestion};
 use common_utils::ext_traits::Encode;
 use data_models::payments::{
     payment_attempt::PaymentAttemptUpdate, payment_intent::PaymentIntentUpdate,
@@ -20,9 +20,9 @@ use crate::{
         payment_methods::Oss,
         payments,
     },
-    routes::app::ReqState,
     db::StorageInterface,
     errors,
+    routes::app::ReqState,
     services::{self, api},
     types::{
         api::{
@@ -110,6 +110,7 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPost {
                     metadata: None,
                     modified_at: common_utils::date_time::now(),
                     last_step: FraudCheckLastStep::Processing,
+                    frm_capture_method: payment_data.payment_attempt.capture_method,
                 })
                 .await
             }
@@ -188,7 +189,7 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
         key_store: domain::MerchantKeyStore,
         payment_data: &mut payments::PaymentData<F>,
         customer: &Option<domain::Customer>,
-        should_continue_capture: &mut bool,
+        _should_continue_capture: &mut bool,
     ) -> RouterResult<Option<FrmData>> {
         if matches!(frm_data.fraud_check.frm_status, FraudCheckStatus::Fraud)
             && matches!(frm_configs.frm_action, FrmAction::CancelTxn)
@@ -244,7 +245,10 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
         {
             *frm_suggestion = Some(FrmSuggestion::FrmManualReview);
         } else if matches!(frm_data.fraud_check.frm_status, FraudCheckStatus::Legit)
-            && matches!(should_continue_capture, &mut true)
+            && matches!(
+                frm_data.fraud_check.frm_capture_method,
+                Some(CaptureMethod::Automatic)
+            )
         {
             let capture_request = api_models::payments::PaymentsCaptureRequest {
                 payment_id: frm_data.payment_intent.payment_id.clone(),
@@ -355,6 +359,7 @@ impl<F: Clone + Send> UpdateTracker<FrmData, F> for FraudCheckPost {
                             metadata: connector_metadata,
                             modified_at: common_utils::date_time::now(),
                             last_step: frm_data.fraud_check.last_step,
+                            frm_capture_method: None,
                         };
                         Some(fraud_check_update)
                     },
@@ -399,6 +404,7 @@ impl<F: Clone + Send> UpdateTracker<FrmData, F> for FraudCheckPost {
                             metadata: connector_metadata,
                             modified_at: common_utils::date_time::now(),
                             last_step: frm_data.fraud_check.last_step,
+                            frm_capture_method: None,
                         };
                         Some(fraud_check_update)
                     }
@@ -449,6 +455,7 @@ impl<F: Clone + Send> UpdateTracker<FrmData, F> for FraudCheckPost {
                             metadata: connector_metadata,
                             modified_at: common_utils::date_time::now(),
                             last_step: frm_data.fraud_check.last_step,
+                            frm_capture_method: None,
                         };
                         Some(fraud_check_update)
                     }
@@ -471,8 +478,8 @@ impl<F: Clone + Send> UpdateTracker<FrmData, F> for FraudCheckPost {
                     (AttemptStatus::Failure, IntentStatus::Failed)
                 }
                 FrmSuggestion::FrmManualReview => (
-                    AttemptStatus::Unresolved,
-                    IntentStatus::RequiresMerchantAction,
+                    AttemptStatus::FrmUnresolved,
+                    IntentStatus::FrmRequiresMerchantAction,
                 ),
             };
             payment_data.payment_attempt = db

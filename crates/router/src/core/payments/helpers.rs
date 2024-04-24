@@ -3293,6 +3293,7 @@ pub fn get_attempt_type(
                     | enums::AttemptStatus::VoidInitiated
                     | enums::AttemptStatus::CaptureInitiated
                     | enums::AttemptStatus::Unresolved
+                    | enums::AttemptStatus::FrmUnresolved
                     | enums::AttemptStatus::Pending
                     | enums::AttemptStatus::ConfirmationAwaited
                     | enums::AttemptStatus::PartialCharged
@@ -3368,6 +3369,7 @@ pub fn get_attempt_type(
         }
 
         enums::IntentStatus::RequiresCustomerAction
+        | enums::IntentStatus::FrmRequiresMerchantAction
         | enums::IntentStatus::RequiresMerchantAction
         | enums::IntentStatus::RequiresPaymentMethod
         | enums::IntentStatus::RequiresConfirmation => Ok(AttemptType::SameOld),
@@ -3544,6 +3546,7 @@ pub fn is_manual_retry_allowed(
             | enums::AttemptStatus::VoidInitiated
             | enums::AttemptStatus::CaptureInitiated
             | enums::AttemptStatus::Unresolved
+            | enums::AttemptStatus::FrmUnresolved
             | enums::AttemptStatus::Pending
             | enums::AttemptStatus::ConfirmationAwaited
             | enums::AttemptStatus::PartialCharged
@@ -3573,6 +3576,7 @@ pub fn is_manual_retry_allowed(
 
         enums::IntentStatus::RequiresCustomerAction
         | enums::IntentStatus::RequiresMerchantAction
+        | enums::IntentStatus::FrmRequiresMerchantAction
         | enums::IntentStatus::RequiresPaymentMethod
         | enums::IntentStatus::RequiresConfirmation => None,
     };

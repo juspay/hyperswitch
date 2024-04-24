@@ -105,6 +105,7 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPre {
                     metadata: None,
                     modified_at: common_utils::date_time::now(),
                     last_step: FraudCheckLastStep::Processing,
+                    frm_capture_method: payment_data.payment_attempt.capture_method,
                 })
                 .await
             }
@@ -249,6 +250,7 @@ impl<F: Clone + Send> UpdateTracker<FrmData, F> for FraudCheckPre {
                             metadata: connector_metadata,
                             modified_at: common_utils::date_time::now(),
                             last_step: frm_data.fraud_check.last_step,
+                            frm_capture_method: None,
                         };
                         Some(fraud_check_update)
                     }
@@ -301,6 +303,7 @@ impl<F: Clone + Send> UpdateTracker<FrmData, F> for FraudCheckPre {
                             metadata: connector_metadata,
                             modified_at: common_utils::date_time::now(),
                             last_step: frm_data.fraud_check.last_step,
+                            frm_capture_method: None,
                         };
                         Some(fraud_check_update)
                     }

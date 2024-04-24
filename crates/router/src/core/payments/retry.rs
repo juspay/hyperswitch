@@ -565,6 +565,7 @@ impl<F: Send + Clone + Sync, FData: Send + Sync>
                 | storage_enums::AttemptStatus::PaymentMethodAwaited
                 | storage_enums::AttemptStatus::ConfirmationAwaited
                 | storage_enums::AttemptStatus::Unresolved
+                | storage_enums::AttemptStatus::FrmUnresolved
                 | storage_enums::AttemptStatus::DeviceDataCollectionPending => false,
 
                 storage_enums::AttemptStatus::AuthenticationFailed

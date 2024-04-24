@@ -216,6 +216,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         F: 'b + Send,
     {
         let intent_status_update = storage::PaymentIntentUpdate::ApproveUpdate {
+            status: payment_data.payment_intent.status,
             merchant_decision: Some(api_models::enums::MerchantDecision::Approved.to_string()),
             updated_by: storage_scheme.to_string(),
         };
@@ -224,6 +225,17 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             .update_payment_intent(
                 payment_data.payment_intent,
                 intent_status_update,
+                storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        db.store
+            .update_payment_attempt_with_attempt_id(
+                payment_data.payment_attempt.clone(),
+                storage::PaymentAttemptUpdate::StatusUpdate {
+                    status: payment_data.payment_attempt.status,
+                    updated_by: storage_scheme.to_string(),
+                },
                 storage_scheme,
             )
             .await

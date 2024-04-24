@@ -1,3 +1,4 @@
+use common_enums as storage_enums;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use masking::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -25,6 +26,7 @@ pub struct FraudCheck {
     pub metadata: Option<serde_json::Value>,
     pub modified_at: PrimitiveDateTime,
     pub last_step: FraudCheckLastStep,
+    pub frm_capture_method: Option<storage_enums::CaptureMethod>,
 }
 
 #[derive(router_derive::Setter, Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -46,6 +48,7 @@ pub struct FraudCheckNew {
     pub metadata: Option<serde_json::Value>,
     pub modified_at: PrimitiveDateTime,
     pub last_step: FraudCheckLastStep,
+    pub frm_capture_method: Option<storage_enums::CaptureMethod>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -59,6 +62,7 @@ pub enum FraudCheckUpdate {
         metadata: Option<serde_json::Value>,
         modified_at: PrimitiveDateTime,
         last_step: FraudCheckLastStep,
+        frm_capture_method: Option<storage_enums::CaptureMethod>,
     },
     ErrorUpdate {
         status: FraudCheckStatus,
@@ -76,6 +80,7 @@ pub struct FraudCheckUpdateInternal {
     frm_error: Option<Option<String>>,
     metadata: Option<serde_json::Value>,
     last_step: FraudCheckLastStep,
+    frm_capture_method: Option<storage_enums::CaptureMethod>,
 }
 
 impl From<FraudCheckUpdate> for FraudCheckUpdateInternal {
@@ -89,6 +94,7 @@ impl From<FraudCheckUpdate> for FraudCheckUpdateInternal {
                 metadata,
                 modified_at: _,
                 last_step,
+                frm_capture_method,
             } => Self {
                 frm_status: Some(frm_status),
                 frm_transaction_id,
@@ -96,6 +102,7 @@ impl From<FraudCheckUpdate> for FraudCheckUpdateInternal {
                 frm_score,
                 metadata,
                 last_step,
+                frm_capture_method,
                 ..Default::default()
             },
             FraudCheckUpdate::ErrorUpdate {
