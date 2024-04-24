@@ -30,7 +30,6 @@ use events::EventInfo;
 use futures::future::join_all;
 use helpers::ApplePayData;
 use masking::Secret;
-use maud::{html, PreEscaped};
 pub use payment_address::PaymentAddress;
 use redis_interface::errors::RedisError;
 use router_env::{instrument, tracing};
@@ -787,6 +786,10 @@ pub struct PaymentsRedirectResponseData {
 
 #[async_trait::async_trait]
 pub trait PaymentRedirectFlow<Ctx: PaymentMethodRetrieve>: Sync {
+    // Associated type for call_payment_flow response
+    type PaymentFlowResponse;
+
+    #[allow(clippy::too_many_arguments)]
     async fn call_payment_flow(
         &self,
         state: &AppState,
@@ -795,14 +798,14 @@ pub trait PaymentRedirectFlow<Ctx: PaymentMethodRetrieve>: Sync {
         merchant_key_store: domain::MerchantKeyStore,
         req: PaymentsRedirectResponseData,
         connector_action: CallConnectorAction,
-    ) -> RouterResponse<api::PaymentsResponse>;
+        connector: String,
+    ) -> RouterResult<Self::PaymentFlowResponse>;
 
     fn get_payment_action(&self) -> services::PaymentAction;
 
     fn generate_response(
         &self,
-        payments_response: &api_models::payments::PaymentsResponse,
-        business_profile: diesel_models::business_profile::BusinessProfile,
+        payment_flow_response: &Self::PaymentFlowResponse,
         payment_id: String,
         connector: String,
     ) -> RouterResult<services::ApplicationResponse<api::RedirectionResponse>>;
@@ -858,7 +861,7 @@ pub trait PaymentRedirectFlow<Ctx: PaymentMethodRetrieve>: Sync {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to decide the response flow")?;
 
-        let response = self
+        let payment_flow_response = self
             .call_payment_flow(
                 &state,
                 req_state,
@@ -866,30 +869,11 @@ pub trait PaymentRedirectFlow<Ctx: PaymentMethodRetrieve>: Sync {
                 key_store,
                 req.clone(),
                 flow_type,
+                connector.clone(),
             )
-            .await;
+            .await?;
 
-        let payments_response = match response? {
-            services::ApplicationResponse::Json(response) => Ok(response),
-            services::ApplicationResponse::JsonWithHeaders((response, _)) => Ok(response),
-            _ => Err(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to get the response in json"),
-        }?;
-
-        let profile_id = payments_response
-            .profile_id
-            .as_ref()
-            .get_required_value("profile_id")?;
-
-        let business_profile = state
-            .store
-            .find_business_profile_by_profile_id(profile_id)
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
-                id: profile_id.to_string(),
-            })?;
-
-        self.generate_response(&payments_response, business_profile, resource_id, connector)
+        self.generate_response(&payment_flow_response, resource_id, connector)
     }
 }
 
@@ -898,6 +882,9 @@ pub struct PaymentRedirectCompleteAuthorize;
 
 #[async_trait::async_trait]
 impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectCompleteAuthorize {
+    type PaymentFlowResponse = router_types::RedirectPaymentFlowResponse;
+
+    #[allow(clippy::too_many_arguments)]
     async fn call_payment_flow(
         &self,
         state: &AppState,
@@ -906,7 +893,8 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectCom
         merchant_key_store: domain::MerchantKeyStore,
         req: PaymentsRedirectResponseData,
         connector_action: CallConnectorAction,
-    ) -> RouterResponse<api::PaymentsResponse> {
+        _connector: String,
+    ) -> RouterResult<Self::PaymentFlowResponse> {
         let payment_confirm_req = api::PaymentsRequest {
             payment_id: Some(req.resource_id.clone()),
             merchant_id: req.merchant_id.clone(),
@@ -918,7 +906,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectCom
             }),
             ..Default::default()
         };
-        Box::pin(payments_core::<
+        let response = Box::pin(payments_core::<
             api::CompleteAuthorize,
             api::PaymentsResponse,
             _,
@@ -937,7 +925,28 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectCom
             None,
             HeaderPayload::default(),
         ))
-        .await
+        .await?;
+        let payments_response = match response {
+            services::ApplicationResponse::Json(response) => Ok(response),
+            services::ApplicationResponse::JsonWithHeaders((response, _)) => Ok(response),
+            _ => Err(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to get the response in json"),
+        }?;
+        let profile_id = payments_response
+            .profile_id
+            .as_ref()
+            .get_required_value("profile_id")?;
+        let business_profile = state
+            .store
+            .find_business_profile_by_profile_id(profile_id)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+                id: profile_id.to_string(),
+            })?;
+        Ok(router_types::RedirectPaymentFlowResponse {
+            payments_response,
+            business_profile,
+        })
     }
 
     fn get_payment_action(&self) -> services::PaymentAction {
@@ -946,11 +955,11 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectCom
 
     fn generate_response(
         &self,
-        payments_response: &api_models::payments::PaymentsResponse,
-        business_profile: diesel_models::business_profile::BusinessProfile,
+        payment_flow_response: &Self::PaymentFlowResponse,
         payment_id: String,
         connector: String,
     ) -> RouterResult<services::ApplicationResponse<api::RedirectionResponse>> {
+        let payments_response = &payment_flow_response.payments_response;
         // There might be multiple redirections needed for some flows
         // If the status is requires customer action, then send the startpay url again
         // The redirection data must have been provided and updated by the connector
@@ -986,7 +995,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectCom
             | api_models::enums::IntentStatus::Failed
             | api_models::enums::IntentStatus::Cancelled | api_models::enums::IntentStatus::RequiresCapture| api_models::enums::IntentStatus::Processing=> helpers::get_handle_response_url(
                 payment_id,
-                &business_profile,
+                &payment_flow_response.business_profile,
                 payments_response,
                 connector,
             ),
@@ -1003,6 +1012,9 @@ pub struct PaymentRedirectSync;
 
 #[async_trait::async_trait]
 impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectSync {
+    type PaymentFlowResponse = router_types::RedirectPaymentFlowResponse;
+
+    #[allow(clippy::too_many_arguments)]
     async fn call_payment_flow(
         &self,
         state: &AppState,
@@ -1011,7 +1023,8 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectSyn
         merchant_key_store: domain::MerchantKeyStore,
         req: PaymentsRedirectResponseData,
         connector_action: CallConnectorAction,
-    ) -> RouterResponse<api::PaymentsResponse> {
+        _connector: String,
+    ) -> RouterResult<Self::PaymentFlowResponse> {
         let payment_sync_req = api::PaymentsRetrieveRequest {
             resource_id: req.resource_id,
             merchant_id: req.merchant_id,
@@ -1028,7 +1041,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectSyn
             expand_attempts: None,
             expand_captures: None,
         };
-        Box::pin(payments_core::<
+        let response = Box::pin(payments_core::<
             api::PSync,
             api::PaymentsResponse,
             _,
@@ -1047,20 +1060,40 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectSyn
             None,
             HeaderPayload::default(),
         ))
-        .await
+        .await?;
+        let payments_response = match response {
+            services::ApplicationResponse::Json(response) => Ok(response),
+            services::ApplicationResponse::JsonWithHeaders((response, _)) => Ok(response),
+            _ => Err(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to get the response in json"),
+        }?;
+        let profile_id = payments_response
+            .profile_id
+            .as_ref()
+            .get_required_value("profile_id")?;
+        let business_profile = state
+            .store
+            .find_business_profile_by_profile_id(profile_id)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+                id: profile_id.to_string(),
+            })?;
+        Ok(router_types::RedirectPaymentFlowResponse {
+            payments_response,
+            business_profile,
+        })
     }
     fn generate_response(
         &self,
-        payments_response: &api_models::payments::PaymentsResponse,
-        business_profile: diesel_models::business_profile::BusinessProfile,
+        payment_flow_response: &Self::PaymentFlowResponse,
         payment_id: String,
         connector: String,
     ) -> RouterResult<services::ApplicationResponse<api::RedirectionResponse>> {
         Ok(services::ApplicationResponse::JsonForRedirection(
             helpers::get_handle_response_url(
                 payment_id,
-                &business_profile,
-                payments_response,
+                &payment_flow_response.business_profile,
+                &payment_flow_response.payments_response,
                 connector,
             )?,
         ))
@@ -1076,6 +1109,9 @@ pub struct PaymentAuthenticateCompleteAuthorize;
 
 #[async_trait::async_trait]
 impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticateCompleteAuthorize {
+    type PaymentFlowResponse = router_types::AuthenticatePaymentFlowResponse;
+
+    #[allow(clippy::too_many_arguments)]
     async fn call_payment_flow(
         &self,
         state: &AppState,
@@ -1084,7 +1120,8 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
         merchant_key_store: domain::MerchantKeyStore,
         req: PaymentsRedirectResponseData,
         connector_action: CallConnectorAction,
-    ) -> RouterResponse<api::PaymentsResponse> {
+        connector: String,
+    ) -> RouterResult<Self::PaymentFlowResponse> {
         let payment_confirm_req = api::PaymentsRequest {
             payment_id: Some(req.resource_id.clone()),
             merchant_id: req.merchant_id.clone(),
@@ -1096,7 +1133,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
             }),
             ..Default::default()
         };
-        Box::pin(payments_core::<
+        let response = Box::pin(payments_core::<
             api::Authorize,
             api::PaymentsResponse,
             _,
@@ -1115,51 +1152,69 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
             None,
             HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
         ))
-        .await
+        .await?;
+        let payments_response = match response {
+            services::ApplicationResponse::Json(response) => Ok(response),
+            services::ApplicationResponse::JsonWithHeaders((response, _)) => Ok(response),
+            _ => Err(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to get the response in json"),
+        }?;
+        let default_poll_config = router_types::PollConfig::default();
+        let default_config_str = default_poll_config
+            .encode_to_string_of_json()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error while stringifying default poll config")?;
+        let poll_config = state
+            .store
+            .find_config_by_key_unwrap_or(
+                &format!("poll_config_external_three_ds_{connector}"),
+                Some(default_config_str),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("The poll config was not found in the DB")?;
+        let poll_config =
+            serde_json::from_str::<Option<router_types::PollConfig>>(&poll_config.config)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Error while parsing PollConfig")?
+                .unwrap_or(default_poll_config);
+        let profile_id = payments_response
+            .profile_id
+            .as_ref()
+            .get_required_value("profile_id")?;
+        let business_profile = state
+            .store
+            .find_business_profile_by_profile_id(profile_id)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+                id: profile_id.to_string(),
+            })?;
+        Ok(router_types::AuthenticatePaymentFlowResponse {
+            payments_response,
+            poll_config,
+            business_profile,
+        })
     }
     fn generate_response(
         &self,
-        payments_response: &api_models::payments::PaymentsResponse,
-        business_profile: diesel_models::business_profile::BusinessProfile,
+        payment_flow_response: &Self::PaymentFlowResponse,
         payment_id: String,
         connector: String,
     ) -> RouterResult<services::ApplicationResponse<api::RedirectionResponse>> {
+        let payments_response = &payment_flow_response.payments_response;
         let redirect_response = helpers::get_handle_response_url(
-            payment_id,
-            &business_profile,
+            payment_id.clone(),
+            &payment_flow_response.business_profile,
             payments_response,
-            connector,
+            connector.clone(),
         )?;
-        let return_url_with_query_params = redirect_response.return_url_with_query_params;
         // html script to check if inside iframe, then send post message to parent for redirection else redirect self to return_url
-        let html = html! {
-            head {
-                title { "Redirect Form" }
-                (PreEscaped(format!(r#"
-                        <script>
-                            let return_url = "{return_url_with_query_params}";
-                            try {{
-                                // if inside iframe, send post message to parent for redirection
-                                if (window.self !== window.parent) {{
-                                    window.top.postMessage({{openurl: return_url}}, '*')
-                                // if parent, redirect self to return_url
-                                }} else {{
-                                    window.location.href = return_url
-                                }}
-                            }}
-                            catch(err) {{
-                                // if error occurs, send post message to parent and wait for 10 secs to redirect. if doesn't redirect, redirect self to return_url
-                                window.parent.postMessage({{openurl: return_url}}, '*')
-                                setTimeout(function() {{
-                                    window.location.href = return_url
-                                }}, 10000);
-                                console.log(err.message)
-                            }}
-                        </script>
-                        "#)))
-            }
-        }
-        .into_string();
+        let html = utils::get_html_redirect_response_for_external_authentication(
+            redirect_response.return_url_with_query_params,
+            payments_response,
+            payment_id,
+            &payment_flow_response.poll_config,
+        )?;
         Ok(services::ApplicationResponse::Form(Box::new(
             services::RedirectionFormData {
                 redirect_form: services::RedirectForm::Html { html_data: html },
@@ -3389,7 +3444,7 @@ pub fn is_network_transaction_id_flow(
         .connector_list;
 
     pg_agnostic == "true"
-        && payment_method_info.payment_method == storage_enums::PaymentMethod::Card
+        && payment_method_info.payment_method == Some(storage_enums::PaymentMethod::Card)
         && ntid_supported_connectors.contains(&connector)
         && payment_method_info.network_transaction_id.is_some()
 }
@@ -3779,6 +3834,11 @@ pub async fn payment_external_authentication(
         &payment_attempt.clone(),
         payment_connector_name,
     ));
+    let webhook_url = helpers::create_webhook_url(
+        &state.conf.server.base_url,
+        merchant_id,
+        &authentication_connector,
+    );
 
     let business_profile = state
         .store
@@ -3812,6 +3872,7 @@ pub async fn payment_external_authentication(
         req.sdk_information,
         req.threeds_method_comp_ind,
         optional_customer.and_then(|customer| customer.email.map(common_utils::pii::Email::from)),
+        webhook_url,
     ))
     .await?;
     Ok(services::ApplicationResponse::Json(

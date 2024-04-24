@@ -22,7 +22,7 @@ use crate::{
 pub struct PaymentMethodCreate {
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethod,example = "card")]
-    pub payment_method: api_enums::PaymentMethod,
+    pub payment_method: Option<api_enums::PaymentMethod>,
 
     /// This is a sub-category of payment method.
     #[schema(value_type = Option<PaymentMethodType>,example = "credit")]
@@ -65,6 +65,16 @@ pub struct PaymentMethodCreate {
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<Wallet>)]
     pub wallet: Option<payouts::Wallet>,
+
+    /// For Client based calls, SDK will use the client_secret
+    /// in order to call /payment_methods
+    /// Client secret will be generated whenever a new
+    /// payment method is created
+    pub client_secret: Option<String>,
+
+    /// Payment method data to be passed in case of client
+    /// based flow
+    pub payment_method_data: Option<PaymentMethodCreateData>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -99,6 +109,15 @@ pub struct PaymentMethodUpdate {
     /// This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK
     #[schema(max_length = 30, min_length = 30, example = "secret_k2uj3he2893eiu2d")]
     pub client_secret: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+#[serde(rename = "payment_method_data")]
+
+pub enum PaymentMethodCreateData {
+    Card(CardDetail),
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -202,7 +221,7 @@ pub struct PaymentMethodResponse {
 
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethod, example = "card")]
-    pub payment_method: api_enums::PaymentMethod,
+    pub payment_method: Option<api_enums::PaymentMethod>,
 
     /// This is a sub-category of payment method.
     #[schema(value_type = Option<PaymentMethodType>, example = "credit")]
@@ -242,6 +261,9 @@ pub struct PaymentMethodResponse {
     #[schema(value_type = Option<PrimitiveDateTime>, example = "2024-02-24T11:04:09.922Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_used_at: Option<time::PrimitiveDateTime>,
+
+    /// For Client based calls
+    pub client_secret: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]

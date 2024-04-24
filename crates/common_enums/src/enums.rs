@@ -1038,6 +1038,16 @@ impl Currency {
             | Self::ZMW => false,
         }
     }
+
+    pub fn number_of_digits_after_decimal_point(self) -> u8 {
+        if self.is_zero_decimal_currency() {
+            0
+        } else if self.is_three_decimal_currency() {
+            3
+        } else {
+            2
+        }
+    }
 }
 
 #[derive(
@@ -1256,6 +1266,8 @@ pub enum PaymentMethodStatus {
     /// Indicates that the payment method is awaiting some data or action before it can be marked
     /// as 'active'.
     Processing,
+    /// Indicates that the payment method is awaiting some data before changing state to active
+    AwaitingData,
 }
 
 impl From<AttemptStatus> for PaymentMethodStatus {

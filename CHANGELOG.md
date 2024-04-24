@@ -4,6 +4,67 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.04.24.0
+
+### Features
+
+- **connector:**
+  - Implement authentication flow for netcetera ([#4334](https://github.com/juspay/hyperswitch/pull/4334)) ([`5ce0535`](https://github.com/juspay/hyperswitch/commit/5ce0535bb6798af16057c1323541ee4789dbceb1))
+  - Add webhook support for netcetera ([#4382](https://github.com/juspay/hyperswitch/pull/4382)) ([`776c1a7`](https://github.com/juspay/hyperswitch/commit/776c1a7a24b494bf767c5524d1b8ac90472d32e2))
+
+### Bug Fixes
+
+- **masking:** Mask email while logging SQL query ([#4436](https://github.com/juspay/hyperswitch/pull/4436)) ([`4c81a66`](https://github.com/juspay/hyperswitch/commit/4c81a664c90ad749e80c372296c844b39dded334))
+- **user:** Blacklist token after delete user role ([#4428](https://github.com/juspay/hyperswitch/pull/4428)) ([`b67e07f`](https://github.com/juspay/hyperswitch/commit/b67e07fb9ee576c57dcbca21c52aa1e4ed2d2818))
+
+### Refactors
+
+- **router:** Enable saved payment method for payment link bug fix ([#4435](https://github.com/juspay/hyperswitch/pull/4435)) ([`213ff06`](https://github.com/juspay/hyperswitch/commit/213ff063a0f6182f9ccd7cdb268aad1ec0372cc9))
+
+### Miscellaneous Tasks
+
+- **configs:** Add wasm changes for pull_mechanism_enabled config for 3dsecureio connector ([#4433](https://github.com/juspay/hyperswitch/pull/4433)) ([`b2248fe`](https://github.com/juspay/hyperswitch/commit/b2248fe08b0b075a9d326e862a18f50e5bef12f8))
+
+**Full Changelog:** [`2024.04.23.0...2024.04.24.0`](https://github.com/juspay/hyperswitch/compare/2024.04.23.0...2024.04.24.0)
+
+- - -
+
+## 2024.04.23.0
+
+### Features
+
+- **euclied_wasm:** [NMI] Add configs for extended 3DS ([#4422](https://github.com/juspay/hyperswitch/pull/4422)) ([`b8be10d`](https://github.com/juspay/hyperswitch/commit/b8be10de52e40d2327819d33c6c1ec40a459bdd5))
+- **router:** Add poll ability in external 3ds authorization flow ([#4393](https://github.com/juspay/hyperswitch/pull/4393)) ([`4476553`](https://github.com/juspay/hyperswitch/commit/447655382bcf2fdd69a1ec6a56e5e4df8a8feef2))
+
+### Refactors
+
+- **wallet:** Use `billing.phone` instead of `telephone_number` ([#4329](https://github.com/juspay/hyperswitch/pull/4329)) ([`3e6bc19`](https://github.com/juspay/hyperswitch/commit/3e6bc191fd5804feface9ee1a0cb7ddbbe025569))
+
+### Miscellaneous Tasks
+
+- Add wasm toml configs for netcetera authnetication connector ([#4426](https://github.com/juspay/hyperswitch/pull/4426)) ([`4851da1`](https://github.com/juspay/hyperswitch/commit/4851da1595074dbb2760e76f83403e8ac9f7895f))
+
+**Full Changelog:** [`2024.04.22.0...2024.04.23.0`](https://github.com/juspay/hyperswitch/compare/2024.04.22.0...2024.04.23.0)
+
+- - -
+
+## 2024.04.22.0
+
+### Features
+
+- **payment_methods:** Client secret implementation in payment method… ([#4134](https://github.com/juspay/hyperswitch/pull/4134)) ([`4330781`](https://github.com/juspay/hyperswitch/commit/43307815e0200caf2e9517ec1374d09696356fbc))
+- **router:** [BOA/CYBS] add avs_response and cvv validation result in the response ([#4376](https://github.com/juspay/hyperswitch/pull/4376)) ([`e458e49`](https://github.com/juspay/hyperswitch/commit/e458e4907e39961f386900f21382c9ace3b7c392))
+
+### Bug Fixes
+
+- **connectors:** Mask fields for webhook_resource_object ([#4400](https://github.com/juspay/hyperswitch/pull/4400)) ([`110bf22`](https://github.com/juspay/hyperswitch/commit/110bf22511cf4994c7325fb105fee60f910c1210))
+- **core:** Fix 3DS mandates, for the connector _mandate_details to be stored in the payment_methods table ([#4323](https://github.com/juspay/hyperswitch/pull/4323)) ([`f4e5784`](https://github.com/juspay/hyperswitch/commit/f4e5784f6ce57b4a205c164889242bfa1bc1fde2))
+- **user:** Add onboarding_survey enum in dashboard metadata type ([#4353](https://github.com/juspay/hyperswitch/pull/4353)) ([`f6fccaf`](https://github.com/juspay/hyperswitch/commit/f6fccafb3d43ce4b2865cf4b3cba7ad8a9619e5b))
+
+**Full Changelog:** [`2024.04.19.0...2024.04.22.0`](https://github.com/juspay/hyperswitch/compare/2024.04.19.0...2024.04.22.0)
+
+- - -
+
 ## 2024.04.19.0
 
 ### Features
