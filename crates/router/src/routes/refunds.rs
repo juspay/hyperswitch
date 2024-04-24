@@ -276,7 +276,7 @@ pub async fn refunds_filter_list(
     get,
     path = "/refunds/filter_v2",
     responses(
-        (status = 200, description = "List of static filters", body = RefundListMetaData),
+        (status = 200, description = "List of static filters", body = RefundListFilters),
     ),
     tag = "Refunds",
     operation_id = "List all filters for Refunds",
