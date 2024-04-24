@@ -144,14 +144,14 @@ services:
     depends_on:
       hyperswitch-server:
         condition: service_started
+    labels:  
+      logs: "promtail"  
 
   ### Control Center
   hyperswitch-control-center:
-    image: juspaydotin/hyperswitch-control-center
+    image: juspaydotin/hyperswitch-control-center:latest
     ports:
       - "9000:9000"
-    networks:
-      - router_net
     environment:
       - apiBaseUrl=http://localhost:8080
       - sdkBaseUrl=http://localhost:9050
@@ -160,6 +160,8 @@ services:
         condition: service_started
       hyperswitch-web:
         condition: service_started
+    labels:  
+      logs: "promtail" 
 
   ### Clustered Redis setup
   redis-cluster:
