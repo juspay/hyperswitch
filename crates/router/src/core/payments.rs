@@ -1115,19 +1115,36 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        let payment_attempt = state
+            .store
+            .find_payment_attempt_by_attempt_id_merchant_id(
+                &payment_intent.active_attempt.get_id(),
+                &merchant_id,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
         // Fetching merchant_connector_account to check if pull_mechanism is enabled for 3ds connector
-        let merchant_connector_account = crate::utils::get_mca_from_payment_intent(
-            &*state.store,
-            &merchant_account,
-            payment_intent,
+        let authentication_merchant_connector_account = helpers::get_merchant_connector_account(
+            state,
+            &merchant_id,
+            None,
             &merchant_key_store,
-            &connector,
+            &payment_intent
+                .profile_id
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("missing profile_id in payment_intent")?,
+            &payment_attempt
+                .authentication_connector
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("missing authentication connector in payment_intent")?,
+            None,
         )
         .await?;
         let is_pull_mechanism_enabled =
             crate::utils::check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
-                merchant_connector_account
-                    .metadata
+                authentication_merchant_connector_account
+                    .get_metadata()
                     .map(|metadata| metadata.expose()),
             );
         let response = if is_pull_mechanism_enabled {
