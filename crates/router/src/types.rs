@@ -421,7 +421,7 @@ pub struct PaymentsAuthorizeData {
     /// get_tax_on_surcharge_amount()
     /// get_total_surcharge_amount() // returns surcharge_amount + tax_on_surcharge_amount
     /// ```
-    pub amount: i64,
+    pub amount: AmountConversionType,
     pub email: Option<Email>,
     pub customer_name: Option<Secret<String>>,
     pub currency: storage_enums::Currency,
@@ -505,7 +505,7 @@ pub struct PaymentMethodTokenizationData {
     pub payment_method_data: domain::payments::PaymentMethodData,
     pub browser_info: Option<BrowserInformation>,
     pub currency: storage_enums::Currency,
-    pub amount: Option<i64>,
+    pub amount: Option<AmountConversionType>,
 }
 
 #[derive(Debug, Clone)]
@@ -905,6 +905,11 @@ impl CaptureSyncResponse {
         }
     }
 }
+#[derive(Debug, Clone)]
+pub struct AuthorizeIntegrityObject {
+    pub amount: i64,
+    pub currency: String,
+}
 
 #[derive(Debug, Clone)]
 pub enum PaymentsResponseData {
@@ -916,6 +921,7 @@ pub enum PaymentsResponseData {
         network_txn_id: Option<String>,
         connector_response_reference_id: Option<String>,
         incremental_authorization_allowed: Option<bool>,
+        integrity_object: Option<AuthorizeIntegrityObject>,
     },
     MultipleCaptureResponse {
         // pending_capture_id_list: Vec<String>,
@@ -1603,4 +1609,13 @@ impl<F1, F2>
             connector_response: data.connector_response.clone(),
         }
     }
+}
+
+#[derive(Debug, Clone)]
+pub enum AmountConversionType {
+    BaseUnitAsF64(f64),
+    BaseUnit(i64),
+    LowerUnitString(String),
+    BaseUnitZeroDecimalCheckString(String),
+    MinorUnit(i64)
 }

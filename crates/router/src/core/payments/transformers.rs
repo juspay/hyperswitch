@@ -85,6 +85,7 @@ where
         network_txn_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
+        integrity_object: None,
     });
 
     let additional_data = PaymentAdditionalData {

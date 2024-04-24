@@ -337,6 +337,7 @@ impl<F, T>
             network_txn_id: None,
             connector_response_reference_id: item.response.order_id.clone(),
             incremental_authorization_allowed: None,
+            integrity_object: None,
         };
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
@@ -377,6 +378,7 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: item.response.order_id.clone(),
                 incremental_authorization_allowed: None,
+                integrity_object: None,
             }),
             ..item.data
         })
@@ -414,6 +416,7 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: item.response.order_id.clone(),
                 incremental_authorization_allowed: None,
+                integrity_object: None,
             }),
             ..item.data
         })
@@ -451,6 +454,7 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order_id.clone()),
                 incremental_authorization_allowed: None,
+                integrity_object: None,
             }),
             ..item.data
         })

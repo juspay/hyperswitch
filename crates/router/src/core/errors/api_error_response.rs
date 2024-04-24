@@ -261,7 +261,7 @@ pub enum ApiErrorResponse {
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_24", message = "Merchant connector account is configured with invalid {config}")]
     InvalidConnectorConfiguration { config: String },
     #[error(error_type = ErrorType::ValidationError, code = "HE_01", message = "Failed to convert currency to minor unit")]
-    CurrencyConversionFailed,
+    CurrencyConversionToMinorUnitFailed,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_25", message = "Cannot delete the default payment method")]
     PaymentMethodDeleteFailed,
     #[error(
@@ -269,6 +269,10 @@ pub enum ApiErrorResponse {
         message = "Invalid Cookie"
     )]
     InvalidCookie,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_19", message = "Parsing failed for amount in core")]
+    ParsingFailed,
+    #[error(error_type = ErrorType::ValidationError, code = "HE_01", message = "Failed to convert currency to base unit")]
+    CurrencyConversionToBaseUnitFailed,
 }
 
 impl PTError for ApiErrorResponse {

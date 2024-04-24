@@ -377,6 +377,7 @@ impl<F, T>
                     gateway_resp.transaction_processing_details.order_id,
                 ),
                 incremental_authorization_allowed: None,
+                integrity_object: None,
             }),
             ..item.data
         })
@@ -419,6 +420,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, FiservSyncResponse, T, types::Pa
                         .clone(),
                 ),
                 incremental_authorization_allowed: None,
+                integrity_object: None,
             }),
             ..item.data
         })

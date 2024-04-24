@@ -121,7 +121,7 @@ pub async fn initiate_payment_link_flow(
     )?;
     let amount = currency
         .to_currency_base_unit(payment_intent.amount)
-        .change_context(errors::ApiErrorResponse::CurrencyConversionFailed)?;
+        .change_context(errors::ApiErrorResponse::CurrencyConversionToBaseUnitFailed)?;
     let order_details = validate_order_details(payment_intent.order_details.clone(), currency)?;
 
     let session_expiry = payment_link.fulfilment_time.unwrap_or_else(|| {
@@ -352,10 +352,11 @@ fn validate_order_details(
                 } else {
                     order_details_amount_string.product_img_link = order.product_img_link.clone()
                 };
-                order_details_amount_string.amount =
-                    currency
-                        .to_currency_base_unit(order.amount)
-                        .change_context(errors::ApiErrorResponse::CurrencyConversionFailed)?;
+                order_details_amount_string.amount = currency
+                    .to_currency_base_unit(order.amount)
+                    .change_context(
+                    errors::ApiErrorResponse::CurrencyConversionToBaseUnitFailed,
+                )?;
                 order_details_amount_string.product_name =
                     capitalize_first_char(&order.product_name.clone());
                 order_details_amount_string.quantity = order.quantity;
@@ -563,7 +564,7 @@ pub async fn get_payment_link_status(
 
     let amount = currency
         .to_currency_base_unit(payment_attempt.net_amount)
-        .change_context(errors::ApiErrorResponse::CurrencyConversionFailed)?;
+        .change_context(errors::ApiErrorResponse::CurrencyConversionToBaseUnitFailed)?;
 
     // converting first letter of merchant name to upperCase
     let merchant_name = capitalize_first_char(&payment_link_config.seller_name);

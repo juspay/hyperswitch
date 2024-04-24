@@ -440,6 +440,7 @@ impl<F, T>
                         .unwrap_or(item.response.transaction_id),
                 ),
                 incremental_authorization_allowed: None,
+                integrity_object: None,
             }),
             ..item.data
         })

@@ -258,10 +258,14 @@ pub enum StripeErrorCode {
     LockTimeout,
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "Merchant connector account is configured with invalid {config}")]
     InvalidConnectorConfiguration { config: String },
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "HE_01", message = "Failed to convert currency to base unit")]
+    CurrencyConversionToBaseUnitFailed,
     #[error(error_type = StripeErrorType::HyperswitchError, code = "HE_01", message = "Failed to convert currency to minor unit")]
-    CurrencyConversionFailed,
+    CurrencyConversionToMinorUnitFailed,
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "IR_25", message = "Cannot delete the default payment method")]
     PaymentMethodDeleteFailed,
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "HE_01", message = "Parsing failed for amount in core")]
+    ParsingFailed,
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
 
@@ -638,7 +642,13 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::InvalidConnectorConfiguration { config } => {
                 Self::InvalidConnectorConfiguration { config }
             }
-            errors::ApiErrorResponse::CurrencyConversionFailed => Self::CurrencyConversionFailed,
+            errors::ApiErrorResponse::CurrencyConversionToBaseUnitFailed => {
+                Self::CurrencyConversionToBaseUnitFailed
+            }
+            errors::ApiErrorResponse::CurrencyConversionToMinorUnitFailed => {
+                Self::CurrencyConversionToMinorUnitFailed
+            }
+            errors::ApiErrorResponse::ParsingFailed => Self::ParsingFailed,
             errors::ApiErrorResponse::PaymentMethodDeleteFailed => Self::PaymentMethodDeleteFailed,
             errors::ApiErrorResponse::InvalidWalletToken { wallet_name } => {
                 Self::InvalidWalletToken { wallet_name }
@@ -713,8 +723,10 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::DuplicateCustomer
             | Self::PaymentMethodUnactivated
             | Self::InvalidConnectorConfiguration { .. }
-            | Self::CurrencyConversionFailed
-            | Self::PaymentMethodDeleteFailed => StatusCode::BAD_REQUEST,
+            | Self::CurrencyConversionToBaseUnitFailed
+            | Self::PaymentMethodDeleteFailed
+            | Self::CurrencyConversionToMinorUnitFailed
+            | Self::ParsingFailed => StatusCode::BAD_REQUEST,
             Self::RefundFailed
             | Self::PayoutFailed
             | Self::PaymentLinkNotFound

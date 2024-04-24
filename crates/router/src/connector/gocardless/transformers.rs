@@ -587,6 +587,7 @@ impl<F>
                 connector_metadata: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                integrity_object: None,
                 resource_id: ResponseId::NoResponseId,
                 redirection_data: None,
                 mandate_reference,
@@ -743,6 +744,7 @@ impl<F>
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                integrity_object: None,
             }),
             ..item.data
         })
@@ -778,6 +780,7 @@ impl<F>
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                integrity_object: None,
             }),
             ..item.data
         })

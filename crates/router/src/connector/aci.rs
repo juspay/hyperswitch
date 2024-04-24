@@ -366,6 +366,7 @@ impl
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
+
 }
 
 impl

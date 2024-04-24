@@ -241,6 +241,12 @@ impl
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
         })
     }
+
+    fn get_amount_conversion_type(
+        &self
+    ) -> Option<types::AmountConversionType>{
+        Some(types::AmountConversionType::MinorUnit)
+    }
 }
 
 impl api::ConnectorCustomer for Stripe {}

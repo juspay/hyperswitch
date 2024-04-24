@@ -292,7 +292,10 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::InvalidConnectorConfiguration {config} => {
                 AER::BadRequest(ApiError::new("IR", 24, format!("Merchant connector account is configured with invalid {config}"), None))
             }
-            Self::CurrencyConversionFailed => {
+            Self::CurrencyConversionToBaseUnitFailed => {
+                AER::Unprocessable(ApiError::new("HE", 2, "Failed to convert currency to base unit", None))
+            }
+            Self::CurrencyConversionToMinorUnitFailed => {
                 AER::Unprocessable(ApiError::new("HE", 2, "Failed to convert currency to minor unit", None))
             }
             Self::PaymentMethodDeleteFailed => {
@@ -300,6 +303,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             }
             Self::InvalidCookie => {
                 AER::BadRequest(ApiError::new("IR", 26, "Invalid Cookie", None))
+            }
+            Self::ParsingFailed => {
+                AER::BadRequest(ApiError::new("IR", 26, "Parsing failed for amount in core", None))
             }
         }
     }

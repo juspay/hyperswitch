@@ -273,6 +273,9 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 );
 
                 logger::debug!(completed_pre_tasks=?true);
+                // self.request.amount = 10;
+
+                // connector_integration.
 
                 if self.should_proceed_with_authorize() {
                     self.decide_authentication_type();

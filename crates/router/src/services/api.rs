@@ -259,6 +259,12 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         Ok(None)
     }
+
+    fn get_amount_conversion_type(
+        &self
+    ) -> Option<types::AmountConversionType> {
+        None
+    }
 }
 
 pub enum CaptureSyncMethod {
