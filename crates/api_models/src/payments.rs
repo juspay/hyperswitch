@@ -2133,11 +2133,11 @@ impl GetAddressFromPaymentMethodData for BankTransferData {
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
 pub struct BankDebitBilling {
     /// The billing name for bank debits
-    #[schema(value_type = String, example = "John Doe")]
-    pub name: Secret<String>,
+    #[schema(value_type = Option<String>, example = "John Doe")]
+    pub name: Option<Secret<String>>,
     /// The billing email for bank debits
-    #[schema(value_type = String, example = "example@example.com")]
-    pub email: Email,
+    #[schema(value_type = Option<String>, example = "example@example.com")]
+    pub email: Option<Email>,
     /// The billing address for bank debits
     pub address: Option<AddressDetails>,
 }
@@ -2145,19 +2145,19 @@ pub struct BankDebitBilling {
 impl GetAddressFromPaymentMethodData for BankDebitBilling {
     fn get_billing_address(&self) -> Option<Address> {
         let address = if let Some(mut address) = self.address.clone() {
-            address.first_name = Some(self.name.clone());
+            address.first_name = self.name.clone();
             Address {
                 address: Some(address),
-                email: Some(self.email.clone()),
+                email: self.email.clone(),
                 phone: None,
             }
         } else {
             Address {
                 address: Some(AddressDetails {
-                    first_name: Some(self.name.clone()),
+                    first_name: self.name.clone(),
                     ..AddressDetails::default()
                 }),
-                email: Some(self.email.clone()),
+                email: self.email.clone(),
                 phone: None,
             }
         };
@@ -4740,9 +4740,9 @@ mod billing_from_payment_method_data {
         let test_first_name = Secret::new(String::from("Chaser"));
 
         let bank_redirect_billing = BankDebitBilling {
-            name: test_first_name.clone(),
+            name: Some(test_first_name.clone()),
             address: None,
-            email: test_email.clone(),
+            email: Some(test_email.clone()),
         };
 
         let ach_bank_debit_payment_method_data =

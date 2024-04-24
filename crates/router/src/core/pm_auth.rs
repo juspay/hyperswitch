@@ -754,8 +754,8 @@ pub async fn retrieve_payment_method_from_auth_service(
         .get_required_value("email")?;
 
     let billing_details = BankDebitBilling {
-        name,
-        email,
+        name: Some(name),
+        email: Some(email),
         address: address_details,
     };
 
