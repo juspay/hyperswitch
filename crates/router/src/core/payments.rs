@@ -29,7 +29,7 @@ use error_stack::{report, ResultExt};
 use events::EventInfo;
 use futures::future::join_all;
 use helpers::ApplePayData;
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 pub use payment_address::PaymentAddress;
 use redis_interface::errors::RedisError;
 use router_env::{instrument, tracing};
@@ -777,6 +777,7 @@ pub trait PaymentRedirectFlow<Ctx: PaymentMethodRetrieve>: Sync {
         req: PaymentsRedirectResponseData,
         connector_action: CallConnectorAction,
         connector: String,
+        payment_id: String,
     ) -> RouterResult<Self::PaymentFlowResponse>;
 
     fn get_payment_action(&self) -> services::PaymentAction;
@@ -848,6 +849,7 @@ pub trait PaymentRedirectFlow<Ctx: PaymentMethodRetrieve>: Sync {
                 req.clone(),
                 flow_type,
                 connector.clone(),
+                resource_id.clone(),
             )
             .await?;
 
@@ -872,6 +874,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectCom
         req: PaymentsRedirectResponseData,
         connector_action: CallConnectorAction,
         _connector: String,
+        _payment_id: String,
     ) -> RouterResult<Self::PaymentFlowResponse> {
         let payment_confirm_req = api::PaymentsRequest {
             payment_id: Some(req.resource_id.clone()),
@@ -1002,6 +1005,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectSyn
         req: PaymentsRedirectResponseData,
         connector_action: CallConnectorAction,
         _connector: String,
+        _payment_id: String,
     ) -> RouterResult<Self::PaymentFlowResponse> {
         let payment_sync_req = api::PaymentsRetrieveRequest {
             resource_id: req.resource_id,
@@ -1099,44 +1103,132 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
         req: PaymentsRedirectResponseData,
         connector_action: CallConnectorAction,
         connector: String,
+        payment_id: String,
     ) -> RouterResult<Self::PaymentFlowResponse> {
-        let payment_confirm_req = api::PaymentsRequest {
-            payment_id: Some(req.resource_id.clone()),
-            merchant_id: req.merchant_id.clone(),
-            feature_metadata: Some(api_models::payments::FeatureMetadata {
-                redirect_response: Some(api_models::payments::RedirectResponse {
-                    param: req.param.map(Secret::new),
-                    json_payload: Some(req.json_payload.unwrap_or(serde_json::json!({})).into()),
-                }),
-            }),
-            ..Default::default()
-        };
-        let response = Box::pin(payments_core::<
-            api::Authorize,
-            api::PaymentsResponse,
-            _,
-            _,
-            _,
-            Ctx,
-        >(
-            state.clone(),
-            req_state,
-            merchant_account,
-            merchant_key_store,
-            PaymentConfirm,
-            payment_confirm_req,
-            services::api::AuthFlow::Merchant,
-            connector_action,
-            None,
-            HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
-        ))
+        let merchant_id = merchant_account.merchant_id.clone();
+        let payment_intent = state
+            .store
+            .find_payment_intent_by_payment_id_merchant_id(
+                &payment_id,
+                &merchant_id,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        // Fetching merchant_connector_account to check if pull_mechanism is enabled for 3ds connector
+        let merchant_connector_account = crate::utils::get_mca_from_payment_intent(
+            &*state.store,
+            &merchant_account,
+            payment_intent,
+            &merchant_key_store,
+            &connector,
+        )
         .await?;
+        let is_pull_mechanism_enabled =
+            crate::utils::check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
+                merchant_connector_account
+                    .metadata
+                    .map(|metadata| metadata.expose()),
+            );
+        let response = if is_pull_mechanism_enabled {
+            let payment_confirm_req = api::PaymentsRequest {
+                payment_id: Some(req.resource_id.clone()),
+                merchant_id: req.merchant_id.clone(),
+                feature_metadata: Some(api_models::payments::FeatureMetadata {
+                    redirect_response: Some(api_models::payments::RedirectResponse {
+                        param: req.param.map(Secret::new),
+                        json_payload: Some(
+                            req.json_payload.unwrap_or(serde_json::json!({})).into(),
+                        ),
+                    }),
+                }),
+                ..Default::default()
+            };
+            Box::pin(payments_core::<
+                api::Authorize,
+                api::PaymentsResponse,
+                _,
+                _,
+                _,
+                Ctx,
+            >(
+                state.clone(),
+                req_state,
+                merchant_account,
+                merchant_key_store,
+                PaymentConfirm,
+                payment_confirm_req,
+                services::api::AuthFlow::Merchant,
+                connector_action,
+                None,
+                HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
+            ))
+            .await?
+        } else {
+            let payment_sync_req = api::PaymentsRetrieveRequest {
+                resource_id: req.resource_id,
+                merchant_id: req.merchant_id,
+                param: req.param,
+                force_sync: req.force_sync,
+                connector: req.connector,
+                merchant_connector_details: req.creds_identifier.map(|creds_id| {
+                    api::MerchantConnectorDetailsWrap {
+                        creds_identifier: creds_id,
+                        encoded_data: None,
+                    }
+                }),
+                client_secret: None,
+                expand_attempts: None,
+                expand_captures: None,
+            };
+            Box::pin(payments_core::<
+                api::PSync,
+                api::PaymentsResponse,
+                _,
+                _,
+                _,
+                Ctx,
+            >(
+                state.clone(),
+                req_state,
+                merchant_account.clone(),
+                merchant_key_store,
+                PaymentStatus,
+                payment_sync_req,
+                services::api::AuthFlow::Merchant,
+                connector_action,
+                None,
+                HeaderPayload::default(),
+            ))
+            .await?
+        };
         let payments_response = match response {
             services::ApplicationResponse::Json(response) => Ok(response),
             services::ApplicationResponse::JsonWithHeaders((response, _)) => Ok(response),
             _ => Err(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to get the response in json"),
         }?;
+        // When intent status is RequiresCustomerAction, Set poll_id in redis to allow the fetch status of poll through retrieve_poll_status api from client
+        if payments_response.status == common_enums::IntentStatus::RequiresCustomerAction {
+            let req_poll_id =
+                super::utils::get_external_authentication_request_poll_id(&payment_id);
+            let poll_id = super::utils::get_poll_id(merchant_id.clone(), req_poll_id.clone());
+            let redis_conn = state
+                .store
+                .get_redis_conn()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to get redis connection")?;
+            redis_conn
+                .set_key_with_expiry(
+                    &poll_id,
+                    api_models::poll::PollStatus::Pending.to_string(),
+                    crate::consts::POLL_ID_TTL,
+                )
+                .await
+                .change_context(errors::StorageError::KVError)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to add poll_id in redis")?;
+        };
         let default_poll_config = router_types::PollConfig::default();
         let default_config_str = default_poll_config
             .encode_to_string_of_json()
