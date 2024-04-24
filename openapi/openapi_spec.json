@@ -5136,6 +5136,7 @@
           "partial_charged",
           "partial_charged_and_chargeable",
           "unresolved",
+          "frm_unresolved",
           "pending",
           "failure",
           "payment_method_awaited",
@@ -5192,7 +5193,8 @@
           "success",
           "failure",
           "processing",
-          "unresolved"
+          "unresolved",
+          "frm_unresolved"
         ]
       },
       "BacsBankTransfer": {
@@ -9785,6 +9787,7 @@
           "processing",
           "requires_customer_action",
           "requires_merchant_action",
+          "frm_requires_merchant_action",
           "requires_payment_method",
           "requires_confirmation",
           "requires_capture",
