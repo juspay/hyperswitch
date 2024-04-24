@@ -5229,20 +5229,18 @@
       },
       "BankDebitBilling": {
         "type": "object",
-        "required": [
-          "name",
-          "email"
-        ],
         "properties": {
           "name": {
             "type": "string",
             "description": "The billing name for bank debits",
-            "example": "John Doe"
+            "example": "John Doe",
+            "nullable": true
           },
           "email": {
             "type": "string",
             "description": "The billing email for bank debits",
-            "example": "example@example.com"
+            "example": "example@example.com",
+            "nullable": true
           },
           "address": {
             "allOf": [
