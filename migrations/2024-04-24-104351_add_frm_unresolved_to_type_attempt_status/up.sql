@@ -1,0 +1,1 @@
+ALTER TYPE "AttemptStatus" ADD VALUE IF NOT EXISTS 'frm_unresolved';
