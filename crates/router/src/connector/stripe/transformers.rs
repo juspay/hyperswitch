@@ -1385,11 +1385,7 @@ fn create_stripe_payment_method<F, Req, Res>(
                                     bank_transfer_type: BankTransferType::EuBankTransfer,
                                     balance_funding_type: BankTransferType::BankTransfers,
                                     payment_method_type: StripePaymentMethodType::CustomerBalance,
-                                    country: item.get_optional_billing_country().ok_or(
-                                        errors::ConnectorError::MissingRequiredField {
-                                            field_name: "billing.country",
-                                        },
-                                    )?,
+                                    country: item.get_billing_country()?,
                                 },
                             )),
                         ),
@@ -3720,11 +3716,7 @@ impl
                         bank_transfer_type: BankTransferType::EuBankTransfer,
                         balance_funding_type: BankTransferType::BankTransfers,
                         payment_method_type: StripePaymentMethodType::CustomerBalance,
-                        country: item.get_optional_billing_country().ok_or(
-                            errors::ConnectorError::MissingRequiredField {
-                                field_name: "billing.country",
-                            },
-                        )?,
+                        country: item.get_billing_country()?,
                     })),
                 )),
                 domain::BankTransferData::BacsBankTransfer { .. } => Ok(Self::BankTransfer(

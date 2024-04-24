@@ -166,7 +166,9 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .get_payment_method_billing()
             .and_then(|a| a.address.as_ref())
             .and_then(|ad| ad.country)
-            .ok_or_else(missing_field_err("billing.address.country"))
+            .ok_or_else(missing_field_err(
+                "payment_method_data.billing.address.country",
+            ))
     }
 
     fn get_billing_phone(&self) -> Result<&api::PhoneDetails, Error> {

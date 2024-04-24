@@ -1940,36 +1940,36 @@ pub struct JCSVoucherData {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct AchBillingDetails {
     /// The Email ID for ACH billing
-    #[schema(value_type = String, example = "example@me.com")]
+    #[schema(value_type = Option<String>, example = "example@me.com")]
     pub email: Option<Email>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct DokuBillingDetails {
     /// The billing first name for Doku
-    #[schema(value_type = String, example = "Jane")]
+    #[schema(value_type = Option<String>, example = "Jane")]
     pub first_name: Option<Secret<String>>,
     /// The billing second name for Doku
-    #[schema(value_type = String, example = "Doe")]
+    #[schema(value_type = Option<String>, example = "Doe")]
     pub last_name: Option<Secret<String>>,
     /// The Email ID for Doku billing
-    #[schema(value_type = String, example = "example@me.com")]
+    #[schema(value_type = Option<String>, example = "example@me.com")]
     pub email: Option<Email>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct MultibancoBillingDetails {
-    #[schema(value_type = String, example = "example@me.com")]
+    #[schema(value_type = Option<String>, example = "example@me.com")]
     pub email: Option<Email>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SepaAndBacsBillingDetails {
     /// The Email ID for SEPA and BACS billing
-    #[schema(value_type = String, example = "example@me.com")]
+    #[schema(value_type = Option<String>, example = "example@me.com")]
     pub email: Option<Email>,
     /// The billing name for SEPA and BACS billing
-    #[schema(value_type = String, example = "Jane Doe")]
+    #[schema(value_type = Option<String>, example = "Jane Doe")]
     pub name: Option<Secret<String>>,
 }
 
