@@ -239,6 +239,8 @@ where
                 &key_store,
             )
             .await?;
+        
+        #[cfg(feature = "frm")]
         if matches!(
             frm_info.as_ref().and_then(|frm_info| frm_info
                 .frm_data
