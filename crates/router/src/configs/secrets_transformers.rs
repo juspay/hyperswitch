@@ -365,7 +365,6 @@ pub(crate) async fn fetch_raw_secrets(
         connector_onboarding,
         cors: conf.cors,
         unmasked_headers: conf.unmasked_headers,
-        allowed_payment_methods_for_pm_client_secret: conf
-            .allowed_payment_methods_for_pm_client_secret,
+        saved_payment_methods: conf.saved_payment_methods,
     }
 }

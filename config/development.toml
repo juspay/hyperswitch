@@ -616,5 +616,5 @@ payment_intents = "hyperswitch-payment-intent-events"
 refunds = "hyperswitch-refund-events"
 disputes = "hyperswitch-dispute-events"
 
-[allowed_payment_methods_for_pm_client_secret]
-allowed_pms = ["card"]
+[saved_payment_methods]
+sdk_eligible_payment_methods = ["card"]

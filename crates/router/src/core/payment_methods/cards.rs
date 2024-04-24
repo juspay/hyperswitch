@@ -1693,25 +1693,7 @@ pub async fn list_payment_methods(
 
     let payment_intent = if let Some(cs) = &req.client_secret {
         if cs.starts_with("pm_") {
-            let pm_vec = cs.split("_secret").collect::<Vec<&str>>();
-            let pm_id = pm_vec
-                .first()
-                .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "client_secret",
-                })?;
-
-            let payment_method = db
-                .find_payment_method(pm_id, merchant_account.storage_scheme)
-                .await
-                .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
-                .attach_printable("Unable to find payment method")?;
-
-            let client_secret_expired =
-                authenticate_pm_client_secret_and_check_expiry(cs, &payment_method)?;
-            if client_secret_expired {
-                return Err((errors::ApiErrorResponse::ClientSecretExpired).into());
-            }
-
+            validate_payment_method_and_client_secret(cs, db, &merchant_account).await?;
             None
         } else {
             helpers::verify_payment_intent_time_and_client_secret(
@@ -1866,7 +1848,7 @@ pub async fn list_payment_methods(
             pm_config_mapping,
             &state.conf.mandates.supported_payment_methods,
             &state.conf.mandates.update_mandate_supported,
-            &state.conf.allowed_payment_methods_for_pm_client_secret,
+            &state.conf.saved_payment_methods,
         )
         .await?;
     }
@@ -2563,6 +2545,34 @@ pub async fn list_payment_methods(
     ))
 }
 
+async fn validate_payment_method_and_client_secret(
+    cs: &String,
+    db: &dyn db::StorageInterface,
+    merchant_account: &domain::MerchantAccount,
+) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
+    let pm_vec = cs.split("_secret").collect::<Vec<&str>>();
+    let pm_id = pm_vec
+        .first()
+        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "client_secret",
+        })?;
+
+    let payment_method = db
+        .find_payment_method(pm_id, merchant_account.storage_scheme)
+        .await
+        .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
+        .attach_printable("Unable to find payment method")?;
+
+    let client_secret_expired =
+        authenticate_pm_client_secret_and_check_expiry(cs, &payment_method)?;
+    if client_secret_expired {
+        return Err::<(), error_stack::Report<errors::ApiErrorResponse>>(
+            (errors::ApiErrorResponse::ClientSecretExpired).into(),
+        );
+    }
+    Ok(())
+}
+
 pub async fn call_surcharge_decision_management(
     state: routes::AppState,
     merchant_account: &domain::MerchantAccount,
@@ -2672,7 +2682,7 @@ pub async fn filter_payment_methods(
     config: &settings::ConnectorFilters,
     supported_payment_methods_for_mandate: &settings::SupportedPaymentMethodsForMandate,
     supported_payment_methods_for_update_mandate: &settings::SupportedPaymentMethodsForMandate,
-    allowed_payment_methods_for_pm_client_secret: &settings::AllowedPaymentMethodsPMClientSecret,
+    saved_payment_methods: &settings::EligiblePaymentMethods,
 ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
     for payment_method in payment_methods.into_iter() {
         let parse_result = serde_json::from_value::<PaymentMethodsEnabled>(payment_method);
@@ -2795,8 +2805,8 @@ pub async fn filter_payment_methods(
                         .as_ref()
                         .map(|cs| {
                             if cs.starts_with("pm_") {
-                                allowed_payment_methods_for_pm_client_secret
-                                    .allowed_pms
+                                saved_payment_methods
+                                    .sdk_eligible_payment_methods
                                     .contains(payment_method.to_string().as_str())
                             } else {
                                 true

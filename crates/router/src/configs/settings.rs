@@ -119,7 +119,7 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "olap")]
     pub connector_onboarding: SecretStateContainer<ConnectorOnboarding, S>,
     pub unmasked_headers: UnmaskedHeaders,
-    pub allowed_payment_methods_for_pm_client_secret: AllowedPaymentMethodsPMClientSecret,
+    pub saved_payment_methods: EligiblePaymentMethods,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -167,8 +167,8 @@ pub struct PaymentMethodAuth {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
-pub struct AllowedPaymentMethodsPMClientSecret {
-    pub allowed_pms: HashSet<String>,
+pub struct EligiblePaymentMethods {
+    pub sdk_eligible_payment_methods: HashSet<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
