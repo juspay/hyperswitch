@@ -4737,14 +4737,12 @@
       },
       "AchBillingDetails": {
         "type": "object",
-        "required": [
-          "email"
-        ],
         "properties": {
           "email": {
             "type": "string",
             "description": "The Email ID for ACH billing",
-            "example": "example@me.com"
+            "example": "example@me.com",
+            "nullable": true
           }
         }
       },
@@ -8555,26 +8553,24 @@
       },
       "DokuBillingDetails": {
         "type": "object",
-        "required": [
-          "first_name",
-          "last_name",
-          "email"
-        ],
         "properties": {
           "first_name": {
             "type": "string",
             "description": "The billing first name for Doku",
-            "example": "Jane"
+            "example": "Jane",
+            "nullable": true
           },
           "last_name": {
             "type": "string",
             "description": "The billing second name for Doku",
-            "example": "Doe"
+            "example": "Doe",
+            "nullable": true
           },
           "email": {
             "type": "string",
             "description": "The Email ID for Doku billing",
-            "example": "example@me.com"
+            "example": "example@me.com",
+            "nullable": true
           }
         }
       },
@@ -11236,13 +11232,11 @@
       },
       "MultibancoBillingDetails": {
         "type": "object",
-        "required": [
-          "email"
-        ],
         "properties": {
           "email": {
             "type": "string",
-            "example": "example@me.com"
+            "example": "example@me.com",
+            "nullable": true
           }
         }
       },
@@ -17480,20 +17474,18 @@
       },
       "SepaAndBacsBillingDetails": {
         "type": "object",
-        "required": [
-          "email",
-          "name"
-        ],
         "properties": {
           "email": {
             "type": "string",
             "description": "The Email ID for SEPA and BACS billing",
-            "example": "example@me.com"
+            "example": "example@me.com",
+            "nullable": true
           },
           "name": {
             "type": "string",
             "description": "The billing name for SEPA and BACS billing",
-            "example": "Jane Doe"
+            "example": "Jane Doe",
+            "nullable": true
           }
         }
       },
