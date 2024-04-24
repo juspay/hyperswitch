@@ -16316,6 +16316,30 @@
           }
         }
       },
+      "PollConfigResponse": {
+        "type": "object",
+        "required": [
+          "poll_id",
+          "delay_in_secs",
+          "frequency"
+        ],
+        "properties": {
+          "poll_id": {
+            "type": "string",
+            "description": "Poll Id"
+          },
+          "delay_in_secs": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Interval of the poll"
+          },
+          "frequency": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Frequency of the poll"
+          }
+        }
+      },
       "PollResponse": {
         "type": "object",
         "required": [
@@ -17879,7 +17903,8 @@
         "required": [
           "three_ds_authentication_url",
           "three_ds_authorize_url",
-          "three_ds_method_details"
+          "three_ds_method_details",
+          "poll_config"
         ],
         "properties": {
           "three_ds_authentication_url": {
@@ -17892,6 +17917,9 @@
           },
           "three_ds_method_details": {
             "$ref": "#/components/schemas/ThreeDsMethodData"
+          },
+          "poll_config": {
+            "$ref": "#/components/schemas/PollConfigResponse"
           }
         }
       },
