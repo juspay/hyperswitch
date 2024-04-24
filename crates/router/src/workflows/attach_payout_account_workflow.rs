@@ -11,10 +11,10 @@ use crate::{
     types::{api, storage},
 };
 
-pub struct StripeAttachAccountWorkflow;
+pub struct AttachPayoutAccountWorkflow;
 
 #[async_trait::async_trait]
-impl ProcessTrackerWorkflow<AppState> for StripeAttachAccountWorkflow {
+impl ProcessTrackerWorkflow<AppState> for AttachPayoutAccountWorkflow {
     async fn execute_workflow<'a>(
         &'a self,
         state: &'a AppState,

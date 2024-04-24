@@ -1093,7 +1093,7 @@ pub async fn create_recipient(
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed while adding stripe_attach_external_account workflow to process tracker")?;
+                    .attach_printable("Failed while adding attach_payout_account_workflow workflow to process tracker")?;
 
                     // Update payout status in DB
                     let status = recipient_create_data
@@ -2004,7 +2004,7 @@ pub async fn add_external_account_addition_task(
     payout_data: &PayoutData,
     schedule_time: time::PrimitiveDateTime,
 ) -> CustomResult<(), errors::StorageError> {
-    let runner = storage::ProcessTrackerRunner::StripeAttachAccountWorkflow;
+    let runner = storage::ProcessTrackerRunner::AttachPayoutAccountWorkflow;
     let task = "STRPE_ATTACH_EXTERNAL_ACCOUNT";
     let tag = ["PAYOUTS", "STRIPE", "ACCOUNT", "CREATE"];
     let process_tracker_id = pt_utils::get_process_tracker_id(
