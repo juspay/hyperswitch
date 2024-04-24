@@ -759,13 +759,7 @@ Cypress.Commands.add("handleRedirection", (globalState, expected_redirection) =>
           })
       })
     })
-  }
-  else if (globalState.get("connectorId") === "noon" ) {
-    cy.get('form[name="challengeForm"]',{ timeout: 10000 }).should('exist').then(form => {
-        cy.get('#outcomeSelect').select('Approve').should('have.value', 'Y')
-        cy.get('button[type="submit"]').click();
-  })
-  }
+}
   
   else {
     // If connectorId is not "adyen", wait for 10 seconds
