@@ -90,9 +90,9 @@ cargo build --release --features release ${EXTRA_FEATURES}
   Since we do not specify the `--no-default-features` flag to the `cargo build`
   command, the build would have the `default` and `release` features enabled.
 
-- In case you create your own features sets and want to enable them, you can use the
-  `${EXTRA_FEATURES}` build argument to specify any additional features that would have
-  to be passed to the `cargo build` command.
+- In case you create your own features sets and want to enable them, you can use
+  the `${EXTRA_FEATURES}` build argument to specify any additional features that
+  would have to be passed to the `cargo build` command.
   The build argument could look as follows:
   `EXTRA_FEATURES="--features feature1,feature2,feature3"`, with actual feature
   names substituted in the command.
@@ -108,8 +108,9 @@ Hub repositories:
 - standalone: These images contain the tag that was built with a `standalone`
   suffix, like the `v1.105.1-standalone` and `v1.107.0-standalone` Docker images.
 
-The primary difference is that our standalone Docker images do not have some features 
-enabled by default in order to support hosting of Hyperswitch outside AWS.
+The primary difference is that our standalone Docker images do not have some
+features enabled by default in order to support hosting of Hyperswitch outside
+AWS.
 As of writing this document, the standalone images exclude the `email` and
 `recon` features from the `release` feature set, while the release images are
 built from the Dockerfile without any changes to the codebase after the tag is
@@ -127,7 +128,8 @@ Building release (optimized) images needs significant amount of resources, and
 we'd recommend using a machine with at least 8 cores and 16 GB of RAM for this
 purpose.
 Rust is known to have long compile times, and a codebase of this size will
-require a significant time to build, around 45-60 minutes for the above configuration.
+require a significant time to build, around 45-60 minutes for the above
+configuration.
 
 ### Build seems to be stuck at "Compiling router/scheduler/analytics/..."
 
