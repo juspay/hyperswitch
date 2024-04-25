@@ -591,8 +591,16 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 object: "dispute".to_owned(),
                 id: dispute_id,
             },
+            errors::ApiErrorResponse::AuthenticationNotFound { id } => Self::ResourceMissing {
+                object: "authentication".to_owned(),
+                id,
+            },
             errors::ApiErrorResponse::BusinessProfileNotFound { id } => Self::ResourceMissing {
                 object: "business_profile".to_owned(),
+                id,
+            },
+            errors::ApiErrorResponse::PollNotFound { id } => Self::ResourceMissing {
+                object: "poll".to_owned(),
                 id,
             },
             errors::ApiErrorResponse::DisputeStatusValidationFailed { reason } => {

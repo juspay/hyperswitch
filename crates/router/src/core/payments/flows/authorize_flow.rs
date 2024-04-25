@@ -117,6 +117,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     maybe_customer,
                     payment_method_id,
                     connector.merchant_connector_id.clone(),
+                    merchant_account.storage_scheme,
                 )
                 .await?)
             } else {

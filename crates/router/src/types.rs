@@ -34,6 +34,7 @@ pub use crate::core::payments::{payment_address::PaymentAddress, CustomerDetails
 #[cfg(feature = "payouts")]
 use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW;
 use crate::{
+    consts,
     core::{
         errors::{self},
         payments::{types, PaymentData, RecurringMandatePaymentData},
@@ -1146,6 +1147,34 @@ pub struct RetrieveFileResponse {
     pub file_data: Vec<u8>,
 }
 
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct PollConfig {
+    pub delay_in_secs: i8,
+    pub frequency: i8,
+}
+
+impl Default for PollConfig {
+    fn default() -> Self {
+        Self {
+            delay_in_secs: consts::DEFAULT_POLL_DELAY_IN_SECS,
+            frequency: consts::DEFAULT_POLL_FREQUENCY,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct RedirectPaymentFlowResponse {
+    pub payments_response: api_models::payments::PaymentsResponse,
+    pub business_profile: diesel_models::business_profile::BusinessProfile,
+}
+
+#[derive(Clone, Debug)]
+pub struct AuthenticatePaymentFlowResponse {
+    pub payments_response: api_models::payments::PaymentsResponse,
+    pub poll_config: PollConfig,
+    pub business_profile: diesel_models::business_profile::BusinessProfile,
+}
+
 #[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]
 pub struct ConnectorResponse {
     pub merchant_id: String,
@@ -1200,6 +1229,10 @@ pub enum ConnectorAuthType {
     CurrencyAuthKey {
         auth_key_map: HashMap<storage_enums::Currency, pii::SecretSerdeValue>,
     },
+    CertificateAuth {
+        certificate: Secret<String>,
+        private_key: Secret<String>,
+    },
     #[default]
     NoKey,
 }
@@ -1238,6 +1271,13 @@ impl From<api_models::admin::ConnectorAuthType> for ConnectorAuthType {
                 Self::CurrencyAuthKey { auth_key_map }
             }
             api_models::admin::ConnectorAuthType::NoKey => Self::NoKey,
+            api_models::admin::ConnectorAuthType::CertificateAuth {
+                certificate,
+                private_key,
+            } => Self::CertificateAuth {
+                certificate,
+                private_key,
+            },
         }
     }
 }
@@ -1272,6 +1312,13 @@ impl ForeignFrom<ConnectorAuthType> for api_models::admin::ConnectorAuthType {
                 Self::CurrencyAuthKey { auth_key_map }
             }
             ConnectorAuthType::NoKey => Self::NoKey,
+            ConnectorAuthType::CertificateAuth {
+                certificate,
+                private_key,
+            } => Self::CertificateAuth {
+                certificate,
+                private_key,
+            },
         }
     }
 }

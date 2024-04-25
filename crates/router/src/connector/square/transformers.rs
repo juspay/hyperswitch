@@ -313,13 +313,13 @@ impl TryFrom<&types::ConnectorAuthType> for SquareAuthType {
                 api_key: api_key.to_owned(),
                 key1: key1.to_owned(),
             }),
-
             types::ConnectorAuthType::HeaderKey { .. }
             | types::ConnectorAuthType::SignatureKey { .. }
             | types::ConnectorAuthType::MultiAuthKey { .. }
             | types::ConnectorAuthType::CurrencyAuthKey { .. }
             | types::ConnectorAuthType::TemporaryAuth { .. }
-            | types::ConnectorAuthType::NoKey { .. } => {
+            | types::ConnectorAuthType::NoKey { .. }
+            | types::ConnectorAuthType::CertificateAuth { .. } => {
                 Err(errors::ConnectorError::FailedToObtainAuthType.into())
             }
         }

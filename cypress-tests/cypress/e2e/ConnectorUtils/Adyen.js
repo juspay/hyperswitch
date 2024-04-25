@@ -22,7 +22,9 @@ export const connectorDetails = {
         "paymentSuccessfulStatus": "requires_customer_action",
         "paymentSyncStatus": "succeeded",
         "refundStatus": "pending",
-        "refundSyncStatus": "pending"
+        "refundSyncStatus": "pending",
+        "customer_acceptance":null,
+        "setup_future_usage": "on_session",
     },
     "No3DS": {
         "card": successfulNo3DSCardDetails,
@@ -30,7 +32,9 @@ export const connectorDetails = {
         "paymentSuccessfulStatus": "succeeded",
         "paymentSyncStatus": "succeeded",
         "refundStatus": "pending",
-        "refundSyncStatus": "pending"
+        "refundSyncStatus": "pending",
+        "customer_acceptance":null,
+        "setup_future_usage": "on_session",
     },
     "MandateSingleUse3DS": {
         "card": successfulThreeDSTestCardDetails,
@@ -41,7 +45,7 @@ export const connectorDetails = {
         "refundSyncStatus": "pending",
         "mandate_type": {
             "single_use": {
-                "amount": 6000,
+                "amount": 8000,
                 "currency": "USD"
             }
         }
@@ -55,7 +59,7 @@ export const connectorDetails = {
         "refundSyncStatus": "pending",
         "mandate_type": {
             "single_use": {
-                "amount": 6000,
+                "amount": 8000,
                 "currency": "USD"
             }
         }
@@ -69,7 +73,7 @@ export const connectorDetails = {
         "refundSyncStatus": "pending",
         "mandate_type": {
             "multi_use": {
-                "amount": 6000,
+                "amount": 8000,
                 "currency": "USD"
             }
         }
@@ -83,9 +87,26 @@ export const connectorDetails = {
         "refundSyncStatus": "pending",
         "mandate_type": {
             "multi_use": {
-                "amount": 6000,
+                "amount": 8000,
                 "currency": "USD"
             }
         }
+    },
+    "SaveCardUseNo3DS": {
+        "card": successfulNo3DSCardDetails,
+        "currency":"USD",
+        "paymentSuccessfulStatus": "succeeded",
+        "paymentSyncStatus": "succeeded",
+        "refundStatus": "succeeded",
+        "refundSyncStatus": "succeeded",
+        "setup_future_usage": "on_session",
+        "customer_acceptance": {
+            "acceptance_type": "offline",
+            "accepted_at": "1963-05-03T04:07:52.723Z",
+            "online": {
+                "ip_address": "127.0.0.1",
+                "user_agent": "amet irure esse"
+            }
+        },
     },
 }; 
