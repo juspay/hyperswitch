@@ -149,6 +149,7 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
                             PaymentInformation::ApplePayToken(ApplePayTokenPaymentInformation {
                                 fluid_data: FluidData {
                                     value: Secret::from(apple_pay_data.payment_data),
+                                    descriptor: Some(FLUID_DATA_DESCRIPTOR.to_string()),
                                 },
                                 tokenized_card: ApplePayTokenizedCard {
                                     transaction_type: TransactionType::ApplePay,
@@ -165,6 +166,7 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
                                 consts::BASE64_ENGINE
                                     .encode(google_pay_data.tokenization_data.token),
                             ),
+                            descriptor: None,
                         },
                     }),
                     Some(PaymentSolution::GooglePay),
@@ -370,7 +372,11 @@ pub struct MandatePaymentInformation {
 #[serde(rename_all = "camelCase")]
 pub struct FluidData {
     value: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    descriptor: Option<String>,
 }
+
+pub const FLUID_DATA_DESCRIPTOR: &str = "RklEPUNPTU1PTi5BUFBMRS5JTkFQUC5QQVlNRU5U";
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -1031,6 +1037,7 @@ impl
                 value: Secret::from(
                     consts::BASE64_ENGINE.encode(google_pay_data.tokenization_data.token),
                 ),
+                descriptor: None,
             },
         });
         let processing_information =
@@ -1097,6 +1104,7 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                                         ApplePayTokenPaymentInformation {
                                             fluid_data: FluidData {
                                                 value: Secret::from(apple_pay_data.payment_data),
+                                                descriptor: Some(FLUID_DATA_DESCRIPTOR.to_string()),
                                             },
                                             tokenized_card: ApplePayTokenizedCard {
                                                 transaction_type: TransactionType::ApplePay,
