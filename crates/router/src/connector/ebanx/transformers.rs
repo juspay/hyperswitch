@@ -9,7 +9,7 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils,
+    connector::utils::{self, CustomerDetails, PayoutsData},
     core::errors,
     types::{self, api::CurrencyUnit},
 };
@@ -112,11 +112,7 @@ impl TryFrom<&EbanxRouterData<&types::PayoutsRouterData<api::PoCreate>>>
                 };
 
                 let billing_address = item.router_data.get_billing_address()?;
-                let customer_details = item.router_data.request.customer_details.clone().ok_or(
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "Customer Details",
-                    },
-                )?;
+                let customer_details = item.router_data.request.get_customer_details()?;
 
                 let document_type = pix_data.tax_id.clone().map(|tax_id| {
                     if tax_id.clone().expose().len() == 11 {
@@ -136,11 +132,7 @@ impl TryFrom<&EbanxRouterData<&types::PayoutsRouterData<api::PoCreate>>>
                 Ok(Self {
                     amount: item.amount,
                     integration_key: ebanx_auth_type.integration_key,
-                    country: customer_details.phone_country_code.ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "Customer Details",
-                        },
-                    )?,
+                    country: customer_details.get_customer_phone_country_code()?,
                     currency: item.router_data.request.source_currency,
                     external_reference: item.router_data.connector_request_reference_id.to_owned(),
                     target: EbanxPayoutType::PixKey,
@@ -148,10 +140,12 @@ impl TryFrom<&EbanxRouterData<&types::PayoutsRouterData<api::PoCreate>>>
                     payee,
                 })
             }
-            _ => Err(errors::ConnectorError::NotSupported {
-                message: "Payment Method Not Supported".to_string(),
-                connector: "Ebanx",
-            })?,
+            PayoutMethodData::Card(_) | PayoutMethodData::Bank(_) | PayoutMethodData::Wallet(_) => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: "Payment Method Not Supported".to_string(),
+                    connector: "Ebanx",
+                })?
+            }
         }
     }
 }
@@ -306,12 +300,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, EbanxFulfillResponse>>
         Ok(Self {
             response: Ok(types::PayoutsResponseData {
                 status: Some(storage_enums::PayoutStatus::from(item.response.status)),
-                connector_payout_id: item
-                    .data
-                    .request
-                    .connector_payout_id
-                    .clone()
-                    .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?,
+                connector_payout_id: item.data.request.get_connector_payout_id()?,
                 payout_eligible: None,
             }),
             ..item.data
