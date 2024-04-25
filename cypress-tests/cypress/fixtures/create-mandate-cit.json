@@ -40,7 +40,7 @@
       }
     }
   },
-  "payment_type":"setup_mandate",
+  "payment_type": "setup_mandate",
   "billing": {
     "address": {
       "line1": "1467",
