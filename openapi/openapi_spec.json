@@ -16320,7 +16320,8 @@
         "type": "object",
         "required": [
           "bank_account_number",
-          "pix_key"
+          "pix_key",
+          "tax_id"
         ],
         "properties": {
           "bank_name": {
@@ -16346,12 +16347,9 @@
             "example": "000123456"
           },
           "tax_id": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/SecretInfoToInitiateSdk"
-              }
-            ],
-            "nullable": true
+            "type": "string",
+            "description": "Individual taxpayer identification number",
+            "example": "000123456"
           }
         }
       },
