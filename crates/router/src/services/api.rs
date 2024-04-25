@@ -96,7 +96,7 @@ pub trait ConnectorValidation: ConnectorCommon {
         pm_type: Option<PaymentMethodType>,
         _pm_data: types::domain::payments::PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
-        let connector = self.id().as_ref();
+        let connector = self.id();
         match pm_type {
             Some(pm_type) => Err(errors::ConnectorError::NotSupported {
                 message: format!("{} mandate payment", pm_type),
@@ -104,7 +104,7 @@ pub trait ConnectorValidation: ConnectorCommon {
             }
             .into()),
             None => Err(errors::ConnectorError::NotSupported {
-                message: format!(" mandate payment"),
+                message: " mandate payment".to_string(),
                 connector,
             }
             .into()),
