@@ -239,23 +239,6 @@ where
                 &key_store,
             )
             .await?;
-
-        #[cfg(feature = "frm")]
-        if matches!(
-            frm_info.as_ref().and_then(|frm_info| frm_info
-                .frm_data
-                .as_ref()
-                .map(|frm_data| frm_data.fraud_check.frm_capture_method)),
-            Some(Some(storage_enums::CaptureMethod::Manual))
-        ) && matches!(
-            payment_data.payment_attempt.status,
-            api_models::enums::AttemptStatus::FrmUnresolved
-        ) {
-            should_continue_transaction = false;
-            payment_data.payment_intent.status = enums::IntentStatus::RequiresCapture;
-            payment_data.payment_attempt.status = enums::AttemptStatus::Authorized;
-        };
-
         if should_continue_transaction {
             #[cfg(feature = "frm")]
             match (
@@ -264,14 +247,14 @@ where
             ) {
                 (false, Some(storage_enums::CaptureMethod::Automatic))
                 | (false, Some(storage_enums::CaptureMethod::Scheduled)) => {
-                    payment_data.payment_attempt.capture_method =
-                        Some(storage_enums::CaptureMethod::Manual);
                     if let Some(info) = &mut frm_info {
                         if let Some(frm_data) = &mut info.frm_data {
                             frm_data.fraud_check.frm_capture_method =
-                                Some(storage_enums::CaptureMethod::Automatic);
+                                payment_data.payment_attempt.capture_method;
                         }
                     }
+                    payment_data.payment_attempt.capture_method =
+                        Some(storage_enums::CaptureMethod::Manual);
                 }
                 _ => (),
             };

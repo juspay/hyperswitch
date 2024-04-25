@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 
 use api_models::{admin::FrmConfigs, enums as api_enums, payments::AdditionalPaymentData};
+use common_enums::CaptureMethod;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface};
 use router_env::{
@@ -665,6 +666,26 @@ where
             *frm_info = Some(updated_frm_info);
         }
     }
+    let fraud_capture_method = frm_info.as_ref().and_then(|frm_info| {
+        frm_info
+            .frm_data
+            .as_ref()
+            .map(|frm_data| frm_data.fraud_check.frm_capture_method)
+    });
+    if matches!(fraud_capture_method, Some(Some(CaptureMethod::Manual)))
+        && matches!(
+            payment_data.payment_attempt.status,
+            api_models::enums::AttemptStatus::FrmUnresolved
+        )
+    {
+        payment_data.payment_intent.status = IntentStatus::RequiresCapture; // In Approve flow, payment which has frm_capture_method "manual" and attempt status as "FrmUnresolved",
+        payment_data.payment_attempt.status = AttemptStatus::Authorized; // We shouldn't call the connector instead we need to update the payment attempt and payment intent.
+        *should_continue_transaction = false;
+        logger::debug!(
+            "skipping connector since frm_capture_method is {:?} already",
+            fraud_capture_method
+        );
+    };
     logger::debug!("frm_configs: {:?} {:?}", frm_configs, is_frm_enabled);
     Ok(frm_configs)
 }

@@ -26,7 +26,7 @@ pub struct FraudCheck {
     pub metadata: Option<serde_json::Value>,
     pub modified_at: PrimitiveDateTime,
     pub last_step: FraudCheckLastStep,
-    pub frm_capture_method: Option<storage_enums::CaptureMethod>,
+    pub frm_capture_method: Option<storage_enums::CaptureMethod>, // In postFrm, we are updating capture method from automatic to manual. To store the merchant actual capture method, we are storing the actual capture method in frm_capture_method. It will be useful while approving the FRM decision.
 }
 
 #[derive(router_derive::Setter, Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
