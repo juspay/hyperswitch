@@ -146,6 +146,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             mandate_type.to_owned(),
             merchant_account,
             key_store,
+            None,
         )
         .await?;
         helpers::validate_amount_to_capture_and_capture_method(Some(&payment_attempt), request)?;
@@ -290,7 +291,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         })
             .async_and_then(|mandate_id| async {
                 let mandate = db
-                    .find_mandate_by_merchant_id_mandate_id(merchant_id, mandate_id)
+                    .find_mandate_by_merchant_id_mandate_id(merchant_id, mandate_id, merchant_account.storage_scheme)
                     .await
                     .change_context(errors::ApiErrorResponse::MandateNotFound);
                 Some(mandate.and_then(|mandate_obj| {

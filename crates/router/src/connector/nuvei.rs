@@ -1010,7 +1010,10 @@ impl services::ConnectorRedirectResponse for Nuvei {
         action: services::PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
         match action {
-            services::PaymentAction::PSync => Ok(payments::CallConnectorAction::Trigger),
+            services::PaymentAction::PSync
+            | services::PaymentAction::PaymentAuthenticateCompleteAuthorize => {
+                Ok(payments::CallConnectorAction::Trigger)
+            }
             services::PaymentAction::CompleteAuthorize => {
                 if let Some(payload) = json_payload {
                     let redirect_response: nuvei::NuveiRedirectionResponse =

@@ -309,6 +309,8 @@ impl PaymentAttempt {
             filter_authentication_type,
         ))
     }
+
+    #[allow(clippy::too_many_arguments)]
     pub async fn get_total_count_of_attempts(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -317,6 +319,7 @@ impl PaymentAttempt {
         payment_method: Option<Vec<enums::PaymentMethod>>,
         payment_method_type: Option<Vec<enums::PaymentMethodType>>,
         authentication_type: Option<Vec<enums::AuthenticationType>>,
+        merchant_connector_id: Option<Vec<String>>,
     ) -> StorageResult<i64> {
         let mut filter = <Self as HasTable>::table()
             .count()
@@ -324,18 +327,21 @@ impl PaymentAttempt {
             .filter(dsl::attempt_id.eq_any(active_attempt_ids.to_owned()))
             .into_boxed();
 
-        if let Some(connector) = connector.clone() {
+        if let Some(connector) = connector {
             filter = filter.filter(dsl::connector.eq_any(connector));
         }
 
-        if let Some(payment_method) = payment_method.clone() {
+        if let Some(payment_method) = payment_method {
             filter = filter.filter(dsl::payment_method.eq_any(payment_method));
         }
-        if let Some(payment_method_type) = payment_method_type.clone() {
+        if let Some(payment_method_type) = payment_method_type {
             filter = filter.filter(dsl::payment_method_type.eq_any(payment_method_type));
         }
-        if let Some(authentication_type) = authentication_type.clone() {
+        if let Some(authentication_type) = authentication_type {
             filter = filter.filter(dsl::authentication_type.eq_any(authentication_type));
+        }
+        if let Some(merchant_connector_id) = merchant_connector_id {
+            filter = filter.filter(dsl::merchant_connector_id.eq_any(merchant_connector_id))
         }
         router_env::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
 
