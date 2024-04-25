@@ -96,7 +96,7 @@ impl ConnectorValidation for Aci {
         pm_data: types::domain::payments::PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
         let mandate_supported_pmd = std::collections::HashSet::from([PaymentMethodDataType::Card]);
-        is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id().as_ref())
+        is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 
