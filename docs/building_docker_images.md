@@ -109,7 +109,7 @@ Hub repositories:
   suffix, like the `v1.105.1-standalone` and `v1.107.0-standalone` Docker images.
 
 The primary difference is that our standalone Docker images do not have some features 
-enabled by defualt in order to support hosting of Hyperswitch outside AWS.
+enabled by default in order to support hosting of Hyperswitch outside AWS.
 As of writing this document, the standalone images exclude the `email` and
 `recon` features from the `release` feature set, while the release images are
 built from the Dockerfile without any changes to the codebase after the tag is
