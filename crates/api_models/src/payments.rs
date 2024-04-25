@@ -1342,12 +1342,12 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
         match self {
             Self::Card(card_data) => card_data.get_billing_address(),
             Self::CardRedirect(_) => None,
-            Self::Wallet(_) => None,
+            Self::Wallet(wallet_data) => wallet_data.get_billing_address(),
             Self::PayLater(pay_later) => pay_later.get_billing_address(),
             Self::BankRedirect(_) => None,
             Self::BankDebit(_) => None,
             Self::BankTransfer(_) => None,
-            Self::Voucher(_) => None,
+            Self::Voucher(voucher_data) => voucher_data.get_billing_address(),
             Self::Crypto(_)
             | Self::Reward
             | Self::Upi(_)
@@ -1898,43 +1898,43 @@ impl GetAddressFromPaymentMethodData for BankRedirectData {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct AlfamartVoucherData {
     /// The billing first name for Alfamart
-    #[schema(value_type = String, example = "Jane")]
-    pub first_name: Secret<String>,
+    #[schema(value_type = Option<String>, example = "Jane")]
+    pub first_name: Option<Secret<String>>,
     /// The billing second name for Alfamart
-    #[schema(value_type = String, example = "Doe")]
+    #[schema(value_type = Option<String>, example = "Doe")]
     pub last_name: Option<Secret<String>>,
     /// The Email ID for Alfamart
-    #[schema(value_type = String, example = "example@me.com")]
-    pub email: Email,
+    #[schema(value_type = Option<String>, example = "example@me.com")]
+    pub email: Option<Email>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct IndomaretVoucherData {
     /// The billing first name for Alfamart
-    #[schema(value_type = String, example = "Jane")]
-    pub first_name: Secret<String>,
+    #[schema(value_type = Option<String>, example = "Jane")]
+    pub first_name: Option<Secret<String>>,
     /// The billing second name for Alfamart
-    #[schema(value_type = String, example = "Doe")]
+    #[schema(value_type = Option<String>, example = "Doe")]
     pub last_name: Option<Secret<String>>,
     /// The Email ID for Alfamart
-    #[schema(value_type = String, example = "example@me.com")]
-    pub email: Email,
+    #[schema(value_type = Option<String>, example = "example@me.com")]
+    pub email: Option<Email>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct JCSVoucherData {
     /// The billing first name for Japanese convenience stores
-    #[schema(value_type = String, example = "Jane")]
-    pub first_name: Secret<String>,
+    #[schema(value_type = Option<String>, example = "Jane")]
+    pub first_name: Option<Secret<String>>,
     /// The billing second name Japanese convenience stores
-    #[schema(value_type = String, example = "Doe")]
+    #[schema(value_type = Option<String>, example = "Doe")]
     pub last_name: Option<Secret<String>>,
     /// The Email ID for Japanese convenience stores
-    #[schema(value_type = String, example = "example@me.com")]
-    pub email: Email,
+    #[schema(value_type = Option<String>, example = "example@me.com")]
+    pub email: Option<Email>,
     /// The telephone number for Japanese convenience stores
-    #[schema(value_type = String, example = "9999999999")]
-    pub phone_number: String,
+    #[schema(value_type = Option<String>, example = "9999999999")]
+    pub phone_number: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -2468,21 +2468,21 @@ impl GetAddressFromPaymentMethodData for VoucherData {
         match self {
             Self::Alfamart(voucher_data) => Some(Address {
                 address: Some(AddressDetails {
-                    first_name: Some(voucher_data.first_name.clone()),
+                    first_name: voucher_data.first_name.clone(),
                     last_name: voucher_data.last_name.clone(),
                     ..AddressDetails::default()
                 }),
                 phone: None,
-                email: Some(voucher_data.email.clone()),
+                email: voucher_data.email.clone(),
             }),
             Self::Indomaret(voucher_data) => Some(Address {
                 address: Some(AddressDetails {
-                    first_name: Some(voucher_data.first_name.clone()),
+                    first_name: voucher_data.first_name.clone(),
                     last_name: voucher_data.last_name.clone(),
                     ..AddressDetails::default()
                 }),
                 phone: None,
-                email: Some(voucher_data.email.clone()),
+                email: voucher_data.email.clone(),
             }),
             Self::Lawson(voucher_data)
             | Self::MiniStop(voucher_data)
@@ -2491,15 +2491,15 @@ impl GetAddressFromPaymentMethodData for VoucherData {
             | Self::PayEasy(voucher_data)
             | Self::SevenEleven(voucher_data) => Some(Address {
                 address: Some(AddressDetails {
-                    first_name: Some(voucher_data.first_name.clone()),
+                    first_name: voucher_data.first_name.clone(),
                     last_name: voucher_data.last_name.clone(),
                     ..AddressDetails::default()
                 }),
                 phone: Some(PhoneDetails {
-                    number: Some(voucher_data.phone_number.clone().into()),
+                    number: voucher_data.phone_number.clone().map(Secret::new),
                     country_code: None,
                 }),
-                email: Some(voucher_data.email.clone()),
+                email: voucher_data.email.clone(),
             }),
             Self::Boleto(_)
             | Self::Efecty
