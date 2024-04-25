@@ -17,6 +17,7 @@ const connectorDetails = {
   "stripe": stripeConnectorDetails,
   "trustpay": trustpayConnectorDetails
 
+
 }
 
 

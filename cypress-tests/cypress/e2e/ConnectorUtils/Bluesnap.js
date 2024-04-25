@@ -7,7 +7,7 @@ const successfulNo3DSCardDetails = {
 };
 
 const successfulThreeDSTestCardDetails = {
-    "card_number": "4000000000003063",
+    "card_number": "4000000000001091",
     "card_exp_month": "10",
     "card_exp_year": "30",
     "card_holder_name": "Joseph",
