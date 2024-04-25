@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.04.12.1-hotfix6
+
+### Bug Fixes
+
+- **masking:** Mask email while logging SQL query ([#4455](https://github.com/juspay/hyperswitch/pull/4455)) ([`51bcf28`](https://github.com/juspay/hyperswitch/commit/51bcf282f7cc6ccf39b7b5e89d738e3febf4689a))
+
+- - -
+
 ## 2024.04.12.1-hotfix5
 
 ### Features
