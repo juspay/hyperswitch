@@ -29,8 +29,8 @@ use crate::{
     },
     pii::PeekInterface,
     types::{
-        self, api, domain, transformers::ForeignTryFrom, ApplePayPredecryptData,
-        BrowserInformation, PaymentsCancelData, ResponseId, storage::enums as storage_enums
+        self, api, domain, storage::enums as storage_enums, transformers::ForeignTryFrom,
+        ApplePayPredecryptData, BrowserInformation, PaymentsCancelData, ResponseId,
     },
     utils::{OptionExt, ValueExt},
 };
