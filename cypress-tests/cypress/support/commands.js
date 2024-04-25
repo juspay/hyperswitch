@@ -50,13 +50,8 @@ Cypress.Commands.add("merchantCreateCallTest", (merchantCreateBody, globalState)
     },
     body: merchantCreateBody,
   }).then((response) => {
+    logRequestId(response.headers['x-request-id']);
 
-    const xRequestId = response.headers['x-request-id'];
-    if (xRequestId) {
-      cy.task('cli_log', "x-request-id -> " + xRequestId);
-    } else {
-      cy.task('cli_log', "x-request-id is not available in the response headers");
-    }
     // Handle the response as needed
     console.log(response.body);
     globalState.set("publishableKey", response.body.publishable_key);

@@ -86,9 +86,6 @@ describe("Card - SaveCard payment flow test", () => {
       let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
       cy.captureCallTest(captureBody, 6500, det.paymentSuccessfulStatus, globalState);
     });
-
-
-
   });
 
   context("Save card for NoThreeDS manual partial capture payment- Create + Confirm", () => {
