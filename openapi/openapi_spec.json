@@ -18214,6 +18214,19 @@
           "propertyName": "type"
         }
       },
+      "Venmo": {
+        "type": "object",
+        "required": [
+          "telephone_number"
+        ],
+        "properties": {
+          "telephone_number": {
+            "type": "string",
+            "description": "mobile number linked to venmo account",
+            "example": "16608213349"
+          }
+        }
+      },
       "VoucherData": {
         "oneOf": [
           {
