@@ -49,6 +49,7 @@ pub struct ConnectorAuthentication {
     pub opennode: Option<HeaderKey>,
     pub payeezy: Option<SignatureKey>,
     pub payme: Option<BodyKey>,
+    pub payone: Option<HeaderKey>,
     pub paypal: Option<BodyKey>,
     pub payu: Option<BodyKey>,
     pub placetopay: Option<BodyKey>,
