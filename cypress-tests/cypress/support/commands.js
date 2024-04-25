@@ -650,14 +650,6 @@ Cypress.Commands.add("handleRedirection", (globalState, expected_redirection) =>
             cy.get('#test-source-authorize-3ds').click();
           })
       })
-  } else if (connectorId == "adyen") {
-    cy.get('iframe')
-      .its('0.contentDocument.body')
-      .within((body) => {
-        cy.get('input[type="password"]').click();
-        cy.get('input[type="password"]').type("password");
-        cy.get('#buttonSubmit').click();
-      })
   } else {
     cy.wait(10000);
   }
