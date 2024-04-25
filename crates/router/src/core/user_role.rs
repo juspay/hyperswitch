@@ -1,7 +1,6 @@
 use api_models::{user as user_api, user_role as user_role_api};
 use diesel_models::{enums::UserStatus, user_role::UserRoleUpdate};
 use error_stack::{report, ResultExt};
-use masking::ExposeInterface;
 use router_env::logger;
 
 use crate::{
@@ -230,12 +229,7 @@ pub async fn delete_user_role(
 ) -> UserResponse<()> {
     let user_from_db: domain::UserFromStorage = state
         .store
-        .find_user_by_email(
-            domain::UserEmail::from_pii_email(request.email)?
-                .get_secret()
-                .expose()
-                .as_str(),
-        )
+        .find_user_by_email(&domain::UserEmail::from_pii_email(request.email)?.into_inner())
         .await
         .map_err(|e| {
             if e.current_context().is_db_not_found() {
@@ -282,7 +276,7 @@ pub async fn delete_user_role(
         }
     };
 
-    if user_roles.len() > 1 {
+    let deleted_user_role = if user_roles.len() > 1 {
         state
             .store
             .delete_user_role_by_user_id_merchant_id(
@@ -291,9 +285,7 @@ pub async fn delete_user_role(
             )
             .await
             .change_context(UserErrors::InternalServerError)
-            .attach_printable("Error while deleting user role")?;
-
-        Ok(ApplicationResponse::StatusOk)
+            .attach_printable("Error while deleting user role")?
     } else {
         state
             .store
@@ -310,8 +302,9 @@ pub async fn delete_user_role(
             )
             .await
             .change_context(UserErrors::InternalServerError)
-            .attach_printable("Error while deleting user role")?;
+            .attach_printable("Error while deleting user role")?
+    };
 
-        Ok(ApplicationResponse::StatusOk)
-    }
+    auth::blacklist::insert_user_in_blacklist(&state, &deleted_user_role.user_id).await?;
+    Ok(ApplicationResponse::StatusOk)
 }

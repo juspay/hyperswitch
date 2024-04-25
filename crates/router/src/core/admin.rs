@@ -1830,6 +1830,7 @@ pub(crate) fn validate_auth_and_metadata_type(
         }
         api_enums::Connector::Netcetera => {
             netcetera::transformers::NetceteraAuthType::try_from(val)?;
+            netcetera::transformers::NetceteraMetaData::try_from(connector_meta_data)?;
             Ok(())
         }
         api_enums::Connector::Nexinets => {
