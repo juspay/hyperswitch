@@ -494,7 +494,6 @@ where
                 if matches!(frm_fraud_check.frm_status, FraudCheckStatus::Fraud) {
                     *should_continue_transaction = false;
                     if matches!(frm_configs.frm_action, api_enums::FrmAction::CancelTxn) {
-                        *should_continue_transaction = false;
                         frm_info.suggested_action = Some(FrmSuggestion::FrmCancelTransaction);
                     } else if matches!(frm_configs.frm_action, api_enums::FrmAction::ManualReview) {
                         *should_continue_capture = false;
