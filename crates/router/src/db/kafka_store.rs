@@ -2039,7 +2039,7 @@ impl BusinessProfileInterface for KafkaStore {
     async fn update_business_profile_by_profile_id(
         &self,
         current_state: business_profile::BusinessProfile,
-        business_profile_update: business_profile::BusinessProfileUpdateInternal,
+        business_profile_update: business_profile::BusinessProfileUpdate,
     ) -> CustomResult<business_profile::BusinessProfile, errors::StorageError> {
         self.diesel_store
             .update_business_profile_by_profile_id(current_state, business_profile_update)
