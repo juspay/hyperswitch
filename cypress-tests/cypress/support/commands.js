@@ -247,7 +247,13 @@ Cypress.Commands.add("confirmCallTest", (confirmBody, details, confirm, globalSt
       }
       else if (response.body.authentication_type === "no_three_ds") {
         expect("requires_capture").to.equal(response.body.status);
-      } else {
+      } 
+      else if(response.body.error.type === "invalid_request") {
+        if(response.body.error.message === "Payment method type not supported") {
+          expect(response.body.error).to.deep.equal(Errors.paymentMethodErrors[globalState.get("connectorId")].paymentMethodUnsupportedError);
+        }
+      }
+      else {
         // Handle other authentication types as needed
         throw new Error(`Unsupported authentication type: ${authentication_type}`);
       }
@@ -596,15 +602,17 @@ Cypress.Commands.add("citForMandatesCallTest", (requestBody, amount, details, co
       }
       else if (response.body.authentication_type === "no_three_ds") {
         expect(response.body.status).to.equal("requires_capture");
-      } else {
+      } 
+      else if(response.body.error.type === "invalid_request") {
+        if(response.body.error.message === "Payment method type not supported") {
+          expect(response.body.error).to.deep.equal(Errors.paymentMethodErrors[globalState.get("connectorId")].paymentMethodUnsupportedError);
+        }
+      }
+      else {
         throw new Error(`Unsupported authentication type: ${authentication_type}`);
       }
     }
-    else if(response.body.error.type === "invalid_request") {
-      if(response.body.error.message === "Payment method type not supported") {
-        expect(response.body.error).to.deep.equal(Errors.paymentMethodErrors[globalState.get("connectorId")].paymentMethodUnsupportedError);
-      }
-    }
+   
 
   });
 });
