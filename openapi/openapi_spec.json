@@ -4882,26 +4882,24 @@
       },
       "AlfamartVoucherData": {
         "type": "object",
-        "required": [
-          "first_name",
-          "last_name",
-          "email"
-        ],
         "properties": {
           "first_name": {
             "type": "string",
             "description": "The billing first name for Alfamart",
-            "example": "Jane"
+            "example": "Jane",
+            "nullable": true
           },
           "last_name": {
             "type": "string",
             "description": "The billing second name for Alfamart",
-            "example": "Doe"
+            "example": "Doe",
+            "nullable": true
           },
           "email": {
             "type": "string",
             "description": "The Email ID for Alfamart",
-            "example": "example@me.com"
+            "example": "example@me.com",
+            "nullable": true
           }
         }
       },
@@ -9755,26 +9753,24 @@
       },
       "IndomaretVoucherData": {
         "type": "object",
-        "required": [
-          "first_name",
-          "last_name",
-          "email"
-        ],
         "properties": {
           "first_name": {
             "type": "string",
             "description": "The billing first name for Alfamart",
-            "example": "Jane"
+            "example": "Jane",
+            "nullable": true
           },
           "last_name": {
             "type": "string",
             "description": "The billing second name for Alfamart",
-            "example": "Doe"
+            "example": "Doe",
+            "nullable": true
           },
           "email": {
             "type": "string",
             "description": "The Email ID for Alfamart",
-            "example": "example@me.com"
+            "example": "example@me.com",
+            "nullable": true
           }
         }
       },
@@ -9797,32 +9793,30 @@
       },
       "JCSVoucherData": {
         "type": "object",
-        "required": [
-          "first_name",
-          "last_name",
-          "email",
-          "phone_number"
-        ],
         "properties": {
           "first_name": {
             "type": "string",
             "description": "The billing first name for Japanese convenience stores",
-            "example": "Jane"
+            "example": "Jane",
+            "nullable": true
           },
           "last_name": {
             "type": "string",
             "description": "The billing second name Japanese convenience stores",
-            "example": "Doe"
+            "example": "Doe",
+            "nullable": true
           },
           "email": {
             "type": "string",
             "description": "The Email ID for Japanese convenience stores",
-            "example": "example@me.com"
+            "example": "example@me.com",
+            "nullable": true
           },
           "phone_number": {
             "type": "string",
             "description": "The telephone number for Japanese convenience stores",
-            "example": "9999999999"
+            "example": "9999999999",
+            "nullable": true
           }
         }
       },
@@ -15616,7 +15610,8 @@
         "type": "string",
         "enum": [
           "adyen",
-          "wise"
+          "wise",
+          "paypal"
         ]
       },
       "PayoutCreateRequest": {
