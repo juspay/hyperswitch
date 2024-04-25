@@ -93,6 +93,10 @@ impl ConnectorValidation for Stripe {
             PaymentMethodDataType::Card,
             PaymentMethodDataType::ApplePay,
             PaymentMethodDataType::GooglePay,
+            PaymentMethodDataType::AchBankDebit,
+            PaymentMethodDataType::Sofort,
+            PaymentMethodDataType::Ideal,
+            PaymentMethodDataType::BancontactCard,
             PaymentMethodDataType::MandatePayment,
         ]);
         connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
