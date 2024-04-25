@@ -26,7 +26,7 @@
 
 // commands.js or your custom support file
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
-import ConnectorAuthDetails from "/Users/gnanasundarig/Documents/JuspayCode/hs-test-automation/creds.json";
+import ConnectorAuthDetails from "../../../.github/secrets/creds.json";
 
 
 
