@@ -1726,7 +1726,7 @@ pub async fn extended_card_info_toggle(
     {
         let business_profile_update =
             storage::business_profile::BusinessProfileUpdate::ExtendedCardInfoUpdate {
-                is_extended_card_info_enabled: ext_card_info_choice.enabled,
+                is_extended_card_info_enabled: Some(ext_card_info_choice.enabled),
             };
 
         db.update_business_profile_by_profile_id(business_profile, business_profile_update)

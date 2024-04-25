@@ -115,7 +115,7 @@ pub enum BusinessProfileUpdate {
         extended_card_info_config: Option<pii::SecretSerdeValue>,
     },
     ExtendedCardInfoUpdate {
-        is_extended_card_info_enabled: bool,
+        is_extended_card_info_enabled: Option<bool>,
     },
 }
 
@@ -165,7 +165,7 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
             BusinessProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
             } => Self {
-                is_extended_card_info_enabled: Some(is_extended_card_info_enabled),
+                is_extended_card_info_enabled,
                 ..Default::default()
             },
         }
