@@ -57,16 +57,6 @@ paypal = { country = "AU,NZ,CN,JP,HK,MY,TH,KR,PH,ID,AE,KW,BR,ES,GB,SE,NO,SK,AT,N
 klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NO,PL,PT,RO,ES,SE,CH,NL,GB,US", currency = "AUD,EUR,CAD,CZK,DKK,NOK,PLN,RON,SEK,CHF,GBP,USD"}
 ideal = { country = "NL", currency = "EUR" }
 
-[pm_filters.zen]
-boleto = { country = "BR", currency = "BRL" }
-efecty = { country = "CO", currency = "COP" }
-multibanco = { country = "PT", currency = "EUR" }
-pago_efectivo = { country = "PE", currency = "PEN" }
-pse = { country = "CO", currency = "COP" }
-pix = { country = "BR", currency = "BRL" }
-red_compra = { country = "CL", currency = "CLP" }
-red_pagos = { country = "UY", currency = "UYU" }
-
 
 [dummy_connector]
 enabled = true
