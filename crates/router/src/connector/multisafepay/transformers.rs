@@ -483,12 +483,9 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
             domain::PaymentMethodData::PayLater(ref paylater) => {
                 Some(GatewayInfo::PayLater(PayLaterInfo {
                     email: Some(match paylater {
-                        domain::PayLaterData::KlarnaRedirect {} => item
-                            .router_data
-                            .get_optional_billing_email()
-                            .ok_or(errors::ConnectorError::MissingRequiredField {
-                                field_name: "payment_method_data.billing.email",
-                            })?,
+                        domain::PayLaterData::KlarnaRedirect {} => {
+                            item.router_data.get_billing_email()?
+                        }
                         domain::PayLaterData::KlarnaSdk { token: _ }
                         | domain::PayLaterData::AffirmRedirect {}
                         | domain::PayLaterData::AfterpayClearpayRedirect {}
