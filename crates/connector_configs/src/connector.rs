@@ -89,6 +89,7 @@ pub struct ConfigMetadata {
     pub acquirer_merchant_id: Option<String>,
     pub three_ds_requestor_name: Option<String>,
     pub three_ds_requestor_id: Option<String>,
+    pub pull_mechanism_for_external_3ds_enabled: Option<bool>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -217,6 +218,7 @@ impl ConnectorConfig {
             PayoutConnectors::Adyen => Ok(connector_data.adyen_payout),
             PayoutConnectors::Stripe => Ok(connector_data.stripe_payout),
             PayoutConnectors::Wise => Ok(connector_data.wise_payout),
+            PayoutConnectors::Paypal => Ok(connector_data.paypal),
         }
     }
 
