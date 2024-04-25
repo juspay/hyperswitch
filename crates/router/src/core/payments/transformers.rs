@@ -141,7 +141,6 @@ where
         connector_auth_type: auth_type,
         description: payment_data.payment_intent.description.clone(),
         return_url: payment_data.payment_intent.return_url.clone(),
-        payment_method_id: payment_data.payment_attempt.payment_method_id.clone(),
         address: payment_data
             .address
             .unify_with_payment_method_data_billing(payment_method_data_billing),

@@ -298,7 +298,6 @@ pub struct RouterData<Flow, Request, Response> {
     pub response: Result<Response, ErrorResponse>,
 
     /// Contains any error response that the connector returns.
-    pub payment_method_id: Option<String>,
 
     /// Contains a reference ID that should be sent in the connector request
     pub connector_request_reference_id: String,
@@ -1516,7 +1515,6 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             amount_captured: data.amount_captured,
             access_token: data.access_token.clone(),
             response: data.response.clone(),
-            payment_method_id: data.payment_method_id.clone(),
             payment_id: data.payment_id.clone(),
             session_token: data.session_token.clone(),
             reference_id: data.reference_id.clone(),
@@ -1577,7 +1575,6 @@ impl<F1, F2>
             amount_captured: data.amount_captured,
             access_token: data.access_token.clone(),
             response: data.response.clone(),
-            payment_method_id: data.payment_method_id.clone(),
             payment_id: data.payment_id.clone(),
             session_token: data.session_token.clone(),
             reference_id: data.reference_id.clone(),
