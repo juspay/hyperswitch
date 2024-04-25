@@ -97,6 +97,15 @@ where
         .await?;
 
     router_data.status = payment_data.payment_attempt.status;
+    if matches!(
+        frm_data.fraud_check.frm_transaction_type,
+        FraudCheckType::PreFrm
+    ) && matches!(
+        frm_data.fraud_check.last_step,
+        FraudCheckLastStep::CheckoutOrSale
+    ) {
+        frm_data.fraud_check.last_step = FraudCheckLastStep::TransactionOrRecordRefund
+    }
 
     let connector =
         FraudCheckConnectorData::get_connector_by_name(&frm_data.connector_details.connector_name)?;
@@ -461,6 +470,15 @@ where
                         key_store.clone(),
                     )
                     .await?;
+                let _router_data = call_frm_service::<F, frm_api::Transaction, _>(
+                    state,
+                    payment_data,
+                    frm_data,
+                    merchant_account,
+                    &key_store,
+                    customer,
+                )
+                .await?;
                 let frm_data_updated = fraud_check_operation
                     .to_update_tracker()?
                     .update_tracker(
@@ -483,15 +501,6 @@ where
                         frm_info.suggested_action = Some(FrmSuggestion::FrmManualReview);
                     }
                 }
-                let _router_data = call_frm_service::<F, frm_api::Transaction, _>(
-                    state,
-                    payment_data,
-                    &mut frm_data.to_owned(),
-                    merchant_account,
-                    &key_store,
-                    customer,
-                )
-                .await?;
                 logger::debug!(
                     "frm_updated_data: {:?} {:?}",
                     frm_info.fraud_check_operation,

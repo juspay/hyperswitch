@@ -250,7 +250,7 @@ impl<F: Clone + Send> UpdateTracker<FrmData, F> for FraudCheckPre {
                             metadata: connector_metadata,
                             modified_at: common_utils::date_time::now(),
                             last_step: frm_data.fraud_check.last_step,
-                            frm_capture_method: None,
+                            frm_capture_method: frm_data.fraud_check.frm_capture_method,
                         };
                         Some(fraud_check_update)
                     }
