@@ -1839,20 +1839,12 @@ impl<'a> TryFrom<(&domain::BankDebitData, &types::PaymentsAuthorizeRouterData)>
                     payment_type: PaymentType::AchDirectDebit,
                     bank_account_number: account_number.clone(),
                     bank_location_id: routing_number.clone(),
-                    owner_name: item.get_optional_billing_full_name().ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "billing.full_name",
-                        },
-                    )?,
+                    owner_name: item.get_billing_full_name()?,
                 },
             ))),
             domain::BankDebitData::SepaBankDebit { iban, .. } => Ok(
                 AdyenPaymentMethod::SepaDirectDebit(Box::new(SepaDirectDebitData {
-                    owner_name: item.get_optional_billing_full_name().ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "billing.full_name",
-                        },
-                    )?,
+                    owner_name: item.get_billing_full_name()?,
                     iban_number: iban.clone(),
                 })),
             ),
@@ -1865,11 +1857,7 @@ impl<'a> TryFrom<(&domain::BankDebitData, &types::PaymentsAuthorizeRouterData)>
                     payment_type: PaymentType::BacsDirectDebit,
                     bank_account_number: account_number.clone(),
                     bank_location_id: sort_code.clone(),
-                    holder_name: item.get_optional_billing_full_name().ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "billing.full_name",
-                        },
-                    )?,
+                    holder_name: item.get_billing_full_name()?,
                 },
             ))),
             domain::BankDebitData::BecsBankDebit { .. } => {

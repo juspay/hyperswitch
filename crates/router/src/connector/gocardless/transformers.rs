@@ -78,12 +78,7 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for GocardlessCustomerRequest 
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::ConnectorCustomerRouterData) -> Result<Self, Self::Error> {
         let email = item.request.get_email()?;
-        let billing_details_name = item
-            .get_optional_billing_full_name()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "billing_details.name",
-            })?
-            .expose();
+        let billing_details_name = item.get_billing_full_name()?.expose();
 
         let (given_name, family_name) = billing_details_name
             .trim()
@@ -282,16 +277,8 @@ impl TryFrom<(&domain::BankDebitData, &types::TokenizationRouterData)> for Custo
                 ..
             } => {
                 let bank_type = bank_type.ok_or_else(utils::missing_field_err("bank_type"))?;
-                let country_code = item.get_optional_billing_country().ok_or(
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "billing.country",
-                    },
-                )?;
-                let account_holder_name =
-                    item.get_optional_billing_full_name()
-                        .ok_or_else(utils::missing_field_err(
-                        "payment_method_data.bank_debit.ach_bank_debit.bank_account_holder_name",
-                    ))?;
+                let country_code = item.get_billing_country()?;
+                let account_holder_name = item.get_billing_full_name()?;
                 let us_bank_account = USBankAccount {
                     country_code,
                     account_number: account_number.clone(),
@@ -305,16 +292,8 @@ impl TryFrom<(&domain::BankDebitData, &types::TokenizationRouterData)> for Custo
                 account_number,
                 bsb_number,
             } => {
-                let country_code = item.get_optional_billing_country().ok_or(
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "billing.country",
-                    },
-                )?;
-                let account_holder_name =
-                    item.get_optional_billing_full_name()
-                        .ok_or_else(utils::missing_field_err(
-                        "payment_method_data.bank_debit.becs_bank_debit.bank_account_holder_name",
-                    ))?;
+                let country_code = item.get_billing_country()?;
+                let account_holder_name = item.get_billing_full_name()?;
                 let au_bank_account = AUBankAccount {
                     country_code,
                     account_number: account_number.clone(),
@@ -324,11 +303,7 @@ impl TryFrom<(&domain::BankDebitData, &types::TokenizationRouterData)> for Custo
                 Ok(Self::AUBankAccount(au_bank_account))
             }
             domain::BankDebitData::SepaBankDebit { iban, .. } => {
-                let account_holder_name =
-                    item.get_optional_billing_full_name()
-                        .ok_or_else(utils::missing_field_err(
-                        "payment_method_data.bank_debit.sepa_bank_debit.bank_account_holder_name",
-                    ))?;
+                let account_holder_name = item.get_billing_full_name()?;
                 let international_bank_account = InternationalBankAccount {
                     iban: iban.clone(),
                     account_holder_name,

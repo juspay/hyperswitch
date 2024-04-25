@@ -247,11 +247,7 @@ impl TryFrom<&types::TokenizationRouterData> for StaxTokenRequest {
                 ..
             }) => {
                 let stax_bank_data = StaxBankTokenizeData {
-                    person_name: item.get_optional_billing_full_name().ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "billing.full_name",
-                        },
-                    )?,
+                    person_name: item.get_billing_full_name()?,
                     bank_account: account_number,
                     bank_routing: routing_number,
                     bank_name: bank_name.ok_or_else(missing_field_err("bank_name"))?,
