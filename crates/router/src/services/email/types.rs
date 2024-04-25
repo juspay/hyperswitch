@@ -1,5 +1,8 @@
 use api_models::user::dashboard_metadata::ProdIntent;
-use common_utils::errors::CustomResult;
+use common_utils::{
+    errors::{self, CustomResult},
+    pii,
+};
 use error_stack::ResultExt;
 use external_services::email::{EmailContents, EmailData, EmailError};
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -167,8 +170,8 @@ impl EmailToken {
         jwt::generate_jwt(&token_payload, settings).await
     }
 
-    pub fn get_email(&self) -> &str {
-        self.email.as_str()
+    pub fn get_email(&self) -> CustomResult<pii::Email, errors::ParsingError> {
+        pii::Email::try_from(self.email.clone())
     }
 
     pub fn get_merchant_id(&self) -> Option<&str> {

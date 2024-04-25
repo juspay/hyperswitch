@@ -258,7 +258,7 @@ pub async fn do_retry(
         key_store,
         req,
         &connector,
-        &mut payout_data,
+        payout_data,
     )
     .await
 }

@@ -3,8 +3,8 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::request::RequestContent;
-use error_stack::{report, ResultExt};
+use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
+use error_stack::ResultExt;
 use masking::ExposeInterface;
 use transformers as netcetera;
 
@@ -170,23 +170,52 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 impl api::IncomingWebhook for Netcetera {
     fn get_webhook_object_reference_id(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook_body: netcetera::ResultsResponseData = request
+            .body
+            .parse_struct("netcetera ResultsResponseData")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        Ok(api::webhooks::ObjectReferenceId::ExternalAuthenticationID(
+            api::webhooks::AuthenticationIdType::ConnectorAuthenticationId(
+                webhook_body.three_ds_server_trans_id,
+            ),
+        ))
     }
 
     fn get_webhook_event_type(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        Ok(api::IncomingWebhookEvent::ExternalAuthenticationARes)
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook_body_value: netcetera::ResultsResponseData = request
+            .body
+            .parse_struct("netcetera ResultsResponseDatae")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        Ok(Box::new(webhook_body_value))
+    }
+
+    fn get_external_authentication_details(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api::ExternalAuthenticationPayload, errors::ConnectorError> {
+        let webhook_body: netcetera::ResultsResponseData = request
+            .body
+            .parse_struct("netcetera ResultsResponseData")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        Ok(api::ExternalAuthenticationPayload {
+            trans_status: webhook_body
+                .trans_status
+                .unwrap_or(common_enums::TransactionStatus::InformationOnly),
+            authentication_value: webhook_body.authentication_value,
+            eci: webhook_body.eci,
+        })
     }
 }
 

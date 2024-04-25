@@ -1,7 +1,6 @@
 use api_models::{user as user_api, user_role as user_role_api};
 use diesel_models::{enums::UserStatus, user_role::UserRoleUpdate};
 use error_stack::{report, ResultExt};
-use masking::ExposeInterface;
 use router_env::logger;
 
 use crate::{
@@ -230,12 +229,7 @@ pub async fn delete_user_role(
 ) -> UserResponse<()> {
     let user_from_db: domain::UserFromStorage = state
         .store
-        .find_user_by_email(
-            domain::UserEmail::from_pii_email(request.email)?
-                .get_secret()
-                .expose()
-                .as_str(),
-        )
+        .find_user_by_email(&domain::UserEmail::from_pii_email(request.email)?.into_inner())
         .await
         .map_err(|e| {
             if e.current_context().is_db_not_found() {
