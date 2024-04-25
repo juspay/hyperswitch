@@ -9,13 +9,14 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, CustomerDetails, PayoutsData},
+    connector::utils,
     core::errors,
     types::{self, api::CurrencyUnit},
 };
 #[cfg(feature = "payouts")]
 use crate::{
     connector::utils::{AddressDetailsData, RouterData},
+    connector::utils::{CustomerDetails, PayoutsData},
     types::{api, storage::enums as storage_enums},
 };
 

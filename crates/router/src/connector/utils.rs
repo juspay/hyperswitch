@@ -846,11 +846,13 @@ impl PaymentsSyncRequestData for types::PaymentsSyncData {
     }
 }
 
+#[cfg(feature = "payouts")]
 pub trait PayoutsData {
     fn get_customer_details(&self) -> Result<types::CustomerDetails, errors::ConnectorError>;
     fn get_connector_payout_id(&self) -> Result<String, errors::ConnectorError>;
 }
 
+#[cfg(feature = "payouts")]
 impl PayoutsData for types::PayoutsData {
     fn get_customer_details(&self) -> Result<types::CustomerDetails, errors::ConnectorError> {
         self.customer_details
@@ -867,6 +869,7 @@ impl PayoutsData for types::PayoutsData {
     }
 }
 
+#[cfg(feature = "payouts")]
 pub trait CustomerDetails {
     fn get_customer_id(&self) -> Result<String, errors::ConnectorError>;
     fn get_customer_name(
@@ -879,6 +882,7 @@ pub trait CustomerDetails {
     fn get_customer_phone_country_code(&self) -> Result<String, errors::ConnectorError>;
 }
 
+#[cfg(feature = "payouts")]
 impl CustomerDetails for types::CustomerDetails {
     fn get_customer_id(&self) -> Result<String, errors::ConnectorError> {
         self.customer_id
