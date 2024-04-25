@@ -24,7 +24,7 @@ use crate::{
         utils as core_utils,
     },
     db::StorageInterface,
-    routes::AppState,
+    routes::{app::ReqState, AppState},
     services,
     types::{
         api::{self, ConnectorCallType, PaymentIdTypeExt},
@@ -484,6 +484,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                     m_mandate_type,
                     &m_merchant_account,
                     &m_key_store,
+                    None,
                 )
                 .await
             }
@@ -903,6 +904,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     async fn update_trackers<'b>(
         &'b self,
         state: &'b AppState,
+        _req_state: ReqState,
         mut payment_data: PaymentData<F>,
         customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,

@@ -100,6 +100,7 @@ pub enum Connector {
     Klarna,
     Mollie,
     Multisafepay,
+    Netcetera,
     Nexinets,
     Nmi,
     Noon,
@@ -207,7 +208,6 @@ impl Connector {
             | Self::Mollie
             | Self::Multisafepay
             | Self::Nexinets
-            | Self::Nmi
             | Self::Nuvei
             | Self::Opennode
             | Self::Payme
@@ -232,10 +232,11 @@ impl Connector {
             | Self::Plaid
             | Self::Riskified
             | Self::Threedsecureio
+            | Self::Netcetera
             | Self::Cybersource
             | Self::Noon
             | Self::Stripe => false,
-            Self::Checkout => true,
+            Self::Checkout | Self::Nmi => true,
         }
         #[cfg(not(feature = "dummy_connector"))]
         match self {
@@ -292,6 +293,7 @@ impl Connector {
             | Self::Threedsecureio
             | Self::Cybersource
             | Self::Noon
+            | Self::Netcetera
             | Self::Stripe => false,
             Self::Checkout => true,
         }
@@ -315,6 +317,7 @@ impl Connector {
 #[strum(serialize_all = "snake_case")]
 pub enum AuthenticationConnectors {
     Threedsecureio,
+    Netcetera,
 }
 
 #[cfg(feature = "payouts")]
