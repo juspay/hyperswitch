@@ -25,7 +25,7 @@ to select features with Cargo, when building the application server.
 ## Building with the Dockerfile
 
 The Docker images for the application server and other components can be built
-using the [`Dockerfile`][dockerfile] using commands like so, substituting the
+using the [`Dockerfile`][dockerfile] using the below commands, substituting the
 Docker image tags with suitable values:
 
 - router:
@@ -90,9 +90,10 @@ cargo build --release --features release ${EXTRA_FEATURES}
   Since we do not specify the `--no-default-features` flag to the `cargo build`
   command, the build would have the `default` and `release` features enabled.
 
-- The `${EXTRA_FEATURES}` build argument can specify any additional features
-  that would have to be passed to the `cargo build` command.
-  The build argument could look like so:
+- In case you create your own features sets and want to enable them, you can use the
+  `${EXTRA_FEATURES}` build argument to specify any additional features that would have
+  to be passed to the `cargo build` command.
+  The build argument could look as follows:
   `EXTRA_FEATURES="--features feature1,feature2,feature3"`, with actual feature
   names substituted in the command.
 
@@ -107,12 +108,11 @@ Hub repositories:
 - standalone: These images contain the tag that was built with a `standalone`
   suffix, like the `v1.105.1-standalone` and `v1.107.0-standalone` Docker images.
 
-Our standalone Docker images differ from the release images in that the
-standalone images have some features disabled to allow running the application
-outside cloud hosted environments like AWS.
+The primary difference is that our standalone Docker images do not have some features 
+enabled by defualt in order to support hosting of Hyperswitch outside AWS.
 As of writing this document, the standalone images exclude the `email` and
 `recon` features from the `release` feature set, while the release images are
-built from the Dockerfile, without any changes to the codebase after the tag is
+built from the Dockerfile without any changes to the codebase after the tag is
 checked out.
 
 If you are building custom images and would like to mirror the behavior of our
@@ -127,8 +127,7 @@ Building release (optimized) images needs significant amount of resources, and
 we'd recommend using a machine with at least 8 cores and 16 GB of RAM for this
 purpose.
 Rust is known to have long compile times, and a codebase of this size will
-require a significant time to build, from around 45 minutes to an hour for
-release images.
+require a significant time to build, around 45-60 minutes for the above configuration.
 
 ### Build seems to be stuck at "Compiling router/scheduler/analytics/..."
 
@@ -138,14 +137,14 @@ compiling our workspace (first-party) crates, among which the biggest one
 Once all the dependencies of the `router` crate have been built, one of the last
 ones being built is the `router` crate itself.
 
-As mentioned above, building release images takes a significant amount of time,
-so nothing else being printed after a line which says
-`Compiling router / scheduler / analytics / ...` is normal, we'd suggest waiting
+As mentioned above, building release images takes a significant amount of time.
+It is normal to see nothing else being printed after a line which says
+`Compiling router / scheduler / analytics / ...`. We'd suggest waiting
 for a while.
 If you're still concerned that the compilation process has been stuck for far
 too long, you can check if at least one CPU is being utilized by
 `cargo` / `docker` using a tool like `htop` (if you can access the machine which
-is building the code), and if not, you can proceed to kill the compilation
+is building the code). Worst case, you can proceed to kill the compilation
 process and try again.
 
 [cargo-features]: https://doc.rust-lang.org/cargo/reference/features.html
