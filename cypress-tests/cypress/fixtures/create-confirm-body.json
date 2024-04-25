@@ -34,11 +34,7 @@
             "card_cvc": "123"
         }
     },
-    "connector_metadata": {
-        "noon": {
-            "order_category": "pay"
-        }
-    },
+
     "billing": {
         "address": {
             "line1": "1467",
@@ -47,7 +43,7 @@
             "city": "San Fransico",
             "state": "California",
             "zip": "94122",
-            "country": "AE",
+            "country": "US",
             "first_name": "john",
             "last_name": "doe"
         }

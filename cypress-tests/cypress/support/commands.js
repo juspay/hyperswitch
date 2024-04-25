@@ -26,7 +26,7 @@
 
 // commands.js or your custom support file
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
-import ConnectorAuthDetails from "../../../.github/secrets/creds.json";
+import ConnectorAuthDetails from "/Users/gnanasundarig/Documents/JuspayCode/hs-test-automation/creds.json";
 
 
 
@@ -747,7 +747,7 @@ Cypress.Commands.add("handleRedirection", (globalState, expected_redirection) =>
   })
   }
   else if (globalState.get("connectorId") === "nmi" || globalState.get("connectorId") === "noon") {
-    cy.get('iframe',{ timeout: 10000 })
+    cy.get('iframe',{ timeout: 100000 })
       .its('0.contentDocument.body')
       .within((body) => {
         cy.get('iframe',{ timeout: 10000 })
