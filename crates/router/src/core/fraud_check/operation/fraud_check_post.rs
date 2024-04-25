@@ -14,7 +14,7 @@ use crate::{
         errors::{RouterResult, StorageErrorExt},
         fraud_check::{
             self as frm_core,
-            types::{FrmData, PaymentDetails, PaymentToFrmData, REFUND_INITIATED},
+            types::{FrmData, PaymentDetails, PaymentToFrmData, CANCEL_INITIATED},
             ConnectorDetailsCore, FrmConfigsObject,
         },
         payment_methods::Oss,
@@ -34,7 +34,7 @@ use crate::{
             FraudCheckResponseData, FraudCheckSaleData, FrmRequest, FrmResponse, FrmRouterData,
         },
         storage::{
-            enums::{FraudCheckLastStep, FraudCheckStatus, FraudCheckType},
+            enums::{FraudCheckLastStep, FraudCheckStatus, FraudCheckType, MerchantDecision},
             fraud_check::{FraudCheckNew, FraudCheckUpdate},
         },
         ResponseId,
@@ -360,7 +360,7 @@ impl<F: Clone + Send> UpdateTracker<FrmData, F> for FraudCheckPost {
                             metadata: connector_metadata,
                             modified_at: common_utils::date_time::now(),
                             last_step: frm_data.fraud_check.last_step,
-                            frm_capture_method: None,
+                            frm_capture_method: frm_data.fraud_check.frm_capture_method,
                         };
                         Some(fraud_check_update)
                     },
@@ -405,7 +405,7 @@ impl<F: Clone + Send> UpdateTracker<FrmData, F> for FraudCheckPost {
                             metadata: connector_metadata,
                             modified_at: common_utils::date_time::now(),
                             last_step: frm_data.fraud_check.last_step,
-                            frm_capture_method: None,
+                            frm_capture_method: frm_data.fraud_check.frm_capture_method,
                         };
                         Some(fraud_check_update)
                     }
@@ -456,7 +456,7 @@ impl<F: Clone + Send> UpdateTracker<FrmData, F> for FraudCheckPost {
                             metadata: connector_metadata,
                             modified_at: common_utils::date_time::now(),
                             last_step: frm_data.fraud_check.last_step,
-                            frm_capture_method: None,
+                            frm_capture_method: frm_data.fraud_check.frm_capture_method,
                         };
                         Some(fraud_check_update)
                     }
@@ -489,7 +489,7 @@ impl<F: Clone + Send> UpdateTracker<FrmData, F> for FraudCheckPost {
                     PaymentAttemptUpdate::RejectUpdate {
                         status: payment_attempt_status,
                         error_code: Some(Some(frm_data.fraud_check.frm_status.to_string())),
-                        error_message: Some(Some(REFUND_INITIATED.to_string())),
+                        error_message: Some(Some(CANCEL_INITIATED.to_string())),
                         updated_by: frm_data.merchant_account.storage_scheme.to_string(),
                     },
                     frm_data.merchant_account.storage_scheme,
@@ -502,7 +502,7 @@ impl<F: Clone + Send> UpdateTracker<FrmData, F> for FraudCheckPost {
                     payment_data.payment_intent.clone(),
                     PaymentIntentUpdate::RejectUpdate {
                         status: payment_intent_status,
-                        merchant_decision: None,
+                        merchant_decision: Some(MerchantDecision::Rejected.to_string()),
                         updated_by: frm_data.merchant_account.storage_scheme.to_string(),
                     },
                     frm_data.merchant_account.storage_scheme,
