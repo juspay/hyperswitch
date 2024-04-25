@@ -20,7 +20,7 @@ use serde::Serializer;
 use time::PrimitiveDateTime;
 
 #[cfg(feature = "frm")]
-use crate::types::{fraud_check, storage::enums as storage_enums};
+use crate::types::fraud_check;
 use crate::{
     consts,
     core::{
@@ -30,7 +30,7 @@ use crate::{
     pii::PeekInterface,
     types::{
         self, api, domain, transformers::ForeignTryFrom, ApplePayPredecryptData,
-        BrowserInformation, PaymentsCancelData, ResponseId,
+        BrowserInformation, PaymentsCancelData, ResponseId, storage::enums as storage_enums
     },
     utils::{OptionExt, ValueExt},
 };
