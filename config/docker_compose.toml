@@ -141,6 +141,7 @@ opayo.base_url = "https://pi-test.sagepay.com/"
 opennode.base_url = "https://dev-api.opennode.com"
 payeezy.base_url = "https://api-cert.payeezy.com/"
 payme.base_url = "https://sandbox.payme.io/"
+payone.base_url = "https://payment.preprod.payone.com/"
 paypal.base_url = "https://api-m.sandbox.paypal.com/"
 payu.base_url = "https://secure.snd.payu.com/"
 placetopay.base_url = "https://test.placetopay.com/rest/gateway"
@@ -211,6 +212,7 @@ cards = [
     "opennode",
     "payeezy",
     "payme",
+    "payone",
     "paypal",
     "payu",
     "placetopay",

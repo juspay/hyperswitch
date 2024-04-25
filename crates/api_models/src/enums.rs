@@ -109,6 +109,7 @@ pub enum Connector {
     Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
     Payme,
+    // Payone, added as template code for future usage
     Paypal,
     Payu,
     Placetopay,
@@ -216,6 +217,7 @@ impl Connector {
             | Self::Nuvei
             | Self::Opennode
             | Self::Payme
+            // | Self::Payone  Added as a template code for future usage
             | Self::Paypal
             | Self::Payu
             | Self::Placetopay
