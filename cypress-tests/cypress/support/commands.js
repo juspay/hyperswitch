@@ -711,19 +711,7 @@ Cypress.Commands.add("handleRedirection", (globalState, expected_redirection) =>
   let expected_url = new URL(expected_redirection);
   let redirection_url = new URL(globalState.get("nextActionUrl"));
   cy.visit(redirection_url.href);
-
-  if (globalState.get("connectorId") === "stripe" ) {
-    cy.get('iframe')
-      .its('0.contentDocument.body')
-      .within((body) => {
-        cy.get('iframe')
-          .its('0.contentDocument.body')
-          .within((body) => {
-            cy.get('#test-source-authorize-3ds').click();
-          })
-      })
-  } 
-  else if (globalState.get("connectorId") == "adyen") {
+  if (globalState.get("connectorId") == "adyen") {
     cy.get('iframe')
       .its('0.contentDocument.body')
       .within((body) => {
@@ -740,12 +728,6 @@ Cypress.Commands.add("handleRedirection", (globalState, expected_redirection) =>
         cy.get('input[value="SUBMIT"]').click();
   })
   }
-  else if (globalState.get("connectorId") === "trustpay" ) {
-    cy.get('form[name="challengeForm"]',{ timeout: 10000 }).should('exist').then(form => {
-        cy.get('#outcomeSelect').select('Approve').should('have.value', 'Y')
-        cy.get('button[type="submit"]').click();
-  })
-  }
   else if (globalState.get("connectorId") === "nmi" || globalState.get("connectorId") === "noon") {
     cy.get('iframe',{ timeout: 100000 })
       .its('0.contentDocument.body')
@@ -759,10 +741,28 @@ Cypress.Commands.add("handleRedirection", (globalState, expected_redirection) =>
           })
       })
     })
-}
+  }
+  else if (globalState.get("connectorId") === "stripe" ) {
+    cy.get('iframe')
+      .its('0.contentDocument.body')
+      .within((body) => {
+        cy.get('iframe')
+          .its('0.contentDocument.body')
+          .within((body) => {
+            cy.get('#test-source-authorize-3ds').click();
+          })
+      })
+  } 
+  else if (globalState.get("connectorId") === "trustpay" ) {
+    cy.get('form[name="challengeForm"]',{ timeout: 10000 }).should('exist').then(form => {
+        cy.get('#outcomeSelect').select('Approve').should('have.value', 'Y')
+        cy.get('button[type="submit"]').click();
+  })
+  }
+
   
   else {
-    // If connectorId is not "adyen", wait for 10 seconds
+  // If connectorId is neither of adyen, trustpay, nmi, stripe, bankofamerica or cybersource, wait for 30 seconds
     cy.wait(30000);
   }
   
