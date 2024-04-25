@@ -7,6 +7,7 @@ use super::MockDb;
 use crate::{
     connection,
     core::errors::{self, CustomResult},
+    pii,
     services::Store,
 };
 pub mod sample_data;
@@ -20,7 +21,7 @@ pub trait UserInterface {
 
     async fn find_user_by_email(
         &self,
-        user_email: &str,
+        user_email: &pii::Email,
     ) -> CustomResult<storage::User, errors::StorageError>;
 
     async fn find_user_by_id(
@@ -36,7 +37,7 @@ pub trait UserInterface {
 
     async fn update_user_by_email(
         &self,
-        user_email: &str,
+        user_email: &pii::Email,
         user: storage::UserUpdate,
     ) -> CustomResult<storage::User, errors::StorageError>;
 
@@ -68,7 +69,7 @@ impl UserInterface for Store {
     #[instrument(skip_all)]
     async fn find_user_by_email(
         &self,
-        user_email: &str,
+        user_email: &pii::Email,
     ) -> CustomResult<storage::User, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         storage::User::find_by_user_email(&conn, user_email)
@@ -102,7 +103,7 @@ impl UserInterface for Store {
     #[instrument(skip_all)]
     async fn update_user_by_email(
         &self,
-        user_email: &str,
+        user_email: &pii::Email,
         user: storage::UserUpdate,
     ) -> CustomResult<storage::User, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
@@ -168,20 +169,16 @@ impl UserInterface for MockDb {
 
     async fn find_user_by_email(
         &self,
-        user_email: &str,
+        user_email: &pii::Email,
     ) -> CustomResult<storage::User, errors::StorageError> {
         let users = self.users.lock().await;
-        let user_email_pii: common_utils::pii::Email = user_email
-            .to_string()
-            .try_into()
-            .map_err(|_| errors::StorageError::MockDbError)?;
         users
             .iter()
-            .find(|user| user.email == user_email_pii)
+            .find(|user| user.email.eq(user_email))
             .cloned()
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
-                    "No user available for email = {user_email}"
+                    "No user available for email = {user_email:?}"
                 ))
                 .into(),
             )
@@ -246,17 +243,13 @@ impl UserInterface for MockDb {
 
     async fn update_user_by_email(
         &self,
-        user_email: &str,
+        user_email: &pii::Email,
         update_user: storage::UserUpdate,
     ) -> CustomResult<storage::User, errors::StorageError> {
         let mut users = self.users.lock().await;
-        let user_email_pii: common_utils::pii::Email = user_email
-            .to_string()
-            .try_into()
-            .map_err(|_| errors::StorageError::MockDbError)?;
         users
             .iter_mut()
-            .find(|user| user.email == user_email_pii)
+            .find(|user| user.email.eq(user_email))
             .map(|user| {
                 *user = match &update_user {
                     storage::UserUpdate::VerifyUser => storage::User {
@@ -282,7 +275,7 @@ impl UserInterface for MockDb {
             })
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
-                    "No user available for user_email = {user_email}"
+                    "No user available for user_email = {user_email:?}"
                 ))
                 .into(),
             )

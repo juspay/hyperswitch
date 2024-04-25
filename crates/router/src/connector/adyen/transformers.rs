@@ -12,7 +12,7 @@ use time::{Duration, OffsetDateTime, PrimitiveDateTime};
 use crate::{
     connector::utils::{
         self, AddressDetailsData, BrowserInformationData, CardData, MandateReferenceData,
-        PaymentsAuthorizeRequestData, RouterData,
+        PaymentsAuthorizeRequestData, PhoneDetailsData, RouterData,
     },
     consts,
     core::errors,
@@ -734,14 +734,14 @@ pub enum OnlineBankingCzechRepublicBanks {
     C,
 }
 
-impl TryFrom<&Box<domain::JCSVoucherData>> for JCSVoucherData {
+impl TryFrom<&types::PaymentsAuthorizeRouterData> for JCSVoucherData {
     type Error = Error;
-    fn try_from(jcs_data: &Box<domain::JCSVoucherData>) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
-            first_name: jcs_data.first_name.clone(),
-            last_name: jcs_data.last_name.clone(),
-            shopper_email: jcs_data.email.clone(),
-            telephone_number: Secret::new(jcs_data.phone_number.clone()),
+            first_name: item.get_billing_first_name()?,
+            last_name: item.get_optional_billing_last_name(),
+            shopper_email: item.get_billing_email()?,
+            telephone_number: item.get_billing_phone_number()?,
         })
     }
 }
@@ -1884,43 +1884,41 @@ impl<'a> TryFrom<&domain::BankDebitData> for AdyenPaymentMethod<'a> {
     }
 }
 
-impl<'a> TryFrom<&domain::VoucherData> for AdyenPaymentMethod<'a> {
+impl<'a> TryFrom<(&domain::VoucherData, &types::PaymentsAuthorizeRouterData)>
+    for AdyenPaymentMethod<'a>
+{
     type Error = Error;
-    fn try_from(voucher_data: &domain::VoucherData) -> Result<Self, Self::Error> {
+    fn try_from(
+        (voucher_data, item): (&domain::VoucherData, &types::PaymentsAuthorizeRouterData),
+    ) -> Result<Self, Self::Error> {
         match voucher_data {
             domain::VoucherData::Boleto { .. } => Ok(AdyenPaymentMethod::BoletoBancario),
-            domain::VoucherData::Alfamart(alfarmart_data) => {
-                Ok(AdyenPaymentMethod::Alfamart(Box::new(DokuBankData {
-                    first_name: alfarmart_data.first_name.clone(),
-                    last_name: alfarmart_data.last_name.clone(),
-                    shopper_email: alfarmart_data.email.clone(),
-                })))
-            }
-            domain::VoucherData::Indomaret(indomaret_data) => {
-                Ok(AdyenPaymentMethod::Indomaret(Box::new(DokuBankData {
-                    first_name: indomaret_data.first_name.clone(),
-                    last_name: indomaret_data.last_name.clone(),
-                    shopper_email: indomaret_data.email.clone(),
-                })))
-            }
+            domain::VoucherData::Alfamart(_) => Ok(AdyenPaymentMethod::Alfamart(Box::new(
+                DokuBankData::try_from(item)?,
+            ))),
+
+            domain::VoucherData::Indomaret(_) => Ok(AdyenPaymentMethod::Indomaret(Box::new(
+                DokuBankData::try_from(item)?,
+            ))),
+
             domain::VoucherData::Oxxo => Ok(AdyenPaymentMethod::Oxxo),
-            domain::VoucherData::SevenEleven(jcs_data) => Ok(AdyenPaymentMethod::SevenEleven(
-                Box::new(JCSVoucherData::try_from(jcs_data)?),
-            )),
-            domain::VoucherData::Lawson(jcs_data) => Ok(AdyenPaymentMethod::Lawson(Box::new(
-                JCSVoucherData::try_from(jcs_data)?,
+            domain::VoucherData::SevenEleven(_) => Ok(AdyenPaymentMethod::SevenEleven(Box::new(
+                JCSVoucherData::try_from(item)?,
             ))),
-            domain::VoucherData::MiniStop(jcs_data) => Ok(AdyenPaymentMethod::MiniStop(Box::new(
-                JCSVoucherData::try_from(jcs_data)?,
+            domain::VoucherData::Lawson(_) => Ok(AdyenPaymentMethod::Lawson(Box::new(
+                JCSVoucherData::try_from(item)?,
             ))),
-            domain::VoucherData::FamilyMart(jcs_data) => Ok(AdyenPaymentMethod::FamilyMart(
-                Box::new(JCSVoucherData::try_from(jcs_data)?),
-            )),
-            domain::VoucherData::Seicomart(jcs_data) => Ok(AdyenPaymentMethod::Seicomart(
-                Box::new(JCSVoucherData::try_from(jcs_data)?),
-            )),
-            domain::VoucherData::PayEasy(jcs_data) => Ok(AdyenPaymentMethod::PayEasy(Box::new(
-                JCSVoucherData::try_from(jcs_data)?,
+            domain::VoucherData::MiniStop(_) => Ok(AdyenPaymentMethod::MiniStop(Box::new(
+                JCSVoucherData::try_from(item)?,
+            ))),
+            domain::VoucherData::FamilyMart(_) => Ok(AdyenPaymentMethod::FamilyMart(Box::new(
+                JCSVoucherData::try_from(item)?,
+            ))),
+            domain::VoucherData::Seicomart(_) => Ok(AdyenPaymentMethod::Seicomart(Box::new(
+                JCSVoucherData::try_from(item)?,
+            ))),
+            domain::VoucherData::PayEasy(_) => Ok(AdyenPaymentMethod::PayEasy(Box::new(
+                JCSVoucherData::try_from(item)?,
             ))),
             domain::VoucherData::Efecty
             | domain::VoucherData::PagoEfectivo
@@ -2023,9 +2021,14 @@ impl TryFrom<&utils::CardIssuer> for CardBrand {
     }
 }
 
-impl<'a> TryFrom<&domain::WalletData> for AdyenPaymentMethod<'a> {
+impl<'a> TryFrom<(&domain::WalletData, &types::PaymentsAuthorizeRouterData)>
+    for AdyenPaymentMethod<'a>
+{
     type Error = Error;
-    fn try_from(wallet_data: &domain::WalletData) -> Result<Self, Self::Error> {
+    fn try_from(
+        value: (&domain::WalletData, &types::PaymentsAuthorizeRouterData),
+    ) -> Result<Self, Self::Error> {
+        let (wallet_data, item) = value;
         match wallet_data {
             domain::WalletData::GooglePay(data) => {
                 let gpay_data = AdyenGPay {
@@ -2080,10 +2083,11 @@ impl<'a> TryFrom<&domain::WalletData> for AdyenPaymentMethod<'a> {
                 let touch_n_go_data = TouchNGoData {};
                 Ok(AdyenPaymentMethod::TouchNGo(Box::new(touch_n_go_data)))
             }
-            domain::WalletData::MbWayRedirect(data) => {
+            domain::WalletData::MbWayRedirect(_) => {
+                let phone_details = item.get_billing_phone()?;
                 let mbway_data = MbwayData {
                     payment_type: PaymentType::Mbway,
-                    telephone_number: data.telephone_number.clone(),
+                    telephone_number: phone_details.get_number_with_country_code()?,
                 };
                 Ok(AdyenPaymentMethod::Mbway(Box::new(mbway_data)))
             }
@@ -2489,6 +2493,17 @@ impl<'a> TryFrom<&domain::BankTransferData> for AdyenPaymentMethod<'a> {
     }
 }
 
+impl TryFrom<&types::PaymentsAuthorizeRouterData> for DokuBankData {
+    type Error = Error;
+    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            first_name: item.get_billing_first_name()?,
+            last_name: item.get_optional_billing_last_name(),
+            shopper_email: item.get_billing_email()?,
+        })
+    }
+}
+
 impl<'a> TryFrom<&domain::payments::CardRedirectData> for AdyenPaymentMethod<'a> {
     type Error = Error;
     fn try_from(
@@ -2753,7 +2768,7 @@ impl<'a>
         let recurring_processing_model = get_recurring_processing_model(item.router_data)?.0;
         let browser_info = get_browser_info(item.router_data)?;
         let additional_data = get_additional_data(item.router_data);
-        let payment_method = AdyenPaymentMethod::try_from(voucher_data)?;
+        let payment_method = AdyenPaymentMethod::try_from((voucher_data, item.router_data))?;
         let return_url = item.router_data.request.get_return_url()?;
         let social_security_number = get_social_security_number(voucher_data);
         let request = AdyenPaymentRequest {
@@ -3000,7 +3015,7 @@ impl<'a>
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_auth_type)?;
         let browser_info = get_browser_info(item.router_data)?;
         let additional_data = get_additional_data(item.router_data);
-        let payment_method = AdyenPaymentMethod::try_from(wallet_data)?;
+        let payment_method = AdyenPaymentMethod::try_from((wallet_data, item.router_data))?;
         let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
         let channel = get_channel_type(&item.router_data.request.payment_method_type);
         let (recurring_processing_model, store_payment_method, shopper_reference) =
