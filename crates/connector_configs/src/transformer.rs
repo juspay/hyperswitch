@@ -14,22 +14,22 @@ use crate::common_config::{
 };
 
 impl DashboardRequestPayload {
-    // pub fn transform_card(
-    //     payment_method_type: PaymentMethodType,
-    //     card_provider: Vec<api_models::enums::CardNetwork>,
-    // ) -> payment_methods::RequestPaymentMethodTypes {
-    //     payment_methods::RequestPaymentMethodTypes {
-    //         payment_method_type,
-    //         card_networks: Some(card_provider),
-    //         minimum_amount: Some(0),
-    //         maximum_amount: Some(68607706),
-    //         recurring_enabled: true,
-    //         installment_payment_enabled: false,
-    //         accepted_currencies: None,
-    //         accepted_countries: None,
-    //         payment_experience: None,
-    //     }
-    // }
+    pub fn transform_card(
+        payment_method_type: PaymentMethodType,
+        card_provider: Vec<api_models::enums::CardNetwork>,
+    ) -> payment_methods::RequestPaymentMethodTypes {
+        payment_methods::RequestPaymentMethodTypes {
+            payment_method_type,
+            card_networks: Some(card_provider),
+            minimum_amount: Some(0),
+            maximum_amount: Some(68607706),
+            recurring_enabled: true,
+            installment_payment_enabled: false,
+            accepted_currencies: None,
+            accepted_countries: None,
+            payment_experience: None,
+        }
+    }
 
     pub fn get_payment_experience(
         connector: Connector,
