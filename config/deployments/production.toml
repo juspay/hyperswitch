@@ -93,14 +93,14 @@ threedsecureio.base_url = "https://service.3dsecure.io"
 netcetera.base_url = "https://{{merchant_endpoint_prefix}}.3ds-server.prev.netcetera-cloud-payment.ch"
 
 [delayed_session_response]
-connectors_with_delayed_session_response = "trustpay,payme"       # List of connectors which has delayed session response
+connectors_with_delayed_session_response = "trustpay,payme"       # List of connectors which have delayed session response
 
 [dummy_connector]
+enabled = false                                                         # Whether dummy connector is enabled or not
 assets_base_url = "https://app.hyperswitch.io/assets/TestProcessor/"    # Base url for dummy connector assets
 authorize_ttl = 36000                                                   # Time to live for dummy connector authorize request in redis
 default_return_url = "https://app.hyperswitch.io/"                      # Default return url when no return url is passed while payment
 discord_invite_url = "https://discord.gg/wJZ7DVW8mm"                    # Discord invite url for hyperswitch
-enabled = false                                                         # Whether dummy connector is enabled or not
 payment_complete_duration = 500                                         # Fake delay duration for dummy connector payment complete
 payment_complete_tolerance = 100                                        # Fake delay tolerance for dummy connector payment complete
 payment_duration = 1000                                                 # Fake delay duration for dummy connector payment
