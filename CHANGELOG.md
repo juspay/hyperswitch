@@ -4,6 +4,28 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.04.25.0
+
+### Features
+
+- **router:** Handle authorize redirection after webhook processing for external 3ds flow ([#4452](https://github.com/juspay/hyperswitch/pull/4452)) ([`131e487`](https://github.com/juspay/hyperswitch/commit/131e487c662985737e9b50a8e62295ed9d23ca83))
+
+### Bug Fixes
+
+- **routing/tests:** Fix unit tests for routing ([#4438](https://github.com/juspay/hyperswitch/pull/4438)) ([`1d0d94d`](https://github.com/juspay/hyperswitch/commit/1d0d94d5e6528534ce461db39620f35490582ecb))
+
+### Documentation
+
+- **try_local_system:** Update WSL setup guide to address a memory issue ([#4431](https://github.com/juspay/hyperswitch/pull/4431)) ([`56f14b9`](https://github.com/juspay/hyperswitch/commit/56f14b935d5e9742a894408a714033318ecb6f2a))
+
+### Miscellaneous Tasks
+
+- Remove repetitive words ([#4448](https://github.com/juspay/hyperswitch/pull/4448)) ([`f49b0b3`](https://github.com/juspay/hyperswitch/commit/f49b0b3aabdf72030cb893ce479214eccd5a6e0f))
+
+**Full Changelog:** [`2024.04.24.0...2024.04.25.0`](https://github.com/juspay/hyperswitch/compare/2024.04.24.0...2024.04.25.0)
+
+- - -
+
 ## 2024.04.24.0
 
 ### Features
