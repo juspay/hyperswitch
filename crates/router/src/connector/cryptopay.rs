@@ -295,7 +295,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 data: data.clone(),
                 http_code: res.status_code,
             },
-            diesel_models::enums::Currency::USD,
+            data.request.currency,
         ))
     }
 
@@ -396,7 +396,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                 data: data.clone(),
                 http_code: res.status_code,
             },
-            diesel_models::enums::Currency::USD,
+            data.request.currency,
         ))
     }
 
