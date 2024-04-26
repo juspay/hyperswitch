@@ -3,6 +3,7 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
+use common_enums::enums;
 use common_utils::{
     crypto::{self, GenerateDigest, SignMessage},
     date_time,
@@ -18,6 +19,7 @@ use self::cryptopay::CryptopayWebhookDetails;
 use super::utils;
 use crate::{
     configs::settings,
+    connector::utils as connector_utils,
     consts,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
@@ -287,11 +289,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        types::RouterData::try_from((
+            types::ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            diesel_models::enums::Currency::USD,
+        ))
     }
 
     fn get_error_response(
@@ -310,6 +315,20 @@ impl ConnectorValidation for Cryptopay {
     ) -> CustomResult<(), errors::ConnectorError> {
         // since we can make psync call with our reference_id, having connector_transaction_id is not an mandatory criteria
         Ok(())
+    }
+
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+        _pmt: Option<enums::PaymentMethodType>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
+            ),
+        }
     }
 }
 
@@ -371,11 +390,14 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        types::RouterData::try_from((
+            types::ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            diesel_models::enums::Currency::USD,
+        ))
     }
 
     fn get_error_response(
