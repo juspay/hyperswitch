@@ -20,12 +20,6 @@ pub struct CountAccumulator {
     pub count: Option<i64>,
 }
 
-#[derive(Debug, Default)]
-pub struct AverageAccumulator {
-    pub total: u32,
-    pub count: u32,
-}
-
 pub trait AuthEventMetricAccumulator {
     type MetricOutput;
 
@@ -50,38 +44,7 @@ impl AuthEventMetricAccumulator for CountAccumulator {
     }
 }
 
-impl AuthEventMetricAccumulator for AverageAccumulator {
-    type MetricOutput = Option<f64>;
-
-    fn add_metrics_bucket(&mut self, metrics: &AuthEventMetricRow) {
-        let total = metrics
-            .total
-            .as_ref()
-            .and_then(bigdecimal::ToPrimitive::to_u32);
-        let count = metrics.count.and_then(|total| u32::try_from(total).ok());
-
-        match (total, count) {
-            (Some(total), Some(count)) => {
-                self.total += total;
-                self.count += count;
-            }
-            _ => {
-                logger::error!(message="Dropping metrics for average accumulator", metric=?metrics);
-            }
-        }
-    }
-
-    fn collect(self) -> Self::MetricOutput {
-        if self.count == 0 {
-            None
-        } else {
-            Some(f64::from(self.total) / f64::from(self.count))
-        }
-    }
-}
-
 impl AuthEventMetricsAccumulator {
-    #[allow(dead_code)]
     pub fn collect(self) -> AuthEventMetricsBucketValue {
         AuthEventMetricsBucketValue {
             three_ds_sdk_count: self.three_ds_sdk_count.collect(),

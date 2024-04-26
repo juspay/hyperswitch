@@ -54,7 +54,6 @@ pub async fn get_metrics(
             .transpose()
             .change_context(AnalyticsError::UnknownError)?
         {
-            logger::info!("Logging Result {:?}", data);
             for (id, value) in data? {
                 let metrics_builder = metrics_accumulator.entry(id).or_default();
                 match metric {
@@ -81,12 +80,6 @@ pub async fn get_metrics(
                         .add_metrics_bucket(&value),
                 }
             }
-
-            logger::debug!(
-                "Analytics Accumulated Results: metric: {}, results: {:#?}",
-                metric,
-                metrics_accumulator
-            );
         }
 
         let query_data: Vec<MetricsBucketResponse> = metrics_accumulator

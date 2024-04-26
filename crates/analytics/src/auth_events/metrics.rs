@@ -27,15 +27,8 @@ use three_ds_sdk_count::ThreeDsSdkCount;
 
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 pub struct AuthEventMetricRow {
-    pub total: Option<bigdecimal::BigDecimal>,
     pub count: Option<i64>,
     pub time_bucket: Option<String>,
-    pub payment_method: Option<String>,
-    pub platform: Option<String>,
-    pub browser_name: Option<String>,
-    pub source: Option<String>,
-    pub component: Option<String>,
-    pub payment_experience: Option<String>,
 }
 
 pub trait AuthEventMetricAnalytics: LoadRow<AuthEventMetricRow> {}
