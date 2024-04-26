@@ -64,6 +64,10 @@ pub enum AuthenticationType {
     UserJwt {
         user_id: String,
     },
+    SinglePurposeJWT {
+        user_id: String,
+        purpose: SinglePurpose,
+    },
     MerchantId {
         merchant_id: String,
     },
@@ -101,8 +105,47 @@ impl AuthenticationType {
                 user_id: _,
             }
             | Self::WebhookAuth { merchant_id } => Some(merchant_id.as_ref()),
-            Self::AdminApiKey | Self::UserJwt { .. } | Self::NoAuth => None,
+            Self::AdminApiKey
+            | Self::UserJwt { .. }
+            | Self::SinglePurposeJWT { .. }
+            | Self::NoAuth => None,
         }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct UserFromSinglePurposesToken {
+    pub user_id: String,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct SinglePurposeToken {
+    pub user_id: String,
+    pub purpose: SinglePurpose,
+    pub exp: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, strum::Display, serde::Deserialize, serde::Serialize)]
+pub enum SinglePurpose {
+    AcceptInvite,
+    ForceSetPassword,
+}
+
+#[cfg(feature = "olap")]
+impl SinglePurposeToken {
+    pub async fn new_token(
+        user_id: String,
+        purpose: SinglePurpose,
+        settings: &Settings,
+    ) -> UserResult<String> {
+        let exp_duration = std::time::Duration::from_secs(consts::JWT_TOKEN_TIME_IN_SECS);
+        let exp = jwt::generate_exp(exp_duration)?.as_secs();
+        let token_payload = Self {
+            user_id,
+            purpose,
+            exp,
+        };
+        jwt::generate_jwt(&token_payload, settings).await
     }
 }
 
@@ -311,6 +354,44 @@ where
             },
             AuthenticationType::UserJwt {
                 user_id: payload.user_id,
+            },
+        ))
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct SinglePurposeJWTAuth(pub SinglePurpose);
+
+#[cfg(feature = "olap")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<UserFromSinglePurposesToken, A> for SinglePurposeJWTAuth
+where
+    A: AppStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(UserFromSinglePurposesToken, AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, SinglePurposeToken>(request_headers, state).await?;
+        if payload.check_in_blacklist(state).await? {
+            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+        }
+
+        if self.0 != payload.purpose {
+            return Err(errors::ApiErrorResponse::AccessForbidden {
+                resource: self.0.to_string(),
+            }
+            .into());
+        }
+
+        Ok((
+            UserFromSinglePurposesToken {
+                user_id: payload.user_id.clone(),
+            },
+            AuthenticationType::SinglePurposeJWT {
+                user_id: payload.user_id,
+                purpose: payload.purpose,
             },
         ))
     }
