@@ -17070,7 +17070,6 @@
         "type": "string",
         "description": "Connectors eligible for payments routing",
         "enum": [
-          "mifinity",
           "phonypay",
           "fauxpay",
           "pretendpay",
@@ -17103,6 +17102,7 @@
           "helcim",
           "iatapay",
           "klarna",
+          "mifinity",
           "mollie",
           "multisafepay",
           "nexinets",
