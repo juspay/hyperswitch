@@ -1155,44 +1155,52 @@ pub enum BankDebitData {
 impl GetAddressFromPaymentMethodData for BankDebitData {
     fn get_billing_address(&self) -> Option<Address> {
         fn get_billing_address_inner(
-            bank_debit_billing: &BankDebitBilling,
+            bank_debit_billing: Option<&BankDebitBilling>,
             bank_account_holder_name: Option<&Secret<String>>,
         ) -> Option<Address> {
             // We will always have address here
-            let mut address = bank_debit_billing.get_billing_address()?;
+            let mut address =
+                bank_debit_billing.and_then(GetAddressFromPaymentMethodData::get_billing_address);
 
             // Prefer `account_holder_name` over `name`
-            address.address.as_mut().map(|address| {
-                address.first_name = bank_account_holder_name
-                    .or(address.first_name.as_ref())
-                    .cloned();
+            address = address.map(|mut address| -> Address {
+                address.address = address
+                    .address
+                    .map(|mut address_details| -> AddressDetails {
+                        address_details.first_name = bank_account_holder_name
+                            .or(address_details.first_name.as_ref())
+                            .cloned();
+                        address_details
+                    });
+                address
             });
-
-            Some(address)
+            address
         }
 
         match self {
             Self::AchBankDebit {
-                billing_details: Some(billing_details),
+                billing_details,
                 bank_account_holder_name,
                 ..
             }
             | Self::SepaBankDebit {
-                billing_details: Some(billing_details),
+                billing_details,
                 bank_account_holder_name,
                 ..
             }
             | Self::BecsBankDebit {
-                billing_details: Some(billing_details),
+                billing_details,
                 bank_account_holder_name,
                 ..
             }
             | Self::BacsBankDebit {
-                billing_details: Some(billing_details),
+                billing_details,
                 bank_account_holder_name,
                 ..
-            } => get_billing_address_inner(billing_details, bank_account_holder_name.as_ref()),
-            _none => None,
+            } => get_billing_address_inner(
+                billing_details.as_ref(),
+                bank_account_holder_name.as_ref(),
+            ),
         }
     }
 }
@@ -1346,7 +1354,7 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
             Self::Wallet(wallet_data) => wallet_data.get_billing_address(),
             Self::PayLater(_) => None,
             Self::BankRedirect(_) => None,
-            Self::BankDebit(_) => None,
+            Self::BankDebit(bank_debit_data) => bank_debit_data.get_billing_address(),
             Self::BankTransfer(_) => None,
             Self::Voucher(voucher_data) => voucher_data.get_billing_address(),
             Self::Crypto(_)
