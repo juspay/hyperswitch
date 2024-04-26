@@ -1648,7 +1648,7 @@ pub async fn update_business_profile(
         })
         .transpose()?;
 
-    let business_profile_update = storage::business_profile::BusinessProfileUpdateInternal {
+    let business_profile_update = storage::business_profile::BusinessProfileUpdate::Update {
         profile_name: request.profile_name,
         modified_at: Some(date_time::now()),
         return_url: request.return_url.map(|return_url| return_url.to_string()),
@@ -1689,6 +1689,39 @@ pub async fn update_business_profile(
         api_models::admin::BusinessProfileResponse::foreign_try_from(updated_business_profile)
             .change_context(errors::ApiErrorResponse::InternalServerError)?,
     ))
+}
+
+pub async fn extended_card_info_toggle(
+    state: AppState,
+    profile_id: &str,
+    ext_card_info_choice: admin_types::ExtendedCardInfoChoice,
+) -> RouterResponse<admin_types::ExtendedCardInfoChoice> {
+    let db = state.store.as_ref();
+    let business_profile = db
+        .find_business_profile_by_profile_id(profile_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+            id: profile_id.to_string(),
+        })?;
+
+    if business_profile.is_extended_card_info_enabled.is_none()
+        || business_profile
+            .is_extended_card_info_enabled
+            .is_some_and(|existing_config| existing_config != ext_card_info_choice.enabled)
+    {
+        let business_profile_update =
+            storage::business_profile::BusinessProfileUpdate::ExtendedCardInfoUpdate {
+                is_extended_card_info_enabled: Some(ext_card_info_choice.enabled),
+            };
+
+        db.update_business_profile_by_profile_id(business_profile, business_profile_update)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+                id: profile_id.to_owned(),
+            })?;
+    }
+
+    Ok(service_api::ApplicationResponse::Json(ext_card_info_choice))
 }
 
 pub(crate) fn validate_auth_and_metadata_type(
@@ -1826,6 +1859,7 @@ pub(crate) fn validate_auth_and_metadata_type(
         }
         api_enums::Connector::Netcetera => {
             netcetera::transformers::NetceteraAuthType::try_from(val)?;
+            netcetera::transformers::NetceteraMetaData::try_from(connector_meta_data)?;
             Ok(())
         }
         api_enums::Connector::Nexinets => {

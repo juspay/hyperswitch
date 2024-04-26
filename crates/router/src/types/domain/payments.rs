@@ -352,36 +352,13 @@ pub struct BoletoVoucherData {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct AlfamartVoucherData {
-    /// The billing first name for Alfamart
-    pub first_name: Secret<String>,
-    /// The billing second name for Alfamart
-    pub last_name: Option<Secret<String>>,
-    /// The Email ID for Alfamart
-    pub email: Email,
-}
+pub struct AlfamartVoucherData {}
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct IndomaretVoucherData {
-    /// The billing first name for Alfamart
-    pub first_name: Secret<String>,
-    /// The billing second name for Alfamart
-    pub last_name: Option<Secret<String>>,
-    /// The Email ID for Alfamart
-    pub email: Email,
-}
+pub struct IndomaretVoucherData {}
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct JCSVoucherData {
-    /// The billing first name for Japanese convenience stores
-    pub first_name: Secret<String>,
-    /// The billing second name Japanese convenience stores
-    pub last_name: Option<Secret<String>>,
-    /// The Email ID for Japanese convenience stores
-    pub email: Email,
-    /// The telephone number for Japanese convenience stores
-    pub phone_number: String,
-}
+pub struct JCSVoucherData {}
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
@@ -888,32 +865,19 @@ impl From<api_models::payments::VoucherData> for VoucherData {
                     social_security_number: boleto_data.social_security_number,
                 }))
             }
-            api_models::payments::VoucherData::Alfamart(alfamart_data) => {
-                Self::Alfamart(Box::new(AlfamartVoucherData {
-                    first_name: alfamart_data.first_name,
-                    last_name: alfamart_data.last_name,
-                    email: alfamart_data.email,
-                }))
+            api_models::payments::VoucherData::Alfamart(_) => {
+                Self::Alfamart(Box::new(AlfamartVoucherData {}))
             }
-            api_models::payments::VoucherData::Indomaret(indomaret_data) => {
-                Self::Indomaret(Box::new(IndomaretVoucherData {
-                    first_name: indomaret_data.first_name,
-                    last_name: indomaret_data.last_name,
-                    email: indomaret_data.email,
-                }))
+            api_models::payments::VoucherData::Indomaret(_) => {
+                Self::Indomaret(Box::new(IndomaretVoucherData {}))
             }
-            api_models::payments::VoucherData::SevenEleven(jcs_data)
-            | api_models::payments::VoucherData::Lawson(jcs_data)
-            | api_models::payments::VoucherData::MiniStop(jcs_data)
-            | api_models::payments::VoucherData::FamilyMart(jcs_data)
-            | api_models::payments::VoucherData::Seicomart(jcs_data)
-            | api_models::payments::VoucherData::PayEasy(jcs_data) => {
-                Self::SevenEleven(Box::new(JCSVoucherData {
-                    first_name: jcs_data.first_name,
-                    last_name: jcs_data.last_name,
-                    email: jcs_data.email,
-                    phone_number: jcs_data.phone_number,
-                }))
+            api_models::payments::VoucherData::SevenEleven(_)
+            | api_models::payments::VoucherData::Lawson(_)
+            | api_models::payments::VoucherData::MiniStop(_)
+            | api_models::payments::VoucherData::FamilyMart(_)
+            | api_models::payments::VoucherData::Seicomart(_)
+            | api_models::payments::VoucherData::PayEasy(_) => {
+                Self::SevenEleven(Box::new(JCSVoucherData {}))
             }
             api_models::payments::VoucherData::Efecty => Self::Efecty,
             api_models::payments::VoucherData::PagoEfectivo => Self::PagoEfectivo,

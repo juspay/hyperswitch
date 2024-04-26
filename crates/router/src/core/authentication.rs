@@ -7,14 +7,14 @@ use api_models::payments;
 use common_enums::Currency;
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use error_stack::{report, ResultExt};
-use masking::PeekInterface;
+use masking::{ExposeInterface, PeekInterface};
 
 use super::errors;
 use crate::{
     core::{errors::ApiErrorResponse, payments as payments_core},
     routes::AppState,
     types::{self as core_types, api, authentication::AuthenticationResponseData, storage},
-    utils::OptionExt,
+    utils::{check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata, OptionExt},
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -37,6 +37,7 @@ pub async fn perform_authentication(
     sdk_information: Option<payments::SdkInformation>,
     threeds_method_comp_ind: api_models::payments::ThreeDsCompletionIndicator,
     email: Option<common_utils::pii::Email>,
+    webhook_url: String,
 ) -> CustomResult<core_types::api::authentication::AuthenticationResponse, ApiErrorResponse> {
     let router_data = transformers::construct_authentication_router_data(
         authentication_connector.clone(),
@@ -56,6 +57,7 @@ pub async fn perform_authentication(
         sdk_information,
         threeds_method_comp_ind,
         email,
+        webhook_url,
     )?;
     let response =
         utils::do_auth_connector_call(state, authentication_connector.clone(), router_data).await?;
@@ -117,12 +119,19 @@ pub async fn perform_post_authentication<F: Clone + Send>(
             authentication,
             should_continue_confirm_transaction,
         } => {
-            // let (auth, authentication_data) = authentication;
+            let is_pull_mechanism_enabled =
+                check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
+                    merchant_connector_account
+                        .get_metadata()
+                        .map(|metadata| metadata.expose()),
+                );
             let authentication_status =
-                if !authentication.authentication_status.is_terminal_status() {
+                if !authentication.authentication_status.is_terminal_status()
+                    && is_pull_mechanism_enabled
+                {
                     let router_data = transformers::construct_post_authentication_router_data(
                         authentication_connector.clone(),
-                        business_profile,
+                        business_profile.clone(),
                         merchant_connector_account,
                         &authentication,
                     )?;
@@ -132,7 +141,7 @@ pub async fn perform_post_authentication<F: Clone + Send>(
                     let updated_authentication = utils::update_trackers(
                         state,
                         router_data,
-                        authentication,
+                        authentication.clone(),
                         payment_data.token.clone(),
                         None,
                     )
