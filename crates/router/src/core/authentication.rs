@@ -7,7 +7,7 @@ use api_models::payments;
 use common_enums::Currency;
 use common_utils::{
     errors::CustomResult,
-    ext_traits::{Encode, ValueExt},
+    ext_traits::{Encode, StringExt, ValueExt},
 };
 use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
@@ -278,11 +278,11 @@ pub async fn perform_pre_authentication<F: Clone + Send>(
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("The poll config was not found in the DB")?;
-                let poll_config =
-                    serde_json::from_str::<Option<core_types::PollConfig>>(&poll_config.config)
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Error while parsing PollConfig")?
-                        .unwrap_or(default_poll_config);
+                let poll_config: core_types::PollConfig = poll_config
+                    .config
+                    .parse_struct("PollConfig")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Error while parsing PollConfig")?;
                 payment_data.poll_config = Some(poll_config)
             }
             payment_data.authentication = Some(authentication);

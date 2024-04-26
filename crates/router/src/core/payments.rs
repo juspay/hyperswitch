@@ -22,7 +22,11 @@ use api_models::{
     mandates::RecurringDetails,
     payments::{self as payments_api, HeaderPayload},
 };
-use common_utils::{ext_traits::AsyncExt, pii, types::Surcharge};
+use common_utils::{
+    ext_traits::{AsyncExt, StringExt},
+    pii,
+    types::Surcharge,
+};
 use data_models::mandates::{CustomerAcceptance, MandateData};
 use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
 use error_stack::{report, ResultExt};
@@ -1151,11 +1155,11 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("The poll config was not found in the DB")?;
-        let poll_config =
-            serde_json::from_str::<Option<router_types::PollConfig>>(&poll_config.config)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error while parsing PollConfig")?
-                .unwrap_or(default_poll_config);
+        let poll_config: router_types::PollConfig = poll_config
+            .config
+            .parse_struct("PollConfig")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error while parsing PollConfig")?;
         let profile_id = payments_response
             .profile_id
             .as_ref()
