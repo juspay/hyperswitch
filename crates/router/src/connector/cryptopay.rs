@@ -3,7 +3,6 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
-use common_enums::enums;
 use common_utils::{
     crypto::{self, GenerateDigest, SignMessage},
     date_time,
@@ -19,7 +18,6 @@ use self::cryptopay::CryptopayWebhookDetails;
 use super::utils;
 use crate::{
     configs::settings,
-    connector::utils as connector_utils,
     consts,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
