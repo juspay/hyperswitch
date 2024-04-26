@@ -387,7 +387,7 @@ impl_to_sql_for_to_string!(
 
 impl_to_sql_for_to_string!(
     &SdkEventDimensions,
-    SdkEventDimensions, 
+    SdkEventDimensions,
     SdkEventNames,
     AuthEventFlows,
     &ApiEventDimensions,
