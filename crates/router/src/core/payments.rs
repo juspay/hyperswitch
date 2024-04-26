@@ -1148,6 +1148,20 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        let authentication_id = payment_attempt
+            .authentication_id
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("missing authentication_id in payment_attempt")?;
+        let authentication = state
+            .store
+            .find_authentication_by_merchant_id_authentication_id(
+                merchant_id.clone(),
+                authentication_id.clone(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::AuthenticationNotFound {
+                id: authentication_id,
+            })?;
         // Fetching merchant_connector_account to check if pull_mechanism is enabled for 3ds connector
         let authentication_merchant_connector_account = helpers::get_merchant_connector_account(
             state,
@@ -1171,7 +1185,10 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
                     .get_metadata()
                     .map(|metadata| metadata.expose()),
             );
-        let response = if is_pull_mechanism_enabled {
+        let response = if is_pull_mechanism_enabled
+            || authentication.authentication_type
+                == Some(common_enums::DecoupledAuthenticationType::Frictionless)
+        {
             let payment_confirm_req = api::PaymentsRequest {
                 payment_id: Some(req.resource_id.clone()),
                 merchant_id: req.merchant_id.clone(),

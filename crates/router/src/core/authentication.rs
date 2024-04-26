@@ -4,7 +4,7 @@ pub mod transformers;
 pub mod types;
 
 use api_models::payments;
-use common_enums::Currency;
+use common_enums::{Currency, DecoupledAuthenticationType};
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
@@ -127,7 +127,9 @@ pub async fn perform_post_authentication<F: Clone + Send>(
                 );
             let authentication_status =
                 if !authentication.authentication_status.is_terminal_status()
-                    && is_pull_mechanism_enabled
+                    && (is_pull_mechanism_enabled
+                        || authentication.authentication_type
+                            == Some(DecoupledAuthenticationType::Frictionless))
                 {
                     let router_data = transformers::construct_post_authentication_router_data(
                         authentication_connector.clone(),
