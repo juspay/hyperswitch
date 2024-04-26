@@ -131,8 +131,6 @@ services:
     build:
       context: ./docker
       dockerfile: web.Dockerfile
-    env_file:
-      - ./.env
     environment:
       - HYPERSWITCH_PUBLISHABLE_KEY=$HYPERSWITCH_PUBLISHABLE_KEY
       - HYPERSWITCH_SECRET_KEY=$HYPERSWITCH_SECRET_KEY
@@ -152,7 +150,7 @@ services:
       - "9000:9000"
     environment:
       - apiBaseUrl=http://localhost:8080
-      - sdkBaseUrl=http://localhost:9050
+      - sdkBaseUrl=http://localhost:9050/HyperLoader.js
     depends_on:
       hyperswitch-server:
         condition: service_started
