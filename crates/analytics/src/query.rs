@@ -385,13 +385,17 @@ impl_to_sql_for_to_string!(
     Order
 );
 
-impl_to_sql_for_to_string!(&SdkEventDimensions, SdkEventDimensions, SdkEventNames);
-
-impl_to_sql_for_to_string!(AuthEventFlows);
-
-impl_to_sql_for_to_string!(&ApiEventDimensions, ApiEventDimensions);
-
-impl_to_sql_for_to_string!(&DisputeDimensions, DisputeDimensions, DisputeStage);
+impl_to_sql_for_to_string!(
+    &SdkEventDimensions,
+    SdkEventDimensions,
+    SdkEventNames,
+    AuthEventFlows,
+    &ApiEventDimensions,
+    ApiEventDimensions,
+    &DisputeDimensions,
+    DisputeDimensions,
+    DisputeStage
+);
 
 #[derive(Debug)]
 pub enum FilterTypes {
