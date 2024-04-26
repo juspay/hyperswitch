@@ -859,21 +859,21 @@ impl ConnectorAccessToken for KafkaStore {
     async fn get_access_token(
         &self,
         merchant_id: &str,
-        connector_name: &str,
+        merchant_connector_id: &str,
     ) -> CustomResult<Option<AccessToken>, errors::StorageError> {
         self.diesel_store
-            .get_access_token(merchant_id, connector_name)
+            .get_access_token(merchant_id, merchant_connector_id)
             .await
     }
 
     async fn set_access_token(
         &self,
         merchant_id: &str,
-        connector_name: &str,
+        merchant_connector_id: &str,
         access_token: AccessToken,
     ) -> CustomResult<(), errors::StorageError> {
         self.diesel_store
-            .set_access_token(merchant_id, connector_name, access_token)
+            .set_access_token(merchant_id, merchant_connector_id, access_token)
             .await
     }
 }
@@ -2039,7 +2039,7 @@ impl BusinessProfileInterface for KafkaStore {
     async fn update_business_profile_by_profile_id(
         &self,
         current_state: business_profile::BusinessProfile,
-        business_profile_update: business_profile::BusinessProfileUpdateInternal,
+        business_profile_update: business_profile::BusinessProfileUpdate,
     ) -> CustomResult<business_profile::BusinessProfile, errors::StorageError> {
         self.diesel_store
             .update_business_profile_by_profile_id(current_state, business_profile_update)

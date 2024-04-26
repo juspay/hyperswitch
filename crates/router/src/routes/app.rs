@@ -1104,10 +1104,17 @@ impl BusinessProfile {
                     .route(web::get().to(business_profiles_list)),
             )
             .service(
-                web::resource("/{profile_id}")
-                    .route(web::get().to(business_profile_retrieve))
-                    .route(web::post().to(business_profile_update))
-                    .route(web::delete().to(business_profile_delete)),
+                web::scope("/{profile_id}")
+                    .service(
+                        web::resource("")
+                            .route(web::get().to(business_profile_retrieve))
+                            .route(web::post().to(business_profile_update))
+                            .route(web::delete().to(business_profile_delete)),
+                    )
+                    .service(
+                        web::resource("/toggle_extended_card_info")
+                            .route(web::post().to(toggle_extended_card_info)),
+                    ),
             )
     }
 }
