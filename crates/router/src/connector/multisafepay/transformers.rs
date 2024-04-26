@@ -235,21 +235,21 @@ impl TryFrom<&BankNames> for MultisafepayBankNames {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(bank: &BankNames) -> Result<Self, Self::Error> {
         match bank {
-            BankNames::AbnAmro => Ok(MultisafepayBankNames::AbnAmro),
-            BankNames::AsnBank => Ok(MultisafepayBankNames::AsnBank),
-            BankNames::Bunq => Ok(MultisafepayBankNames::Bunq),
-            BankNames::Ing => Ok(MultisafepayBankNames::Ing),
-            BankNames::Knab => Ok(MultisafepayBankNames::Knab),
-            BankNames::N26 => Ok(MultisafepayBankNames::N26),
-            BankNames::NationaleNederlanden => Ok(MultisafepayBankNames::NationaleNederlanden),
-            BankNames::Rabobank => Ok(MultisafepayBankNames::Rabobank),
-            BankNames::Regiobank => Ok(MultisafepayBankNames::Regiobank),
-            BankNames::Revolut => Ok(MultisafepayBankNames::Revolut),
-            BankNames::SnsBank => Ok(MultisafepayBankNames::SnsBank),
-            BankNames::TriodosBank => Ok(MultisafepayBankNames::TriodosBank),
-            BankNames::VanLanschot => Ok(MultisafepayBankNames::VanLanschot),
-            BankNames::Yoursafe => Ok(MultisafepayBankNames::Yoursafe),
-            BankNames::Handelsbanken => Ok(MultisafepayBankNames::Handelsbanken),
+            BankNames::AbnAmro => Ok(Self::AbnAmro),
+            BankNames::AsnBank => Ok(Self::AsnBank),
+            BankNames::Bunq => Ok(Self::Bunq),
+            BankNames::Ing => Ok(Self::Ing),
+            BankNames::Knab => Ok(Self::Knab),
+            BankNames::N26 => Ok(Self::N26),
+            BankNames::NationaleNederlanden => Ok(Self::NationaleNederlanden),
+            BankNames::Rabobank => Ok(Self::Rabobank),
+            BankNames::Regiobank => Ok(Self::Regiobank),
+            BankNames::Revolut => Ok(Self::Revolut),
+            BankNames::SnsBank => Ok(Self::SnsBank),
+            BankNames::TriodosBank => Ok(Self::TriodosBank),
+            BankNames::VanLanschot => Ok(Self::VanLanschot),
+            BankNames::Yoursafe => Ok(Self::Yoursafe),
+            BankNames::Handelsbanken => Ok(Self::Handelsbanken),
             BankNames::AmericanExpress
             | BankNames::AffinBank
             | BankNames::AgroBank
@@ -379,11 +379,10 @@ impl TryFrom<&BankNames> for MultisafepayBankNames {
             | BankNames::Starling
             | BankNames::TsbBank
             | BankNames::TescoBank
-            | BankNames::UlsterBank => Err(errors::ConnectorError::NotSupported {
+            | BankNames::UlsterBank => Err(Into::into(errors::ConnectorError::NotSupported {
                 message: String::from("BankRedirect"),
                 connector: "Multisafepay",
-            })
-            .map_err(Into::into),
+            })),
         }
     }
 }
