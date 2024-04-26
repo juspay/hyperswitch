@@ -119,7 +119,7 @@ where
 
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData, Ctx>,
-    FData: Send + Sync,
+    FData: Send + Sync + Clone,
     Ctx: PaymentMethodRetrieve,
 {
     let operation: BoxedOperation<'_, F, Req, Ctx> = Box::new(operation);
@@ -279,11 +279,11 @@ where
                         req_state.clone(),
                         &merchant_account,
                         &key_store,
-                        connector,
+                        connector.clone(),
                         &operation,
                         &mut payment_data,
                         &customer,
-                        call_connector_action,
+                        call_connector_action.clone(),
                         &validate_result,
                         schedule_time,
                         header_payload,
@@ -300,6 +300,18 @@ where
                     external_latency = router_data.external_latency;
                     //add connector http status code metrics
                     add_connector_http_status_code_metrics(connector_http_status_code);
+
+                    operation
+                        .to_post_update_tracker()?
+                        .save_pm_and_mandate(
+                            state,
+                            &router_data,
+                            &merchant_account,
+                            &key_store,
+                            &mut payment_data,
+                        )
+                        .await?;
+
                     operation
                         .to_post_update_tracker()?
                         .update_tracker(
@@ -339,7 +351,7 @@ where
                         &operation,
                         &mut payment_data,
                         &customer,
-                        call_connector_action,
+                        call_connector_action.clone(),
                         &validate_result,
                         schedule_time,
                         header_payload,
@@ -367,7 +379,7 @@ where
                                 req_state.clone(),
                                 &mut payment_data,
                                 connectors,
-                                connector_data,
+                                connector_data.clone(),
                                 router_data,
                                 &merchant_account,
                                 &key_store,
@@ -389,6 +401,18 @@ where
                     external_latency = router_data.external_latency;
                     //add connector http status code metrics
                     add_connector_http_status_code_metrics(connector_http_status_code);
+
+                    operation
+                        .to_post_update_tracker()?
+                        .save_pm_and_mandate(
+                            state,
+                            &router_data,
+                            &merchant_account,
+                            &key_store,
+                            &mut payment_data,
+                        )
+                        .await?;
+
                     operation
                         .to_post_update_tracker()?
                         .update_tracker(
@@ -705,7 +729,7 @@ pub async fn payments_core<F, Res, Req, Op, FData, Ctx>(
 ) -> RouterResponse<Res>
 where
     F: Send + Clone + Sync,
-    FData: Send + Sync,
+    FData: Send + Sync + Clone,
     Op: Operation<F, Req, Ctx> + Send + Sync + Clone,
     Req: Debug + Authenticate + Clone,
     Res: transformers::ToResponse<PaymentData<F>, Op>,
@@ -1539,16 +1563,7 @@ where
         // and rely on previous status set in router_data
         router_data.status = payment_data.payment_attempt.status;
         router_data
-            .decide_flows(
-                state,
-                &connector,
-                customer,
-                call_connector_action,
-                merchant_account,
-                connector_request,
-                key_store,
-                payment_data.payment_intent.profile_id.clone(),
-            )
+            .decide_flows(state, &connector, call_connector_action, connector_request)
             .await
     } else {
         Ok(router_data)
@@ -1671,12 +1686,8 @@ where
         let res = router_data.decide_flows(
             state,
             &session_connector_data.connector,
-            customer,
             CallConnectorAction::Trigger,
-            merchant_account,
             None,
-            key_store,
-            payment_data.payment_intent.profile_id.clone(),
         );
 
         join_handlers.push(res);

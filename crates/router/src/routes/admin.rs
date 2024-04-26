@@ -612,3 +612,25 @@ pub async fn merchant_account_kv_status(
     )
     .await
 }
+
+#[instrument(skip_all, fields(flow = ?Flow::ToggleExtendedCardInfo))]
+pub async fn toggle_extended_card_info(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<(String, String)>,
+    json_payload: web::Json<api_models::admin::ExtendedCardInfoChoice>,
+) -> HttpResponse {
+    let flow = Flow::ToggleExtendedCardInfo;
+    let (_, profile_id) = path.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, _, req, _| extended_card_info_toggle(state, &profile_id, req),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

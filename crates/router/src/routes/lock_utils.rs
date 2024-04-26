@@ -166,7 +166,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::BusinessProfileUpdate
             | Flow::BusinessProfileRetrieve
             | Flow::BusinessProfileDelete
-            | Flow::BusinessProfileList => Self::Business,
+            | Flow::BusinessProfileList
+            | Flow::ToggleExtendedCardInfo => Self::Business,
 
             Flow::PaymentLinkRetrieve
             | Flow::PaymentLinkInitiate
