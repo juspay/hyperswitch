@@ -2605,7 +2605,6 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
                 storage_enums::IntentStatus::Processing
                     | storage_enums::IntentStatus::RequiresCustomerAction
                     | storage_enums::IntentStatus::RequiresMerchantAction
-                    | storage_enums::IntentStatus::FrmRequiresMerchantAction
                     | storage_enums::IntentStatus::RequiresCapture
                     | storage_enums::IntentStatus::PartiallyCapturedAndCapturable
             ) && payment_data.force_sync.unwrap_or(false)

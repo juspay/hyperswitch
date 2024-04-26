@@ -1,1 +1,0 @@
-ALTER TYPE "IntentStatus" ADD VALUE IF NOT EXISTS 'frm_requires_merchant_action';

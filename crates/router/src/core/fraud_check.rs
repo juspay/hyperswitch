@@ -675,11 +675,12 @@ where
     if matches!(fraud_capture_method, Some(Some(CaptureMethod::Manual)))
         && matches!(
             payment_data.payment_attempt.status,
-            api_models::enums::AttemptStatus::FrmUnresolved
+            api_models::enums::AttemptStatus::Unresolved
         )
     {
-        payment_data.payment_intent.status = IntentStatus::RequiresCapture; // In Approve flow, payment which has payment_capture_method "manual" and attempt status as "FrmUnresolved",
-        payment_data.payment_attempt.status = AttemptStatus::Authorized; // We shouldn't call the connector instead we need to update the payment attempt and payment intent.
+        if let Some(info) = frm_info {
+            info.suggested_action = Some(FrmSuggestion::FrmAuthorizeTransaction)
+        };
         *should_continue_transaction = false;
         logger::debug!(
             "skipping connector call since payment_capture_method is already {:?}",

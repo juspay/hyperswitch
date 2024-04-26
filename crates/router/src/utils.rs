@@ -849,7 +849,7 @@ where
         enums::IntentStatus::Succeeded
             | enums::IntentStatus::Failed
             | enums::IntentStatus::PartiallyCaptured
-            | enums::IntentStatus::FrmRequiresMerchantAction
+            | enums::IntentStatus::RequiresMerchantAction
     ) {
         let payments_response = crate::core::payments::transformers::payments_to_payments_response(
             payment_data,

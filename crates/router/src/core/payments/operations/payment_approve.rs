@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::enums::FrmSuggestion;
+use api_models::enums::{AttemptStatus, FrmSuggestion, IntentStatus};
 use async_trait::async_trait;
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
@@ -206,7 +206,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
         _merchant_key_store: &domain::MerchantKeyStore,
-        _frm_suggestion: Option<FrmSuggestion>,
+        frm_suggestion: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsCaptureRequest, Ctx>,
@@ -215,6 +215,10 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     where
         F: 'b + Send,
     {
+        if matches!(frm_suggestion, Some(FrmSuggestion::FrmAuthorizeTransaction)) {
+            payment_data.payment_intent.status = IntentStatus::RequiresCapture; // In Approve flow, payment which has payment_capture_method "manual" and attempt status as "Unresolved",
+            payment_data.payment_attempt.status = AttemptStatus::Authorized; // We shouldn't call the connector instead we need to update the payment attempt and payment intent.
+        }
         let intent_status_update = storage::PaymentIntentUpdate::ApproveUpdate {
             status: payment_data.payment_intent.status,
             merchant_decision: Some(api_models::enums::MerchantDecision::Approved.to_string()),

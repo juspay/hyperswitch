@@ -98,7 +98,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                     storage_enums::IntentStatus::Processing,
                     storage_enums::IntentStatus::RequiresCapture,
                     storage_enums::IntentStatus::RequiresMerchantAction,
-                    storage_enums::IntentStatus::FrmRequiresMerchantAction,
                 ],
                 "confirm",
             )?;
@@ -112,7 +111,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                     storage_enums::IntentStatus::RequiresCapture,
                     storage_enums::IntentStatus::RequiresMerchantAction,
                     storage_enums::IntentStatus::RequiresCustomerAction,
-                    storage_enums::IntentStatus::FrmRequiresMerchantAction,
                 ],
                 "confirm",
             )?;
@@ -251,7 +249,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             match payment_intent.status {
                 api_models::enums::IntentStatus::RequiresCustomerAction
                 | api_models::enums::IntentStatus::RequiresMerchantAction
-                | api_models::enums::IntentStatus::FrmRequiresMerchantAction
                 | api_models::enums::IntentStatus::RequiresPaymentMethod
                 | api_models::enums::IntentStatus::RequiresConfirmation => {
                     // Normal payment
@@ -944,8 +941,13 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                 }),
             ),
             FrmSuggestion::FrmManualReview => (
-                storage_enums::IntentStatus::FrmRequiresMerchantAction,
-                storage_enums::AttemptStatus::FrmUnresolved,
+                storage_enums::IntentStatus::RequiresMerchantAction,
+                storage_enums::AttemptStatus::Unresolved,
+                (None, None),
+            ),
+            FrmSuggestion::FrmAuthorizeTransaction => (
+                storage_enums::IntentStatus::RequiresCapture,
+                storage_enums::AttemptStatus::Authorized,
                 (None, None),
             ),
         };

@@ -65,7 +65,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 enums::IntentStatus::Cancelled,
                 enums::IntentStatus::Processing,
                 enums::IntentStatus::RequiresMerchantAction,
-                enums::IntentStatus::FrmRequiresMerchantAction,
             ],
             "cancel",
         )?;

@@ -226,6 +226,7 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
                 HeaderPayload::default(),
             ))
             .await?;
+            logger::debug!("payment_id : {:?} has been cancelled since it has been found fraudulent by configured frm connector",payment_data.payment_attempt.payment_id);
             if let services::ApplicationResponse::JsonWithHeaders((payments_response, _)) =
                 cancel_res
             {
@@ -280,6 +281,7 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
                 HeaderPayload::default(),
             ))
             .await?;
+            logger::debug!("payment_id : {:?} has been captured since it has been found legit by configured frm connector",payment_data.payment_attempt.payment_id);
             if let services::ApplicationResponse::JsonWithHeaders((payments_response, _)) =
                 capture_response
             {
@@ -479,9 +481,12 @@ impl<F: Clone + Send> UpdateTracker<FrmData, F> for FraudCheckPost {
                     (AttemptStatus::Failure, IntentStatus::Failed)
                 }
                 FrmSuggestion::FrmManualReview => (
-                    AttemptStatus::FrmUnresolved,
-                    IntentStatus::FrmRequiresMerchantAction,
+                    AttemptStatus::Unresolved,
+                    IntentStatus::RequiresMerchantAction,
                 ),
+                FrmSuggestion::FrmAuthorizeTransaction => {
+                    (AttemptStatus::Authorized, IntentStatus::RequiresCapture)
+                }
             };
             payment_data.payment_attempt = db
                 .update_payment_attempt_with_attempt_id(

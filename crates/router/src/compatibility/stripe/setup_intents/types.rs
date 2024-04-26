@@ -325,8 +325,7 @@ impl From<api_enums::IntentStatus> for StripeSetupStatus {
             api_enums::IntentStatus::RequiresPaymentMethod => Self::RequiresPaymentMethod,
             api_enums::IntentStatus::RequiresConfirmation => Self::RequiresConfirmation,
             api_enums::IntentStatus::RequiresCapture
-            | api_enums::IntentStatus::PartiallyCapturedAndCapturable
-            | api_enums::IntentStatus::FrmRequiresMerchantAction => {
+            | api_enums::IntentStatus::PartiallyCapturedAndCapturable => {
                 logger::error!("Invalid status change");
                 Self::Canceled
             }

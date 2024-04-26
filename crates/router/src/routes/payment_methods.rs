@@ -447,7 +447,7 @@ impl ParentPaymentMethodToken {
         // RequiresMerchantAction: When the payment goes for merchant review incase of potential fraud allow payment_method_token to be stored until resolved
         ![
             IntentStatus::RequiresCustomerAction,
-            IntentStatus::FrmRequiresMerchantAction,
+            IntentStatus::RequiresMerchantAction,
         ]
         .contains(&status)
     }

@@ -55,7 +55,6 @@ pub enum AttemptStatus {
     PartialCharged,
     PartialChargedAndChargeable,
     Unresolved,
-    FrmUnresolved,
     #[default]
     Pending,
     Failure,
@@ -194,7 +193,6 @@ impl AttemptStatus {
             | Self::CaptureInitiated
             | Self::PartialChargedAndChargeable
             | Self::Unresolved
-            | Self::FrmUnresolved
             | Self::Pending
             | Self::PaymentMethodAwaited
             | Self::ConfirmationAwaited
@@ -283,7 +281,6 @@ pub enum AuthorizationStatus {
     Processing,
     // Requires merchant action
     Unresolved,
-    FrmUnresolved,
 }
 
 #[derive(
@@ -1179,7 +1176,6 @@ pub enum IntentStatus {
     Processing,
     RequiresCustomerAction,
     RequiresMerchantAction,
-    FrmRequiresMerchantAction,
     RequiresPaymentMethod,
     #[default]
     RequiresConfirmation,
@@ -1278,7 +1274,6 @@ impl From<AttemptStatus> for PaymentMethodStatus {
             | AttemptStatus::Started
             | AttemptStatus::Pending
             | AttemptStatus::Unresolved
-            | AttemptStatus::FrmUnresolved
             | AttemptStatus::CodInitiated
             | AttemptStatus::Authorizing
             | AttemptStatus::VoidInitiated
@@ -2254,6 +2249,7 @@ pub enum FrmSuggestion {
     #[default]
     FrmCancelTransaction,
     FrmManualReview,
+    FrmAuthorizeTransaction, // When manual capture payment which was marked fraud and held, when approved needs to be authorized.
 }
 
 #[derive(

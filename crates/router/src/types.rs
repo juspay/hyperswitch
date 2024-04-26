@@ -690,7 +690,6 @@ impl Capturable for PaymentsAuthorizeData {
                     | common_enums::IntentStatus::PartiallyCaptured
                     | common_enums::IntentStatus::RequiresCustomerAction
                     | common_enums::IntentStatus::RequiresMerchantAction
-                    | common_enums::IntentStatus::FrmRequiresMerchantAction
                     | common_enums::IntentStatus::RequiresPaymentMethod
                     | common_enums::IntentStatus::RequiresConfirmation
                     | common_enums::IntentStatus::RequiresCapture
@@ -730,7 +729,6 @@ impl Capturable for PaymentsCaptureData {
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
-            | common_enums::IntentStatus::FrmRequiresMerchantAction
             | common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation
             | common_enums::IntentStatus::RequiresCapture
@@ -769,7 +767,6 @@ impl Capturable for CompleteAuthorizeData {
                     | common_enums::IntentStatus::PartiallyCaptured
                     | common_enums::IntentStatus::RequiresCustomerAction
                     | common_enums::IntentStatus::RequiresMerchantAction
-                    | common_enums::IntentStatus::FrmRequiresMerchantAction
                     | common_enums::IntentStatus::RequiresPaymentMethod
                     | common_enums::IntentStatus::RequiresConfirmation
                     | common_enums::IntentStatus::RequiresCapture
@@ -810,7 +807,6 @@ impl Capturable for PaymentsCancelData {
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
-            | common_enums::IntentStatus::FrmRequiresMerchantAction
             | common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation
             | common_enums::IntentStatus::RequiresCapture
