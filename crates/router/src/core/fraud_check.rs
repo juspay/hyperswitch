@@ -670,7 +670,7 @@ where
         frm_info
             .frm_data
             .as_ref()
-            .map(|frm_data| frm_data.fraud_check.frm_capture_method)
+            .map(|frm_data| frm_data.fraud_check.payment_capture_method)
     });
     if matches!(fraud_capture_method, Some(Some(CaptureMethod::Manual)))
         && matches!(
@@ -678,11 +678,11 @@ where
             api_models::enums::AttemptStatus::FrmUnresolved
         )
     {
-        payment_data.payment_intent.status = IntentStatus::RequiresCapture; // In Approve flow, payment which has frm_capture_method "manual" and attempt status as "FrmUnresolved",
+        payment_data.payment_intent.status = IntentStatus::RequiresCapture; // In Approve flow, payment which has payment_capture_method "manual" and attempt status as "FrmUnresolved",
         payment_data.payment_attempt.status = AttemptStatus::Authorized; // We shouldn't call the connector instead we need to update the payment attempt and payment intent.
         *should_continue_transaction = false;
         logger::debug!(
-            "skipping connector since frm_capture_method is {:?} already",
+            "skipping connector call since payment_capture_method is already {:?}",
             fraud_capture_method
         );
     };
@@ -825,7 +825,7 @@ pub async fn make_fulfillment_api_call(
         metadata: fraud_check.metadata,
         modified_at: common_utils::date_time::now(),
         last_step: FraudCheckLastStep::Fulfillment,
-        frm_capture_method: fraud_check.frm_capture_method,
+        payment_capture_method: fraud_check.payment_capture_method,
     };
     let _updated = db
         .update_fraud_check_response_with_attempt_id(fraud_check_copy, fraud_check_update)

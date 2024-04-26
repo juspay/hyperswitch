@@ -449,7 +449,7 @@ diesel::table! {
         modified_at -> Timestamp,
         #[max_length = 64]
         last_step -> Varchar,
-        frm_capture_method -> Nullable<CaptureMethod>,
+        payment_capture_method -> Nullable<CaptureMethod>,
     }
 }
 

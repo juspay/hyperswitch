@@ -26,7 +26,7 @@ pub struct FraudCheck {
     pub metadata: Option<serde_json::Value>,
     pub modified_at: PrimitiveDateTime,
     pub last_step: FraudCheckLastStep,
-    pub frm_capture_method: Option<storage_enums::CaptureMethod>, // In postFrm, we are updating capture method from automatic to manual. To store the merchant actual capture method, we are storing the actual capture method in frm_capture_method. It will be useful while approving the FRM decision.
+    pub payment_capture_method: Option<storage_enums::CaptureMethod>, // In postFrm, we are updating capture method from automatic to manual. To store the merchant actual capture method, we are storing the actual capture method in payment_capture_method. It will be useful while approving the FRM decision.
 }
 
 #[derive(router_derive::Setter, Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -48,7 +48,7 @@ pub struct FraudCheckNew {
     pub metadata: Option<serde_json::Value>,
     pub modified_at: PrimitiveDateTime,
     pub last_step: FraudCheckLastStep,
-    pub frm_capture_method: Option<storage_enums::CaptureMethod>,
+    pub payment_capture_method: Option<storage_enums::CaptureMethod>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -62,7 +62,7 @@ pub enum FraudCheckUpdate {
         metadata: Option<serde_json::Value>,
         modified_at: PrimitiveDateTime,
         last_step: FraudCheckLastStep,
-        frm_capture_method: Option<storage_enums::CaptureMethod>,
+        payment_capture_method: Option<storage_enums::CaptureMethod>,
     },
     ErrorUpdate {
         status: FraudCheckStatus,
@@ -80,7 +80,7 @@ pub struct FraudCheckUpdateInternal {
     frm_error: Option<Option<String>>,
     metadata: Option<serde_json::Value>,
     last_step: FraudCheckLastStep,
-    frm_capture_method: Option<storage_enums::CaptureMethod>,
+    payment_capture_method: Option<storage_enums::CaptureMethod>,
 }
 
 impl From<FraudCheckUpdate> for FraudCheckUpdateInternal {
@@ -94,7 +94,7 @@ impl From<FraudCheckUpdate> for FraudCheckUpdateInternal {
                 metadata,
                 modified_at: _,
                 last_step,
-                frm_capture_method,
+                payment_capture_method,
             } => Self {
                 frm_status: Some(frm_status),
                 frm_transaction_id,
@@ -102,7 +102,7 @@ impl From<FraudCheckUpdate> for FraudCheckUpdateInternal {
                 frm_score,
                 metadata,
                 last_step,
-                frm_capture_method,
+                payment_capture_method,
                 ..Default::default()
             },
             FraudCheckUpdate::ErrorUpdate {

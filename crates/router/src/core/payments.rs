@@ -249,12 +249,13 @@ where
                 | (false, Some(storage_enums::CaptureMethod::Scheduled)) => {
                     if let Some(info) = &mut frm_info {
                         if let Some(frm_data) = &mut info.frm_data {
-                            frm_data.fraud_check.frm_capture_method =
+                            frm_data.fraud_check.payment_capture_method =
                                 payment_data.payment_attempt.capture_method;
                         }
                     }
                     payment_data.payment_attempt.capture_method =
                         Some(storage_enums::CaptureMethod::Manual);
+                    logger::debug!("payment_id : {:?} capture method has been changed to manual, since it has configured Post FRM flow",payment_data.payment_attempt.payment_id);
                 }
                 _ => (),
             };
