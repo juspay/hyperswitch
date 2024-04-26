@@ -143,7 +143,9 @@ impl ConnectorCommon for Volt {
     }
 }
 
-impl ConnectorValidation for Volt {}
+impl ConnectorValidation for Volt {
+    //TODO: implement functions when support enabled
+}
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Volt
