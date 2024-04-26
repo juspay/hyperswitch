@@ -192,32 +192,64 @@ pub enum BankRedirectInfo {
     Ideal(IdealInfo),
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[derive(Debug, Clone, Serialize, Eq, PartialEq)]
 pub struct IdealInfo {
-    pub issuer_id: Option<String>,
+    pub issuer_id: MultisafepayBankNames,
 }
 
-pub struct MultisafepayBankNames<'a>(&'a str);
+#[derive(Debug, Clone, Serialize, Eq, PartialEq)]
+pub enum MultisafepayBankNames {
+    #[serde(rename = "0031")]
+    AbnAmro,
+    #[serde(rename = "0761")]
+    AsnBank,
+    #[serde(rename = "4371")]
+    Bunq,
+    #[serde(rename = "0721")]
+    Ing,
+    #[serde(rename = "0801")]
+    Knab,
+    #[serde(rename = "9926")]
+    N26,
+    #[serde(rename = "9927")]
+    NationaleNederlanden,
+    #[serde(rename = "0021")]
+    Rabobank,
+    #[serde(rename = "0771")]
+    Regiobank,
+    #[serde(rename = "1099")]
+    Revolut,
+    #[serde(rename = "0751")]
+    SnsBank,
+    #[serde(rename = "0511")]
+    TriodosBank,
+    #[serde(rename = "0161")]
+    VanLanschot,
+    #[serde(rename = "0806")]
+    Yoursafe,
+    #[serde(rename = "1235")]
+    Handelsbanken,
+}
 
-impl<'a> TryFrom<&BankNames> for MultisafepayBankNames<'a> {
+impl TryFrom<&BankNames> for MultisafepayBankNames {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(bank: &BankNames) -> Result<Self, Self::Error> {
-        Ok(match bank {
-            BankNames::AbnAmro => Self("0031"),
-            BankNames::AsnBank => Self("0761"),
-            BankNames::Bunq => Self("4371"),
-            BankNames::Ing => Self("0721"),
-            BankNames::Knab => Self("0801"),
-            BankNames::N26 => Self("9926"),
-            BankNames::NationaleNederlanden => Self("9927"),
-            BankNames::Rabobank => Self("0021"),
-            BankNames::Regiobank => Self("0771"),
-            BankNames::Revolut => Self("1099"),
-            BankNames::SnsBank => Self("0751"),
-            BankNames::TriodosBank => Self("0511"),
-            BankNames::VanLanschot => Self("0161"),
-            BankNames::Yoursafe => Self("0806"),
-            BankNames::Handelsbanken => Self("1235"),
+        match bank {
+            BankNames::AbnAmro => Ok(MultisafepayBankNames::AbnAmro),
+            BankNames::AsnBank => Ok(MultisafepayBankNames::AsnBank),
+            BankNames::Bunq => Ok(MultisafepayBankNames::Bunq),
+            BankNames::Ing => Ok(MultisafepayBankNames::Ing),
+            BankNames::Knab => Ok(MultisafepayBankNames::Knab),
+            BankNames::N26 => Ok(MultisafepayBankNames::N26),
+            BankNames::NationaleNederlanden => Ok(MultisafepayBankNames::NationaleNederlanden),
+            BankNames::Rabobank => Ok(MultisafepayBankNames::Rabobank),
+            BankNames::Regiobank => Ok(MultisafepayBankNames::Regiobank),
+            BankNames::Revolut => Ok(MultisafepayBankNames::Revolut),
+            BankNames::SnsBank => Ok(MultisafepayBankNames::SnsBank),
+            BankNames::TriodosBank => Ok(MultisafepayBankNames::TriodosBank),
+            BankNames::VanLanschot => Ok(MultisafepayBankNames::VanLanschot),
+            BankNames::Yoursafe => Ok(MultisafepayBankNames::Yoursafe),
+            BankNames::Handelsbanken => Ok(MultisafepayBankNames::Handelsbanken),
             BankNames::AmericanExpress
             | BankNames::AffinBank
             | BankNames::AgroBank
@@ -350,8 +382,9 @@ impl<'a> TryFrom<&BankNames> for MultisafepayBankNames<'a> {
             | BankNames::UlsterBank => Err(errors::ConnectorError::NotSupported {
                 message: String::from("BankRedirect"),
                 connector: "Multisafepay",
-            })?,
-        })
+            })
+            .map_err(Into::into),
+        }
     }
 }
 
@@ -732,15 +765,11 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                         country: _,
                     } => Some(GatewayInfo::BankRedirect(BankRedirectInfo::Ideal(
                         IdealInfo {
-                            issuer_id: Some(
-                                MultisafepayBankNames::try_from(&bank_name.ok_or(
-                                    errors::ConnectorError::MissingRequiredField {
-                                        field_name: "ideal.bank_name",
-                                    },
-                                )?)?
-                                .0
-                                .to_string(),
-                            ),
+                            issuer_id: MultisafepayBankNames::try_from(&bank_name.ok_or(
+                                errors::ConnectorError::MissingRequiredField {
+                                    field_name: "ideal.bank_name",
+                                },
+                            )?)?,
                         },
                     ))),
                     domain::BankRedirectData::BancontactCard { .. }
