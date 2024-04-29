@@ -406,6 +406,8 @@ pub enum Flow {
     WebhookEventDeliveryRetry,
     /// Retrieve status of the Poll
     RetrievePollStatus,
+    /// Toggles the extended card info feature in profile level
+    ToggleExtendedCardInfo,
 }
 
 ///

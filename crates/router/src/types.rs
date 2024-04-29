@@ -565,6 +565,7 @@ pub struct PaymentsSyncData {
     pub sync_type: SyncRequestType,
     pub mandate_id: Option<api_models::payments::MandateIds>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub currency: storage_enums::Currency,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -1151,6 +1152,12 @@ pub struct RetrieveFileResponse {
 pub struct PollConfig {
     pub delay_in_secs: i8,
     pub frequency: i8,
+}
+
+impl PollConfig {
+    pub fn get_poll_config_key(connector: String) -> String {
+        format!("poll_config_external_three_ds_{connector}")
+    }
 }
 
 impl Default for PollConfig {
