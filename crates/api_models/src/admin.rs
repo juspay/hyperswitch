@@ -1102,7 +1102,7 @@ impl common_utils::events::ApiEventMetric for ExtendedCardInfoChoice {}
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ExtendedCardInfoConfig {
     /// Merchant public key
-    #[schema(value_type = String,example = "Miismmnsfdmjhjds")]
+    #[schema(value_type = String)]
     pub public_key: Secret<String>,
     /// TTL for extended card info
     pub ttl_in_secs: u16,

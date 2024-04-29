@@ -913,23 +913,27 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                 payment_method_data,
                 business_profile.extended_card_info_config.clone(),
             ) {
-                let Ok(merchant_config) = merchant_config
+                let merchant_config = merchant_config
                     .expose()
                     .parse_value::<ExtendedCardInfoConfig>("ExtendedCardInfoConfig")
-                else {
-                    logger::error!("Error while parsing ExtendedCardInfoConfig");
+                    .map_err(|err| logger::error!(parse_err=?err,"Error while parsing ExtendedCardInfoConfig"));
+
+                let card_data = ExtendedCardInfo::from(card.clone())
+                    .encode_to_vec()
+                    .map_err(|err| logger::error!(encode_err=?err,"Error while encoding ExtendedCardInfo to vec"));
+
+                let (Ok(merchant_config), Ok(card_data)) = (merchant_config, card_data) else {
                     return Ok(());
                 };
 
-                let Ok(card_data) = ExtendedCardInfo::from(card.clone()).encode_to_vec() else {
-                    logger::error!("Error while encoding ExtendedCardInfo to vec");
-                    return Ok(());
-                };
+                let encrypted_payload =
+                    services::encrypt_jwe(&card_data, merchant_config.public_key.peek())
+                        .await
+                        .map_err(|err| {
+                            logger::error!(encryption_err=?err,"Error while JWE encrypting extended card info")
+                        });
 
-                let Ok(encrypted_payload) =
-                    services::encrypt_jwe(&card_data, merchant_config.public_key.peek()).await
-                else {
-                    logger::error!("Error while JWE encrypting extended card info");
+                let Ok(encrypted_payload) = encrypted_payload else {
                     return Ok(());
                 };
 
@@ -939,10 +943,11 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to get redis connection")?;
 
-                let key = format!(
-                    "{0}_{payment_id}_extended_card_info",
-                    business_profile.merchant_id
+                let key = helpers::get_redis_key_for_extended_card_info(
+                    &business_profile.merchant_id,
+                    payment_id,
                 );
+
                 redis_conn
                     .set_key_with_expiry(
                         &key,

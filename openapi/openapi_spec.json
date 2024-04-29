@@ -8782,8 +8782,7 @@
         "properties": {
           "public_key": {
             "type": "string",
-            "description": "Merchant public key",
-            "example": "Miismmnsfdmjhjds"
+            "description": "Merchant public key"
           },
           "ttl_in_secs": {
             "type": "integer",
