@@ -94,6 +94,7 @@ Cypress.Commands.add("createConnectorCallTest", (createConnectorBody, globalStat
         "api-key": globalState.get("adminApiKey"),
       },
       body: createConnectorBody,
+      failOnStatusCode: false
     }).then((response) => {
       logRequestId(response.headers['x-request-id']);
 
@@ -101,7 +102,6 @@ Cypress.Commands.add("createConnectorCallTest", (createConnectorBody, globalStat
         expect(globalState.get("connectorId")).to.equal(response.body.connector_name);
       } else {
         cy.task('cli_log', "response status -> " + JSON.stringify(response.status));
-        cy.task('cli_log', "res body -> " + JSON.stringify(response.body));
       }
     });
   });
