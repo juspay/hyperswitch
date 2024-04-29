@@ -441,6 +441,8 @@ pub async fn add_payment_method_data(
                             status: Some(enums::PaymentMethodStatus::Active),
                             locker_id: Some(locker_id),
                             payment_method: req.payment_method,
+                            payment_method_issuer: req.payment_method_issuer,
+                            payment_method_type: req.payment_method_type,
                         };
 
                         db.update_payment_method(
@@ -555,7 +557,7 @@ pub async fn add_payment_method(
     match duplication_check {
         Some(duplication_check) => match duplication_check {
             payment_methods::DataDuplicationCheck::Duplicated => {
-                get_or_insert_payment_method(
+                let existing_pm = get_or_insert_payment_method(
                     db,
                     req.clone(),
                     &mut resp,
@@ -564,6 +566,8 @@ pub async fn add_payment_method(
                     key_store,
                 )
                 .await?;
+
+                resp.client_secret = existing_pm.client_secret;
             }
             payment_methods::DataDuplicationCheck::MetaDataChanged => {
                 if let Some(card) = req.card.clone() {
@@ -576,6 +580,8 @@ pub async fn add_payment_method(
                         key_store,
                     )
                     .await?;
+
+                    let client_secret = existing_pm.client_secret.clone();
 
                     delete_card_from_locker(
                         &state,
@@ -653,6 +659,8 @@ pub async fn add_payment_method(
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to add payment method in db")?;
+
+                    resp.client_secret = client_secret;
                 }
             }
         },
@@ -667,7 +675,7 @@ pub async fn add_payment_method(
                 None
             };
             resp.payment_method_id = generate_id(consts::ID_LENGTH, "pm");
-            insert_payment_method(
+            let pm = insert_payment_method(
                 db,
                 &resp,
                 req,
@@ -682,6 +690,8 @@ pub async fn add_payment_method(
                 merchant_account.storage_scheme,
             )
             .await?;
+
+            resp.client_secret = pm.client_secret;
         }
     }
 
