@@ -1672,6 +1672,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, PaypalFulfillResponse>>
                 )),
                 connector_payout_id: item.response.batch_header.payout_batch_id,
                 payout_eligible: None,
+                should_add_next_step_to_process_tracker: false,
             }),
             ..item.data
         })
