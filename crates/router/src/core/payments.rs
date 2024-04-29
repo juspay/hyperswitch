@@ -22,7 +22,11 @@ use api_models::{
     mandates::RecurringDetails,
     payments::{self as payments_api, HeaderPayload},
 };
-use common_utils::{ext_traits::AsyncExt, pii, types::Surcharge};
+use common_utils::{
+    ext_traits::{AsyncExt, StringExt},
+    pii,
+    types::Surcharge,
+};
 use data_models::mandates::{CustomerAcceptance, MandateData};
 use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
 use error_stack::{report, ResultExt};
@@ -222,7 +226,7 @@ where
         };
         #[cfg(feature = "frm")]
         logger::debug!(
-            "frm_configs: {:?}\nshould_cancel_transaction: {:?}\nshould_continue_capture: {:?}",
+            "frm_configs: {:?}\nshould_continue_transaction: {:?}\nshould_continue_capture: {:?}",
             frm_configs,
             should_continue_transaction,
             should_continue_capture,
@@ -239,7 +243,6 @@ where
                 &key_store,
             )
             .await?;
-
         if should_continue_transaction {
             #[cfg(feature = "frm")]
             match (
@@ -248,8 +251,15 @@ where
             ) {
                 (false, Some(storage_enums::CaptureMethod::Automatic))
                 | (false, Some(storage_enums::CaptureMethod::Scheduled)) => {
+                    if let Some(info) = &mut frm_info {
+                        if let Some(frm_data) = &mut info.frm_data {
+                            frm_data.fraud_check.payment_capture_method =
+                                payment_data.payment_attempt.capture_method;
+                        }
+                    }
                     payment_data.payment_attempt.capture_method =
                         Some(storage_enums::CaptureMethod::Manual);
+                    logger::debug!("payment_id : {:?} capture method has been changed to manual, since it has configured Post FRM flow",payment_data.payment_attempt.payment_id);
                 }
                 _ => (),
             };
@@ -270,7 +280,7 @@ where
                     };
                     let router_data = call_connector_service(
                         state,
-                        req_state,
+                        req_state.clone(),
                         &merchant_account,
                         &key_store,
                         connector.clone(),
@@ -370,7 +380,7 @@ where
                         if config_bool && router_data.should_call_gsm() {
                             router_data = retry::do_gsm_actions(
                                 state,
-                                req_state,
+                                req_state.clone(),
                                 &mut payment_data,
                                 connectors,
                                 connector_data.clone(),
@@ -446,6 +456,7 @@ where
             if let Some(fraud_info) = &mut frm_info {
                 Box::pin(frm_core::post_payment_frm_core(
                     state,
+                    req_state,
                     &merchant_account,
                     &mut payment_data,
                     fraud_info,
@@ -457,6 +468,7 @@ where
                         .attach_printable("Frm configs label not found")?,
                     &customer,
                     key_store.clone(),
+                    &mut should_continue_capture,
                 ))
                 .await?;
             }
@@ -1278,17 +1290,17 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
         let poll_config = state
             .store
             .find_config_by_key_unwrap_or(
-                &format!("poll_config_external_three_ds_{connector}"),
+                &router_types::PollConfig::get_poll_config_key(connector),
                 Some(default_config_str),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("The poll config was not found in the DB")?;
-        let poll_config =
-            serde_json::from_str::<Option<router_types::PollConfig>>(&poll_config.config)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error while parsing PollConfig")?
-                .unwrap_or(default_poll_config);
+        let poll_config: router_types::PollConfig = poll_config
+            .config
+            .parse_struct("PollConfig")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error while parsing PollConfig")?;
         let profile_id = payments_response
             .profile_id
             .as_ref()
@@ -2497,6 +2509,7 @@ where
     pub authentication: Option<storage::Authentication>,
     pub frm_metadata: Option<serde_json::Value>,
     pub recurring_details: Option<RecurringDetails>,
+    pub poll_config: Option<router_types::PollConfig>,
 }
 
 #[derive(Clone, serde::Serialize, Debug)]

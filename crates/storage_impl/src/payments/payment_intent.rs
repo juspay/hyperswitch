@@ -1113,9 +1113,11 @@ impl DataModelExt for PaymentIntentUpdate {
                 updated_by,
             },
             Self::ApproveUpdate {
+                status,
                 merchant_decision,
                 updated_by,
             } => DieselPaymentIntentUpdate::ApproveUpdate {
+                status,
                 merchant_decision,
                 updated_by,
             },
