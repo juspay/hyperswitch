@@ -164,7 +164,11 @@ impl ConnectorValidation for Nexinets {
     ) -> CustomResult<(), errors::ConnectorError> {
         let mandate_supported_pmd = std::collections::HashSet::from([
             PaymentMethodDataType::Card,
-            PaymentMethodDataType::GooglePay,
+            PaymentMethodDataType::PaypalRedirect,
+            PaymentMethodDataType::ApplePay,
+            PaymentMethodDataType::Eps,
+            PaymentMethodDataType::Giropay,
+            PaymentMethodDataType::Ideal,
             PaymentMethodDataType::MandatePayment,
         ]);
         connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())

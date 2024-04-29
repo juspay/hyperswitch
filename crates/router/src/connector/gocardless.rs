@@ -352,6 +352,7 @@ impl ConnectorValidation for Gocardless {
             PaymentMethodDataType::SepaBankDebit,
             PaymentMethodDataType::AchBankDebit,
             PaymentMethodDataType::BecsBankDebit,
+            PaymentMethodDataType::BacsBankDebit,
             PaymentMethodDataType::MandatePayment,
         ]);
         connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
