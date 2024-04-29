@@ -15,9 +15,9 @@ use masking::PeekInterface;
 use transformers as cryptopay;
 
 use self::cryptopay::CryptopayWebhookDetails;
+use super::utils;
 use crate::{
     configs::settings,
-    connector::utils as connector_utils,
     consts,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
@@ -422,7 +422,7 @@ impl api::IncomingWebhook for Cryptopay {
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let base64_signature =
-            connector_utils::get_header_key_value("X-Cryptopay-Signature", request.headers)?;
+            utils::get_header_key_value("X-Cryptopay-Signature", request.headers)?;
         hex::decode(base64_signature)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
     }
