@@ -408,6 +408,8 @@ pub enum Flow {
     RetrievePollStatus,
     /// Toggles the extended card info feature in profile level
     ToggleExtendedCardInfo,
+    /// Get the extended card info associated to a payment_id
+    GetExtendedCardInfo,
 }
 
 ///
