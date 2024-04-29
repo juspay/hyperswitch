@@ -300,7 +300,7 @@ mod tests {
             vec![schedule_time_delta, first_retry_time_delta],
             vec![
                 cpt_default.start_after,
-                *cpt_default.frequency.first().unwrap()
+                cpt_default.frequencies.first().unwrap().0
             ]
         );
     }

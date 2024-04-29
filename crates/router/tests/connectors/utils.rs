@@ -484,6 +484,7 @@ pub trait ConnectorActions: Connector {
                     phone: Some(Secret::new("620874518".to_string())),
                     phone_country_code: Some("+31".to_string()),
                 }),
+                vendor_details: None,
             },
             payment_info,
         )
@@ -997,6 +998,7 @@ impl Default for PaymentSyncType {
             sync_type: types::SyncRequestType::SinglePaymentSync,
             connector_meta: None,
             payment_method_type: None,
+            currency: enums::Currency::USD,
         };
         Self(data)
     }

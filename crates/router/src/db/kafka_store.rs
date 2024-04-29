@@ -859,21 +859,21 @@ impl ConnectorAccessToken for KafkaStore {
     async fn get_access_token(
         &self,
         merchant_id: &str,
-        connector_name: &str,
+        merchant_connector_id: &str,
     ) -> CustomResult<Option<AccessToken>, errors::StorageError> {
         self.diesel_store
-            .get_access_token(merchant_id, connector_name)
+            .get_access_token(merchant_id, merchant_connector_id)
             .await
     }
 
     async fn set_access_token(
         &self,
         merchant_id: &str,
-        connector_name: &str,
+        merchant_connector_id: &str,
         access_token: AccessToken,
     ) -> CustomResult<(), errors::StorageError> {
         self.diesel_store
-            .set_access_token(merchant_id, connector_name, access_token)
+            .set_access_token(merchant_id, merchant_connector_id, access_token)
             .await
     }
 }

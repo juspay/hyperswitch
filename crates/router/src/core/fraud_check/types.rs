@@ -215,4 +215,4 @@ pub struct FrmFulfillmentSignifydApiResponse {
     pub shipment_ids: Vec<String>,
 }
 
-pub const REFUND_INITIATED: &str = "Refund Initiated with the processor";
+pub const CANCEL_INITIATED: &str = "Cancel Initiated with the processor";

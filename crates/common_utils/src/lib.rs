@@ -2,6 +2,7 @@
 #![warn(missing_docs, missing_debug_implementations)]
 #![doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR" ), "/", "README.md"))]
 
+pub mod access_token;
 pub mod consts;
 pub mod crypto;
 pub mod custom_serde;
