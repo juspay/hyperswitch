@@ -1088,3 +1088,10 @@ pub struct PaymentLinkConfig {
     /// Enable saved payment method option for payment link
     pub enabled_saved_payment_method: bool,
 }
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct ExtendedCardInfoChoice {
+    pub enabled: bool,
+}
+
+impl common_utils::events::ApiEventMetric for ExtendedCardInfoChoice {}
