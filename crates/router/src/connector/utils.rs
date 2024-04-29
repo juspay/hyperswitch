@@ -1186,6 +1186,7 @@ pub trait PhoneDetailsData {
     fn get_country_code(&self) -> Result<String, Error>;
     fn get_number_with_country_code(&self) -> Result<Secret<String>, Error>;
     fn get_number_with_hash_country_code(&self) -> Result<Secret<String>, Error>;
+    fn get_country_code_without_plus(&self) -> Result<String, Error>;
 }
 
 impl PhoneDetailsData for api::PhoneDetails {
@@ -1193,6 +1194,10 @@ impl PhoneDetailsData for api::PhoneDetails {
         self.country_code
             .clone()
             .ok_or_else(missing_field_err("billing.phone.country_code"))
+    }
+    fn get_country_code_without_plus(&self) -> Result<String, Error> {
+        self.get_country_code()
+            .map(|cc| cc.trim_start_matches('+').to_string())
     }
     fn get_number(&self) -> Result<Secret<String>, Error> {
         self.number

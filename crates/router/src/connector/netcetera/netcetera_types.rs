@@ -3,7 +3,11 @@ use std::collections::HashMap;
 use common_utils::pii::Email;
 use serde::{Deserialize, Serialize};
 
-use crate::{connector::utils::AddressDetailsData, errors, types::api::MessageCategory};
+use crate::{
+    connector::utils::{AddressDetailsData, PhoneDetailsData},
+    errors,
+    types::api::MessageCategory,
+};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(untagged)]
@@ -720,9 +724,21 @@ impl
                 .and_then(|add| add.to_state_code_option().transpose())
                 .transpose()?,
             email: billing_address.email,
-            home_phone: billing_address.phone.clone().map(Into::into),
-            mobile_phone: billing_address.phone.clone().map(Into::into),
-            work_phone: billing_address.phone.clone().map(Into::into),
+            home_phone: billing_address
+                .phone
+                .clone()
+                .map(TryInto::try_into)
+                .transpose()?,
+            mobile_phone: billing_address
+                .phone
+                .clone()
+                .map(TryInto::try_into)
+                .transpose()?,
+            work_phone: billing_address
+                .phone
+                .clone()
+                .map(TryInto::try_into)
+                .transpose()?,
             cardholder_name: billing_address
                 .address
                 .as_ref()
@@ -767,12 +783,13 @@ pub struct PhoneNumber {
     subscriber: Option<masking::Secret<String>>,
 }
 
-impl From<api_models::payments::PhoneDetails> for PhoneNumber {
-    fn from(value: api_models::payments::PhoneDetails) -> Self {
-        Self {
-            country_code: value.country_code,
+impl TryFrom<api_models::payments::PhoneDetails> for PhoneNumber {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: api_models::payments::PhoneDetails) -> Result<Self, Self::Error> {
+        Ok(Self {
+            country_code: Some(value.get_country_code_without_plus()?),
             subscriber: value.number,
-        }
+        })
     }
 }
 
