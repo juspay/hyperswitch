@@ -307,6 +307,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             authentication: None,
             frm_metadata: None,
             recurring_details,
+            poll_config: None,
         };
 
         let customer_details = Some(CustomerDetails {

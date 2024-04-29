@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
-use common_utils::ext_traits::{AsyncExt, Encode};
+use common_utils::ext_traits::{AsyncExt, Encode, StringExt};
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
 use router_derive::PaymentOperation;
@@ -27,6 +27,7 @@ use crate::{
     routes::{app::ReqState, AppState},
     services,
     types::{
+        self,
         api::{self, ConnectorCallType, PaymentIdTypeExt},
         domain,
         storage::{self, enums as storage_enums},
@@ -622,6 +623,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             frm_metadata: request.frm_metadata.clone(),
             authentication: None,
             recurring_details,
+            poll_config: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -789,6 +791,28 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                     || authentication.authentication_status.is_failed()
                 {
                     *should_continue_confirm_transaction = false;
+                    let default_poll_config = types::PollConfig::default();
+                    let default_config_str = default_poll_config
+                        .encode_to_string_of_json()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Error while stringifying default poll config")?;
+                    let poll_config = state
+                        .store
+                        .find_config_by_key_unwrap_or(
+                            &types::PollConfig::get_poll_config_key(
+                                authentication.authentication_connector.clone(),
+                            ),
+                            Some(default_config_str),
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("The poll config was not found in the DB")?;
+                    let poll_config: types::PollConfig = poll_config
+                        .config
+                        .parse_struct("PollConfig")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Error while parsing PollConfig")?;
+                    payment_data.poll_config = Some(poll_config)
                 }
                 Some(authentication)
             }
@@ -807,31 +831,6 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                     != api_models::enums::AuthenticationStatus::Success
                 {
                     *should_continue_confirm_transaction = false;
-                }
-                // When authentication status is non-terminal, Set poll_id in redis to allow the fetch status of poll through retrieve_poll_status api from client
-                if !authentication.authentication_status.is_terminal_status() {
-                    let req_poll_id = core_utils::get_external_authentication_request_poll_id(
-                        &payment_data.payment_intent.payment_id,
-                    );
-                    let poll_id = core_utils::get_poll_id(
-                        business_profile.merchant_id.clone(),
-                        req_poll_id.clone(),
-                    );
-                    let redis_conn = state
-                        .store
-                        .get_redis_conn()
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to get redis connection")?;
-                    redis_conn
-                        .set_key_with_expiry(
-                            &poll_id,
-                            api_models::poll::PollStatus::Pending.to_string(),
-                            crate::consts::POLL_ID_TTL,
-                        )
-                        .await
-                        .change_context(errors::StorageError::KVError)
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to add poll_id in redis")?;
                 }
                 Some(authentication)
             }

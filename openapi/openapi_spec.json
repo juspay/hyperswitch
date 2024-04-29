@@ -4882,26 +4882,24 @@
       },
       "AlfamartVoucherData": {
         "type": "object",
-        "required": [
-          "first_name",
-          "last_name",
-          "email"
-        ],
         "properties": {
           "first_name": {
             "type": "string",
             "description": "The billing first name for Alfamart",
-            "example": "Jane"
+            "example": "Jane",
+            "nullable": true
           },
           "last_name": {
             "type": "string",
             "description": "The billing second name for Alfamart",
-            "example": "Doe"
+            "example": "Doe",
+            "nullable": true
           },
           "email": {
             "type": "string",
             "description": "The Email ID for Alfamart",
-            "example": "example@me.com"
+            "example": "example@me.com",
+            "nullable": true
           }
         }
       },
@@ -9753,26 +9751,24 @@
       },
       "IndomaretVoucherData": {
         "type": "object",
-        "required": [
-          "first_name",
-          "last_name",
-          "email"
-        ],
         "properties": {
           "first_name": {
             "type": "string",
             "description": "The billing first name for Alfamart",
-            "example": "Jane"
+            "example": "Jane",
+            "nullable": true
           },
           "last_name": {
             "type": "string",
             "description": "The billing second name for Alfamart",
-            "example": "Doe"
+            "example": "Doe",
+            "nullable": true
           },
           "email": {
             "type": "string",
             "description": "The Email ID for Alfamart",
-            "example": "example@me.com"
+            "example": "example@me.com",
+            "nullable": true
           }
         }
       },
@@ -9794,32 +9790,30 @@
       },
       "JCSVoucherData": {
         "type": "object",
-        "required": [
-          "first_name",
-          "last_name",
-          "email",
-          "phone_number"
-        ],
         "properties": {
           "first_name": {
             "type": "string",
             "description": "The billing first name for Japanese convenience stores",
-            "example": "Jane"
+            "example": "Jane",
+            "nullable": true
           },
           "last_name": {
             "type": "string",
             "description": "The billing second name Japanese convenience stores",
-            "example": "Doe"
+            "example": "Doe",
+            "nullable": true
           },
           "email": {
             "type": "string",
             "description": "The Email ID for Japanese convenience stores",
-            "example": "example@me.com"
+            "example": "example@me.com",
+            "nullable": true
           },
           "phone_number": {
             "type": "string",
             "description": "The telephone number for Japanese convenience stores",
-            "example": "9999999999"
+            "example": "9999999999",
+            "nullable": true
           }
         }
       },
@@ -15613,7 +15607,8 @@
         "type": "string",
         "enum": [
           "adyen",
-          "wise"
+          "wise",
+          "paypal"
         ]
       },
       "PayoutCreateRequest": {
@@ -16313,6 +16308,30 @@
             "description": "The country code attached to the number",
             "example": "+1",
             "nullable": true
+          }
+        }
+      },
+      "PollConfigResponse": {
+        "type": "object",
+        "required": [
+          "poll_id",
+          "delay_in_secs",
+          "frequency"
+        ],
+        "properties": {
+          "poll_id": {
+            "type": "string",
+            "description": "Poll Id"
+          },
+          "delay_in_secs": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Interval of the poll"
+          },
+          "frequency": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Frequency of the poll"
           }
         }
       },
@@ -17879,7 +17898,8 @@
         "required": [
           "three_ds_authentication_url",
           "three_ds_authorize_url",
-          "three_ds_method_details"
+          "three_ds_method_details",
+          "poll_config"
         ],
         "properties": {
           "three_ds_authentication_url": {
@@ -17892,6 +17912,9 @@
           },
           "three_ds_method_details": {
             "$ref": "#/components/schemas/ThreeDsMethodData"
+          },
+          "poll_config": {
+            "$ref": "#/components/schemas/PollConfigResponse"
           }
         }
       },
