@@ -599,9 +599,6 @@ Cypress.Commands.add("listMandateCallTest", (globalState) => {
     expect(response.headers["content-type"]).to.include("application/json");
     console.log(response.body);
 
-    // To address inconsistent failures
-    setTimeout(() => { }, 2000)
-
     let i = 0;
     for (i in response.body) {
       if (response.body[i].mandate_id === globalState.get("mandateId")) {
