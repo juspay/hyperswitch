@@ -16327,30 +16327,6 @@
           }
         }
       },
-      "PollConfigResponse": {
-        "type": "object",
-        "required": [
-          "poll_id",
-          "delay_in_secs",
-          "frequency"
-        ],
-        "properties": {
-          "poll_id": {
-            "type": "string",
-            "description": "Poll Id"
-          },
-          "delay_in_secs": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Interval of the poll"
-          },
-          "frequency": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Frequency of the poll"
-          }
-        }
-      },
       "PixBankTransfer": {
         "type": "object",
         "required": [
@@ -16385,6 +16361,30 @@
             "type": "string",
             "description": "Individual taxpayer identification number",
             "example": "000123456"
+          }
+        }
+      },
+      "PollConfigResponse": {
+        "type": "object",
+        "required": [
+          "poll_id",
+          "delay_in_secs",
+          "frequency"
+        ],
+        "properties": {
+          "poll_id": {
+            "type": "string",
+            "description": "Poll Id"
+          },
+          "delay_in_secs": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Interval of the poll"
+          },
+          "frequency": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Frequency of the poll"
           }
         }
       },
