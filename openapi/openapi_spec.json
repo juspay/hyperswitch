@@ -8707,6 +8707,23 @@
           "mandate_revoked"
         ]
       },
+      "ExtendedCardInfoConfig": {
+        "type": "object",
+        "required": [
+          "public_key",
+          "ttl_in_secs"
+        ],
+        "properties": {
+          "public_key": {
+            "$ref": "#/components/schemas/Secret"
+          },
+          "ttl_in_secs": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
       "ExternalAuthenticationDetailsResponse": {
         "type": "object",
         "required": [

@@ -194,6 +194,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::MerchantConnectorDeleteResponse,
         api_models::admin::MerchantConnectorResponse,
         api_models::admin::AuthenticationConnectorDetails,
+        api_models::admin::ExtendedCardInfoConfig,
         api_models::customers::CustomerRequest,
         api_models::customers::CustomerDeleteResponse,
         api_models::payment_methods::PaymentMethodCreate,

@@ -1099,7 +1099,7 @@ pub struct ExtendedCardInfoChoice {
 
 impl common_utils::events::ApiEventMetric for ExtendedCardInfoChoice {}
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ExtendedCardInfoConfig {
     pub public_key: Secret<String>,
     pub ttl_in_secs: u16,
