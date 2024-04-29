@@ -193,6 +193,7 @@ impl Default for Mandates {
                                     enums::Connector::Payme,
                                     enums::Connector::Stripe,
                                     enums::Connector::Bankofamerica,
+                                    enums::Connector::Cybersource,
                                 ]),
                             },
                         ),
