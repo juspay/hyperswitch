@@ -297,8 +297,6 @@ pub struct RouterData<Flow, Request, Response> {
     /// Contains flow-specific data that the connector responds with.
     pub response: Result<Response, ErrorResponse>,
 
-    /// Contains any error response that the connector returns.
-
     /// Contains a reference ID that should be sent in the connector request
     pub connector_request_reference_id: String,
 
