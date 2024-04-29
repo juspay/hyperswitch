@@ -2111,6 +2111,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06ea2b9bc92be3c2baa9334a323ebca2d6f074ff852cd1d7b11064035cd3868f"
 
 [[package]]
+name = "core_types"
+version = "0.1.0"
+dependencies = [
+ "api_models",
+ "bytes 1.6.0",
+ "common_enums",
+ "common_utils",
+ "http 0.2.12",
+ "masking",
+ "router_derive",
+ "serde",
+ "serde_json",
+ "storage_impl",
+]
+
+[[package]]
 name = "cpufeatures"
 version = "0.2.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3616,6 +3632,31 @@ dependencies = [
  "pin-project-lite",
  "socket2",
  "tokio 1.37.0",
+]
+
+[[package]]
+name = "hyperswitch_connector"
+version = "0.1.0"
+dependencies = [
+ "api_models",
+ "async-trait",
+ "bytes 1.6.0",
+ "common_enums",
+ "common_utils",
+ "core_types",
+ "error-stack",
+ "events",
+ "http 0.2.12",
+ "masking",
+ "mime",
+ "reqwest",
+ "router_derive",
+ "router_env",
+ "serde",
+ "serde_json",
+ "strum 0.26.2",
+ "thiserror",
+ "time",
 ]
 
 [[package]]
