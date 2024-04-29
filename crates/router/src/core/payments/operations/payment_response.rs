@@ -89,13 +89,13 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
+        business_profile: &storage::business_profile::BusinessProfile,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
     {
         let customer_id = payment_data.payment_intent.customer_id.clone();
         let save_payment_data = tokenization::SavePaymentMethodData::from(resp);
-        let profile_id = payment_data.payment_intent.profile_id.clone();
 
         let connector_name = payment_data
             .payment_attempt
@@ -125,8 +125,8 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             key_store,
             Some(resp.request.amount),
             Some(resp.request.currency),
-            profile_id,
             billing_name.clone(),
+            business_profile,
         ));
 
         let is_connector_mandate = resp.request.customer_acceptance.is_some()
@@ -169,10 +169,11 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             let key_store = key_store.clone();
             let state = state.clone();
             let customer_id = payment_data.payment_intent.customer_id.clone();
-            let profile_id = payment_data.payment_intent.profile_id.clone();
 
             let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
             let payment_attempt = payment_data.payment_attempt.clone();
+
+            let business_profile = business_profile.clone();
 
             let amount = resp.request.amount;
             let currency = resp.request.currency;
@@ -195,8 +196,8 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                         &key_store,
                         Some(amount),
                         Some(currency),
-                        profile_id,
                         billing_name,
+                        &business_profile,
                     ))
                     .await;
 
@@ -388,6 +389,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         merchant_account: &domain::MerchantAccount,
         _key_store: &domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
+        business_profile: &storage::business_profile::BusinessProfile,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -398,6 +400,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
             resp.status,
             resp.response.clone(),
             merchant_account.storage_scheme,
+            business_profile.is_connector_agnostic_mit_enabled,
         )
         .await?;
         Ok(())
@@ -587,6 +590,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
+        business_profile: &storage::business_profile::BusinessProfile,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -598,7 +602,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             .and_then(|address| address.get_optional_full_name());
         let save_payment_data = tokenization::SavePaymentMethodData::from(resp);
         let customer_id = payment_data.payment_intent.customer_id.clone();
-        let profile_id = payment_data.payment_intent.profile_id.clone();
         let connector_name = payment_data
             .payment_attempt
             .connector
@@ -622,8 +625,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
                 key_store,
                 resp.request.amount,
                 Some(resp.request.currency),
-                profile_id,
                 billing_name,
+                business_profile,
             ))
             .await?;
 
@@ -674,6 +677,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
         merchant_account: &domain::MerchantAccount,
         _key_store: &domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
+        business_profile: &storage::business_profile::BusinessProfile,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -684,6 +688,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
             resp.status,
             resp.response.clone(),
             merchant_account.storage_scheme,
+            business_profile.is_connector_agnostic_mit_enabled,
         )
         .await?;
         Ok(())
@@ -1221,6 +1226,7 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
     attempt_status: common_enums::AttemptStatus,
     payment_response: Result<types::PaymentsResponseData, ErrorResponse>,
     storage_scheme: enums::MerchantStorageScheme,
+    is_connector_agnostic_mit_enabled: Option<bool>,
 ) -> RouterResult<()> {
     if let Some(id) = &payment_data.payment_attempt.payment_method_id {
         let pm = state
@@ -1241,23 +1247,7 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
 
         let network_transaction_id =
             if let Some(network_transaction_id) = pm_resp_network_transaction_id {
-                let profile_id = payment_data
-                    .payment_intent
-                    .profile_id
-                    .as_ref()
-                    .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?;
-
-                let pg_agnostic = state
-                    .store
-                    .find_config_by_key_unwrap_or(
-                        &format!("pg_agnostic_mandate_{}", profile_id),
-                        Some("false".to_string()),
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("The pg_agnostic config was not found in the DB")?;
-
-                if &pg_agnostic.config == "true"
+                if is_connector_agnostic_mit_enabled == Some(true)
                     && payment_data.payment_intent.setup_future_usage
                         == Some(diesel_models::enums::FutureUsage::OffSession)
                 {
