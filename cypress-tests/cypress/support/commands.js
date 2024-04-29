@@ -53,7 +53,6 @@ Cypress.Commands.add("merchantCreateCallTest", (merchantCreateBody, globalState)
     logRequestId(response.headers['x-request-id']);
 
     // Handle the response as needed
-    console.log(response.body);
     globalState.set("publishableKey", response.body.publishable_key);
   });
 });
@@ -72,7 +71,6 @@ Cypress.Commands.add("apiKeyCreateTest", (apiKeyCreateBody, globalState) => {
     logRequestId(response.headers['x-request-id']);
 
     // Handle the response as needed
-    console.log(response.body);
     globalState.set("apiKey", response.body.api_key);
   });
 });
@@ -212,7 +210,6 @@ Cypress.Commands.add("confirmCallTest", (confirmBody, details, confirm, globalSt
     logRequestId(response.headers['x-request-id']);
 
     expect(response.headers["content-type"]).to.include("application/json");
-    console.log(response.body);
     globalState.set("paymentID", paymentIntentID);
     if (response.body.capture_method === "automatic") {
       if (response.body.authentication_type === "three_ds") {
@@ -266,8 +263,6 @@ Cypress.Commands.add("createConfirmPaymentTest", (createConfirmPaymentBody, deta
 
     expect(response.headers["content-type"]).to.include("application/json");
     expect(response.body).to.have.property("status");
-    console.log(response.body);
-    globalState.set("paymentAmount", createConfirmPaymentBody.amount);
     globalState.set("paymentID", response.body.payment_id);
     if (response.body.capture_method === "automatic") {
       if (response.body.authentication_type === "three_ds") {
@@ -316,7 +311,6 @@ Cypress.Commands.add("saveCardConfirmCallTest", (confirmBody, det, globalState) 
       logRequestId(response.headers['x-request-id']);
 
       expect(response.headers["content-type"]).to.include("application/json");
-      console.log(response.body);
       globalState.set("paymentID", paymentIntentID);
       if (response.body.capture_method === "automatic") {
         if (response.body.authentication_type === "three_ds") {
@@ -366,7 +360,6 @@ Cypress.Commands.add("captureCallTest", (requestBody, amount_to_capture, payment
 
     expect(response.headers["content-type"]).to.include("application/json");
     expect(response.body.payment_id).to.equal(payment_id);
-    console.log(response.body);
     if (amount_to_capture == amount && response.body.status == "succeeded") {
       expect(response.body.amount).to.equal(amount_to_capture);
       expect(response.body.amount_capturable).to.equal(0);
@@ -406,7 +399,6 @@ Cypress.Commands.add("voidCallTest", (requestBody, globalState) => {
     // expect(response.body.amount_capturable).to.equal(0);
     expect(response.body.amount_received).to.be.oneOf([0, null]);
     expect(response.body.status).to.equal("cancelled");
-    console.log(response.body);
   });
 });
 
@@ -424,7 +416,6 @@ Cypress.Commands.add("retrievePaymentCallTest", (globalState) => {
     logRequestId(response.headers['x-request-id']);
 
     expect(response.headers["content-type"]).to.include("application/json");
-    console.log(response.body);
     expect(response.body.payment_id).to.equal(payment_id);
     expect(response.body.amount).to.equal(globalState.get("paymentAmount"));
     globalState.set("paymentID", response.body.payment_id);
@@ -448,7 +439,6 @@ Cypress.Commands.add("refundCallTest", (requestBody, refund_amount, det, globalS
     logRequestId(response.headers['x-request-id']);
 
     expect(response.headers["content-type"]).to.include("application/json");
-    console.log(response.body);
     globalState.set("refundId", response.body.refund_id);
     expect(response.body.status).to.equal(det.refundStatus);
     expect(response.body.amount).to.equal(refund_amount);
@@ -469,7 +459,6 @@ Cypress.Commands.add("syncRefundCallTest", (det, globalState) => {
     logRequestId(response.headers['x-request-id']);
 
     expect(response.headers["content-type"]).to.include("application/json");
-    console.log(response.body);
     expect(response.body.status).to.equal(det.refundSyncStatus);
   });
 });
@@ -497,7 +486,6 @@ Cypress.Commands.add("citForMandatesCallTest", (requestBody, amount, details, co
 
     expect(response.headers["content-type"]).to.include("application/json");
     expect(response.body).to.have.property("mandate_id");
-    console.log(response.body);
     globalState.set("mandateId", response.body.mandate_id);
     globalState.set("paymentID", response.body.payment_id);
 
@@ -550,7 +538,6 @@ Cypress.Commands.add("mitForMandatesCallTest", (requestBody, amount, confirm, ca
 
     expect(response.headers["content-type"]).to.include("application/json");
     globalState.set("paymentID", response.body.payment_id);
-    console.log(response.body);
     console.log("mit statusss-> " + response.body.status);
     if (response.body.capture_method === "automatic") {
       if (response.body.authentication_type === "three_ds") {
@@ -597,7 +584,6 @@ Cypress.Commands.add("listMandateCallTest", (globalState) => {
     logRequestId(response.headers['x-request-id']);
 
     expect(response.headers["content-type"]).to.include("application/json");
-    console.log(response.body);
 
     let i = 0;
     for (i in response.body) {
@@ -622,7 +608,6 @@ Cypress.Commands.add("revokeMandateCallTest", (globalState) => {
     logRequestId(response.headers['x-request-id']);
 
     expect(response.headers["content-type"]).to.include("application/json");
-    console.log(response.body);
     if (response.body.status === 200) {
       expect(response.body.status).to.equal("revoked");
     } else if (response.body.status === 400) {
@@ -687,8 +672,8 @@ Cypress.Commands.add("handleRedirection", (globalState, expected_redirection) =>
 
 
   else {
-    // If connectorId is neither of adyen, trustpay, nmi, stripe, bankofamerica or cybersource, wait for 30 seconds
-    cy.wait(30000);
+    // If connectorId is neither of adyen, trustpay, nmi, stripe, bankofamerica or cybersource, wait for 10 seconds
+    cy.wait(10000);
   }
 
   // Handling redirection
@@ -718,7 +703,6 @@ Cypress.Commands.add("listCustomerPMCallTest", (globalState) => {
     logRequestId(response.headers['x-request-id']);
 
     expect(response.headers["content-type"]).to.include("application/json");
-    console.log(response.body);
     if (response.body.customer_payment_methods[0]?.payment_token) {
       const paymentToken = response.body.customer_payment_methods[0].payment_token;
       globalState.set("paymentToken", paymentToken); // Set paymentToken in globalState
@@ -743,7 +727,6 @@ Cypress.Commands.add("listRefundCallTest", (globalState) => {
     logRequestId(response.headers['x-request-id']);
 
     expect(response.headers["content-type"]).to.include("application/json");
-    console.log(response.body);
     expect(response.body.data).to.be.an('array').and.not.empty;
   });
 });
