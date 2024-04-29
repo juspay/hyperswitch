@@ -63,6 +63,7 @@ use super::{
 use crate::core::fraud_check as frm_core;
 use crate::{
     configs::settings::{ApplePayPreDecryptFlow, PaymentMethodTypeTokenFilter},
+    connector::utils::missing_field_err,
     core::{
         authentication as authentication_core,
         errors::{self, CustomResult, RouterResponse, RouterResult},
@@ -2577,6 +2578,22 @@ pub struct CustomerDetails {
     pub email: Option<pii::Email>,
     pub phone: Option<Secret<String, masking::WithType>>,
     pub phone_country_code: Option<String>,
+}
+
+pub trait CustomerDetailsExt {
+    type Error;
+    fn get_name(&self) -> Result<Secret<String, masking::WithType>, Self::Error>;
+    fn get_email(&self) -> Result<pii::Email, Self::Error>;
+}
+
+impl CustomerDetailsExt for CustomerDetails {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn get_name(&self) -> Result<Secret<String, masking::WithType>, Self::Error> {
+        self.name.clone().ok_or_else(missing_field_err("name"))
+    }
+    fn get_email(&self) -> Result<pii::Email, Self::Error> {
+        self.email.clone().ok_or_else(missing_field_err("email"))
+    }
 }
 
 pub fn if_not_create_change_operation<'a, Op, F, Ctx>(
