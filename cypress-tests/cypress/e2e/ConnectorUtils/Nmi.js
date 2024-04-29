@@ -18,7 +18,7 @@ export const connectorDetails = {
     "3DS": {
         "card": successfulThreeDSTestCardDetails,
         "currency": "USD",
-        "paymentSuccessfulStatus": "requires_customer_action",
+        "paymentSuccessfulStatus": "succeeded",
         "paymentSyncStatus": "succeeded",
         "refundStatus": "pending",
         "refundSyncStatus": "succeeded",

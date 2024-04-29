@@ -13,7 +13,7 @@
     "phone_country_code": "+65",
     "description": "Its my first payment request",
     "authentication_type": "no_three_ds",
-    "return_url": "https://duck.com",
+    "return_url": "https://hyperswitch.io",
     "setup_future_usage": "on_session",
     "customer_acceptance": {
         "acceptance_type": "offline",

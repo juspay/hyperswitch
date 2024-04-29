@@ -307,6 +307,7 @@ Cypress.Commands.add("createConfirmPaymentTest", (createConfirmPaymentBody, deta
       if (response.body.authentication_type === "three_ds") {
         expect(response.body).to.have.property("next_action")
           .to.have.property("redirect_to_url")
+          globalState.set("nextActionUrl", response.body.next_action.redirect_to_url);
       }
       else if (response.body.authentication_type === "no_three_ds") {
         expect(details.paymentSuccessfulStatus).to.equal(response.body.status);
@@ -319,6 +320,7 @@ Cypress.Commands.add("createConfirmPaymentTest", (createConfirmPaymentBody, deta
       if (response.body.authentication_type === "three_ds") {
         expect(response.body).to.have.property("next_action")
           .to.have.property("redirect_to_url")
+          globalState.set("nextActionUrl", response.body.next_action.redirect_to_url);
       }
       else if (response.body.authentication_type === "no_three_ds") {
         expect("requires_capture").to.equal(response.body.status);
@@ -426,7 +428,7 @@ Cypress.Commands.add("captureCallTest", (requestBody, amount_to_capture, payment
       expect(response.body.amount_capturable).to.equal(0);
       expect(response.body.amount_received).to.equal(amount_to_capture);
       expect(response.body.status).to.equal("partially_captured");
-    }
+    } 
   });
 });
 
@@ -456,7 +458,6 @@ Cypress.Commands.add("voidCallTest", (requestBody, globalState) => {
     console.log(response.body);
   });
 });
-
 Cypress.Commands.add("retrievePaymentCallTest", (globalState) => {
   console.log("syncpaymentID------>" + globalState.get("paymentID"));
   const payment_id = globalState.get("paymentID");
