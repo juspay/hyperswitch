@@ -264,6 +264,7 @@ Cypress.Commands.add("createConfirmPaymentTest", (createConfirmPaymentBody, deta
 
     expect(response.headers["content-type"]).to.include("application/json");
     expect(response.body).to.have.property("status");
+    globalState.set("paymentAmount", createConfirmPaymentBody.amount);
     globalState.set("paymentID", response.body.payment_id);
     if (response.body.capture_method === "automatic") {
       if (response.body.authentication_type === "three_ds") {
