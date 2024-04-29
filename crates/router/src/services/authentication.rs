@@ -128,7 +128,6 @@ pub struct SinglePurposeToken {
 #[derive(Debug, Clone, PartialEq, Eq, strum::Display, serde::Deserialize, serde::Serialize)]
 pub enum SinglePurpose {
     AcceptInvite,
-    ForceSetPassword,
 }
 
 #[cfg(feature = "olap")]
@@ -360,6 +359,7 @@ where
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub(crate) struct SinglePurposeJWTAuth(pub SinglePurpose);
 
