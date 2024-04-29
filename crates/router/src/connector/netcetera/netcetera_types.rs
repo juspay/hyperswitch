@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use common_utils::pii::Email;
 use serde::{Deserialize, Serialize};
 
-use crate::types::api::MessageCategory;
+use crate::{connector::utils::AddressDetailsData, errors, types::api::MessageCategory};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(untagged)]
@@ -679,18 +679,19 @@ pub struct Cardholder {
 }
 
 impl
-    From<(
+    TryFrom<(
         api_models::payments::Address,
         Option<api_models::payments::Address>,
     )> for Cardholder
 {
-    fn from(
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
         (billing_address, shipping_address): (
             api_models::payments::Address,
             Option<api_models::payments::Address>,
         ),
-    ) -> Self {
-        Self {
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
             addr_match: None,
             bill_addr_city: billing_address
                 .address
@@ -716,7 +717,8 @@ impl
             bill_addr_state: billing_address
                 .address
                 .as_ref()
-                .and_then(|add| add.state.clone()),
+                .and_then(|add| add.to_state_code_option().transpose())
+                .transpose()?,
             email: billing_address.email,
             home_phone: billing_address.phone.clone().map(Into::into),
             mobile_phone: billing_address.phone.clone().map(Into::into),
@@ -749,9 +751,10 @@ impl
             ship_addr_state: shipping_address
                 .as_ref()
                 .and_then(|shipping_add| shipping_add.address.as_ref())
-                .and_then(|add| add.state.clone()),
+                .and_then(|add| add.to_state_code_option().transpose())
+                .transpose()?,
             tax_id: None,
-        }
+        })
     }
 }
 
@@ -1377,6 +1380,7 @@ pub struct Sdk {
     ///
     /// Starting from EMV 3DS 2.3.1:
     /// In case of Browser-SDK, the SDK App ID value is not reliable, and may change for each transaction.
+    #[serde(rename = "sdkAppID")]
     sdk_app_id: Option<String>,
 
     /// JWE Object as defined Section 6.2.2.1 containing data encrypted by the SDK for the DS to decrypt. This element is
@@ -1404,6 +1408,7 @@ pub struct Sdk {
     /// Universally unique transaction identifier assigned by the 3DS SDK to identify a single transaction. The field is
     /// limited to 36 characters and it shall be in a canonical format as defined in IETF RFC 4122. This may utilize any of
     /// the specified versions as long as the output meets specific requirements.
+    #[serde(rename = "sdkTransID")]
     sdk_trans_id: Option<String>,
 
     /// Contains the JWS object(represented as a string) created by the Split-SDK Server for the AReq message. A
@@ -1586,4 +1591,36 @@ pub enum ThreeDSReqAuthMethod {
     /// Additionally, 80-99 can be used for PS-specific values, regardless of protocol version.
     #[serde(untagged)]
     PsSpecificValue(String),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DeviceRenderingOptionsSupported {
+    pub sdk_interface: SdkInterface,
+    /// For Native UI SDK Interface accepted values are 01-04 and for HTML UI accepted values are 01-05.
+    pub sdk_ui_type: SdkUiType,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum SdkInterface {
+    #[serde(rename = "01")]
+    Native,
+    #[serde(rename = "02")]
+    Html,
+    #[serde(rename = "03")]
+    Both,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum SdkUiType {
+    #[serde(rename = "01")]
+    Text,
+    #[serde(rename = "02")]
+    SingleSelect,
+    #[serde(rename = "03")]
+    MultiSelect,
+    #[serde(rename = "04")]
+    Oob,
+    #[serde(rename = "05")]
+    HtmlOther,
 }

@@ -430,7 +430,7 @@ pub struct NetceteraAuthenticationRequest {
     pub acquirer: Option<netcetera_types::AcquirerData>,
     pub merchant: Option<netcetera_types::MerchantData>,
     pub broad_info: Option<String>,
-    pub device_render_options: Option<String>,
+    pub device_render_options: Option<netcetera_types::DeviceRenderingOptionsSupported>,
     pub message_extension: Option<Vec<netcetera_types::MessageExtensionAttribute>>,
     pub challenge_message_extension: Option<Vec<netcetera_types::MessageExtensionAttribute>>,
     pub browser_information: Option<netcetera_types::Browser>,
@@ -552,6 +552,16 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
         };
         let browser_information = request.browser_details.map(netcetera_types::Browser::from);
         let sdk_information = request.sdk_information.map(netcetera_types::Sdk::from);
+        let device_render_options = match request.device_channel {
+            api_models::payments::DeviceChannel::App => {
+                Some(netcetera_types::DeviceRenderingOptionsSupported {
+                    // hard-coded until core provides these values.
+                    sdk_interface: netcetera_types::SdkInterface::Native,
+                    sdk_ui_type: netcetera_types::SdkUiType::Text,
+                })
+            }
+            api_models::payments::DeviceChannel::Browser => None,
+        };
         Ok(Self {
             preferred_protocol_version: Some(pre_authn_data.message_version),
             enforce_preferred_protocol_version: None,
@@ -567,15 +577,15 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
             three_ds_server_trans_id: pre_authn_data.threeds_server_transaction_id,
             three_ds_requestor_url: Some(request.three_ds_requestor_url),
             cardholder_account,
-            cardholder: Some(netcetera_types::Cardholder::from((
+            cardholder: Some(netcetera_types::Cardholder::try_from((
                 request.billing_address,
                 request.shipping_address,
-            ))),
+            ))?),
             purchase: Some(purchase),
             acquirer: Some(acquirer_details),
             merchant: Some(merchant_data),
             broad_info: None,
-            device_render_options: None,
+            device_render_options,
             message_extension: None,
             challenge_message_extension: None,
             browser_information,
