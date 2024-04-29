@@ -2825,6 +2825,8 @@ pub struct ThreeDsData {
     pub three_ds_authorize_url: String,
     /// ThreeDS method details
     pub three_ds_method_details: ThreeDsMethodData,
+    /// Poll config for a connector
+    pub poll_config: PollConfigResponse,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
@@ -2839,6 +2841,16 @@ pub enum ThreeDsMethodData {
         /// ThreeDS method url
         three_ds_method_url: Option<String>,
     },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub struct PollConfigResponse {
+    /// Poll Id
+    pub poll_id: String,
+    /// Interval of the poll
+    pub delay_in_secs: i8,
+    /// Frequency of the poll
+    pub frequency: i8,
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]

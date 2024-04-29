@@ -86,6 +86,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                     profile_id: new.profile_id.clone(),
                     status: new.status,
                     attempt_count: new.attempt_count,
+                    confirm: new.confirm,
                 };
 
                 let redis_entry = kv::TypedSql {
@@ -674,6 +675,7 @@ impl DataModelExt for Payouts {
             profile_id: self.profile_id,
             status: self.status,
             attempt_count: self.attempt_count,
+            confirm: self.confirm,
         }
     }
 
@@ -699,6 +701,7 @@ impl DataModelExt for Payouts {
             profile_id: storage_model.profile_id,
             status: storage_model.status,
             attempt_count: storage_model.attempt_count,
+            confirm: storage_model.confirm,
         }
     }
 }
@@ -727,6 +730,7 @@ impl DataModelExt for PayoutsNew {
             profile_id: self.profile_id,
             status: self.status,
             attempt_count: self.attempt_count,
+            confirm: self.confirm,
         }
     }
 
@@ -752,6 +756,7 @@ impl DataModelExt for PayoutsNew {
             profile_id: storage_model.profile_id,
             status: storage_model.status,
             attempt_count: storage_model.attempt_count,
+            confirm: storage_model.confirm,
         }
     }
 }
@@ -771,6 +776,7 @@ impl DataModelExt for PayoutsUpdate {
                 metadata,
                 profile_id,
                 status,
+                confirm,
             } => DieselPayoutsUpdate::Update {
                 amount,
                 destination_currency,
@@ -783,6 +789,7 @@ impl DataModelExt for PayoutsUpdate {
                 metadata,
                 profile_id,
                 status,
+                confirm,
             },
             Self::PayoutMethodIdUpdate { payout_method_id } => {
                 DieselPayoutsUpdate::PayoutMethodIdUpdate { payout_method_id }
