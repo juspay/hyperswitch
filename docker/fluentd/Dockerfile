@@ -1,4 +1,4 @@
-# fluentd/Dockerfile
+# docker/fluentd/Dockerfile
 
 FROM fluent/fluentd:v1.16-debian-2
 USER root

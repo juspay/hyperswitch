@@ -335,9 +335,9 @@ services:
         hard: 262144
 
   fluentd:
-    build: ./fluentd
+    build: ./docker/fluentd
     volumes:
-      - ./fluentd/conf:/fluentd/etc
+      - ./docker/fluentd/conf:/fluentd/etc
     networks:
       - router_net
 
