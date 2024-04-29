@@ -933,8 +933,6 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                     return Ok(());
                 };
 
-                println!(">>encrypted_payload: {encrypted_payload}");
-
                 let redis_conn = state
                     .store
                     .get_redis_conn()
@@ -956,26 +954,6 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                     .attach_printable("Failed to add extended card info in redis")?;
 
                 logger::info!("Extended card info added to redis");
-
-                // let enc_payload_from_redis = redis_conn.get_key::<String>(&key).await.unwrap();
-                // println!(">>enc_payload_from_redis: {enc_payload_from_redis}");
-
-                // let dp = services::decrypt_jwe(
-                //     &enc_payload_from_redis,
-                //     services::KeyIdCheck::SkipKeyIdCheck,
-                //     state
-                //         .conf
-                //         .jwekey
-                //         .get_inner()
-                //         .vault_private_key
-                //         .clone()
-                //         .peek(),
-                //     josekit::jwe::RSA_OAEP_256,
-                // )
-                // .await
-                // .unwrap();
-
-                // println!(">>decrypted_payload: {dp}");
             }
         }
 
