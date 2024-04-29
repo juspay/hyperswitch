@@ -137,10 +137,6 @@ services:
       - HYPERSWITCH_SERVER_URL=${HYPERSWITCH_SERVER_URL:-http://hyperswitch-server:8080}
       - HYPERSWITCH_CLIENT_URL=${HYPERSWITCH_CLIENT_URL:-http://localhost:9050}
       - SELF_SERVER_URL=${SELF_SERVER_URL:-http://localhost:5252}
-      - SDK_ENV=${SDK_ENV:-local}
-      - ENV_SDK_URL=${ENV_SDK_URL:-http://localhost:9050/HyperLoader.js}
-      - ENV_BACKEND_URL=${ENV_BACKEND_URL:-http://localhost:8080}
-      - ENV_LOGGING_URL=${ENV_LOGGING_URL:-http://localhost:3100}
     labels:  
       logs: "promtail"  
 

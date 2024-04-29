@@ -4,7 +4,7 @@ RUN npm install concurrently -g
 
 WORKDIR /hyperswitch-web
 
-RUN git clone https://github.com/juspay/hyperswitch-web . --depth 1
+RUN git clone https://github.com/juspay/hyperswitch-web --depth 1 .
 
 RUN npm install
 
