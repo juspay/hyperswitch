@@ -149,6 +149,7 @@ impl SinglePurposeToken {
     }
 }
 
+// TODO: This has to be removed once SinglePuposeToken is used as a intermediate token
 #[derive(Clone, Debug)]
 pub struct UserWithoutMerchantFromToken {
     pub user_id: String,
