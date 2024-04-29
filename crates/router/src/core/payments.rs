@@ -63,6 +63,7 @@ use super::{
 use crate::core::fraud_check as frm_core;
 use crate::{
     configs::settings::{ApplePayPreDecryptFlow, PaymentMethodTypeTokenFilter},
+    connector::utils::missing_field_err,
     core::{
         authentication as authentication_core,
         errors::{self, CustomResult, RouterResponse, RouterResult},
@@ -226,7 +227,7 @@ where
         };
         #[cfg(feature = "frm")]
         logger::debug!(
-            "frm_configs: {:?}\nshould_cancel_transaction: {:?}\nshould_continue_capture: {:?}",
+            "frm_configs: {:?}\nshould_continue_transaction: {:?}\nshould_continue_capture: {:?}",
             frm_configs,
             should_continue_transaction,
             should_continue_capture,
@@ -243,7 +244,6 @@ where
                 &key_store,
             )
             .await?;
-
         if should_continue_transaction {
             #[cfg(feature = "frm")]
             match (
@@ -252,8 +252,15 @@ where
             ) {
                 (false, Some(storage_enums::CaptureMethod::Automatic))
                 | (false, Some(storage_enums::CaptureMethod::Scheduled)) => {
+                    if let Some(info) = &mut frm_info {
+                        if let Some(frm_data) = &mut info.frm_data {
+                            frm_data.fraud_check.payment_capture_method =
+                                payment_data.payment_attempt.capture_method;
+                        }
+                    }
                     payment_data.payment_attempt.capture_method =
                         Some(storage_enums::CaptureMethod::Manual);
+                    logger::debug!("payment_id : {:?} capture method has been changed to manual, since it has configured Post FRM flow",payment_data.payment_attempt.payment_id);
                 }
                 _ => (),
             };
@@ -274,7 +281,7 @@ where
                     };
                     let router_data = call_connector_service(
                         state,
-                        req_state,
+                        req_state.clone(),
                         &merchant_account,
                         &key_store,
                         connector.clone(),
@@ -374,7 +381,7 @@ where
                         if config_bool && router_data.should_call_gsm() {
                             router_data = retry::do_gsm_actions(
                                 state,
-                                req_state,
+                                req_state.clone(),
                                 &mut payment_data,
                                 connectors,
                                 connector_data.clone(),
@@ -450,6 +457,7 @@ where
             if let Some(fraud_info) = &mut frm_info {
                 Box::pin(frm_core::post_payment_frm_core(
                     state,
+                    req_state,
                     &merchant_account,
                     &mut payment_data,
                     fraud_info,
@@ -461,6 +469,7 @@ where
                         .attach_printable("Frm configs label not found")?,
                     &customer,
                     key_store.clone(),
+                    &mut should_continue_capture,
                 ))
                 .await?;
             }
@@ -1162,6 +1171,20 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        let authentication_id = payment_attempt
+            .authentication_id
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("missing authentication_id in payment_attempt")?;
+        let authentication = state
+            .store
+            .find_authentication_by_merchant_id_authentication_id(
+                merchant_id.clone(),
+                authentication_id.clone(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::AuthenticationNotFound {
+                id: authentication_id,
+            })?;
         // Fetching merchant_connector_account to check if pull_mechanism is enabled for 3ds connector
         let authentication_merchant_connector_account = helpers::get_merchant_connector_account(
             state,
@@ -1185,7 +1208,10 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
                     .get_metadata()
                     .map(|metadata| metadata.expose()),
             );
-        let response = if is_pull_mechanism_enabled {
+        let response = if is_pull_mechanism_enabled
+            || authentication.authentication_type
+                == Some(common_enums::DecoupledAuthenticationType::Frictionless)
+        {
             let payment_confirm_req = api::PaymentsRequest {
                 payment_id: Some(req.resource_id.clone()),
                 merchant_id: req.merchant_id.clone(),
@@ -2562,6 +2588,22 @@ pub struct CustomerDetails {
     pub email: Option<pii::Email>,
     pub phone: Option<Secret<String, masking::WithType>>,
     pub phone_country_code: Option<String>,
+}
+
+pub trait CustomerDetailsExt {
+    type Error;
+    fn get_name(&self) -> Result<Secret<String, masking::WithType>, Self::Error>;
+    fn get_email(&self) -> Result<pii::Email, Self::Error>;
+}
+
+impl CustomerDetailsExt for CustomerDetails {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn get_name(&self) -> Result<Secret<String, masking::WithType>, Self::Error> {
+        self.name.clone().ok_or_else(missing_field_err("name"))
+    }
+    fn get_email(&self) -> Result<pii::Email, Self::Error> {
+        self.email.clone().ok_or_else(missing_field_err("email"))
+    }
 }
 
 pub fn if_not_create_change_operation<'a, Op, F, Ctx>(
