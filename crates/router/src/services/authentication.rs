@@ -137,7 +137,8 @@ impl SinglePurposeToken {
         purpose: Purpose,
         settings: &Settings,
     ) -> UserResult<String> {
-        let exp_duration = std::time::Duration::from_secs(consts::JWT_TOKEN_TIME_IN_SECS);
+        let exp_duration =
+            std::time::Duration::from_secs(consts::SINGLE_PURPOSE_TOKEN_TIME_IN_SECS);
         let exp = jwt::generate_exp(exp_duration)?.as_secs();
         let token_payload = Self {
             user_id,
@@ -380,10 +381,7 @@ where
         }
 
         if self.0 != payload.purpose {
-            return Err(errors::ApiErrorResponse::AccessForbidden {
-                resource: self.0.to_string(),
-            }
-            .into());
+            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
         Ok((
