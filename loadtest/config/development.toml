@@ -1,23 +1,3 @@
-[log.file]
-enabled = false
-
-[log.console]
-enabled = false
-
-[log.telemetry]
-traces_enabled = true
-metrics_enabled = true
-ignore_errors = false
-
-[master_database]
-username = "postgres"
-password = "postgres"
-host = "db"
-port = 5432
-dbname = "loadtest_router"
-pool_size = 20
-connection_timeout = 10
-
 [server]
 host = "0.0.0.0"
 
@@ -62,140 +42,10 @@ outgoing_enabled = true
 [api_keys]
 hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
-[connectors]
-aci.base_url = "https://eu-test.oppwa.com/"
-adyen.base_url = "https://checkout-test.adyen.com/"
-adyen.secondary_base_url = "https://pal-test.adyen.com/"
-airwallex.base_url = "https://api-demo.airwallex.com/"
-applepay.base_url = "https://apple-pay-gateway.apple.com/"
-authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
-bambora.base_url = "https://api.na.bambora.com"
-bankofamerica.base_url = "https://apitest.merchant-services.bankofamerica.com/"
-billwerk.base_url = "https://api.reepay.com/"
-billwerk.secondary_base_url = "https://card.reepay.com/"
-bitpay.base_url = "https://test.bitpay.com"
-bluesnap.base_url = "https://sandbox.bluesnap.com/"
-bluesnap.secondary_base_url = "https://sandpay.bluesnap.com/"
-boku.base_url = "https://country-api4-stage.boku.com"
-braintree.base_url = "https://api.sandbox.braintreegateway.com/"
-braintree.secondary_base_url = "https://payments.sandbox.braintree-api.com/graphql"
-cashtocode.base_url = "https://cluster05.api-test.cashtocode.com"
-checkout.base_url = "https://api.sandbox.checkout.com/"
-coinbase.base_url = "https://api.commerce.coinbase.com"
-cryptopay.base_url = "https://business-sandbox.cryptopay.me"
-cybersource.base_url = "https://apitest.cybersource.com/"
-dlocal.base_url = "https://sandbox.dlocal.com/"
-dummyconnector.base_url = "http://localhost:8080/dummy-connector"
-ebanx.base_url = "https://sandbox.ebanxpay.com/"
-fiserv.base_url = "https://cert.api.fiservapps.com/"
-forte.base_url = "https://sandbox.forte.net/api/v3"
-globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
-globepay.base_url = "https://pay.globepay.co/"
-gocardless.base_url = "https://api-sandbox.gocardless.com"
-helcim.base_url = "https://api.helcim.com/"
-iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
-klarna.base_url = "https://api-na.playground.klarna.com/"
-mollie.base_url = "https://api.mollie.com/v2/"
-mollie.secondary_base_url = "https://api.cc.mollie.com/v1/"
-multisafepay.base_url = "https://testapi.multisafepay.com/"
-netcetera.base_url = "https://{{merchant_endpoint_prefix}}.3ds-server.prev.netcetera-cloud-payment.ch"
-nexinets.base_url = "https://apitest.payengine.de/v1"
-nmi.base_url = "https://secure.nmi.com/"
-noon.base_url = "https://api-test.noonpayments.com/"
-noon.key_mode = "Test"
-nuvei.base_url = "https://ppp-test.nuvei.com/"
-opayo.base_url = "https://pi-test.sagepay.com/"
-opennode.base_url = "https://dev-api.opennode.com"
-payeezy.base_url = "https://api-cert.payeezy.com/"
-payme.base_url = "https://sandbox.payme.io/"
-paypal.base_url = "https://api-m.sandbox.paypal.com/"
-payu.base_url = "https://secure.snd.payu.com/"
-placetopay.base_url = "https://test.placetopay.com/rest/gateway"
-powertranz.base_url = "https://staging.ptranz.com/api/"
-prophetpay.base_url = "https://ccm-thirdparty.cps.golf/"
-rapyd.base_url = "https://sandboxapi.rapyd.net"
-riskified.base_url = "https://sandbox.riskified.com/api"
-shift4.base_url = "https://api.shift4.com/"
-signifyd.base_url = "https://api.signifyd.com/"
-square.base_url = "https://connect.squareupsandbox.com/"
-square.secondary_base_url = "https://pci-connect.squareupsandbox.com/"
-stax.base_url = "https://apiprod.fattlabs.com/"
-stripe.base_url = "https://api.stripe.com/"
-threedsecureio.base_url = "https://service.sandbox.3dsecure.io"
-stripe.base_url_file_upload = "https://files.stripe.com/"
-trustpay.base_url = "https://test-tpgw.trustpay.eu/"
-trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
-tsys.base_url = "https://stagegw.transnox.com/"
-volt.base_url = "https://api.sandbox.volt.io/"
-worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
-worldpay.base_url = "https://try.access.worldpay.com/"
-wise.base_url = "https://api.sandbox.transferwise.tech/"
-zen.base_url = "https://api.zen-test.com/"
-zen.secondary_base_url = "https://secure.zen-test.com/"
-zsl.base_url = "https://api.sitoffalb.net/"
 
 [pm_filters.default]
 apple_pay = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,DK,EE,FO,FI,FR,GE,DE,GR,GL,GG,HU,IS,IE,IM,IT,KZ,JE,LV,LI,LT,LU,MT,MD,MC,ME,NL,NO,PL,PT,RO,SM,RS,SK,SI,ES,SE,CH,UA,GB,AR,CO,CR,BR,MX,PE,BH,IL,JO,KW,PS,QA,SA,AE,CA,UM,US,KR,VN,MA,ZA,VA,CL,SV,GT,HN,PA", currency = "AED,AUD,CHF,CAD,EUR,GBP,HKD,SGD,USD" }
 
-[connectors.supported]
-wallets = ["klarna", "braintree", "applepay"]
-rewards = ["cashtocode", "zen"]
-cards = [
-    "aci",
-    "adyen",
-    "airwallex",
-    "authorizedotnet",
-    "bambora",
-    "bankofamerica",
-    "billwerk",
-    "bitpay",
-    "bluesnap",
-    "boku",
-    "braintree",
-    "checkout",
-    "coinbase",
-    "cryptopay",
-    "cybersource",
-    "dlocal",
-    "dummyconnector",
-    "ebanx",
-    "fiserv",
-    "forte",
-    "globalpay",
-    "globepay",
-    "gocardless",
-    "helcim",
-    "iatapay",
-    "mollie",
-    "multisafepay",
-    "netcetera",
-    "nexinets",
-    "nmi",
-    "noon",
-    "nuvei",
-    "opayo",
-    "opennode",
-    "payeezy",
-    "payme",
-    "paypal",
-    "payu",
-    "placetopay",
-    "powertranz",
-    "prophetpay",
-    "shift4",
-    "square",
-    "stax",
-    "stripe",
-    "threedsecureio",
-    "trustpay",
-    "tsys",
-    "volt",
-    "wise",
-    "worldline",
-    "worldpay",
-    "zen",
-    "zsl",
-]
 
 [pm_filters.volt]
 open_banking_uk = {country = "DE,GB,AT,BE,CY,EE,ES,FI,FR,GR,HR,IE,IT,LT,LU,LV,MT,NL,PT,SI,SK,BG,CZ,DK,HU,NO,PL,RO,SE,AU,BR", currency = "EUR,GBP,DKK,NOK,PLN,SEK,AUD,BRL"}
@@ -207,30 +57,6 @@ paypal = { country = "AU,NZ,CN,JP,HK,MY,TH,KR,PH,ID,AE,KW,BR,ES,GB,SE,NO,SK,AT,N
 klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NO,PL,PT,RO,ES,SE,CH,NL,GB,US", currency = "AUD,EUR,CAD,CZK,DKK,NOK,PLN,RON,SEK,CHF,GBP,USD"}
 ideal = { country = "NL", currency = "EUR" }
 
-[pm_filters.zen]
-credit = { not_available_flows = { capture_method = "manual" } }
-debit = { not_available_flows = { capture_method = "manual" } }
-boleto = { country = "BR", currency = "BRL" }
-efecty = { country = "CO", currency = "COP" }
-multibanco = { country = "PT", currency = "EUR" }
-pago_efectivo = { country = "PE", currency = "PEN" }
-pse = { country = "CO", currency = "COP" }
-pix = { country = "BR", currency = "BRL" }
-red_compra = { country = "CL", currency = "CLP" }
-red_pagos = { country = "UY", currency = "UYU" }
-
-#tokenization configuration which describe token lifetime and payment method for specific connector
-[tokenization]
-stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
-checkout = { long_lived_token = false, payment_method = "wallet", apple_pay_pre_decrypt_flow = "network_tokenization" }
-mollie = {long_lived_token = false, payment_method = "card"}
-braintree = { long_lived_token = false, payment_method = "card" }
-gocardless = {long_lived_token = true, payment_method = "bank_debit"}
-billwerk = {long_lived_token = false, payment_method = "card"}
-
-[connector_customer]
-connector_list = "gocardless,stax,stripe"
-payout_connector_list = "wise"
 
 [dummy_connector]
 enabled = true
@@ -257,20 +83,6 @@ payout_eligibility = true
 
 [multiple_api_version_supported_connectors]
 supported_connectors = "braintree"
-
-[mandates.supported_payment_methods]
-pay_later.klarna = {connector_list = "adyen"}
-wallet.google_pay = {connector_list = "stripe,adyen,bankofamerica"}
-wallet.apple_pay = {connector_list = "stripe,adyen,bankofamerica"}
-wallet.paypal = {connector_list = "adyen"}
-card.credit = {connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica"}
-card.debit = {connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica"}
-bank_debit.ach = { connector_list = "gocardless"}
-bank_debit.becs = { connector_list = "gocardless"}
-bank_debit.sepa = { connector_list = "gocardless"}
-bank_redirect.ideal = {connector_list = "stripe,adyen,globalpay"}
-bank_redirect.sofort = {connector_list = "stripe,adyen,globalpay"}
-bank_redirect.giropay = {connector_list = "adyen,globalpay"}
 
 
 [cors]
