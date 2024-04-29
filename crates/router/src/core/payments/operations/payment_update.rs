@@ -453,6 +453,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             authentication: None,
             frm_metadata: request.frm_metadata.clone(),
             recurring_details,
+            poll_config: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

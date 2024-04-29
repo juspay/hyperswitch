@@ -1,8 +1,10 @@
 use common_utils::pii;
+use error_stack::ResultExt;
 use masking::Secret;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
+use super::utils as connector_utils;
 use crate::{
     connector::utils::{self, is_payment_failure, CryptoData, PaymentsAuthorizeRequestData},
     consts,
@@ -146,17 +148,17 @@ pub struct CryptopayPaymentsResponse {
 }
 
 impl<F, T>
-    TryFrom<types::ResponseRouterData<F, CryptopayPaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    TryFrom<(
+        types::ResponseRouterData<F, CryptopayPaymentsResponse, T, types::PaymentsResponseData>,
+        diesel_models::enums::Currency,
+    )> for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            CryptopayPaymentsResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
+        (item, currency): (
+            types::ResponseRouterData<F, CryptopayPaymentsResponse, T, types::PaymentsResponseData>,
+            diesel_models::enums::Currency,
+        ),
     ) -> Result<Self, Self::Error> {
         let status = enums::AttemptStatus::from(item.response.data.status.clone());
         let response = if is_payment_failure(status) {
@@ -197,11 +199,28 @@ impl<F, T>
                 incremental_authorization_allowed: None,
             })
         };
-        Ok(Self {
-            status,
-            response,
-            ..item.data
-        })
+
+        match item.response.data.price_amount {
+            Some(price_amount) => {
+                let amount_captured = Some(
+                    connector_utils::to_currency_lower_unit(price_amount, currency)?
+                        .parse::<i64>()
+                        .change_context(errors::ConnectorError::ParsingFailed)?,
+                );
+
+                Ok(Self {
+                    status,
+                    response,
+                    amount_captured,
+                    ..item.data
+                })
+            }
+            None => Ok(Self {
+                status,
+                response,
+                ..item.data
+            }),
+        }
     }
 }
 

@@ -490,8 +490,10 @@ pub async fn external_authentication_incoming_webhook_flow<Ctx: PaymentMethodRet
         // Check if it's a payment authentication flow, payment_id would be there only for payment authentication flows
         if let Some(payment_id) = updated_authentication.payment_id {
             let is_pull_mechanism_enabled = helper_utils::check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(merchant_connector_account.metadata.map(|metadata| metadata.expose()));
-            // Merchant doesn't have pull mechanism enabled, so we have to authorize whenever we receive a ARes webhook
+            // Merchant doesn't have pull mechanism enabled and if it's challenge flow, we have to authorize whenever we receive a ARes webhook
             if !is_pull_mechanism_enabled
+                && updated_authentication.authentication_type
+                    == Some(common_enums::DecoupledAuthenticationType::Challenge)
                 && event_type == webhooks::IncomingWebhookEvent::ExternalAuthenticationARes
             {
                 let payment_confirm_req = api::PaymentsRequest {
