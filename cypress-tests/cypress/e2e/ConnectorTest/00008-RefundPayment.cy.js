@@ -5,6 +5,7 @@ import citConfirmBody from "../../fixtures/create-mandate-cit.json";
 import mitConfirmBody from "../../fixtures/create-mandate-mit.json";
 import createPaymentBody from "../../fixtures/create-payment-body.json";
 import refundBody from "../../fixtures/refund-flow-body.json";
+import listRefundCall from "../../fixtures/list-refund-call-body.json";
 import State from "../../utils/State";
 import getConnectorDetails from "../ConnectorUtils/utils";
 
@@ -223,7 +224,7 @@ describe("Card - Refund flow test", () => {
             cy.syncRefundCallTest(det, globalState);
         });
         it("list-refund-call-test", () => {
-            cy.listRefundCallTest(globalState);
+            cy.listRefundCallTest(listRefundCall, globalState);
         });
     });
 

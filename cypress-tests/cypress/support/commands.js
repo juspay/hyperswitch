@@ -714,7 +714,7 @@ Cypress.Commands.add("listCustomerPMCallTest", (globalState) => {
   });
 });
 
-Cypress.Commands.add("listRefundCallTest", (globalState) => {
+Cypress.Commands.add("listRefundCallTest", (requestBody, globalState) => {
   cy.request({
     method: "POST",
     url: `${globalState.get("baseUrl")}/refunds/list`,
@@ -722,7 +722,7 @@ Cypress.Commands.add("listRefundCallTest", (globalState) => {
       "Content-Type": "application/json",
       "api-key": globalState.get("apiKey"),
     },
-    body: { "offset": 0 }
+    body: requestBody,
   }).then((response) => {
     logRequestId(response.headers['x-request-id']);
 
