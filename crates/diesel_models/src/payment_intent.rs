@@ -180,6 +180,7 @@ pub enum PaymentIntentUpdate {
         updated_by: String,
     },
     ApproveUpdate {
+        status: storage_enums::IntentStatus,
         merchant_decision: Option<String>,
         updated_by: String,
     },
@@ -456,9 +457,11 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 ..Default::default()
             },
             PaymentIntentUpdate::ApproveUpdate {
+                status,
                 merchant_decision,
                 updated_by,
             } => Self {
+                status: Some(status),
                 merchant_decision,
                 updated_by,
                 ..Default::default()
