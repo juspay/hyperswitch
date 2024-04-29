@@ -529,7 +529,7 @@ impl ConnectorIntegration<api::PoCreate, types::PayoutsData, types::PayoutsRespo
         _req: &types::PayoutsRouterData<api::PoCreate>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        // Eligibility check for cards is not implemented
+        // Eligibility check for wallet is not implemented
         Err(
             errors::ConnectorError::NotImplemented("Payout Eligibility for Paypal".to_string())
                 .into(),
