@@ -8707,6 +8707,72 @@
           "mandate_revoked"
         ]
       },
+      "ExtendedCardInfo": {
+        "type": "object",
+        "required": [
+          "card_number",
+          "card_exp_month",
+          "card_exp_year",
+          "card_holder_name",
+          "card_cvc"
+        ],
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "description": "The card number",
+            "example": "4242424242424242"
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month",
+            "example": "24"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year",
+            "example": "24"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test"
+          },
+          "card_cvc": {
+            "type": "string",
+            "description": "The CVC number for the card",
+            "example": "242"
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "The name of the issuer of card",
+            "example": "chase",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "example": "CREDIT",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "example": "INDIA",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "example": "JP_AMEX",
+            "nullable": true
+          }
+        }
+      },
       "ExtendedCardInfoConfig": {
         "type": "object",
         "required": [
@@ -8715,11 +8781,14 @@
         ],
         "properties": {
           "public_key": {
-            "$ref": "#/components/schemas/Secret"
+            "type": "string",
+            "description": "Merchant public key",
+            "example": "Miismmnsfdmjhjds"
           },
           "ttl_in_secs": {
             "type": "integer",
             "format": "int32",
+            "description": "TTL for extended card info",
             "minimum": 0
           }
         }
