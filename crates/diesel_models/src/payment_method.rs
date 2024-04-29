@@ -40,6 +40,7 @@ pub struct PaymentMethod {
     pub status: storage_enums::PaymentMethodStatus,
     pub network_transaction_id: Option<String>,
     pub client_secret: Option<String>,
+    pub payment_method_billing_address_id: Option<String>,
 }
 
 #[derive(
@@ -75,6 +76,7 @@ pub struct PaymentMethodNew {
     pub status: storage_enums::PaymentMethodStatus,
     pub network_transaction_id: Option<String>,
     pub client_secret: Option<String>,
+    pub payment_method_billing_address_id: Option<String>,
 }
 
 impl Default for PaymentMethodNew {
@@ -110,6 +112,7 @@ impl Default for PaymentMethodNew {
             status: storage_enums::PaymentMethodStatus::Active,
             network_transaction_id: Option::default(),
             client_secret: Option::default(),
+            payment_method_billing_address_id: Option::default(),
         }
     }
 }
@@ -317,6 +320,9 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             status: payment_method_new.status,
             network_transaction_id: payment_method_new.network_transaction_id.clone(),
             client_secret: payment_method_new.client_secret.clone(),
+            payment_method_billing_address_id: payment_method_new
+                .payment_method_billing_address_id
+                .clone(),
         }
     }
 }

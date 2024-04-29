@@ -96,6 +96,10 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         let customer_id = payment_data.payment_intent.customer_id.clone();
         let save_payment_data = tokenization::SavePaymentMethodData::from(resp);
         let profile_id = payment_data.payment_intent.profile_id.clone();
+        let payment_method_billing_address_id = payment_data
+            .payment_attempt
+            .payment_method_billing_address_id
+            .clone();
 
         let connector_name = payment_data
             .payment_attempt
@@ -127,6 +131,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             Some(resp.request.currency),
             profile_id,
             billing_name.clone(),
+            payment_method_billing_address_id.clone(),
         ));
 
         let is_connector_mandate = resp.request.customer_acceptance.is_some()
@@ -197,6 +202,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                         Some(currency),
                         profile_id,
                         billing_name,
+                        payment_method_billing_address_id,
                     ))
                     .await;
 
@@ -596,6 +602,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             .get_payment_method_billing()
             .and_then(|billing_details| billing_details.address.as_ref())
             .and_then(|address| address.get_optional_full_name());
+
+        let payment_method_billing_address_id = payment_data
+            .payment_attempt
+            .payment_method_billing_address_id
+            .clone();
         let save_payment_data = tokenization::SavePaymentMethodData::from(resp);
         let customer_id = payment_data.payment_intent.customer_id.clone();
         let profile_id = payment_data.payment_intent.profile_id.clone();
@@ -624,6 +635,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
                 Some(resp.request.currency),
                 profile_id,
                 billing_name,
+                payment_method_billing_address_id,
             ))
             .await?;
 

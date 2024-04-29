@@ -88,6 +88,7 @@ pub async fn create_payment_method(
     status: Option<enums::PaymentMethodStatus>,
     network_transaction_id: Option<String>,
     storage_scheme: MerchantStorageScheme,
+    payment_method_billing_address_id: Option<String>,
 ) -> errors::CustomResult<storage::PaymentMethod, errors::ApiErrorResponse> {
     let customer = db
         .find_customer_by_customer_id_merchant_id(
@@ -103,6 +104,8 @@ pub async fn create_payment_method(
         consts::ID_LENGTH,
         format!("{payment_method_id}_secret").as_str(),
     );
+
+    let current_time = common_utils::date_time::now();
 
     let response = db
         .insert_payment_method(
@@ -122,7 +125,20 @@ pub async fn create_payment_method(
                 client_secret: Some(client_secret),
                 status: status.unwrap_or(enums::PaymentMethodStatus::Active),
                 network_transaction_id: network_transaction_id.to_owned(),
-                ..storage::PaymentMethodNew::default()
+                payment_method_issuer_code: None,
+                accepted_currency: None,
+                token: None,
+                cardholder_name: None,
+                issuer_name: None,
+                issuer_country: None,
+                payer_country: None,
+                is_stored: None,
+                swift_code: None,
+                direct_debit_token: None,
+                created_at: current_time,
+                last_modified: current_time,
+                last_used_at: current_time,
+                payment_method_billing_address_id,
             },
             storage_scheme,
         )
@@ -231,6 +247,7 @@ pub async fn get_or_insert_payment_method(
                     None,
                     None,
                     merchant_account.storage_scheme,
+                    None,
                 )
                 .await
             } else {
@@ -278,6 +295,7 @@ pub async fn get_client_secret_or_add_payment_method(
             Some(enums::PaymentMethodStatus::AwaitingData),
             None,
             merchant_account.storage_scheme,
+            None,
         )
         .await?;
 
@@ -680,6 +698,7 @@ pub async fn add_payment_method(
                 None,
                 None,
                 merchant_account.storage_scheme,
+                None,
             )
             .await?;
         }
@@ -702,6 +721,7 @@ pub async fn insert_payment_method(
     connector_mandate_details: Option<serde_json::Value>,
     network_transaction_id: Option<String>,
     storage_scheme: MerchantStorageScheme,
+    payment_method_billing_address_id: Option<String>,
 ) -> errors::RouterResult<diesel_models::PaymentMethod> {
     let pm_card_details = resp
         .card
@@ -723,6 +743,7 @@ pub async fn insert_payment_method(
         None,
         network_transaction_id,
         storage_scheme,
+        payment_method_billing_address_id,
     )
     .await
 }

@@ -66,6 +66,7 @@ pub async fn save_payment_method<FData>(
     currency: Option<storage_enums::Currency>,
     profile_id: Option<String>,
     billing_name: Option<masking::Secret<String>>,
+    payment_method_billing_address_id: Option<String>,
 ) -> RouterResult<(Option<String>, Option<common_enums::PaymentMethodStatus>)>
 where
     FData: mandate::MandateBehaviour + Clone,
@@ -331,6 +332,7 @@ where
                                             None,
                                             network_transaction_id,
                                             merchant_account.storage_scheme,
+                                            payment_method_billing_address_id,
                                         )
                                         .await
                                     } else {
@@ -419,6 +421,7 @@ where
                                                 connector_mandate_details,
                                                 network_transaction_id,
                                                 merchant_account.storage_scheme,
+                                                payment_method_billing_address_id,
                                             )
                                             .await
                                         } else {
@@ -550,6 +553,7 @@ where
                             None,
                             network_transaction_id,
                             merchant_account.storage_scheme,
+                            payment_method_billing_address_id,
                         )
                         .await?;
                     }

@@ -662,6 +662,7 @@ impl PaymentMethodInterface for MockDb {
             status: payment_method_new.status,
             client_secret: payment_method_new.client_secret,
             network_transaction_id: payment_method_new.network_transaction_id,
+            payment_method_billing_address_id: payment_method_new.payment_method_billing_address_id,
         };
         payment_methods.push(payment_method.clone());
         Ok(payment_method)

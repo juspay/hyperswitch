@@ -459,6 +459,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             }
             .in_current_span(),
         );
+
         let mandate_type = m_helpers::get_mandate_type(
             request.mandate_data.clone(),
             request.off_session,
@@ -507,6 +508,38 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             mandate_connector,
             payment_method_info,
         } = mandate_details;
+
+        let store = state.clone().store;
+
+        // level - 3
+        // In case payment method billing details are not passed in the request
+        // get the saved payment method billing from payment method info
+        let payment_method_billing = if payment_method_billing.is_none() {
+            payment_method_info
+                .as_ref()
+                .and_then(|payment_method_info| {
+                    payment_method_info
+                        .payment_method_billing_address_id
+                        .clone()
+                })
+                .async_map(|payment_method_billing_address_id| async move {
+                    store
+                        .find_address_by_merchant_id_payment_id_address_id(
+                            merchant_id,
+                            &payment_id,
+                            &payment_method_billing_address_id,
+                            key_store,
+                            storage_scheme,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Error while fetching address")
+                })
+                .await
+                .transpose()?
+        } else {
+            None
+        };
 
         payment_attempt.payment_method = payment_method.or(payment_attempt.payment_method);
 

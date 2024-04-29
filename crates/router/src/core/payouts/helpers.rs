@@ -493,6 +493,7 @@ pub async fn save_payout_data_to_locker(
             None,
             None,
             merchant_account.storage_scheme,
+            None,
         )
         .await?;
     }
