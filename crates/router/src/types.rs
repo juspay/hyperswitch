@@ -1154,6 +1154,12 @@ pub struct PollConfig {
     pub frequency: i8,
 }
 
+impl PollConfig {
+    pub fn get_poll_config_key(connector: String) -> String {
+        format!("poll_config_external_three_ds_{connector}")
+    }
+}
+
 impl Default for PollConfig {
     fn default() -> Self {
         Self {

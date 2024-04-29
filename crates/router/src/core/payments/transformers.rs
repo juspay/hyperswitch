@@ -570,6 +570,8 @@ where
                             Some(authentication) => {
                                 if payment_intent.status == common_enums::IntentStatus::RequiresCustomerAction && authentication.cavv.is_none() && authentication.is_separate_authn_required(){
                                     // if preAuthn and separate authentication needed.
+                                    let poll_config = payment_data.poll_config.unwrap_or_default();
+                                    let request_poll_id = core_utils::get_external_authentication_request_poll_id(&payment_intent.payment_id);
                                     let payment_connector_name = payment_attempt.connector
                                         .as_ref()
                                         .get_required_value("connector")?;
@@ -592,6 +594,7 @@ where
                                                     three_ds_method_data: None,
                                                     three_ds_method_url: None,
                                             }),
+                                            poll_config: api_models::payments::PollConfigResponse {poll_id: request_poll_id, delay_in_secs: poll_config.delay_in_secs, frequency: poll_config.frequency},
                                         },
                                     })
                                 }else{
