@@ -5,7 +5,10 @@ pub mod types;
 
 use api_models::payments;
 use common_enums::{Currency, DecoupledAuthenticationType};
-use common_utils::{errors::CustomResult, ext_traits::ValueExt};
+use common_utils::{
+    errors::CustomResult,
+    ext_traits::{Encode, StringExt, ValueExt},
+};
 use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 
@@ -210,9 +213,12 @@ pub async fn perform_pre_authentication<F: Clone + Send>(
                 &three_ds_connector_account,
                 business_profile.merchant_id.clone(),
             )?;
-            let router_data =
-                utils::do_auth_connector_call(state, authentication_connector_name, router_data)
-                    .await?;
+            let router_data = utils::do_auth_connector_call(
+                state,
+                authentication_connector_name.clone(),
+                router_data,
+            )
+            .await?;
             let acquirer_details: types::AcquirerDetails = payment_connector_account
                 .get_metadata()
                 .get_required_value("merchant_connector_account.metadata")?
@@ -233,6 +239,27 @@ pub async fn perform_pre_authentication<F: Clone + Send>(
                 || authentication.authentication_status.is_failed()
             {
                 *should_continue_confirm_transaction = false;
+                // If flow is going through external authentication, set the poll_config in payment_data which can be fetched while sending next_action block in confirm response
+                let default_poll_config = core_types::PollConfig::default();
+                let default_config_str = default_poll_config
+                    .encode_to_string_of_json()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Error while stringifying default poll config")?;
+                let poll_config = state
+                    .store
+                    .find_config_by_key_unwrap_or(
+                        &core_types::PollConfig::get_poll_config_key(authentication_connector_name),
+                        Some(default_config_str),
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("The poll config was not found in the DB")?;
+                let poll_config: core_types::PollConfig = poll_config
+                    .config
+                    .parse_struct("PollConfig")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Error while parsing PollConfig")?;
+                payment_data.poll_config = Some(poll_config)
             }
             payment_data.authentication = Some(authentication);
         }

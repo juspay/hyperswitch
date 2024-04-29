@@ -997,6 +997,7 @@ impl Default for PaymentSyncType {
             sync_type: types::SyncRequestType::SinglePaymentSync,
             connector_meta: None,
             payment_method_type: None,
+            currency: enums::Currency::USD,
         };
         Self(data)
     }

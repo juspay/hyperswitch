@@ -711,8 +711,38 @@ Cypress.Commands.add("handleRedirection", (globalState, expected_redirection) =>
   let expected_url = new URL(expected_redirection);
   let redirection_url = new URL(globalState.get("nextActionUrl"));
   cy.visit(redirection_url.href);
-
-  if (globalState.get("connectorId") == "stripe") {
+  if (globalState.get("connectorId") == "adyen") {
+    cy.get('iframe')
+      .its('0.contentDocument.body')
+      .within((body) => {
+        cy.get('input[type="password"]').click();
+        cy.get('input[type="password"]').type("password");
+        cy.get('#buttonSubmit').click();
+      })
+  } 
+  else if (globalState.get("connectorId") === "cybersource" || globalState.get("connectorId") === "bankofamerica" ) {
+    cy.get('iframe')
+      .its('0.contentDocument.body')
+      .within((body) => {
+        cy.get('input[type="text"]').click().type("1234");
+        cy.get('input[value="SUBMIT"]').click();
+  })
+  }
+  else if (globalState.get("connectorId") === "nmi" || globalState.get("connectorId") === "noon") {
+    cy.get('iframe',{ timeout: 100000 })
+      .its('0.contentDocument.body')
+      .within((body) => {
+        cy.get('iframe',{ timeout: 10000 })
+          .its('0.contentDocument.body')
+          .within((body) => {
+        cy.get('form[name="cardholderInput"]',{ timeout: 10000 }).should('exist').then(form => {
+          cy.get('input[name="challengeDataEntry"]').click().type("1234");
+          cy.get('input[value="SUBMIT"]').click();
+          })
+      })
+    })
+  }
+  else if (globalState.get("connectorId") === "stripe" ) {
     cy.get('iframe')
       .its('0.contentDocument.body')
       .within((body) => {
@@ -722,19 +752,31 @@ Cypress.Commands.add("handleRedirection", (globalState, expected_redirection) =>
             cy.get('#test-source-authorize-3ds').click();
           })
       })
-  } else {
-    cy.wait(10000);
+  } 
+  else if (globalState.get("connectorId") === "trustpay" ) {
+    cy.get('form[name="challengeForm"]',{ timeout: 10000 }).should('exist').then(form => {
+        cy.get('#outcomeSelect').select('Approve').should('have.value', 'Y')
+        cy.get('button[type="submit"]').click();
+  })
   }
 
+  
+  else {
+  // If connectorId is neither of adyen, trustpay, nmi, stripe, bankofamerica or cybersource, wait for 30 seconds
+    cy.wait(30000);
+  }
+  
+  // Handling redirection
   if (redirection_url.host.endsWith(expected_url.host)) {
-    // no cors workaround needed
+    // No CORS workaround needed
     cy.window().its('location.origin').should('eq', expected_url.origin);
   } else {
-    // workaround for cors to allow cross origin iframe
+    // Workaround for CORS to allow cross-origin iframe
     cy.origin(expected_url.origin, { args: { expected_url: expected_url.origin} }, ({expected_url}) => {
       cy.window().its('location.origin').should('eq', expected_url);
     })
   }
+  
 });
 
 Cypress.Commands.add("listCustomerPMCallTest", (globalState) => {
