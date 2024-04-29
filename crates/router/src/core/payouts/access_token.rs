@@ -1,5 +1,3 @@
-use std::fmt::Debug;
-
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 
@@ -10,68 +8,60 @@ use crate::{
         payments,
     },
     routes::{metrics, AppState},
-    services::{self, logger},
-    types::{self, api as api_types, domain},
+    services,
+    types::{self, api as api_types, domain, storage::enums},
 };
 
 /// After we get the access token, check if there was an error and if the flow should proceed further
-/// Returns bool
-/// true - Everything is well, continue with the flow
-/// false - There was an error, cannot proceed further
-pub fn update_router_data_with_access_token_result<F, Req, Res>(
-    add_access_token_result: &types::AddAccessTokenResult,
-    router_data: &mut types::RouterData<F, Req, Res>,
-    call_connector_action: &payments::CallConnectorAction,
-) -> bool {
-    // Update router data with access token or error only if it will be calling connector
-    let should_update_router_data = matches!(
-        (
-            add_access_token_result.connector_supports_access_token,
-            call_connector_action
-        ),
-        (true, payments::CallConnectorAction::Trigger)
-    );
+/// Everything is well, continue with the flow
+/// There was an error, cannot proceed further
+#[cfg(feature = "payouts")]
+pub async fn create_access_token<F: Clone + 'static>(
+    state: &AppState,
+    connector_data: &api_types::ConnectorData,
+    merchant_account: &domain::MerchantAccount,
+    router_data: &mut types::PayoutsRouterData<F>,
+    payout_type: enums::PayoutType,
+) -> RouterResult<()> {
+    let connector_access_token = add_access_token_for_payout(
+        state,
+        connector_data,
+        merchant_account,
+        router_data,
+        payout_type,
+    )
+    .await?;
 
-    if should_update_router_data {
-        match add_access_token_result.access_token_result.as_ref() {
+    if connector_access_token.connector_supports_access_token {
+        match connector_access_token.access_token_result {
             Ok(access_token) => {
-                router_data.access_token = access_token.clone();
-                true
+                router_data.access_token = access_token;
             }
             Err(connector_error) => {
-                router_data.response = Err(connector_error.clone());
-                false
+                router_data.response = Err(connector_error);
             }
         }
-    } else {
-        true
     }
+
+    Ok(())
 }
 
-pub async fn add_access_token<
-    F: Clone + 'static,
-    Req: Debug + Clone + 'static,
-    Res: Debug + Clone + 'static,
->(
+#[cfg(feature = "payouts")]
+pub async fn add_access_token_for_payout<F: Clone + 'static>(
     state: &AppState,
     connector: &api_types::ConnectorData,
     merchant_account: &domain::MerchantAccount,
-    router_data: &types::RouterData<F, Req, Res>,
+    router_data: &types::PayoutsRouterData<F>,
+    payout_type: enums::PayoutType,
 ) -> RouterResult<types::AddAccessTokenResult> {
     if connector
         .connector_name
-        .supports_access_token(router_data.payment_method)
+        .supports_access_token_for_payout(payout_type)
     {
         let merchant_id = &merchant_account.merchant_id;
         let store = &*state.store;
-        let merchant_connector_id = connector
-            .merchant_connector_id
-            .as_ref()
-            .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Missing merchant_connector_id in ConnectorData")?;
-
         let old_access_token = store
-            .get_access_token(merchant_id, merchant_connector_id)
+            .get_access_token(merchant_id, connector.connector.id())
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("DB error when accessing the access token")?;
@@ -109,24 +99,19 @@ pub async fn add_access_token<
                 )
                 .await?
                 .async_map(|access_token| async {
-                    // Store the access token in redis with expiry
-                    // The expiry should be adjusted for network delays from the connector
+                    //Store the access token in db
                     let store = &*state.store;
-                    if let Err(access_token_set_error) = store
+                    // This error should not be propagated, we don't want payments to fail once we have
+                    // the access token, the next request will create new access token
+                    let _ = store
                         .set_access_token(
                             merchant_id,
-                            merchant_connector_id.as_str(),
+                            connector.connector.id(),
                             access_token.clone(),
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("DB error when setting the access token")
-                    {
-                        // If we are not able to set the access token in redis, the error should just be logged and proceed with the payment
-                        // Payments should not fail, once the access token is successfully created
-                        // The next request will create new access token, if required
-                        logger::error!(access_token_set_error=?access_token_set_error);
-                    }
+                        .attach_printable("DB error when setting the access token");
                     Some(access_token)
                 })
                 .await
@@ -145,6 +130,7 @@ pub async fn add_access_token<
     }
 }
 
+#[cfg(feature = "payouts")]
 pub async fn refresh_connector_auth(
     state: &AppState,
     connector: &api_types::ConnectorData,

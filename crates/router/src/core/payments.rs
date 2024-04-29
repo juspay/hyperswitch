@@ -29,7 +29,7 @@ use error_stack::{report, ResultExt};
 use events::EventInfo;
 use futures::future::join_all;
 use helpers::ApplePayData;
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 pub use payment_address::PaymentAddress;
 use redis_interface::errors::RedisError;
 use router_env::{instrument, tracing};
@@ -119,7 +119,7 @@ where
 
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData, Ctx>,
-    FData: Send + Sync,
+    FData: Send + Sync + Clone,
     Ctx: PaymentMethodRetrieve,
 {
     let operation: BoxedOperation<'_, F, Req, Ctx> = Box::new(operation);
@@ -273,11 +273,11 @@ where
                         req_state,
                         &merchant_account,
                         &key_store,
-                        connector,
+                        connector.clone(),
                         &operation,
                         &mut payment_data,
                         &customer,
-                        call_connector_action,
+                        call_connector_action.clone(),
                         &validate_result,
                         schedule_time,
                         header_payload,
@@ -294,6 +294,18 @@ where
                     external_latency = router_data.external_latency;
                     //add connector http status code metrics
                     add_connector_http_status_code_metrics(connector_http_status_code);
+
+                    operation
+                        .to_post_update_tracker()?
+                        .save_pm_and_mandate(
+                            state,
+                            &router_data,
+                            &merchant_account,
+                            &key_store,
+                            &mut payment_data,
+                        )
+                        .await?;
+
                     operation
                         .to_post_update_tracker()?
                         .update_tracker(
@@ -333,7 +345,7 @@ where
                         &operation,
                         &mut payment_data,
                         &customer,
-                        call_connector_action,
+                        call_connector_action.clone(),
                         &validate_result,
                         schedule_time,
                         header_payload,
@@ -361,7 +373,7 @@ where
                                 req_state,
                                 &mut payment_data,
                                 connectors,
-                                connector_data,
+                                connector_data.clone(),
                                 router_data,
                                 &merchant_account,
                                 &key_store,
@@ -383,6 +395,18 @@ where
                     external_latency = router_data.external_latency;
                     //add connector http status code metrics
                     add_connector_http_status_code_metrics(connector_http_status_code);
+
+                    operation
+                        .to_post_update_tracker()?
+                        .save_pm_and_mandate(
+                            state,
+                            &router_data,
+                            &merchant_account,
+                            &key_store,
+                            &mut payment_data,
+                        )
+                        .await?;
+
                     operation
                         .to_post_update_tracker()?
                         .update_tracker(
@@ -697,7 +721,7 @@ pub async fn payments_core<F, Res, Req, Op, FData, Ctx>(
 ) -> RouterResponse<Res>
 where
     F: Send + Clone + Sync,
-    FData: Send + Sync,
+    FData: Send + Sync + Clone,
     Op: Operation<F, Req, Ctx> + Send + Sync + Clone,
     Req: Debug + Authenticate + Clone,
     Res: transformers::ToResponse<PaymentData<F>, Op>,
@@ -777,6 +801,7 @@ pub trait PaymentRedirectFlow<Ctx: PaymentMethodRetrieve>: Sync {
         req: PaymentsRedirectResponseData,
         connector_action: CallConnectorAction,
         connector: String,
+        payment_id: String,
     ) -> RouterResult<Self::PaymentFlowResponse>;
 
     fn get_payment_action(&self) -> services::PaymentAction;
@@ -848,6 +873,7 @@ pub trait PaymentRedirectFlow<Ctx: PaymentMethodRetrieve>: Sync {
                 req.clone(),
                 flow_type,
                 connector.clone(),
+                resource_id.clone(),
             )
             .await?;
 
@@ -872,6 +898,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectCom
         req: PaymentsRedirectResponseData,
         connector_action: CallConnectorAction,
         _connector: String,
+        _payment_id: String,
     ) -> RouterResult<Self::PaymentFlowResponse> {
         let payment_confirm_req = api::PaymentsRequest {
             payment_id: Some(req.resource_id.clone()),
@@ -1002,6 +1029,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectSyn
         req: PaymentsRedirectResponseData,
         connector_action: CallConnectorAction,
         _connector: String,
+        _payment_id: String,
     ) -> RouterResult<Self::PaymentFlowResponse> {
         let payment_sync_req = api::PaymentsRetrieveRequest {
             resource_id: req.resource_id,
@@ -1099,44 +1127,149 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
         req: PaymentsRedirectResponseData,
         connector_action: CallConnectorAction,
         connector: String,
+        payment_id: String,
     ) -> RouterResult<Self::PaymentFlowResponse> {
-        let payment_confirm_req = api::PaymentsRequest {
-            payment_id: Some(req.resource_id.clone()),
-            merchant_id: req.merchant_id.clone(),
-            feature_metadata: Some(api_models::payments::FeatureMetadata {
-                redirect_response: Some(api_models::payments::RedirectResponse {
-                    param: req.param.map(Secret::new),
-                    json_payload: Some(req.json_payload.unwrap_or(serde_json::json!({})).into()),
-                }),
-            }),
-            ..Default::default()
-        };
-        let response = Box::pin(payments_core::<
-            api::Authorize,
-            api::PaymentsResponse,
-            _,
-            _,
-            _,
-            Ctx,
-        >(
-            state.clone(),
-            req_state,
-            merchant_account,
-            merchant_key_store,
-            PaymentConfirm,
-            payment_confirm_req,
-            services::api::AuthFlow::Merchant,
-            connector_action,
+        let merchant_id = merchant_account.merchant_id.clone();
+        let payment_intent = state
+            .store
+            .find_payment_intent_by_payment_id_merchant_id(
+                &payment_id,
+                &merchant_id,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        let payment_attempt = state
+            .store
+            .find_payment_attempt_by_attempt_id_merchant_id(
+                &payment_intent.active_attempt.get_id(),
+                &merchant_id,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        // Fetching merchant_connector_account to check if pull_mechanism is enabled for 3ds connector
+        let authentication_merchant_connector_account = helpers::get_merchant_connector_account(
+            state,
+            &merchant_id,
             None,
-            HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
-        ))
+            &merchant_key_store,
+            &payment_intent
+                .profile_id
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("missing profile_id in payment_intent")?,
+            &payment_attempt
+                .authentication_connector
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("missing authentication connector in payment_intent")?,
+            None,
+        )
         .await?;
+        let is_pull_mechanism_enabled =
+            crate::utils::check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
+                authentication_merchant_connector_account
+                    .get_metadata()
+                    .map(|metadata| metadata.expose()),
+            );
+        let response = if is_pull_mechanism_enabled {
+            let payment_confirm_req = api::PaymentsRequest {
+                payment_id: Some(req.resource_id.clone()),
+                merchant_id: req.merchant_id.clone(),
+                feature_metadata: Some(api_models::payments::FeatureMetadata {
+                    redirect_response: Some(api_models::payments::RedirectResponse {
+                        param: req.param.map(Secret::new),
+                        json_payload: Some(
+                            req.json_payload.unwrap_or(serde_json::json!({})).into(),
+                        ),
+                    }),
+                }),
+                ..Default::default()
+            };
+            Box::pin(payments_core::<
+                api::Authorize,
+                api::PaymentsResponse,
+                _,
+                _,
+                _,
+                Ctx,
+            >(
+                state.clone(),
+                req_state,
+                merchant_account,
+                merchant_key_store,
+                PaymentConfirm,
+                payment_confirm_req,
+                services::api::AuthFlow::Merchant,
+                connector_action,
+                None,
+                HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
+            ))
+            .await?
+        } else {
+            let payment_sync_req = api::PaymentsRetrieveRequest {
+                resource_id: req.resource_id,
+                merchant_id: req.merchant_id,
+                param: req.param,
+                force_sync: req.force_sync,
+                connector: req.connector,
+                merchant_connector_details: req.creds_identifier.map(|creds_id| {
+                    api::MerchantConnectorDetailsWrap {
+                        creds_identifier: creds_id,
+                        encoded_data: None,
+                    }
+                }),
+                client_secret: None,
+                expand_attempts: None,
+                expand_captures: None,
+            };
+            Box::pin(payments_core::<
+                api::PSync,
+                api::PaymentsResponse,
+                _,
+                _,
+                _,
+                Ctx,
+            >(
+                state.clone(),
+                req_state,
+                merchant_account.clone(),
+                merchant_key_store,
+                PaymentStatus,
+                payment_sync_req,
+                services::api::AuthFlow::Merchant,
+                connector_action,
+                None,
+                HeaderPayload::default(),
+            ))
+            .await?
+        };
         let payments_response = match response {
             services::ApplicationResponse::Json(response) => Ok(response),
             services::ApplicationResponse::JsonWithHeaders((response, _)) => Ok(response),
             _ => Err(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to get the response in json"),
         }?;
+        // When intent status is RequiresCustomerAction, Set poll_id in redis to allow the fetch status of poll through retrieve_poll_status api from client
+        if payments_response.status == common_enums::IntentStatus::RequiresCustomerAction {
+            let req_poll_id =
+                super::utils::get_external_authentication_request_poll_id(&payment_id);
+            let poll_id = super::utils::get_poll_id(merchant_id.clone(), req_poll_id.clone());
+            let redis_conn = state
+                .store
+                .get_redis_conn()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to get redis connection")?;
+            redis_conn
+                .set_key_with_expiry(
+                    &poll_id,
+                    api_models::poll::PollStatus::Pending.to_string(),
+                    crate::consts::POLL_ID_TTL,
+                )
+                .await
+                .change_context(errors::StorageError::KVError)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to add poll_id in redis")?;
+        };
         let default_poll_config = router_types::PollConfig::default();
         let default_config_str = default_poll_config
             .encode_to_string_of_json()
@@ -1422,16 +1555,7 @@ where
         // and rely on previous status set in router_data
         router_data.status = payment_data.payment_attempt.status;
         router_data
-            .decide_flows(
-                state,
-                &connector,
-                customer,
-                call_connector_action,
-                merchant_account,
-                connector_request,
-                key_store,
-                payment_data.payment_intent.profile_id.clone(),
-            )
+            .decide_flows(state, &connector, call_connector_action, connector_request)
             .await
     } else {
         Ok(router_data)
@@ -1554,12 +1678,8 @@ where
         let res = router_data.decide_flows(
             state,
             &session_connector_data.connector,
-            customer,
             CallConnectorAction::Trigger,
-            merchant_account,
             None,
-            key_store,
-            payment_data.payment_intent.profile_id.clone(),
         );
 
         join_handlers.push(res);

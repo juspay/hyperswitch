@@ -237,6 +237,10 @@ pub enum PaymentAttemptUpdate {
         cancellation_reason: Option<String>,
         updated_by: String,
     },
+    PaymentMethodDetailsUpdate {
+        payment_method_id: Option<String>,
+        updated_by: String,
+    },
     BlocklistUpdate {
         status: storage_enums::AttemptStatus,
         error_code: Option<Option<String>>,
@@ -642,6 +646,14 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_message,
                 updated_by,
                 merchant_connector_id: Some(None),
+                ..Default::default()
+            },
+            PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
+                payment_method_id,
+                updated_by,
+            } => Self {
+                payment_method_id,
+                updated_by,
                 ..Default::default()
             },
             PaymentAttemptUpdate::ResponseUpdate {

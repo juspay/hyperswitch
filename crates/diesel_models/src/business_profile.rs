@@ -36,6 +36,7 @@ pub struct BusinessProfile {
     pub session_expiry: Option<i64>,
     pub authentication_connector_details: Option<serde_json::Value>,
     pub is_connector_agnostic_mit_enabled: Option<bool>,
+    pub is_extended_card_info_enabled: Option<bool>,
 }
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -63,6 +64,7 @@ pub struct BusinessProfileNew {
     pub session_expiry: Option<i64>,
     pub authentication_connector_details: Option<serde_json::Value>,
     pub is_connector_agnostic_mit_enabled: Option<bool>,
+    pub is_extended_card_info_enabled: Option<bool>,
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -86,6 +88,84 @@ pub struct BusinessProfileUpdateInternal {
     pub payment_link_config: Option<serde_json::Value>,
     pub session_expiry: Option<i64>,
     pub authentication_connector_details: Option<serde_json::Value>,
+    pub is_extended_card_info_enabled: Option<bool>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum BusinessProfileUpdate {
+    Update {
+        profile_name: Option<String>,
+        modified_at: Option<time::PrimitiveDateTime>,
+        return_url: Option<String>,
+        enable_payment_response_hash: Option<bool>,
+        payment_response_hash_key: Option<String>,
+        redirect_to_merchant_with_http_post: Option<bool>,
+        webhook_details: Option<serde_json::Value>,
+        metadata: Option<pii::SecretSerdeValue>,
+        routing_algorithm: Option<serde_json::Value>,
+        intent_fulfillment_time: Option<i64>,
+        frm_routing_algorithm: Option<serde_json::Value>,
+        payout_routing_algorithm: Option<serde_json::Value>,
+        is_recon_enabled: Option<bool>,
+        applepay_verified_domains: Option<Vec<String>>,
+        payment_link_config: Option<serde_json::Value>,
+        session_expiry: Option<i64>,
+        authentication_connector_details: Option<serde_json::Value>,
+    },
+    ExtendedCardInfoUpdate {
+        is_extended_card_info_enabled: Option<bool>,
+    },
+}
+
+impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
+    fn from(business_profile_update: BusinessProfileUpdate) -> Self {
+        match business_profile_update {
+            BusinessProfileUpdate::Update {
+                profile_name,
+                modified_at,
+                return_url,
+                enable_payment_response_hash,
+                payment_response_hash_key,
+                redirect_to_merchant_with_http_post,
+                webhook_details,
+                metadata,
+                routing_algorithm,
+                intent_fulfillment_time,
+                frm_routing_algorithm,
+                payout_routing_algorithm,
+                is_recon_enabled,
+                applepay_verified_domains,
+                payment_link_config,
+                session_expiry,
+                authentication_connector_details,
+            } => Self {
+                profile_name,
+                modified_at,
+                return_url,
+                enable_payment_response_hash,
+                payment_response_hash_key,
+                redirect_to_merchant_with_http_post,
+                webhook_details,
+                metadata,
+                routing_algorithm,
+                intent_fulfillment_time,
+                frm_routing_algorithm,
+                payout_routing_algorithm,
+                is_recon_enabled,
+                applepay_verified_domains,
+                payment_link_config,
+                session_expiry,
+                authentication_connector_details,
+                ..Default::default()
+            },
+            BusinessProfileUpdate::ExtendedCardInfoUpdate {
+                is_extended_card_info_enabled,
+            } => Self {
+                is_extended_card_info_enabled,
+                ..Default::default()
+            },
+        }
+    }
 }
 
 impl From<BusinessProfileNew> for BusinessProfile {
@@ -112,13 +192,14 @@ impl From<BusinessProfileNew> for BusinessProfile {
             session_expiry: new.session_expiry,
             authentication_connector_details: new.authentication_connector_details,
             is_connector_agnostic_mit_enabled: new.is_connector_agnostic_mit_enabled,
+            is_extended_card_info_enabled: new.is_extended_card_info_enabled,
         }
     }
 }
 
-impl BusinessProfileUpdateInternal {
+impl BusinessProfileUpdate {
     pub fn apply_changeset(self, source: BusinessProfile) -> BusinessProfile {
-        let Self {
+        let BusinessProfileUpdateInternal {
             profile_name,
             modified_at: _,
             return_url,
@@ -136,7 +217,8 @@ impl BusinessProfileUpdateInternal {
             payment_link_config,
             session_expiry,
             authentication_connector_details,
-        } = self;
+            is_extended_card_info_enabled,
+        } = self.into();
         BusinessProfile {
             profile_name: profile_name.unwrap_or(source.profile_name),
             modified_at: common_utils::date_time::now(),
@@ -157,6 +239,7 @@ impl BusinessProfileUpdateInternal {
             payment_link_config,
             session_expiry,
             authentication_connector_details,
+            is_extended_card_info_enabled,
             ..source
         }
     }
