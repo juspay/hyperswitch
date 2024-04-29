@@ -271,47 +271,6 @@ pub async fn update_business_profile_active_algorithm_ref(
     Ok(())
 }
 
-pub async fn get_merchant_connector_agnostic_mandate_config(
-    db: &dyn StorageInterface,
-    business_profile_id: &str,
-) -> RouterResult<Vec<routing_types::DetailedConnectorChoice>> {
-    let key = get_pg_agnostic_mandate_config_key(business_profile_id);
-    let maybe_config = db.find_config_by_key(&key).await;
-
-    match maybe_config {
-        Ok(config) => config
-            .config
-            .parse_struct("Vec<DetailedConnectorChoice>")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("pg agnostic mandate config has invalid structure"),
-
-        Err(e) if e.current_context().is_db_not_found() => {
-            let new_mandate_config: Vec<routing_types::DetailedConnectorChoice> = Vec::new();
-
-            let serialized = new_mandate_config
-                .encode_to_string_of_json()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("error serializing newly created pg agnostic mandate config")?;
-
-            let new_config = configs::ConfigNew {
-                key,
-                config: serialized,
-            };
-
-            db.insert_config(new_config)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("error inserting new pg agnostic mandate config in db")?;
-
-            Ok(new_mandate_config)
-        }
-
-        Err(e) => Err(e)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("error fetching pg agnostic mandate config for merchant from db"),
-    }
-}
-
 pub async fn validate_connectors_in_routing_config(
     db: &dyn StorageInterface,
     key_store: &domain::MerchantKeyStore,
@@ -438,12 +397,6 @@ pub async fn validate_connectors_in_routing_config(
 #[inline(always)]
 pub fn get_routing_dictionary_key(merchant_id: &str) -> String {
     format!("routing_dict_{merchant_id}")
-}
-
-/// Provides the identifier for the specific merchant's agnostic_mandate_config
-#[inline(always)]
-pub fn get_pg_agnostic_mandate_config_key(business_profile_id: &str) -> String {
-    format!("pg_agnostic_mandate_{business_profile_id}")
 }
 
 /// Provides the identifier for the specific merchant's default_config

@@ -299,13 +299,6 @@ impl From<RoutableConnectorChoice> for ast::ConnectorChoice {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
-pub struct DetailedConnectorChoice {
-    pub enabled: bool,
-}
-
-impl common_utils::events::ApiEventMetric for DetailedConnectorChoice {}
-
 #[derive(Debug, Copy, Clone, serde::Serialize, serde::Deserialize, strum::Display, ToSchema)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]

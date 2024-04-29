@@ -210,8 +210,6 @@ pub enum Flow {
     RoutingRetrieveConfig,
     /// Routing retrieve active config
     RoutingRetrieveActiveConfig,
-    /// Update connector agnostic mandate config
-    CreateConnectorAgnosticMandateConfig,
     /// Routing retrieve default config
     RoutingRetrieveDefaultConfig,
     /// Routing retrieve dictionary

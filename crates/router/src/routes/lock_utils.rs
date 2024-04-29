@@ -231,7 +231,6 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ReconTokenRequest
             | Flow::ReconServiceRequest
             | Flow::ReconVerifyToken => Self::Recon,
-            Flow::CreateConnectorAgnosticMandateConfig => Self::Routing,
 
             Flow::RetrievePollStatus => Self::Poll,
         }
