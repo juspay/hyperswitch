@@ -193,8 +193,8 @@ diesel::table! {
         payment_link_config -> Nullable<Jsonb>,
         session_expiry -> Nullable<Int8>,
         authentication_connector_details -> Nullable<Jsonb>,
-        is_connector_agnostic_mit_enabled -> Nullable<Bool>,
         is_extended_card_info_enabled -> Nullable<Bool>,
+        is_connector_agnostic_mit_enabled -> Nullable<Bool>,
     }
 }
 

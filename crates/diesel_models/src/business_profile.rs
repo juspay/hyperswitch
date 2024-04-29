@@ -35,8 +35,8 @@ pub struct BusinessProfile {
     pub payment_link_config: Option<serde_json::Value>,
     pub session_expiry: Option<i64>,
     pub authentication_connector_details: Option<serde_json::Value>,
-    pub is_connector_agnostic_mit_enabled: Option<bool>,
     pub is_extended_card_info_enabled: Option<bool>,
+    pub is_connector_agnostic_mit_enabled: Option<bool>,
 }
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -63,8 +63,9 @@ pub struct BusinessProfileNew {
     pub payment_link_config: Option<serde_json::Value>,
     pub session_expiry: Option<i64>,
     pub authentication_connector_details: Option<serde_json::Value>,
-    pub is_connector_agnostic_mit_enabled: Option<bool>,
     pub is_extended_card_info_enabled: Option<bool>,
+    pub is_connector_agnostic_mit_enabled: Option<bool>,
+
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
