@@ -154,6 +154,10 @@ impl Connector {
     pub fn supports_access_token_for_payout(&self, payout_method: PayoutType) -> bool {
         matches!((self, payout_method), (Self::Paypal, _))
     }
+    #[cfg(feature = "payouts")]
+    pub fn supports_vendor_disburse_account_create_for_payout(&self) -> bool {
+        matches!(self, Self::Stripe)
+    }
     pub fn supports_access_token(&self, payment_method: PaymentMethod) -> bool {
         matches!(
             (self, payment_method),
@@ -340,6 +344,7 @@ pub enum AuthenticationConnectors {
 #[strum(serialize_all = "snake_case")]
 pub enum PayoutConnectors {
     Adyen,
+    Stripe,
     Wise,
     Paypal,
     Ebanx,
@@ -350,6 +355,7 @@ impl From<PayoutConnectors> for RoutableConnectors {
     fn from(value: PayoutConnectors) -> Self {
         match value {
             PayoutConnectors::Adyen => Self::Adyen,
+            PayoutConnectors::Stripe => Self::Stripe,
             PayoutConnectors::Wise => Self::Wise,
             PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Ebanx => Self::Ebanx,
@@ -362,6 +368,7 @@ impl From<PayoutConnectors> for Connector {
     fn from(value: PayoutConnectors) -> Self {
         match value {
             PayoutConnectors::Adyen => Self::Adyen,
+            PayoutConnectors::Stripe => Self::Stripe,
             PayoutConnectors::Wise => Self::Wise,
             PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Ebanx => Self::Ebanx,
@@ -375,6 +382,7 @@ impl TryFrom<Connector> for PayoutConnectors {
     fn try_from(value: Connector) -> Result<Self, Self::Error> {
         match value {
             Connector::Adyen => Ok(Self::Adyen),
+            Connector::Stripe => Ok(Self::Stripe),
             Connector::Wise => Ok(Self::Wise),
             Connector::Paypal => Ok(Self::Paypal),
             Connector::Ebanx => Ok(Self::Ebanx),

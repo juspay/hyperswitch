@@ -22,7 +22,11 @@ use api_models::{
     mandates::RecurringDetails,
     payments::{self as payments_api, HeaderPayload},
 };
-use common_utils::{ext_traits::AsyncExt, pii, types::Surcharge};
+use common_utils::{
+    ext_traits::{AsyncExt, StringExt},
+    pii,
+    types::Surcharge,
+};
 use data_models::mandates::{CustomerAcceptance, MandateData};
 use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
 use error_stack::{report, ResultExt};
@@ -59,6 +63,7 @@ use super::{
 use crate::core::fraud_check as frm_core;
 use crate::{
     configs::settings::{ApplePayPreDecryptFlow, PaymentMethodTypeTokenFilter},
+    connector::utils::missing_field_err,
     core::{
         authentication as authentication_core,
         errors::{self, CustomResult, RouterResponse, RouterResult},
@@ -119,7 +124,7 @@ where
 
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData, Ctx>,
-    FData: Send + Sync,
+    FData: Send + Sync + Clone,
     Ctx: PaymentMethodRetrieve,
 {
     let operation: BoxedOperation<'_, F, Req, Ctx> = Box::new(operation);
@@ -222,7 +227,7 @@ where
         };
         #[cfg(feature = "frm")]
         logger::debug!(
-            "frm_configs: {:?}\nshould_cancel_transaction: {:?}\nshould_continue_capture: {:?}",
+            "frm_configs: {:?}\nshould_continue_transaction: {:?}\nshould_continue_capture: {:?}",
             frm_configs,
             should_continue_transaction,
             should_continue_capture,
@@ -239,7 +244,6 @@ where
                 &key_store,
             )
             .await?;
-
         if should_continue_transaction {
             #[cfg(feature = "frm")]
             match (
@@ -248,8 +252,15 @@ where
             ) {
                 (false, Some(storage_enums::CaptureMethod::Automatic))
                 | (false, Some(storage_enums::CaptureMethod::Scheduled)) => {
+                    if let Some(info) = &mut frm_info {
+                        if let Some(frm_data) = &mut info.frm_data {
+                            frm_data.fraud_check.payment_capture_method =
+                                payment_data.payment_attempt.capture_method;
+                        }
+                    }
                     payment_data.payment_attempt.capture_method =
                         Some(storage_enums::CaptureMethod::Manual);
+                    logger::debug!("payment_id : {:?} capture method has been changed to manual, since it has configured Post FRM flow",payment_data.payment_attempt.payment_id);
                 }
                 _ => (),
             };
@@ -270,14 +281,14 @@ where
                     };
                     let router_data = call_connector_service(
                         state,
-                        req_state,
+                        req_state.clone(),
                         &merchant_account,
                         &key_store,
-                        connector,
+                        connector.clone(),
                         &operation,
                         &mut payment_data,
                         &customer,
-                        call_connector_action,
+                        call_connector_action.clone(),
                         &validate_result,
                         schedule_time,
                         header_payload,
@@ -294,6 +305,18 @@ where
                     external_latency = router_data.external_latency;
                     //add connector http status code metrics
                     add_connector_http_status_code_metrics(connector_http_status_code);
+
+                    operation
+                        .to_post_update_tracker()?
+                        .save_pm_and_mandate(
+                            state,
+                            &router_data,
+                            &merchant_account,
+                            &key_store,
+                            &mut payment_data,
+                        )
+                        .await?;
+
                     operation
                         .to_post_update_tracker()?
                         .update_tracker(
@@ -333,7 +356,7 @@ where
                         &operation,
                         &mut payment_data,
                         &customer,
-                        call_connector_action,
+                        call_connector_action.clone(),
                         &validate_result,
                         schedule_time,
                         header_payload,
@@ -358,10 +381,10 @@ where
                         if config_bool && router_data.should_call_gsm() {
                             router_data = retry::do_gsm_actions(
                                 state,
-                                req_state,
+                                req_state.clone(),
                                 &mut payment_data,
                                 connectors,
-                                connector_data,
+                                connector_data.clone(),
                                 router_data,
                                 &merchant_account,
                                 &key_store,
@@ -383,6 +406,18 @@ where
                     external_latency = router_data.external_latency;
                     //add connector http status code metrics
                     add_connector_http_status_code_metrics(connector_http_status_code);
+
+                    operation
+                        .to_post_update_tracker()?
+                        .save_pm_and_mandate(
+                            state,
+                            &router_data,
+                            &merchant_account,
+                            &key_store,
+                            &mut payment_data,
+                        )
+                        .await?;
+
                     operation
                         .to_post_update_tracker()?
                         .update_tracker(
@@ -422,6 +457,7 @@ where
             if let Some(fraud_info) = &mut frm_info {
                 Box::pin(frm_core::post_payment_frm_core(
                     state,
+                    req_state,
                     &merchant_account,
                     &mut payment_data,
                     fraud_info,
@@ -433,6 +469,7 @@ where
                         .attach_printable("Frm configs label not found")?,
                     &customer,
                     key_store.clone(),
+                    &mut should_continue_capture,
                 ))
                 .await?;
             }
@@ -697,7 +734,7 @@ pub async fn payments_core<F, Res, Req, Op, FData, Ctx>(
 ) -> RouterResponse<Res>
 where
     F: Send + Clone + Sync,
-    FData: Send + Sync,
+    FData: Send + Sync + Clone,
     Op: Operation<F, Req, Ctx> + Send + Sync + Clone,
     Req: Debug + Authenticate + Clone,
     Res: transformers::ToResponse<PaymentData<F>, Op>,
@@ -1124,6 +1161,20 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        let authentication_id = payment_attempt
+            .authentication_id
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("missing authentication_id in payment_attempt")?;
+        let authentication = state
+            .store
+            .find_authentication_by_merchant_id_authentication_id(
+                merchant_id.clone(),
+                authentication_id.clone(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::AuthenticationNotFound {
+                id: authentication_id,
+            })?;
         // Fetching merchant_connector_account to check if pull_mechanism is enabled for 3ds connector
         let authentication_merchant_connector_account = helpers::get_merchant_connector_account(
             state,
@@ -1147,7 +1198,10 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
                     .get_metadata()
                     .map(|metadata| metadata.expose()),
             );
-        let response = if is_pull_mechanism_enabled {
+        let response = if is_pull_mechanism_enabled
+            || authentication.authentication_type
+                == Some(common_enums::DecoupledAuthenticationType::Frictionless)
+        {
             let payment_confirm_req = api::PaymentsRequest {
                 payment_id: Some(req.resource_id.clone()),
                 merchant_id: req.merchant_id.clone(),
@@ -1254,17 +1308,17 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
         let poll_config = state
             .store
             .find_config_by_key_unwrap_or(
-                &format!("poll_config_external_three_ds_{connector}"),
+                &router_types::PollConfig::get_poll_config_key(connector),
                 Some(default_config_str),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("The poll config was not found in the DB")?;
-        let poll_config =
-            serde_json::from_str::<Option<router_types::PollConfig>>(&poll_config.config)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error while parsing PollConfig")?
-                .unwrap_or(default_poll_config);
+        let poll_config: router_types::PollConfig = poll_config
+            .config
+            .parse_struct("PollConfig")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error while parsing PollConfig")?;
         let profile_id = payments_response
             .profile_id
             .as_ref()
@@ -1531,16 +1585,7 @@ where
         // and rely on previous status set in router_data
         router_data.status = payment_data.payment_attempt.status;
         router_data
-            .decide_flows(
-                state,
-                &connector,
-                customer,
-                call_connector_action,
-                merchant_account,
-                connector_request,
-                key_store,
-                payment_data.payment_intent.profile_id.clone(),
-            )
+            .decide_flows(state, &connector, call_connector_action, connector_request)
             .await
     } else {
         Ok(router_data)
@@ -1663,12 +1708,8 @@ where
         let res = router_data.decide_flows(
             state,
             &session_connector_data.connector,
-            customer,
             CallConnectorAction::Trigger,
-            merchant_account,
             None,
-            key_store,
-            payment_data.payment_intent.profile_id.clone(),
         );
 
         join_handlers.push(res);
@@ -2486,6 +2527,7 @@ where
     pub authentication: Option<storage::Authentication>,
     pub frm_metadata: Option<serde_json::Value>,
     pub recurring_details: Option<RecurringDetails>,
+    pub poll_config: Option<router_types::PollConfig>,
 }
 
 #[derive(Clone, serde::Serialize, Debug)]
@@ -2536,6 +2578,22 @@ pub struct CustomerDetails {
     pub email: Option<pii::Email>,
     pub phone: Option<Secret<String, masking::WithType>>,
     pub phone_country_code: Option<String>,
+}
+
+pub trait CustomerDetailsExt {
+    type Error;
+    fn get_name(&self) -> Result<Secret<String, masking::WithType>, Self::Error>;
+    fn get_email(&self) -> Result<pii::Email, Self::Error>;
+}
+
+impl CustomerDetailsExt for CustomerDetails {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn get_name(&self) -> Result<Secret<String, masking::WithType>, Self::Error> {
+        self.name.clone().ok_or_else(missing_field_err("name"))
+    }
+    fn get_email(&self) -> Result<pii::Email, Self::Error> {
+        self.email.clone().ok_or_else(missing_field_err("email"))
+    }
 }
 
 pub fn if_not_create_change_operation<'a, Op, F, Ctx>(

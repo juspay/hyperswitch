@@ -6,6 +6,7 @@ import { connectorDetails as nmiConnectorDetails } from "./Nmi.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
 import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
+
 import globalState from "../../utils/State.js";
 
 const connectorDetails = {
@@ -17,6 +18,7 @@ const connectorDetails = {
   "paypal": paypalConnectorDetails,
   "stripe": stripeConnectorDetails,
   "trustpay": trustpayConnectorDetails
+
 
 }
 
