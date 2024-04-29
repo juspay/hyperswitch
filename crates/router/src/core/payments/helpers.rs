@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, str::FromStr};
 
 use api_models::{
     mandates::RecurringDetails,
@@ -1779,9 +1779,17 @@ pub async fn retrieve_card_with_permanent_token(
             .unwrap_or_default()
             .card_cvc
             .unwrap_or_default(),
-        card_issuer: card.card_brand,
+        card_issuer: None,
         nick_name: card.nick_name.map(masking::Secret::new),
-        card_network: None,
+        card_network: card
+            .card_brand
+            .map(|card_brand| enums::CardNetwork::from_str(&card_brand))
+            .transpose()
+            .map_err(|e| {
+                logger::error!("Failed to parse card network {}", e);
+            })
+            .ok()
+            .flatten(),
         card_type: None,
         card_issuing_country: None,
         bank_code: None,

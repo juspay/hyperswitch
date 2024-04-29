@@ -32,7 +32,10 @@ use serde::Serialize;
 use self::storage::enums as storage_enums;
 pub use crate::core::payments::{payment_address::PaymentAddress, CustomerDetails};
 #[cfg(feature = "payouts")]
-use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW;
+use crate::{
+    connector::utils::missing_field_err,
+    core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLOW,
+};
 use crate::{
     consts,
     core::{
@@ -190,6 +193,9 @@ pub type PayoutFulfillType =
 pub type PayoutRecipientType =
     dyn services::ConnectorIntegration<api::PoRecipient, PayoutsData, PayoutsResponseData>;
 #[cfg(feature = "payouts")]
+pub type PayoutRecipientAccountType =
+    dyn services::ConnectorIntegration<api::PoRecipientAccount, PayoutsData, PayoutsResponseData>;
+#[cfg(feature = "payouts")]
 pub type PayoutQuoteType =
     dyn services::ConnectorIntegration<api::PoQuote, PayoutsData, PayoutsResponseData>;
 
@@ -305,7 +311,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub payout_method_data: Option<api::PayoutMethodData>,
 
     #[cfg(feature = "payouts")]
-    /// Contains payout method data
+    /// Contains payout's quote ID
     pub quote_id: Option<String>,
 
     pub test_mode: Option<bool>,
@@ -391,6 +397,23 @@ pub struct PayoutsData {
     pub payout_type: storage_enums::PayoutType,
     pub entity_type: storage_enums::PayoutEntityType,
     pub customer_details: Option<CustomerDetails>,
+    pub vendor_details: Option<api_models::payouts::PayoutVendorAccountDetails>,
+}
+
+#[cfg(feature = "payouts")]
+pub trait PayoutIndividualDetailsExt {
+    type Error;
+    fn get_external_account_account_holder_type(&self) -> Result<String, Self::Error>;
+}
+
+#[cfg(feature = "payouts")]
+impl PayoutIndividualDetailsExt for api_models::payouts::PayoutIndividualDetails {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn get_external_account_account_holder_type(&self) -> Result<String, Self::Error> {
+        self.external_account_account_holder_type
+            .clone()
+            .ok_or_else(missing_field_err("external_account_account_holder_type"))
+    }
 }
 
 #[cfg(feature = "payouts")]
@@ -399,12 +422,7 @@ pub struct PayoutsResponseData {
     pub status: Option<storage_enums::PayoutStatus>,
     pub connector_payout_id: String,
     pub payout_eligible: Option<bool>,
-}
-
-#[derive(Clone, Debug, Default)]
-pub struct PayoutsFulfillResponseData {
-    pub status: Option<storage_enums::PayoutStatus>,
-    pub reference_id: Option<String>,
+    pub should_add_next_step_to_process_tracker: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -562,6 +580,7 @@ pub struct PaymentsSyncData {
     pub sync_type: SyncRequestType,
     pub mandate_id: Option<api_models::payments::MandateIds>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub currency: storage_enums::Currency,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -1150,6 +1169,12 @@ pub struct PollConfig {
     pub frequency: i8,
 }
 
+impl PollConfig {
+    pub fn get_poll_config_key(connector: String) -> String {
+        format!("poll_config_external_three_ds_{connector}")
+    }
+}
+
 impl Default for PollConfig {
     fn default() -> Self {
         Self {
@@ -1582,7 +1607,7 @@ impl<F1, F2>
             preprocessing_id: None,
             connector_customer: data.connector_customer.clone(),
             connector_request_reference_id:
-                IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW.to_string(),
+                IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLOW.to_string(),
             payout_method_data: data.payout_method_data.clone(),
             quote_id: data.quote_id.clone(),
             test_mode: data.test_mode,

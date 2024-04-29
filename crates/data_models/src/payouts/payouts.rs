@@ -89,6 +89,7 @@ pub struct Payouts {
     pub attempt_count: i16,
     pub profile_id: String,
     pub status: storage_enums::PayoutStatus,
+    pub confirm: Option<bool>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -110,9 +111,10 @@ pub struct PayoutsNew {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub created_at: Option<PrimitiveDateTime>,
     pub last_modified_at: Option<PrimitiveDateTime>,
+    pub attempt_count: i16,
     pub profile_id: String,
     pub status: storage_enums::PayoutStatus,
-    pub attempt_count: i16,
+    pub confirm: Option<bool>,
 }
 
 impl Default for PayoutsNew {
@@ -137,9 +139,10 @@ impl Default for PayoutsNew {
             metadata: Option::default(),
             created_at: Some(now),
             last_modified_at: Some(now),
+            attempt_count: 1,
             profile_id: String::default(),
             status: storage_enums::PayoutStatus::default(),
-            attempt_count: 1,
+            confirm: None,
         }
     }
 }
@@ -158,6 +161,7 @@ pub enum PayoutsUpdate {
         metadata: Option<pii::SecretSerdeValue>,
         profile_id: Option<String>,
         status: Option<storage_enums::PayoutStatus>,
+        confirm: Option<bool>,
     },
     PayoutMethodIdUpdate {
         payout_method_id: String,
@@ -188,6 +192,7 @@ pub struct PayoutsUpdateInternal {
     pub profile_id: Option<String>,
     pub status: Option<storage_enums::PayoutStatus>,
     pub attempt_count: Option<i16>,
+    pub confirm: Option<bool>,
 }
 
 impl From<PayoutsUpdate> for PayoutsUpdateInternal {
@@ -205,6 +210,7 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 metadata,
                 profile_id,
                 status,
+                confirm,
             } => Self {
                 amount: Some(amount),
                 destination_currency: Some(destination_currency),
@@ -217,6 +223,7 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 metadata,
                 profile_id,
                 status,
+                confirm,
                 ..Default::default()
             },
             PayoutsUpdate::PayoutMethodIdUpdate { payout_method_id } => Self {
