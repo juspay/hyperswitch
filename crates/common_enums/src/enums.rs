@@ -1035,6 +1035,16 @@ impl Currency {
             | Self::ZMW => false,
         }
     }
+
+    pub fn number_of_digits_after_decimal_point(self) -> u8 {
+        if self.is_zero_decimal_currency() {
+            0
+        } else if self.is_three_decimal_currency() {
+            3
+        } else {
+            2
+        }
+    }
 }
 
 #[derive(
@@ -2239,7 +2249,7 @@ pub enum FrmSuggestion {
     #[default]
     FrmCancelTransaction,
     FrmManualReview,
-    FrmAutoRefund,
+    FrmAuthorizeTransaction, // When manual capture payment which was marked fraud and held, when approved needs to be authorized.
 }
 
 #[derive(

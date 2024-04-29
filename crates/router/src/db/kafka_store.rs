@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use common_enums::enums::MerchantStorageScheme;
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, pii};
 use data_models::payments::{
     payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface,
 };
@@ -859,21 +859,21 @@ impl ConnectorAccessToken for KafkaStore {
     async fn get_access_token(
         &self,
         merchant_id: &str,
-        connector_name: &str,
+        merchant_connector_id: &str,
     ) -> CustomResult<Option<AccessToken>, errors::StorageError> {
         self.diesel_store
-            .get_access_token(merchant_id, connector_name)
+            .get_access_token(merchant_id, merchant_connector_id)
             .await
     }
 
     async fn set_access_token(
         &self,
         merchant_id: &str,
-        connector_name: &str,
+        merchant_connector_id: &str,
         access_token: AccessToken,
     ) -> CustomResult<(), errors::StorageError> {
         self.diesel_store
-            .set_access_token(merchant_id, connector_name, access_token)
+            .set_access_token(merchant_id, merchant_connector_id, access_token)
             .await
     }
 }
@@ -2039,7 +2039,7 @@ impl BusinessProfileInterface for KafkaStore {
     async fn update_business_profile_by_profile_id(
         &self,
         current_state: business_profile::BusinessProfile,
-        business_profile_update: business_profile::BusinessProfileUpdateInternal,
+        business_profile_update: business_profile::BusinessProfileUpdate,
     ) -> CustomResult<business_profile::BusinessProfile, errors::StorageError> {
         self.diesel_store
             .update_business_profile_by_profile_id(current_state, business_profile_update)
@@ -2269,7 +2269,7 @@ impl UserInterface for KafkaStore {
 
     async fn find_user_by_email(
         &self,
-        user_email: &str,
+        user_email: &pii::Email,
     ) -> CustomResult<storage::User, errors::StorageError> {
         self.diesel_store.find_user_by_email(user_email).await
     }
@@ -2293,7 +2293,7 @@ impl UserInterface for KafkaStore {
 
     async fn update_user_by_email(
         &self,
-        user_email: &str,
+        user_email: &pii::Email,
         user: storage::UserUpdate,
     ) -> CustomResult<storage::User, errors::StorageError> {
         self.diesel_store
@@ -2376,7 +2376,7 @@ impl UserRoleInterface for KafkaStore {
         &self,
         user_id: &str,
         merchant_id: &str,
-    ) -> CustomResult<bool, errors::StorageError> {
+    ) -> CustomResult<user_storage::UserRole, errors::StorageError> {
         self.diesel_store
             .delete_user_role_by_user_id_merchant_id(user_id, merchant_id)
             .await
