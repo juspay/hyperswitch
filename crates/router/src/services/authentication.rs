@@ -66,7 +66,7 @@ pub enum AuthenticationType {
     },
     SinglePurposeJWT {
         user_id: String,
-        purpose: SinglePurpose,
+        purpose: Purpose,
     },
     MerchantId {
         merchant_id: String,
@@ -114,19 +114,19 @@ impl AuthenticationType {
 }
 
 #[derive(Clone, Debug)]
-pub struct UserFromSinglePurposesToken {
+pub struct UserFromSinglePurposeToken {
     pub user_id: String,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct SinglePurposeToken {
     pub user_id: String,
-    pub purpose: SinglePurpose,
+    pub purpose: Purpose,
     pub exp: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, strum::Display, serde::Deserialize, serde::Serialize)]
-pub enum SinglePurpose {
+pub enum Purpose {
     AcceptInvite,
 }
 
@@ -134,7 +134,7 @@ pub enum SinglePurpose {
 impl SinglePurposeToken {
     pub async fn new_token(
         user_id: String,
-        purpose: SinglePurpose,
+        purpose: Purpose,
         settings: &Settings,
     ) -> UserResult<String> {
         let exp_duration = std::time::Duration::from_secs(consts::JWT_TOKEN_TIME_IN_SECS);
@@ -361,11 +361,11 @@ where
 
 #[allow(dead_code)]
 #[derive(Debug)]
-pub(crate) struct SinglePurposeJWTAuth(pub SinglePurpose);
+pub(crate) struct SinglePurposeJWTAuth(pub Purpose);
 
 #[cfg(feature = "olap")]
 #[async_trait]
-impl<A> AuthenticateAndFetch<UserFromSinglePurposesToken, A> for SinglePurposeJWTAuth
+impl<A> AuthenticateAndFetch<UserFromSinglePurposeToken, A> for SinglePurposeJWTAuth
 where
     A: AppStateInfo + Sync,
 {
@@ -373,7 +373,7 @@ where
         &self,
         request_headers: &HeaderMap,
         state: &A,
-    ) -> RouterResult<(UserFromSinglePurposesToken, AuthenticationType)> {
+    ) -> RouterResult<(UserFromSinglePurposeToken, AuthenticationType)> {
         let payload = parse_jwt_payload::<A, SinglePurposeToken>(request_headers, state).await?;
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
@@ -387,7 +387,7 @@ where
         }
 
         Ok((
-            UserFromSinglePurposesToken {
+            UserFromSinglePurposeToken {
                 user_id: payload.user_id.clone(),
             },
             AuthenticationType::SinglePurposeJWT {
