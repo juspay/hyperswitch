@@ -152,8 +152,7 @@ impl TryFrom<&EbanxRouterData<&types::PayoutsRouterData<api::PoCreate>>>
 }
 
 pub struct EbanxAuthType {
-    #[allow(dead_code)]
-    pub(super) integration_key: Secret<String>,
+    pub integration_key: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for EbanxAuthType {
@@ -221,6 +220,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, EbanxPayoutResponse>>
                 )),
                 connector_payout_id: item.response.payout.uid,
                 payout_eligible: None,
+                should_add_next_step_to_process_tracker: false,
             }),
             ..item.data
         })
@@ -301,8 +301,9 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, EbanxFulfillResponse>>
         Ok(Self {
             response: Ok(types::PayoutsResponseData {
                 status: Some(storage_enums::PayoutStatus::from(item.response.status)),
-                connector_payout_id: item.data.request.get_connector_payout_id()?,
+                connector_payout_id: item.data.request.get_transfer_id()?,
                 payout_eligible: None,
+                should_add_next_step_to_process_tracker: false,
             }),
             ..item.data
         })
@@ -397,6 +398,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, EbanxCancelResponse>>
                     .clone()
                     .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?,
                 payout_eligible: None,
+                should_add_next_step_to_process_tracker: false,
             }),
             ..item.data
         })

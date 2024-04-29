@@ -20,8 +20,6 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::Serializer;
 use time::PrimitiveDateTime;
-#[cfg(feature = "payouts")]
-use types::CustomerDetails;
 
 #[cfg(feature = "frm")]
 use crate::types::{fraud_check, storage::enums as storage_enums};
@@ -851,29 +849,6 @@ impl PaymentsSyncRequestData for types::PaymentsSyncData {
 }
 
 #[cfg(feature = "payouts")]
-pub trait PayoutsData {
-    fn get_customer_details(&self) -> Result<types::CustomerDetails, errors::ConnectorError>;
-    fn get_connector_payout_id(&self) -> Result<String, errors::ConnectorError>;
-}
-
-#[cfg(feature = "payouts")]
-impl PayoutsData for types::PayoutsData {
-    fn get_customer_details(&self) -> Result<types::CustomerDetails, errors::ConnectorError> {
-        self.customer_details
-            .clone()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "Customer Details",
-            })
-    }
-
-    fn get_connector_payout_id(&self) -> Result<String, errors::ConnectorError> {
-        self.connector_payout_id
-            .clone()
-            .ok_or(errors::ConnectorError::MissingConnectorTransactionID)
-    }
-}
-
-#[cfg(feature = "payouts")]
 pub trait CustomerDetails {
     fn get_customer_id(&self) -> Result<String, errors::ConnectorError>;
     fn get_customer_name(
@@ -988,7 +963,7 @@ impl RefundsRequestData for types::RefundsData {
 #[cfg(feature = "payouts")]
 pub trait PayoutsData {
     fn get_transfer_id(&self) -> Result<String, Error>;
-    fn get_customer_details(&self) -> Result<CustomerDetails, Error>;
+    fn get_customer_details(&self) -> Result<types::CustomerDetails, Error>;
     fn get_vendor_details(&self) -> Result<PayoutVendorAccountDetails, Error>;
 }
 
@@ -999,7 +974,7 @@ impl PayoutsData for types::PayoutsData {
             .clone()
             .ok_or_else(missing_field_err("transfer_id"))
     }
-    fn get_customer_details(&self) -> Result<CustomerDetails, Error> {
+    fn get_customer_details(&self) -> Result<types::CustomerDetails, Error> {
         self.customer_details
             .clone()
             .ok_or_else(missing_field_err("customer_details"))
