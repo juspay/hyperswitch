@@ -1,5 +1,5 @@
 use diesel_models::authentication::AuthenticationUpdateInternal;
-use error_stack::IntoReport;
+use error_stack::report;
 use router_env::{instrument, tracing};
 
 use super::{MockDb, Store};
@@ -22,6 +22,12 @@ pub trait AuthenticationInterface {
         authentication_id: String,
     ) -> CustomResult<storage::Authentication, errors::StorageError>;
 
+    async fn find_authentication_by_merchant_id_connector_authentication_id(
+        &self,
+        merchant_id: String,
+        connector_authentication_id: String,
+    ) -> CustomResult<storage::Authentication, errors::StorageError>;
+
     async fn update_authentication_by_merchant_id_authentication_id(
         &self,
         previous_state: storage::Authentication,
@@ -40,8 +46,7 @@ impl AuthenticationInterface for Store {
         authentication
             .insert(&conn)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -57,8 +62,22 @@ impl AuthenticationInterface for Store {
             &authentication_id,
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    async fn find_authentication_by_merchant_id_connector_authentication_id(
+        &self,
+        merchant_id: String,
+        connector_authentication_id: String,
+    ) -> CustomResult<storage::Authentication, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::Authentication::find_authentication_by_merchant_id_connector_authentication_id(
+            &conn,
+            &merchant_id,
+            &connector_authentication_id,
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -75,8 +94,7 @@ impl AuthenticationInterface for Store {
             authentication_update,
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
 
@@ -127,6 +145,9 @@ impl AuthenticationInterface for MockDb {
             acs_trans_id: authentication.acs_trans_id,
             three_ds_server_trans_id: authentication.three_dsserver_trans_id,
             acs_signed_content: authentication.acs_signed_content,
+            profile_id: authentication.profile_id,
+            payment_id: authentication.payment_id,
+            merchant_connector_id: authentication.merchant_connector_id,
         };
         authentications.push(authentication.clone());
         Ok(authentication)
@@ -146,6 +167,14 @@ impl AuthenticationInterface for MockDb {
                     "cannot find authentication for authentication_id = {authentication_id} and merchant_id = {merchant_id}"
                 )).into(),
             ).cloned()
+    }
+
+    async fn find_authentication_by_merchant_id_connector_authentication_id(
+        &self,
+        _merchant_id: String,
+        _connector_authentication_id: String,
+    ) -> CustomResult<storage::Authentication, errors::StorageError> {
+        Err(errors::StorageError::MockDbError)?
     }
 
     async fn update_authentication_by_merchant_id_authentication_id(

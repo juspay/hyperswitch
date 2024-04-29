@@ -67,8 +67,8 @@ need_cmd () {
 }
 
 prompt () {
-    read -p "$*? [y/N] :" ANS
-    case $ANS in
+    read -p "$*? [y/N] :" ANSWER
+    case $ANSWER in
         [Yy]*) return 1;;
         *) return 0;;
     esac

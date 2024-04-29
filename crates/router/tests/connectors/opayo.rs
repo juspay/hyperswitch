@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use masking::Secret;
-use router::types::{self, api, storage::enums};
+use router::types::{self, domain, storage::enums};
 
 use crate::{
     connector_auth,
@@ -300,14 +300,14 @@ async fn should_sync_refund() {
     );
 }
 
-// Cards Negative scenerios
+// Cards Negative scenarios
 // Creates a payment with incorrect card number.
 #[actix_web::test]
 async fn should_fail_payment_for_incorrect_card_number() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
                     card_number: cards::CardNumber::from_str("1234567891011").unwrap(),
                     ..utils::CCardType::default().0
                 }),
@@ -329,7 +329,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
                     card_cvc: Secret::new("12345".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -351,7 +351,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
                     card_exp_month: Secret::new("20".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -373,7 +373,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
                     card_exp_year: Secret::new("2000".to_string()),
                     ..utils::CCardType::default().0
                 }),

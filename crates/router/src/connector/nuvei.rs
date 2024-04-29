@@ -8,7 +8,7 @@ use ::common_utils::{
     ext_traits::{BytesExt, ValueExt},
     request::RequestContent,
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::ExposeInterface;
 use transformers as nuvei;
 
@@ -290,7 +290,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
             .switch()?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::PaymentsCancelRouterData::try_from(types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -919,9 +919,7 @@ impl api::IncomingWebhook for Nuvei {
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let signature = utils::get_header_key_value("advanceResponseChecksum", request.headers)?;
-        hex::decode(signature)
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookResponseEncodingFailed)
+        hex::decode(signature).change_context(errors::ConnectorError::WebhookResponseEncodingFailed)
     }
 
     fn get_webhook_source_verification_message(
@@ -931,10 +929,8 @@ impl api::IncomingWebhook for Nuvei {
         connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let body = serde_urlencoded::from_str::<nuvei::NuveiWebhookDetails>(&request.query_params)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let secret_str = std::str::from_utf8(&connector_webhook_secrets.secret)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let status = format!("{:?}", body.status).to_uppercase();
         let to_sign = format!(
@@ -956,7 +952,6 @@ impl api::IncomingWebhook for Nuvei {
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         let body =
             serde_urlencoded::from_str::<nuvei::NuveiWebhookTransactionId>(&request.query_params)
-                .into_report()
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
             types::api::PaymentIdType::ConnectorTransactionId(body.ppp_transaction_id),
@@ -969,7 +964,6 @@ impl api::IncomingWebhook for Nuvei {
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
         let body =
             serde_urlencoded::from_str::<nuvei::NuveiWebhookDataStatus>(&request.query_params)
-                .into_report()
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         match body.status {
             nuvei::NuveiWebhookStatus::Approved => {
@@ -989,7 +983,6 @@ impl api::IncomingWebhook for Nuvei {
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let body = serde_urlencoded::from_str::<nuvei::NuveiWebhookDetails>(&request.query_params)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let payment_response = nuvei::NuveiPaymentsResponse::from(body);
 
@@ -1005,7 +998,10 @@ impl services::ConnectorRedirectResponse for Nuvei {
         action: services::PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
         match action {
-            services::PaymentAction::PSync => Ok(payments::CallConnectorAction::Trigger),
+            services::PaymentAction::PSync
+            | services::PaymentAction::PaymentAuthenticateCompleteAuthorize => {
+                Ok(payments::CallConnectorAction::Trigger)
+            }
             services::PaymentAction::CompleteAuthorize => {
                 if let Some(payload) = json_payload {
                     let redirect_response: nuvei::NuveiRedirectionResponse =

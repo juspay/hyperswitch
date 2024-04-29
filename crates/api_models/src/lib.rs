@@ -2,7 +2,6 @@
 pub mod admin;
 pub mod analytics;
 pub mod api_keys;
-pub mod bank_accounts;
 pub mod blocklist;
 pub mod cards_info;
 pub mod conditional_configs;
@@ -26,6 +25,7 @@ pub mod payments;
 #[cfg(feature = "payouts")]
 pub mod payouts;
 pub mod pm_auth;
+pub mod poll;
 #[cfg(feature = "recon")]
 pub mod recon;
 pub mod refunds;

@@ -195,7 +195,7 @@ impl super::behaviour::Conversion for MerchantAccount {
         Self: Sized,
     {
         async {
-            Ok(Self {
+            Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 id: Some(item.id),
                 merchant_id: item.merchant_id,
                 return_url: item.return_url,

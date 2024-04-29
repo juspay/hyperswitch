@@ -31,6 +31,7 @@ use actix_web::{
 };
 use http::StatusCode;
 use hyperswitch_interfaces::secrets_interface::secret_state::SecuredSecret;
+use router_env::tracing::Instrument;
 use routes::AppState;
 use storage_impl::errors::ApplicationResult;
 use tokio::sync::{mpsc, oneshot};
@@ -70,6 +71,7 @@ pub mod headers {
     pub const X_WEBHOOK_SIGNATURE: &str = "X-Webhook-Signature-512";
     pub const X_REQUEST_ID: &str = "X-Request-Id";
     pub const STRIPE_COMPATIBLE_WEBHOOK_SIGNATURE: &str = "Stripe-Signature";
+    pub const STRIPE_COMPATIBLE_CONNECT_ACCOUNT: &str = "Stripe-Account";
 }
 
 pub mod pii {
@@ -124,6 +126,7 @@ pub fn mk_app(
             .service(routes::EphemeralKey::server(state.clone()))
             .service(routes::Webhooks::server(state.clone()))
             .service(routes::PaymentMethods::server(state.clone()))
+            .service(routes::Poll::server(state.clone()))
     }
 
     #[cfg(feature = "olap")]
@@ -192,7 +195,7 @@ pub async fn start_server(conf: settings::Settings<SecuredSecret>) -> Applicatio
         .workers(server.workers)
         .shutdown_timeout(server.shutdown_timeout)
         .run();
-    tokio::spawn(receiver_for_error(rx, server.handle()));
+    let _task_handle = tokio::spawn(receiver_for_error(rx, server.handle()).in_current_span());
     Ok(server)
 }
 

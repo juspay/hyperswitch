@@ -1,4 +1,4 @@
-use error_stack::IntoReport;
+use error_stack::report;
 use router_env::{instrument, tracing};
 
 use super::Store;
@@ -30,7 +30,7 @@ pub trait BusinessProfileInterface {
     async fn update_business_profile_by_profile_id(
         &self,
         current_state: business_profile::BusinessProfile,
-        business_profile_update: business_profile::BusinessProfileUpdateInternal,
+        business_profile_update: business_profile::BusinessProfileUpdate,
     ) -> CustomResult<business_profile::BusinessProfile, errors::StorageError>;
 
     async fn delete_business_profile_by_profile_id_merchant_id(
@@ -56,8 +56,7 @@ impl BusinessProfileInterface for Store {
         business_profile
             .insert(&conn)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -68,8 +67,7 @@ impl BusinessProfileInterface for Store {
         let conn = connection::pg_connection_read(self).await?;
         storage::business_profile::BusinessProfile::find_by_profile_id(&conn, profile_id)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -85,15 +83,14 @@ impl BusinessProfileInterface for Store {
             merchant_id,
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
     async fn update_business_profile_by_profile_id(
         &self,
         current_state: business_profile::BusinessProfile,
-        business_profile_update: business_profile::BusinessProfileUpdateInternal,
+        business_profile_update: business_profile::BusinessProfileUpdate,
     ) -> CustomResult<business_profile::BusinessProfile, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         storage::business_profile::BusinessProfile::update_by_profile_id(
@@ -102,8 +99,7 @@ impl BusinessProfileInterface for Store {
             business_profile_update,
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -119,8 +115,7 @@ impl BusinessProfileInterface for Store {
             merchant_id,
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -134,8 +129,7 @@ impl BusinessProfileInterface for Store {
             merchant_id,
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
 
@@ -175,7 +169,7 @@ impl BusinessProfileInterface for MockDb {
     async fn update_business_profile_by_profile_id(
         &self,
         current_state: business_profile::BusinessProfile,
-        business_profile_update: business_profile::BusinessProfileUpdateInternal,
+        business_profile_update: business_profile::BusinessProfileUpdate,
     ) -> CustomResult<business_profile::BusinessProfile, errors::StorageError> {
         self.business_profiles
             .lock()

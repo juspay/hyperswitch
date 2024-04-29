@@ -11,7 +11,7 @@ use common_utils::{
     pii,
 };
 use diesel_models::configs;
-use error_stack::{report, FutureExt, IntoReport, ResultExt};
+use error_stack::{report, FutureExt, ResultExt};
 use futures::future::try_join_all;
 use masking::{PeekInterface, Secret};
 use pm_auth::connector::plaid::transformers::PlaidAuthType;
@@ -175,7 +175,7 @@ pub async fn create_merchant_account(
     };
 
     let mut merchant_account = async {
-        Ok(domain::MerchantAccount {
+        Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(domain::MerchantAccount {
             merchant_id: req.merchant_id,
             merchant_name: req
                 .merchant_name
@@ -279,8 +279,7 @@ pub async fn create_merchant_account(
     .ok();
 
     Ok(service_api::ApplicationResponse::Json(
-        merchant_account
-            .try_into()
+        api::MerchantAccountResponse::try_from(merchant_account)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed while generating response")?,
     ))
@@ -300,11 +299,11 @@ pub async fn list_merchant_account(
     let merchant_accounts = merchant_accounts
         .into_iter()
         .map(|merchant_account| {
-            merchant_account
-                .try_into()
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            api::MerchantAccountResponse::try_from(merchant_account).change_context(
+                errors::ApiErrorResponse::InvalidDataValue {
                     field_name: "merchant_account",
-                })
+                },
+            )
         })
         .collect::<Result<Vec<_>, _>>()?;
 
@@ -330,8 +329,7 @@ pub async fn get_merchant_account(
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     Ok(service_api::ApplicationResponse::Json(
-        merchant_account
-            .try_into()
+        api::MerchantAccountResponse::try_from(merchant_account)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct response")?,
     ))
@@ -609,8 +607,7 @@ pub async fn merchant_account_update(
     // If there are any new business labels generated, create business profile
 
     Ok(service_api::ApplicationResponse::Json(
-        response
-            .try_into()
+        api::MerchantAccountResponse::try_from(response)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed while generating response")?,
     ))
@@ -796,22 +793,21 @@ pub async fn create_payment_connector(
         if req.connector_type != api_enums::ConnectorType::PaymentMethodAuth {
             return Err(errors::ApiErrorResponse::InvalidRequestData {
                 message: "Invalid connector type given".to_string(),
-            })
-            .into_report();
+            }
+            .into());
         }
     } else if authentication_connector.is_some() {
         if req.connector_type != api_enums::ConnectorType::AuthenticationProcessor {
             return Err(errors::ApiErrorResponse::InvalidRequestData {
                 message: "Invalid connector type given".to_string(),
-            })
-            .into_report();
+            }
+            .into());
         }
     } else {
         let routable_connector_option = req
             .connector_name
             .to_string()
-            .parse()
-            .into_report()
+            .parse::<api_enums::RoutableConnectors>()
             .change_context(errors::ApiErrorResponse::InvalidRequestData {
                 message: "Invalid connector name given".to_string(),
             })?;
@@ -1047,7 +1043,6 @@ async fn validate_pm_auth(
     profile_id: &Option<String>,
 ) -> RouterResponse<()> {
     let config = serde_json::from_value::<api_models::pm_auth::PaymentMethodAuthConfig>(val)
-        .into_report()
         .change_context(errors::ApiErrorResponse::InvalidRequestData {
             message: "invalid data received for payment method auth config".to_string(),
         })
@@ -1071,15 +1066,14 @@ async fn validate_pm_auth(
             .find(|mca| mca.merchant_connector_id == conn_choice.mca_id)
             .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
                 message: "payment method auth connector account not found".to_string(),
-            })
-            .into_report()?;
+            })?;
 
         if &pm_auth_mca.profile_id != profile_id {
             return Err(errors::ApiErrorResponse::GenericNotFoundError {
                 message: "payment method auth profile_id differs from connector profile_id"
                     .to_string(),
-            })
-            .into_report();
+            }
+            .into());
         }
     }
 
@@ -1205,7 +1199,6 @@ pub async fn update_payment_connector(
     let metadata = req.metadata.clone().or(mca.metadata.clone());
     let connector_name = mca.connector_name.as_ref();
     let connector_enum = api_models::enums::Connector::from_str(connector_name)
-        .into_report()
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "connector",
         })
@@ -1297,7 +1290,6 @@ pub async fn update_payment_connector(
         .profile_id
         .clone()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .into_report()
         .attach_printable("Missing `profile_id` in merchant connector account")?;
 
     let request_connector_label = req.connector_label;
@@ -1656,7 +1648,7 @@ pub async fn update_business_profile(
         })
         .transpose()?;
 
-    let business_profile_update = storage::business_profile::BusinessProfileUpdateInternal {
+    let business_profile_update = storage::business_profile::BusinessProfileUpdate::Update {
         profile_name: request.profile_name,
         modified_at: Some(date_time::now()),
         return_url: request.return_url.map(|return_url| return_url.to_string()),
@@ -1699,6 +1691,39 @@ pub async fn update_business_profile(
     ))
 }
 
+pub async fn extended_card_info_toggle(
+    state: AppState,
+    profile_id: &str,
+    ext_card_info_choice: admin_types::ExtendedCardInfoChoice,
+) -> RouterResponse<admin_types::ExtendedCardInfoChoice> {
+    let db = state.store.as_ref();
+    let business_profile = db
+        .find_business_profile_by_profile_id(profile_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+            id: profile_id.to_string(),
+        })?;
+
+    if business_profile.is_extended_card_info_enabled.is_none()
+        || business_profile
+            .is_extended_card_info_enabled
+            .is_some_and(|existing_config| existing_config != ext_card_info_choice.enabled)
+    {
+        let business_profile_update =
+            storage::business_profile::BusinessProfileUpdate::ExtendedCardInfoUpdate {
+                is_extended_card_info_enabled: Some(ext_card_info_choice.enabled),
+            };
+
+        db.update_business_profile_by_profile_id(business_profile, business_profile_update)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+                id: profile_id.to_owned(),
+            })?;
+    }
+
+    Ok(service_api::ApplicationResponse::Json(ext_card_info_choice))
+}
+
 pub(crate) fn validate_auth_and_metadata_type(
     connector_name: api_models::enums::Connector,
     val: &types::ConnectorAuthType,
@@ -1737,6 +1762,10 @@ pub(crate) fn validate_auth_and_metadata_type(
         }
         api_enums::Connector::Bankofamerica => {
             bankofamerica::transformers::BankOfAmericaAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Billwerk => {
+            billwerk::transformers::BillwerkAuthType::try_from(val)?;
             Ok(())
         }
         api_enums::Connector::Bitpay => {
@@ -1826,6 +1855,11 @@ pub(crate) fn validate_auth_and_metadata_type(
         }
         api_enums::Connector::Multisafepay => {
             multisafepay::transformers::MultisafepayAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Netcetera => {
+            netcetera::transformers::NetceteraAuthType::try_from(val)?;
+            netcetera::transformers::NetceteraMetaData::try_from(connector_meta_data)?;
             Ok(())
         }
         api_enums::Connector::Nexinets => {
@@ -1918,6 +1952,10 @@ pub(crate) fn validate_auth_and_metadata_type(
         }
         api_enums::Connector::Zen => {
             zen::transformers::ZenAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Zsl => {
+            zsl::transformers::ZslAuthType::try_from(val)?;
             Ok(())
         }
         api_enums::Connector::Signifyd => {

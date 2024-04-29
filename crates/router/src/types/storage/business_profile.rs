@@ -1,3 +1,3 @@
 pub use diesel_models::business_profile::{
-    BusinessProfile, BusinessProfileNew, BusinessProfileUpdateInternal,
+    BusinessProfile, BusinessProfileNew, BusinessProfileUpdate, BusinessProfileUpdateInternal,
 };

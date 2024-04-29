@@ -5,7 +5,7 @@ use std::fmt::Debug;
 use base64::Engine;
 use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
 use diesel_models::enums;
-use error_stack::{IntoReport, Report, ResultExt};
+use error_stack::{Report, ResultExt};
 use masking::PeekInterface;
 use router_env::logger;
 use transformers as noon;
@@ -775,7 +775,9 @@ impl services::ConnectorRedirectResponse for Noon {
         action: services::PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
         match action {
-            services::PaymentAction::PSync | services::PaymentAction::CompleteAuthorize => {
+            services::PaymentAction::PSync
+            | services::PaymentAction::CompleteAuthorize
+            | services::PaymentAction::PaymentAuthenticateCompleteAuthorize => {
                 Ok(payments::CallConnectorAction::Trigger)
             }
         }
@@ -803,7 +805,6 @@ impl api::IncomingWebhook for Noon {
         let signature = webhook_body.signature;
         consts::BASE64_ENGINE
             .decode(signature)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)
     }
 

@@ -99,6 +99,7 @@ pub trait PaymentAttemptInterface {
         payment_method: Option<Vec<storage_enums::PaymentMethod>>,
         payment_method_type: Option<Vec<storage_enums::PaymentMethodType>>,
         authentication_type: Option<Vec<storage_enums::AuthenticationType>>,
+        merchant_connector_id: Option<Vec<String>>,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<i64, errors::StorageError>;
 }
@@ -302,6 +303,7 @@ pub enum PaymentAttemptUpdate {
         currency: storage_enums::Currency,
         status: storage_enums::AttemptStatus,
         authentication_type: Option<storage_enums::AuthenticationType>,
+        capture_method: Option<storage_enums::CaptureMethod>,
         payment_method: Option<storage_enums::PaymentMethod>,
         browser_info: Option<serde_json::Value>,
         connector: Option<String>,
@@ -337,6 +339,10 @@ pub enum PaymentAttemptUpdate {
         error_message: Option<Option<String>>,
         updated_by: String,
     },
+    PaymentMethodDetailsUpdate {
+        payment_method_id: Option<String>,
+        updated_by: String,
+    },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
         cancellation_reason: Option<String>,
@@ -347,7 +353,7 @@ pub enum PaymentAttemptUpdate {
         connector: Option<String>,
         connector_transaction_id: Option<String>,
         authentication_type: Option<storage_enums::AuthenticationType>,
-        payment_method_id: Option<Option<String>>,
+        payment_method_id: Option<String>,
         mandate_id: Option<String>,
         connector_metadata: Option<serde_json::Value>,
         payment_token: Option<String>,
@@ -367,7 +373,7 @@ pub enum PaymentAttemptUpdate {
         status: storage_enums::AttemptStatus,
         connector: Option<String>,
         connector_transaction_id: Option<String>,
-        payment_method_id: Option<Option<String>>,
+        payment_method_id: Option<String>,
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
         error_reason: Option<Option<String>>,
@@ -403,7 +409,7 @@ pub enum PaymentAttemptUpdate {
     },
     PreprocessingUpdate {
         status: storage_enums::AttemptStatus,
-        payment_method_id: Option<Option<String>>,
+        payment_method_id: Option<String>,
         connector_metadata: Option<serde_json::Value>,
         preprocessing_step_id: Option<String>,
         connector_transaction_id: Option<String>,

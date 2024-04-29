@@ -17,7 +17,7 @@ use crate::{
     core::webhooks::{self as webhooks_core, types::OutgoingWebhookTrackingData},
     db::StorageInterface,
     errors, logger,
-    routes::AppState,
+    routes::{app::ReqState, AppState},
     types::{domain, storage},
 };
 
@@ -120,7 +120,7 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
                     &key_store,
                     event,
                     request_content,
-                    storage::enums::WebhookDeliveryAttempt::AutomaticRetry,
+                    delivery_attempt,
                     None,
                     Some(process),
                 )
@@ -134,8 +134,10 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
                     .find_merchant_account_by_merchant_id(&tracking_data.merchant_id, &key_store)
                     .await?;
 
+                // TODO: Add request state for the PT flows as well
                 let (content, event_type) = get_outgoing_webhook_content_and_event_type(
                     state.clone(),
+                    state.get_req_state(),
                     merchant_account.clone(),
                     key_store.clone(),
                     &tracking_data,
@@ -172,7 +174,7 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
                             &key_store,
                             event,
                             request_content,
-                            storage::enums::WebhookDeliveryAttempt::AutomaticRetry,
+                            delivery_attempt,
                             Some(content),
                             Some(process),
                         )
@@ -312,6 +314,7 @@ pub(crate) async fn retry_webhook_delivery_task(
 #[instrument(skip_all)]
 async fn get_outgoing_webhook_content_and_event_type(
     state: AppState,
+    req_state: ReqState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     tracking_data: &OutgoingWebhookTrackingData,
@@ -350,6 +353,7 @@ async fn get_outgoing_webhook_content_and_event_type(
             let payments_response =
                 match Box::pin(payments_core::<PSync, PaymentsResponse, _, _, _, Oss>(
                     state,
+                    req_state,
                     merchant_account,
                     key_store,
                     PaymentStatus,

@@ -2,7 +2,7 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
 use pm_auth::consts;
 use transformers as threedsecureio;
@@ -192,21 +192,21 @@ impl api::IncomingWebhook for Threedsecureio {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_event_type(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_resource_object(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
 
@@ -303,7 +303,7 @@ impl
         types::authentication::ConnectorAuthenticationRouterData,
         errors::ConnectorError,
     > {
-        let response = res
+        let response: threedsecureio::ThreedsecureioAuthenticationResponse = res
             .response
             .parse_struct("ThreedsecureioAuthenticationResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;

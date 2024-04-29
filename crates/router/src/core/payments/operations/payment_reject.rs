@@ -13,7 +13,7 @@ use crate::{
         payment_methods::PaymentMethodRetrieve,
         payments::{helpers, operations, PaymentAddress, PaymentData},
     },
-    routes::AppState,
+    routes::{app::ReqState, AppState},
     services,
     types::{
         api::{self, PaymentIdTypeExt},
@@ -37,7 +37,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         _request: &PaymentsCancelRequest,
-        _mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
@@ -174,6 +173,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             authorizations: vec![],
             authentication: None,
             frm_metadata: None,
+            recurring_details: None,
+            poll_config: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -181,6 +182,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             customer_details: None,
             payment_data,
             business_profile,
+            mandate_type: None,
         };
 
         Ok(get_trackers_response)
@@ -195,6 +197,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     async fn update_trackers<'b>(
         &'b self,
         state: &'b AppState,
+        _req_state: ReqState,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
@@ -272,7 +275,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, PaymentsCan
             operations::ValidateResult {
                 merchant_id: &merchant_account.merchant_id,
                 payment_id: api::PaymentIdType::PaymentIntentId(request.payment_id.to_owned()),
-                mandate_type: None,
                 storage_scheme: merchant_account.storage_scheme,
                 requeue: false,
             },

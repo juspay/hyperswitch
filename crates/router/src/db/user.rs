@@ -1,5 +1,5 @@
 use diesel_models::{user as storage, user_role::UserRole};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use masking::Secret;
 use router_env::{instrument, tracing};
 
@@ -7,6 +7,7 @@ use super::MockDb;
 use crate::{
     connection,
     core::errors::{self, CustomResult},
+    pii,
     services::Store,
 };
 pub mod sample_data;
@@ -20,7 +21,7 @@ pub trait UserInterface {
 
     async fn find_user_by_email(
         &self,
-        user_email: &str,
+        user_email: &pii::Email,
     ) -> CustomResult<storage::User, errors::StorageError>;
 
     async fn find_user_by_id(
@@ -36,7 +37,7 @@ pub trait UserInterface {
 
     async fn update_user_by_email(
         &self,
-        user_email: &str,
+        user_email: &pii::Email,
         user: storage::UserUpdate,
     ) -> CustomResult<storage::User, errors::StorageError>;
 
@@ -62,20 +63,18 @@ impl UserInterface for Store {
         user_data
             .insert(&conn)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
     async fn find_user_by_email(
         &self,
-        user_email: &str,
+        user_email: &pii::Email,
     ) -> CustomResult<storage::User, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         storage::User::find_by_user_email(&conn, user_email)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -86,8 +85,7 @@ impl UserInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::User::find_by_user_id(&conn, user_id)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -99,21 +97,19 @@ impl UserInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::User::update_by_user_id(&conn, user_id, user)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
     async fn update_user_by_email(
         &self,
-        user_email: &str,
+        user_email: &pii::Email,
         user: storage::UserUpdate,
     ) -> CustomResult<storage::User, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         storage::User::update_by_user_email(&conn, user_email, user)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -124,8 +120,7 @@ impl UserInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::User::delete_by_user_id(&conn, user_id)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -136,8 +131,7 @@ impl UserInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::User::find_joined_users_and_roles_by_merchant_id(&conn, merchant_id)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
 
@@ -159,11 +153,7 @@ impl UserInterface for MockDb {
         }
         let time_now = common_utils::date_time::now();
         let user = storage::User {
-            id: users
-                .len()
-                .try_into()
-                .into_report()
-                .change_context(errors::StorageError::MockDbError)?,
+            id: i32::try_from(users.len()).change_context(errors::StorageError::MockDbError)?,
             user_id: user_data.user_id,
             email: user_data.email,
             name: user_data.name,
@@ -179,20 +169,16 @@ impl UserInterface for MockDb {
 
     async fn find_user_by_email(
         &self,
-        user_email: &str,
+        user_email: &pii::Email,
     ) -> CustomResult<storage::User, errors::StorageError> {
         let users = self.users.lock().await;
-        let user_email_pii: common_utils::pii::Email = user_email
-            .to_string()
-            .try_into()
-            .map_err(|_| errors::StorageError::MockDbError)?;
         users
             .iter()
-            .find(|user| user.email == user_email_pii)
+            .find(|user| user.email.eq(user_email))
             .cloned()
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
-                    "No user available for email = {user_email}"
+                    "No user available for email = {user_email:?}"
                 ))
                 .into(),
             )
@@ -257,17 +243,13 @@ impl UserInterface for MockDb {
 
     async fn update_user_by_email(
         &self,
-        user_email: &str,
+        user_email: &pii::Email,
         update_user: storage::UserUpdate,
     ) -> CustomResult<storage::User, errors::StorageError> {
         let mut users = self.users.lock().await;
-        let user_email_pii: common_utils::pii::Email = user_email
-            .to_string()
-            .try_into()
-            .map_err(|_| errors::StorageError::MockDbError)?;
         users
             .iter_mut()
-            .find(|user| user.email == user_email_pii)
+            .find(|user| user.email.eq(user_email))
             .map(|user| {
                 *user = match &update_user {
                     storage::UserUpdate::VerifyUser => storage::User {
@@ -293,7 +275,7 @@ impl UserInterface for MockDb {
             })
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
-                    "No user available for user_email = {user_email}"
+                    "No user available for user_email = {user_email:?}"
                 ))
                 .into(),
             )

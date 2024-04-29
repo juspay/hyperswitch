@@ -1,8 +1,7 @@
 use std::str::FromStr;
 
-use api_models::payments::PaymentMethodData;
 use masking::Secret;
-use router::types::{self, api, storage::enums};
+use router::types::{self, domain, storage::enums};
 
 use crate::{
     connector_auth,
@@ -41,7 +40,7 @@ static CONNECTOR: BamboraTest = BamboraTest {};
 
 fn get_default_payment_authorize_data() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
-        payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+        payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
             card_number: cards::CardNumber::from_str("4030000010001234").unwrap(),
             card_exp_year: Secret::new("25".to_string()),
             card_cvc: Secret::new("123".to_string()),
@@ -110,6 +109,7 @@ async fn should_sync_authorized_payment() {
                 sync_type: types::SyncRequestType::SinglePaymentSync,
                 connector_meta: None,
                 payment_method_type: None,
+                currency: enums::Currency::USD,
             }),
             None,
         )
@@ -225,6 +225,7 @@ async fn should_sync_auto_captured_payment() {
                 sync_type: types::SyncRequestType::SinglePaymentSync,
                 connector_meta: None,
                 payment_method_type: None,
+                currency: enums::Currency::USD,
             }),
             None,
         )
@@ -288,14 +289,14 @@ async fn should_sync_refund() {
     );
 }
 
-// Cards Negative scenerios
+// Cards Negative scenarios
 // Creates a payment with incorrect card number.
 #[actix_web::test]
 async fn should_fail_payment_for_incorrect_card_number() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: PaymentMethodData::Card(api::Card {
+                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
                     card_number: cards::CardNumber::from_str("1234567891011").unwrap(),
                     card_exp_year: Secret::new("25".to_string()),
                     ..utils::CCardType::default().0
@@ -318,7 +319,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: PaymentMethodData::Card(api::Card {
+                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
                     card_exp_year: Secret::new("25".to_string()),
                     card_cvc: Secret::new("12345".to_string()),
                     ..utils::CCardType::default().0
@@ -341,7 +342,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: PaymentMethodData::Card(api::Card {
+                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
                     card_exp_month: Secret::new("20".to_string()),
                     card_number: cards::CardNumber::from_str("4030000010001234").unwrap(),
                     card_exp_year: Secret::new("25".to_string()),
@@ -366,7 +367,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: PaymentMethodData::Card(api::Card {
+                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
                     card_exp_year: Secret::new("2000".to_string()),
                     card_number: cards::CardNumber::from_str("4030000010001234").unwrap(),
                     card_cvc: Secret::new("123".to_string()),

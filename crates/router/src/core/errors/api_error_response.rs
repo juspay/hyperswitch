@@ -96,6 +96,11 @@ pub enum ApiErrorResponse {
     FileProviderNotSupported { message: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_23", message = "{message}")]
     UnprocessableEntity { message: String },
+    #[error(
+        error_type = ErrorType::ProcessingError, code = "IR_24",
+        message = "Invalid {wallet_name} wallet token"
+    )]
+    InvalidWalletToken { wallet_name: String },
     #[error(error_type = ErrorType::ConnectorError, code = "CE_00", message = "{code}: {message}", ignore = "status_code")]
     ExternalConnectorError {
         code: String,
@@ -122,7 +127,6 @@ pub enum ApiErrorResponse {
     VerificationFailed { data: Option<serde_json::Value> },
     #[error(error_type = ErrorType::ProcessingError, code = "CE_08", message = "Dispute operation failed while processing with connector. Retry operation")]
     DisputeFailed { data: Option<serde_json::Value> },
-
     #[error(error_type = ErrorType::ServerNotAvailable, code = "HE_00", message = "Something went wrong")]
     InternalServerError,
     #[error(error_type = ErrorType::LockTimeout, code = "HE_00", message = "Resource is busy. Please try again later.")]
@@ -162,10 +166,14 @@ pub enum ApiErrorResponse {
     MerchantConnectorAccountNotFound { id: String },
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Business profile with the given id  '{id}' does not exist in our records")]
     BusinessProfileNotFound { id: String },
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Poll with the given id  '{id}' does not exist in our records")]
+    PollNotFound { id: String },
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Resource ID does not exist in our records")]
     ResourceIdNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Mandate does not exist in our records")]
     MandateNotFound,
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Authentication does not exist in our records")]
+    AuthenticationNotFound { id: String },
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Failed to update mandate")]
     MandateUpdateFailed,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "API Key does not exist in our records")]
@@ -256,6 +264,11 @@ pub enum ApiErrorResponse {
     CurrencyConversionFailed,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_25", message = "Cannot delete the default payment method")]
     PaymentMethodDeleteFailed,
+    #[error(
+        error_type = ErrorType::InvalidRequestError, code = "IR_26",
+        message = "Invalid Cookie"
+    )]
+    InvalidCookie,
 }
 
 impl PTError for ApiErrorResponse {

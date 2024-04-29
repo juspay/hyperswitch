@@ -9,7 +9,7 @@ use common_utils::{
     ext_traits::ByteSliceExt,
     request::RequestContent,
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use hex::encode;
 use masking::PeekInterface;
 use transformers as cryptopay;
@@ -91,7 +91,6 @@ where
         let api_method = method.to_string();
 
         let now = date_time::date_as_yyyymmddthhmmssmmmz()
-            .into_report()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let date = format!("{}+00:00", now.split_at(now.len() - 5).0);
 
@@ -288,11 +287,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        types::RouterData::try_from((
+            types::ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            data.request.currency,
+        ))
     }
 
     fn get_error_response(
@@ -372,11 +374,14 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        types::RouterData::try_from((
+            types::ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            data.request.currency,
+        ))
     }
 
     fn get_error_response(
@@ -425,7 +430,6 @@ impl api::IncomingWebhook for Cryptopay {
         let base64_signature =
             utils::get_header_key_value("X-Cryptopay-Signature", request.headers)?;
         hex::decode(base64_signature)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
     }
 
@@ -436,7 +440,6 @@ impl api::IncomingWebhook for Cryptopay {
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let message = std::str::from_utf8(request.body)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         Ok(message.to_string().into_bytes())
     }

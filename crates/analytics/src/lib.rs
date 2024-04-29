@@ -43,12 +43,14 @@ use api_models::analytics::{
 };
 use clickhouse::ClickhouseClient;
 pub use clickhouse::ClickhouseConfig;
-use error_stack::IntoReport;
+use error_stack::report;
 use router_env::{
     logger,
     tracing::{self, instrument},
+    types::FlowMetric,
 };
 use storage_impl::config::Database;
+use strum::Display;
 
 use self::{
     payments::{
@@ -512,7 +514,7 @@ impl AnalyticsProvider {
         time_range: &TimeRange,
     ) -> types::MetricsResult<Vec<(SdkEventMetricsBucketIdentifier, SdkEventMetricRow)>> {
         match self {
-            Self::Sqlx(_pool) => Err(MetricsError::NotImplemented).into_report(),
+            Self::Sqlx(_pool) => Err(report!(MetricsError::NotImplemented)),
             Self::Clickhouse(pool) => {
                 metric
                     .load_metrics(dimensions, pub_key, filters, granularity, time_range, pool)
@@ -544,7 +546,7 @@ impl AnalyticsProvider {
         time_range: &TimeRange,
     ) -> types::MetricsResult<Vec<(ApiEventMetricsBucketIdentifier, ApiEventMetricRow)>> {
         match self {
-            Self::Sqlx(_pool) => Err(MetricsError::NotImplemented).into_report(),
+            Self::Sqlx(_pool) => Err(report!(MetricsError::NotImplemented)),
             Self::Clickhouse(ckh_pool)
             | Self::CombinedCkh(_, ckh_pool)
             | Self::CombinedSqlx(_, ckh_pool) => {
@@ -706,3 +708,33 @@ impl Default for OpensearchConfig {
         }
     }
 }
+
+/// Analytics Flow routes Enums
+/// Info - Dimensions and filters available for the domain
+/// Filters - Set of values present for the dimension
+/// Metrics - Analytical data on dimensions and metrics
+#[derive(Debug, Display, Clone, PartialEq, Eq)]
+pub enum AnalyticsFlow {
+    GetInfo,
+    GetPaymentMetrics,
+    GetRefundsMetrics,
+    GetSdkMetrics,
+    GetPaymentFilters,
+    GetRefundFilters,
+    GetSdkEventFilters,
+    GetApiEvents,
+    GetSdkEvents,
+    GeneratePaymentReport,
+    GenerateDisputeReport,
+    GenerateRefundReport,
+    GetApiEventMetrics,
+    GetApiEventFilters,
+    GetConnectorEvents,
+    GetOutgoingWebhookEvents,
+    GetGlobalSearchResults,
+    GetSearchResults,
+    GetDisputeFilters,
+    GetDisputeMetrics,
+}
+
+impl FlowMetric for AnalyticsFlow {}

@@ -5,16 +5,19 @@ pub mod types;
 
 use api_models::payments;
 use common_enums::Currency;
-use common_utils::{errors::CustomResult, ext_traits::ValueExt};
-use error_stack::ResultExt;
-use masking::PeekInterface;
+use common_utils::{
+    errors::CustomResult,
+    ext_traits::{Encode, StringExt, ValueExt},
+};
+use error_stack::{report, ResultExt};
+use masking::{ExposeInterface, PeekInterface};
 
 use super::errors;
 use crate::{
     core::{errors::ApiErrorResponse, payments as payments_core},
     routes::AppState,
     types::{self as core_types, api, authentication::AuthenticationResponseData, storage},
-    utils::OptionExt,
+    utils::{check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata, OptionExt},
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -37,6 +40,7 @@ pub async fn perform_authentication(
     sdk_information: Option<payments::SdkInformation>,
     threeds_method_comp_ind: api_models::payments::ThreeDsCompletionIndicator,
     email: Option<common_utils::pii::Email>,
+    webhook_url: String,
 ) -> CustomResult<core_types::api::authentication::AuthenticationResponse, ApiErrorResponse> {
     let router_data = transformers::construct_authentication_router_data(
         authentication_connector.clone(),
@@ -56,6 +60,7 @@ pub async fn perform_authentication(
         sdk_information,
         threeds_method_comp_ind,
         email,
+        webhook_url,
     )?;
     let response =
         utils::do_auth_connector_call(state, authentication_connector.clone(), router_data).await?;
@@ -99,7 +104,7 @@ pub async fn perform_authentication(
                 }
             }
         }),
-        _ => Err(errors::ApiErrorResponse::InternalServerError.into())
+        _ => Err(report!(errors::ApiErrorResponse::InternalServerError))
             .attach_printable("unexpected response in authentication flow")?,
     }
 }
@@ -117,12 +122,19 @@ pub async fn perform_post_authentication<F: Clone + Send>(
             authentication,
             should_continue_confirm_transaction,
         } => {
-            // let (auth, authentication_data) = authentication;
+            let is_pull_mechanism_enabled =
+                check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
+                    merchant_connector_account
+                        .get_metadata()
+                        .map(|metadata| metadata.expose()),
+                );
             let authentication_status =
-                if !authentication.authentication_status.is_terminal_status() {
+                if !authentication.authentication_status.is_terminal_status()
+                    && is_pull_mechanism_enabled
+                {
                     let router_data = transformers::construct_post_authentication_router_data(
                         authentication_connector.clone(),
-                        business_profile,
+                        business_profile.clone(),
                         merchant_connector_account,
                         &authentication,
                     )?;
@@ -132,7 +144,7 @@ pub async fn perform_post_authentication<F: Clone + Send>(
                     let updated_authentication = utils::update_trackers(
                         state,
                         router_data,
-                        authentication,
+                        authentication.clone(),
                         payment_data.token.clone(),
                         None,
                     )
@@ -155,6 +167,17 @@ pub async fn perform_post_authentication<F: Clone + Send>(
     Ok(())
 }
 
+fn get_payment_id_from_pre_authentication_flow_input<F: Clone + Send>(
+    pre_authentication_flow_input: &types::PreAuthenthenticationFlowInput<'_, F>,
+) -> Option<String> {
+    match pre_authentication_flow_input {
+        types::PreAuthenthenticationFlowInput::PaymentAuthNFlow { payment_data, .. } => {
+            Some(payment_data.payment_intent.payment_id.clone())
+        }
+        _ => None,
+    }
+}
+
 pub async fn perform_pre_authentication<F: Clone + Send>(
     state: &AppState,
     authentication_connector_name: String,
@@ -163,10 +186,17 @@ pub async fn perform_pre_authentication<F: Clone + Send>(
     three_ds_connector_account: payments_core::helpers::MerchantConnectorAccountType,
     payment_connector_account: payments_core::helpers::MerchantConnectorAccountType,
 ) -> CustomResult<(), ApiErrorResponse> {
+    let payment_id = get_payment_id_from_pre_authentication_flow_input(&authentication_flow_input);
     let authentication = utils::create_new_authentication(
         state,
         business_profile.merchant_id.clone(),
         authentication_connector_name.clone(),
+        business_profile.profile_id.clone(),
+        payment_id,
+        three_ds_connector_account
+            .get_mca_id()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error while finding mca_id from merchant_connector_account")?,
     )
     .await?;
     match authentication_flow_input {
@@ -181,9 +211,12 @@ pub async fn perform_pre_authentication<F: Clone + Send>(
                 &three_ds_connector_account,
                 business_profile.merchant_id.clone(),
             )?;
-            let router_data =
-                utils::do_auth_connector_call(state, authentication_connector_name, router_data)
-                    .await?;
+            let router_data = utils::do_auth_connector_call(
+                state,
+                authentication_connector_name.clone(),
+                router_data,
+            )
+            .await?;
             let acquirer_details: types::AcquirerDetails = payment_connector_account
                 .get_metadata()
                 .get_required_value("merchant_connector_account.metadata")?
@@ -204,6 +237,27 @@ pub async fn perform_pre_authentication<F: Clone + Send>(
                 || authentication.authentication_status.is_failed()
             {
                 *should_continue_confirm_transaction = false;
+                // If flow is going through external authentication, set the poll_config in payment_data which can be fetched while sending next_action block in confirm response
+                let default_poll_config = core_types::PollConfig::default();
+                let default_config_str = default_poll_config
+                    .encode_to_string_of_json()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Error while stringifying default poll config")?;
+                let poll_config = state
+                    .store
+                    .find_config_by_key_unwrap_or(
+                        &core_types::PollConfig::get_poll_config_key(authentication_connector_name),
+                        Some(default_config_str),
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("The poll config was not found in the DB")?;
+                let poll_config: core_types::PollConfig = poll_config
+                    .config
+                    .parse_struct("PollConfig")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Error while parsing PollConfig")?;
+                payment_data.poll_config = Some(poll_config)
             }
             payment_data.authentication = Some(authentication);
         }

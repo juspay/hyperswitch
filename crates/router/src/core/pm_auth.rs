@@ -5,7 +5,7 @@ use api_models::{
     payment_methods::{self, BankAccountAccessCreds},
     payments::{AddressDetails, BankDebitBilling, BankDebitData, PaymentMethodData},
 };
-use common_enums::PaymentMethodType;
+use common_enums::{enums::MerchantStorageScheme, PaymentMethodType};
 use hex;
 pub mod helpers;
 pub mod transformers;
@@ -17,7 +17,7 @@ use common_utils::{
     generate_id,
 };
 use data_models::payments::PaymentIntent;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use helpers::PaymentAuthConnectorDataExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use pm_auth::{
@@ -86,8 +86,7 @@ pub async fn create_link_token(
         })
         .ok_or(ApiErrorResponse::GenericNotFoundError {
             message: "payment method auth connector name not found".to_string(),
-        })
-        .into_report()?;
+        })?;
 
     let connector_name = selected_config.connector_name.as_str();
 
@@ -312,7 +311,7 @@ async fn store_bank_details_in_payment_methods(
     > = HashMap::new();
 
     for pm in payment_methods {
-        if pm.payment_method == enums::PaymentMethod::BankDebit {
+        if pm.payment_method == Some(enums::PaymentMethod::BankDebit) {
             let bank_details_pm_data = decrypt::<serde_json::Value, masking::WithType>(
                 pm.payment_method_data.clone(),
                 key,
@@ -323,7 +322,6 @@ async fn store_bank_details_in_payment_methods(
             .map(|x| x.into_inner().expose())
             .map(|v| {
                 serde_json::from_value::<payment_methods::PaymentMethodsData>(v)
-                    .into_report()
                     .change_context(errors::StorageError::DeserializationFailed)
                     .attach_printable("Failed to deserialize Payment Method Auth config")
             })
@@ -444,7 +442,7 @@ async fn store_bank_details_in_payment_methods(
                 customer_id: customer_id.clone(),
                 merchant_id: merchant_account.merchant_id.clone(),
                 payment_method_id: pm_id,
-                payment_method: enums::PaymentMethod::BankDebit,
+                payment_method: Some(enums::PaymentMethod::BankDebit),
                 payment_method_type: Some(creds.payment_method_type),
                 payment_method_issuer: None,
                 scheme: None,
@@ -457,7 +455,13 @@ async fn store_bank_details_in_payment_methods(
         };
     }
 
-    store_in_db(update_entries, new_entries, db).await?;
+    store_in_db(
+        update_entries,
+        new_entries,
+        db,
+        merchant_account.storage_scheme,
+    )
+    .await?;
 
     Ok(())
 }
@@ -466,15 +470,16 @@ async fn store_in_db(
     update_entries: Vec<(storage::PaymentMethod, storage::PaymentMethodUpdate)>,
     new_entries: Vec<storage::PaymentMethodNew>,
     db: &dyn StorageInterface,
+    storage_scheme: MerchantStorageScheme,
 ) -> RouterResult<()> {
     let update_entries_futures = update_entries
         .into_iter()
-        .map(|(pm, pm_update)| db.update_payment_method(pm, pm_update))
+        .map(|(pm, pm_update)| db.update_payment_method(pm, pm_update, storage_scheme))
         .collect::<Vec<_>>();
 
     let new_entries_futures = new_entries
         .into_iter()
-        .map(|pm_new| db.insert_payment_method(pm_new))
+        .map(|pm_new| db.insert_payment_method(pm_new, storage_scheme))
         .collect::<Vec<_>>();
 
     let update_futures = futures::future::join_all(update_entries_futures);
@@ -631,8 +636,7 @@ async fn get_selected_config_from_redis(
         })
         .ok_or(ApiErrorResponse::GenericNotFoundError {
             message: "payment method auth connector name not found".to_string(),
-        })
-        .into_report()?
+        })?
         .clone();
 
     Ok(selected_config)
@@ -694,12 +698,11 @@ pub async fn retrieve_payment_method_from_auth_service(
                 && acc.payment_method == auth_token.payment_method
         })
         .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .into_report()
         .attach_printable("Bank account details not found")?;
 
     let mut bank_type = None;
     if let Some(account_type) = bank_account.account_type.clone() {
-        bank_type = api_models::enums::BankType::from_str(account_type.as_str())
+        bank_type = common_enums::BankType::from_str(account_type.as_str())
             .map_err(|error| logger::error!(%error,"unable to parse account_type {account_type:?}"))
             .ok();
     }
@@ -720,7 +723,6 @@ pub async fn retrieve_payment_method_from_auth_service(
         .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
             message: "billing_first_name not found".to_string(),
         })
-        .into_report()
         .attach_printable("billing_first_name not found")?;
 
     let address_details = address.clone().map(|addr| {

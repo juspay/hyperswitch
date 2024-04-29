@@ -209,6 +209,7 @@ pub enum PaymentAttemptUpdate {
         currency: storage_enums::Currency,
         status: storage_enums::AttemptStatus,
         authentication_type: Option<storage_enums::AuthenticationType>,
+        capture_method: Option<storage_enums::CaptureMethod>,
         payment_method: Option<storage_enums::PaymentMethod>,
         browser_info: Option<serde_json::Value>,
         connector: Option<String>,
@@ -237,6 +238,10 @@ pub enum PaymentAttemptUpdate {
         cancellation_reason: Option<String>,
         updated_by: String,
     },
+    PaymentMethodDetailsUpdate {
+        payment_method_id: Option<String>,
+        updated_by: String,
+    },
     BlocklistUpdate {
         status: storage_enums::AttemptStatus,
         error_code: Option<Option<String>>,
@@ -254,7 +259,7 @@ pub enum PaymentAttemptUpdate {
         connector: Option<String>,
         connector_transaction_id: Option<String>,
         authentication_type: Option<storage_enums::AuthenticationType>,
-        payment_method_id: Option<Option<String>>,
+        payment_method_id: Option<String>,
         mandate_id: Option<String>,
         connector_metadata: Option<serde_json::Value>,
         payment_token: Option<String>,
@@ -274,7 +279,7 @@ pub enum PaymentAttemptUpdate {
         status: storage_enums::AttemptStatus,
         connector: Option<String>,
         connector_transaction_id: Option<String>,
-        payment_method_id: Option<Option<String>>,
+        payment_method_id: Option<String>,
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
         error_reason: Option<Option<String>>,
@@ -310,7 +315,7 @@ pub enum PaymentAttemptUpdate {
     },
     PreprocessingUpdate {
         status: storage_enums::AttemptStatus,
-        payment_method_id: Option<Option<String>>,
+        payment_method_id: Option<String>,
         connector_metadata: Option<serde_json::Value>,
         preprocessing_step_id: Option<String>,
         connector_transaction_id: Option<String>,
@@ -350,7 +355,7 @@ pub struct PaymentAttemptUpdateInternal {
     authentication_type: Option<storage_enums::AuthenticationType>,
     payment_method: Option<storage_enums::PaymentMethod>,
     error_message: Option<Option<String>>,
-    payment_method_id: Option<Option<String>>,
+    payment_method_id: Option<String>,
     cancellation_reason: Option<String>,
     modified_at: Option<PrimitiveDateTime>,
     mandate_id: Option<String>,
@@ -459,7 +464,7 @@ impl PaymentAttemptUpdate {
             authentication_type: authentication_type.or(source.authentication_type),
             payment_method: payment_method.or(source.payment_method),
             error_message: error_message.unwrap_or(source.error_message),
-            payment_method_id: payment_method_id.unwrap_or(source.payment_method_id),
+            payment_method_id: payment_method_id.or(source.payment_method_id),
             cancellation_reason: cancellation_reason.or(source.cancellation_reason),
             modified_at: common_utils::date_time::now(),
             mandate_id: mandate_id.or(source.mandate_id),
@@ -555,6 +560,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 amount,
                 currency,
                 authentication_type,
+                capture_method,
                 status,
                 payment_method,
                 browser_info,
@@ -605,7 +611,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 authentication_id,
                 payment_method_billing_address_id,
                 fingerprint_id,
-                payment_method_id: payment_method_id.map(Some),
+                payment_method_id,
+                capture_method,
                 ..Default::default()
             },
             PaymentAttemptUpdate::VoidUpdate {
@@ -642,6 +649,14 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_message,
                 updated_by,
                 merchant_connector_id: Some(None),
+                ..Default::default()
+            },
+            PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
+                payment_method_id,
+                updated_by,
+            } => Self {
+                payment_method_id,
+                updated_by,
                 ..Default::default()
             },
             PaymentAttemptUpdate::ResponseUpdate {

@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 
@@ -10,12 +10,13 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
+        mandate::helpers as m_helpers,
         payment_methods::PaymentMethodRetrieve,
         payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
         utils as core_utils,
     },
     db::StorageInterface,
-    routes::AppState,
+    routes::{app::ReqState, AppState},
     services,
     types::{
         api::{self, PaymentIdTypeExt},
@@ -39,7 +40,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         request: &api::PaymentsRequest,
-        mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
@@ -71,22 +71,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             "confirm",
         )?;
 
-        let (
-            token,
-            payment_method,
-            payment_method_type,
-            setup_mandate,
-            recurring_mandate_payment_data,
-            mandate_connector,
-        ) = helpers::get_token_pm_type_mandate_details(
-            state,
-            request,
-            mandate_type.clone(),
-            merchant_account,
-            key_store,
-        )
-        .await?;
-
         let browser_info = request
             .browser_info
             .clone()
@@ -96,6 +80,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "browser_info",
             })?;
+
+        let recurring_details = request.recurring_details.clone();
+        let customer_acceptance = request.customer_acceptance.clone().map(From::from);
 
         payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
@@ -107,6 +94,34 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+        let mandate_type = m_helpers::get_mandate_type(
+            request.mandate_data.clone(),
+            request.off_session,
+            payment_intent.setup_future_usage,
+            request.customer_acceptance.clone(),
+            request.payment_token.clone(),
+        )
+        .change_context(errors::ApiErrorResponse::MandateValidationFailed {
+            reason: "Expected one out of recurring_details and mandate_data but got both".into(),
+        })?;
+
+        let m_helpers::MandateGenericData {
+            token,
+            payment_method,
+            payment_method_type,
+            mandate_data,
+            recurring_mandate_payment_data,
+            mandate_connector,
+            payment_method_info,
+        } = helpers::get_token_pm_type_mandate_details(
+            state,
+            request,
+            mandate_type.to_owned(),
+            merchant_account,
+            key_store,
+            payment_attempt.payment_method_id.clone(),
+        )
+        .await?;
         let token = token.or_else(|| payment_attempt.payment_token.clone());
 
         if let Some(payment_method) = payment_method {
@@ -225,7 +240,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         payment_intent.metadata = request.metadata.clone().or(payment_intent.metadata);
 
         // The operation merges mandate data from both request and payment_attempt
-        let setup_mandate = setup_mandate.map(Into::into);
+        let setup_mandate = mandate_data.map(Into::into);
 
         let mandate_details_present =
             payment_attempt.mandate_details.is_some() || request.mandate_data.is_some();
@@ -257,7 +272,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             mandate_id: None,
             mandate_connector,
             setup_mandate,
-            customer_acceptance: None,
+            customer_acceptance,
             token,
             token_data,
             address: PaymentAddress::new(
@@ -270,7 +285,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 .payment_method_data
                 .as_ref()
                 .map(|pmd| pmd.payment_method_data.clone()),
-            payment_method_info: None,
+            payment_method_info,
             force_sync: None,
             refunds: vec![],
             disputes: vec![],
@@ -291,6 +306,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             authorizations: vec![],
             authentication: None,
             frm_metadata: None,
+            recurring_details,
+            poll_config: None,
         };
 
         let customer_details = Some(CustomerDetails {
@@ -306,6 +323,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             customer_details,
             payment_data,
             business_profile,
+            mandate_type,
         };
 
         Ok(get_trackers_response)
@@ -323,6 +341,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
         key_store: &domain::MerchantKeyStore,
+        storage_scheme: common_enums::enums::MerchantStorageScheme,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
@@ -337,6 +356,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
             request,
             &key_store.merchant_id,
             key_store,
+            storage_scheme,
         )
         .await
     }
@@ -346,7 +366,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         &'a self,
         state: &'a AppState,
         payment_data: &mut PaymentData<F>,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
+        storage_scheme: storage_enums::MerchantStorageScheme,
         merchant_key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
     ) -> RouterResult<(
@@ -360,6 +380,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
             payment_data,
             merchant_key_store,
             customer,
+            storage_scheme,
         )
         .await?;
         Ok((op, payment_method_data, pm_id))
@@ -408,6 +429,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     async fn update_trackers<'b>(
         &'b self,
         _state: &'b AppState,
+        _req_state: ReqState,
         payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
@@ -452,17 +474,20 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
 
         helpers::validate_payment_method_fields_present(request)?;
 
-        let mandate_type =
+        let _mandate_type =
             helpers::validate_mandate(request, payments::is_operation_confirm(self))?;
+
+        helpers::validate_recurring_details_and_token(
+            &request.recurring_details,
+            &request.payment_token,
+            &request.mandate_id,
+        )?;
 
         Ok((
             Box::new(self),
             operations::ValidateResult {
                 merchant_id: &merchant_account.merchant_id,
-                payment_id: payment_id
-                    .and_then(|id| core_utils::validate_id(id, "payment_id"))
-                    .into_report()?,
-                mandate_type,
+                payment_id: payment_id.and_then(|id| core_utils::validate_id(id, "payment_id"))?,
                 storage_scheme: merchant_account.storage_scheme,
                 requeue: matches!(
                     request.retry_action,

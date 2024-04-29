@@ -19,14 +19,10 @@ use tokio::sync::oneshot;
 
 #[cfg(feature = "olap")]
 use super::blocklist;
-#[cfg(any(feature = "olap", feature = "oltp"))]
-use super::currency;
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
 #[cfg(feature = "payouts")]
 use super::payouts::*;
-#[cfg(feature = "oltp")]
-use super::pm_auth;
 #[cfg(feature = "olap")]
 use super::routing as cloud_routing;
 #[cfg(feature = "olap")]
@@ -39,8 +35,12 @@ use super::{
 use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
+#[cfg(any(feature = "olap", feature = "oltp"))]
+use super::{currency, payment_methods::*};
 #[cfg(feature = "oltp")]
-use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
+use super::{ephemeral_key::*, webhooks::*};
+#[cfg(feature = "oltp")]
+use super::{pm_auth, poll::retrieve_poll_status};
 use crate::configs::secrets_transformers;
 #[cfg(all(feature = "frm", feature = "oltp"))]
 use crate::routes::fraud_check as frm_routes;
@@ -56,6 +56,11 @@ pub use crate::{
     routes::cards_info::card_iin_info,
     services::get_store,
 };
+
+#[derive(Clone)]
+pub struct ReqState {
+    pub event_context: events::EventContext<crate::events::EventType, EventsHandler>,
+}
 
 #[derive(Clone)]
 pub struct AppState {
@@ -239,6 +244,12 @@ impl AppState {
         ))
         .await
     }
+
+    pub fn get_req_state(&self) -> ReqState {
+        ReqState {
+            event_context: events::EventContext::new(self.event_handler.clone()),
+        }
+    }
 }
 
 pub struct Health;
@@ -307,6 +318,7 @@ impl Payments {
                         .route(web::post().to(payments_list_by_filter)),
                 )
                 .service(web::resource("/filter").route(web::post().to(get_filters_for_payments)))
+                .service(web::resource("/filter_v2").route(web::get().to(get_payment_filters)))
         }
         #[cfg(feature = "oltp")]
         {
@@ -436,6 +448,10 @@ impl Routing {
                             &TransactionType::Payment,
                         )
                     })),
+            )
+            .service(
+                web::resource("/business_profile/{business_profile_id}/configs/pg_agnostic_mit")
+                    .route(web::post().to(cloud_routing::upsert_connector_agnostic_mandate_config)),
             )
             .service(
                 web::resource("/default")
@@ -738,24 +754,46 @@ impl Payouts {
 
 pub struct PaymentMethods;
 
-#[cfg(feature = "oltp")]
+#[cfg(any(feature = "olap", feature = "oltp"))]
 impl PaymentMethods {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/payment_methods")
-            .app_data(web::Data::new(state))
-            .service(
-                web::resource("")
-                    .route(web::post().to(create_payment_method_api))
-                    .route(web::get().to(list_payment_method_api)), // TODO : added for sdk compatibility for now, need to deprecate this later
-            )
-            .service(
-                web::resource("/{payment_method_id}")
-                    .route(web::get().to(payment_method_retrieve_api))
-                    .route(web::post().to(payment_method_update_api))
-                    .route(web::delete().to(payment_method_delete_api)),
-            )
-            .service(web::resource("/auth/link").route(web::post().to(pm_auth::link_token_create)))
-            .service(web::resource("/auth/exchange").route(web::post().to(pm_auth::exchange_token)))
+        let mut route = web::scope("/payment_methods").app_data(web::Data::new(state));
+        #[cfg(feature = "olap")]
+        {
+            route = route.service(
+                web::resource("/filter")
+                    .route(web::get().to(list_countries_currencies_for_connector_payment_method)),
+            );
+        }
+        #[cfg(feature = "oltp")]
+        {
+            route = route
+                .service(
+                    web::resource("")
+                        .route(web::post().to(create_payment_method_api))
+                        .route(web::get().to(list_payment_method_api)), // TODO : added for sdk compatibility for now, need to deprecate this later
+                )
+                .service(
+                    web::resource("/{payment_method_id}")
+                        .route(web::get().to(payment_method_retrieve_api))
+                        .route(web::delete().to(payment_method_delete_api)),
+                )
+                .service(
+                    web::resource("/{payment_method_id}/update")
+                        .route(web::post().to(payment_method_update_api)),
+                )
+                .service(
+                    web::resource("/{payment_method_id}/save")
+                        .route(web::post().to(save_payment_method_api)),
+                )
+                .service(
+                    web::resource("/auth/link").route(web::post().to(pm_auth::link_token_create)),
+                )
+                .service(
+                    web::resource("/auth/exchange").route(web::post().to(pm_auth::exchange_token)),
+                )
+        }
+        route
     }
 }
 
@@ -944,6 +982,17 @@ impl Configs {
     }
 }
 
+pub struct Poll;
+
+#[cfg(feature = "oltp")]
+impl Poll {
+    pub fn server(config: AppState) -> Scope {
+        web::scope("/poll")
+            .app_data(web::Data::new(config))
+            .service(web::resource("/status/{poll_id}").route(web::get().to(retrieve_poll_status)))
+    }
+}
+
 pub struct ApiKeys;
 
 #[cfg(feature = "olap")]
@@ -1055,10 +1104,17 @@ impl BusinessProfile {
                     .route(web::get().to(business_profiles_list)),
             )
             .service(
-                web::resource("/{profile_id}")
-                    .route(web::get().to(business_profile_retrieve))
-                    .route(web::post().to(business_profile_update))
-                    .route(web::delete().to(business_profile_delete)),
+                web::scope("/{profile_id}")
+                    .service(
+                        web::resource("")
+                            .route(web::get().to(business_profile_retrieve))
+                            .route(web::post().to(business_profile_update))
+                            .route(web::delete().to(business_profile_delete)),
+                    )
+                    .service(
+                        web::resource("/toggle_extended_card_info")
+                            .route(web::post().to(toggle_extended_card_info)),
+                    ),
             )
     }
 }
@@ -1116,7 +1172,9 @@ impl User {
                 web::resource("/create_merchant")
                     .route(web::post().to(user_merchant_account_create)),
             )
-            .service(web::resource("/switch/list").route(web::get().to(list_merchant_ids_for_user)))
+            // TODO: Remove this endpoint once migration to /merchants/list is done
+            .service(web::resource("/switch/list").route(web::get().to(list_merchants_for_user)))
+            .service(web::resource("/merchants/list").route(web::get().to(list_merchants_for_user)))
             .service(web::resource("/permission_info").route(web::get().to(get_authorization_info)))
             .service(web::resource("/update").route(web::post().to(update_user_account_details)))
             .service(
@@ -1228,8 +1286,15 @@ impl WebhookEvents {
             .app_data(web::Data::new(config))
             .service(web::resource("").route(web::get().to(list_initial_webhook_delivery_attempts)))
             .service(
-                web::resource("/{event_id}/attempts")
-                    .route(web::get().to(list_webhook_delivery_attempts)),
+                web::scope("/{event_id}")
+                    .service(
+                        web::resource("attempts")
+                            .route(web::get().to(list_webhook_delivery_attempts)),
+                    )
+                    .service(
+                        web::resource("retry")
+                            .route(web::post().to(retry_webhook_delivery_attempt)),
+                    ),
             )
     }
 }

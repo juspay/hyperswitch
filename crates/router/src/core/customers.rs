@@ -2,7 +2,7 @@ use common_utils::{
     crypto::{Encryptable, GcmAes256},
     errors::ReportSwitchExt,
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
 use router_env::{instrument, tracing};
 
@@ -42,10 +42,15 @@ pub async fn create_customer(
     // We first need to validate whether the customer with the given customer id already exists
     // this may seem like a redundant db call, as the insert_customer will anyway return this error
     //
-    // Consider a scenerio where the address is inserted and then when inserting the customer,
+    // Consider a scenario where the address is inserted and then when inserting the customer,
     // it errors out, now the address that was inserted is not deleted
     match db
-        .find_customer_by_customer_id_merchant_id(customer_id, merchant_id, &key_store)
+        .find_customer_by_customer_id_merchant_id(
+            customer_id,
+            merchant_id,
+            &key_store,
+            merchant_account.storage_scheme,
+        )
         .await
     {
         Err(err) => {
@@ -55,7 +60,9 @@ pub async fn create_customer(
                 Ok(())
             }
         }
-        Ok(_) => Err(errors::CustomersErrorResponse::CustomerAlreadyExists).into_report(),
+        Ok(_) => Err(report!(
+            errors::CustomersErrorResponse::CustomerAlreadyExists
+        )),
     }?;
 
     let key = key_store.key.get_inner().peek();
@@ -116,7 +123,7 @@ pub async fn create_customer(
     .attach_printable("Failed while encrypting Customer")?;
 
     let customer = db
-        .insert_customer(new_customer, &key_store)
+        .insert_customer(new_customer, &key_store, merchant_account.storage_scheme)
         .await
         .to_duplicate_response(errors::CustomersErrorResponse::CustomerAlreadyExists)?;
 
@@ -140,6 +147,7 @@ pub async fn retrieve_customer(
             &req.customer_id,
             &merchant_account.merchant_id,
             &key_store,
+            merchant_account.storage_scheme,
         )
         .await
         .switch()?;
@@ -186,13 +194,15 @@ pub async fn delete_customer(
 ) -> errors::CustomerResponse<customers::CustomerDeleteResponse> {
     let db = &state.store;
 
-    db.find_customer_by_customer_id_merchant_id(
-        &req.customer_id,
-        &merchant_account.merchant_id,
-        &key_store,
-    )
-    .await
-    .switch()?;
+    let customer_orig = db
+        .find_customer_by_customer_id_merchant_id(
+            &req.customer_id,
+            &merchant_account.merchant_id,
+            &key_store,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .switch()?;
 
     let customer_mandates = db
         .find_mandate_by_merchant_id_customer_id(&merchant_account.merchant_id, &req.customer_id)
@@ -213,9 +223,10 @@ pub async fn delete_customer(
         )
         .await
     {
+        // check this in review
         Ok(customer_payment_methods) => {
             for pm in customer_payment_methods.into_iter() {
-                if pm.payment_method == enums::PaymentMethod::Card {
+                if pm.payment_method == Some(enums::PaymentMethod::Card) {
                     cards::delete_card_from_locker(
                         &state,
                         &req.customer_id,
@@ -311,8 +322,10 @@ pub async fn delete_customer(
     db.update_customer_by_customer_id_merchant_id(
         req.customer_id.clone(),
         merchant_account.merchant_id,
+        customer_orig,
         updated_customer,
         &key_store,
+        merchant_account.storage_scheme,
     )
     .await
     .switch()?;
@@ -341,6 +354,7 @@ pub async fn update_customer(
             &update_customer.customer_id,
             &merchant_account.merchant_id,
             &key_store,
+            merchant_account.storage_scheme,
         )
         .await
         .switch()?;
@@ -348,7 +362,7 @@ pub async fn update_customer(
     let key = key_store.key.get_inner().peek();
 
     let address = if let Some(addr) = &update_customer.address {
-        match customer.address_id {
+        match customer.address_id.clone() {
             Some(address_id) => {
                 let customer_address: api_models::payments::AddressDetails = addr.clone();
                 let update_address = update_customer
@@ -357,7 +371,7 @@ pub async fn update_customer(
                     .switch()
                     .attach_printable("Failed while encrypting Address while Update")?;
                 Some(
-                    db.update_address(address_id.clone(), update_address, &key_store)
+                    db.update_address(address_id, update_address, &key_store)
                         .await
                         .switch()
                         .attach_printable(format!(
@@ -403,6 +417,7 @@ pub async fn update_customer(
         .update_customer_by_customer_id_merchant_id(
             update_customer.customer_id.to_owned(),
             merchant_account.merchant_id.to_owned(),
+            customer,
             async {
                 Ok(storage::CustomerUpdate::Update {
                     name: update_customer
@@ -432,6 +447,7 @@ pub async fn update_customer(
             .switch()
             .attach_printable("Failed while encrypting while updating customer")?,
             &key_store,
+            merchant_account.storage_scheme,
         )
         .await
         .switch()?;

@@ -16,7 +16,10 @@ use router::{
     services::{self, api},
     workflows,
 };
-use router_env::{instrument, tracing};
+use router_env::{
+    instrument,
+    tracing::{self, Instrument},
+};
 use scheduler::{
     consumer::workflows::ProcessTrackerWorkflow, errors::ProcessTrackerError,
     workflows::ProcessTrackerWorkflows, SchedulerAppState,
@@ -49,10 +52,9 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
     .await;
     // channel to shutdown scheduler gracefully
     let (tx, rx) = mpsc::channel(1);
-    tokio::spawn(router::receiver_for_error(
-        redis_shutdown_signal_rx,
-        tx.clone(),
-    ));
+    let _task_handle = tokio::spawn(
+        router::receiver_for_error(redis_shutdown_signal_rx, tx.clone()).in_current_span(),
+    );
 
     #[allow(clippy::expect_used)]
     let scheduler_flow_str =
@@ -81,10 +83,13 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
     .await
     .expect("Failed to create the server");
 
-    tokio::spawn(async move {
-        let _ = web_server.await;
-        logger::error!("The health check probe stopped working!");
-    });
+    let _task_handle = tokio::spawn(
+        async move {
+            let _ = web_server.await;
+            logger::error!("The health check probe stopped working!");
+        }
+        .in_current_span(),
+    );
 
     logger::debug!(startup_config=?state.conf);
 
@@ -258,6 +263,23 @@ impl ProcessTrackerWorkflows<routes::AppState> for WorkflowRunner {
                 storage::ProcessTrackerRunner::OutgoingWebhookRetryWorkflow => Ok(Box::new(
                     workflows::outgoing_webhook_retry::OutgoingWebhookRetryWorkflow,
                 )),
+                storage::ProcessTrackerRunner::AttachPayoutAccountWorkflow => {
+                    #[cfg(feature = "payouts")]
+                    {
+                        Ok(Box::new(
+                            workflows::attach_payout_account_workflow::AttachPayoutAccountWorkflow,
+                        ))
+                    }
+                    #[cfg(not(feature = "payouts"))]
+                    {
+                        Err(
+                            error_stack::report!(ProcessTrackerError::UnexpectedFlow),
+                        )
+                        .attach_printable(
+                            "Cannot run Stripe external account workflow when payouts feature is disabled",
+                        )
+                    }
+                }
             }
         };
 

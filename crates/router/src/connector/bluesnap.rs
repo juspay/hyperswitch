@@ -9,7 +9,7 @@ use common_utils::{
     request::RequestContent,
 };
 use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use masking::PeekInterface;
 use transformers as bluesnap;
 
@@ -83,8 +83,7 @@ impl ConnectorCommon for Bluesnap {
         &self,
         auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth: bluesnap::BluesnapAuthType = auth_type
-            .try_into()
+        let auth = bluesnap::BluesnapAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let encoded_api_key =
             consts::BASE64_ENGINE.encode(format!("{}:{}", auth.key1.peek(), auth.api_key.peek()));
@@ -195,9 +194,9 @@ impl ConnectorValidation for Bluesnap {
             return Err(
                 errors::ConnectorError::MissingConnectorRelatedTransactionID {
                     id: "connector_transaction_id".to_string(),
-                },
-            )
-            .into_report();
+                }
+                .into(),
+            );
         }
         // if connector_transaction_id is present, psync can be made
         if data
@@ -1051,7 +1050,6 @@ impl api::IncomingWebhook for Bluesnap {
             connector_utils::get_header_key_value("bls-signature", request.headers)?;
 
         hex::decode(security_header)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)
     }
     fn get_webhook_source_verification_message(
@@ -1071,7 +1069,6 @@ impl api::IncomingWebhook for Bluesnap {
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         let webhook_body: bluesnap::BluesnapWebhookBody =
             serde_urlencoded::from_bytes(request.body)
-                .into_report()
                 .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
         match webhook_body.transaction_type {
             bluesnap::BluesnapWebhookEvents::Decline
@@ -1103,7 +1100,7 @@ impl api::IncomingWebhook for Bluesnap {
                 ))
             }
             bluesnap::BluesnapWebhookEvents::Unknown => {
-                Err(errors::ConnectorError::WebhookReferenceIdNotFound).into_report()
+                Err(report!(errors::ConnectorError::WebhookReferenceIdNotFound))
             }
         }
     }
@@ -1114,7 +1111,6 @@ impl api::IncomingWebhook for Bluesnap {
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
         let details: bluesnap::BluesnapWebhookObjectEventType =
             serde_urlencoded::from_bytes(request.body)
-                .into_report()
                 .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
         api::IncomingWebhookEvent::try_from(details)
     }
@@ -1125,7 +1121,6 @@ impl api::IncomingWebhook for Bluesnap {
     ) -> CustomResult<api::disputes::DisputePayload, errors::ConnectorError> {
         let dispute_details: bluesnap::BluesnapDisputeWebhookBody =
             serde_urlencoded::from_bytes(request.body)
-                .into_report()
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(api::disputes::DisputePayload {
             amount: connector_utils::to_currency_lower_unit(
@@ -1150,7 +1145,6 @@ impl api::IncomingWebhook for Bluesnap {
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let resource: bluesnap::BluesnapWebhookObjectResource =
             serde_urlencoded::from_bytes(request.body)
-                .into_report()
                 .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 
         Ok(Box::new(resource))
@@ -1165,7 +1159,10 @@ impl services::ConnectorRedirectResponse for Bluesnap {
         action: services::PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
         match action {
-            services::PaymentAction::PSync => Ok(payments::CallConnectorAction::Trigger),
+            services::PaymentAction::PSync
+            | services::PaymentAction::PaymentAuthenticateCompleteAuthorize => {
+                Ok(payments::CallConnectorAction::Trigger)
+            }
             services::PaymentAction::CompleteAuthorize => {
                 let redirection_response: bluesnap::BluesnapRedirectionResponse = json_payload
                     .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {

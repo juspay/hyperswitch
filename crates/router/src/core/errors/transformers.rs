@@ -96,6 +96,11 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 AER::BadRequest(ApiError::new("IR", 23, message.to_string(), None))
             },
             Self::UnprocessableEntity {message} => AER::Unprocessable(ApiError::new("IR", 23, message.to_string(), None)),
+            Self::InvalidWalletToken { wallet_name} => AER::Unprocessable(ApiError::new(
+                "IR",
+                24,
+                format!("Invalid {wallet_name} wallet token"), None
+            )),
             Self::ExternalConnectorError {
                 code,
                 message,
@@ -224,12 +229,18 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::DisputeNotFound { .. } => {
                 AER::NotFound(ApiError::new("HE", 2, "Dispute does not exist in our records", None))
             },
+            Self::AuthenticationNotFound { .. } => {
+                AER::NotFound(ApiError::new("HE", 2, "Authentication does not exist in our records", None))
+            },
             Self::BusinessProfileNotFound { id } => {
                 AER::NotFound(ApiError::new("HE", 2, format!("Business profile with the given id {id} does not exist"), None))
             }
             Self::FileNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "File does not exist in our records", None))
             }
+            Self::PollNotFound { .. } => {
+                AER::NotFound(ApiError::new("HE", 2, "Poll does not exist in our records", None))
+            },
             Self::FileNotAvailable => {
                 AER::NotFound(ApiError::new("HE", 2, "File not available", None))
             }
@@ -286,6 +297,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             }
             Self::PaymentMethodDeleteFailed => {
                 AER::BadRequest(ApiError::new("IR", 25, "Cannot delete the default payment method", None))
+            }
+            Self::InvalidCookie => {
+                AER::BadRequest(ApiError::new("IR", 26, "Invalid Cookie", None))
             }
         }
     }

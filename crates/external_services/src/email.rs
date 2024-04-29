@@ -95,7 +95,7 @@ pub struct EmailContents {
     /// The subject of email
     pub subject: String,
 
-    /// This will be the intermediate representation of the the email body in a generic format.
+    /// This will be the intermediate representation of the email body in a generic format.
     /// The email clients can convert this intermediate representation to their client specific rich text format
     pub body: IntermediateString,
 

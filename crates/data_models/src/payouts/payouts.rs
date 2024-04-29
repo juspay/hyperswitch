@@ -4,8 +4,9 @@ use serde::{Deserialize, Serialize};
 use storage_enums::MerchantStorageScheme;
 use time::PrimitiveDateTime;
 
+use super::payout_attempt::PayoutAttempt;
 #[cfg(feature = "olap")]
-use super::{payout_attempt::PayoutAttempt, PayoutFetchConstraints};
+use super::PayoutFetchConstraints;
 use crate::errors;
 
 #[async_trait::async_trait]
@@ -27,6 +28,7 @@ pub trait PayoutsInterface {
         &self,
         _this: &Payouts,
         _payout: PayoutsUpdate,
+        _payout_attempt: &PayoutAttempt,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Payouts, errors::StorageError>;
 
@@ -51,7 +53,10 @@ pub trait PayoutsInterface {
         _merchant_id: &str,
         _filters: &PayoutFetchConstraints,
         _storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<(Payouts, PayoutAttempt)>, errors::StorageError>;
+    ) -> error_stack::Result<
+        Vec<(Payouts, PayoutAttempt, diesel_models::Customer)>,
+        errors::StorageError,
+    >;
 
     #[cfg(feature = "olap")]
     async fn filter_payouts_by_time_range_constraints(
@@ -84,6 +89,7 @@ pub struct Payouts {
     pub attempt_count: i16,
     pub profile_id: String,
     pub status: storage_enums::PayoutStatus,
+    pub confirm: Option<bool>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -105,9 +111,10 @@ pub struct PayoutsNew {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub created_at: Option<PrimitiveDateTime>,
     pub last_modified_at: Option<PrimitiveDateTime>,
+    pub attempt_count: i16,
     pub profile_id: String,
     pub status: storage_enums::PayoutStatus,
-    pub attempt_count: i16,
+    pub confirm: Option<bool>,
 }
 
 impl Default for PayoutsNew {
@@ -132,9 +139,10 @@ impl Default for PayoutsNew {
             metadata: Option::default(),
             created_at: Some(now),
             last_modified_at: Some(now),
+            attempt_count: 1,
             profile_id: String::default(),
             status: storage_enums::PayoutStatus::default(),
-            attempt_count: 1,
+            confirm: None,
         }
     }
 }
@@ -153,15 +161,19 @@ pub enum PayoutsUpdate {
         metadata: Option<pii::SecretSerdeValue>,
         profile_id: Option<String>,
         status: Option<storage_enums::PayoutStatus>,
+        confirm: Option<bool>,
     },
     PayoutMethodIdUpdate {
-        payout_method_id: Option<String>,
+        payout_method_id: String,
     },
     RecurringUpdate {
         recurring: bool,
     },
     AttemptCountUpdate {
         attempt_count: i16,
+    },
+    StatusUpdate {
+        status: storage_enums::PayoutStatus,
     },
 }
 
@@ -180,6 +192,7 @@ pub struct PayoutsUpdateInternal {
     pub profile_id: Option<String>,
     pub status: Option<storage_enums::PayoutStatus>,
     pub attempt_count: Option<i16>,
+    pub confirm: Option<bool>,
 }
 
 impl From<PayoutsUpdate> for PayoutsUpdateInternal {
@@ -197,6 +210,7 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 metadata,
                 profile_id,
                 status,
+                confirm,
             } => Self {
                 amount: Some(amount),
                 destination_currency: Some(destination_currency),
@@ -209,10 +223,11 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 metadata,
                 profile_id,
                 status,
+                confirm,
                 ..Default::default()
             },
             PayoutsUpdate::PayoutMethodIdUpdate { payout_method_id } => Self {
-                payout_method_id,
+                payout_method_id: Some(payout_method_id),
                 ..Default::default()
             },
             PayoutsUpdate::RecurringUpdate { recurring } => Self {
@@ -221,6 +236,10 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
             },
             PayoutsUpdate::AttemptCountUpdate { attempt_count } => Self {
                 attempt_count: Some(attempt_count),
+                ..Default::default()
+            },
+            PayoutsUpdate::StatusUpdate { status } => Self {
+                status: Some(status),
                 ..Default::default()
             },
         }

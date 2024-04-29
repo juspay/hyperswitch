@@ -5,7 +5,7 @@
 use api_models::routing as routing_types;
 use common_utils::ext_traits::Encode;
 use diesel_models::{
-    business_profile::{BusinessProfile, BusinessProfileUpdateInternal},
+    business_profile::{BusinessProfile, BusinessProfileUpdate},
     configs,
 };
 use error_stack::ResultExt;
@@ -245,7 +245,7 @@ pub async fn update_business_profile_active_algorithm_ref(
         storage::enums::TransactionType::Payout => (None, Some(ref_val)),
     };
 
-    let business_profile_update = BusinessProfileUpdateInternal {
+    let business_profile_update = BusinessProfileUpdate::Update {
         profile_name: None,
         return_url: None,
         enable_payment_response_hash: None,
@@ -273,9 +273,9 @@ pub async fn update_business_profile_active_algorithm_ref(
 
 pub async fn get_merchant_connector_agnostic_mandate_config(
     db: &dyn StorageInterface,
-    merchant_id: &str,
+    business_profile_id: &str,
 ) -> RouterResult<Vec<routing_types::DetailedConnectorChoice>> {
-    let key = get_pg_agnostic_mandate_config_key(merchant_id);
+    let key = get_pg_agnostic_mandate_config_key(business_profile_id);
     let maybe_config = db.find_config_by_key(&key).await;
 
     match maybe_config {
@@ -310,29 +310,6 @@ pub async fn get_merchant_connector_agnostic_mandate_config(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("error fetching pg agnostic mandate config for merchant from db"),
     }
-}
-
-pub async fn update_merchant_connector_agnostic_mandate_config(
-    db: &dyn StorageInterface,
-    merchant_id: &str,
-    mandate_config: Vec<routing_types::DetailedConnectorChoice>,
-) -> RouterResult<Vec<routing_types::DetailedConnectorChoice>> {
-    let key = get_pg_agnostic_mandate_config_key(merchant_id);
-    let mandate_config_str = mandate_config
-        .encode_to_string_of_json()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("unable to serialize pg agnostic mandate config during update")?;
-
-    let config_update = configs::ConfigUpdate::Update {
-        config: Some(mandate_config_str),
-    };
-
-    db.update_config_by_key(&key, config_update)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("error saving pg agnostic mandate config to db")?;
-
-    Ok(mandate_config)
 }
 
 pub async fn validate_connectors_in_routing_config(
@@ -465,8 +442,8 @@ pub fn get_routing_dictionary_key(merchant_id: &str) -> String {
 
 /// Provides the identifier for the specific merchant's agnostic_mandate_config
 #[inline(always)]
-pub fn get_pg_agnostic_mandate_config_key(merchant_id: &str) -> String {
-    format!("pg_agnostic_mandate_{merchant_id}")
+pub fn get_pg_agnostic_mandate_config_key(business_profile_id: &str) -> String {
+    format!("pg_agnostic_mandate_{business_profile_id}")
 }
 
 /// Provides the identifier for the specific merchant's default_config
