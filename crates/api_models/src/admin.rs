@@ -1095,3 +1095,10 @@ pub struct ExtendedCardInfoChoice {
 }
 
 impl common_utils::events::ApiEventMetric for ExtendedCardInfoChoice {}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct ConnectorAgnosticMitChoice {
+    pub enabled: bool,
+}
+
+impl common_utils::events::ApiEventMetric for ConnectorAgnosticMitChoice {}

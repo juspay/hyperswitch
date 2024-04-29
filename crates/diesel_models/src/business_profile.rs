@@ -89,6 +89,7 @@ pub struct BusinessProfileUpdateInternal {
     pub session_expiry: Option<i64>,
     pub authentication_connector_details: Option<serde_json::Value>,
     pub is_extended_card_info_enabled: Option<bool>,
+    pub is_connector_agnostic_mit_enabled: Option<bool>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -114,6 +115,9 @@ pub enum BusinessProfileUpdate {
     },
     ExtendedCardInfoUpdate {
         is_extended_card_info_enabled: Option<bool>,
+    },
+    ConnectorAgnosticMitUpdate {
+        is_connector_agnostic_mit_enabled: Option<bool>,
     },
 }
 
@@ -162,6 +166,12 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 is_extended_card_info_enabled,
             } => Self {
                 is_extended_card_info_enabled,
+                ..Default::default()
+            },
+            BusinessProfileUpdate::ConnectorAgnosticMitUpdate {
+                is_connector_agnostic_mit_enabled,
+            } => Self {
+                is_connector_agnostic_mit_enabled,
                 ..Default::default()
             },
         }
@@ -218,6 +228,7 @@ impl BusinessProfileUpdate {
             session_expiry,
             authentication_connector_details,
             is_extended_card_info_enabled,
+            is_connector_agnostic_mit_enabled,
         } = self.into();
         BusinessProfile {
             profile_name: profile_name.unwrap_or(source.profile_name),
@@ -240,6 +251,7 @@ impl BusinessProfileUpdate {
             session_expiry,
             authentication_connector_details,
             is_extended_card_info_enabled,
+            is_connector_agnostic_mit_enabled,
             ..source
         }
     }

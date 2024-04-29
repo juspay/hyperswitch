@@ -1114,6 +1114,10 @@ impl BusinessProfile {
                     .service(
                         web::resource("/toggle_extended_card_info")
                             .route(web::post().to(toggle_extended_card_info)),
+                    )
+                    .service(
+                        web::resource("/toggle_connector_agnostic_mit")
+                            .route(web::post().to(toggle_connector_agnostic_mit)),
                     ),
             )
     }

@@ -589,6 +589,32 @@ pub async fn business_profiles_list(
     )
     .await
 }
+
+#[instrument(skip_all, fields(flow = ?Flow::ToggleConnectorAgnosticMit))]
+pub async fn toggle_connector_agnostic_mit(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<(String, String)>,
+    json_payload: web::Json<api_models::admin::ConnectorAgnosticMitChoice>,
+) -> HttpResponse {
+    let flow = Flow::ToggleConnectorAgnosticMit;
+    let (_, profile_id) = path.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, _, req, _| connector_agnostic_mit_toggle(state, &profile_id, req),
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::RoutingWrite),
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
 /// Merchant Account - KV Status
 ///
 /// Toggle KV mode for the Merchant Account

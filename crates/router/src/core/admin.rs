@@ -1724,6 +1724,40 @@ pub async fn extended_card_info_toggle(
     Ok(service_api::ApplicationResponse::Json(ext_card_info_choice))
 }
 
+pub async fn connector_agnostic_mit_toggle(
+    state: AppState,
+    profile_id: &str,
+    connector_agnostic_mit_choice: admin_types::ConnectorAgnosticMitChoice,
+) -> RouterResponse<admin_types::ConnectorAgnosticMitChoice> {
+    let db = state.store.as_ref();
+
+    let business_profile = db
+        .find_business_profile_by_profile_id(profile_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+            id: profile_id.to_string(),
+        })?;
+
+    if business_profile.is_connector_agnostic_mit_enabled
+        != Some(connector_agnostic_mit_choice.enabled)
+    {
+        let business_profile_update =
+            storage::business_profile::BusinessProfileUpdate::ConnectorAgnosticMitUpdate {
+                is_connector_agnostic_mit_enabled: Some(connector_agnostic_mit_choice.enabled),
+            };
+
+        db.update_business_profile_by_profile_id(business_profile, business_profile_update)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+                id: profile_id.to_owned(),
+            })?;
+    }
+
+    Ok(service_api::ApplicationResponse::Json(
+        connector_agnostic_mit_choice,
+    ))
+}
+
 pub(crate) fn validate_auth_and_metadata_type(
     connector_name: api_models::enums::Connector,
     val: &types::ConnectorAuthType,
