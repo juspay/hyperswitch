@@ -154,7 +154,9 @@ impl
                                     .acs_reference_number,
                                 acs_trans_id: response.authentication_response.acs_trans_id,
                                 three_dsserver_trans_id: Some(response.three_ds_server_trans_id),
-                                acs_signed_content: None,
+                                acs_signed_content: response
+                                    .authentication_response
+                                    .acs_signed_content,
                             },
                         ))
                     }
@@ -556,8 +558,14 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
             api_models::payments::DeviceChannel::App => {
                 Some(netcetera_types::DeviceRenderingOptionsSupported {
                     // hard-coded until core provides these values.
-                    sdk_interface: netcetera_types::SdkInterface::Native,
-                    sdk_ui_type: netcetera_types::SdkUiType::Text,
+                    sdk_interface: netcetera_types::SdkInterface::Both,
+                    sdk_ui_type: vec![
+                        netcetera_types::SdkUiType::Text,
+                        netcetera_types::SdkUiType::SingleSelect,
+                        netcetera_types::SdkUiType::MultiSelect,
+                        netcetera_types::SdkUiType::Oob,
+                        netcetera_types::SdkUiType::HtmlOther,
+                    ],
                 })
             }
             api_models::payments::DeviceChannel::Browser => None,
@@ -635,6 +643,7 @@ pub struct AuthenticationResponse {
     pub acs_reference_number: Option<String>,
     #[serde(rename = "acsTransID")]
     pub acs_trans_id: Option<String>,
+    pub acs_signed_content: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

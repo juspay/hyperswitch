@@ -1615,7 +1615,7 @@ pub enum ThreeDSReqAuthMethod {
 pub struct DeviceRenderingOptionsSupported {
     pub sdk_interface: SdkInterface,
     /// For Native UI SDK Interface accepted values are 01-04 and for HTML UI accepted values are 01-05.
-    pub sdk_ui_type: SdkUiType,
+    pub sdk_ui_type: Vec<SdkUiType>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
