@@ -22,7 +22,7 @@ export const connectorDetails = {
         "paymentSyncStatus": "succeeded",
         "refundStatus": "pending",
         "refundSyncStatus": "succeeded",
-        "customer_acceptance":null,
+        "customer_acceptance": null,
         "setup_future_usage": "on_session",
 
     },
@@ -33,7 +33,7 @@ export const connectorDetails = {
         "paymentSyncStatus": "succeeded",
         "refundStatus": "pending",
         "refundSyncStatus": "succeeded",
-        "customer_acceptance":null,
+        "customer_acceptance": null,
         "setup_future_usage": "on_session",
     },
     "MandateSingleUse3DS": {
@@ -94,7 +94,7 @@ export const connectorDetails = {
     },
     "SaveCardUseNo3DS": {
         "card": successfulNo3DSCardDetails,
-        "currency":"USD",
+        "currency": "USD",
         "paymentSuccessfulStatus": "processing",
         "paymentSyncStatus": "succeeded",
         "refundStatus": "pending",
