@@ -133,6 +133,14 @@ pub struct FrmFulfillmentRequest {
     pub tracking_number: Option<String>,
     //tracking_url for tracking the product
     pub tracking_url: Option<String>,
+    // The name of the Shipper.
+    pub carrier: Option<String>,
+    // Fulfillment method for the shipment.
+    pub fulfillment_method: Option<String>,
+    // Statuses to indicate shipment state.
+    pub shipment_status: Option<String>,
+    // The date and time items are ready to be shipped.
+    pub shipped_at: Option<String>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
