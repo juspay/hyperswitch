@@ -363,9 +363,13 @@ impl<F, T>
             BankOfAmericaSetupMandatesResponse::ClientReferenceInformation(info_response) => {
                 let mandate_reference = info_response.token_information.clone().map(|token_info| {
                     types::MandateReference {
-                        connector_mandate_id: token_info
-                            .payment_instrument
-                            .and_then(|payment_instrument| payment_instrument.id.map(|instrument_id| instrument_id.expose())),
+                        connector_mandate_id: token_info.payment_instrument.and_then(
+                            |payment_instrument| {
+                                payment_instrument
+                                    .id
+                                    .map(|instrument_id| instrument_id.expose())
+                            },
+                        ),
                         payment_method_id: None,
                     }
                 });
@@ -819,8 +823,8 @@ pub struct Score {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum RiskResult {
-   String(String),
-   Int(u64),
+    String(String),
+    Int(u64),
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -1452,7 +1456,6 @@ pub struct PaymentInformationResponse {
     bin_country: Option<api_enums::CountryAlpha2>,
 }
 
-
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InstrumentIdentifier {
@@ -1659,9 +1662,13 @@ fn get_payment_response(
                     .token_information
                     .clone()
                     .map(|token_info| types::MandateReference {
-                        connector_mandate_id: token_info
-                            .payment_instrument
-                            .and_then(|payment_instrument| payment_instrument.id.map(|instrument_id| instrument_id.expose())),
+                        connector_mandate_id: token_info.payment_instrument.and_then(
+                            |payment_instrument| {
+                                payment_instrument
+                                    .id
+                                    .map(|instrument_id| instrument_id.expose())
+                            },
+                        ),
                         payment_method_id: None,
                     });
 
