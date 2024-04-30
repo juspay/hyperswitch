@@ -721,23 +721,23 @@ impl
             bill_addr_state: billing_address
                 .address
                 .as_ref()
-                .and_then(|add| add.to_state_code_option().transpose())
+                .and_then(|add| add.to_state_code_as_optional().transpose())
                 .transpose()?,
             email: billing_address.email,
             home_phone: billing_address
                 .phone
                 .clone()
-                .map(TryInto::try_into)
+                .map(PhoneNumber::try_from)
                 .transpose()?,
             mobile_phone: billing_address
                 .phone
                 .clone()
-                .map(TryInto::try_into)
+                .map(PhoneNumber::try_from)
                 .transpose()?,
             work_phone: billing_address
                 .phone
                 .clone()
-                .map(TryInto::try_into)
+                .map(PhoneNumber::try_from)
                 .transpose()?,
             cardholder_name: billing_address
                 .address
@@ -767,7 +767,7 @@ impl
             ship_addr_state: shipping_address
                 .as_ref()
                 .and_then(|shipping_add| shipping_add.address.as_ref())
-                .and_then(|add| add.to_state_code_option().transpose())
+                .and_then(|add| add.to_state_code_as_optional().transpose())
                 .transpose()?,
             tax_id: None,
         })
@@ -787,7 +787,7 @@ impl TryFrom<api_models::payments::PhoneDetails> for PhoneNumber {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(value: api_models::payments::PhoneDetails) -> Result<Self, Self::Error> {
         Ok(Self {
-            country_code: Some(value.get_country_code_without_plus()?),
+            country_code: Some(value.extract_country_code()?),
             subscriber: value.number,
         })
     }
