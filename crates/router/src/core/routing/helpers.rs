@@ -5,7 +5,7 @@
 use api_models::routing as routing_types;
 use common_utils::ext_traits::Encode;
 use diesel_models::{
-    business_profile::{BusinessProfile, BusinessProfileUpdateInternal},
+    business_profile::{BusinessProfile, BusinessProfileUpdate},
     configs,
 };
 use error_stack::ResultExt;
@@ -246,7 +246,7 @@ pub async fn update_business_profile_active_algorithm_ref(
         storage::enums::TransactionType::Payout => (None, Some(ref_val)),
     };
 
-    let business_profile_update = BusinessProfileUpdateInternal {
+    let business_profile_update = BusinessProfileUpdate::Update {
         profile_name: None,
         return_url: None,
         enable_payment_response_hash: None,

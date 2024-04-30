@@ -12,9 +12,9 @@ use crate::user::{
     },
     AcceptInviteFromEmailRequest, AuthorizeResponse, ChangePasswordRequest, ConnectAccountRequest,
     CreateInternalUserRequest, DashboardEntryResponse, ForgotPasswordRequest,
-    GetUserDetailsRequest, GetUserDetailsResponse, InviteUserRequest, InviteUserResponse,
-    ListUsersResponse, ReInviteUserRequest, ResetPasswordRequest, SendVerifyEmailRequest,
-    SignInResponse, SignUpRequest, SignUpWithMerchantIdRequest, SwitchMerchantIdRequest,
+    GetUserDetailsRequest, GetUserDetailsResponse, InviteUserRequest, ListUsersResponse,
+    ReInviteUserRequest, ResetPasswordRequest, SendVerifyEmailRequest, SignInResponse,
+    SignUpRequest, SignUpWithMerchantIdRequest, SwitchMerchantIdRequest,
     UpdateUserAccountDetailsRequest, UserMerchantCreate, VerifyEmailRequest,
 };
 
@@ -54,7 +54,6 @@ common_utils::impl_misc_api_event_type!(
     ForgotPasswordRequest,
     ResetPasswordRequest,
     InviteUserRequest,
-    InviteUserResponse,
     ReInviteUserRequest,
     VerifyEmailRequest,
     SendVerifyEmailRequest,

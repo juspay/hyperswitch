@@ -62,10 +62,7 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
     )?;
 
     // Create client secret
-    let client_secret = utils::generate_id(
-        consts::ID_LENGTH,
-        "pm_collect_link_secret",
-    );
+    let client_secret = utils::generate_id(consts::ID_LENGTH, "pm_collect_link_secret");
 
     // Fetch SDK host
     let sdk_host = state

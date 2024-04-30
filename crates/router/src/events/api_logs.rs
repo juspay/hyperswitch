@@ -20,7 +20,7 @@ use crate::{
         GenericLinkFormData, PaymentLinkFormData,
     },
     types::api::{
-        AttachEvidenceRequest, Config, ConfigUpdate, CreateFileRequest, DisputeId, FileId,
+        AttachEvidenceRequest, Config, ConfigUpdate, CreateFileRequest, DisputeId, FileId, PollId,
     },
 };
 
@@ -148,6 +148,14 @@ impl ApiEventMetric for DisputeId {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Dispute {
             dispute_id: self.dispute_id.clone(),
+        })
+    }
+}
+
+impl ApiEventMetric for PollId {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Poll {
+            poll_id: self.poll_id.clone(),
         })
     }
 }

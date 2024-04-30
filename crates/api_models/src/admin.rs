@@ -514,6 +514,10 @@ pub enum ConnectorAuthType {
     CurrencyAuthKey {
         auth_key_map: HashMap<common_enums::Currency, pii::SecretSerdeValue>,
     },
+    CertificateAuth {
+        certificate: Secret<String>,
+        private_key: Secret<String>,
+    },
     #[default]
     NoKey,
 }
@@ -525,6 +529,12 @@ pub struct MerchantConnectorWebhookDetails {
     pub merchant_secret: Secret<String>,
     #[schema(value_type = String, example = "12345678900987654321")]
     pub additional_secret: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct MerchantConnectorInfo {
+    pub connector_label: String,
+    pub merchant_connector_id: String,
 }
 
 /// Response of creating a new Merchant Connector for the merchant account."
@@ -1086,6 +1096,12 @@ pub struct PaymentLinkConfigRequest {
     /// Custom layout for sdk
     #[schema(value_type = Option<String>, max_length = 255, example = "accordion")]
     pub sdk_layout: Option<String>,
+    /// Display only the sdk for payment link
+    #[schema(default = false, example = true)]
+    pub display_sdk_only: Option<bool>,
+    /// Enable saved payment method option for payment link
+    #[schema(default = false, example = true)]
+    pub enabled_saved_payment_method: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, ToSchema)]
@@ -1098,4 +1114,15 @@ pub struct PaymentLinkConfig {
     pub seller_name: String,
     /// Custom layout for sdk
     pub sdk_layout: String,
+    /// Display only the sdk for payment link
+    pub display_sdk_only: bool,
+    /// Enable saved payment method option for payment link
+    pub enabled_saved_payment_method: bool,
 }
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct ExtendedCardInfoChoice {
+    pub enabled: bool,
+}
+
+impl common_utils::events::ApiEventMetric for ExtendedCardInfoChoice {}

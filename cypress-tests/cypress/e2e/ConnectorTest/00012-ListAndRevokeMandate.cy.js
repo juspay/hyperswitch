@@ -1,7 +1,6 @@
 import citConfirmBody from "../../fixtures/create-mandate-cit.json";
 import mitConfirmBody from "../../fixtures/create-mandate-mit.json";
 import getConnectorDetails from "../ConnectorUtils/utils";
-import customerCreateBody from "../../fixtures/create-customer-body.json";
 
 import State from "../../utils/State";
 
@@ -28,7 +27,7 @@ describe("Card - SingleUse Mandates flow test", () => {
             console.log("confirm -> " + globalState.get("connectorId"));
             let det = getConnectorDetails(globalState.get("connectorId"))["MandateSingleUseNo3DS"];
             console.log("det -> " + det.card);
-            cy.citForMandatesCallTest(citConfirmBody, det, true, "automatic", globalState);
+            cy.citForMandatesCallTest(citConfirmBody, 7000, det, true, "automatic", "new_mandate", globalState);
         });
 
         it("Confirm No 3DS MIT", () => {

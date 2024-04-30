@@ -1,7 +1,7 @@
-import createPaymentBody from "../../fixtures/create-payment-body.json";
 import confirmBody from "../../fixtures/confirm-body.json";
-import getConnectorDetails from "../ConnectorUtils/utils";
+import createPaymentBody from "../../fixtures/create-payment-body.json";
 import State from "../../utils/State";
+import getConnectorDetails from "../ConnectorUtils/utils";
 
 let globalState;
 
@@ -21,7 +21,7 @@ describe("Card - Sync payment flow test", () => {
   })
   it("create-payment-call-test", () => {
     let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
-    cy.createPaymentIntentTest(createPaymentBody, det.currency, "no_three_ds", "automatic", globalState);
+    cy.createPaymentIntentTest(createPaymentBody, det, "no_three_ds", "automatic", globalState);
   });
 
   it("payment_methods-call-test", () => {

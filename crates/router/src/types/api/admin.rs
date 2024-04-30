@@ -176,6 +176,7 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
                     field_name: "authentication_connector_details",
                 })?,
+            is_extended_card_info_enabled: None,
         })
     }
 }

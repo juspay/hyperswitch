@@ -1,6 +1,6 @@
 use std::{marker::PhantomData, str::FromStr};
 
-use api_models::payments::{Address, AddressDetails};
+use api_models::payments::{Address, AddressDetails, PhoneDetails};
 use masking::Secret;
 use router::{
     configs::settings::Settings,
@@ -33,7 +33,6 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         description: Some("This is a test".to_string()),
         return_url: None,
         payment_method_status: None,
-        payment_method_id: None,
         request: types::PaymentsAuthorizeData {
             amount: 1000,
             currency: enums::Currency::USD,
@@ -87,7 +86,10 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
                     last_name: Some(Secret::new("Doe".to_string())),
                     ..Default::default()
                 }),
-                phone: None,
+                phone: Some(PhoneDetails {
+                    number: Some(Secret::new("8056594427".to_string())),
+                    country_code: Some("+351".to_string()),
+                }),
                 email: None,
             }),
         ),
@@ -130,7 +132,6 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         connector: "aci".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
         attempt_id: uuid::Uuid::new_v4().to_string(),
-        payment_method_id: None,
         payment_method_status: None,
         status: enums::AttemptStatus::default(),
         payment_method: enums::PaymentMethod::Card,

@@ -57,6 +57,9 @@ pub enum ApiEventsType {
         merchant_id_or_profile_id: String,
     },
     PaymentMethodCollectLink,
+    Poll {
+        poll_id: String,
+    },
 }
 
 impl ApiEventMetric for serde_json::Value {}

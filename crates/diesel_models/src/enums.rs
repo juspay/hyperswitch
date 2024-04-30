@@ -348,4 +348,5 @@ pub enum DashboardMetadata {
     SetupWoocomWebhook,
     IsMultipleConfiguration,
     IsChangePasswordRequired,
+    OnboardingSurvey,
 }

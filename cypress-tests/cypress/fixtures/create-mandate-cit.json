@@ -4,7 +4,6 @@
   "confirm": true,
   "capture_method": "automatic",
   "capture_on": "2022-09-10T10:11:12Z",
-  "amount_to_capture": 7000,
   "customer_id": "StripeCustomer",
   "email": "guest@example.com",
   "name": "John Doe",
@@ -41,6 +40,7 @@
       }
     }
   },
+  "payment_type": "setup_mandate",
   "billing": {
     "address": {
       "line1": "1467",
@@ -74,6 +74,7 @@
     "new_customer": "true",
     "login_date": "2019-09-10T10:11:12Z"
   },
+
   "browser_info": {
     "ip_address": "129.0.0.1",
     "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",

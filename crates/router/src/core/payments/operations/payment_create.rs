@@ -134,6 +134,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             mandate_type.clone(),
             merchant_account,
             merchant_key_store,
+            None,
         )
         .await?;
 
@@ -320,7 +321,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         })
             .async_and_then(|mandate_id| async {
                 let mandate = db
-                    .find_mandate_by_merchant_id_mandate_id(merchant_id, mandate_id)
+                    .find_mandate_by_merchant_id_mandate_id(merchant_id, mandate_id, storage_scheme)
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::MandateNotFound);
                 Some(mandate.and_then(|mandate_obj| {
@@ -446,6 +447,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             authentication: None,
             frm_metadata: request.frm_metadata.clone(),
             recurring_details,
+            poll_config: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
