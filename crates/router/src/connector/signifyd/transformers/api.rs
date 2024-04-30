@@ -407,13 +407,7 @@ impl TryFrom<&frm_types::FrmFulfillmentRouterData> for FrmFulfillmentSignifydReq
                 .fulfillment_status
                 .clone()
                 .map(|fulfillment_status| FulfillmentStatus::from(&fulfillment_status)),
-            fulfillments: item
-                .request
-                .fulfillment_req
-                .fulfillments
-                .iter()
-                .map(|f| Fulfillments::from((f.clone(), item.request.fulfillment_req.clone())))
-                .collect(),
+            fulfillments: Vec::<Fulfillments>::from(item.request.fulfillment_req.clone()),
         })
     }
 }
@@ -429,26 +423,26 @@ impl From<&core_types::FulfillmentStatus> for FulfillmentStatus {
     }
 }
 
-impl From<(core_types::Fulfillments, core_types::FrmFulfillmentRequest)> for Fulfillments {
-    fn from(
-        (fulfillment, fulfillment_req): (
-            core_types::Fulfillments,
-            core_types::FrmFulfillmentRequest,
-        ),
-    ) -> Self {
-        Self {
-            shipment_id: fulfillment.shipment_id,
-            products: fulfillment
-                .products
-                .map(|products| products.iter().map(|p| Product::from(p.clone())).collect()),
-            destination: Destination::from(fulfillment.destination),
-            tracking_urls: fulfillment_req.tracking_urls,
-            tracking_numbers: fulfillment_req.tracking_numbers,
-            fulfillment_method: fulfillment_req.fulfillment_method,
-            carrier: fulfillment_req.carrier,
-            shipment_status: fulfillment_req.shipment_status,
-            shipped_at: fulfillment_req.shipped_at,
-        }
+impl From<core_types::FrmFulfillmentRequest> for Vec<Fulfillments> {
+    fn from(fulfillment_req: core_types::FrmFulfillmentRequest) -> Self {
+        fulfillment_req
+            .fulfillments
+            .iter()
+            .map(|fulfillment| Fulfillments {
+                shipment_id: fulfillment.shipment_id.clone(),
+                products: fulfillment
+                    .products
+                    .as_ref()
+                    .map(|products| products.iter().map(|p| Product::from(p.clone())).collect()),
+                destination: Destination::from(fulfillment.destination.clone()),
+                tracking_urls: fulfillment_req.tracking_urls.clone(),
+                tracking_numbers: fulfillment_req.tracking_numbers.clone(),
+                fulfillment_method: fulfillment_req.fulfillment_method.clone(),
+                carrier: fulfillment_req.carrier.clone(),
+                shipment_status: fulfillment_req.shipment_status.clone(),
+                shipped_at: fulfillment_req.shipped_at.clone(),
+            })
+            .collect()
     }
 }
 
