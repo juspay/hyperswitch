@@ -129,7 +129,7 @@ pub struct FrmFulfillmentRequest {
     #[schema(max_length = 255, example = "fedex")]
     pub tracking_company: Option<String>,
     //tracking ID of the product
-    #[schema(max_length = 255, example = "track_8327446667")]
+    #[schema(example = r#"["track_8327446667", "track_8327446668"]"#)]
     pub tracking_numbers: Option<Vec<String>>,
     //tracking_url for tracking the product
     pub tracking_urls: Option<Vec<String>>,
