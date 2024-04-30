@@ -281,7 +281,7 @@ pub struct PixBankTransfer {
     pub pix_key: Secret<String>,
 
     /// Individual taxpayer identification number
-    #[schema(value_type = String, example = "000123456")]
+    #[schema(value_type = Option<String>, example = "000123456")]
     pub tax_id: Option<Secret<String>>,
 }
 

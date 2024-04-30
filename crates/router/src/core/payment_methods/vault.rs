@@ -567,12 +567,12 @@ impl Vaultable for api::BankPayout {
                 bank_city: bank_details.bank_city.to_owned(),
                 bank_branch: None,
             },
-            Self::Pix(b) => TokenizedBankInsensitiveValues {
+            Self::Pix(bank_details) => TokenizedBankInsensitiveValues {
                 customer_id,
-                bank_name: b.bank_name.to_owned(),
+                bank_name: bank_details.bank_name.to_owned(),
                 bank_country_code: None,
                 bank_city: None,
-                bank_branch: b.bank_branch.to_owned(),
+                bank_branch: bank_details.bank_branch.to_owned(),
             },
         };
 
