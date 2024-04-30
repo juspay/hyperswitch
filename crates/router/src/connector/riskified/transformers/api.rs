@@ -488,16 +488,16 @@ impl TryFrom<&frm_types::FrmFulfillmentRouterData> for RiskifiedFulfillmentReque
             .request
             .fulfillment_req
             .tracking_numbers
-            .clone()
+            .as_ref()
             .and_then(|numbers| numbers.first().cloned())
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "tracking_company",
+                field_name: "tracking_number",
             })?;
         let tracking_url = item
             .request
             .fulfillment_req
-            .clone()
             .tracking_urls
+            .as_ref()
             .and_then(|urls| urls.first().cloned().map(|url| url.to_string()));
         Ok(Self {
             order: OrderFulfillment {

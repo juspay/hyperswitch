@@ -405,9 +405,9 @@ impl TryFrom<&frm_types::FrmFulfillmentRouterData> for FrmFulfillmentSignifydReq
                 .request
                 .fulfillment_req
                 .fulfillment_status
-                .clone()
-                .map(|fulfillment_status| FulfillmentStatus::from(&fulfillment_status)),
-            fulfillments: Vec::<Fulfillments>::from(item.request.fulfillment_req.clone()),
+                .as_ref()
+                .map(|fulfillment_status| FulfillmentStatus::from(&fulfillment_status.clone())),
+            fulfillments: Vec::<Fulfillments>::from(&item.request.fulfillment_req),
         })
     }
 }
@@ -423,8 +423,8 @@ impl From<&core_types::FulfillmentStatus> for FulfillmentStatus {
     }
 }
 
-impl From<core_types::FrmFulfillmentRequest> for Vec<Fulfillments> {
-    fn from(fulfillment_req: core_types::FrmFulfillmentRequest) -> Self {
+impl From<&core_types::FrmFulfillmentRequest> for Vec<Fulfillments> {
+    fn from(fulfillment_req: &core_types::FrmFulfillmentRequest) -> Self {
         fulfillment_req
             .fulfillments
             .iter()
