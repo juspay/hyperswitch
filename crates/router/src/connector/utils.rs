@@ -1320,7 +1320,13 @@ impl AddressDetailsData for api::AddressDetails {
     fn to_state_code_as_optional(&self) -> Result<Option<Secret<String>>, Error> {
         self.state
             .as_ref()
-            .map(|_| self.to_state_code())
+            .map(|state| {
+                if state.peek().len() == 2 {
+                    Ok(state.to_owned())
+                } else {
+                    self.to_state_code()
+                }
+            })
             .transpose()
     }
 }
