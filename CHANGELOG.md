@@ -4,6 +4,21 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.04.30.0
+
+### Features
+
+- **FRM:** Revise post FRM core flows ([#4394](https://github.com/juspay/hyperswitch/pull/4394)) ([`01ec7c6`](https://github.com/juspay/hyperswitch/commit/01ec7c64a4e0536b11052a6d5f3b398216d7b1e3))
+- **router:**
+  - Send poll_config in next_action of confirm response for external 3ds flow ([#4443](https://github.com/juspay/hyperswitch/pull/4443)) ([`c3a1db1`](https://github.com/juspay/hyperswitch/commit/c3a1db16f32bd0b5aa49dfc831156a10d6d15838))
+  - Handle authorization for frictionless flow in external 3ds flow ([#4471](https://github.com/juspay/hyperswitch/pull/4471)) ([`79d8949`](https://github.com/juspay/hyperswitch/commit/79d8949413c8007e261b66b01596d257fb5959f9))
+- **user:** Add single purpose token and auth ([#4470](https://github.com/juspay/hyperswitch/pull/4470)) ([`c20ecb8`](https://github.com/juspay/hyperswitch/commit/c20ecb855aa3c4b3ce1798dcc19910fb38345b46))
+- Stripe connect integration for payouts ([#2041](https://github.com/juspay/hyperswitch/pull/2041)) ([`ac9d856`](https://github.com/juspay/hyperswitch/commit/ac9d856add0220701f809c8eb0668afe77003ef7))
+
+**Full Changelog:** [`2024.04.29.0...2024.04.30.0`](https://github.com/juspay/hyperswitch/compare/2024.04.29.0...2024.04.30.0)
+
+- - -
+
 ## 2024.04.29.0
 
 ### Features
