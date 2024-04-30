@@ -4516,6 +4516,47 @@
           }
         ]
       }
+    },
+    "/poll/status/{poll_id}": {
+      "get": {
+        "tags": [
+          "Poll"
+        ],
+        "summary": "Poll - Retrieve Poll Status",
+        "description": "Poll - Retrieve Poll Status",
+        "operationId": "Retrieve Poll Status",
+        "parameters": [
+          {
+            "name": "poll_id",
+            "in": "path",
+            "description": "The identifier for poll",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The poll status was retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PollResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Poll not found"
+          }
+        },
+        "security": [
+          {
+            "publishable_key": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -4841,26 +4882,24 @@
       },
       "AlfamartVoucherData": {
         "type": "object",
-        "required": [
-          "first_name",
-          "last_name",
-          "email"
-        ],
         "properties": {
           "first_name": {
             "type": "string",
             "description": "The billing first name for Alfamart",
-            "example": "Jane"
+            "example": "Jane",
+            "nullable": true
           },
           "last_name": {
             "type": "string",
             "description": "The billing second name for Alfamart",
-            "example": "Doe"
+            "example": "Doe",
+            "nullable": true
           },
           "email": {
             "type": "string",
             "description": "The Email ID for Alfamart",
-            "example": "example@me.com"
+            "example": "example@me.com",
+            "nullable": true
           }
         }
       },
@@ -9712,26 +9751,24 @@
       },
       "IndomaretVoucherData": {
         "type": "object",
-        "required": [
-          "first_name",
-          "last_name",
-          "email"
-        ],
         "properties": {
           "first_name": {
             "type": "string",
             "description": "The billing first name for Alfamart",
-            "example": "Jane"
+            "example": "Jane",
+            "nullable": true
           },
           "last_name": {
             "type": "string",
             "description": "The billing second name for Alfamart",
-            "example": "Doe"
+            "example": "Doe",
+            "nullable": true
           },
           "email": {
             "type": "string",
             "description": "The Email ID for Alfamart",
-            "example": "example@me.com"
+            "example": "example@me.com",
+            "nullable": true
           }
         }
       },
@@ -9753,32 +9790,30 @@
       },
       "JCSVoucherData": {
         "type": "object",
-        "required": [
-          "first_name",
-          "last_name",
-          "email",
-          "phone_number"
-        ],
         "properties": {
           "first_name": {
             "type": "string",
             "description": "The billing first name for Japanese convenience stores",
-            "example": "Jane"
+            "example": "Jane",
+            "nullable": true
           },
           "last_name": {
             "type": "string",
             "description": "The billing second name Japanese convenience stores",
-            "example": "Doe"
+            "example": "Doe",
+            "nullable": true
           },
           "email": {
             "type": "string",
             "description": "The Email ID for Japanese convenience stores",
-            "example": "example@me.com"
+            "example": "example@me.com",
+            "nullable": true
           },
           "phone_number": {
             "type": "string",
             "description": "The telephone number for Japanese convenience stores",
-            "example": "9999999999"
+            "example": "9999999999",
+            "nullable": true
           }
         }
       },
@@ -12170,7 +12205,8 @@
           "logo",
           "seller_name",
           "sdk_layout",
-          "display_sdk_only"
+          "display_sdk_only",
+          "enabled_saved_payment_method"
         ],
         "properties": {
           "theme": {
@@ -12192,6 +12228,10 @@
           "display_sdk_only": {
             "type": "boolean",
             "description": "Display only the sdk for payment link"
+          },
+          "enabled_saved_payment_method": {
+            "type": "boolean",
+            "description": "Enable saved payment method option for payment link"
           }
         }
       },
@@ -12229,6 +12269,13 @@
           "display_sdk_only": {
             "type": "boolean",
             "description": "Display only the sdk for payment link",
+            "default": false,
+            "example": true,
+            "nullable": true
+          },
+          "enabled_saved_payment_method": {
+            "type": "boolean",
+            "description": "Enable saved payment method option for payment link",
             "default": false,
             "example": true,
             "nullable": true
@@ -12448,9 +12495,37 @@
               }
             ],
             "nullable": true
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "For Client based calls, SDK will use the client_secret\nin order to call /payment_methods\nClient secret will be generated whenever a new\npayment method is created",
+            "nullable": true
+          },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodCreateData"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
+      },
+      "PaymentMethodCreateData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "card"
+            ],
+            "properties": {
+              "card": {
+                "$ref": "#/components/schemas/CardDetail"
+              }
+            }
+          }
+        ]
       },
       "PaymentMethodData": {
         "oneOf": [
@@ -12837,6 +12912,11 @@
             "format": "date-time",
             "example": "2024-02-24T11:04:09.922Z",
             "nullable": true
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "For Client based calls",
+            "nullable": true
           }
         }
       },
@@ -12845,7 +12925,8 @@
         "enum": [
           "active",
           "inactive",
-          "processing"
+          "processing",
+          "awaiting_data"
         ]
       },
       "PaymentMethodType": {
@@ -15526,7 +15607,9 @@
         "type": "string",
         "enum": [
           "adyen",
-          "wise"
+          "stripe",
+          "wise",
+          "paypal"
         ]
       },
       "PayoutCreateRequest": {
@@ -16129,6 +16212,10 @@
           "force_sync": {
             "type": "boolean",
             "nullable": true
+          },
+          "merchant_id": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -16151,6 +16238,11 @@
             "default": false,
             "example": true,
             "nullable": true
+          },
+          "merchant_id": {
+            "type": "string",
+            "description": "The identifier for the Merchant Account.",
+            "nullable": true
           }
         }
       },
@@ -16164,7 +16256,8 @@
           "ineligible",
           "requires_creation",
           "requires_payout_method_data",
-          "requires_fulfillment"
+          "requires_fulfillment",
+          "requires_vendor_account_creation"
         ]
       },
       "PayoutType": {
@@ -16228,6 +16321,54 @@
             "nullable": true
           }
         }
+      },
+      "PollConfigResponse": {
+        "type": "object",
+        "required": [
+          "poll_id",
+          "delay_in_secs",
+          "frequency"
+        ],
+        "properties": {
+          "poll_id": {
+            "type": "string",
+            "description": "Poll Id"
+          },
+          "delay_in_secs": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Interval of the poll"
+          },
+          "frequency": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Frequency of the poll"
+          }
+        }
+      },
+      "PollResponse": {
+        "type": "object",
+        "required": [
+          "poll_id",
+          "status"
+        ],
+        "properties": {
+          "poll_id": {
+            "type": "string",
+            "description": "The poll id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PollStatus"
+          }
+        }
+      },
+      "PollStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "completed",
+          "not_found"
+        ]
       },
       "PrimaryBusinessDetails": {
         "type": "object",
@@ -17768,7 +17909,8 @@
         "required": [
           "three_ds_authentication_url",
           "three_ds_authorize_url",
-          "three_ds_method_details"
+          "three_ds_method_details",
+          "poll_config"
         ],
         "properties": {
           "three_ds_authentication_url": {
@@ -17781,6 +17923,9 @@
           },
           "three_ds_method_details": {
             "$ref": "#/components/schemas/ThreeDsMethodData"
+          },
+          "poll_config": {
+            "$ref": "#/components/schemas/PollConfigResponse"
           }
         }
       },

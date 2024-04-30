@@ -490,8 +490,10 @@ pub async fn external_authentication_incoming_webhook_flow<Ctx: PaymentMethodRet
         // Check if it's a payment authentication flow, payment_id would be there only for payment authentication flows
         if let Some(payment_id) = updated_authentication.payment_id {
             let is_pull_mechanism_enabled = helper_utils::check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(merchant_connector_account.metadata.map(|metadata| metadata.expose()));
-            // Merchant doesn't have pull mechanism enabled, so we have to authorize whenever we receive a ARes webhook
+            // Merchant doesn't have pull mechanism enabled and if it's challenge flow, we have to authorize whenever we receive a ARes webhook
             if !is_pull_mechanism_enabled
+                && updated_authentication.authentication_type
+                    == Some(common_enums::DecoupledAuthenticationType::Challenge)
                 && event_type == webhooks::IncomingWebhookEvent::ExternalAuthenticationARes
             {
                 let payment_confirm_req = api::PaymentsRequest {
@@ -532,6 +534,24 @@ pub async fn external_authentication_incoming_webhook_flow<Ctx: PaymentMethodRet
                         let status = payments_response.status;
                         let event_type: Option<enums::EventType> =
                             payments_response.status.foreign_into();
+                        // Set poll_id as completed in redis to allow the fetch status of poll through retrieve_poll_status api from client
+                        let poll_id = super::utils::get_poll_id(
+                            merchant_account.merchant_id.clone(),
+                            super::utils::get_external_authentication_request_poll_id(&payment_id),
+                        );
+                        let redis_conn = state
+                            .store
+                            .get_redis_conn()
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to get redis connection")?;
+                        redis_conn
+                            .set_key_without_modifying_ttl(
+                                &poll_id,
+                                api_models::poll::PollStatus::Completed.to_string(),
+                            )
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to add poll_id in redis")?;
                         // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
                         if let Some(outgoing_event_type) = event_type {
                             let primary_object_created_at = payments_response.created;
@@ -1448,6 +1468,8 @@ pub async fn webhooks_wrapper<W: types::OutgoingWebhookType, Ctx: PaymentMethodR
             body.clone(),
         ))
         .await?;
+
+    logger::info!(incoming_webhook_payload = ?serialized_req);
 
     let request_duration = Instant::now()
         .saturating_duration_since(start_instant)

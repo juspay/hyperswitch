@@ -376,9 +376,9 @@ pub async fn save_payout_data_to_locker(
                 .map(|c| c.card_number.clone().get_card_isin());
 
             let mut payment_method = api::PaymentMethodCreate {
-                payment_method: api_enums::PaymentMethod::foreign_from(
+                payment_method: Some(api_enums::PaymentMethod::foreign_from(
                     payout_method_data.to_owned(),
-                ),
+                )),
                 payment_method_type: Some(payment_method_type),
                 payment_method_issuer: None,
                 payment_method_issuer_code: None,
@@ -388,6 +388,8 @@ pub async fn save_payout_data_to_locker(
                 metadata: None,
                 customer_id: Some(payout_attempt.customer_id.to_owned()),
                 card_network: None,
+                client_secret: None,
+                payment_method_data: None,
             };
 
             let pm_data = card_isin
@@ -455,9 +457,9 @@ pub async fn save_payout_data_to_locker(
             (
                 None,
                 api::PaymentMethodCreate {
-                    payment_method: api_enums::PaymentMethod::foreign_from(
+                    payment_method: Some(api_enums::PaymentMethod::foreign_from(
                         payout_method_data.to_owned(),
-                    ),
+                    )),
                     payment_method_type: Some(payment_method_type),
                     payment_method_issuer: None,
                     payment_method_issuer_code: None,
@@ -467,6 +469,8 @@ pub async fn save_payout_data_to_locker(
                     metadata: None,
                     customer_id: Some(payout_attempt.customer_id.to_owned()),
                     card_network: None,
+                    client_secret: None,
+                    payment_method_data: None,
                 },
             )
         };
@@ -485,6 +489,7 @@ pub async fn save_payout_data_to_locker(
             None,
             card_details_encrypted.clone(),
             key_store,
+            None,
             None,
             None,
             merchant_account.storage_scheme,

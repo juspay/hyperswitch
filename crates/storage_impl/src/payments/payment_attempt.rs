@@ -292,6 +292,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         payment_method: Option<Vec<PaymentMethod>>,
         payment_method_type: Option<Vec<PaymentMethodType>>,
         authentication_type: Option<Vec<AuthenticationType>>,
+        merchant_connector_id: Option<Vec<String>>,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
         let conn = self
@@ -314,6 +315,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             payment_method,
             payment_method_type,
             authentication_type,
+            merchant_connector_id,
         )
         .await
         .map_err(|er| {
@@ -1021,6 +1023,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         payment_method: Option<Vec<PaymentMethod>>,
         payment_method_type: Option<Vec<PaymentMethodType>>,
         authentication_type: Option<Vec<AuthenticationType>>,
+        merchant_connector_id: Option<Vec<String>>,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
         self.router_store
@@ -1031,6 +1034,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 payment_method,
                 payment_method_type,
                 authentication_type,
+                merchant_connector_id,
                 storage_scheme,
             )
             .await
@@ -1429,11 +1433,19 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_message,
                 updated_by,
             },
+            Self::PaymentMethodDetailsUpdate {
+                payment_method_id,
+                updated_by,
+            } => DieselPaymentAttemptUpdate::PaymentMethodDetailsUpdate {
+                payment_method_id,
+                updated_by,
+            },
             Self::ConfirmUpdate {
                 amount,
                 currency,
                 status,
                 authentication_type,
+                capture_method,
                 payment_method,
                 browser_info,
                 connector,
@@ -1461,6 +1473,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 currency,
                 status,
                 authentication_type,
+                capture_method,
                 payment_method,
                 browser_info,
                 connector,
@@ -1733,6 +1746,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 currency,
                 status,
                 authentication_type,
+                capture_method,
                 payment_method,
                 browser_info,
                 connector,
@@ -1760,6 +1774,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 currency,
                 status,
                 authentication_type,
+                capture_method,
                 payment_method,
                 browser_info,
                 connector,
@@ -1801,6 +1816,13 @@ impl DataModelExt for PaymentAttemptUpdate {
                 status,
                 error_code,
                 error_message,
+                updated_by,
+            },
+            DieselPaymentAttemptUpdate::PaymentMethodDetailsUpdate {
+                payment_method_id,
+                updated_by,
+            } => Self::PaymentMethodDetailsUpdate {
+                payment_method_id,
                 updated_by,
             },
             DieselPaymentAttemptUpdate::ResponseUpdate {

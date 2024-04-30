@@ -9,7 +9,7 @@
         "api_key": "api-key",
         "key1": "value1"
     },
-    "test_mode": false,
+    "test_mode": true,
     "disabled": false,
     "payment_methods_enabled": [
         {
@@ -28,7 +28,7 @@
                         "UnionPay",
                         "RuPay"
                     ],
-                    "minimum_amount": 1,
+                    "minimum_amount": 0,
                     "maximum_amount": 68607706,
                     "recurring_enabled": false,
                     "installment_payment_enabled": true
@@ -46,7 +46,7 @@
                         "UnionPay",
                         "RuPay"
                     ],
-                    "minimum_amount": 1,
+                    "minimum_amount": 0,
                     "maximum_amount": 68607706,
                     "recurring_enabled": false,
                     "installment_payment_enabled": true

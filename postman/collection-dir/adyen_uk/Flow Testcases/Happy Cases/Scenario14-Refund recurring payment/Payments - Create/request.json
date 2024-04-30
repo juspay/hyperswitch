@@ -77,7 +77,21 @@
           "state": "California",
           "zip": "94122",
           "country": "US",
-          "first_name": "PiX"
+          "first_name": "Joseph",
+          "last_name":"Doe"
+        }
+      },
+      "billing": {
+        "address": {
+          "line1": "1467",
+          "line2": "Harrison Street",
+          "line3": "Harrison Street",
+          "city": "San Fransico",
+          "state": "California",
+          "zip": "94122",
+          "country": "US",
+          "first_name": "Joseph",
+          "last_name":"Doe"
         }
       },
       "statement_descriptor_name": "joseph",
