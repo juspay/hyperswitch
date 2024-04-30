@@ -944,6 +944,13 @@ pub struct PaymentMethodCollectLinkDetails {
     pub return_url: Option<String>,
     #[serde(flatten)]
     pub config: api_enums::CollectLinkConfig,
+    pub enabled_payment_methods: Vec<EnabledPaymentMethod>,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct EnabledPaymentMethod {
+    pub payment_method: api_enums::PaymentMethod,
+    pub payment_method_types: Vec<api_enums::PaymentMethodType>,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]

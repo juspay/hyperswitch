@@ -383,6 +383,26 @@ pub async fn render_pm_collect_link(
                         pm_collect_link.primary_reference
                     ))?;
 
+                let mut enabled_payment_methods = vec![];
+                let cards = payment_methods::EnabledPaymentMethod {
+                    payment_method: enums::PaymentMethod::Card,
+                    payment_method_types: [
+                        enums::PaymentMethodType::Debit,
+                        enums::PaymentMethodType::Credit,
+                    ]
+                    .to_vec(),
+                };
+                let bank_transfer = payment_methods::EnabledPaymentMethod {
+                    payment_method: enums::PaymentMethod::BankTransfer,
+                    payment_method_types: [
+                        enums::PaymentMethodType::Ach,
+                        enums::PaymentMethodType::Bacs,
+                    ]
+                    .to_vec(),
+                };
+                enabled_payment_methods.push(cards);
+                enabled_payment_methods.push(bank_transfer);
+
                 let js_data = payment_methods::PaymentMethodCollectLinkDetails {
                     pub_key: merchant_account
                         .publishable_key
@@ -396,6 +416,7 @@ pub async fn render_pm_collect_link(
                     session_expiry: pm_collect_link.expiry,
                     return_url: pm_collect_link.return_url,
                     config: link_data.config,
+                    enabled_payment_methods,
                 };
 
                 let serialized_css_content = "".to_string();

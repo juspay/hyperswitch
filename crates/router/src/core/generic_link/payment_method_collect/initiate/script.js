@@ -36,7 +36,8 @@ function initializeCollectSDK() {
   var clientSecret = paymentMethodCollectDetails.client_secret;
   var appearance = {
     variables: {
-      colorPrimary: paymentMethodCollectDetails?.theme?.primary_color || "rgb(0, 109, 249)",
+      colorPrimary:
+        paymentMethodCollectDetails?.theme?.primary_color || "rgb(0, 109, 249)",
       fontFamily: "Work Sans, sans-serif",
       fontSizeBase: "16px",
       colorText: "rgb(51, 65, 85)",
@@ -58,7 +59,9 @@ function initializeCollectSDK() {
   });
 
   // Create payment method collect widget
-  var paymentMethodCollectOptions = {};
+  var paymentMethodCollectOptions = {
+    enabledPaymentMethods: paymentMethodCollectDetails.enabled_payment_methods,
+  };
   paymentMethodCollect = widgets.create(
     "paymentMethodCollect",
     paymentMethodCollectOptions
@@ -66,7 +69,6 @@ function initializeCollectSDK() {
 
   // Mount
   if (paymentMethodCollect !== null) {
-    paymentMethodCollect.mount("#payment-method-collect")
+    paymentMethodCollect.mount("#payment-method-collect");
   }
 }
-
