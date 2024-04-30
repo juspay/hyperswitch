@@ -352,6 +352,8 @@ pub enum Flow {
     UserMerchantAccountList,
     /// Get details of a user in a merchant account
     GetUserDetails,
+    /// Get details of a user role in a merchant account
+    GetUserRoleDetails,
     /// List users for merchant account
     ListUsersForMerchantAccount,
     /// PaymentMethodAuth Link token create
