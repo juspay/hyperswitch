@@ -13,14 +13,14 @@ use crate::{
 };
 
 impl ProcessTrackerNew {
-    #[instrument(skip(conn))]
+    //#\[instrument\(skip(conn))]
     pub async fn insert_process(self, conn: &PgPooledConn) -> StorageResult<ProcessTracker> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl ProcessTracker {
-    #[instrument(skip(conn))]
+    //#\[instrument\(skip(conn))]
     pub async fn update(
         self,
         conn: &PgPooledConn,
@@ -41,7 +41,7 @@ impl ProcessTracker {
         }
     }
 
-    #[instrument(skip(conn))]
+    //#\[instrument\(skip(conn))]
     pub async fn update_process_status_by_ids(
         conn: &PgPooledConn,
         task_ids: Vec<String>,
@@ -55,7 +55,7 @@ impl ProcessTracker {
         .await
     }
 
-    #[instrument(skip(conn))]
+    //#\[instrument\(skip(conn))]
     pub async fn find_process_by_id(conn: &PgPooledConn, id: &str) -> StorageResult<Option<Self>> {
         generics::generic_find_by_id_optional::<<Self as HasTable>::Table, _, _>(
             conn,
@@ -64,7 +64,7 @@ impl ProcessTracker {
         .await
     }
 
-    #[instrument(skip(conn))]
+    //#\[instrument\(skip(conn))]
     pub async fn find_processes_by_time_status(
         conn: &PgPooledConn,
         time_lower_limit: PrimitiveDateTime,
@@ -89,7 +89,7 @@ impl ProcessTracker {
         .await
     }
 
-    #[instrument(skip(conn))]
+    //#\[instrument\(skip(conn))]
     pub async fn find_processes_to_clean(
         conn: &PgPooledConn,
         time_lower_limit: PrimitiveDateTime,
@@ -118,7 +118,7 @@ impl ProcessTracker {
         Ok(x)
     }
 
-    #[instrument(skip(conn))]
+    //#\[instrument\(skip(conn))]
     pub async fn reinitialize_limbo_processes(
         conn: &PgPooledConn,
         ids: Vec<String>,

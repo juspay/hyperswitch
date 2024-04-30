@@ -9,7 +9,7 @@ use crate::{
     services,
     services::ConnectorIntegration,
     types::{self, api, domain, storage::enums as storage_enums},
-    AppState,
+    SessionState,
 };
 
 #[derive(Clone, Debug)]
@@ -113,7 +113,7 @@ impl VerifyConnectorData {
 #[async_trait::async_trait]
 pub trait VerifyConnector {
     async fn verify(
-        state: &AppState,
+        state: &SessionState,
         connector_data: VerifyConnectorData,
     ) -> errors::RouterResponse<()> {
         let authorize_data = connector_data.get_payment_authorize_data();
@@ -147,7 +147,7 @@ pub trait VerifyConnector {
     }
 
     async fn get_access_token(
-        _state: &AppState,
+        _state: &SessionState,
         _connector_data: VerifyConnectorData,
     ) -> errors::CustomResult<Option<types::AccessToken>, errors::ApiErrorResponse> {
         // AccessToken is None for the connectors without the AccessToken Flow.

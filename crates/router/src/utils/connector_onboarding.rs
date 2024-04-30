@@ -5,7 +5,7 @@ use super::errors::StorageErrorExt;
 use crate::{
     consts,
     core::errors::{api_error_response::NotImplementedMessage, ApiErrorResponse, RouterResult},
-    routes::{app::settings, AppState},
+    routes::{app::settings, SessionState},
     types::{self, api::enums},
 };
 
@@ -41,7 +41,7 @@ pub fn is_enabled(
 }
 
 pub async fn check_if_connector_exists(
-    state: &AppState,
+    state: &SessionState,
     connector_id: &str,
     merchant_id: &str,
 ) -> RouterResult<()> {
@@ -70,7 +70,7 @@ pub async fn check_if_connector_exists(
 }
 
 pub async fn set_tracking_id_in_configs(
-    state: &AppState,
+    state: &SessionState,
     connector_id: &str,
     connector: enums::Connector,
 ) -> RouterResult<()> {
@@ -115,7 +115,7 @@ pub async fn set_tracking_id_in_configs(
 }
 
 pub async fn get_tracking_id_from_configs(
-    state: &AppState,
+    state: &SessionState,
     connector_id: &str,
     connector: enums::Connector,
 ) -> RouterResult<String> {

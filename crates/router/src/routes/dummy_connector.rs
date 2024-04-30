@@ -13,7 +13,7 @@ mod errors;
 pub mod types;
 mod utils;
 
-#[instrument(skip_all, fields(flow = ?types::Flow::DummyPaymentCreate))]
+//#\[instrument\(skip_all, fields(flow = ?types::Flow::DummyPaymentCreate))]
 pub async fn dummy_connector_authorize_payment(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -33,7 +33,7 @@ pub async fn dummy_connector_authorize_payment(
     )
     .await
 }
-#[instrument(skip_all, fields(flow = ?types::Flow::DummyPaymentCreate))]
+//#\[instrument\(skip_all, fields(flow = ?types::Flow::DummyPaymentCreate))]
 pub async fn dummy_connector_complete_payment(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -57,7 +57,7 @@ pub async fn dummy_connector_complete_payment(
     )
     .await
 }
-#[instrument(skip_all, fields(flow = ?types::Flow::DummyPaymentCreate))]
+//#\[instrument\(skip_all, fields(flow = ?types::Flow::DummyPaymentCreate))]
 pub async fn dummy_connector_payment(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -76,7 +76,7 @@ pub async fn dummy_connector_payment(
     )
     .await
 }
-#[instrument(skip_all, fields(flow = ?types::Flow::DummyPaymentRetrieve))]
+//#\[instrument\(skip_all, fields(flow = ?types::Flow::DummyPaymentRetrieve))]
 pub async fn dummy_connector_payment_data(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -96,7 +96,7 @@ pub async fn dummy_connector_payment_data(
     )
     .await
 }
-#[instrument(skip_all, fields(flow = ?types::Flow::DummyRefundCreate))]
+//#\[instrument\(skip_all, fields(flow = ?types::Flow::DummyRefundCreate))]
 pub async fn dummy_connector_refund(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -117,7 +117,7 @@ pub async fn dummy_connector_refund(
     )
     .await
 }
-#[instrument(skip_all, fields(flow = ?types::Flow::DummyRefundRetrieve))]
+//#\[instrument\(skip_all, fields(flow = ?types::Flow::DummyRefundRetrieve))]
 pub async fn dummy_connector_refund_data(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,

@@ -14,7 +14,7 @@ use tokio::{sync::RwLock, time::sleep};
 use crate::{
     logger,
     routes::app::settings::{Conversion, DefaultExchangeRates},
-    services, AppState,
+    services, SessionState,
 };
 const REDIX_FOREX_CACHE_KEY: &str = "{forex_cache}_lock";
 const REDIX_FOREX_CACHE_DATA: &str = "{forex_cache}_data";
@@ -121,7 +121,8 @@ async fn save_forex_to_local(
 // Alternative handler for handling the case, When no data in local as well as redis
 #[allow(dead_code)]
 async fn waited_fetch_and_update_caches(
-    state: &AppState,
+    state: &SessionState,
+
     local_fetch_retry_delay: u64,
     local_fetch_retry_count: u64,
 ) -> CustomResult<FxExchangeRatesCacheEntry, ForexCacheError> {
@@ -171,7 +172,8 @@ impl From<Conversion> for CurrencyFactors {
     }
 }
 pub async fn get_forex_rates(
-    state: &AppState,
+    state: &SessionState,
+
     call_delay: i64,
     local_fetch_retry_delay: u64,
     local_fetch_retry_count: u64,
@@ -197,7 +199,8 @@ pub async fn get_forex_rates(
 }
 
 async fn handler_local_no_data(
-    state: &AppState,
+    state: &SessionState,
+
     call_delay: i64,
     _local_fetch_retry_delay: u64,
     _local_fetch_retry_count: u64,
@@ -216,7 +219,8 @@ async fn handler_local_no_data(
 }
 
 async fn successive_fetch_and_save_forex(
-    state: &AppState,
+    state: &SessionState,
+
     stale_redis_data: Option<FxExchangeRatesCacheEntry>,
 ) -> CustomResult<FxExchangeRatesCacheEntry, ForexCacheError> {
     match acquire_redis_lock(state).await {
@@ -249,7 +253,7 @@ async fn successive_fetch_and_save_forex(
 }
 
 async fn successive_save_data_to_redis_local(
-    state: &AppState,
+    state: &SessionState,
     forex: FxExchangeRatesCacheEntry,
 ) -> CustomResult<FxExchangeRatesCacheEntry, ForexCacheError> {
     Ok(save_forex_to_redis(state, &forex)
@@ -268,7 +272,8 @@ async fn successive_save_data_to_redis_local(
 }
 
 async fn fallback_forex_redis_check(
-    state: &AppState,
+    state: &SessionState,
+
     redis_data: FxExchangeRatesCacheEntry,
     call_delay: i64,
 ) -> CustomResult<FxExchangeRatesCacheEntry, ForexCacheError> {
@@ -287,7 +292,8 @@ async fn fallback_forex_redis_check(
 }
 
 async fn handler_local_expired(
-    state: &AppState,
+    state: &SessionState,
+
     call_delay: i64,
     local_rates: FxExchangeRatesCacheEntry,
 ) -> CustomResult<FxExchangeRatesCacheEntry, ForexCacheError> {
@@ -316,7 +322,7 @@ async fn handler_local_expired(
 }
 
 async fn fetch_forex_rates(
-    state: &AppState,
+    state: &SessionState,
 ) -> Result<FxExchangeRatesCacheEntry, error_stack::Report<ForexCacheError>> {
     let forex_api_key = state.conf.forex_api.get_inner().api_key.peek();
 
@@ -371,7 +377,7 @@ async fn fetch_forex_rates(
 }
 
 pub async fn fallback_fetch_forex_rates(
-    state: &AppState,
+    state: &SessionState,
 ) -> CustomResult<FxExchangeRatesCacheEntry, ForexCacheError> {
     let fallback_forex_api_key = state.conf.forex_api.get_inner().fallback_api_key.peek();
 
@@ -438,7 +444,7 @@ pub async fn fallback_fetch_forex_rates(
 }
 
 async fn release_redis_lock(
-    state: &AppState,
+    state: &SessionState,
 ) -> Result<DelReply, error_stack::Report<ForexCacheError>> {
     state
         .store
@@ -449,9 +455,9 @@ async fn release_redis_lock(
         .change_context(ForexCacheError::RedisLockReleaseFailed)
 }
 
-async fn acquire_redis_lock(app_state: &AppState) -> CustomResult<bool, ForexCacheError> {
-    let forex_api = app_state.conf.forex_api.get_inner();
-    app_state
+async fn acquire_redis_lock(state: &SessionState) -> CustomResult<bool, ForexCacheError> {
+    let forex_api = state.conf.forex_api.get_inner();
+    state
         .store
         .get_redis_conn()
         .change_context(ForexCacheError::RedisConnectionError)?
@@ -472,7 +478,7 @@ async fn acquire_redis_lock(app_state: &AppState) -> CustomResult<bool, ForexCac
 }
 
 async fn save_forex_to_redis(
-    app_state: &AppState,
+    app_state: &SessionState,
     forex_exchange_cache_entry: &FxExchangeRatesCacheEntry,
 ) -> CustomResult<(), ForexCacheError> {
     app_state
@@ -485,7 +491,7 @@ async fn save_forex_to_redis(
 }
 
 async fn retrieve_forex_from_redis(
-    app_state: &AppState,
+    app_state: &SessionState,
 ) -> CustomResult<Option<FxExchangeRatesCacheEntry>, ForexCacheError> {
     app_state
         .store
@@ -510,7 +516,8 @@ async fn is_redis_expired(
 }
 
 pub async fn convert_currency(
-    state: AppState,
+    state: SessionState,
+
     amount: i64,
     to_currency: String,
     from_currency: String,

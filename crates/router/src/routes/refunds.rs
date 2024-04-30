@@ -23,7 +23,7 @@ use crate::{
     operation_id = "Create a Refund",
     security(("api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::RefundsCreate))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::RefundsCreate))]
 // #[post("")]
 pub async fn refunds_create(
     state: web::Data<AppState>,
@@ -63,7 +63,7 @@ pub async fn refunds_create(
     operation_id = "Retrieve a Refund",
     security(("api_key" = []))
 )]
-#[instrument(skip_all, fields(flow))]
+//#\[instrument\(skip_all, fields(flow))]
 // #[get("/{id}")]
 pub async fn refunds_retrieve(
     state: web::Data<AppState>,
@@ -120,7 +120,7 @@ pub async fn refunds_retrieve(
     operation_id = "Retrieve a Refund",
     security(("api_key" = []))
 )]
-#[instrument(skip_all, fields(flow))]
+//#\[instrument\(skip_all, fields(flow))]
 // #[post("/sync")]
 pub async fn refunds_retrieve_with_body(
     state: web::Data<AppState>,
@@ -171,7 +171,7 @@ pub async fn refunds_retrieve_with_body(
     operation_id = "Update a Refund",
     security(("api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::RefundsUpdate))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::RefundsUpdate))]
 // #[post("/{id}")]
 pub async fn refunds_update(
     state: web::Data<AppState>,
@@ -207,7 +207,7 @@ pub async fn refunds_update(
     operation_id = "List all Refunds",
     security(("api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::RefundsList))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::RefundsList))]
 #[cfg(feature = "olap")]
 pub async fn refunds_list(
     state: web::Data<AppState>,
@@ -244,7 +244,7 @@ pub async fn refunds_list(
     operation_id = "List all filters for Refunds",
     security(("api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::RefundsList))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::RefundsList))]
 #[cfg(feature = "olap")]
 pub async fn refunds_filter_list(
     state: web::Data<AppState>,

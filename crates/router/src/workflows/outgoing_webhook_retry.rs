@@ -17,18 +17,18 @@ use crate::{
     core::webhooks::{self as webhooks_core, types::OutgoingWebhookTrackingData},
     db::StorageInterface,
     errors, logger,
-    routes::{app::ReqState, AppState},
+    routes::{app::ReqState, SessionState},
     types::{domain, storage},
 };
 
 pub struct OutgoingWebhookRetryWorkflow;
 
 #[async_trait::async_trait]
-impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
-    #[instrument(skip_all)]
+impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
+    //#\[instrument\(skip_all)]
     async fn execute_workflow<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         process: storage::ProcessTracker,
     ) -> Result<(), errors::ProcessTrackerError> {
         let delivery_attempt = storage::enums::WebhookDeliveryAttempt::AutomaticRetry;
@@ -204,10 +204,10 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
         Ok(())
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn error_handler<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         process: storage::ProcessTracker,
         error: errors::ProcessTrackerError,
     ) -> errors::CustomResult<(), errors::ProcessTrackerError> {
@@ -243,7 +243,7 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
 ///   seconds between them by default.
 /// - `custom_merchant_mapping.merchant_id1`: Merchant-specific retry configuration for merchant
 ///   with merchant ID `merchant_id1`.
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub(crate) async fn get_webhook_delivery_retry_schedule_time(
     db: &dyn StorageInterface,
     merchant_id: &str,
@@ -288,7 +288,7 @@ pub(crate) async fn get_webhook_delivery_retry_schedule_time(
 }
 
 /// Schedule the webhook delivery task for retry
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub(crate) async fn retry_webhook_delivery_task(
     db: &dyn StorageInterface,
     merchant_id: &str,
@@ -311,9 +311,9 @@ pub(crate) async fn retry_webhook_delivery_task(
     }
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 async fn get_outgoing_webhook_content_and_event_type(
-    state: AppState,
+    state: SessionState,
     req_state: ReqState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,

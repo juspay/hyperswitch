@@ -6,13 +6,13 @@ use error_stack::ResultExt;
 use super::errors::{self, RouterResponse};
 use crate::{
     consts,
-    routes::AppState,
+    routes::SessionState,
     services::{self, ApplicationResponse},
     types::{api, domain},
 };
 
 pub async fn files_create_core(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     create_file_request: api::CreateFileRequest,
@@ -78,7 +78,7 @@ pub async fn files_create_core(
 }
 
 pub async fn files_delete_core(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     req: api::FileId,
 ) -> RouterResponse<serde_json::Value> {
@@ -94,7 +94,7 @@ pub async fn files_delete_core(
 }
 
 pub async fn files_retrieve_core(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: api::FileId,

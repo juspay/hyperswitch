@@ -106,7 +106,7 @@ mod storage {
 
     #[async_trait::async_trait]
     impl RefundInterface for Store {
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn find_refund_by_internal_reference_id_merchant_id(
             &self,
             internal_reference_id: &str,
@@ -123,7 +123,7 @@ mod storage {
             .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn insert_refund(
             &self,
             new: storage_types::RefundNew,
@@ -135,7 +135,7 @@ mod storage {
                 .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn find_refund_by_merchant_id_connector_transaction_id(
             &self,
             merchant_id: &str,
@@ -152,7 +152,7 @@ mod storage {
             .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn update_refund(
             &self,
             this: storage_types::Refund,
@@ -165,7 +165,7 @@ mod storage {
                 .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn find_refund_by_merchant_id_refund_id(
             &self,
             merchant_id: &str,
@@ -178,7 +178,7 @@ mod storage {
                 .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn find_refund_by_merchant_id_connector_refund_id_connector(
             &self,
             merchant_id: &str,
@@ -197,7 +197,7 @@ mod storage {
             .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn find_refund_by_payment_id_merchant_id(
             &self,
             payment_id: &str,
@@ -211,7 +211,7 @@ mod storage {
         }
 
         #[cfg(feature = "olap")]
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn filter_refund_by_constraints(
             &self,
             merchant_id: &str,
@@ -233,7 +233,7 @@ mod storage {
         }
 
         #[cfg(feature = "olap")]
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn filter_refund_by_meta_constraints(
             &self,
             merchant_id: &str,
@@ -250,7 +250,7 @@ mod storage {
             .map_err(|error|report!(errors::StorageError::from(error)))
         }
         #[cfg(feature = "olap")]
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn get_total_count_of_refunds(
             &self,
             merchant_id: &str,
@@ -288,7 +288,7 @@ mod storage {
     };
     #[async_trait::async_trait]
     impl RefundInterface for Store {
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn find_refund_by_internal_reference_id_merchant_id(
             &self,
             internal_reference_id: &str,
@@ -335,7 +335,7 @@ mod storage {
             }
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn insert_refund(
             &self,
             new: storage_types::RefundNew,
@@ -468,7 +468,7 @@ mod storage {
             }
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn find_refund_by_merchant_id_connector_transaction_id(
             &self,
             merchant_id: &str,
@@ -519,7 +519,7 @@ mod storage {
             }
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn update_refund(
             &self,
             this: storage_types::Refund,
@@ -575,7 +575,7 @@ mod storage {
             }
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn find_refund_by_merchant_id_refund_id(
             &self,
             merchant_id: &str,
@@ -618,7 +618,7 @@ mod storage {
             }
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn find_refund_by_merchant_id_connector_refund_id_connector(
             &self,
             merchant_id: &str,
@@ -668,7 +668,7 @@ mod storage {
             }
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn find_refund_by_payment_id_merchant_id(
             &self,
             payment_id: &str,
@@ -710,7 +710,7 @@ mod storage {
         }
 
         #[cfg(feature = "olap")]
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn filter_refund_by_constraints(
             &self,
             merchant_id: &str,
@@ -732,7 +732,7 @@ mod storage {
         }
 
         #[cfg(feature = "olap")]
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn filter_refund_by_meta_constraints(
             &self,
             merchant_id: &str,
@@ -746,7 +746,7 @@ mod storage {
         }
 
         #[cfg(feature = "olap")]
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn get_total_count_of_refunds(
             &self,
             merchant_id: &str,

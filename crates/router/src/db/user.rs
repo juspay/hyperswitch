@@ -53,7 +53,7 @@ pub trait UserInterface {
 
 #[async_trait::async_trait]
 impl UserInterface for Store {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn insert_user(
         &self,
         user_data: storage::UserNew,
@@ -65,7 +65,7 @@ impl UserInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_user_by_email(
         &self,
         user_email: &str,
@@ -76,7 +76,7 @@ impl UserInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_user_by_id(
         &self,
         user_id: &str,
@@ -87,7 +87,7 @@ impl UserInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn update_user_by_user_id(
         &self,
         user_id: &str,
@@ -99,7 +99,7 @@ impl UserInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn update_user_by_email(
         &self,
         user_email: &str,
@@ -111,7 +111,7 @@ impl UserInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn delete_user_by_user_id(
         &self,
         user_id: &str,
@@ -122,7 +122,7 @@ impl UserInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_users_and_roles_by_merchant_id(
         &self,
         merchant_id: &str,

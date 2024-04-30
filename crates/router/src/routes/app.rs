@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use actix_web::{web, Scope};
 #[cfg(all(feature = "business_profile_routing", feature = "olap"))]
@@ -54,7 +54,7 @@ pub use crate::{
     db::{StorageImpl, StorageInterface},
     events::EventsHandler,
     routes::cards_info::card_iin_info,
-    services::get_store,
+    services::{get_cache_store, get_store},
 };
 
 #[derive(Clone)]
@@ -63,9 +63,75 @@ pub struct ReqState {
 }
 
 #[derive(Clone)]
+pub struct SessionState {
+    pub store: Box<dyn StorageInterface>,
+    pub conf: Arc<settings::Settings<RawSecret>>,
+    pub api_client: Box<dyn crate::services::ApiClient>,
+    pub event_handler: EventsHandler,
+    #[cfg(feature = "olap")]
+    pub pool: crate::analytics::AnalyticsProvider,
+    pub file_storage_client: Box<dyn FileStorageInterface>,
+    pub request_id: Option<RequestId>,
+}
+impl scheduler::SchedulerAppState for SessionState {
+    fn get_db(&self) -> Box<dyn SchedulerInterface> {
+        self.store.get_scheduler_db()
+    }
+
+    fn get_tenants(&self) -> Vec<String> {
+        self.conf.multitenancy.tenants.clone()
+    }
+}
+impl SessionState {
+    pub fn get_req_state(&self) -> ReqState {
+        ReqState {
+            event_context: events::EventContext::new(self.event_handler.clone()),
+        }
+    }
+    pub fn from_app_state(state: Arc<AppState>, tenant: &str) -> Self {
+        Self {
+            store: state.stores.get(tenant).unwrap().clone(),
+            conf: Arc::clone(&state.conf),
+            api_client: state.api_client.clone(),
+            event_handler: state.event_handler.clone(),
+            pool: state.pool.clone(),
+            file_storage_client: state.file_storage_client.clone(),
+            request_id: state.request_id.clone(),
+        }
+    }
+}
+
+pub trait SessionStateInfo {
+    fn conf(&self) -> settings::Settings<RawSecret>;
+    fn store(&self) -> Box<dyn StorageInterface>;
+    fn event_handler(&self) -> EventsHandler;
+    fn get_request_id(&self) -> Option<String>;
+    fn add_request_id(&mut self, request_id: RequestId);
+}
+
+impl SessionStateInfo for SessionState {
+    fn store(&self) -> Box<dyn StorageInterface> {
+        self.store.to_owned()
+    }
+    fn conf(&self) -> settings::Settings<RawSecret> {
+        self.conf.as_ref().to_owned()
+    }
+    fn event_handler(&self) -> EventsHandler {
+        self.event_handler.clone()
+    }
+    fn get_request_id(&self) -> Option<String> {
+        self.api_client.get_request_id()
+    }
+    fn add_request_id(&mut self, request_id: RequestId) {
+        self.api_client.add_request_id(request_id);
+        self.store.add_request_id(request_id.to_string());
+        self.request_id.replace(request_id);
+    }
+}
+#[derive(Clone)]
 pub struct AppState {
     pub flow_name: String,
-    pub store: Box<dyn StorageInterface>,
+    pub stores: HashMap<String, Box<dyn StorageInterface>>,
     pub conf: Arc<settings::Settings<RawSecret>>,
     pub event_handler: EventsHandler,
     #[cfg(feature = "email")]
@@ -77,16 +143,17 @@ pub struct AppState {
     pub file_storage_client: Box<dyn FileStorageInterface>,
     pub encryption_client: Box<dyn EncryptionManagementInterface>,
 }
-
 impl scheduler::SchedulerAppState for AppState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
-        self.store.get_scheduler_db()
+        todo!()
+    }
+    fn get_tenants(&self) -> Vec<String> {
+        self.conf.multitenancy.tenants.clone()
     }
 }
-
 pub trait AppStateInfo {
     fn conf(&self) -> settings::Settings<RawSecret>;
-    fn store(&self) -> Box<dyn StorageInterface>;
+    // fn store(&self) -> Box<dyn StorageInterface>;
     fn event_handler(&self) -> EventsHandler;
     #[cfg(feature = "email")]
     fn email_client(&self) -> Arc<dyn EmailService>;
@@ -100,9 +167,6 @@ impl AppStateInfo for AppState {
     fn conf(&self) -> settings::Settings<RawSecret> {
         self.conf.as_ref().to_owned()
     }
-    fn store(&self) -> Box<dyn StorageInterface> {
-        self.store.to_owned()
-    }
     #[cfg(feature = "email")]
     fn email_client(&self) -> Arc<dyn EmailService> {
         self.email_client.to_owned()
@@ -112,7 +176,6 @@ impl AppStateInfo for AppState {
     }
     fn add_request_id(&mut self, request_id: RequestId) {
         self.api_client.add_request_id(request_id);
-        self.store.add_request_id(request_id.to_string());
         self.request_id.replace(request_id);
     }
 
@@ -176,33 +239,39 @@ impl AppState {
                 .get_event_handler()
                 .await
                 .expect("Failed to create event handler");
-
-            let store: Box<dyn StorageInterface> = match storage_impl {
-                StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match &event_handler {
-                    EventsHandler::Kafka(kafka_client) => Box::new(
-                        crate::db::KafkaStore::new(
+            let mut stores = HashMap::new();
+            let cache_store = get_cache_store(&conf.clone(), shut_down_signal, testable)
+                .await
+                .expect("Failed to create store");
+            for tenant in conf.clone().multitenancy.tenants {
+                let store: Box<dyn StorageInterface> = match storage_impl {
+                    StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match &event_handler {
+                        EventsHandler::Kafka(kafka_client) => Box::new(
+                            crate::db::KafkaStore::new(
+                                #[allow(clippy::expect_used)]
+                                get_store(&conf.clone(), tenant.as_str(), Arc::clone(&cache_store), testable)
+                                    .await
+                                    .expect("Failed to create store"),
+                                kafka_client.clone(),
+                            )
+                            .await,
+                        ),
+                        EventsHandler::Logs(_) => Box::new(
                             #[allow(clippy::expect_used)]
-                            get_store(&conf.clone(), shut_down_signal, testable)
+                            get_store(&conf, tenant.as_str(), Arc::clone(&cache_store), testable)
                                 .await
                                 .expect("Failed to create store"),
-                            kafka_client.clone(),
-                        )
-                        .await,
-                    ),
-                    EventsHandler::Logs(_) => Box::new(
-                        #[allow(clippy::expect_used)]
-                        get_store(&conf, shut_down_signal, testable)
+                        ),
+                    },
+                    #[allow(clippy::expect_used)]
+                    StorageImpl::Mock => Box::new(
+                        MockDb::new(&conf.redis)
                             .await
-                            .expect("Failed to create store"),
+                            .expect("Failed to create mock store"),
                     ),
-                },
-                #[allow(clippy::expect_used)]
-                StorageImpl::Mock => Box::new(
-                    MockDb::new(&conf.redis)
-                        .await
-                        .expect("Failed to create mock store"),
-                ),
-            };
+                };
+                stores.insert(tenant, store);
+            }
 
             #[cfg(feature = "olap")]
             let pool =
@@ -215,7 +284,7 @@ impl AppState {
 
             Self {
                 flow_name: String::from("default"),
-                store,
+                stores,
                 conf: Arc::new(conf),
                 #[cfg(feature = "email")]
                 email_client,

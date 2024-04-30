@@ -12,7 +12,7 @@ use diesel_models::enums;
 
 use crate::{
     core::{errors::RouterResult, payments::helpers, pm_auth as core_pm_auth},
-    routes::AppState,
+    routes::SessionState,
     types::{
         api::{self, payments},
         domain, storage,
@@ -25,14 +25,14 @@ pub struct Oss;
 pub trait PaymentMethodRetrieve {
     async fn retrieve_payment_method(
         pm_data: &Option<payments::PaymentMethodData>,
-        state: &AppState,
+        state: &SessionState,
         payment_intent: &PaymentIntent,
         payment_attempt: &PaymentAttempt,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(Option<payments::PaymentMethodData>, Option<String>)>;
 
     async fn retrieve_payment_method_with_token(
-        state: &AppState,
+        state: &SessionState,
         key_store: &domain::MerchantKeyStore,
         token: &storage::PaymentTokenData,
         payment_intent: &PaymentIntent,
@@ -46,7 +46,7 @@ pub trait PaymentMethodRetrieve {
 impl PaymentMethodRetrieve for Oss {
     async fn retrieve_payment_method(
         pm_data: &Option<payments::PaymentMethodData>,
-        state: &AppState,
+        state: &SessionState,
         payment_intent: &PaymentIntent,
         payment_attempt: &PaymentAttempt,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -117,7 +117,7 @@ impl PaymentMethodRetrieve for Oss {
     }
 
     async fn retrieve_payment_method_with_token(
-        state: &AppState,
+        state: &SessionState,
         merchant_key_store: &domain::MerchantKeyStore,
         token_data: &storage::PaymentTokenData,
         payment_intent: &PaymentIntent,

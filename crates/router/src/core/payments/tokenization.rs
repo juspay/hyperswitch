@@ -18,7 +18,7 @@ use crate::{
         mandate, payment_methods, payments,
     },
     logger,
-    routes::{metrics, AppState},
+    routes::{metrics, SessionState},
     services,
     types::{
         self,
@@ -29,10 +29,10 @@ use crate::{
     utils::{generate_id, OptionExt},
 };
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn save_payment_method<F: Clone, FData>(
-    state: &AppState,
+    state: &SessionState,
     connector: &api::ConnectorData,
     resp: types::RouterData<F, FData, types::PaymentsResponseData>,
     maybe_customer: &Option<domain::Customer>,
@@ -628,7 +628,7 @@ async fn skip_saving_card_in_locker(
 }
 
 pub async fn save_in_locker(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     payment_method_request: api::PaymentMethodCreate,
 ) -> RouterResult<(
@@ -699,7 +699,7 @@ pub fn create_payment_method_metadata(
 }
 
 pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
-    state: &AppState,
+    state: &SessionState,
     connector: &api::ConnectorData,
     tokenization_action: &payments::TokenizationAction,
     router_data: &mut types::RouterData<F, T, types::PaymentsResponseData>,

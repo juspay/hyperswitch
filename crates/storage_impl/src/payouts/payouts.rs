@@ -45,7 +45,7 @@ use crate::{
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn insert_payout(
         &self,
         new: PayoutsNew,
@@ -119,7 +119,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         }
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn update_payout(
         &self,
         this: &Payouts,
@@ -177,7 +177,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         }
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_payout_by_merchant_id_payout_id(
         &self,
         merchant_id: &str,
@@ -219,7 +219,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         .map(Payouts::from_storage_model)
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_optional_payout_by_merchant_id_payout_id(
         &self,
         merchant_id: &str,
@@ -272,7 +272,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
     }
 
     #[cfg(feature = "olap")]
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn filter_payouts_by_constraints(
         &self,
         merchant_id: &str,
@@ -285,7 +285,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
     }
 
     #[cfg(feature = "olap")]
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn filter_payouts_and_attempts(
         &self,
         merchant_id: &str,
@@ -299,7 +299,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
     }
 
     #[cfg(feature = "olap")]
-    #[instrument[skip_all]]
+    //#[instrument[skip_all]]
     async fn filter_payouts_by_time_range_constraints(
         &self,
         merchant_id: &str,
@@ -314,7 +314,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn insert_payout(
         &self,
         new: PayoutsNew,
@@ -331,7 +331,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
             .map(Payouts::from_storage_model)
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn update_payout(
         &self,
         this: &Payouts,
@@ -351,7 +351,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
             .map(Payouts::from_storage_model)
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_payout_by_merchant_id_payout_id(
         &self,
         merchant_id: &str,
@@ -368,7 +368,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
             })
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_optional_payout_by_merchant_id_payout_id(
         &self,
         merchant_id: &str,
@@ -386,7 +386,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
     }
 
     #[cfg(feature = "olap")]
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn filter_payouts_by_constraints(
         &self,
         merchant_id: &str,
@@ -502,7 +502,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
     }
 
     #[cfg(feature = "olap")]
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn filter_payouts_and_attempts(
         &self,
         merchant_id: &str,
@@ -636,7 +636,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
     }
 
     #[cfg(feature = "olap")]
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn filter_payouts_by_time_range_constraints(
         &self,
         merchant_id: &str,

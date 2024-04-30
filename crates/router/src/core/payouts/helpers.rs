@@ -27,7 +27,7 @@ use crate::{
         utils as core_utils,
     },
     db::StorageInterface,
-    routes::{metrics, AppState},
+    routes::{metrics, SessionState},
     services,
     types::{
         api::{self, enums as api_enums},
@@ -43,7 +43,7 @@ use crate::{
 
 #[allow(clippy::too_many_arguments)]
 pub async fn make_payout_method_data<'a>(
-    state: &'a AppState,
+    state: &'a SessionState,
     payout_method_data: Option<&api::PayoutMethodData>,
     payout_token: Option<&str>,
     customer_id: &str,
@@ -188,7 +188,7 @@ pub async fn make_payout_method_data<'a>(
 }
 
 pub async fn save_payout_data_to_locker(
-    state: &AppState,
+    state: &SessionState,
     payout_data: &mut PayoutData,
     payout_method_data: &api::PayoutMethodData,
     merchant_account: &domain::MerchantAccount,
@@ -572,7 +572,7 @@ pub async fn save_payout_data_to_locker(
 }
 
 pub async fn get_or_create_customer_details(
-    state: &AppState,
+    state: &SessionState,
     customer_details: &CustomerDetails,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
@@ -632,7 +632,7 @@ pub async fn get_or_create_customer_details(
 }
 
 pub async fn decide_payout_connector(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     request_straight_through: Option<api::routing::StraightThroughAlgorithm>,
@@ -791,7 +791,7 @@ pub async fn decide_payout_connector(
 }
 
 pub async fn get_default_payout_connector(
-    _state: &AppState,
+    _state: &SessionState,
     request_connector: Option<serde_json::Value>,
 ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
     Ok(request_connector.map_or(
@@ -801,7 +801,7 @@ pub async fn get_default_payout_connector(
 }
 
 pub fn should_call_payout_connector_create_customer<'a>(
-    state: &AppState,
+    state: &SessionState,
     connector: &api::ConnectorData,
     customer: &'a Option<domain::Customer>,
     connector_label: &str,
@@ -830,7 +830,7 @@ pub fn should_call_payout_connector_create_customer<'a>(
 }
 
 pub async fn get_gsm_record(
-    state: &AppState,
+    state: &SessionState,
     error_code: Option<String>,
     error_message: Option<String>,
     connector_name: Option<String>,

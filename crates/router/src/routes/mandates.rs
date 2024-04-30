@@ -25,7 +25,7 @@ use crate::{
     operation_id = "Retrieve a Mandate",
     security(("api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::MandatesRetrieve))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::MandatesRetrieve))]
 // #[get("/{id}")]
 pub async fn get_mandate(
     state: web::Data<AppState>,
@@ -66,7 +66,7 @@ pub async fn get_mandate(
     operation_id = "Revoke a Mandate",
     security(("api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::MandatesRevoke))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::MandatesRevoke))]
 // #[post("/revoke/{id}")]
 pub async fn revoke_mandate(
     state: web::Data<AppState>,
@@ -113,7 +113,7 @@ pub async fn revoke_mandate(
     operation_id = "List Mandates",
     security(("api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::MandatesList))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::MandatesList))]
 pub async fn retrieve_mandates_list(
     state: web::Data<AppState>,
     req: HttpRequest,

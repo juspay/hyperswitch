@@ -3,10 +3,10 @@ use error_stack::{report, ResultExt};
 use storage_impl::redis::cache::CacheKind;
 
 use super::errors;
-use crate::{db::cache::publish_into_redact_channel, routes::AppState, services};
+use crate::{db::cache::publish_into_redact_channel, routes::SessionState, services};
 
 pub async fn invalidate(
-    state: AppState,
+    state: SessionState,
     key: &str,
 ) -> CustomResult<services::api::ApplicationResponse<serde_json::Value>, errors::ApiErrorResponse> {
     let store = state.store.as_ref();

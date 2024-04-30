@@ -27,7 +27,7 @@ use crate::{
     operation_id = "Create a File",
     security(("api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::CreateFile))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::CreateFile))]
 pub async fn files_create(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -71,7 +71,7 @@ pub async fn files_create(
     operation_id = "Delete a File",
     security(("api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::DeleteFile))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::DeleteFile))]
 pub async fn files_delete(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -113,7 +113,7 @@ pub async fn files_delete(
     operation_id = "Retrieve a File",
     security(("api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::RetrieveFile))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::RetrieveFile))]
 pub async fn files_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,

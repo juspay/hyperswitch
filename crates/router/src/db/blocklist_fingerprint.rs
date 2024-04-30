@@ -26,7 +26,7 @@ pub trait BlocklistFingerprintInterface {
 
 #[async_trait::async_trait]
 impl BlocklistFingerprintInterface for Store {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn insert_blocklist_fingerprint_entry(
         &self,
         pm_fingerprint_new: storage::BlocklistFingerprintNew,
@@ -38,7 +38,7 @@ impl BlocklistFingerprintInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_blocklist_fingerprint_by_merchant_id_fingerprint_id(
         &self,
         merchant_id: &str,
@@ -75,7 +75,7 @@ impl BlocklistFingerprintInterface for MockDb {
 
 #[async_trait::async_trait]
 impl BlocklistFingerprintInterface for KafkaStore {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn insert_blocklist_fingerprint_entry(
         &self,
         pm_fingerprint_new: storage::BlocklistFingerprintNew,
@@ -85,7 +85,7 @@ impl BlocklistFingerprintInterface for KafkaStore {
             .await
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_blocklist_fingerprint_by_merchant_id_fingerprint_id(
         &self,
         merchant_id: &str,

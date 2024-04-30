@@ -19,7 +19,7 @@ use crate::{
     },
     routes::{
         app::{ReqState, StorageInterface},
-        AppState,
+        SessionState,
     },
     services,
     types::{
@@ -39,10 +39,10 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
     GetTracker<F, payments::PaymentData<F>, PaymentsIncrementalAuthorizationRequest, Ctx>
     for PaymentIncrementalAuthorization
 {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         payment_id: &api::PaymentIdType,
         request: &PaymentsIncrementalAuthorizationRequest,
         merchant_account: &domain::MerchantAccount,
@@ -174,10 +174,10 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     UpdateTracker<F, payments::PaymentData<F>, PaymentsIncrementalAuthorizationRequest, Ctx>
     for PaymentIncrementalAuthorization
 {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        db: &'b AppState,
+        db: &'b SessionState,
         _req_state: ReqState,
         mut payment_data: payments::PaymentData<F>,
         _customer: Option<domain::Customer>,
@@ -265,7 +265,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
     ValidateRequest<F, PaymentsIncrementalAuthorizationRequest, Ctx>
     for PaymentIncrementalAuthorization
 {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
         request: &PaymentsIncrementalAuthorizationRequest,
@@ -290,7 +290,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 impl<F: Clone + Send, Ctx: PaymentMethodRetrieve>
     Domain<F, PaymentsIncrementalAuthorizationRequest, Ctx> for PaymentIncrementalAuthorization
 {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
         _db: &dyn StorageInterface,
@@ -308,10 +308,10 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve>
         Ok((Box::new(self), None))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn make_pm_data<'a>(
         &'a self,
-        _state: &'a AppState,
+        _state: &'a SessionState,
         _payment_data: &mut payments::PaymentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
         _merchant_key_store: &domain::MerchantKeyStore,
@@ -327,7 +327,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve>
     async fn get_connector<'a>(
         &'a self,
         _merchant_account: &domain::MerchantAccount,
-        state: &AppState,
+        state: &SessionState,
         _request: &PaymentsIncrementalAuthorizationRequest,
         _payment_intent: &storage::PaymentIntent,
         _merchant_key_store: &domain::MerchantKeyStore,
@@ -335,10 +335,10 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve>
         helpers::get_connector_default(state, None).await
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
-        _state: &AppState,
+        _state: &SessionState,
         _merchant_account: &domain::MerchantAccount,
         _payment_data: &mut payments::PaymentData<F>,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {

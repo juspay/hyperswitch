@@ -11,7 +11,10 @@ use super::{
     consts, errors,
     types::{self, GetPaymentMethodDetails},
 };
-use crate::{configs::settings, routes::AppState};
+use crate::{
+    configs::settings,
+    routes::SessionState,
+};
 
 pub async fn tokio_mock_sleep(delay: u64, tolerance: u64) {
     let mut rng = rand::thread_rng();
@@ -26,7 +29,7 @@ pub async fn tokio_mock_sleep(delay: u64, tolerance: u64) {
 }
 
 pub async fn store_data_in_redis(
-    state: &AppState,
+    state: &SessionState,
     key: String,
     data: impl serde::Serialize + Debug,
     ttl: i64,
@@ -46,7 +49,7 @@ pub async fn store_data_in_redis(
 }
 
 pub async fn get_payment_data_from_payment_id(
-    state: &AppState,
+    state: &SessionState,
     payment_id: String,
 ) -> types::DummyConnectorResult<types::DummyConnectorPaymentData> {
     let redis_conn = state
@@ -65,7 +68,7 @@ pub async fn get_payment_data_from_payment_id(
 }
 
 pub async fn get_payment_data_by_attempt_id(
-    state: &AppState,
+    state: &SessionState,
     attempt_id: String,
 ) -> types::DummyConnectorResult<types::DummyConnectorPaymentData> {
     let redis_conn = state
@@ -336,7 +339,7 @@ impl ProcessPaymentAttempt for types::DummyConnectorPaymentMethodData {
 
 impl types::DummyConnectorPaymentData {
     pub fn process_payment_attempt(
-        state: &AppState,
+        state: &SessionState,
         payment_attempt: types::DummyConnectorPaymentAttempt,
     ) -> types::DummyConnectorResult<Self> {
         let redirect_url = format!(

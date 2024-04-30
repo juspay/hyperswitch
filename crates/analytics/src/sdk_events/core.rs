@@ -22,7 +22,7 @@ use crate::{
     AnalyticsProvider,
 };
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn sdk_events_core(
     pool: &AnalyticsProvider,
     req: SdkEventsRequest,
@@ -42,7 +42,7 @@ pub async fn sdk_events_core(
     .switch()
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn get_metrics(
     pool: &AnalyticsProvider,
     publishable_key: Option<&String>,

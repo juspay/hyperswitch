@@ -30,13 +30,17 @@ pub fn valid_business_statuses() -> Vec<&'static str> {
     vec!["Pending"]
 }
 
-#[instrument(skip_all)]
-pub async fn start_consumer<T: SchedulerAppState + 'static>(
+//#\[instrument\(skip_all)]
+pub async fn start_consumer<T: SchedulerAppState + 'static, U: SchedulerAppState + 'static, F>(
     state: &T,
     settings: sync::Arc<SchedulerSettings>,
-    workflow_selector: impl workflows::ProcessTrackerWorkflows<T> + 'static + Copy + std::fmt::Debug,
+    workflow_selector: impl workflows::ProcessTrackerWorkflows<U> + 'static + Copy + std::fmt::Debug,
     (tx, mut rx): (mpsc::Sender<()>, mpsc::Receiver<()>),
-) -> CustomResult<(), errors::ProcessTrackerError> {
+    app_state_to_session_state: F,
+) -> CustomResult<(), errors::ProcessTrackerError>
+where
+    F: Fn(&T, &str) -> U,
+{
     use std::time::Duration;
 
     use rand::distributions::{Distribution, Uniform};
@@ -77,17 +81,20 @@ pub async fn start_consumer<T: SchedulerAppState + 'static>(
                 if settings.consumer.disabled {
                     continue;
                 }
-
-                pt_utils::consumer_operation_handler(
-                    state.clone(),
-                    settings.clone(),
-                    |error| {
-                        logger::error!(?error, "Failed to perform consumer operation");
-                    },
-                    sync::Arc::clone(&consumer_operation_counter),
-                    workflow_selector,
-                )
-                .await;
+                let tenants = state.get_tenants();
+                for tenant in tenants {
+                    let session_state = app_state_to_session_state(state, tenant.as_str());
+                    pt_utils::consumer_operation_handler(
+                        session_state.clone(),
+                        settings.clone(),
+                        |error| {
+                            logger::error!(?error, "Failed to perform consumer operation");
+                        },
+                        sync::Arc::clone(&consumer_operation_counter),
+                        workflow_selector,
+                    )
+                    .await;
+                }
             }
             Ok(()) | Err(mpsc::error::TryRecvError::Disconnected) => {
                 logger::debug!("Awaiting shutdown!");
@@ -115,7 +122,7 @@ pub async fn start_consumer<T: SchedulerAppState + 'static>(
     Ok(())
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn consumer_operations<T: SchedulerAppState + 'static>(
     state: &T,
     settings: &SchedulerSettings,
@@ -161,7 +168,7 @@ pub async fn consumer_operations<T: SchedulerAppState + 'static>(
     Ok(())
 }
 
-#[instrument(skip(db, redis_conn))]
+//#\[instrument\(skip(db, redis_conn))]
 pub async fn fetch_consumer_tasks(
     db: &dyn ProcessTrackerInterface,
     redis_conn: &RedisConnectionPool,
@@ -208,7 +215,7 @@ pub async fn fetch_consumer_tasks(
 }
 
 // Accept flow_options if required
-#[instrument(skip(state), fields(workflow_id))]
+//#\[instrument\(skip(state), fields(workflow_id))]
 pub async fn start_workflow<T>(
     state: T,
     process: storage::ProcessTracker,
@@ -220,7 +227,6 @@ where
 {
     tracing::Span::current().record("workflow_id", Uuid::new_v4().to_string());
     logger::info!(pt.name=?process.name, pt.id=%process.id);
-
     let res = workflow_selector
         .trigger_workflow(&state.clone(), process.clone())
         .await
@@ -232,7 +238,7 @@ where
     res
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn consumer_error_handler(
     state: &(dyn SchedulerInterface + 'static),
     process: storage::ProcessTracker,

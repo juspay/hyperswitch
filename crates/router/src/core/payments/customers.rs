@@ -6,14 +6,14 @@ use crate::{
         payments,
     },
     logger,
-    routes::{metrics, AppState},
+    routes::{metrics, SessionState},
     services,
     types::{self, api, domain, storage},
 };
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn create_connector_customer<F: Clone, T: Clone>(
-    state: &AppState,
+    state: &SessionState,
     connector: &api::ConnectorData,
     router_data: &types::RouterData<F, T, types::PaymentsResponseData>,
     customer_request_data: types::ConnectorCustomerData,
@@ -88,7 +88,7 @@ pub fn get_connector_customer_details_if_present<'a>(
 }
 
 pub fn should_call_connector_create_customer<'a>(
-    state: &AppState,
+    state: &SessionState,
     connector: &api::ConnectorData,
     customer: &'a Option<domain::Customer>,
     connector_label: &str,
@@ -111,7 +111,7 @@ pub fn should_call_connector_create_customer<'a>(
     }
 }
 
-#[instrument]
+//#[instrument]
 pub async fn update_connector_customer_in_customers(
     connector_label: &str,
     customer: Option<&domain::Customer>,

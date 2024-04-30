@@ -32,7 +32,7 @@ pub trait BlocklistLookupInterface {
 
 #[async_trait::async_trait]
 impl BlocklistLookupInterface for Store {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn insert_blocklist_lookup_entry(
         &self,
         blocklist_lookup_entry: storage::BlocklistLookupNew,
@@ -44,7 +44,7 @@ impl BlocklistLookupInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_blocklist_lookup_entry_by_merchant_id_fingerprint(
         &self,
         merchant_id: &str,
@@ -56,7 +56,7 @@ impl BlocklistLookupInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn delete_blocklist_lookup_entry_by_merchant_id_fingerprint(
         &self,
         merchant_id: &str,
@@ -71,7 +71,7 @@ impl BlocklistLookupInterface for Store {
 
 #[async_trait::async_trait]
 impl BlocklistLookupInterface for MockDb {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn insert_blocklist_lookup_entry(
         &self,
         _blocklist_lookup_entry: storage::BlocklistLookupNew,
@@ -98,7 +98,7 @@ impl BlocklistLookupInterface for MockDb {
 
 #[async_trait::async_trait]
 impl BlocklistLookupInterface for KafkaStore {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn insert_blocklist_lookup_entry(
         &self,
         blocklist_lookup_entry: storage::BlocklistLookupNew,
@@ -108,7 +108,7 @@ impl BlocklistLookupInterface for KafkaStore {
             .await
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_blocklist_lookup_entry_by_merchant_id_fingerprint(
         &self,
         merchant_id: &str,
@@ -119,7 +119,7 @@ impl BlocklistLookupInterface for KafkaStore {
             .await
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn delete_blocklist_lookup_entry_by_merchant_id_fingerprint(
         &self,
         merchant_id: &str,

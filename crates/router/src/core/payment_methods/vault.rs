@@ -689,9 +689,9 @@ pub struct MockTokenizeDBValue {
 pub struct Vault;
 
 impl Vault {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     pub async fn get_payment_method_data_from_locker(
-        state: &routes::AppState,
+        state: &routes::SessionState,
         lookup_key: &str,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(Option<api::PaymentMethodData>, SupplementaryVaultData)> {
@@ -705,9 +705,9 @@ impl Vault {
         Ok((Some(payment_method), customer_id))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     pub async fn store_payment_method_data_in_locker(
-        state: &routes::AppState,
+        state: &routes::SessionState,
         token_id: Option<String>,
         payment_method: &api::PaymentMethodData,
         customer_id: Option<String>,
@@ -740,9 +740,9 @@ impl Vault {
     }
 
     #[cfg(feature = "payouts")]
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     pub async fn get_payout_method_data_from_temporary_locker(
-        state: &routes::AppState,
+        state: &routes::SessionState,
         lookup_key: &str,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(Option<api::PayoutMethodData>, SupplementaryVaultData)> {
@@ -757,9 +757,9 @@ impl Vault {
     }
 
     #[cfg(feature = "payouts")]
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     pub async fn store_payout_method_data_in_locker(
-        state: &routes::AppState,
+        state: &routes::SessionState,
         token_id: Option<String>,
         payout_method: &api::PayoutMethodData,
         customer_id: Option<String>,
@@ -791,9 +791,9 @@ impl Vault {
         Ok(lookup_key)
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     pub async fn delete_locker_payment_method_by_lookup_key(
-        state: &routes::AppState,
+        state: &routes::SessionState,
         lookup_key: &Option<String>,
     ) {
         if let Some(lookup_key) = lookup_key {
@@ -813,9 +813,9 @@ fn get_redis_locker_key(lookup_key: &str) -> String {
     format!("{}_{}", consts::LOCKER_REDIS_PREFIX, lookup_key)
 }
 
-#[instrument(skip(state, value1, value2))]
+//#\[instrument\(skip(state, value1, value2))]
 pub async fn create_tokenize(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     value1: String,
     value2: Option<String>,
     lookup_key: String,
@@ -878,9 +878,9 @@ pub async fn create_tokenize(
     }
 }
 
-#[instrument(skip(state))]
+//#\[instrument\(skip(state))]
 pub async fn get_tokenized_data(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     lookup_key: &str,
     _should_get_value2: bool,
     encryption_key: &masking::Secret<Vec<u8>>,
@@ -941,8 +941,11 @@ pub async fn get_tokenized_data(
     }
 }
 
-#[instrument(skip(state))]
-pub async fn delete_tokenized_data(state: &routes::AppState, lookup_key: &str) -> RouterResult<()> {
+//#\[instrument\(skip(state))]
+pub async fn delete_tokenized_data(
+    state: &routes::SessionState,
+    lookup_key: &str,
+) -> RouterResult<()> {
     let redis_key = get_redis_locker_key(lookup_key);
     let func = || async {
         metrics::DELETED_TOKENIZED_CARD.add(&metrics::CONTEXT, 1, &[]);
@@ -1026,7 +1029,7 @@ pub async fn add_delete_tokenized_data_task(
 }
 
 pub async fn start_tokenize_data_workflow(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     tokenize_tracker: &storage::ProcessTracker,
 ) -> Result<(), errors::ProcessTrackerError> {
     let db = &*state.store;

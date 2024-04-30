@@ -45,7 +45,7 @@ pub trait BlocklistInterface {
 
 #[async_trait::async_trait]
 impl BlocklistInterface for Store {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn insert_blocklist_entry(
         &self,
         pm_blocklist: storage::BlocklistNew,
@@ -57,7 +57,7 @@ impl BlocklistInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_blocklist_entry_by_merchant_id_fingerprint_id(
         &self,
         merchant_id: &str,
@@ -69,7 +69,7 @@ impl BlocklistInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn list_blocklist_entries_by_merchant_id(
         &self,
         merchant_id: &str,
@@ -80,7 +80,7 @@ impl BlocklistInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn list_blocklist_entries_by_merchant_id_data_kind(
         &self,
         merchant_id: &str,
@@ -100,7 +100,7 @@ impl BlocklistInterface for Store {
         .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn delete_blocklist_entry_by_merchant_id_fingerprint_id(
         &self,
         merchant_id: &str,
@@ -115,7 +115,7 @@ impl BlocklistInterface for Store {
 
 #[async_trait::async_trait]
 impl BlocklistInterface for MockDb {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn insert_blocklist_entry(
         &self,
         _pm_blocklist: storage::BlocklistNew,
@@ -159,7 +159,7 @@ impl BlocklistInterface for MockDb {
 
 #[async_trait::async_trait]
 impl BlocklistInterface for KafkaStore {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn insert_blocklist_entry(
         &self,
         pm_blocklist: storage::BlocklistNew,
@@ -167,7 +167,7 @@ impl BlocklistInterface for KafkaStore {
         self.diesel_store.insert_blocklist_entry(pm_blocklist).await
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_blocklist_entry_by_merchant_id_fingerprint_id(
         &self,
         merchant_id: &str,
@@ -178,7 +178,7 @@ impl BlocklistInterface for KafkaStore {
             .await
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn delete_blocklist_entry_by_merchant_id_fingerprint_id(
         &self,
         merchant_id: &str,
@@ -189,7 +189,7 @@ impl BlocklistInterface for KafkaStore {
             .await
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn list_blocklist_entries_by_merchant_id_data_kind(
         &self,
         merchant_id: &str,
@@ -202,7 +202,7 @@ impl BlocklistInterface for KafkaStore {
             .await
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn list_blocklist_entries_by_merchant_id(
         &self,
         merchant_id: &str,

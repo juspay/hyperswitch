@@ -195,7 +195,7 @@ impl
     async fn execute_pretasks(
         &self,
         router_data: &mut types::TokenizationRouterData,
-        app_state: &crate::routes::AppState,
+        app_state: &crate::routes::SessionState,
     ) -> CustomResult<(), errors::ConnectorError> {
         let integ: Box<
             &(dyn ConnectorIntegration<

@@ -26,7 +26,7 @@ use crate::{
     AnalyticsProvider,
 };
 
-#[instrument(skip_all)]
+////#\[instrument\(skip_all)]
 pub async fn api_events_core(
     pool: &AnalyticsProvider,
     req: ApiLogsRequest,
@@ -88,7 +88,7 @@ pub async fn get_filters(
     Ok(res)
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn get_api_event_metrics(
     pool: &AnalyticsProvider,
     merchant_id: &str,

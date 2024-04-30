@@ -11,17 +11,17 @@ use crate::consts::{EMAIL_TOKEN_BLACKLIST_PREFIX, EMAIL_TOKEN_TIME_IN_SECS};
 use crate::{
     consts::{JWT_TOKEN_TIME_IN_SECS, ROLE_BLACKLIST_PREFIX, USER_BLACKLIST_PREFIX},
     core::errors::{ApiErrorResponse, RouterResult},
-    routes::app::AppStateInfo,
+    routes::app::SessionStateInfo,
 };
 #[cfg(feature = "olap")]
 use crate::{
     core::errors::{UserErrors, UserResult},
-    routes::AppState,
+    routes::SessionState,
     services::authorization as authz,
 };
 
 #[cfg(feature = "olap")]
-pub async fn insert_user_in_blacklist(state: &AppState, user_id: &str) -> UserResult<()> {
+pub async fn insert_user_in_blacklist(state: &SessionState, user_id: &str) -> UserResult<()> {
     let user_blacklist_key = format!("{}{}", USER_BLACKLIST_PREFIX, user_id);
     let expiry =
         expiry_to_i64(JWT_TOKEN_TIME_IN_SECS).change_context(UserErrors::InternalServerError)?;
@@ -37,7 +37,7 @@ pub async fn insert_user_in_blacklist(state: &AppState, user_id: &str) -> UserRe
 }
 
 #[cfg(feature = "olap")]
-pub async fn insert_role_in_blacklist(state: &AppState, role_id: &str) -> UserResult<()> {
+pub async fn insert_role_in_blacklist(state: &SessionState, role_id: &str) -> UserResult<()> {
     let role_blacklist_key = format!("{}{}", ROLE_BLACKLIST_PREFIX, role_id);
     let expiry =
         expiry_to_i64(JWT_TOKEN_TIME_IN_SECS).change_context(UserErrors::InternalServerError)?;
@@ -56,7 +56,7 @@ pub async fn insert_role_in_blacklist(state: &AppState, role_id: &str) -> UserRe
 }
 
 #[cfg(feature = "olap")]
-async fn invalidate_role_cache(state: &AppState, role_id: &str) -> RouterResult<()> {
+async fn invalidate_role_cache(state: &SessionState, role_id: &str) -> RouterResult<()> {
     let redis_conn = get_redis_connection(state)?;
     redis_conn
         .delete_key(authz::get_cache_key_from_role_id(role_id).as_str())
@@ -65,7 +65,7 @@ async fn invalidate_role_cache(state: &AppState, role_id: &str) -> RouterResult<
         .change_context(ApiErrorResponse::InternalServerError)
 }
 
-pub async fn check_user_in_blacklist<A: AppStateInfo>(
+pub async fn check_user_in_blacklist<A: SessionStateInfo>(
     state: &A,
     user_id: &str,
     token_expiry: u64,
@@ -80,7 +80,7 @@ pub async fn check_user_in_blacklist<A: AppStateInfo>(
         .map(|timestamp| timestamp.map_or(false, |timestamp| timestamp > token_issued_at))
 }
 
-pub async fn check_role_in_blacklist<A: AppStateInfo>(
+pub async fn check_role_in_blacklist<A: SessionStateInfo>(
     state: &A,
     role_id: &str,
     token_expiry: u64,
@@ -96,7 +96,7 @@ pub async fn check_role_in_blacklist<A: AppStateInfo>(
 }
 
 #[cfg(feature = "email")]
-pub async fn insert_email_token_in_blacklist(state: &AppState, token: &str) -> UserResult<()> {
+pub async fn insert_email_token_in_blacklist(state: &SessionState, token: &str) -> UserResult<()> {
     let redis_conn = get_redis_connection(state).change_context(UserErrors::InternalServerError)?;
     let blacklist_key = format!("{}{token}", EMAIL_TOKEN_BLACKLIST_PREFIX);
     let expiry =
@@ -108,7 +108,7 @@ pub async fn insert_email_token_in_blacklist(state: &AppState, token: &str) -> U
 }
 
 #[cfg(feature = "email")]
-pub async fn check_email_token_in_blacklist(state: &AppState, token: &str) -> UserResult<()> {
+pub async fn check_email_token_in_blacklist(state: &SessionState, token: &str) -> UserResult<()> {
     let redis_conn = get_redis_connection(state).change_context(UserErrors::InternalServerError)?;
     let blacklist_key = format!("{}{token}", EMAIL_TOKEN_BLACKLIST_PREFIX);
     let key_exists = redis_conn
@@ -122,7 +122,7 @@ pub async fn check_email_token_in_blacklist(state: &AppState, token: &str) -> Us
     Ok(())
 }
 
-fn get_redis_connection<A: AppStateInfo>(state: &A) -> RouterResult<Arc<RedisConnectionPool>> {
+fn get_redis_connection<A: SessionStateInfo>(state: &A) -> RouterResult<Arc<RedisConnectionPool>> {
     state
         .store()
         .get_redis_conn()
@@ -138,14 +138,14 @@ fn expiry_to_i64(expiry: u64) -> RouterResult<i64> {
 pub trait BlackList {
     async fn check_in_blacklist<A>(&self, state: &A) -> RouterResult<bool>
     where
-        A: AppStateInfo + Sync;
+        A: SessionStateInfo + Sync;
 }
 
 #[async_trait::async_trait]
 impl BlackList for AuthToken {
     async fn check_in_blacklist<A>(&self, state: &A) -> RouterResult<bool>
     where
-        A: AppStateInfo + Sync,
+        A: SessionStateInfo + Sync,
     {
         Ok(
             check_user_in_blacklist(state, &self.user_id, self.exp).await?
@@ -158,7 +158,7 @@ impl BlackList for AuthToken {
 impl BlackList for UserAuthToken {
     async fn check_in_blacklist<A>(&self, state: &A) -> RouterResult<bool>
     where
-        A: AppStateInfo + Sync,
+        A: SessionStateInfo + Sync,
     {
         check_user_in_blacklist(state, &self.user_id, self.exp).await
     }

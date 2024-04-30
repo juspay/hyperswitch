@@ -8,7 +8,7 @@ use crate::{
     services::{api, authentication as auth, authorization::permissions::Permission},
 };
 
-#[instrument(skip_all, fields(flow = ?Flow::Verification))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::Verification))]
 pub async fn apple_pay_merchant_registration(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -39,7 +39,7 @@ pub async fn apple_pay_merchant_registration(
     .await
 }
 
-#[instrument(skip_all, fields(flow = ?Flow::Verification))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::Verification))]
 pub async fn retrieve_apple_pay_verified_domains(
     state: web::Data<AppState>,
     req: HttpRequest,

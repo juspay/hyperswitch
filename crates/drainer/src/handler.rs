@@ -145,7 +145,7 @@ pub async fn redis_error_receiver(rx: oneshot::Receiver<()>, shutdown_channel: m
     }
 }
 
-#[router_env::instrument(skip_all)]
+//#[router_env::instrument(skip_all)]
 async fn drainer_handler(
     store: Arc<Store>,
     stream_index: u8,
@@ -179,7 +179,7 @@ async fn drainer_handler(
     })
 }
 
-#[instrument(skip_all, fields(global_id, request_id, session_id))]
+//#\[instrument\(skip_all, fields(global_id, request_id, session_id))]
 async fn drainer(
     store: Arc<Store>,
     max_read_count: u64,

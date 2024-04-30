@@ -56,7 +56,7 @@ pub trait DashboardMetadataInterface {
 
 #[async_trait::async_trait]
 impl DashboardMetadataInterface for Store {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn insert_metadata(
         &self,
         metadata: storage::DashboardMetadataNew,
@@ -68,7 +68,7 @@ impl DashboardMetadataInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn update_metadata(
         &self,
         user_id: Option<String>,
@@ -90,7 +90,7 @@ impl DashboardMetadataInterface for Store {
         .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_user_scoped_dashboard_metadata(
         &self,
         user_id: &str,
@@ -110,7 +110,7 @@ impl DashboardMetadataInterface for Store {
         .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_merchant_scoped_dashboard_metadata(
         &self,
         merchant_id: &str,
@@ -128,7 +128,7 @@ impl DashboardMetadataInterface for Store {
         .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn delete_all_user_scoped_dashboard_metadata_by_merchant_id(
         &self,
         user_id: &str,
@@ -144,7 +144,7 @@ impl DashboardMetadataInterface for Store {
         .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn delete_user_scoped_dashboard_metadata_by_merchant_id_data_key(
         &self,
         user_id: &str,

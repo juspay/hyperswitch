@@ -23,7 +23,7 @@ use crate::{
     operation_id = "Create a Merchant Account",
     security(("admin_api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountCreate))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::MerchantsAccountCreate))]
 pub async fn merchant_account_create(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -56,7 +56,7 @@ pub async fn merchant_account_create(
     operation_id = "Retrieve a Merchant Account",
     security(("admin_api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountRetrieve))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::MerchantsAccountRetrieve))]
 pub async fn retrieve_merchant_account(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -89,7 +89,7 @@ pub async fn retrieve_merchant_account(
 }
 
 #[cfg(feature = "olap")]
-#[instrument(skip_all, fields(flow = ?Flow::MerchantAccountList))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::MerchantAccountList))]
 pub async fn merchant_account_list(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -125,7 +125,7 @@ pub async fn merchant_account_list(
     operation_id = "Update a Merchant Account",
     security(("admin_api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountUpdate))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::MerchantsAccountUpdate))]
 pub async fn update_merchant_account(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -168,7 +168,7 @@ pub async fn update_merchant_account(
     operation_id = "Delete a Merchant Account",
     security(("admin_api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountDelete))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::MerchantsAccountDelete))]
 // #[delete("/{id}")]
 pub async fn delete_merchant_account(
     state: web::Data<AppState>,
@@ -205,7 +205,7 @@ pub async fn delete_merchant_account(
     operation_id = "Create a Merchant Connector",
     security(("admin_api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsCreate))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::MerchantConnectorsCreate))]
 pub async fn payment_connector_create(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -251,7 +251,7 @@ pub async fn payment_connector_create(
     operation_id = "Retrieve a Merchant Connector",
     security(("admin_api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsRetrieve))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::MerchantConnectorsRetrieve))]
 pub async fn payment_connector_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -303,7 +303,7 @@ pub async fn payment_connector_retrieve(
     operation_id = "List all Merchant Connectors",
     security(("admin_api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsList))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::MerchantConnectorsList))]
 pub async fn payment_connector_list(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -350,7 +350,7 @@ pub async fn payment_connector_list(
    operation_id = "Update a Merchant Connector",
    security(("admin_api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsUpdate))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::MerchantConnectorsUpdate))]
 pub async fn payment_connector_update(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -399,7 +399,7 @@ pub async fn payment_connector_update(
     operation_id = "Delete a Merchant Connector",
     security(("admin_api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsDelete))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::MerchantConnectorsDelete))]
 pub async fn payment_connector_delete(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -436,7 +436,7 @@ pub async fn payment_connector_delete(
 /// Merchant Account - Toggle KV
 ///
 /// Toggle KV mode for the Merchant Account
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn merchant_account_toggle_kv(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -458,7 +458,7 @@ pub async fn merchant_account_toggle_kv(
     )
     .await
 }
-#[instrument(skip_all, fields(flow = ?Flow::BusinessProfileCreate))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::BusinessProfileCreate))]
 pub async fn business_profile_create(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -487,7 +487,7 @@ pub async fn business_profile_create(
     ))
     .await
 }
-#[instrument(skip_all, fields(flow = ?Flow::BusinessProfileRetrieve))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::BusinessProfileRetrieve))]
 pub async fn business_profile_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -514,7 +514,7 @@ pub async fn business_profile_retrieve(
     )
     .await
 }
-#[instrument(skip_all, fields(flow = ?Flow::BusinessProfileUpdate))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::BusinessProfileUpdate))]
 pub async fn business_profile_update(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -542,7 +542,7 @@ pub async fn business_profile_update(
     ))
     .await
 }
-#[instrument(skip_all, fields(flow = ?Flow::BusinessProfileDelete))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::BusinessProfileDelete))]
 pub async fn business_profile_delete(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -562,7 +562,7 @@ pub async fn business_profile_delete(
     )
     .await
 }
-#[instrument(skip_all, fields(flow = ?Flow::BusinessProfileList))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::BusinessProfileList))]
 pub async fn business_profiles_list(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -592,7 +592,7 @@ pub async fn business_profiles_list(
 /// Merchant Account - KV Status
 ///
 /// Toggle KV mode for the Merchant Account
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn merchant_account_kv_status(
     state: web::Data<AppState>,
     req: HttpRequest,

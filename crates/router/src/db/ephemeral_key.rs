@@ -40,7 +40,7 @@ mod storage {
 
     #[async_trait::async_trait]
     impl EphemeralKeyInterface for Store {
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn create_ephemeral_key(
             &self,
             new: EphemeralKeyNew,
@@ -94,7 +94,7 @@ mod storage {
                 Err(er) => Err(er).change_context(errors::StorageError::KVError),
             }
         }
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn get_ephemeral_key(
             &self,
             key: &str,

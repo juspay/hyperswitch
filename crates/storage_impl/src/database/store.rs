@@ -13,7 +13,7 @@ pub type PgPooledConn = async_bb8_diesel::Connection<PgConnection>;
 #[async_trait::async_trait]
 pub trait DatabaseStore: Clone + Send + Sync {
     type Config: Send;
-    async fn new(config: Self::Config, test_transaction: bool) -> StorageResult<Self>;
+    async fn new(config: Self::Config, schema: &str, test_transaction: bool) -> StorageResult<Self>;
     fn get_master_pool(&self) -> &PgPool;
     fn get_replica_pool(&self) -> &PgPool;
 }
@@ -26,9 +26,9 @@ pub struct Store {
 #[async_trait::async_trait]
 impl DatabaseStore for Store {
     type Config = Database;
-    async fn new(config: Database, test_transaction: bool) -> StorageResult<Self> {
+    async fn new(config: Database, schema: &str, test_transaction: bool) -> StorageResult<Self> {
         Ok(Self {
-            master_pool: diesel_make_pg_pool(&config, test_transaction).await?,
+            master_pool: diesel_make_pg_pool(&config, schema, test_transaction).await?,
         })
     }
 
@@ -50,12 +50,12 @@ pub struct ReplicaStore {
 #[async_trait::async_trait]
 impl DatabaseStore for ReplicaStore {
     type Config = (Database, Database);
-    async fn new(config: (Database, Database), test_transaction: bool) -> StorageResult<Self> {
+    async fn new(config: (Database, Database), schema: &str, test_transaction: bool) -> StorageResult<Self> {
         let (master_config, replica_config) = config;
-        let master_pool = diesel_make_pg_pool(&master_config, test_transaction)
+        let master_pool = diesel_make_pg_pool(&master_config, schema, test_transaction)
             .await
             .attach_printable("failed to create master pool")?;
-        let replica_pool = diesel_make_pg_pool(&replica_config, test_transaction)
+        let replica_pool = diesel_make_pg_pool(&replica_config, schema, test_transaction)
             .await
             .attach_printable("failed to create replica pool")?;
         Ok(Self {
@@ -75,15 +75,18 @@ impl DatabaseStore for ReplicaStore {
 
 pub async fn diesel_make_pg_pool(
     database: &Database,
+    schema: &str,
     test_transaction: bool,
 ) -> StorageResult<PgPool> {
     let database_url = format!(
-        "postgres://{}:{}@{}:{}/{}",
+        "postgres://{}:{}@{}:{}/{}?application_name={}&options=-c search_path%3D{}",
         database.username,
         database.password.peek(),
         database.host,
         database.port,
-        database.dbname
+        database.dbname,
+        schema,
+        schema,
     );
     let manager = async_bb8_diesel::ConnectionManager::<PgConnection>::new(database_url);
     let mut pool = bb8::Pool::builder()

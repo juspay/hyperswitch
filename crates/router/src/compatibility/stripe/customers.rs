@@ -11,7 +11,7 @@ use crate::{
     types::api::{customers as customer_types, payment_methods},
 };
 
-#[instrument(skip_all, fields(flow = ?Flow::CustomersCreate))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::CustomersCreate))]
 pub async fn customer_create(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -51,7 +51,7 @@ pub async fn customer_create(
     ))
     .await
 }
-#[instrument(skip_all, fields(flow = ?Flow::CustomersRetrieve))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::CustomersRetrieve))]
 pub async fn customer_retrieve(
     state: web::Data<routes::AppState>,
     req: HttpRequest,
@@ -85,7 +85,7 @@ pub async fn customer_retrieve(
     ))
     .await
 }
-#[instrument(skip_all, fields(flow = ?Flow::CustomersUpdate))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::CustomersUpdate))]
 pub async fn customer_update(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -128,7 +128,7 @@ pub async fn customer_update(
     ))
     .await
 }
-#[instrument(skip_all, fields(flow = ?Flow::CustomersDelete))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::CustomersDelete))]
 pub async fn customer_delete(
     state: web::Data<routes::AppState>,
     req: HttpRequest,
@@ -154,7 +154,7 @@ pub async fn customer_delete(
         state.into_inner(),
         &req,
         payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             customers::delete_customer(state, auth.merchant_account, req, auth.key_store)
         },
         &auth::ApiKeyAuth,
@@ -162,7 +162,7 @@ pub async fn customer_delete(
     ))
     .await
 }
-#[instrument(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
 pub async fn list_customer_payment_method_api(
     state: web::Data<routes::AppState>,
     req: HttpRequest,

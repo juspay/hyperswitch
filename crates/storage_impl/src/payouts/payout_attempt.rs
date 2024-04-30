@@ -36,7 +36,7 @@ use crate::{
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn insert_payout_attempt(
         &self,
         new_payout_attempt: PayoutAttemptNew,
@@ -128,7 +128,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
         }
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn update_payout_attempt(
         &self,
         this: &PayoutAttempt,
@@ -188,7 +188,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
         }
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_payout_attempt_by_merchant_id_payout_attempt_id(
         &self,
         merchant_id: &str,
@@ -246,7 +246,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
         }
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn get_filters_for_payouts(
         &self,
         payouts: &[Payouts],
@@ -261,7 +261,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PayoutAttemptInterface for crate::RouterStore<T> {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn insert_payout_attempt(
         &self,
         new: PayoutAttemptNew,
@@ -279,7 +279,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for crate::RouterStore<T> {
             .map(PayoutAttempt::from_storage_model)
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn update_payout_attempt(
         &self,
         this: &PayoutAttempt,
@@ -299,7 +299,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for crate::RouterStore<T> {
             .map(PayoutAttempt::from_storage_model)
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_payout_attempt_by_merchant_id_payout_attempt_id(
         &self,
         merchant_id: &str,
@@ -320,7 +320,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for crate::RouterStore<T> {
         })
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn get_filters_for_payouts(
         &self,
         payouts: &[Payouts],

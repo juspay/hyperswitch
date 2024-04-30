@@ -6,7 +6,10 @@ use redis_interface as redis;
 use router_env::{instrument, logger, tracing};
 
 use super::errors::{self, RouterResult};
-use crate::routes::{app::AppStateInfo, lock_utils};
+use crate::routes::{
+    app::SessionStateInfo,
+    lock_utils,
+};
 
 pub const API_LOCK_PREFIX: &str = "API_LOCK";
 
@@ -47,10 +50,10 @@ impl LockingInput {
 }
 
 impl LockAction {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     pub async fn perform_locking_action<A>(self, state: &A, merchant_id: String) -> RouterResult<()>
     where
-        A: AppStateInfo,
+        A: SessionStateInfo,
     {
         match self {
             Self::Hold { input } => {
@@ -108,10 +111,10 @@ impl LockAction {
         }
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     pub async fn free_lock_action<A>(self, state: &A, merchant_id: String) -> RouterResult<()>
     where
-        A: AppStateInfo,
+        A: SessionStateInfo,
     {
         match self {
             Self::Hold { input } => {

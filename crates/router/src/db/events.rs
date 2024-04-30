@@ -93,7 +93,7 @@ where
 
 #[async_trait::async_trait]
 impl EventInterface for Store {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn insert_event(
         &self,
         event: domain::Event,
@@ -112,7 +112,7 @@ impl EventInterface for Store {
             .change_context(errors::StorageError::DecryptionError)
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_event_by_merchant_id_event_id(
         &self,
         merchant_id: &str,
@@ -128,7 +128,7 @@ impl EventInterface for Store {
             .change_context(errors::StorageError::DecryptionError)
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn list_initial_events_by_merchant_id_primary_object_id(
         &self,
         merchant_id: &str,
@@ -158,7 +158,7 @@ impl EventInterface for Store {
         .await
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn list_initial_events_by_merchant_id_constraints(
         &self,
         merchant_id: &str,
@@ -194,7 +194,7 @@ impl EventInterface for Store {
         .await
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn list_events_by_merchant_id_initial_attempt_id(
         &self,
         merchant_id: &str,
@@ -224,7 +224,7 @@ impl EventInterface for Store {
         .await
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn list_initial_events_by_profile_id_primary_object_id(
         &self,
         profile_id: &str,
@@ -254,7 +254,7 @@ impl EventInterface for Store {
         .await
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn list_initial_events_by_profile_id_constraints(
         &self,
         profile_id: &str,
@@ -290,7 +290,7 @@ impl EventInterface for Store {
         .await
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn list_events_by_profile_id_initial_attempt_id(
         &self,
         profile_id: &str,
@@ -316,7 +316,7 @@ impl EventInterface for Store {
             .await
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn update_event_by_merchant_id_event_id(
         &self,
         merchant_id: &str,

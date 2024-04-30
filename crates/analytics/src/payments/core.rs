@@ -41,7 +41,7 @@ pub enum TaskType {
     ),
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn get_metrics(
     pool: &AnalyticsProvider,
     merchant_id: &str,

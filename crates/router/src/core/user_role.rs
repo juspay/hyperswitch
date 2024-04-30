@@ -7,7 +7,7 @@ use router_env::logger;
 use crate::{
     consts,
     core::errors::{StorageErrorExt, UserErrors, UserResponse},
-    routes::{app::ReqState, AppState},
+    routes::{app::ReqState, SessionState},
     services::{
         authentication as auth,
         authorization::{info, roles},
@@ -21,7 +21,7 @@ pub mod role;
 
 // TODO: To be deprecated once groups are stable
 pub async fn get_authorization_info_with_modules(
-    _state: AppState,
+    _state: SessionState,
 ) -> UserResponse<user_role_api::AuthorizationInfoResponse> {
     Ok(ApplicationResponse::Json(
         user_role_api::AuthorizationInfoResponse(
@@ -34,7 +34,7 @@ pub async fn get_authorization_info_with_modules(
 }
 
 pub async fn get_authorization_info_with_groups(
-    _state: AppState,
+    _state: SessionState,
 ) -> UserResponse<user_role_api::AuthorizationInfoResponse> {
     Ok(ApplicationResponse::Json(
         user_role_api::AuthorizationInfoResponse(
@@ -47,7 +47,7 @@ pub async fn get_authorization_info_with_groups(
 }
 
 pub async fn update_user_role(
-    state: AppState,
+    state: SessionState,
     user_from_token: auth::UserFromToken,
     req: user_role_api::UpdateUserRoleRequest,
     _req_state: ReqState,
@@ -118,7 +118,7 @@ pub async fn update_user_role(
 }
 
 pub async fn transfer_org_ownership(
-    state: AppState,
+    state: SessionState,
     user_from_token: auth::UserFromToken,
     req: user_role_api::TransferOrgOwnershipRequest,
     _req_state: ReqState,
@@ -170,7 +170,7 @@ pub async fn transfer_org_ownership(
 }
 
 pub async fn accept_invitation(
-    state: AppState,
+    state: SessionState,
     user_token: auth::UserWithoutMerchantFromToken,
     req: user_role_api::AcceptInvitationRequest,
     _req_state: ReqState,
@@ -223,7 +223,7 @@ pub async fn accept_invitation(
 }
 
 pub async fn delete_user_role(
-    state: AppState,
+    state: SessionState,
     user_from_token: auth::UserFromToken,
     request: user_role_api::DeleteUserRoleRequest,
     _req_state: ReqState,

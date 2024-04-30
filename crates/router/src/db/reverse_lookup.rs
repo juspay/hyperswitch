@@ -38,7 +38,7 @@ mod storage {
 
     #[async_trait::async_trait]
     impl ReverseLookupInterface for Store {
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn insert_reverse_lookup(
             &self,
             new: ReverseLookupNew,
@@ -50,7 +50,7 @@ mod storage {
                 .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn get_lookup_by_lookup_id(
             &self,
             id: &str,
@@ -85,7 +85,7 @@ mod storage {
 
     #[async_trait::async_trait]
     impl ReverseLookupInterface for Store {
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn insert_reverse_lookup(
             &self,
             new: ReverseLookupNew,
@@ -138,7 +138,7 @@ mod storage {
             }
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn get_lookup_by_lookup_id(
             &self,
             id: &str,

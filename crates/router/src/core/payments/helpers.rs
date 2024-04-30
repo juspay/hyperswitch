@@ -43,7 +43,7 @@ use crate::{
         pm_auth::retrieve_payment_method_from_auth_service,
     },
     db::StorageInterface,
-    routes::{metrics, payment_methods, AppState},
+    routes::{metrics, payment_methods, SessionState},
     services,
     types::{
         self as core_types,
@@ -101,7 +101,7 @@ pub fn filter_mca_based_on_business_profile(
     }
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn create_or_update_address_for_payment_by_request(
     db: &dyn StorageInterface,
@@ -261,7 +261,7 @@ pub async fn create_or_update_address_for_payment_by_request(
     })
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn create_or_find_address_for_payment_by_request(
     db: &dyn StorageInterface,
@@ -412,7 +412,7 @@ pub async fn get_address_by_id(
 }
 
 pub async fn get_token_pm_type_mandate_details(
-    state: &AppState,
+    state: &SessionState,
     request: &api::PaymentsRequest,
     mandate_type: Option<api::MandateTransactionType>,
     merchant_account: &domain::MerchantAccount,
@@ -551,7 +551,7 @@ pub async fn get_token_pm_type_mandate_details(
 }
 
 pub async fn get_token_for_recurring_mandate(
-    state: &AppState,
+    state: &SessionState,
     req: &api::PaymentsRequest,
     merchant_account: &domain::MerchantAccount,
     merchant_key_store: &domain::MerchantKeyStore,
@@ -671,7 +671,7 @@ pub async fn get_token_for_recurring_mandate(
     }
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 /// Check weather the merchant id in the request
 /// and merchant id in the merchant account are same.
 pub fn validate_merchant_id(
@@ -692,7 +692,7 @@ pub fn validate_merchant_id(
     })
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub fn validate_request_amount_and_amount_to_capture(
     op_amount: Option<api::Amount>,
     op_amount_to_capture: Option<i64>,
@@ -731,7 +731,7 @@ pub fn validate_request_amount_and_amount_to_capture(
 }
 
 /// if capture method = automatic, amount_to_capture(if provided) must be equal to amount
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub fn validate_amount_to_capture_and_capture_method(
     payment_attempt: Option<&PaymentAttempt>,
     request: &api_models::payments::PaymentsRequest,
@@ -777,7 +777,7 @@ pub fn validate_amount_to_capture_and_capture_method(
     }
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub fn validate_card_data(
     payment_method_data: Option<api::PaymentMethodData>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -1127,7 +1127,7 @@ pub fn verify_mandate_details_for_recurring_payments(
     Ok(())
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub fn payment_attempt_status_fsm(
     payment_method_data: &Option<api::payments::PaymentMethodDataRequest>,
     confirm: Option<bool>,
@@ -1155,7 +1155,7 @@ pub fn payment_intent_status_fsm(
 }
 pub async fn add_domain_task_to_pt<Op>(
     operation: &Op,
-    state: &AppState,
+    state: &SessionState,
     payment_attempt: &PaymentAttempt,
     requeue: bool,
     schedule_time: Option<time::PrimitiveDateTime>,
@@ -1212,7 +1212,7 @@ where
     Box::new(PaymentResponse)
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub(crate) async fn get_payment_method_create_request(
     payment_method_data: Option<&domain::PaymentMethodData>,
     payment_method: Option<storage_enums::PaymentMethod>,
@@ -1379,7 +1379,7 @@ pub fn validate_customer_details_in_request(
 
 /// Get the customer details from customer field if present
 /// or from the individual fields in `PaymentsRequest`
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub fn get_customer_details_from_request(
     request: &api_models::payments::PaymentsRequest,
 ) -> CustomerDetails {
@@ -1423,7 +1423,7 @@ pub fn get_customer_details_from_request(
 }
 
 pub async fn get_connector_default(
-    _state: &AppState,
+    _state: &SessionState,
     request_connector: Option<serde_json::Value>,
 ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
     Ok(request_connector.map_or(
@@ -1432,7 +1432,7 @@ pub async fn get_connector_default(
     ))
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 #[allow(clippy::type_complexity)]
 pub async fn create_customer_if_not_exist<'a, F: Clone, R, Ctx>(
     operation: BoxedOperation<'a, F, R, Ctx>,
@@ -1604,7 +1604,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, Ctx>(
 }
 
 pub async fn retrieve_payment_method_with_temporary_token(
-    state: &AppState,
+    state: &SessionState,
     token: &str,
     payment_intent: &PaymentIntent,
     merchant_key_store: &domain::MerchantKeyStore,
@@ -1701,7 +1701,7 @@ pub async fn retrieve_payment_method_with_temporary_token(
 }
 
 pub async fn retrieve_card_with_permanent_token(
-    state: &AppState,
+    state: &SessionState,
     locker_id: &str,
     payment_method_id: &str,
     payment_intent: &PaymentIntent,
@@ -1758,7 +1758,7 @@ pub async fn retrieve_card_with_permanent_token(
 }
 
 pub async fn retrieve_payment_method_from_db_with_token_data(
-    state: &AppState,
+    state: &SessionState,
     token_data: &storage::PaymentTokenData,
     storage_scheme: storage::enums::MerchantStorageScheme,
 ) -> RouterResult<Option<storage::PaymentMethod>> {
@@ -1793,7 +1793,7 @@ pub async fn retrieve_payment_method_from_db_with_token_data(
 }
 
 pub async fn retrieve_payment_token_data(
-    state: &AppState,
+    state: &SessionState,
     token: String,
     payment_method: Option<storage_enums::PaymentMethod>,
 ) -> RouterResult<storage::PaymentTokenData> {
@@ -1844,7 +1844,7 @@ pub async fn retrieve_payment_token_data(
 
 pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
     operation: BoxedOperation<'a, F, R, Ctx>,
-    state: &'a AppState,
+    state: &'a SessionState,
     payment_data: &mut PaymentData<F>,
     merchant_key_store: &domain::MerchantKeyStore,
     customer: &Option<domain::Customer>,
@@ -1941,7 +1941,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
 }
 
 pub async fn store_in_vault_and_generate_ppmt(
-    state: &AppState,
+    state: &SessionState,
     payment_method_data: &api_models::payments::PaymentMethodData,
     payment_intent: &PaymentIntent,
     payment_attempt: &PaymentAttempt,
@@ -1977,7 +1977,7 @@ pub async fn store_in_vault_and_generate_ppmt(
 }
 
 pub async fn store_payment_method_data_in_vault(
-    state: &AppState,
+    state: &SessionState,
     payment_attempt: &PaymentAttempt,
     payment_intent: &PaymentIntent,
     payment_method: enums::PaymentMethod,
@@ -2021,7 +2021,7 @@ pub fn should_store_payment_method_data_in_vault(
         .unwrap_or(true)
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub(crate) fn validate_capture_method(
     capture_method: storage_enums::CaptureMethod,
 ) -> RouterResult<()> {
@@ -2038,7 +2038,7 @@ pub(crate) fn validate_capture_method(
     )
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub(crate) fn validate_status_with_capture_method(
     status: storage_enums::IntentStatus,
     capture_method: storage_enums::CaptureMethod,
@@ -2069,7 +2069,7 @@ pub(crate) fn validate_status_with_capture_method(
     )
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub(crate) fn validate_amount_to_capture(
     amount: i64,
     amount_to_capture: Option<i64>,
@@ -2084,7 +2084,7 @@ pub(crate) fn validate_amount_to_capture(
     )
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub(crate) fn validate_payment_method_fields_present(
     req: &api::PaymentsRequest,
 ) -> RouterResult<()> {
@@ -2455,7 +2455,7 @@ pub fn make_merchant_url_with_response(
 }
 
 pub async fn make_ephemeral_key(
-    state: AppState,
+    state: SessionState,
     customer_id: String,
     merchant_id: String,
 ) -> errors::RouterResponse<ephemeral_key::EphemeralKey> {
@@ -2477,7 +2477,7 @@ pub async fn make_ephemeral_key(
 }
 
 pub async fn delete_ephemeral_key(
-    state: AppState,
+    state: SessionState,
     ek_id: String,
 ) -> errors::RouterResponse<ephemeral_key::EphemeralKey> {
     let db = state.store.as_ref();
@@ -2713,7 +2713,7 @@ pub(crate) fn validate_payment_status_against_not_allowed_statuses(
     })
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub(crate) fn validate_pm_or_token_given(
     payment_method: &Option<api_enums::PaymentMethod>,
     payment_method_data: &Option<api::PaymentMethodData>,
@@ -3012,7 +3012,7 @@ mod tests {
 }
 
 // This function will be removed after moving this functionality to server_wrap and using cache instead of config
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn insert_merchant_connector_creds_to_config(
     db: &dyn StorageInterface,
     merchant_id: &str,
@@ -3099,9 +3099,9 @@ impl MerchantConnectorAccountType {
 
 /// Query for merchant connector account either by business label or profile id
 /// If profile_id is passed use it, or use connector_label to query merchant connector account
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn get_merchant_connector_account(
-    state: &AppState,
+    state: &SessionState,
     merchant_id: &str,
     creds_identifier: Option<String>,
     key_store: &domain::MerchantKeyStore,
@@ -3234,7 +3234,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
     }
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub fn get_attempt_type(
     payment_intent: &PaymentIntent,
     payment_attempt: &PaymentAttempt,
@@ -3441,7 +3441,7 @@ impl AttemptType {
         }
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     pub async fn modify_payment_intent_and_payment_attempt(
         &self,
         request: &api::PaymentsRequest,
@@ -3581,7 +3581,7 @@ mod test {
     }
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn get_additional_payment_data(
     pm_data: &api_models::payments::PaymentMethodData,
     db: &dyn StorageInterface,
@@ -3772,7 +3772,7 @@ impl ApplePayData {
 
     pub async fn decrypt(
         &self,
-        state: &AppState,
+        state: &SessionState,
     ) -> CustomResult<serde_json::Value, errors::ApplePayDecryptionError> {
         let merchant_id = self.merchant_id(state).await?;
         let shared_secret = self.shared_secret(state).await?;
@@ -3785,7 +3785,7 @@ impl ApplePayData {
 
     pub async fn merchant_id(
         &self,
-        state: &AppState,
+        state: &SessionState,
     ) -> CustomResult<String, errors::ApplePayDecryptionError> {
         let cert_data = state
             .conf
@@ -3830,7 +3830,7 @@ impl ApplePayData {
 
     pub async fn shared_secret(
         &self,
-        state: &AppState,
+        state: &SessionState,
     ) -> CustomResult<Vec<u8>, errors::ApplePayDecryptionError> {
         let public_ec_bytes = BASE64_ENGINE
             .decode(self.header.ephemeral_public_key.peek().as_bytes())
@@ -4004,7 +4004,7 @@ pub fn validate_payment_link_request(
 }
 
 pub async fn get_gsm_record(
-    state: &AppState,
+    state: &SessionState,
     error_code: Option<String>,
     error_message: Option<String>,
     connector_name: String,
@@ -4141,7 +4141,7 @@ pub fn update_additional_payment_data_with_connector_response_pm_data(
 }
 
 pub async fn get_payment_method_details_from_payment_token(
-    state: &AppState,
+    state: &SessionState,
     payment_attempt: &PaymentAttempt,
     payment_intent: &PaymentIntent,
     key_store: &domain::MerchantKeyStore,

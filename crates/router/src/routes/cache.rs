@@ -7,7 +7,7 @@ use crate::{
     services::{api, authentication as auth},
 };
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn invalidate(
     state: web::Data<AppState>,
     req: HttpRequest,

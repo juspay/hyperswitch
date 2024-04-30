@@ -29,7 +29,7 @@ use crate::{
             conditional_configs::ConditionalConfigResult, routing::make_dsl_input_for_surcharge,
         },
     },
-    AppState,
+    SessionState,
 };
 
 struct VirInterpreterBackendCacheWrapper {
@@ -96,7 +96,7 @@ impl SurchargeSource {
 }
 
 pub async fn perform_surcharge_decision_management_for_payment_method_list(
-    state: &AppState,
+    state: &SessionState,
     algorithm_ref: routing::RoutingAlgorithmRef,
     payment_attempt: &oss_storage::PaymentAttempt,
     payment_intent: &oss_storage::PaymentIntent,
@@ -216,7 +216,7 @@ pub async fn perform_surcharge_decision_management_for_payment_method_list(
 }
 
 pub async fn perform_surcharge_decision_management_for_session_flow<O>(
-    state: &AppState,
+    state: &SessionState,
     algorithm_ref: routing::RoutingAlgorithmRef,
     payment_data: &mut PaymentData<O>,
     payment_method_type_list: &Vec<common_enums::PaymentMethodType>,
@@ -277,7 +277,7 @@ where
     Ok(surcharge_metadata)
 }
 pub async fn perform_surcharge_decision_management_for_saved_cards(
-    state: &AppState,
+    state: &SessionState,
     algorithm_ref: routing::RoutingAlgorithmRef,
     payment_attempt: &oss_storage::PaymentAttempt,
     payment_intent: &oss_storage::PaymentIntent,
@@ -385,7 +385,7 @@ fn get_surcharge_details_from_surcharge_output(
     })
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn ensure_algorithm_cached(
     store: &dyn StorageInterface,
     merchant_id: &str,
@@ -408,7 +408,7 @@ pub async fn ensure_algorithm_cached(
     Ok(key)
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn refresh_surcharge_algorithm_cache(
     store: &dyn StorageInterface,
     key: String,

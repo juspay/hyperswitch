@@ -253,7 +253,7 @@ pub fn get_time_from_delta(delta: Option<i32>) -> Option<time::PrimitiveDateTime
     delta.map(|t| common_utils::date_time::now().saturating_add(time::Duration::seconds(t.into())))
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn consumer_operation_handler<E, T: Send + Sync + 'static>(
     state: T,
     settings: sync::Arc<SchedulerSettings>,

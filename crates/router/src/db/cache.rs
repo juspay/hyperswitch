@@ -13,7 +13,7 @@ use crate::{
     core::errors::{self, CustomResult},
 };
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn get_or_populate_redis<T, F, Fut>(
     store: &dyn StorageInterface,
     key: impl AsRef<str>,
@@ -54,7 +54,7 @@ where
     }
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn get_or_populate_in_memory<T, F, Fut>(
     store: &dyn StorageInterface,
     key: &str,
@@ -76,7 +76,7 @@ where
     }
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn redact_cache<T, F, Fut>(
     store: &dyn StorageInterface,
     key: &str,
@@ -104,7 +104,7 @@ where
     Ok(data)
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn publish_into_redact_channel<'a, K: IntoIterator<Item = CacheKind<'a>> + Send>(
     store: &dyn StorageInterface,
     keys: K,
@@ -130,7 +130,7 @@ pub async fn publish_into_redact_channel<'a, K: IntoIterator<Item = CacheKind<'a
         .sum::<usize>())
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn publish_and_redact<'a, T, F, Fut>(
     store: &dyn StorageInterface,
     key: CacheKind<'a>,
@@ -145,7 +145,7 @@ where
     Ok(data)
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn publish_and_redact_multiple<'a, T, F, Fut, K>(
     store: &dyn StorageInterface,
     keys: K,

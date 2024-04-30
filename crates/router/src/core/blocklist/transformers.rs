@@ -109,9 +109,9 @@ async fn generate_jwe_payload_for_request(
     Ok(jwe_body)
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn generate_fingerprint(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     card_number: StrongSecret<String>,
     hash_key: StrongSecret<String>,
     locker_choice: api_enums::LockerChoice,
@@ -127,9 +127,9 @@ pub async fn generate_fingerprint(
     Ok(generate_fingerprint_resp)
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 async fn call_to_locker_for_fingerprint(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     payload: &blocklist::GenerateFingerprintRequest,
     locker_choice: api_enums::LockerChoice,
 ) -> CustomResult<blocklist::GenerateFingerprintResponsePayload, errors::VaultError> {

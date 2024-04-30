@@ -4,7 +4,7 @@ use router_env::{instrument, tracing, types::Flow};
 
 use crate::{core::api_locking, routes::AppState, services::api as oss_api};
 
-#[instrument(skip_all, fields(flow = ?Flow::PmAuthLinkTokenCreate))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::PmAuthLinkTokenCreate))]
 pub async fn link_token_create(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -38,7 +38,7 @@ pub async fn link_token_create(
     .await
 }
 
-#[instrument(skip_all, fields(flow = ?Flow::PmAuthExchangeToken))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::PmAuthExchangeToken))]
 pub async fn exchange_token(
     state: web::Data<AppState>,
     req: HttpRequest,

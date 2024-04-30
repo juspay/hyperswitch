@@ -29,10 +29,10 @@ use crate::{
     utils,
 };
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn do_gsm_actions<F, ApiRequest, FData, Ctx>(
-    state: &app::AppState,
+    state: &app::SessionState,
     req_state: ReqState,
     payment_data: &mut payments::PaymentData<F>,
     mut connectors: IntoIter<api::ConnectorData>,
@@ -162,9 +162,9 @@ where
     Ok(router_data)
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn is_step_up_enabled_for_merchant_connector(
-    state: &app::AppState,
+    state: &app::SessionState,
     merchant_id: &str,
     connector_name: types::Connector,
 ) -> bool {
@@ -186,9 +186,9 @@ pub async fn is_step_up_enabled_for_merchant_connector(
         .unwrap_or(false)
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn get_retries(
-    state: &app::AppState,
+    state: &app::SessionState,
     retries: Option<i32>,
     merchant_id: &str,
 ) -> Option<i32> {
@@ -216,9 +216,9 @@ pub async fn get_retries(
     }
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn get_gsm<F, FData>(
-    state: &app::AppState,
+    state: &app::SessionState,
     router_data: &types::RouterData<F, FData, types::PaymentsResponseData>,
 ) -> RouterResult<Option<storage::gsm::GatewayStatusMap>> {
     let error_response = router_data.response.as_ref().err();
@@ -232,7 +232,7 @@ pub async fn get_gsm<F, FData>(
     )
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub fn get_gsm_decision(
     option_gsm: Option<storage::gsm::GatewayStatusMap>,
 ) -> api_models::gsm::GsmDecision {
@@ -266,9 +266,9 @@ fn get_flow_name<F>() -> RouterResult<String> {
 }
 
 #[allow(clippy::too_many_arguments)]
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn do_retry<F, ApiRequest, FData, Ctx>(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     req_state: ReqState,
     connector: api::ConnectorData,
     operation: &operations::BoxedOperation<'_, F, ApiRequest, Ctx>,
@@ -322,9 +322,9 @@ where
     .await
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn modify_trackers<F, FData>(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     connector: String,
     payment_data: &mut payments::PaymentData<F>,
     storage_scheme: storage_enums::MerchantStorageScheme,
@@ -466,7 +466,7 @@ where
     Ok(())
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub fn make_new_payment_attempt(
     connector: String,
     old_payment_attempt: storage::PaymentAttempt,

@@ -6,7 +6,7 @@ use crate::{
         errors::{ConnectorErrorExt, RouterResult},
         payments::{self, access_token, helpers, transformers, Feature, PaymentData},
     },
-    routes::AppState,
+    routes::SessionState,
     services,
     types::{self, api, domain},
 };
@@ -18,7 +18,7 @@ impl
 {
     async fn construct_router_data<'a>(
         &self,
-        state: &AppState,
+        state: &SessionState,
         connector_id: &str,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
@@ -47,7 +47,7 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
 {
     async fn decide_flows<'a>(
         self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
         _customer: &Option<domain::Customer>,
         call_connector_action: payments::CallConnectorAction,
@@ -78,7 +78,7 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
 
     async fn add_access_token<'a>(
         &self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
         merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<types::AddAccessTokenResult> {
@@ -87,7 +87,7 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
 
     async fn build_flow_specific_connector_request(
         &mut self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<(Option<services::Request>, bool)> {

@@ -27,7 +27,7 @@ pub enum RefundValidationError {
     DuplicateRefund,
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub fn validate_success_transaction(
     transaction: &storage::PaymentAttempt,
 ) -> CustomResult<(), RefundValidationError> {
@@ -38,7 +38,7 @@ pub fn validate_success_transaction(
     Ok(())
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub fn validate_refund_amount(
     amount_captured: i64,
     all_refunds: &[storage::Refund],
@@ -67,7 +67,7 @@ pub fn validate_refund_amount(
     )
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub fn validate_payment_order_age(
     created_at: &PrimitiveDateTime,
     refund_max_age: i64,
@@ -80,7 +80,7 @@ pub fn validate_payment_order_age(
     )
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub fn validate_maximum_refund_against_payment_attempt(
     all_refunds: &[storage::Refund],
     refund_max_attempts: usize,

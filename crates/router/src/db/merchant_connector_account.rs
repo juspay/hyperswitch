@@ -37,7 +37,7 @@ pub trait ConnectorAccessToken {
 
 #[async_trait::async_trait]
 impl ConnectorAccessToken for Store {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn get_access_token(
         &self,
         merchant_id: &str,
@@ -64,7 +64,7 @@ impl ConnectorAccessToken for Store {
         Ok(access_token)
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn set_access_token(
         &self,
         merchant_id: &str,
@@ -168,7 +168,7 @@ where
 
 #[async_trait::async_trait]
 impl MerchantConnectorAccountInterface for Store {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
         merchant_id: &str,
@@ -213,7 +213,7 @@ impl MerchantConnectorAccountInterface for Store {
         }
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_merchant_connector_account_by_profile_id_connector_name(
         &self,
         profile_id: &str,
@@ -258,7 +258,7 @@ impl MerchantConnectorAccountInterface for Store {
         }
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_merchant_connector_account_by_merchant_id_connector_name(
         &self,
         merchant_id: &str,
@@ -287,7 +287,7 @@ impl MerchantConnectorAccountInterface for Store {
         .await
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
         &self,
         merchant_id: &str,
@@ -329,7 +329,7 @@ impl MerchantConnectorAccountInterface for Store {
         }
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn insert_merchant_connector_account(
         &self,
         t: domain::MerchantConnectorAccount,
@@ -350,7 +350,7 @@ impl MerchantConnectorAccountInterface for Store {
             .await
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_merchant_connector_account_by_merchant_id_and_disabled_list(
         &self,
         merchant_id: &str,
@@ -375,7 +375,7 @@ impl MerchantConnectorAccountInterface for Store {
             .await
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn update_merchant_connector_account(
         &self,
         this: domain::MerchantConnectorAccount,
@@ -433,7 +433,7 @@ impl MerchantConnectorAccountInterface for Store {
         }
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
         &self,
         merchant_id: &str,

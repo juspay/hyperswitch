@@ -5,11 +5,11 @@ use crate::{
     core::errors::ApiErrorResponse,
     services::ApplicationResponse,
     utils::currency::{self, convert_currency, get_forex_rates},
-    AppState,
+    SessionState,
 };
 
 pub async fn retrieve_forex(
-    state: AppState,
+    state: SessionState,
 ) -> CustomResult<ApplicationResponse<currency::FxExchangeRatesCacheEntry>, ApiErrorResponse> {
     let forex_api = state.conf.forex_api.get_inner();
     Ok(ApplicationResponse::Json(
@@ -27,7 +27,8 @@ pub async fn retrieve_forex(
 }
 
 pub async fn convert_forex(
-    state: AppState,
+    state: SessionState,
+
     amount: i64,
     to_currency: String,
     from_currency: String,

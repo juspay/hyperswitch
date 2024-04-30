@@ -47,7 +47,7 @@ use crate::{
         transformers::ForeignInto,
     },
     utils::{OptionExt, ValueExt},
-    AppState,
+    SessionState,
 };
 
 pub(super) enum CachedAlgorithm {
@@ -58,7 +58,7 @@ pub(super) enum CachedAlgorithm {
 }
 
 pub struct SessionFlowRoutingInput<'a> {
-    pub state: &'a AppState,
+    pub state: &'a SessionState,
     pub country: Option<CountryAlpha2>,
     pub key_store: &'a domain::MerchantKeyStore,
     pub merchant_account: &'a domain::MerchantAccount,
@@ -68,7 +68,7 @@ pub struct SessionFlowRoutingInput<'a> {
 }
 
 pub struct SessionRoutingPmTypeInput<'a> {
-    state: &'a AppState,
+    state: &'a SessionState,
     key_store: &'a domain::MerchantKeyStore,
     merchant_last_modified: i64,
     attempt_id: &'a str,
@@ -263,7 +263,7 @@ where
 }
 
 pub async fn perform_static_routing_v1<F: Clone>(
-    state: &AppState,
+    state: &SessionState,
     merchant_id: &str,
     algorithm_ref: routing_types::RoutingAlgorithmRef,
     transaction_data: &routing::TransactionData<'_, F>,
@@ -336,7 +336,7 @@ pub async fn perform_static_routing_v1<F: Clone>(
 }
 
 async fn ensure_algorithm_cached_v1(
-    state: &AppState,
+    state: &SessionState,
     merchant_id: &str,
     timestamp: i64,
     algorithm_id: &str,
@@ -440,7 +440,7 @@ fn execute_dsl_and_get_connector_v1(
 }
 
 pub async fn refresh_routing_cache_v1(
-    state: &AppState,
+    state: &SessionState,
     key: String,
     algorithm_id: &str,
     timestamp: i64,
@@ -537,7 +537,7 @@ pub fn perform_volume_split(
 }
 
 pub async fn get_merchant_kgraph<'a>(
-    state: &AppState,
+    state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     merchant_last_modified: i64,
     #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
@@ -599,7 +599,7 @@ pub async fn get_merchant_kgraph<'a>(
 }
 
 pub async fn refresh_kgraph_cache(
-    state: &AppState,
+    state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     timestamp: i64,
     key: String,
@@ -658,7 +658,7 @@ pub async fn refresh_kgraph_cache(
 
 #[allow(clippy::too_many_arguments)]
 async fn perform_kgraph_filtering(
-    state: &AppState,
+    state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     merchant_last_modified: i64,
     chosen: Vec<routing_types::RoutableConnectorChoice>,
@@ -705,7 +705,7 @@ async fn perform_kgraph_filtering(
 }
 
 pub async fn perform_eligibility_analysis<F: Clone>(
-    state: &AppState,
+    state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     merchant_last_modified: i64,
     chosen: Vec<routing_types::RoutableConnectorChoice>,
@@ -734,7 +734,7 @@ pub async fn perform_eligibility_analysis<F: Clone>(
 }
 
 pub async fn perform_fallback_routing<F: Clone>(
-    state: &AppState,
+    state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     merchant_last_modified: i64,
     transaction_data: &routing::TransactionData<'_, F>,
@@ -782,7 +782,7 @@ pub async fn perform_fallback_routing<F: Clone>(
 }
 
 pub async fn perform_eligibility_analysis_with_fallback<F: Clone>(
-    state: &AppState,
+    state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     merchant_last_modified: i64,
     chosen: Vec<routing_types::RoutableConnectorChoice>,

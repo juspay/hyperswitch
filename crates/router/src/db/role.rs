@@ -49,7 +49,7 @@ pub trait RoleInterface {
 
 #[async_trait::async_trait]
 impl RoleInterface for Store {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn insert_role(
         &self,
         role: storage::RoleNew,
@@ -60,7 +60,7 @@ impl RoleInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_role_by_role_id(
         &self,
         role_id: &str,
@@ -71,7 +71,7 @@ impl RoleInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_role_by_role_id_in_merchant_scope(
         &self,
         role_id: &str,
@@ -84,7 +84,7 @@ impl RoleInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn update_role_by_role_id(
         &self,
         role_id: &str,
@@ -96,7 +96,7 @@ impl RoleInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn delete_role_by_role_id(
         &self,
         role_id: &str,
@@ -107,7 +107,7 @@ impl RoleInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn list_all_roles(
         &self,
         merchant_id: &str,

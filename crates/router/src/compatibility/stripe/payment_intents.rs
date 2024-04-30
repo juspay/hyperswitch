@@ -13,7 +13,7 @@ use crate::{
     types::api as api_types,
 };
 
-#[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate, payment_id))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::PaymentsCreate, payment_id))]
 pub async fn payment_intents_create(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -69,6 +69,7 @@ pub async fn payment_intents_create(
                 payments::CallConnectorAction::Trigger,
                 eligible_connectors,
                 api_types::HeaderPayload::default(),
+
             )
         },
         &auth::ApiKeyAuth,
@@ -76,7 +77,7 @@ pub async fn payment_intents_create(
     ))
     .await
 }
-#[instrument(skip_all, fields(flow = ?Flow::PaymentsRetrieveForceSync))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::PaymentsRetrieveForceSync))]
 pub async fn payment_intents_retrieve(
     state: web::Data<routes::AppState>,
     req: HttpRequest,
@@ -136,7 +137,7 @@ pub async fn payment_intents_retrieve(
     ))
     .await
 }
-#[instrument(skip_all, fields(flow))]
+//#\[instrument\(skip_all, fields(flow))]
 pub async fn payment_intents_retrieve_with_gateway_creds(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -199,6 +200,7 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
                 payments::CallConnectorAction::Trigger,
                     None,
                 api_types::HeaderPayload::default(),
+
             )
         },
         &*auth_type,
@@ -206,7 +208,7 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
     ))
     .await
 }
-#[instrument(skip_all, fields(flow = ?Flow::PaymentsUpdate))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::PaymentsUpdate))]
 pub async fn payment_intents_update(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -265,6 +267,7 @@ pub async fn payment_intents_update(
                 payments::CallConnectorAction::Trigger,
                 eligible_connectors,
                 api_types::HeaderPayload::default(),
+
             )
         },
         &*auth_type,
@@ -272,7 +275,7 @@ pub async fn payment_intents_update(
     ))
     .await
 }
-#[instrument(skip_all, fields(flow = ?Flow::PaymentsConfirm, payment_id))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::PaymentsConfirm, payment_id))]
 pub async fn payment_intents_confirm(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -337,6 +340,7 @@ pub async fn payment_intents_confirm(
                 payments::CallConnectorAction::Trigger,
                 eligible_connectors,
                 api_types::HeaderPayload::default(),
+
             )
         },
         &*auth_type,
@@ -344,7 +348,7 @@ pub async fn payment_intents_confirm(
     ))
     .await
 }
-#[instrument(skip_all, fields(flow = ?Flow::PaymentsCapture, payment_id))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::PaymentsCapture, payment_id))]
 pub async fn payment_intents_capture(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -398,6 +402,7 @@ pub async fn payment_intents_capture(
                 payments::CallConnectorAction::Trigger,
                     None,
                 api_types::HeaderPayload::default(),
+
             )
         },
         &auth::ApiKeyAuth,
@@ -405,7 +410,7 @@ pub async fn payment_intents_capture(
     ))
     .await
 }
-#[instrument(skip_all, fields(flow = ?Flow::PaymentsCancel, payment_id))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::PaymentsCancel, payment_id))]
 pub async fn payment_intents_cancel(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -470,7 +475,7 @@ pub async fn payment_intents_cancel(
     ))
     .await
 }
-#[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::PaymentsList))]
 #[cfg(feature = "olap")]
 pub async fn payment_intent_list(
     state: web::Data<routes::AppState>,

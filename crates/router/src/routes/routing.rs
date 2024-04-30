@@ -18,7 +18,7 @@ use crate::{
 };
 
 #[cfg(feature = "olap")]
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn routing_create_config(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -54,7 +54,7 @@ pub async fn routing_create_config(
 }
 
 #[cfg(feature = "olap")]
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn routing_link_config(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -91,7 +91,7 @@ pub async fn routing_link_config(
 }
 
 #[cfg(feature = "olap")]
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn routing_retrieve_config(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -121,7 +121,7 @@ pub async fn routing_retrieve_config(
 }
 
 #[cfg(feature = "olap")]
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn list_routing_configs(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -183,7 +183,7 @@ pub async fn list_routing_configs(
 }
 
 #[cfg(feature = "olap")]
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn routing_unlink_config(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -252,7 +252,7 @@ pub async fn routing_unlink_config(
 }
 
 #[cfg(feature = "olap")]
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn routing_update_default_config(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -286,7 +286,7 @@ pub async fn routing_update_default_config(
 }
 
 #[cfg(feature = "olap")]
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn routing_retrieve_default_config(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -314,7 +314,7 @@ pub async fn routing_retrieve_default_config(
 }
 
 #[cfg(feature = "olap")]
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn upsert_surcharge_decision_manager_config(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -347,7 +347,7 @@ pub async fn upsert_surcharge_decision_manager_config(
     .await
 }
 #[cfg(feature = "olap")]
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn delete_surcharge_decision_manager_config(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -379,7 +379,7 @@ pub async fn delete_surcharge_decision_manager_config(
 }
 
 #[cfg(feature = "olap")]
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn retrieve_surcharge_decision_manager_config(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -410,7 +410,7 @@ pub async fn retrieve_surcharge_decision_manager_config(
 }
 
 #[cfg(feature = "olap")]
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn upsert_decision_manager_config(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -444,7 +444,7 @@ pub async fn upsert_decision_manager_config(
 }
 
 #[cfg(feature = "olap")]
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn delete_decision_manager_config(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -476,7 +476,7 @@ pub async fn delete_decision_manager_config(
 }
 
 #[cfg(feature = "olap")]
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn retrieve_decision_manager_config(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -504,7 +504,7 @@ pub async fn retrieve_decision_manager_config(
 }
 
 #[cfg(feature = "olap")]
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn routing_retrieve_linked_config(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -567,7 +567,7 @@ pub async fn routing_retrieve_linked_config(
 }
 
 #[cfg(feature = "olap")]
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn upsert_connector_agnostic_mandate_config(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -602,7 +602,7 @@ pub async fn upsert_connector_agnostic_mandate_config(
 }
 
 #[cfg(feature = "olap")]
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn routing_retrieve_default_config_for_profiles(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -638,7 +638,7 @@ pub async fn routing_retrieve_default_config_for_profiles(
 }
 
 #[cfg(feature = "olap")]
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn routing_update_default_config_for_profile(
     state: web::Data<AppState>,
     req: HttpRequest,

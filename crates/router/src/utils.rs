@@ -742,7 +742,7 @@ pub async fn trigger_payments_webhook<F, Op>(
     key_store: &domain::MerchantKeyStore,
     payment_data: crate::core::payments::PaymentData<F>,
     customer: Option<domain::Customer>,
-    state: &crate::routes::AppState,
+    state: &crate::routes::SessionState,
     operation: Op,
 ) -> RouterResult<()>
 where

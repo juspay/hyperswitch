@@ -12,14 +12,14 @@ use masking::PeekInterface;
 use super::errors;
 use crate::{
     core::{errors::ApiErrorResponse, payments as payments_core},
-    routes::AppState,
+    routes::SessionState,
     types::{self as core_types, api, authentication::AuthenticationResponseData, storage},
     utils::OptionExt,
 };
 
 #[allow(clippy::too_many_arguments)]
 pub async fn perform_authentication(
-    state: &AppState,
+    state: &SessionState,
     authentication_connector: String,
     payment_method_data: payments::PaymentMethodData,
     payment_method: common_enums::PaymentMethod,
@@ -105,7 +105,7 @@ pub async fn perform_authentication(
 }
 
 pub async fn perform_post_authentication<F: Clone + Send>(
-    state: &AppState,
+    state: &SessionState,
     authentication_connector: String,
     business_profile: core_types::storage::BusinessProfile,
     merchant_connector_account: payments_core::helpers::MerchantConnectorAccountType,
@@ -156,7 +156,7 @@ pub async fn perform_post_authentication<F: Clone + Send>(
 }
 
 pub async fn perform_pre_authentication<F: Clone + Send>(
-    state: &AppState,
+    state: &SessionState,
     authentication_connector_name: String,
     authentication_flow_input: types::PreAuthenthenticationFlowInput<'_, F>,
     business_profile: &core_types::storage::BusinessProfile,

@@ -11,7 +11,7 @@ use crate::{
     services::{api, authentication as auth},
 };
 
-#[instrument(skip_all, fields(flow = ?Flow::IncomingWebhookReceive))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::IncomingWebhookReceive))]
 pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
     state: web::Data<AppState>,
     req: HttpRequest,

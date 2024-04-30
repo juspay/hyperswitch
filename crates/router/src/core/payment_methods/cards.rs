@@ -74,7 +74,7 @@ use crate::{
     utils::{self, ConnectorResponseExt, OptionExt},
 };
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn create_payment_method(
     db: &dyn db::StorageInterface,
@@ -168,7 +168,7 @@ pub fn store_default_payment_method(
 
     (payment_method_response, None)
 }
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn get_or_insert_payment_method(
     db: &dyn db::StorageInterface,
     req: api::PaymentMethodCreate,
@@ -236,9 +236,9 @@ pub async fn get_or_insert_payment_method(
     }
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn add_payment_method(
-    state: routes::AppState,
+    state: routes::SessionState,
     req: api::PaymentMethodCreate,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
@@ -464,9 +464,9 @@ pub async fn insert_payment_method(
     .await
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn update_customer_payment_method(
-    state: routes::AppState,
+    state: routes::SessionState,
     merchant_account: domain::MerchantAccount,
     req: api::PaymentMethodUpdate,
     payment_method_id: &str,
@@ -519,7 +519,7 @@ pub async fn update_customer_payment_method(
 
 #[cfg(feature = "payouts")]
 pub async fn add_bank_to_locker(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     req: api::PaymentMethodCreate,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
@@ -583,7 +583,7 @@ pub async fn add_bank_to_locker(
 
 /// The response will be the tuple of PaymentMethodResponse and the duplication check of payment_method
 pub async fn add_card_to_locker(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     req: api::PaymentMethodCreate,
     card: &api::CardDetail,
     customer_id: &String,
@@ -630,7 +630,7 @@ pub async fn add_card_to_locker(
 }
 
 pub async fn get_card_from_locker(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     customer_id: &str,
     merchant_id: &str,
     card_reference: &str,
@@ -671,7 +671,7 @@ pub async fn get_card_from_locker(
 }
 
 pub async fn delete_card_from_locker(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     customer_id: &str,
     merchant_id: &str,
     card_reference: &str,
@@ -693,9 +693,9 @@ pub async fn delete_card_from_locker(
     .await
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn add_card_hs(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     req: api::PaymentMethodCreate,
     card: &api::CardDetail,
     customer_id: String,
@@ -736,7 +736,7 @@ pub async fn add_card_hs(
     Ok((payment_method_resp, store_card_payload.duplication_check))
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn decode_and_decrypt_locker_data(
     key_store: &domain::MerchantKeyStore,
     enc_card_data: String,
@@ -757,9 +757,9 @@ pub async fn decode_and_decrypt_locker_data(
         )
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn get_payment_method_from_hs_locker<'a>(
-    state: &'a routes::AppState,
+    state: &'a routes::SessionState,
     key_store: &domain::MerchantKeyStore,
     customer_id: &str,
     merchant_id: &str,
@@ -819,9 +819,9 @@ pub async fn get_payment_method_from_hs_locker<'a>(
     Ok(payment_method_data)
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn call_to_locker_hs<'a>(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     payload: &payment_methods::StoreLockerReq<'a>,
     customer_id: &str,
     locker_choice: api_enums::LockerChoice,
@@ -892,9 +892,9 @@ pub async fn update_payment_method_connector_mandate_details(
         .change_context(errors::VaultError::UpdateInPaymentMethodDataTableFailed)?;
     Ok(())
 }
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn get_card_from_hs_locker<'a>(
-    state: &'a routes::AppState,
+    state: &'a routes::SessionState,
     customer_id: &str,
     merchant_id: &str,
     card_reference: &'a str,
@@ -945,9 +945,9 @@ pub async fn get_card_from_hs_locker<'a>(
     }
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn delete_card_from_hs_locker<'a>(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     customer_id: &str,
     merchant_id: &str,
     card_reference: &'a str,
@@ -1052,7 +1052,7 @@ pub async fn mock_call_to_locker_hs<'a>(
     })
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn mock_get_card<'a>(
     db: &dyn db::StorageInterface,
     card_id: &'a str,
@@ -1088,7 +1088,7 @@ pub async fn mock_get_card<'a>(
     ))
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn mock_get_payment_method<'a>(
     db: &dyn db::StorageInterface,
     key_store: &domain::MerchantKeyStore,
@@ -1119,7 +1119,7 @@ pub async fn mock_get_payment_method<'a>(
     })
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn mock_delete_card_hs<'a>(
     db: &dyn db::StorageInterface,
     card_id: &'a str,
@@ -1134,7 +1134,7 @@ pub async fn mock_delete_card_hs<'a>(
     })
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn mock_delete_card<'a>(
     db: &dyn db::StorageInterface,
     card_id: &'a str,
@@ -1152,7 +1152,7 @@ pub async fn mock_delete_card<'a>(
 }
 //------------------------------------------------------------------------------
 pub fn get_banks(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     pm_type: common_enums::enums::PaymentMethodType,
     connectors: Vec<String>,
 ) -> Result<Vec<BankCodeResponse>, errors::ApiErrorResponse> {
@@ -1234,7 +1234,7 @@ fn get_val(str: String, val: &serde_json::Value) -> Option<String> {
 }
 
 pub async fn list_payment_methods(
-    state: routes::AppState,
+    state: routes::SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     mut req: api::PaymentMethodListRequest,
@@ -2087,7 +2087,7 @@ pub async fn list_payment_methods(
 }
 
 pub async fn call_surcharge_decision_management(
-    state: routes::AppState,
+    state: routes::SessionState,
     merchant_account: &domain::MerchantAccount,
     business_profile: &BusinessProfile,
     payment_attempt: &storage::PaymentAttempt,
@@ -2137,7 +2137,7 @@ pub async fn call_surcharge_decision_management(
 }
 
 pub async fn call_surcharge_decision_management_for_saved_card(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     merchant_account: &domain::MerchantAccount,
     business_profile: &BusinessProfile,
     payment_attempt: &storage::PaymentAttempt,
@@ -2720,7 +2720,7 @@ async fn filter_payment_mandate_based(
 }
 
 pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
-    state: routes::AppState,
+    state: routes::SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: Option<api::PaymentMethodListRequest>,
@@ -2776,7 +2776,7 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
 }
 
 pub async fn list_customer_payment_method(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     payment_intent: Option<storage::PaymentIntent>,
@@ -3078,7 +3078,7 @@ pub async fn list_customer_payment_method(
 pub async fn get_card_details_with_locker_fallback(
     pm: &payment_method::PaymentMethod,
     key: &[u8],
-    state: &routes::AppState,
+    state: &routes::SessionState,
 ) -> errors::RouterResult<Option<api::CardDetailFromLocker>> {
     let card_decrypted =
         decrypt::<serde_json::Value, masking::WithType>(pm.payment_method_data.clone(), key)
@@ -3109,7 +3109,7 @@ pub async fn get_card_details_with_locker_fallback(
 pub async fn get_card_details_without_locker_fallback(
     pm: &payment_method::PaymentMethod,
     key: &[u8],
-    state: &routes::AppState,
+    state: &routes::SessionState,
 ) -> errors::RouterResult<api::CardDetailFromLocker> {
     let card_decrypted =
         decrypt::<serde_json::Value, masking::WithType>(pm.payment_method_data.clone(), key)
@@ -3134,7 +3134,7 @@ pub async fn get_card_details_without_locker_fallback(
 }
 
 pub async fn get_card_details_from_locker(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     pm: &storage::PaymentMethod,
 ) -> errors::RouterResult<api::CardDetailFromLocker> {
     let card = get_card_from_locker(
@@ -3153,7 +3153,7 @@ pub async fn get_card_details_from_locker(
 }
 
 pub async fn get_lookup_key_from_locker(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     payment_token: &str,
     pm: &storage::PaymentMethod,
     merchant_key_store: &domain::MerchantKeyStore,
@@ -3328,7 +3328,7 @@ pub async fn set_default_payment_method(
 
 pub async fn update_last_used_at(
     pm_id: &str,
-    state: &routes::AppState,
+    state: &routes::SessionState,
     storage_scheme: MerchantStorageScheme,
 ) -> errors::RouterResult<()> {
     let update_last_used = storage::PaymentMethodUpdate::LastUsedUpdate {
@@ -3350,7 +3350,7 @@ pub async fn update_last_used_at(
 }
 #[cfg(feature = "payouts")]
 pub async fn get_bank_from_hs_locker(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     key_store: &domain::MerchantKeyStore,
     temp_token: &str,
     customer_id: &str,
@@ -3401,9 +3401,9 @@ pub async fn get_bank_from_hs_locker(
 pub struct TempLockerCardSupport;
 
 impl TempLockerCardSupport {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn create_payment_method_data_in_temp_locker(
-        state: &routes::AppState,
+        state: &routes::SessionState,
         payment_token: &str,
         card: api::CardDetailFromLocker,
         pm: &storage::PaymentMethod,
@@ -3486,9 +3486,9 @@ impl TempLockerCardSupport {
     }
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn retrieve_payment_method(
-    state: routes::AppState,
+    state: routes::SessionState,
     pm: api::PaymentMethodId,
     key_store: domain::MerchantKeyStore,
     merchant_account: domain::MerchantAccount,
@@ -3541,9 +3541,9 @@ pub async fn retrieve_payment_method(
     ))
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn delete_payment_method(
-    state: routes::AppState,
+    state: routes::SessionState,
     merchant_account: domain::MerchantAccount,
     pm_id: api::PaymentMethodId,
     key_store: domain::MerchantKeyStore,
@@ -3665,7 +3665,7 @@ pub async fn create_encrypted_payment_method_data(
 }
 
 pub async fn list_countries_currencies_for_connector_payment_method(
-    state: routes::AppState,
+    state: routes::SessionState,
     req: ListCountriesCurrenciesRequest,
 ) -> errors::RouterResponse<ListCountriesCurrenciesResponse> {
     Ok(services::ApplicationResponse::Json(

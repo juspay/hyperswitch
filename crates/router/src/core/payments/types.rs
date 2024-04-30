@@ -16,7 +16,7 @@ use router_env::{instrument, tracing};
 use crate::{
     consts as router_consts,
     core::errors::{self, RouterResult},
-    routes::AppState,
+    routes::SessionState,
     types::{
         storage::{self, enums as storage_enums},
         transformers::ForeignTryFrom,
@@ -321,10 +321,10 @@ impl SurchargeMetadata {
             }
         }
     }
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     pub async fn persist_individual_surcharge_details_in_redis(
         &self,
-        state: &AppState,
+        state: &SessionState,
         business_profile: &BusinessProfile,
     ) -> RouterResult<()> {
         if !self.is_empty_result() {
@@ -357,9 +357,9 @@ impl SurchargeMetadata {
         Ok(())
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     pub async fn get_individual_surcharge_detail_from_redis(
-        state: &AppState,
+        state: &SessionState,
         surcharge_key: SurchargeKey,
         payment_attempt_id: &str,
     ) -> CustomResult<SurchargeDetails, RedisError> {

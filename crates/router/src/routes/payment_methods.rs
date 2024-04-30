@@ -5,7 +5,7 @@ use error_stack::ResultExt;
 use router_env::{instrument, logger, tracing, Flow};
 use time::PrimitiveDateTime;
 
-use super::app::AppState;
+use super::app::{AppState, SessionState};
 use crate::{
     core::{api_locking, errors, payment_methods::cards},
     services::{api, authentication as auth, authorization::permissions::Permission},
@@ -16,7 +16,7 @@ use crate::{
     utils::Encode,
 };
 
-#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsCreate))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::PaymentMethodsCreate))]
 pub async fn create_payment_method_api(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -43,7 +43,7 @@ pub async fn create_payment_method_api(
     .await
 }
 
-#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsList))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::PaymentMethodsList))]
 pub async fn list_payment_method_api(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -92,7 +92,7 @@ pub async fn list_payment_method_api(
     operation_id = "List all Payment Methods for a Customer",
     security(("api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
 pub async fn list_customer_payment_method_api(
     state: web::Data<AppState>,
     customer_id: web::Path<(String,)>,
@@ -103,11 +103,10 @@ pub async fn list_customer_payment_method_api(
     let payload = query_payload.into_inner();
     let customer_id = customer_id.into_inner().0;
 
-    let ephemeral_auth =
-        match auth::is_ephemeral_auth(req.headers(), &*state.store, &customer_id).await {
-            Ok(auth) => auth,
-            Err(err) => return api::log_and_return_error_response(err),
-        };
+    let ephemeral_auth = match auth::is_ephemeral_auth(req.headers(), &customer_id) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(err),
+    };
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -151,7 +150,7 @@ pub async fn list_customer_payment_method_api(
     operation_id = "List all Payment Methods for a Customer",
     security(("publishable_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
 pub async fn list_customer_payment_method_api_client(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -184,7 +183,7 @@ pub async fn list_customer_payment_method_api_client(
     .await
 }
 
-#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsRetrieve))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::PaymentMethodsRetrieve))]
 pub async fn payment_method_retrieve_api(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -210,7 +209,7 @@ pub async fn payment_method_retrieve_api(
     .await
 }
 
-#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsUpdate))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::PaymentMethodsUpdate))]
 pub async fn payment_method_update_api(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -240,7 +239,7 @@ pub async fn payment_method_update_api(
     .await
 }
 
-#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsDelete))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::PaymentMethodsDelete))]
 pub async fn payment_method_delete_api(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -264,7 +263,7 @@ pub async fn payment_method_delete_api(
     .await
 }
 
-#[instrument(skip_all, fields(flow = ?Flow::ListCountriesCurrencies))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::ListCountriesCurrencies))]
 pub async fn list_countries_currencies_for_connector_payment_method(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -293,7 +292,7 @@ pub async fn list_countries_currencies_for_connector_payment_method(
     .await
 }
 
-#[instrument(skip_all, fields(flow = ?Flow::DefaultPaymentMethodsSet))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::DefaultPaymentMethodsSet))]
 pub async fn default_payment_method_set_api(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -301,28 +300,29 @@ pub async fn default_payment_method_set_api(
 ) -> HttpResponse {
     let flow = Flow::DefaultPaymentMethodsSet;
     let payload = path.into_inner();
-    let customer_id = payload.clone().customer_id;
+    let pc = payload.clone();
+    let customer_id = pc.customer_id.as_str();
 
-    let ephemeral_auth =
-        match auth::is_ephemeral_auth(req.headers(), &*state.store, &customer_id).await {
-            Ok(auth) => auth,
-            Err(err) => return api::log_and_return_error_response(err),
-        };
-    let db = &*state.store.clone();
+    let ephemeral_auth = match auth::is_ephemeral_auth(req.headers(), customer_id) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(err),
+    };
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
-        |_state, auth: auth::AuthenticationData, default_payment_method, _| {
-            cards::set_default_payment_method(
-                db,
+        |state, auth: auth::AuthenticationData, default_payment_method, _| async move {
+            let res = cards::set_default_payment_method(
+                &*state.clone().store,
                 auth.merchant_account.merchant_id,
                 auth.key_store,
-                &customer_id,
+                customer_id,
                 default_payment_method.payment_method_id,
                 auth.merchant_account.storage_scheme,
             )
+            .await;
+            res
         },
         &*ephemeral_auth,
         api_locking::LockAction::NotApplicable,
@@ -374,7 +374,7 @@ impl ParentPaymentMethodToken {
         &self,
         intent_created_at: Option<PrimitiveDateTime>,
         token: PaymentTokenData,
-        state: &AppState,
+        state: &SessionState,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         let token_json_str = token
             .encode_to_string_of_json()
@@ -410,7 +410,7 @@ impl ParentPaymentMethodToken {
         .contains(&status)
     }
 
-    pub async fn delete(&self, state: &AppState) -> CustomResult<(), errors::ApiErrorResponse> {
+    pub async fn delete(&self, state: &SessionState) -> CustomResult<(), errors::ApiErrorResponse> {
         let redis_conn = state
             .store
             .get_redis_conn()

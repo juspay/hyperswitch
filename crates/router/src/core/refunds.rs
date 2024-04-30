@@ -13,7 +13,7 @@ use crate::{
         utils as core_utils,
     },
     db, logger,
-    routes::{metrics, AppState},
+    routes::{metrics, SessionState},
     services,
     types::{
         self,
@@ -28,9 +28,9 @@ use crate::{
 
 // ********************************************** REFUND EXECUTE **********************************************
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn refund_create_core(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: refunds::RefundRequest,
@@ -119,9 +119,9 @@ pub async fn refund_create_core(
     .map(services::ApplicationResponse::Json)
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn trigger_refund_to_gateway(
-    state: &AppState,
+    state: &SessionState,
     refund: &storage::Refund,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
@@ -302,14 +302,14 @@ pub async fn trigger_refund_to_gateway(
 // ********************************************** REFUND SYNC **********************************************
 
 pub async fn refund_response_wrapper<'a, F, Fut, T, Req>(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     request: Req,
     f: F,
 ) -> RouterResponse<refunds::RefundResponse>
 where
-    F: Fn(AppState, domain::MerchantAccount, domain::MerchantKeyStore, Req) -> Fut,
+    F: Fn(SessionState, domain::MerchantAccount, domain::MerchantKeyStore, Req) -> Fut,
     Fut: futures::Future<Output = RouterResult<T>>,
     T: ForeignInto<refunds::RefundResponse>,
 {
@@ -320,9 +320,9 @@ where
     ))
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn refund_retrieve_core(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     request: refunds::RefundsRetrieveRequest,
@@ -415,9 +415,9 @@ fn should_call_refund(refund: &diesel_models::refund::Refund, force_sync: bool) 
     predicate1 && predicate2
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn sync_refund_with_gateway(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     payment_attempt: &storage::PaymentAttempt,
@@ -523,7 +523,7 @@ pub async fn sync_refund_with_gateway(
 // ********************************************** REFUND UPDATE **********************************************
 
 pub async fn refund_update_core(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     req: refunds::RefundUpdateRequest,
 ) -> RouterResponse<refunds::RefundResponse> {
@@ -558,10 +558,10 @@ pub async fn refund_update_core(
 
 // ********************************************** VALIDATIONS **********************************************
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn validate_and_create_refund(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     payment_attempt: &storage::PaymentAttempt,
@@ -702,10 +702,10 @@ pub async fn validate_and_create_refund(
 ///   If payment-id is provided, lists all the refunds associated with that particular payment-id
 ///   If payment-id is not provided, lists the refunds associated with that particular merchant - to the limit specified,if no limits given, it is 10 by default
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 #[cfg(feature = "olap")]
 pub async fn refund_list(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     req: api_models::refunds::RefundListRequest,
 ) -> RouterResponse<api_models::refunds::RefundListResponse> {
@@ -747,10 +747,10 @@ pub async fn refund_list(
     ))
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 #[cfg(feature = "olap")]
 pub async fn refund_filter_list(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     req: api_models::payments::TimeRange,
 ) -> RouterResponse<api_models::refunds::RefundListMetaData> {
@@ -791,10 +791,10 @@ impl ForeignFrom<storage::Refund> for api::RefundResponse {
 
 // ********************************************** PROCESS TRACKER **********************************************
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn schedule_refund_execution(
-    state: &AppState,
+    state: &SessionState,
     refund: storage::Refund,
     refund_type: api_models::refunds::RefundType,
     merchant_account: &domain::MerchantAccount,
@@ -869,9 +869,9 @@ pub async fn schedule_refund_execution(
     Ok(result)
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn sync_refund_with_gateway_workflow(
-    state: &AppState,
+    state: &SessionState,
     refund_tracker: &storage::ProcessTracker,
 ) -> Result<(), errors::ProcessTrackerError> {
     let refund_core =
@@ -938,9 +938,9 @@ pub async fn sync_refund_with_gateway_workflow(
     Ok(())
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn start_refund_workflow(
-    state: &AppState,
+    state: &SessionState,
     refund_tracker: &storage::ProcessTracker,
 ) -> Result<(), errors::ProcessTrackerError> {
     match refund_tracker.name.as_deref() {
@@ -954,9 +954,9 @@ pub async fn start_refund_workflow(
     }
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn trigger_refund_execute_workflow(
-    state: &AppState,
+    state: &SessionState,
     refund_tracker: &storage::ProcessTracker,
 ) -> Result<(), errors::ProcessTrackerError> {
     let db = &*state.store;
@@ -1057,7 +1057,7 @@ pub async fn trigger_refund_execute_workflow(
     Ok(())
 }
 
-#[instrument]
+//#[instrument]
 pub fn refund_to_refund_core_workflow_model(
     refund: &storage::Refund,
 ) -> storage::RefundCoreWorkflow {
@@ -1069,7 +1069,7 @@ pub fn refund_to_refund_core_workflow_model(
     }
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn add_refund_sync_task(
     db: &dyn db::StorageInterface,
     refund: &storage::Refund,
@@ -1110,7 +1110,7 @@ pub async fn add_refund_sync_task(
     Ok(response)
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn add_refund_execute_task(
     db: &dyn db::StorageInterface,
     refund: &storage::Refund,

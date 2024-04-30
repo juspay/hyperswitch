@@ -32,7 +32,7 @@ pub trait AuthorizationInterface {
 
 #[async_trait::async_trait]
 impl AuthorizationInterface for Store {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn insert_authorization(
         &self,
         authorization: storage::AuthorizationNew,
@@ -44,7 +44,7 @@ impl AuthorizationInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_all_authorizations_by_merchant_id_payment_id(
         &self,
         merchant_id: &str,
@@ -56,7 +56,7 @@ impl AuthorizationInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn update_authorization_by_merchant_id_authorization_id(
         &self,
         merchant_id: String,

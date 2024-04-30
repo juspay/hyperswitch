@@ -26,7 +26,7 @@ pub trait OrganizationInterface {
 
 #[async_trait::async_trait]
 impl OrganizationInterface for Store {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn insert_organization(
         &self,
         organization: storage::OrganizationNew,
@@ -38,7 +38,7 @@ impl OrganizationInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_organization_by_org_id(
         &self,
         org_id: &str,
@@ -49,7 +49,7 @@ impl OrganizationInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn update_organization_by_org_id(
         &self,
         org_id: &str,

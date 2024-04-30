@@ -8,7 +8,7 @@ use crate::{
         errors::{ApiErrorResponse, ConnectorErrorExt, RouterResult},
         payments::{self, access_token, helpers, transformers, PaymentData},
     },
-    routes::AppState,
+    routes::SessionState,
     services::{self, logger},
     types::{self, api, domain},
 };
@@ -19,7 +19,7 @@ impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::Payme
 {
     async fn construct_router_data<'a>(
         &self,
-        state: &AppState,
+        state: &SessionState,
         connector_id: &str,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
@@ -50,7 +50,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
 {
     async fn decide_flows<'a>(
         mut self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
         _customer: &Option<domain::Customer>,
         call_connector_action: payments::CallConnectorAction,
@@ -104,7 +104,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
 
     async fn add_access_token<'a>(
         &self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
         merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<types::AddAccessTokenResult> {
@@ -113,7 +113,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
 
     async fn build_flow_specific_connector_request(
         &mut self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<(Option<services::Request>, bool)> {
@@ -151,7 +151,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
 impl types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData> {
     async fn execute_connector_processing_step_for_each_capture(
         mut self,
-        state: &AppState,
+        state: &SessionState,
         pending_connector_capture_id_list: Vec<String>,
         call_connector_action: payments::CallConnectorAction,
         connector_integration: services::BoxedConnectorIntegration<

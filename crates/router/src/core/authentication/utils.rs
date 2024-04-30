@@ -7,7 +7,7 @@ use crate::{
         payments,
     },
     errors::RouterResult,
-    routes::AppState,
+    routes::SessionState,
     services::{self, execute_connector_processing_step},
     types::{
         api::{self, ConnectorCallType},
@@ -47,7 +47,7 @@ pub fn get_connector_name_if_separate_authn_supported(
 }
 
 pub async fn update_trackers<F: Clone, Req>(
-    state: &AppState,
+    state: &SessionState,
     router_data: RouterData<F, Req, AuthenticationResponseData>,
     authentication: storage::Authentication,
     token: Option<String>,
@@ -141,7 +141,7 @@ impl ForeignFrom<common_enums::AuthenticationStatus> for common_enums::AttemptSt
 }
 
 pub async fn create_new_authentication(
-    state: &AppState,
+    state: &SessionState,
     merchant_id: String,
     authentication_connector: String,
 ) -> RouterResult<storage::Authentication> {
@@ -190,7 +190,7 @@ pub async fn create_new_authentication(
 }
 
 pub async fn do_auth_connector_call<F, Req, Res>(
-    state: &AppState,
+    state: &SessionState,
     authentication_connector_name: String,
     router_data: RouterData<F, Req, Res>,
 ) -> RouterResult<RouterData<F, Req, Res>>

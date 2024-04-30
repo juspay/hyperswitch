@@ -7,18 +7,18 @@ use crate::{
     services::{authentication as auth, ApplicationResponse},
     types as oss_types,
     utils::connector_onboarding as utils,
-    AppState,
+    SessionState,
 };
 
 pub mod paypal;
 
 #[async_trait::async_trait]
 pub trait AccessToken {
-    async fn access_token(state: &AppState) -> RouterResult<oss_types::AccessToken>;
+    async fn access_token(state: &SessionState) -> RouterResult<oss_types::AccessToken>;
 }
 
 pub async fn get_action_url(
-    state: AppState,
+    state: SessionState,
     user_from_token: auth::UserFromToken,
     request: api::ActionUrlRequest,
     _req_state: ReqState,
@@ -53,7 +53,7 @@ pub async fn get_action_url(
 }
 
 pub async fn sync_onboarding_status(
-    state: AppState,
+    state: SessionState,
     user_from_token: auth::UserFromToken,
     request: api::OnboardingSyncRequest,
     _req_state: ReqState,
@@ -107,7 +107,7 @@ pub async fn sync_onboarding_status(
 }
 
 pub async fn reset_tracking_id(
-    state: AppState,
+    state: SessionState,
     user_from_token: auth::UserFromToken,
     request: api::ResetTrackingIdRequest,
     _req_state: ReqState,

@@ -30,7 +30,7 @@ pub trait PaymentLinkInterface {
 
 #[async_trait::async_trait]
 impl PaymentLinkInterface for Store {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_payment_link_by_payment_link_id(
         &self,
         payment_link_id: &str,
@@ -41,7 +41,7 @@ impl PaymentLinkInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn insert_payment_link(
         &self,
         payment_link_config: storage::PaymentLinkNew,
@@ -53,7 +53,7 @@ impl PaymentLinkInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn list_payment_link_by_merchant_id(
         &self,
         merchant_id: &str,

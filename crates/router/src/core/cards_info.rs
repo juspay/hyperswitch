@@ -19,9 +19,9 @@ fn verify_iin_length(card_iin: &str) -> Result<(), errors::ApiErrorResponse> {
     })
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn retrieve_card_info(
-    state: routes::AppState,
+    state: routes::SessionState,
     merchant_account: domain::MerchantAccount,
     request: api_models::cards_info::CardsInfoRequest,
 ) -> RouterResponse<api_models::cards_info::CardInfoResponse> {

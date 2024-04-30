@@ -4,12 +4,17 @@ use common_utils::{errors::CustomResult, request::RequestContent};
 use error_stack::ResultExt;
 use masking::ExposeInterface;
 
-use crate::{core::errors::api_error_response, headers, logger, routes::AppState, services};
+use crate::{
+    core::errors::api_error_response,
+    headers, logger,
+    routes::SessionState,
+    services,
+};
 
 const APPLEPAY_INTERNAL_MERCHANT_NAME: &str = "Applepay_merchant";
 
 pub async fn verify_merchant_creds_for_applepay(
-    state: AppState,
+    state: SessionState,
     body: verifications::ApplepayMerchantVerificationRequest,
     merchant_id: String,
 ) -> CustomResult<
@@ -85,7 +90,7 @@ pub async fn verify_merchant_creds_for_applepay(
 }
 
 pub async fn get_verified_apple_domains_with_mid_mca_id(
-    state: AppState,
+    state: SessionState,
     merchant_id: String,
     merchant_connector_id: String,
 ) -> CustomResult<

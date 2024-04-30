@@ -49,7 +49,7 @@ pub trait MandateInterface {
 
 #[async_trait::async_trait]
 impl MandateInterface for Store {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_mandate_by_merchant_id_mandate_id(
         &self,
         merchant_id: &str,
@@ -61,7 +61,7 @@ impl MandateInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_mandate_by_merchant_id_connector_mandate_id(
         &self,
         merchant_id: &str,
@@ -77,7 +77,7 @@ impl MandateInterface for Store {
         .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_mandate_by_merchant_id_customer_id(
         &self,
         merchant_id: &str,
@@ -89,7 +89,7 @@ impl MandateInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn update_mandate_by_merchant_id_mandate_id(
         &self,
         merchant_id: &str,
@@ -102,7 +102,7 @@ impl MandateInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_mandates_by_merchant_id(
         &self,
         merchant_id: &str,
@@ -114,7 +114,7 @@ impl MandateInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn insert_mandate(
         &self,
         mandate: storage::MandateNew,

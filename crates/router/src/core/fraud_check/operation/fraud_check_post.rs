@@ -36,7 +36,7 @@ use crate::{
         },
         ResponseId,
     },
-    utils, AppState,
+    utils, SessionState,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -68,10 +68,10 @@ impl<F: Clone + Send> FraudCheckOperation<F> for FraudCheckPost {
 
 #[async_trait]
 impl GetTracker<PaymentToFrmData> for FraudCheckPost {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         payment_data: PaymentToFrmData,
         frm_connector_details: ConnectorDetailsCore,
     ) -> RouterResult<Option<FrmData>> {
@@ -136,10 +136,10 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPost {
 
 #[async_trait]
 impl<F: Send + Clone> Domain<F> for FraudCheckPost {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn post_payment_frm<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         payment_data: &mut payments::PaymentData<F>,
         frm_data: &mut FrmData,
         merchant_account: &domain::MerchantAccount,
@@ -173,10 +173,10 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
         }))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn execute_post_tasks(
         &self,
-        state: &AppState,
+        state: &SessionState,
         frm_data: &mut FrmData,
         merchant_account: &domain::MerchantAccount,
         frm_configs: FrmConfigsObject,
@@ -231,10 +231,10 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
         return Ok(Some(frm_data.to_owned()));
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn pre_payment_frm<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         payment_data: &mut payments::PaymentData<F>,
         frm_data: &mut FrmData,
         merchant_account: &domain::MerchantAccount,

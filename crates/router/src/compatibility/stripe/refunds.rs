@@ -11,7 +11,7 @@ use crate::{
     types::api::refunds as refund_types,
 };
 
-#[instrument(skip_all, fields(flow = ?Flow::RefundsCreate, payment_id))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::RefundsCreate, payment_id))]
 pub async fn refund_create(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -56,7 +56,7 @@ pub async fn refund_create(
     ))
     .await
 }
-#[instrument(skip_all, fields(flow))]
+//#\[instrument\(skip_all, fields(flow))]
 pub async fn refund_retrieve_with_gateway_creds(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -106,7 +106,7 @@ pub async fn refund_retrieve_with_gateway_creds(
     ))
     .await
 }
-#[instrument(skip_all, fields(flow = ?Flow::RefundsRetrieveForceSync))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::RefundsRetrieveForceSync))]
 pub async fn refund_retrieve(
     state: web::Data<routes::AppState>,
     req: HttpRequest,
@@ -148,7 +148,7 @@ pub async fn refund_retrieve(
     ))
     .await
 }
-#[instrument(skip_all, fields(flow = ?Flow::RefundsUpdate))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::RefundsUpdate))]
 pub async fn refund_update(
     state: web::Data<routes::AppState>,
     req: HttpRequest,

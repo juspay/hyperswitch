@@ -26,7 +26,7 @@ use crate::{
         utils as core_utils,
     },
     db::StorageInterface,
-    routes::AppState,
+    routes::SessionState,
     services,
     types::{
         self as oss_types,
@@ -47,9 +47,9 @@ pub mod flows;
 pub mod operation;
 pub mod types;
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn call_frm_service<D: Clone, F, Req>(
-    state: &AppState,
+    state: &SessionState,
     payment_data: &mut payments::PaymentData<D>,
     frm_data: &mut FrmData,
     merchant_account: &domain::MerchantAccount,
@@ -356,7 +356,7 @@ where
 #[allow(clippy::too_many_arguments)]
 pub async fn make_frm_data_and_fraud_check_operation<'a, F>(
     _db: &dyn StorageInterface,
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     payment_data: payments::PaymentData<F>,
     frm_routing_algorithm: FrmRoutingAlgorithm,
@@ -424,7 +424,7 @@ where
 
 #[allow(clippy::too_many_arguments)]
 pub async fn pre_payment_frm_core<'a, F>(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     payment_data: &mut payments::PaymentData<F>,
     frm_info: &mut FrmInfo<F>,
@@ -492,7 +492,7 @@ where
 
 #[allow(clippy::too_many_arguments)]
 pub async fn post_payment_frm_core<'a, F>(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     payment_data: &mut payments::PaymentData<F>,
     frm_info: &mut FrmInfo<F>,
@@ -578,7 +578,7 @@ pub async fn call_frm_before_connector_call<'a, F, Req, Ctx>(
     operation: &BoxedOperation<'_, F, Req, Ctx>,
     merchant_account: &domain::MerchantAccount,
     payment_data: &mut payments::PaymentData<F>,
-    state: &AppState,
+    state: &SessionState,
     frm_info: &mut Option<FrmInfo<F>>,
     customer: &Option<domain::Customer>,
     should_continue_transaction: &mut bool,
@@ -647,9 +647,9 @@ impl From<PaymentToFrmData> for PaymentDetails {
     }
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn frm_fulfillment_core(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: frm_core_types::FrmFulfillmentRequest,
@@ -706,12 +706,12 @@ pub async fn frm_fulfillment_core(
     }
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn make_fulfillment_api_call(
     db: &dyn StorageInterface,
     fraud_check: FraudCheck,
     payment_intent: PaymentIntent,
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: frm_core_types::FrmFulfillmentRequest,

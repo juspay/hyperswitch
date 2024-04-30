@@ -5,7 +5,7 @@ use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::Flow;
 
-use super::AppState;
+use super::{AppState,SessionState};
 use crate::{
     core::{
         api_locking,
@@ -71,7 +71,7 @@ pub async fn get_recon_token(state: web::Data<AppState>, req: HttpRequest) -> Ht
 }
 
 pub async fn send_recon_request(
-    state: AppState,
+    state: SessionState,
     user: UserFromToken,
 ) -> RouterResponse<recon_api::ReconStatusResponse> {
     let db = &*state.store;
@@ -151,7 +151,7 @@ pub async fn send_recon_request(
 }
 
 pub async fn recon_merchant_account_update(
-    state: AppState,
+    state: SessionState,
     req: recon_api::ReconUpdateMerchantRequest,
 ) -> RouterResponse<api_types::MerchantAccountResponse> {
     let merchant_id = &req.merchant_id.clone();
@@ -218,7 +218,7 @@ pub async fn recon_merchant_account_update(
 }
 
 pub async fn generate_recon_token(
-    state: AppState,
+    state: SessionState,
     req: ReconUser,
 ) -> RouterResponse<recon_api::ReconTokenResponse> {
     let db = &*state.store;
@@ -244,7 +244,7 @@ pub async fn generate_recon_token(
 
 pub async fn get_recon_auth_token(
     user: UserFromStorage,
-    state: AppState,
+    state: SessionState,
 ) -> RouterResult<Secret<String>> {
     ReconToken::new_token(user.0.user_id.clone(), &state.conf).await
 }

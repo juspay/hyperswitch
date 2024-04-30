@@ -17,7 +17,7 @@ pub trait HealthCheckDbInterface {
 
 #[async_trait::async_trait]
 impl HealthCheckDbInterface for Store {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn health_check_db(&self) -> CustomResult<(), errors::HealthCheckDBError> {
         let conn = connection::pg_connection_write(self)
             .await

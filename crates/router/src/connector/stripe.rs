@@ -1331,7 +1331,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         Ok(Some(request))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     fn handle_response(
         &self,
         data: &types::RefundsRouterData<api::Execute>,
@@ -1440,7 +1440,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         ))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     fn handle_response(
         &self,
         data: &types::RefundsRouterData<api::RSync>,
@@ -1596,7 +1596,7 @@ impl
         ))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     fn handle_response(
         &self,
         data: &types::UploadFileRouterData,
@@ -1706,7 +1706,7 @@ impl
         ))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     fn handle_response(
         &self,
         data: &types::RetrieveFileRouterData,
@@ -1842,7 +1842,7 @@ impl
         Ok(Some(request))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     fn handle_response(
         &self,
         data: &types::SubmitEvidenceRouterData,

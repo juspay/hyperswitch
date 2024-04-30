@@ -89,7 +89,7 @@ impl ToString for AnalyticsProvider {
 }
 
 impl AnalyticsProvider {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     pub async fn get_payment_metrics(
         &self,
         metric: &PaymentMetrics,

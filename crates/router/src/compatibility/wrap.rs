@@ -10,23 +10,23 @@ use crate::{
     events::api_logs::ApiEventMetric,
     routes::{
         app::{AppStateInfo, ReqState},
-        metrics, AppState,
+        metrics, AppState, SessionState,
     },
     services::{self, api, authentication as auth, logger},
 };
 
-#[instrument(skip(request, payload, state, func, api_authentication))]
+//#\[instrument\(skip(request, payload, state, func, api_authentication))]
 pub async fn compatibility_api_wrap<'a, 'b, U, T, Q, F, Fut, S, E, E2>(
     flow: impl router_env::types::FlowMetric,
     state: Arc<AppState>,
     request: &'a HttpRequest,
     payload: T,
     func: F,
-    api_authentication: &dyn auth::AuthenticateAndFetch<U, AppState>,
+    api_authentication: &dyn auth::AuthenticateAndFetch<U, SessionState>,
     lock_action: api_locking::LockAction,
 ) -> HttpResponse
 where
-    F: Fn(AppState, U, T, ReqState) -> Fut,
+    F: Fn(SessionState, U, T, ReqState) -> Fut,
     Fut: Future<Output = CustomResult<api::ApplicationResponse<Q>, E2>>,
     E2: ErrorSwitch<E> + std::error::Error + Send + Sync + 'static,
     Q: Serialize + std::fmt::Debug + 'a + ApiEventMetric,
@@ -49,6 +49,7 @@ where
         api::server_wrap_util(
             &flow,
             state.clone().into(),
+            request.headers(),
             req_state,
             request,
             payload,

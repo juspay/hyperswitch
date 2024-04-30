@@ -12,7 +12,7 @@ use crate::{
         payment_methods::cards,
     },
     pii::PeekInterface,
-    routes::{metrics, AppState},
+    routes::{metrics, SessionState},
     services,
     types::{
         api::customers,
@@ -27,9 +27,9 @@ use crate::{
 
 pub const REDACTED: &str = "Redacted";
 
-#[instrument(skip(state))]
+//#\[instrument\(skip(state))]
 pub async fn create_customer(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     mut customer_data: customers::CustomerRequest,
@@ -134,9 +134,9 @@ pub async fn create_customer(
     ))
 }
 
-#[instrument(skip(state))]
+//#\[instrument\(skip(state))]
 pub async fn retrieve_customer(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: customers::CustomerId,
@@ -164,9 +164,9 @@ pub async fn retrieve_customer(
     ))
 }
 
-#[instrument(skip(state))]
+//#\[instrument\(skip(state))]
 pub async fn list_customers(
-    state: AppState,
+    state: SessionState,
     merchant_id: String,
     key_store: domain::MerchantKeyStore,
 ) -> errors::CustomerResponse<Vec<customers::CustomerResponse>> {
@@ -185,9 +185,9 @@ pub async fn list_customers(
     Ok(services::ApplicationResponse::Json(customers))
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn delete_customer(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     req: customers::CustomerId,
     key_store: domain::MerchantKeyStore,
@@ -339,9 +339,9 @@ pub async fn delete_customer(
     Ok(services::ApplicationResponse::Json(response))
 }
 
-#[instrument(skip(state))]
+//#\[instrument\(skip(state))]
 pub async fn update_customer(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     update_customer: customers::CustomerRequest,
     key_store: domain::MerchantKeyStore,

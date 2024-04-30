@@ -8,7 +8,7 @@ use crate::{
     types::api::customers,
 };
 
-#[instrument(skip_all, fields(flow = ?Flow::EphemeralKeyCreate))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::EphemeralKeyCreate))]
 pub async fn ephemeral_key_create(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -29,7 +29,7 @@ pub async fn ephemeral_key_create(
     )
     .await
 }
-#[instrument(skip_all, fields(flow = ?Flow::EphemeralKeyDelete))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::EphemeralKeyDelete))]
 pub async fn ephemeral_key_delete(
     state: web::Data<AppState>,
     req: HttpRequest,

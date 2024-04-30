@@ -1,5 +1,5 @@
 #![recursion_limit = "256"]
-use std::{str::FromStr, sync::Arc};
+use std::{collections::HashMap, str::FromStr, sync::Arc};
 
 use actix_web::{dev::Server, web, Scope};
 use api_models::health_check::SchedulerHealthCheckResponse;
@@ -12,7 +12,8 @@ use router::{
         errors::{self, CustomResult},
         health_check::HealthCheckInterface,
     },
-    logger, routes,
+    logger,
+    routes,
     services::{self, api},
     workflows,
 };
@@ -75,21 +76,21 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
         [router_env::service_name!()],
     );
 
-    #[allow(clippy::expect_used)]
-    let web_server = Box::pin(start_web_server(
-        state.clone(),
-        scheduler_flow_str.to_string(),
-    ))
-    .await
-    .expect("Failed to create the server");
+    // #[allow(clippy::expect_used)]
+    // let web_server = Box::pin(start_web_server(
+    //     state.clone(),
+    //     scheduler_flow_str.to_string(),
+    // ))
+    // .await
+    // .expect("Failed to create the server");
 
-    let _task_handle = tokio::spawn(
-        async move {
-            let _ = web_server.await;
-            logger::error!("The health check probe stopped working!");
-        }
-        .in_current_span(),
-    );
+    // let _task_handle = tokio::spawn(
+    //     async move {
+    //         let _ = web_server.await;
+    //         logger::error!("The health check probe stopped working!");
+    //     }
+    //     .in_current_span(),
+    // );
 
     logger::debug!(startup_config=?state.conf);
 
@@ -136,34 +137,53 @@ impl Health {
     }
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn health() -> impl actix_web::Responder {
     logger::info!("Scheduler health was called");
     actix_web::HttpResponse::Ok().body("Scheduler health is good")
 }
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn deep_health_check(
     state: web::Data<routes::AppState>,
     service: web::Data<String>,
 ) -> impl actix_web::Responder {
-    let report = deep_health_check_func(state, service).await;
-    match report {
-        Ok(response) => services::http_response_json(
-            serde_json::to_string(&response)
-                .map_err(|err| {
-                    logger::error!(serialization_error=?err);
-                })
-                .unwrap_or_default(),
-        ),
-        Err(err) => api::log_and_return_error_response(err),
+    let mut checks = HashMap::new();
+    let stores = state.stores.clone();
+    let app_state = Arc::clone(&state.into_inner());
+    let service_name = service.into_inner();
+    for (tenant, _) in stores {
+        let session_state = routes::SessionState::from_app_state(app_state.clone(), &tenant);
+        let report = deep_health_check_func(session_state, &service_name).await;
+        match report {
+            Ok(response) => {
+                checks.insert(
+                    tenant,
+                    serde_json::to_string(&response)
+                        .map_err(|err| {
+                            logger::error!(serialization_error=?err);
+                        })
+                        .unwrap_or_default(),
+                );
+            }
+            Err(err) => {
+                return api::log_and_return_error_response(err);
+            }
+        }
     }
+    services::http_response_json(
+        serde_json::to_string(&checks)
+            .map_err(|err| {
+                logger::error!(serialization_error=?err);
+            })
+            .unwrap_or_default(),
+    )
 }
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn deep_health_check_func(
-    state: web::Data<routes::AppState>,
-    service: web::Data<String>,
+    state: routes::SessionState,
+    service: &str,
 ) -> errors::RouterResult<SchedulerHealthCheckResponse> {
-    logger::info!("{} deep health check was called", service.into_inner());
+    logger::info!("{} deep health check was called", service);
 
     logger::debug!("Database health check begin");
 
@@ -215,10 +235,10 @@ pub async fn deep_health_check_func(
 pub struct WorkflowRunner;
 
 #[async_trait::async_trait]
-impl ProcessTrackerWorkflows<routes::AppState> for WorkflowRunner {
+impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
     async fn trigger_workflow<'a>(
         &'a self,
-        state: &'a routes::AppState,
+        state: &'a routes::SessionState,
         process: storage::ProcessTracker,
     ) -> CustomResult<(), ProcessTrackerError> {
         let runner = process
@@ -233,7 +253,7 @@ impl ProcessTrackerWorkflows<routes::AppState> for WorkflowRunner {
             .attach_printable("Failed to parse workflow runner name")?;
 
         let get_operation = |runner: storage::ProcessTrackerRunner| -> CustomResult<
-            Box<dyn ProcessTrackerWorkflow<routes::AppState>>,
+            Box<dyn ProcessTrackerWorkflow<routes::SessionState>>,
             ProcessTrackerError,
         > {
             match runner {
@@ -269,7 +289,7 @@ impl ProcessTrackerWorkflows<routes::AppState> for WorkflowRunner {
         let operation = get_operation(runner)?;
 
         let app_state = &state.clone();
-        let output = operation.execute_workflow(app_state, process.clone()).await;
+        let output = operation.execute_workflow(state, process.clone()).await;
         match output {
             Ok(_) => operation.success_handler(app_state, process).await,
             Err(error) => match operation
@@ -310,6 +330,7 @@ async fn start_scheduler(
         Arc::new(scheduler_settings),
         channel,
         WorkflowRunner {},
+        |state, tenant| routes::SessionState::from_app_state(Arc::new(state.clone()), tenant),
     )
     .await
 }

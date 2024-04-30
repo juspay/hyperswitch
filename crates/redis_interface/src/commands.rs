@@ -31,7 +31,7 @@ use crate::{
 };
 
 impl super::RedisConnectionPool {
-    #[instrument(level = "DEBUG", skip(self))]
+    //#\[instrument\(level = "DEBUG", skip(self))]
     pub async fn set_key<V>(&self, key: &str, value: V) -> CustomResult<(), errors::RedisError>
     where
         V: TryInto<RedisValue> + Debug + Send + Sync,
@@ -63,7 +63,7 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::SetFailed)
     }
 
-    #[instrument(level = "DEBUG", skip(self))]
+    //#\[instrument\(level = "DEBUG", skip(self))]
     pub async fn serialize_and_set_key_if_not_exist<V>(
         &self,
         key: &str,
@@ -80,7 +80,7 @@ impl super::RedisConnectionPool {
             .await
     }
 
-    #[instrument(level = "DEBUG", skip(self))]
+    //#\[instrument\(level = "DEBUG", skip(self))]
     pub async fn serialize_and_set_key<V>(
         &self,
         key: &str,
@@ -96,7 +96,7 @@ impl super::RedisConnectionPool {
         self.set_key(key, serialized.as_slice()).await
     }
 
-    #[instrument(level = "DEBUG", skip(self))]
+    //#\[instrument\(level = "DEBUG", skip(self))]
     pub async fn serialize_and_set_key_with_expiry<V>(
         &self,
         key: &str,
@@ -122,7 +122,7 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::SetExFailed)
     }
 
-    #[instrument(level = "DEBUG", skip(self))]
+    //#\[instrument\(level = "DEBUG", skip(self))]
     pub async fn get_key<V>(&self, key: &str) -> CustomResult<V, errors::RedisError>
     where
         V: FromRedis + Unpin + Send + 'static,
@@ -133,7 +133,7 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::GetFailed)
     }
 
-    #[instrument(level = "DEBUG", skip(self))]
+    //#\[instrument\(level = "DEBUG", skip(self))]
     pub async fn exists<V>(&self, key: &str) -> CustomResult<bool, errors::RedisError>
     where
         V: Into<MultipleKeys> + Unpin + Send + 'static,
@@ -144,7 +144,7 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::GetFailed)
     }
 
-    #[instrument(level = "DEBUG", skip(self))]
+    //#\[instrument\(level = "DEBUG", skip(self))]
     pub async fn get_and_deserialize_key<T>(
         &self,
         key: &str,
@@ -162,7 +162,7 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::JsonDeserializationFailed)
     }
 
-    #[instrument(level = "DEBUG", skip(self))]
+    //#\[instrument\(level = "DEBUG", skip(self))]
     pub async fn delete_key(&self, key: &str) -> CustomResult<DelReply, errors::RedisError> {
         self.pool
             .del(key)
@@ -170,7 +170,7 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::DeleteFailed)
     }
 
-    #[instrument(level = "DEBUG", skip(self))]
+    //#\[instrument\(level = "DEBUG", skip(self))]
     pub async fn set_key_with_expiry<V>(
         &self,
         key: &str,
@@ -187,7 +187,7 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::SetExFailed)
     }
 
-    #[instrument(level = "DEBUG", skip(self))]
+    //#\[instrument\(level = "DEBUG", skip(self))]
     pub async fn set_key_if_not_exists_with_expiry<V>(
         &self,
         key: &str,
@@ -212,7 +212,7 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::SetFailed)
     }
 
-    #[instrument(level = "DEBUG", skip(self))]
+    //#\[instrument\(level = "DEBUG", skip(self))]
     pub async fn set_expiry(
         &self,
         key: &str,
@@ -224,7 +224,7 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::SetExpiryFailed)
     }
 
-    #[instrument(level = "DEBUG", skip(self))]
+    //#\[instrument\(level = "DEBUG", skip(self))]
     pub async fn set_expire_at(
         &self,
         key: &str,
@@ -236,7 +236,7 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::SetExpiryFailed)
     }
 
-    #[instrument(level = "DEBUG", skip(self))]
+    //#\[instrument\(level = "DEBUG", skip(self))]
     pub async fn set_hash_fields<V>(
         &self,
         key: &str,
@@ -260,7 +260,7 @@ impl super::RedisConnectionPool {
             .await
     }
 
-    #[instrument(level = "DEBUG", skip(self))]
+    //#\[instrument\(level = "DEBUG", skip(self))]
     pub async fn set_hash_field_if_not_exist<V>(
         &self,
         key: &str,
@@ -287,7 +287,7 @@ impl super::RedisConnectionPool {
             .await
     }
 
-    #[instrument(level = "DEBUG", skip(self))]
+    //#\[instrument\(level = "DEBUG", skip(self))]
     pub async fn serialize_and_set_hash_field_if_not_exist<V>(
         &self,
         key: &str,
@@ -306,7 +306,7 @@ impl super::RedisConnectionPool {
             .await
     }
 
-    #[instrument(level = "DEBUG", skip(self))]
+    //#\[instrument\(level = "DEBUG", skip(self))]
     pub async fn serialize_and_set_multiple_hash_field_if_not_exist<V>(
         &self,
         kv: &[(&str, V)],
@@ -326,7 +326,7 @@ impl super::RedisConnectionPool {
         Ok(hsetnx)
     }
 
-    #[instrument(level = "DEBUG", skip(self))]
+    //#\[instrument\(level = "DEBUG", skip(self))]
     pub async fn hscan(
         &self,
         key: &str,
@@ -357,7 +357,7 @@ impl super::RedisConnectionPool {
             .await)
     }
 
-    #[instrument(level = "DEBUG", skip(self))]
+    //#\[instrument\(level = "DEBUG", skip(self))]
     pub async fn hscan_and_deserialize<T>(
         &self,
         key: &str,
@@ -377,7 +377,7 @@ impl super::RedisConnectionPool {
             .collect())
     }
 
-    #[instrument(level = "DEBUG", skip(self))]
+    //#\[instrument\(level = "DEBUG", skip(self))]
     pub async fn get_hash_field<V>(
         &self,
         key: &str,
@@ -392,7 +392,7 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::GetHashFieldFailed)
     }
 
-    #[instrument(level = "DEBUG", skip(self))]
+    //#\[instrument\(level = "DEBUG", skip(self))]
     pub async fn get_hash_field_and_deserialize<V>(
         &self,
         key: &str,
@@ -413,7 +413,7 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::JsonDeserializationFailed)
     }
 
-    #[instrument(level = "DEBUG", skip(self))]
+    //#\[instrument\(level = "DEBUG", skip(self))]
     pub async fn sadd<V>(
         &self,
         key: &str,
@@ -429,7 +429,7 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::SetAddMembersFailed)
     }
 
-    #[instrument(level = "DEBUG", skip(self))]
+    //#\[instrument\(level = "DEBUG", skip(self))]
     pub async fn stream_append_entry<F>(
         &self,
         stream: &str,
@@ -446,7 +446,7 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::StreamAppendFailed)
     }
 
-    #[instrument(level = "DEBUG", skip(self))]
+    //#\[instrument\(level = "DEBUG", skip(self))]
     pub async fn stream_delete_entries<Ids>(
         &self,
         stream: &str,
@@ -461,7 +461,7 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::StreamDeleteFailed)
     }
 
-    #[instrument(level = "DEBUG", skip(self))]
+    //#\[instrument\(level = "DEBUG", skip(self))]
     pub async fn stream_trim_entries<C>(
         &self,
         stream: &str,
@@ -477,7 +477,7 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::StreamTrimFailed)
     }
 
-    #[instrument(level = "DEBUG", skip(self))]
+    //#\[instrument\(level = "DEBUG", skip(self))]
     pub async fn stream_acknowledge_entries<Ids>(
         &self,
         stream: &str,
@@ -493,7 +493,7 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::StreamAcknowledgeFailed)
     }
 
-    #[instrument(level = "DEBUG", skip(self))]
+    //#\[instrument\(level = "DEBUG", skip(self))]
     pub async fn stream_get_length<K>(&self, stream: K) -> CustomResult<usize, errors::RedisError>
     where
         K: Into<RedisKey> + Debug + Send + Sync,
@@ -504,7 +504,7 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::GetLengthFailed)
     }
 
-    #[instrument(level = "DEBUG", skip(self))]
+    //#\[instrument\(level = "DEBUG", skip(self))]
     pub async fn stream_read_entries<K, Ids>(
         &self,
         streams: K,
@@ -531,7 +531,7 @@ impl super::RedisConnectionPool {
             })
     }
 
-    #[instrument(level = "DEBUG", skip(self))]
+    //#\[instrument\(level = "DEBUG", skip(self))]
     pub async fn stream_read_with_options<K, Ids>(
         &self,
         streams: K,
@@ -562,7 +562,7 @@ impl super::RedisConnectionPool {
 
     //                                              Consumer Group API
 
-    #[instrument(level = "DEBUG", skip(self))]
+    //#\[instrument\(level = "DEBUG", skip(self))]
     pub async fn consumer_group_create(
         &self,
         stream: &str,
@@ -583,7 +583,7 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::ConsumerGroupCreateFailed)
     }
 
-    #[instrument(level = "DEBUG", skip(self))]
+    //#\[instrument\(level = "DEBUG", skip(self))]
     pub async fn consumer_group_destroy(
         &self,
         stream: &str,
@@ -596,7 +596,7 @@ impl super::RedisConnectionPool {
     }
 
     // the number of pending messages that the consumer had before it was deleted
-    #[instrument(level = "DEBUG", skip(self))]
+    //#\[instrument\(level = "DEBUG", skip(self))]
     pub async fn consumer_group_delete_consumer(
         &self,
         stream: &str,
@@ -609,7 +609,7 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::ConsumerGroupRemoveConsumerFailed)
     }
 
-    #[instrument(level = "DEBUG", skip(self))]
+    //#\[instrument\(level = "DEBUG", skip(self))]
     pub async fn consumer_group_set_last_id(
         &self,
         stream: &str,
@@ -622,7 +622,7 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::ConsumerGroupSetIdFailed)
     }
 
-    #[instrument(level = "DEBUG", skip(self))]
+    //#\[instrument\(level = "DEBUG", skip(self))]
     pub async fn consumer_group_set_message_owner<Ids, R>(
         &self,
         stream: &str,

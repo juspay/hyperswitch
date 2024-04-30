@@ -37,7 +37,7 @@ pub use crate::database::store::Store;
 #[derive(Debug, Clone)]
 pub struct RouterStore<T: DatabaseStore> {
     db_store: T,
-    cache_store: RedisStore,
+    cache_store: Arc<RedisStore>,
     master_encryption_key: StrongSecret<Vec<u8>>,
     pub request_id: Option<String>,
 }
@@ -54,20 +54,19 @@ where
         tokio::sync::oneshot::Sender<()>,
         &'static str,
     );
-    async fn new(config: Self::Config, test_transaction: bool) -> StorageResult<Self> {
+    async fn new(config: Self::Config, schema: &str, test_transaction: bool) -> StorageResult<Self> {
         let (db_conf, cache_conf, encryption_key, cache_error_signal, inmemory_cache_stream) =
             config;
         if test_transaction {
-            Self::test_store(db_conf, &cache_conf, encryption_key)
+            Self::test_store(db_conf, schema, &cache_conf, encryption_key)
                 .await
                 .attach_printable("failed to create test router store")
         } else {
             Self::from_config(
                 db_conf,
-                &cache_conf,
+                schema,
                 encryption_key,
-                cache_error_signal,
-                inmemory_cache_stream,
+                Self::cache_store(&cache_conf, cache_error_signal, inmemory_cache_stream).await?,
             )
             .await
             .attach_printable("failed to create store")
@@ -92,12 +91,24 @@ impl<T: DatabaseStore> RedisConnInterface for RouterStore<T> {
 impl<T: DatabaseStore> RouterStore<T> {
     pub async fn from_config(
         db_conf: T::Config,
-        cache_conf: &redis_interface::RedisSettings,
+        schema: &str,
         encryption_key: StrongSecret<Vec<u8>>,
+        cache_store: Arc<RedisStore>,
+    ) -> StorageResult<Self> {
+        let db_store = T::new(db_conf, schema, false).await?;
+        Ok(Self {
+            db_store,
+            cache_store,
+            master_encryption_key: encryption_key,
+            request_id: None,
+        })
+    }
+
+    pub async fn cache_store(
+        cache_conf: &redis_interface::RedisSettings,
         cache_error_signal: tokio::sync::oneshot::Sender<()>,
         inmemory_cache_stream: &str,
-    ) -> StorageResult<Self> {
-        let db_store = T::new(db_conf, false).await?;
+    ) -> StorageResult<Arc<RedisStore>> {
         let cache_store = RedisStore::new(cache_conf)
             .await
             .change_context(StorageError::InitializationError)
@@ -108,12 +119,7 @@ impl<T: DatabaseStore> RouterStore<T> {
             .await
             .change_context(StorageError::InitializationError)
             .attach_printable("Failed to subscribe to inmemory cache stream")?;
-        Ok(Self {
-            db_store,
-            cache_store,
-            master_encryption_key: encryption_key,
-            request_id: None,
-        })
+        Ok(Arc::new(cache_store))
     }
 
     pub fn master_key(&self) -> &StrongSecret<Vec<u8>> {
@@ -125,18 +131,19 @@ impl<T: DatabaseStore> RouterStore<T> {
     /// Will panic if `CONNECTOR_AUTH_FILE_PATH` is not set
     pub async fn test_store(
         db_conf: T::Config,
+        schema: &str,
         cache_conf: &redis_interface::RedisSettings,
         encryption_key: StrongSecret<Vec<u8>>,
     ) -> StorageResult<Self> {
         // TODO: create an error enum and return proper error here
-        let db_store = T::new(db_conf, true).await?;
+        let db_store = T::new(db_conf, schema, true).await?;
         let cache_store = RedisStore::new(cache_conf)
             .await
             .change_context(StorageError::InitializationError)
             .attach_printable("failed to create redis cache")?;
         Ok(Self {
             db_store,
-            cache_store,
+            cache_store: Arc::new(cache_store),
             master_encryption_key: encryption_key,
             request_id: None,
         })
@@ -159,7 +166,7 @@ where
     T: DatabaseStore,
 {
     type Config = (RouterStore<T>, String, u8, u32);
-    async fn new(config: Self::Config, _test_transaction: bool) -> StorageResult<Self> {
+    async fn new(config: Self::Config, schema:&str ,_test_transaction: bool) -> StorageResult<Self> {
         let (router_store, drainer_stream_name, drainer_num_partitions, ttl_for_kv) = config;
         Ok(Self::from_store(
             router_store,

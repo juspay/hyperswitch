@@ -29,13 +29,13 @@ impl Health {
     }
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn health() -> impl actix_web::Responder {
     logger::info!("Drainer health was called");
     actix_web::HttpResponse::Ok().body("Drainer health is good")
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn deep_health_check(
     conf: web::Data<Settings>,
     store: web::Data<Arc<Store>>,
@@ -53,7 +53,7 @@ pub async fn deep_health_check(
     }
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn deep_health_check_func(
     conf: web::Data<Settings>,
     store: web::Data<Arc<Store>>,

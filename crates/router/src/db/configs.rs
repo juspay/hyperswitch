@@ -59,7 +59,7 @@ pub trait ConfigInterface {
 
 #[async_trait::async_trait]
 impl ConfigInterface for Store {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn insert_config(
         &self,
         config: storage::ConfigNew,
@@ -71,7 +71,7 @@ impl ConfigInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn update_config_in_database(
         &self,
         key: &str,
@@ -84,7 +84,7 @@ impl ConfigInterface for Store {
     }
 
     //update in DB and remove in redis and cache
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn update_config_by_key(
         &self,
         key: &str,
@@ -96,7 +96,7 @@ impl ConfigInterface for Store {
         .await
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_config_by_key_from_db(
         &self,
         key: &str,
@@ -108,7 +108,7 @@ impl ConfigInterface for Store {
     }
 
     //check in cache, then redis then finally DB, and on the way back populate redis and cache
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_config_by_key(
         &self,
         key: &str,
@@ -122,7 +122,7 @@ impl ConfigInterface for Store {
         cache::get_or_populate_in_memory(self, key, find_config_by_key_from_db, &CONFIG_CACHE).await
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_config_by_key_unwrap_or(
         &self,
         key: &str,
@@ -160,7 +160,7 @@ impl ConfigInterface for Store {
         cache::get_or_populate_in_memory(self, key, find_else_unwrap_or, &CONFIG_CACHE).await
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn delete_config_by_key(
         &self,
         key: &str,
@@ -182,7 +182,7 @@ impl ConfigInterface for Store {
 
 #[async_trait::async_trait]
 impl ConfigInterface for MockDb {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn insert_config(
         &self,
         config: storage::ConfigNew,

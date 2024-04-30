@@ -8,7 +8,7 @@ use crate::{
     types::api::customers,
 };
 
-#[instrument(skip_all, fields(flow = ?Flow::CustomersCreate))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::CustomersCreate))]
 pub async fn customers_create(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -31,7 +31,7 @@ pub async fn customers_create(
     .await
 }
 
-#[instrument(skip_all, fields(flow = ?Flow::CustomersRetrieve))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::CustomersRetrieve))]
 pub async fn customers_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -46,7 +46,7 @@ pub async fn customers_retrieve(
     let auth = if auth::is_jwt_auth(req.headers()) {
         Box::new(auth::JWTAuth(Permission::CustomerRead))
     } else {
-        match auth::is_ephemeral_auth(req.headers(), &*state.store, &payload.customer_id).await {
+        match auth::is_ephemeral_auth(req.headers(), &payload.customer_id) {
             Ok(auth) => auth,
             Err(err) => return api::log_and_return_error_response(err),
         }
@@ -64,7 +64,7 @@ pub async fn customers_retrieve(
     .await
 }
 
-#[instrument(skip_all, fields(flow = ?Flow::CustomersList))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::CustomersList))]
 pub async fn customers_list(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
     let flow = Flow::CustomersList;
 
@@ -86,7 +86,7 @@ pub async fn customers_list(state: web::Data<AppState>, req: HttpRequest) -> Htt
     .await
 }
 
-#[instrument(skip_all, fields(flow = ?Flow::CustomersUpdate))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::CustomersUpdate))]
 pub async fn customers_update(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -112,7 +112,7 @@ pub async fn customers_update(
     .await
 }
 
-#[instrument(skip_all, fields(flow = ?Flow::CustomersDelete))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::CustomersDelete))]
 pub async fn customers_delete(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -138,7 +138,7 @@ pub async fn customers_delete(
     ))
     .await
 }
-#[instrument(skip_all, fields(flow = ?Flow::CustomersGetMandates))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::CustomersGetMandates))]
 pub async fn get_customer_mandates(
     state: web::Data<AppState>,
     req: HttpRequest,

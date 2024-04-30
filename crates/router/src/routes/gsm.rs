@@ -25,7 +25,7 @@ use crate::{
     operation_id = "Create Gsm Rule",
     security(("admin_api_key" = [])),
 )]
-#[instrument(skip_all, fields(flow = ?Flow::GsmRuleCreate))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::GsmRuleCreate))]
 pub async fn create_gsm_rule(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -63,7 +63,7 @@ pub async fn create_gsm_rule(
     operation_id = "Retrieve Gsm Rule",
     security(("admin_api_key" = [])),
 )]
-#[instrument(skip_all, fields(flow = ?Flow::GsmRuleRetrieve))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::GsmRuleRetrieve))]
 pub async fn get_gsm_rule(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -100,7 +100,7 @@ pub async fn get_gsm_rule(
     operation_id = "Update Gsm Rule",
     security(("admin_api_key" = [])),
 )]
-#[instrument(skip_all, fields(flow = ?Flow::GsmRuleUpdate))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::GsmRuleUpdate))]
 pub async fn update_gsm_rule(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -138,7 +138,7 @@ pub async fn update_gsm_rule(
     operation_id = "Delete Gsm Rule",
     security(("admin_api_key" = [])),
 )]
-#[instrument(skip_all, fields(flow = ?Flow::GsmRuleDelete))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::GsmRuleDelete))]
 pub async fn delete_gsm_rule(
     state: web::Data<AppState>,
     req: HttpRequest,

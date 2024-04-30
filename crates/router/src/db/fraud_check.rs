@@ -37,7 +37,7 @@ pub trait FraudCheckInterface {
 
 #[async_trait::async_trait]
 impl FraudCheckInterface for Store {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn insert_fraud_check_response(
         &self,
         new: storage::FraudCheckNew,
@@ -48,7 +48,7 @@ impl FraudCheckInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn update_fraud_check_response_with_attempt_id(
         &self,
         this: FraudCheck,
@@ -60,7 +60,7 @@ impl FraudCheckInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_fraud_check_by_payment_id(
         &self,
         payment_id: String,
@@ -72,7 +72,7 @@ impl FraudCheckInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_fraud_check_by_payment_id_if_present(
         &self,
         payment_id: String,
@@ -120,7 +120,7 @@ impl FraudCheckInterface for MockDb {
 #[cfg(feature = "kafka_events")]
 #[async_trait::async_trait]
 impl FraudCheckInterface for super::KafkaStore {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn insert_fraud_check_response(
         &self,
         _new: storage::FraudCheckNew,
@@ -128,7 +128,7 @@ impl FraudCheckInterface for super::KafkaStore {
         Err(errors::StorageError::MockDbError)?
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn update_fraud_check_response_with_attempt_id(
         &self,
         _this: FraudCheck,
@@ -137,7 +137,7 @@ impl FraudCheckInterface for super::KafkaStore {
         Err(errors::StorageError::MockDbError)?
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_fraud_check_by_payment_id(
         &self,
         _payment_id: String,

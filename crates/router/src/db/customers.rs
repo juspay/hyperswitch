@@ -97,7 +97,7 @@ mod storage {
 
     #[async_trait::async_trait]
     impl CustomerInterface for Store {
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         // check customer not found in kv and fallback to db
         async fn find_customer_optional_by_customer_id_merchant_id(
             &self,
@@ -160,7 +160,7 @@ mod storage {
             })
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn update_customer_by_customer_id_merchant_id(
             &self,
             customer_id: String,
@@ -232,7 +232,7 @@ mod storage {
                 .change_context(errors::StorageError::DecryptionError)
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn find_customer_by_customer_id_merchant_id(
             &self,
             customer_id: &str,
@@ -289,7 +289,7 @@ mod storage {
             }
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn list_customers_by_merchant_id(
             &self,
             merchant_id: &str,
@@ -315,7 +315,7 @@ mod storage {
             Ok(customers)
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn insert_customer(
             &self,
             customer_data: domain::Customer,
@@ -382,7 +382,7 @@ mod storage {
                 .change_context(errors::StorageError::DecryptionError)
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn delete_customer_by_customer_id_merchant_id(
             &self,
             customer_id: &str,
@@ -427,7 +427,7 @@ mod storage {
 
     #[async_trait::async_trait]
     impl CustomerInterface for Store {
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn find_customer_optional_by_customer_id_merchant_id(
             &self,
             customer_id: &str,
@@ -463,7 +463,7 @@ mod storage {
             })
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn update_customer_by_customer_id_merchant_id(
             &self,
             customer_id: String,
@@ -490,7 +490,7 @@ mod storage {
             .await
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn find_customer_by_customer_id_merchant_id(
             &self,
             customer_id: &str,
@@ -521,7 +521,7 @@ mod storage {
             }
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn list_customers_by_merchant_id(
             &self,
             merchant_id: &str,
@@ -547,7 +547,7 @@ mod storage {
             Ok(customers)
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn insert_customer(
             &self,
             customer_data: domain::Customer,
@@ -570,7 +570,7 @@ mod storage {
                 .await
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn delete_customer_by_customer_id_merchant_id(
             &self,
             customer_id: &str,
@@ -639,7 +639,7 @@ impl CustomerInterface for MockDb {
         Ok(customers)
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn update_customer_by_customer_id_merchant_id(
         &self,
         _customer_id: String,

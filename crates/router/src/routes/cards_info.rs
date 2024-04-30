@@ -21,7 +21,7 @@ use crate::{
     operation_id = "Retrieve card information",
     security(("api_key" = []), ("publishable_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::CardsInfo))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::CardsInfo))]
 pub async fn card_iin_info(
     state: web::Data<AppState>,
     req: HttpRequest,

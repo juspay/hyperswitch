@@ -31,7 +31,7 @@ pub trait AuthenticationInterface {
 
 #[async_trait::async_trait]
 impl AuthenticationInterface for Store {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn insert_authentication(
         &self,
         authentication: storage::AuthenticationNew,
@@ -43,7 +43,7 @@ impl AuthenticationInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_authentication_by_merchant_id_authentication_id(
         &self,
         merchant_id: String,
@@ -59,7 +59,7 @@ impl AuthenticationInterface for Store {
         .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn update_authentication_by_merchant_id_authentication_id(
         &self,
         previous_state: storage::Authentication,

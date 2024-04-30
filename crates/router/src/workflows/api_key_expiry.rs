@@ -1,12 +1,12 @@
 use common_utils::{errors::ValidationError, ext_traits::ValueExt};
 use diesel_models::{enums as storage_enums, ApiKeyExpiryTrackingData};
 use router_env::logger;
-use scheduler::{workflows::ProcessTrackerWorkflow, SchedulerAppState};
+use scheduler::{workflows::ProcessTrackerWorkflow};
 
 use crate::{
     errors,
     logger::error,
-    routes::{metrics, AppState},
+    routes::{metrics, SessionState},
     services::email::types::ApiKeyExpiryReminder,
     types::{api, domain::UserEmail, storage},
     utils::OptionExt,
@@ -15,10 +15,10 @@ use crate::{
 pub struct ApiKeyExpiryWorkflow;
 
 #[async_trait::async_trait]
-impl ProcessTrackerWorkflow<AppState> for ApiKeyExpiryWorkflow {
+impl ProcessTrackerWorkflow<SessionState> for ApiKeyExpiryWorkflow {
     async fn execute_workflow<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         process: storage::ProcessTracker,
     ) -> Result<(), errors::ProcessTrackerError> {
         let db = &*state.store;
@@ -137,7 +137,7 @@ impl ProcessTrackerWorkflow<AppState> for ApiKeyExpiryWorkflow {
 
     async fn error_handler<'a>(
         &'a self,
-        _state: &'a AppState,
+        _state: &'a SessionState,
         process: storage::ProcessTracker,
         _error: errors::ProcessTrackerError,
     ) -> errors::CustomResult<(), errors::ProcessTrackerError> {

@@ -61,7 +61,7 @@ pub trait RoutingAlgorithmInterface {
 
 #[async_trait::async_trait]
 impl RoutingAlgorithmInterface for Store {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn insert_routing_algorithm(
         &self,
         routing_algorithm: routing_storage::RoutingAlgorithm,
@@ -73,7 +73,7 @@ impl RoutingAlgorithmInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_routing_algorithm_by_profile_id_algorithm_id(
         &self,
         profile_id: &str,
@@ -89,7 +89,7 @@ impl RoutingAlgorithmInterface for Store {
         .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_routing_algorithm_by_algorithm_id_merchant_id(
         &self,
         algorithm_id: &str,
@@ -105,7 +105,7 @@ impl RoutingAlgorithmInterface for Store {
         .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_routing_algorithm_metadata_by_algorithm_id_profile_id(
         &self,
         algorithm_id: &str,
@@ -121,7 +121,7 @@ impl RoutingAlgorithmInterface for Store {
         .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn list_routing_algorithm_metadata_by_profile_id(
         &self,
         profile_id: &str,
@@ -136,7 +136,7 @@ impl RoutingAlgorithmInterface for Store {
         .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn list_routing_algorithm_metadata_by_merchant_id(
         &self,
         merchant_id: &str,

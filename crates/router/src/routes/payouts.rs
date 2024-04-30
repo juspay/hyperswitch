@@ -26,7 +26,7 @@ use crate::{
     operation_id = "Create a Payout",
     security(("api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::PayoutsCreate))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::PayoutsCreate))]
 pub async fn payouts_create(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -61,7 +61,7 @@ pub async fn payouts_create(
     operation_id = "Retrieve a Payout",
     security(("api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::PayoutsRetrieve))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::PayoutsRetrieve))]
 pub async fn payouts_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -106,7 +106,7 @@ pub async fn payouts_retrieve(
     operation_id = "Update a Payout",
     security(("api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::PayoutsUpdate))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::PayoutsUpdate))]
 pub async fn payouts_update(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -146,7 +146,7 @@ pub async fn payouts_update(
     operation_id = "Cancel a Payout",
     security(("api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::PayoutsCancel))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::PayoutsCancel))]
 pub async fn payouts_cancel(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -186,7 +186,7 @@ pub async fn payouts_cancel(
     operation_id = "Fulfill a Payout",
     security(("api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::PayoutsFulfill))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::PayoutsFulfill))]
 pub async fn payouts_fulfill(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -224,7 +224,7 @@ pub async fn payouts_fulfill(
     operation_id = "List payouts",
     security(("api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::PayoutsList))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::PayoutsList))]
 pub async fn payouts_list(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -262,7 +262,7 @@ pub async fn payouts_list(
     operation_id = "Filter payouts",
     security(("api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::PayoutsList))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::PayoutsList))]
 pub async fn payouts_list_by_filter(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -302,7 +302,7 @@ pub async fn payouts_list_by_filter(
     operation_id = "Filter payouts",
     security(("api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::PayoutsFilter))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::PayoutsFilter))]
 pub async fn payouts_list_available_filters(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -329,7 +329,7 @@ pub async fn payouts_list_available_filters(
     .await
 }
 
-#[instrument(skip_all, fields(flow = ?Flow::PayoutsAccounts))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::PayoutsAccounts))]
 // #[get("/accounts")]
 pub async fn payouts_accounts() -> impl Responder {
     let _flow = Flow::PayoutsAccounts;

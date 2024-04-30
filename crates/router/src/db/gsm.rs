@@ -53,7 +53,7 @@ pub trait GsmInterface {
 
 #[async_trait::async_trait]
 impl GsmInterface for Store {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn add_gsm_rule(
         &self,
         rule: storage::GatewayStatusMappingNew,
@@ -64,7 +64,7 @@ impl GsmInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_gsm_decision(
         &self,
         connector: String,
@@ -81,7 +81,7 @@ impl GsmInterface for Store {
         .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_gsm_rule(
         &self,
         connector: String,
@@ -96,7 +96,7 @@ impl GsmInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn update_gsm_rule(
         &self,
         connector: String,
@@ -112,7 +112,7 @@ impl GsmInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn delete_gsm_rule(
         &self,
         connector: String,

@@ -25,7 +25,7 @@ impl Store {
         self.drainer_stream(format!("shard_{stream_index}").as_str())
     }
 
-    #[router_env::instrument(skip_all)]
+    //#[router_env::instrument(skip_all)]
     pub async fn is_stream_available(&self, stream_index: u8) -> bool {
         let stream_key_flag = self.get_stream_key_flag(stream_index);
 

@@ -26,7 +26,7 @@ pub trait HealthCheckInterface {
 }
 
 #[async_trait::async_trait]
-impl HealthCheckInterface for app::AppState {
+impl HealthCheckInterface for app::SessionState {
     async fn health_check_db(&self) -> CustomResult<HealthState, errors::HealthCheckDBError> {
         let db = &*self.store;
         db.health_check_db().await?;

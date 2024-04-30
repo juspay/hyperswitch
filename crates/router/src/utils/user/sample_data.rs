@@ -11,12 +11,12 @@ use time::OffsetDateTime;
 use crate::{
     consts,
     core::errors::sample_data::{SampleDataError, SampleDataResult},
-    AppState,
+    SessionState,
 };
 
 #[allow(clippy::type_complexity)]
 pub async fn generate_sample_data(
-    state: &AppState,
+    state: &SessionState,
     req: SampleDataRequest,
     merchant_id: &str,
 ) -> SampleDataResult<Vec<(PaymentIntentNew, PaymentAttemptBatchNew, Option<RefundNew>)>> {

@@ -15,12 +15,12 @@ use crate::{
         fraud_check::{FraudCheckFulfillmentData, FrmFulfillmentRouterData},
         storage, ConnectorAuthType, ErrorResponse, RouterData,
     },
-    utils, AppState,
+    utils, SessionState,
 };
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn construct_fulfillment_router_data<'a>(
-    state: &'a AppState,
+    state: &'a SessionState,
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
     merchant_account: &domain::MerchantAccount,

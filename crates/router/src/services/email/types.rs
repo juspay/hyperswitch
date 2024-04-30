@@ -4,7 +4,7 @@ use error_stack::ResultExt;
 use external_services::email::{EmailContents, EmailData, EmailError};
 use masking::{ExposeInterface, PeekInterface, Secret};
 
-use crate::{configs, consts, routes::AppState};
+use crate::{configs, consts, routes::SessionState};
 #[cfg(feature = "olap")]
 use crate::{
     core::errors::{UserErrors, UserResult},
@@ -378,7 +378,7 @@ pub struct BizEmailProd {
 }
 
 impl BizEmailProd {
-    pub fn new(state: &AppState, data: ProdIntent) -> UserResult<Self> {
+    pub fn new(state: &SessionState, data: ProdIntent) -> UserResult<Self> {
         Ok(Self {
             recipient_email: (domain::UserEmail::new(
                 consts::user::BUSINESS_EMAIL.to_string().into(),

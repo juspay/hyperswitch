@@ -121,8 +121,11 @@ mod tests {
             ..PaymentAttemptNew::default()
         };
 
-        let response = state
-            .store
+        let store = state
+            .stores
+            .get(state.conf.multitenancy.tenants.get(0).unwrap())
+            .unwrap();
+        let response = store
             .insert_payment_attempt(payment_attempt, enums::MerchantStorageScheme::PostgresOnly)
             .await
             .unwrap();
@@ -162,14 +165,16 @@ mod tests {
             attempt_id: attempt_id.clone(),
             ..PaymentAttemptNew::default()
         };
-        state
-            .store
+        let store = state
+            .stores
+            .get(state.conf.multitenancy.tenants.get(0).unwrap())
+            .unwrap();
+        store
             .insert_payment_attempt(payment_attempt, enums::MerchantStorageScheme::PostgresOnly)
             .await
             .unwrap();
 
-        let response = state
-            .store
+        let response = store
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 &payment_id,
                 &merchant_id,
@@ -215,14 +220,16 @@ mod tests {
             attempt_id: uuid.clone(),
             ..PaymentAttemptNew::default()
         };
-        state
-            .store
+        let store = state
+            .stores
+            .get(state.conf.multitenancy.tenants.get(0).unwrap())
+            .unwrap();
+        store
             .insert_payment_attempt(payment_attempt, enums::MerchantStorageScheme::PostgresOnly)
             .await
             .unwrap();
 
-        let response = state
-            .store
+        let response = store
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 &uuid,
                 "1",

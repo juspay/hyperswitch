@@ -44,7 +44,7 @@ pub trait MerchantKeyStoreInterface {
 
 #[async_trait::async_trait]
 impl MerchantKeyStoreInterface for Store {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn insert_merchant_key_store(
         &self,
         merchant_key_store: domain::MerchantKeyStore,
@@ -63,7 +63,7 @@ impl MerchantKeyStoreInterface for Store {
             .change_context(errors::StorageError::DecryptionError)
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn get_merchant_key_store_by_merchant_id(
         &self,
         merchant_id: &str,
@@ -105,7 +105,7 @@ impl MerchantKeyStoreInterface for Store {
         }
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn delete_merchant_key_store_by_merchant_id(
         &self,
         merchant_id: &str,
@@ -138,7 +138,7 @@ impl MerchantKeyStoreInterface for Store {
     }
 
     #[cfg(feature = "olap")]
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn list_multiple_key_stores(
         &self,
         merchant_ids: Vec<String>,

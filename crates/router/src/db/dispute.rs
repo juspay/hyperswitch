@@ -49,7 +49,7 @@ pub trait DisputeInterface {
 
 #[async_trait::async_trait]
 impl DisputeInterface for Store {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn insert_dispute(
         &self,
         dispute: storage::DisputeNew,
@@ -61,7 +61,7 @@ impl DisputeInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_by_merchant_id_payment_id_connector_dispute_id(
         &self,
         merchant_id: &str,
@@ -79,7 +79,7 @@ impl DisputeInterface for Store {
         .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_dispute_by_merchant_id_dispute_id(
         &self,
         merchant_id: &str,
@@ -91,7 +91,7 @@ impl DisputeInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_disputes_by_merchant_id(
         &self,
         merchant_id: &str,
@@ -103,7 +103,7 @@ impl DisputeInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_disputes_by_merchant_id_payment_id(
         &self,
         merchant_id: &str,
@@ -115,7 +115,7 @@ impl DisputeInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn update_dispute(
         &self,
         this: storage::Dispute,

@@ -94,7 +94,7 @@ mod storage {
     };
     #[async_trait::async_trait]
     impl AddressInterface for Store {
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn find_address_by_address_id(
             &self,
             address_id: &str,
@@ -113,7 +113,7 @@ mod storage {
                 .await
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn find_address_by_merchant_id_payment_id_address_id(
             &self,
             merchant_id: &str,
@@ -140,7 +140,7 @@ mod storage {
             .await
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn update_address(
             &self,
             address_id: String,
@@ -160,7 +160,7 @@ mod storage {
                 .await
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn update_address_for_payments(
             &self,
             this: domain::Address,
@@ -186,7 +186,7 @@ mod storage {
                 .await
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn insert_address_for_payments(
             &self,
             _payment_id: &str,
@@ -211,7 +211,7 @@ mod storage {
                 .await
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn insert_address_for_customers(
             &self,
             address: domain::Address,
@@ -234,7 +234,7 @@ mod storage {
                 .await
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn update_address_by_merchant_id_customer_id(
             &self,
             customer_id: &str,
@@ -293,7 +293,7 @@ mod storage {
     };
     #[async_trait::async_trait]
     impl AddressInterface for Store {
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn find_address_by_address_id(
             &self,
             address_id: &str,
@@ -312,7 +312,7 @@ mod storage {
                 .await
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn find_address_by_merchant_id_payment_id_address_id(
             &self,
             merchant_id: &str,
@@ -361,7 +361,7 @@ mod storage {
                 .change_context(errors::StorageError::DecryptionError)
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn update_address(
             &self,
             address_id: String,
@@ -381,7 +381,7 @@ mod storage {
                 .await
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn update_address_for_payments(
             &self,
             this: domain::Address,
@@ -452,7 +452,7 @@ mod storage {
             }
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn insert_address_for_payments(
             &self,
             payment_id: &str,
@@ -544,7 +544,7 @@ mod storage {
             }
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn insert_address_for_customers(
             &self,
             address: domain::Address,
@@ -567,7 +567,7 @@ mod storage {
                 .await
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn update_address_by_merchant_id_customer_id(
             &self,
             customer_id: &str,

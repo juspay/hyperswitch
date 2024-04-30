@@ -8,7 +8,7 @@ use masking::{ExposeInterface, Secret};
 
 use crate::{
     core::errors::{StorageError, UserErrors, UserResult},
-    routes::AppState,
+    routes::SessionState,
     services::{
         authentication::{AuthToken, UserFromToken},
         authorization::roles::{self, RoleInfo},
@@ -24,7 +24,7 @@ pub mod sample_data;
 impl UserFromToken {
     pub async fn get_merchant_account_from_db(
         &self,
-        state: AppState,
+        state: SessionState,
     ) -> UserResult<MerchantAccount> {
         let key_store = state
             .store
@@ -54,7 +54,7 @@ impl UserFromToken {
         Ok(merchant_account)
     }
 
-    pub async fn get_user_from_db(&self, state: &AppState) -> UserResult<UserFromStorage> {
+    pub async fn get_user_from_db(&self, state: &SessionState) -> UserResult<UserFromStorage> {
         let user = state
             .store
             .find_user_by_id(&self.user_id)
@@ -63,7 +63,7 @@ impl UserFromToken {
         Ok(user.into())
     }
 
-    pub async fn get_role_info_from_db(&self, state: &AppState) -> UserResult<RoleInfo> {
+    pub async fn get_role_info_from_db(&self, state: &SessionState) -> UserResult<RoleInfo> {
         roles::RoleInfo::from_role_id(state, &self.role_id, &self.merchant_id, &self.org_id)
             .await
             .change_context(UserErrors::InternalServerError)
@@ -71,7 +71,7 @@ impl UserFromToken {
 }
 
 pub async fn generate_jwt_auth_token(
-    state: &AppState,
+    state: &SessionState,
     user: &UserFromStorage,
     user_role: &UserRole,
 ) -> UserResult<Secret<String>> {
@@ -87,7 +87,7 @@ pub async fn generate_jwt_auth_token(
 }
 
 pub async fn generate_jwt_auth_token_with_custom_role_attributes(
-    state: &AppState,
+    state: &SessionState,
     user: &UserFromStorage,
     merchant_id: String,
     org_id: String,
@@ -105,7 +105,7 @@ pub async fn generate_jwt_auth_token_with_custom_role_attributes(
 }
 
 pub fn get_dashboard_entry_response(
-    state: &AppState,
+    state: &SessionState,
     user: UserFromStorage,
     user_role: UserRole,
     token: Secret<String>,
@@ -125,7 +125,7 @@ pub fn get_dashboard_entry_response(
 
 #[allow(unused_variables)]
 pub fn get_verification_days_left(
-    state: &AppState,
+    state: &SessionState,
     user: &UserFromStorage,
 ) -> UserResult<Option<i64>> {
     #[cfg(feature = "email")]
@@ -175,7 +175,7 @@ pub fn get_multiple_merchant_details_with_status(
 }
 
 pub async fn get_user_from_db_by_email(
-    state: &AppState,
+    state: &SessionState,
     email: domain::UserEmail,
 ) -> CustomResult<UserFromStorage, StorageError> {
     state

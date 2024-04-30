@@ -25,7 +25,7 @@ use crate::{
     operation_id = "Retrieve a Payment Link",
     security(("api_key" = []), ("publishable_key" = []))
 )]
-#[instrument(skip(state, req), fields(flow = ?Flow::PaymentLinkRetrieve))]
+//#\[instrument\(skip(state, req), fields(flow = ?Flow::PaymentLinkRetrieve))]
 
 pub async fn payment_link_retrieve(
     state: web::Data<AppState>,
@@ -104,7 +104,7 @@ pub async fn initiate_payment_link(
     operation_id = "List all Payment links",
     security(("api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::PaymentLinkList))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::PaymentLinkList))]
 pub async fn payments_link_list(
     state: web::Data<AppState>,
     req: actix_web::HttpRequest,

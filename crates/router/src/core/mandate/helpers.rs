@@ -7,12 +7,12 @@ use error_stack::ResultExt;
 
 use crate::{
     core::{errors, payments},
-    routes::AppState,
+    routes::SessionState,
     types::{api, domain},
 };
 
 pub async fn get_profile_id_for_mandate(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     mandate: Mandate,
 ) -> CustomResult<String, errors::ApiErrorResponse> {

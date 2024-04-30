@@ -8,7 +8,7 @@ use crate::{
     services::{self, authentication as auth, authorization::permissions::Permission},
 };
 
-#[instrument(skip_all, fields(flow = ?Flow::VerifyPaymentConnector))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::VerifyPaymentConnector))]
 pub async fn payment_connector_verify(
     state: web::Data<AppState>,
     req: HttpRequest,

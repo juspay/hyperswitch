@@ -84,7 +84,7 @@ pub trait PaymentMethodInterface {
 
 //     #[async_trait::async_trait]
 //     impl PaymentMethodInterface for Store {
-//         #[instrument(skip_all)]
+//         //#\[instrument\(skip_all)]
 //         async fn find_payment_method(
 //             &self,
 //             payment_method_id: &str,
@@ -128,7 +128,7 @@ pub trait PaymentMethodInterface {
 //             }
 //         }
 
-//         #[instrument(skip_all)]
+//         //#\[instrument\(skip_all)]
 //         async fn find_payment_method_by_locker_id(
 //             &self,
 //             locker_id: &str,
@@ -172,7 +172,7 @@ pub trait PaymentMethodInterface {
 //             }
 //         }
 //         // not supported in kv
-//         #[instrument(skip_all)]
+//         //#\[instrument\(skip_all)]
 //         async fn get_payment_method_count_by_customer_id_merchant_id_status(
 //             &self,
 //             customer_id: &str,
@@ -190,7 +190,7 @@ pub trait PaymentMethodInterface {
 //             .map_err(|error| report!(errors::StorageError::from(error)))
 //         }
 
-//         #[instrument(skip_all)]
+//         //#\[instrument\(skip_all)]
 //         async fn insert_payment_method(
 //             &self,
 //             payment_method_new: storage_types::PaymentMethodNew,
@@ -270,7 +270,7 @@ pub trait PaymentMethodInterface {
 //             }
 //         }
 
-//         #[instrument(skip_all)]
+//         //#\[instrument\(skip_all)]
 //         async fn update_payment_method(
 //             &self,
 //             payment_method: storage_types::PaymentMethod,
@@ -331,7 +331,7 @@ pub trait PaymentMethodInterface {
 //             }
 //         }
 
-//         #[instrument(skip_all)]
+//         //#\[instrument\(skip_all)]
 //         async fn find_payment_method_by_customer_id_merchant_id_list(
 //             &self,
 //             customer_id: &str,
@@ -349,7 +349,7 @@ pub trait PaymentMethodInterface {
 //             .map_err(|error| report!(errors::StorageError::from(error)))
 //         }
 
-//         #[instrument(skip_all)]
+//         //#\[instrument\(skip_all)]
 //         async fn find_payment_method_by_customer_id_merchant_id_status(
 //             &self,
 //             customer_id: &str,
@@ -399,7 +399,7 @@ mod storage {
     };
     #[async_trait::async_trait]
     impl PaymentMethodInterface for Store {
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn find_payment_method(
             &self,
             payment_method_id: &str,
@@ -411,7 +411,7 @@ mod storage {
                 .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn find_payment_method_by_locker_id(
             &self,
             locker_id: &str,
@@ -423,7 +423,7 @@ mod storage {
                 .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn get_payment_method_count_by_customer_id_merchant_id_status(
             &self,
             customer_id: &str,
@@ -441,7 +441,7 @@ mod storage {
             .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn insert_payment_method(
             &self,
             payment_method_new: storage_types::PaymentMethodNew,
@@ -454,7 +454,7 @@ mod storage {
                 .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn update_payment_method(
             &self,
             payment_method: storage_types::PaymentMethod,
@@ -468,7 +468,7 @@ mod storage {
                 .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn find_payment_method_by_customer_id_merchant_id_list(
             &self,
             customer_id: &str,
@@ -486,7 +486,7 @@ mod storage {
             .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
-        #[instrument(skip_all)]
+        //#\[instrument\(skip_all)]
         async fn find_payment_method_by_customer_id_merchant_id_status(
             &self,
             customer_id: &str,

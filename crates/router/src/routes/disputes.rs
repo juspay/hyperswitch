@@ -28,7 +28,7 @@ use crate::{
     operation_id = "Retrieve a Dispute",
     security(("api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::DisputesRetrieve))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::DisputesRetrieve))]
 pub async fn retrieve_dispute(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -77,7 +77,7 @@ pub async fn retrieve_dispute(
     operation_id = "List Disputes",
     security(("api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::DisputesList))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::DisputesList))]
 pub async fn retrieve_disputes_list(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -115,7 +115,7 @@ pub async fn retrieve_disputes_list(
     operation_id = "Accept a Dispute",
     security(("api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::DisputesRetrieve))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::DisputesRetrieve))]
 pub async fn accept_dispute(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -155,7 +155,7 @@ pub async fn accept_dispute(
     operation_id = "Submit Dispute Evidence",
     security(("api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::DisputesEvidenceSubmit))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::DisputesEvidenceSubmit))]
 pub async fn submit_dispute_evidence(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -194,7 +194,7 @@ pub async fn submit_dispute_evidence(
     operation_id = "Attach Evidence to Dispute",
     security(("api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::AttachDisputeEvidence))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::AttachDisputeEvidence))]
 pub async fn attach_dispute_evidence(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -240,7 +240,7 @@ pub async fn attach_dispute_evidence(
     operation_id = "Retrieve a Dispute Evidence",
     security(("api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::RetrieveDisputeEvidence))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::RetrieveDisputeEvidence))]
 pub async fn retrieve_dispute_evidence(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -283,7 +283,7 @@ pub async fn retrieve_dispute_evidence(
     operation_id = "Delete Evidence attached to a Dispute",
     security(("api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::DeleteDisputeEvidence))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::DeleteDisputeEvidence))]
 pub async fn delete_dispute_evidence(
     state: web::Data<AppState>,
     req: HttpRequest,

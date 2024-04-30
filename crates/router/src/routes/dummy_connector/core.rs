@@ -1,4 +1,4 @@
-use app::AppState;
+use app::SessionState;
 use common_utils::generate_id_with_default_len;
 use error_stack::ResultExt;
 
@@ -10,7 +10,7 @@ use crate::{
 };
 
 pub async fn payment(
-    state: AppState,
+    state: SessionState,
     req: types::DummyConnectorPaymentRequest,
 ) -> types::DummyConnectorResponse<types::DummyConnectorPaymentResponse> {
     utils::tokio_mock_sleep(
@@ -41,7 +41,7 @@ pub async fn payment(
 }
 
 pub async fn payment_data(
-    state: AppState,
+    state: SessionState,
     req: types::DummyConnectorPaymentRetrieveRequest,
 ) -> types::DummyConnectorResponse<types::DummyConnectorPaymentResponse> {
     utils::tokio_mock_sleep(
@@ -55,7 +55,7 @@ pub async fn payment_data(
 }
 
 pub async fn payment_authorize(
-    state: AppState,
+    state: SessionState,
     req: types::DummyConnectorPaymentConfirmRequest,
 ) -> types::DummyConnectorResponse<String> {
     let payment_data = utils::get_payment_data_by_attempt_id(&state, req.attempt_id.clone()).await;
@@ -83,7 +83,7 @@ pub async fn payment_authorize(
 }
 
 pub async fn payment_complete(
-    state: AppState,
+    state: SessionState,
     req: types::DummyConnectorPaymentCompleteRequest,
 ) -> types::DummyConnectorResponse<()> {
     utils::tokio_mock_sleep(
@@ -145,7 +145,7 @@ pub async fn payment_complete(
 }
 
 pub async fn refund_payment(
-    state: AppState,
+    state: SessionState,
     req: types::DummyConnectorRefundRequest,
 ) -> types::DummyConnectorResponse<types::DummyConnectorRefundResponse> {
     utils::tokio_mock_sleep(
@@ -197,7 +197,7 @@ pub async fn refund_payment(
 }
 
 pub async fn refund_data(
-    state: AppState,
+    state: SessionState,
     req: types::DummyConnectorRefundRetrieveRequest,
 ) -> types::DummyConnectorResponse<types::DummyConnectorRefundResponse> {
     let refund_id = req.refund_id;

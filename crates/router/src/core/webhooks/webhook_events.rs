@@ -4,7 +4,7 @@ use router_env::{instrument, tracing};
 
 use crate::{
     core::errors::{self, RouterResponse, StorageErrorExt},
-    routes::AppState,
+    routes::SessionState,
     services::ApplicationResponse,
     types::{api, domain, storage, transformers::ForeignTryFrom},
     utils::{OptionExt, StringExt},
@@ -18,9 +18,9 @@ enum MerchantAccountOrBusinessProfile {
     BusinessProfile(storage::BusinessProfile),
 }
 
-#[instrument(skip(state))]
+//#\[instrument\(skip(state))]
 pub async fn list_initial_delivery_attempts(
-    state: AppState,
+    state: SessionState,
     merchant_id_or_profile_id: String,
     constraints: api::webhook_events::EventListConstraints,
 ) -> RouterResponse<Vec<api::webhook_events::EventListItemResponse>> {
@@ -106,9 +106,9 @@ pub async fn list_initial_delivery_attempts(
     ))
 }
 
-#[instrument(skip(state))]
+//#\[instrument\(skip(state))]
 pub async fn list_delivery_attempts(
-    state: AppState,
+    state: SessionState,
     merchant_id_or_profile_id: String,
     initial_attempt_id: String,
 ) -> RouterResponse<Vec<api::webhook_events::EventRetrieveResponse>> {
@@ -155,9 +155,9 @@ pub async fn list_delivery_attempts(
     }
 }
 
-#[instrument(skip(state))]
+//#\[instrument\(skip(state))]
 pub async fn retry_delivery_attempt(
-    state: AppState,
+    state: SessionState,
     merchant_id_or_profile_id: String,
     event_id: String,
 ) -> RouterResponse<api::webhook_events::EventRetrieveResponse> {
@@ -254,7 +254,7 @@ pub async fn retry_delivery_attempt(
 }
 
 async fn determine_identifier_and_get_key_store(
-    state: AppState,
+    state: SessionState,
     merchant_id_or_profile_id: String,
 ) -> errors::RouterResult<(MerchantAccountOrBusinessProfile, domain::MerchantKeyStore)> {
     let store = state.store.as_ref();

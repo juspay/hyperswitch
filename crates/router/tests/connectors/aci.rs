@@ -186,7 +186,7 @@ async fn payments_create_success() {
     let conf = Settings::new().unwrap();
     let tx: oneshot::Sender<()> = oneshot::channel().0;
 
-    let state = Box::pin(routes::AppState::with_storage(
+    let state = Box::pin(routes::SessionState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
         tx,

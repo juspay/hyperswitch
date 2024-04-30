@@ -126,7 +126,8 @@ pub trait ConnectorActions: Connector {
             Box::new(services::MockApiClient),
         ))
         .await;
-        integration.execute_pretasks(&mut request, &state).await?;
+        let state: &SessionState = &state.stores.get("public").unwrap().clone();
+        integration.execute_pretasks(&mut request, session_state).await?;
         Box::pin(call_connector(request, integration)).await
     }
 

@@ -19,7 +19,7 @@ use crate::{
         payments::{self, helpers},
         utils as core_utils,
     },
-    routes::{metrics, AppState},
+    routes::{metrics, SessionState},
     services::{self, RedirectForm},
     types::{
         self, api, domain,
@@ -30,9 +30,9 @@ use crate::{
     utils::{OptionExt, ValueExt},
 };
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 pub async fn construct_payment_router_data<'a, F, T>(
-    state: &'a AppState,
+    state: &'a SessionState,
     payment_data: PaymentData<F>,
     connector_id: &str,
     merchant_account: &domain::MerchantAccount,
@@ -343,7 +343,7 @@ where
     }
 }
 
-#[instrument(skip_all)]
+//#\[instrument\(skip_all)]
 // try to use router data here so that already validated things , we don't want to repeat the validations.
 // Add internal value not found and external value not found so that we can give 500 / Internal server error for internal value not found
 #[allow(clippy::too_many_arguments)]
@@ -1057,7 +1057,7 @@ where
     router_base_url: String,
     connector_name: String,
     payment_data: PaymentData<F>,
-    state: &'a AppState,
+    state: &'a SessionState,
     customer_data: &'a Option<domain::Customer>,
 }
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthorizeData {

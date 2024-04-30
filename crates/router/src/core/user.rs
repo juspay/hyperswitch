@@ -15,7 +15,7 @@ use super::errors::{StorageErrorExt, UserErrors, UserResponse, UserResult};
 use crate::services::email::types as email_types;
 use crate::{
     consts,
-    routes::{app::ReqState, AppState},
+    routes::{app::ReqState, SessionState},
     services::{authentication as auth, authorization::roles, ApplicationResponse},
     types::{domain, transformers::ForeignInto},
     utils,
@@ -26,7 +26,7 @@ pub mod sample_data;
 
 #[cfg(feature = "email")]
 pub async fn signup_with_merchant_id(
-    state: AppState,
+    state: SessionState,
     request: user_api::SignUpWithMerchantIdRequest,
 ) -> UserResponse<user_api::SignUpWithMerchantIdResponse> {
     let new_user = domain::NewUser::try_from(request.clone())?;
@@ -72,7 +72,7 @@ pub async fn signup_with_merchant_id(
 }
 
 pub async fn signup(
-    state: AppState,
+    state: SessionState,
     request: user_api::SignUpRequest,
 ) -> UserResponse<user_api::SignUpResponse> {
     let new_user = domain::NewUser::try_from(request)?;
@@ -101,7 +101,7 @@ pub async fn signup(
 }
 
 pub async fn signin_without_invite_checks(
-    state: AppState,
+    state: SessionState,
     request: user_api::SignInRequest,
 ) -> UserResponse<user_api::DashboardEntryResponse> {
     let user_from_db: domain::UserFromStorage = state
@@ -129,7 +129,7 @@ pub async fn signin_without_invite_checks(
 }
 
 pub async fn signin(
-    state: AppState,
+    state: SessionState,
     request: user_api::SignInRequest,
 ) -> UserResponse<user_api::SignInResponse> {
     let user_from_db: domain::UserFromStorage = state
@@ -174,7 +174,7 @@ pub async fn signin(
 
 #[cfg(feature = "email")]
 pub async fn connect_account(
-    state: AppState,
+    state: SessionState,
     request: user_api::ConnectAccountRequest,
 ) -> UserResponse<user_api::ConnectAccountResponse> {
     let find_user = state
@@ -268,13 +268,16 @@ pub async fn connect_account(
     }
 }
 
-pub async fn signout(state: AppState, user_from_token: auth::UserFromToken) -> UserResponse<()> {
+pub async fn signout(
+    state: SessionState,
+    user_from_token: auth::UserFromToken,
+) -> UserResponse<()> {
     auth::blacklist::insert_user_in_blacklist(&state, &user_from_token.user_id).await?;
     auth::cookies::remove_cookie_response()
 }
 
 pub async fn change_password(
-    state: AppState,
+    state: SessionState,
     request: user_api::ChangePasswordRequest,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<()> {
@@ -333,7 +336,7 @@ pub async fn change_password(
 
 #[cfg(feature = "email")]
 pub async fn forgot_password(
-    state: AppState,
+    state: SessionState,
     request: user_api::ForgotPasswordRequest,
 ) -> UserResponse<()> {
     let user_email = domain::UserEmail::from_pii_email(request.email)?;
@@ -372,7 +375,7 @@ pub async fn forgot_password(
 
 #[cfg(feature = "email")]
 pub async fn reset_password(
-    state: AppState,
+    state: SessionState,
     request: user_api::ResetPasswordRequest,
 ) -> UserResponse<()> {
     let token = request.token.expose();
@@ -426,7 +429,7 @@ pub async fn reset_password(
 }
 
 pub async fn invite_user(
-    state: AppState,
+    state: SessionState,
     request: user_api::InviteUserRequest,
     user_from_token: auth::UserFromToken,
     req_state: ReqState,
@@ -626,7 +629,7 @@ pub async fn invite_user(
 }
 
 pub async fn invite_multiple_user(
-    state: AppState,
+    state: SessionState,
     user_from_token: auth::UserFromToken,
     requests: Vec<user_api::InviteUserRequest>,
     req_state: ReqState,
@@ -653,7 +656,7 @@ pub async fn invite_multiple_user(
 }
 
 async fn handle_invitation(
-    state: &AppState,
+    state: &SessionState,
     user_from_token: &auth::UserFromToken,
     request: &user_api::InviteUserRequest,
     req_state: &ReqState,
@@ -703,7 +706,7 @@ async fn handle_invitation(
 
 //TODO: send email
 async fn handle_existing_user_invitation(
-    state: &AppState,
+    state: &SessionState,
     user_from_token: &auth::UserFromToken,
     request: &user_api::InviteUserRequest,
     invitee_user_from_db: domain::UserFromStorage,
@@ -774,7 +777,7 @@ async fn handle_existing_user_invitation(
 }
 
 async fn handle_new_user_invitation(
-    state: &AppState,
+    state: &SessionState,
     user_from_token: &auth::UserFromToken,
     request: &user_api::InviteUserRequest,
     req_state: ReqState,
@@ -874,7 +877,7 @@ async fn handle_new_user_invitation(
 
 #[cfg(feature = "email")]
 pub async fn resend_invite(
-    state: AppState,
+    state: SessionState,
     user_from_token: auth::UserFromToken,
     request: user_api::ReInviteUserRequest,
     _req_state: ReqState,
@@ -936,7 +939,7 @@ pub async fn resend_invite(
 
 #[cfg(feature = "email")]
 pub async fn accept_invite_from_email(
-    state: AppState,
+    state: SessionState,
     request: user_api::AcceptInviteFromEmailRequest,
 ) -> UserResponse<user_api::DashboardEntryResponse> {
     let token = request.token.expose();
@@ -998,7 +1001,7 @@ pub async fn accept_invite_from_email(
 }
 
 pub async fn create_internal_user(
-    state: AppState,
+    state: SessionState,
     request: user_api::CreateInternalUserRequest,
 ) -> UserResponse<()> {
     let new_user = domain::NewUser::try_from(request)?;
@@ -1061,7 +1064,7 @@ pub async fn create_internal_user(
 }
 
 pub async fn switch_merchant_id(
-    state: AppState,
+    state: SessionState,
     request: user_api::SwitchMerchantIdRequest,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<user_api::DashboardEntryResponse> {
@@ -1160,7 +1163,7 @@ pub async fn switch_merchant_id(
 }
 
 pub async fn create_merchant_account(
-    state: AppState,
+    state: SessionState,
     user_from_token: auth::UserFromToken,
     req: user_api::UserMerchantCreate,
 ) -> UserResponse<()> {
@@ -1191,7 +1194,7 @@ pub async fn create_merchant_account(
 }
 
 pub async fn list_merchants_for_user(
-    state: AppState,
+    state: SessionState,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<Vec<user_api::UserMerchantAccount>> {
     let user_roles = state
@@ -1224,7 +1227,7 @@ pub async fn list_merchants_for_user(
 }
 
 pub async fn get_user_details_in_merchant_account(
-    state: AppState,
+    state: SessionState,
     user_from_token: auth::UserFromToken,
     request: user_api::GetUserDetailsRequest,
     _req_state: ReqState,
@@ -1268,7 +1271,7 @@ pub async fn get_user_details_in_merchant_account(
 }
 
 pub async fn list_users_for_merchant_account(
-    state: AppState,
+    state: SessionState,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<user_api::ListUsersResponse> {
     let users_and_user_roles = state
@@ -1316,7 +1319,7 @@ pub async fn list_users_for_merchant_account(
 
 #[cfg(feature = "email")]
 pub async fn verify_email_without_invite_checks(
-    state: AppState,
+    state: SessionState,
     req: user_api::VerifyEmailRequest,
 ) -> UserResponse<user_api::DashboardEntryResponse> {
     let token = req.token.clone().expose();
@@ -1340,7 +1343,7 @@ pub async fn verify_email_without_invite_checks(
         .await
         .map_err(|e| logger::error!(?e));
     let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
-    utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &user_role).await;
+    utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &user_role, &state).await;
 
     let response =
         utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token.clone())?;
@@ -1350,7 +1353,7 @@ pub async fn verify_email_without_invite_checks(
 
 #[cfg(feature = "email")]
 pub async fn verify_email(
-    state: AppState,
+    state: SessionState,
     req: user_api::VerifyEmailRequest,
 ) -> UserResponse<user_api::SignInResponse> {
     let token = req.token.clone().expose();
@@ -1405,7 +1408,7 @@ pub async fn verify_email(
 
 #[cfg(feature = "email")]
 pub async fn send_verification_mail(
-    state: AppState,
+    state: SessionState,
     req: user_api::SendVerifyEmailRequest,
 ) -> UserResponse<()> {
     let user_email = domain::UserEmail::try_from(req.email)?;
@@ -1445,7 +1448,7 @@ pub async fn send_verification_mail(
 
 #[cfg(feature = "recon")]
 pub async fn verify_token(
-    state: AppState,
+    state: SessionState,
     req: auth::ReconUser,
 ) -> UserResponse<user_api::VerifyTokenResponse> {
     let user = state
@@ -1473,7 +1476,7 @@ pub async fn verify_token(
 }
 
 pub async fn update_user_details(
-    state: AppState,
+    state: SessionState,
     user_token: auth::UserFromToken,
     req: user_api::UpdateUserAccountDetailsRequest,
     _req_state: ReqState,

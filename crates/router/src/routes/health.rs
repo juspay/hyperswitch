@@ -11,7 +11,7 @@ use crate::{
 };
 /// .
 // #[logger::instrument(skip_all, name = "name1", level = "warn", fields( key1 = "val1" ))]
-#[instrument(skip_all, fields(flow = ?Flow::HealthCheck))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::HealthCheck))]
 // #[actix_web::get("/health")]
 pub async fn health() -> impl actix_web::Responder {
     metrics::HEALTH_METRIC.add(&metrics::CONTEXT, 1, &[]);
@@ -19,7 +19,7 @@ pub async fn health() -> impl actix_web::Responder {
     actix_web::HttpResponse::Ok().body("health is good")
 }
 
-#[instrument(skip_all, fields(flow = ?Flow::DeepHealthCheck))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::DeepHealthCheck))]
 pub async fn deep_health_check(
     state: web::Data<app::AppState>,
     request: HttpRequest,
@@ -40,7 +40,9 @@ pub async fn deep_health_check(
     .await
 }
 
-async fn deep_health_check_func(state: app::AppState) -> RouterResponse<RouterHealthCheckResponse> {
+async fn deep_health_check_func(
+    state: app::SessionState,
+) -> RouterResponse<RouterHealthCheckResponse> {
     logger::info!("Deep health check was called");
 
     logger::debug!("Database health check begin");

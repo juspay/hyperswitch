@@ -11,7 +11,7 @@ use crate::{
     },
 };
 
-#[instrument(skip_all, fields(flow = ?Flow::WebhookEventInitialDeliveryAttemptList))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::WebhookEventInitialDeliveryAttemptList))]
 pub async fn list_initial_webhook_delivery_attempts(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -52,7 +52,7 @@ pub async fn list_initial_webhook_delivery_attempts(
     .await
 }
 
-#[instrument(skip_all, fields(flow = ?Flow::WebhookEventDeliveryAttemptList))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::WebhookEventDeliveryAttemptList))]
 pub async fn list_webhook_delivery_attempts(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -91,7 +91,7 @@ pub async fn list_webhook_delivery_attempts(
     .await
 }
 
-#[instrument(skip_all, fields(flow = ?Flow::WebhookEventDeliveryRetry))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::WebhookEventDeliveryRetry))]
 pub async fn retry_webhook_delivery_attempt(
     state: web::Data<AppState>,
     req: HttpRequest,

@@ -40,7 +40,7 @@ pub(super) trait RequestBuilderExt {
 }
 
 impl RequestBuilderExt for reqwest::RequestBuilder {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     fn add_headers(mut self, headers: reqwest::header::HeaderMap) -> Self {
         self = self.headers(headers);
         self

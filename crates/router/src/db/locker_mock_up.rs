@@ -28,7 +28,7 @@ pub trait LockerMockUpInterface {
 
 #[async_trait::async_trait]
 impl LockerMockUpInterface for Store {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn find_locker_by_card_id(
         &self,
         card_id: &str,
@@ -39,7 +39,7 @@ impl LockerMockUpInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn insert_locker_mock_up(
         &self,
         new: storage::LockerMockUpNew,
@@ -50,7 +50,7 @@ impl LockerMockUpInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn delete_locker_mock_up(
         &self,
         card_id: &str,

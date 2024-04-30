@@ -365,5 +365,6 @@ pub(crate) async fn fetch_raw_secrets(
         connector_onboarding,
         cors: conf.cors,
         unmasked_headers: conf.unmasked_headers,
+        multitenancy: conf.multitenancy,
     }
 }

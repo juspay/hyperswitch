@@ -25,7 +25,7 @@ use crate::{
     operation_id = "Create an API Key",
     security(("admin_api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::ApiKeyCreate))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::ApiKeyCreate))]
 pub async fn api_key_create(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -74,7 +74,7 @@ pub async fn api_key_create(
     operation_id = "Retrieve an API Key",
     security(("admin_api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::ApiKeyRetrieve))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::ApiKeyRetrieve))]
 pub async fn api_key_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -120,7 +120,7 @@ pub async fn api_key_retrieve(
     operation_id = "Update an API Key",
     security(("admin_api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::ApiKeyUpdate))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::ApiKeyUpdate))]
 pub async fn api_key_update(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -170,7 +170,7 @@ pub async fn api_key_update(
     operation_id = "Revoke an API Key",
     security(("admin_api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::ApiKeyRevoke))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::ApiKeyRevoke))]
 pub async fn api_key_revoke(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -215,7 +215,7 @@ pub async fn api_key_revoke(
     operation_id = "List all API Keys associated with a merchant account",
     security(("admin_api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::ApiKeyList))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::ApiKeyList))]
 pub async fn api_key_list(
     state: web::Data<AppState>,
     req: HttpRequest,

@@ -37,7 +37,7 @@ impl<
         S: masking::Strategy<String> + Send,
     > TypeEncryption<String, V, S> for crypto::Encryptable<Secret<String, S>>
 {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn encrypt(
         masked_data: Secret<String, S>,
         key: &[u8],
@@ -48,7 +48,7 @@ impl<
         Ok(Self::new(masked_data, encrypted_data.into()))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn decrypt(
         encrypted_data: Encryption,
         key: &[u8],
@@ -72,7 +72,7 @@ impl<
     > TypeEncryption<serde_json::Value, V, S>
     for crypto::Encryptable<Secret<serde_json::Value, S>>
 {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn encrypt(
         masked_data: Secret<serde_json::Value, S>,
         key: &[u8],
@@ -85,7 +85,7 @@ impl<
         Ok(Self::new(masked_data, encrypted_data.into()))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn decrypt(
         encrypted_data: Encryption,
         key: &[u8],
@@ -107,7 +107,7 @@ impl<
         S: masking::Strategy<Vec<u8>> + Send,
     > TypeEncryption<Vec<u8>, V, S> for crypto::Encryptable<Secret<Vec<u8>, S>>
 {
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn encrypt(
         masked_data: Secret<Vec<u8>, S>,
         key: &[u8],
@@ -118,7 +118,7 @@ impl<
         Ok(Self::new(masked_data, encrypted_data.into()))
     }
 
-    #[instrument(skip_all)]
+    //#\[instrument\(skip_all)]
     async fn decrypt(
         encrypted_data: Encryption,
         key: &[u8],

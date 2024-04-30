@@ -8,7 +8,7 @@ use crate::{
     types::api as api_types,
 };
 
-#[instrument(skip_all, fields(flow = ?Flow::CreateConfigKey))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::CreateConfigKey))]
 pub async fn config_key_create(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -28,7 +28,7 @@ pub async fn config_key_create(
     )
     .await
 }
-#[instrument(skip_all, fields(flow = ?Flow::ConfigKeyFetch))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::ConfigKeyFetch))]
 pub async fn config_key_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -48,7 +48,7 @@ pub async fn config_key_retrieve(
     )
     .await
 }
-#[instrument(skip_all, fields(flow = ?Flow::ConfigKeyUpdate))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::ConfigKeyUpdate))]
 pub async fn config_key_update(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -72,7 +72,7 @@ pub async fn config_key_update(
     .await
 }
 
-#[instrument(skip_all, fields(flow = ?Flow::ConfigKeyDelete))]
+//#\[instrument\(skip_all, fields(flow = ?Flow::ConfigKeyDelete))]
 pub async fn config_key_delete(
     state: web::Data<AppState>,
     req: HttpRequest,
