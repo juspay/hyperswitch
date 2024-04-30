@@ -1367,21 +1367,21 @@ pub struct ClientAuthSetupInfoResponse {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum BankOfAmericaAuthSetupResponse {
-    ClientAuthSetupInfo(ClientAuthSetupInfoResponse),
+    ClientAuthSetupInfo(Box<ClientAuthSetupInfoResponse>),
     ErrorInformation(BankOfAmericaErrorInformationResponse),
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum BankOfAmericaPaymentsResponse {
-    ClientReferenceInformation(BankOfAmericaClientReferenceResponse),
+    ClientReferenceInformation(Box<BankOfAmericaClientReferenceResponse>),
     ErrorInformation(BankOfAmericaErrorInformationResponse),
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum BankOfAmericaSetupMandatesResponse {
-    ClientReferenceInformation(BankOfAmericaClientReferenceResponse),
+    ClientReferenceInformation(Box<BankOfAmericaClientReferenceResponse>),
     ErrorInformation(BankOfAmericaErrorInformationResponse),
 }
 
@@ -2372,7 +2372,7 @@ impl<F>
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum BankOfAmericaTransactionResponse {
-    ApplicationInformation(BankOfAmericaApplicationInfoResponse),
+    ApplicationInformation(Box<BankOfAmericaApplicationInfoResponse>),
     ErrorInformation(BankOfAmericaErrorInformationResponse),
 }
 
