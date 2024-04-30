@@ -421,7 +421,7 @@ impl Vaultable for api::CardPayout {
 pub struct TokenizedWalletSensitiveValues {
     pub email: Option<Email>,
     pub telephone_number: Option<masking::Secret<String>>,
-    pub paypal_id: Option<masking::Secret<String>>,
+    pub wallet_id: Option<masking::Secret<String>>,
     pub wallet_type: PaymentMethodType,
 }
 
@@ -437,13 +437,13 @@ impl Vaultable for api::WalletPayout {
             Self::Paypal(paypal_data) => TokenizedWalletSensitiveValues {
                 email: paypal_data.email.clone(),
                 telephone_number: paypal_data.telephone_number.clone(),
-                paypal_id: paypal_data.paypal_id.clone(),
+                wallet_id: paypal_data.paypal_id.clone(),
                 wallet_type: PaymentMethodType::Paypal,
             },
             Self::Venmo(venmo_data) => TokenizedWalletSensitiveValues {
                 email: None,
                 telephone_number: venmo_data.telephone_number.clone(),
-                paypal_id: None,
+                wallet_id: None,
                 wallet_type: PaymentMethodType::Venmo,
             },
         };
@@ -481,7 +481,7 @@ impl Vaultable for api::WalletPayout {
             PaymentMethodType::Paypal => Self::Paypal(api_models::payouts::Paypal {
                 email: value1.email,
                 telephone_number: value1.telephone_number,
-                paypal_id: value1.paypal_id,
+                paypal_id: value1.wallet_id,
             }),
             PaymentMethodType::Venmo => Self::Venmo(api_models::payouts::Venmo {
                 telephone_number: value1.telephone_number,

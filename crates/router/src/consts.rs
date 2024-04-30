@@ -38,6 +38,7 @@ pub(crate) const LOW_BALANCE_ERROR_MESSAGE: &str = "Insufficient balance in the 
 pub(crate) const CONNECTOR_UNAUTHORIZED_ERROR: &str = "Authentication Error from the connector";
 pub(crate) const CANNOT_CONTINUE_AUTH: &str =
     "Cannot continue with Authorization due to failed Liability Shift.";
+pub(crate) const DEFAULT_NOTIFICATION_SCRIPT_LANGUAGE: &str = "en-US";
 
 // General purpose base64 engines
 pub(crate) const BASE64_ENGINE: base64::engine::GeneralPurpose =

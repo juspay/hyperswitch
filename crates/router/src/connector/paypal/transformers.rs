@@ -23,9 +23,6 @@ use crate::{
     },
 };
 
-#[cfg(feature = "payouts")]
-const LANGUAGE: &str = "en-US";
-
 #[derive(Debug, Serialize)]
 pub struct PaypalRouterData<T> {
     pub amount: String,
@@ -1616,7 +1613,7 @@ impl TryFrom<&PaypalRouterData<&types::PayoutsRouterData<api::PoFulfill>>> for P
             amount,
             payout_method_data,
             note: item.router_data.description.to_owned(),
-            notification_language: LANGUAGE.to_string(),
+            notification_language: consts::DEFAULT_NOTIFICATION_SCRIPT_LANGUAGE.to_string(),
         })
     }
 }
