@@ -93,7 +93,7 @@ pub trait ConnectorMandateRevoke:
 pub trait ConnectorTransactionId: ConnectorCommon + Sync {
     fn connector_transaction_id(
         &self,
-        payment_attempt: data_models::payments::payment_attempt::PaymentAttempt,
+        payment_attempt: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> Result<Option<String>, errors::ApiErrorResponse> {
         Ok(payment_attempt.connector_transaction_id)
     }

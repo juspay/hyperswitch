@@ -2402,23 +2402,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7e962a19be5cfc3f3bf6dd8f61eb50107f356ad6270fbb3ed41476571db78be5"
 
 [[package]]
-name = "data_models"
-version = "0.1.0"
-dependencies = [
- "api_models",
- "async-trait",
- "common_enums",
- "common_utils",
- "diesel_models",
- "error-stack",
- "masking",
- "serde",
- "serde_json",
- "thiserror",
- "time",
-]
-
-[[package]]
 name = "deadpool"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3616,6 +3599,23 @@ dependencies = [
  "pin-project-lite",
  "socket2",
  "tokio 1.37.0",
+]
+
+[[package]]
+name = "hyperswitch_domain_models"
+version = "0.1.0"
+dependencies = [
+ "api_models",
+ "async-trait",
+ "common_enums",
+ "common_utils",
+ "diesel_models",
+ "error-stack",
+ "masking",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "time",
 ]
 
 [[package]]
@@ -5592,7 +5592,6 @@ dependencies = [
  "config",
  "cookie 0.18.1",
  "currency_conversion",
- "data_models",
  "derive_deref",
  "diesel",
  "diesel_models",
@@ -5608,6 +5607,7 @@ dependencies = [
  "hex",
  "http 0.2.12",
  "hyper 0.14.28",
+ "hyperswitch_domain_models",
  "hyperswitch_interfaces",
  "image",
  "infer",
@@ -6642,13 +6642,13 @@ dependencies = [
  "common_utils",
  "config",
  "crc32fast",
- "data_models",
  "diesel",
  "diesel_models",
  "dyn-clone",
  "error-stack",
  "futures 0.3.30",
  "http 0.2.12",
+ "hyperswitch_domain_models",
  "masking",
  "mime",
  "moka",

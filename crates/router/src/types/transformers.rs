@@ -314,30 +314,34 @@ impl ForeignFrom<storage_enums::MandateAmountData> for api_models::payments::Man
 }
 
 // TODO: remove foreign from since this conversion won't be needed in the router crate once data models is treated as a single & primary source of truth for structure information
-impl ForeignFrom<api_models::payments::MandateData> for data_models::mandates::MandateData {
+impl ForeignFrom<api_models::payments::MandateData>
+    for hyperswitch_domain_models::mandates::MandateData
+{
     fn foreign_from(d: api_models::payments::MandateData) -> Self {
         Self {
             customer_acceptance: d.customer_acceptance.map(|d| {
-                data_models::mandates::CustomerAcceptance {
+                hyperswitch_domain_models::mandates::CustomerAcceptance {
                     acceptance_type: match d.acceptance_type {
                         api_models::payments::AcceptanceType::Online => {
-                            data_models::mandates::AcceptanceType::Online
+                            hyperswitch_domain_models::mandates::AcceptanceType::Online
                         }
                         api_models::payments::AcceptanceType::Offline => {
-                            data_models::mandates::AcceptanceType::Offline
+                            hyperswitch_domain_models::mandates::AcceptanceType::Offline
                         }
                     },
                     accepted_at: d.accepted_at,
-                    online: d.online.map(|d| data_models::mandates::OnlineMandate {
-                        ip_address: d.ip_address,
-                        user_agent: d.user_agent,
-                    }),
+                    online: d
+                        .online
+                        .map(|d| hyperswitch_domain_models::mandates::OnlineMandate {
+                            ip_address: d.ip_address,
+                            user_agent: d.user_agent,
+                        }),
                 }
             }),
             mandate_type: d.mandate_type.map(|d| match d {
                 api_models::payments::MandateType::MultiUse(Some(i)) => {
-                    data_models::mandates::MandateDataType::MultiUse(Some(
-                        data_models::mandates::MandateAmountData {
+                    hyperswitch_domain_models::mandates::MandateDataType::MultiUse(Some(
+                        hyperswitch_domain_models::mandates::MandateAmountData {
                             amount: i.amount,
                             currency: i.currency,
                             start_date: i.start_date,
@@ -347,8 +351,8 @@ impl ForeignFrom<api_models::payments::MandateData> for data_models::mandates::M
                     ))
                 }
                 api_models::payments::MandateType::SingleUse(i) => {
-                    data_models::mandates::MandateDataType::SingleUse(
-                        data_models::mandates::MandateAmountData {
+                    hyperswitch_domain_models::mandates::MandateDataType::SingleUse(
+                        hyperswitch_domain_models::mandates::MandateAmountData {
                             amount: i.amount,
                             currency: i.currency,
                             start_date: i.start_date,
@@ -358,7 +362,7 @@ impl ForeignFrom<api_models::payments::MandateData> for data_models::mandates::M
                     )
                 }
                 api_models::payments::MandateType::MultiUse(None) => {
-                    data_models::mandates::MandateDataType::MultiUse(None)
+                    hyperswitch_domain_models::mandates::MandateDataType::MultiUse(None)
                 }
             }),
             update_mandate_id: d.update_mandate_id,

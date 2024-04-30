@@ -7,8 +7,8 @@ use common_utils::{
     pii::{self, Email},
     request::RequestContent,
 };
-use data_models::mandates::AcceptanceType;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::mandates::AcceptanceType;
 use masking::{ExposeInterface, ExposeOptionInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

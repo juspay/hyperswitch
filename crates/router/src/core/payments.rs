@@ -27,12 +27,12 @@ use common_utils::{
     pii,
     types::Surcharge,
 };
-use data_models::mandates::{CustomerAcceptance, MandateData};
 use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
 use error_stack::{report, ResultExt};
 use events::EventInfo;
 use futures::future::join_all;
 use helpers::ApplePayData;
+use hyperswitch_domain_models::mandates::{CustomerAcceptance, MandateData};
 use masking::{ExposeInterface, Secret};
 pub use payment_address::PaymentAddress;
 use redis_interface::errors::RedisError;
@@ -2703,7 +2703,7 @@ pub async fn list_payments(
     merchant: domain::MerchantAccount,
     constraints: api::PaymentListConstraints,
 ) -> RouterResponse<api::PaymentListResponse> {
-    use data_models::errors::StorageError;
+    use hyperswitch_domain_models::errors::StorageError;
     helpers::validate_payment_list_request(&constraints)?;
     let merchant_id = &merchant.merchant_id;
     let db = state.store.as_ref();
