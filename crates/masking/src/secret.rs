@@ -160,6 +160,6 @@ where
     T: ?Sized,
 {
     fn as_ref(&self) -> &T {
-        self.inner_secret.as_ref()
+        self.peek().as_ref()
     }
 }

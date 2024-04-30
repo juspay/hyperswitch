@@ -2,7 +2,7 @@ pub mod utils;
 use api_models::verifications::{self, ApplepayMerchantResponse};
 use common_utils::{errors::CustomResult, request::RequestContent};
 use error_stack::ResultExt;
-use masking::ExposeInterface;
+use masking::{ExposeInterface, Secret};
 
 use crate::{core::errors::api_error_response, headers, logger, pii, routes::AppState, services};
 
@@ -22,8 +22,8 @@ pub async fn verify_merchant_creds_for_applepay(
         .common_merchant_identifier
         .clone()
         .expose();
-    let cert_data = applepay_merchant_configs.merchant_cert.clone().expose();
-    let key_data = applepay_merchant_configs.merchant_cert_key.clone().expose();
+    let cert_data = applepay_merchant_configs.merchant_cert.clone();
+    let key_data = applepay_merchant_configs.merchant_cert_key.clone();
     let applepay_endpoint = &applepay_merchant_configs.applepay_endpoint;
 
     let request_body = verifications::ApplepayMerchantVerificationConfigs {
@@ -42,8 +42,8 @@ pub async fn verify_merchant_creds_for_applepay(
             "application/json".to_string().into(),
         )])
         .set_body(RequestContent::Json(Box::new(request_body)))
-        .add_certificate(Some(pii::Secret::new(cert_data)))
-        .add_certificate_key(Some(pii::Secret::new(key_data)))
+        .add_certificate(Some(cert_data))
+        .add_certificate_key(Some(key_data))
         .build();
 
     let response = services::call_connector_api(
