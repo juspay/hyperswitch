@@ -152,14 +152,3 @@ where
         SecretValue::default().into()
     }
 }
-
-impl<SecretValue, MaskingStrategy, T> AsRef<T> for Secret<SecretValue, MaskingStrategy>
-where
-    SecretValue: AsRef<T>,
-    MaskingStrategy: Strategy<SecretValue>,
-    T: ?Sized,
-{
-    fn as_ref(&self) -> &T {
-        self.peek().as_ref()
-    }
-}

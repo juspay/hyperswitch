@@ -70,11 +70,11 @@ pub fn create_identity_from_certificate_and_key(
     encoded_certificate_key: masking::Secret<String>,
 ) -> Result<reqwest::Identity, error_stack::Report<errors::ApiClientError>> {
     let decoded_certificate = BASE64_ENGINE
-        .decode(encoded_certificate)
+        .decode(encoded_certificate.expose())
         .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
 
     let decoded_certificate_key = BASE64_ENGINE
-        .decode(encoded_certificate_key)
+        .decode(encoded_certificate_key.expose())
         .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
 
     let certificate = String::from_utf8(decoded_certificate)
