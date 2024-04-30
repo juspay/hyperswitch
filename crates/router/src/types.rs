@@ -410,6 +410,75 @@ pub struct PayoutsFulfillResponseData {
     pub reference_id: Option<String>,
 }
 
+
+#[derive(Debug, Clone)]
+pub enum ConvertedTypes{
+    BaseUnitAsF64(f64),
+    MinorUnitI64(i64),
+    BaseUnitString(String),
+    MinorUnitString(String),
+    BaseUnitZeroDecimalCheckString(String)
+}
+
+
+impl ConvertedTypes {
+    pub fn extract_base_unit_float<F, T>(&self, f: F) -> Result<T, &'static str>
+    where
+        F: FnOnce(f64) -> T,
+    {
+        if let ConvertedTypes::BaseUnitAsF64(value) = self {
+            Ok(f(*value))
+        } else {
+            Err("Attempting to extract non-float value as float")
+        }
+    }
+
+    pub fn extract_minor_unit_integer<F, T>(&self, f: F) -> Result<T, &'static str>
+    where
+        F: FnOnce(i64) -> T,
+    {
+        if let ConvertedTypes::MinorUnitI64(value) = self {
+            Ok(f(*value))
+        } else {
+            Err("Attempting to extract non-float value as integer")
+        }
+    }
+
+    pub fn extract_base_unit_string<'a, F, T>(&'a self, f: F) -> Result<T, &'static str>
+    where
+        F: FnOnce(&'a String) -> T,
+    {
+        if let ConvertedTypes::BaseUnitString(value) = self {
+            Ok(f(value))
+        } else {
+            Err("Attempting to extract non-float value as text")
+        }
+    }
+
+    pub fn extract_minor_unit_string<'a, F, T>(&'a self, f: F) -> Result<T, &'static str>
+    where
+        F: FnOnce(&'a String) -> T,
+    {
+        if let ConvertedTypes::MinorUnitString(value) = self {
+            Ok(f(value))
+        } else {
+            Err("Attempting to extract non-float value as text")
+        }
+    }
+
+    pub fn extract_base_unit_string_zero_decimal_check<'a, F, T>(&'a self, f: F) -> Result<T, &'static str>
+    where
+        F: FnOnce(&'a String) -> T,
+    {
+        if let ConvertedTypes::BaseUnitZeroDecimalCheckString(value) = self {
+            Ok(f(value))
+        } else {
+            Err("Attempting to extract non-float value as text")
+        }
+    }
+}
+
+
 #[derive(Debug, Clone)]
 pub struct PaymentsAuthorizeData {
     pub payment_method_data: domain::payments::PaymentMethodData,
@@ -421,7 +490,8 @@ pub struct PaymentsAuthorizeData {
     /// get_tax_on_surcharge_amount()
     /// get_total_surcharge_amount() // returns surcharge_amount + tax_on_surcharge_amount
     /// ```
-    pub amount: i64,
+    pub amount: i64, 
+    pub new_amount:Option<ConvertedTypes>,//AmountConversionType,
     pub email: Option<Email>,
     pub customer_name: Option<Secret<String>>,
     pub currency: storage_enums::Currency,
@@ -1471,6 +1541,7 @@ impl From<&SetupMandateRouterData> for PaymentsAuthorizeData {
             email: data.request.email.clone(),
             customer_name: data.request.customer_name.clone(),
             amount: 0,
+            new_amount: None,
             statement_descriptor: None,
             capture_method: None,
             webhook_url: None,

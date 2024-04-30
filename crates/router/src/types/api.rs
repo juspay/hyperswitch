@@ -99,9 +99,19 @@ pub trait ConnectorTransactionId: ConnectorCommon + Sync {
     }
 }
 
+#[derive(Debug, Clone)]
 pub enum CurrencyUnit {
     Base,
-    Minor,
+    Minor
+}
+
+#[derive(Debug, Clone)]
+pub enum CurrencyUnitNew {
+    BaseUnitAsF64,
+    BaseUnitString,
+    MinorUnitString,
+    BaseUnitZeroDecimalCheckString,
+    MinorUnitI64
 }
 
 pub trait ConnectorCommon {
@@ -147,6 +157,10 @@ pub trait ConnectorCommon {
             attempt_status: None,
             connector_transaction_id: None,
         })
+    }
+
+    fn get_currency_unit_new(&self) -> CurrencyUnitNew {
+        CurrencyUnitNew::MinorUnitI64 // Default implementation should be remove once it is implemented in all connectors
     }
 }
 

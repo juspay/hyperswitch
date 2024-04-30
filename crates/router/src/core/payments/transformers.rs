@@ -1064,6 +1064,14 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        let connector_data = api::ConnectorData::get_connector_by_name(
+            &additional_data.state.conf.connectors,
+            &additional_data.connector_name,
+            api::GetToken::Connector,
+            None,
+        )?;
+
+
         let payment_data = additional_data.payment_data.clone();
         let router_base_url = &additional_data.router_base_url;
         let connector_name = &additional_data.connector_name;
@@ -1140,6 +1148,10 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .map(|surcharge_details| surcharge_details.final_amount)
             .unwrap_or(payment_data.amount.into());
 
+        let conv_type = connector_data.connector.get_currency_unit_new();
+
+        let conv_amount = conv_amount(conv_type, amount, additional_data.payment_data.currency)?;
+
         let customer_name = additional_data
             .customer_data
             .as_ref()
@@ -1163,6 +1175,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             statement_descriptor: payment_data.payment_intent.statement_descriptor_name,
             capture_method: payment_data.payment_attempt.capture_method,
             amount,
+            new_amount: Some(conv_amount),
             currency: payment_data.currency,
             browser_info,
             email: payment_data.email,
@@ -1194,6 +1207,42 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .transpose()?,
             customer_acceptance: payment_data.customer_acceptance,
         })
+    }
+}
+
+
+
+
+fn conv_amount(
+    required_type: types::api::CurrencyUnitNew,
+    non_converted_amount: i64,
+    currency: crate::core::payments::storage_enums::Currency,
+) -> RouterResult<types::ConvertedTypes> {
+    match required_type {
+        types::api::CurrencyUnitNew::BaseUnitAsF64 => {
+            match currency.to_currency_base_unit_asf64(non_converted_amount) {
+                Ok(value) => Ok(types::ConvertedTypes::BaseUnitAsF64(value)),
+                Err(_) => Err(errors::ApiErrorResponse::CurrencyConversionFailed.into()),
+            }
+        }
+        types::api::CurrencyUnitNew::BaseUnitString => {
+            match currency.to_currency_base_unit(non_converted_amount) {
+                Ok(value) => Ok(types::ConvertedTypes::BaseUnitString(value)),
+                Err(_) => Err(errors::ApiErrorResponse::CurrencyConversionFailed.into())
+            }
+        }
+        types::api::CurrencyUnitNew::MinorUnitString => {
+            Ok(types::ConvertedTypes::MinorUnitString(non_converted_amount.to_string()))
+        }
+        types::api::CurrencyUnitNew::BaseUnitZeroDecimalCheckString => {
+            match currency.to_currency_base_unit_with_zero_decimal_check(non_converted_amount) {
+                Ok(value) => Ok(types::ConvertedTypes::BaseUnitZeroDecimalCheckString(value)),
+                Err(_) => Err(errors::ApiErrorResponse::CurrencyConversionFailed.into())
+            }
+        }
+        types::api::CurrencyUnitNew::MinorUnitI64 => {
+            Ok(types::ConvertedTypes::MinorUnitI64(non_converted_amount))
+        }
     }
 }
 

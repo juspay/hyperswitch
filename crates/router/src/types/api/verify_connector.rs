@@ -26,6 +26,7 @@ impl VerifyConnectorData {
             email: None,
             customer_name: None,
             amount: 1000,
+            new_amount: None,
             confirm: true,
             currency: storage_enums::Currency::USD,
             metadata: None,

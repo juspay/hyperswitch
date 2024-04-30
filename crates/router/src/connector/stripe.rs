@@ -67,6 +67,10 @@ impl ConnectorCommon for Stripe {
             ),
         ])
     }
+
+    fn get_currency_unit_new(&self) -> api::CurrencyUnitNew {
+        api::CurrencyUnitNew::MinorUnitI64 
+    }
 }
 
 impl ConnectorValidation for Stripe {
