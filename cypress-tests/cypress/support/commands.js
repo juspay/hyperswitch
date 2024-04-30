@@ -500,7 +500,7 @@ Cypress.Commands.add("citForMandatesCallTest", (requestBody, authentication_type
         const nextActionUrl = response.body.next_action.redirect_to_url;
         globalState.set("nextActionUrl", response.body.next_action.redirect_to_url);
         cy.log(response.body);
-        cy.log(nextActionUrl)
+        cy.log(nextActionUrl);
       } else if (response.body.authentication_type === "no_three_ds") {
         expect(response.body.status).to.equal(details.paymentSuccessfulStatus);
       } else {
