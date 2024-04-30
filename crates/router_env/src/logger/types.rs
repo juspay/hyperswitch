@@ -302,8 +302,6 @@ pub enum Flow {
     UserSignUp,
     /// User Sign Up
     UserSignUpWithMerchantId,
-    /// User Sign In without invite checks
-    UserSignInWithoutInviteChecks,
     /// User Sign In
     UserSignIn,
     /// User connect account
@@ -364,8 +362,6 @@ pub enum Flow {
     ForgotPassword,
     /// Reset password using link
     ResetPassword,
-    /// Invite users
-    InviteUser,
     /// Invite multiple users
     InviteMultipleUser,
     /// Reinvite user
@@ -382,8 +378,6 @@ pub enum Flow {
     SyncOnboardingStatus,
     /// Reset tracking id
     ResetTrackingId,
-    /// Verify email token without invite checks
-    VerifyEmailWithoutInviteChecks,
     /// Verify email Token
     VerifyEmail,
     /// Send verify email

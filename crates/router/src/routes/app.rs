@@ -1161,9 +1161,6 @@ impl User {
 
         route = route
             .service(web::resource("").route(web::get().to(get_user_details)))
-            .service(
-                web::resource("/signin").route(web::post().to(user_signin_without_invite_checks)),
-            )
             .service(web::resource("/v2/signin").route(web::post().to(user_signin)))
             .service(web::resource("/signout").route(web::post().to(signout)))
             .service(web::resource("/change_password").route(web::post().to(change_password)))
@@ -1196,10 +1193,6 @@ impl User {
                     web::resource("/signup_with_merchant_id")
                         .route(web::post().to(user_signup_with_merchant_id)),
                 )
-                .service(
-                    web::resource("/verify_email")
-                        .route(web::post().to(verify_email_without_invite_checks)),
-                )
                 .service(web::resource("/v2/verify_email").route(web::post().to(verify_email)))
                 .service(
                     web::resource("/verify_email_request")
@@ -1223,7 +1216,6 @@ impl User {
                 .service(
                     web::resource("/list").route(web::get().to(list_users_for_merchant_account)),
                 )
-                .service(web::resource("/invite").route(web::post().to(invite_user)))
                 .service(
                     web::resource("/invite_multiple").route(web::post().to(invite_multiple_user)),
                 )
