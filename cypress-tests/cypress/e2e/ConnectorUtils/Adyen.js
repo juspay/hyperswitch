@@ -15,6 +15,58 @@ const successfulThreeDSTestCardDetails = {
     "card_cvc": "737"
 };
 
+const idealBankRedirectDetails = {
+    "bank_redirect": {
+        "ideal": {
+            "billing_details": {
+                "billing_name": "John Doe"
+            },
+            "bank_name": "ing",
+            "preferred_language": "en",
+            "country": "NL"
+        }
+    }
+}
+
+const giropayBankRedirectDetails = {
+    "bank_redirect": {
+        "giropay": {
+            "billing_details": {
+                "billing_name": "John Doe"
+            },
+            "bank_name": "ing",
+            "preferred_language": "en",
+            "country": "DE"
+        }
+    }
+}
+
+const sofortBankRedirectDetails = {
+    "bank_redirect": {
+        "sofort": {
+            "billing_details": {
+                "billing_name": "John Doe"
+            },
+            "bank_name": "hypo_noe_lb_fur_niederosterreich_u_wien",
+            "preferred_language": "en",
+            "country": "NL"
+        }
+    }
+}
+
+const epsBankRedirectDetails = {
+    "bank_redirect": {
+        "eps": {
+            "billing_details": {
+                "billing_name": "John Doe"
+            },
+            "bank_name": "ing",
+            "preferred_language": "en",
+            "country": "AT"
+        }
+    }
+}
+
 export const connectorDetails = {
     "3DS": {
         "card": successfulThreeDSTestCardDetails,
@@ -23,7 +75,7 @@ export const connectorDetails = {
         "paymentSyncStatus": "succeeded",
         "refundStatus": "pending",
         "refundSyncStatus": "pending",
-        "customer_acceptance":null,
+        "customer_acceptance": null,
         "setup_future_usage": "on_session",
     },
     "No3DS": {
@@ -33,7 +85,7 @@ export const connectorDetails = {
         "paymentSyncStatus": "succeeded",
         "refundStatus": "pending",
         "refundSyncStatus": "pending",
-        "customer_acceptance":null,
+        "customer_acceptance": null,
         "setup_future_usage": "on_session",
     },
     "MandateSingleUse3DS": {
@@ -94,7 +146,7 @@ export const connectorDetails = {
     },
     "SaveCardUseNo3DS": {
         "card": successfulNo3DSCardDetails,
-        "currency":"USD",
+        "currency": "USD",
         "paymentSuccessfulStatus": "succeeded",
         "paymentSyncStatus": "succeeded",
         "refundStatus": "succeeded",
@@ -109,4 +161,45 @@ export const connectorDetails = {
             }
         },
     },
+    "BankRedirect": {
+        "3DS": {
+            "ideal": {
+                "payment_method": "bank_redirect",
+                "payment_method_type": "ideal",
+                "payment_method_data": idealBankRedirectDetails,
+                "currency": "EUR",
+                "customer_acceptance": null,
+                "setup_future_usage": null,
+                "paymentSuccessfulStatus": "requires_customer_action",
+            },
+            "giropay": {
+                "payment_method": "bank_redirect",
+                "payment_method_type": "giropay",
+                "payment_method_data": giropayBankRedirectDetails,
+                "currency": "EUR",
+                "customer_acceptance": null,
+                "setup_future_usage": null,
+                "paymentSuccessfulStatus": "requires_customer_action",
+            },
+            "sofort": {
+                "payment_method": "bank_redirect",
+                "payment_method_type": "sofort",
+                "payment_method_data": sofortBankRedirectDetails,
+                "currency": "EUR",
+                "customer_acceptance": null,
+                "setup_future_usage": null,
+                "paymentSuccessfulStatus": "requires_customer_action",
+            },
+            "eps": {
+                "payment_method": "bank_redirect",
+                "payment_method_type": "eps",
+                "payment_method_data": epsBankRedirectDetails,
+                "currency": "EUR",
+                "customer_acceptance": null,
+                "setup_future_usage": null,
+                "paymentSuccessfulStatus": "requires_customer_action",
+            }
+        }
+    }
+
 }; 
