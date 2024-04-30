@@ -177,7 +177,7 @@ pub struct CaptureOptions {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BankOfAmericaPaymentInstrument {
-    id: Secret<String>,
+    id: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -365,7 +365,7 @@ impl<F, T>
                     types::MandateReference {
                         connector_mandate_id: token_info
                             .payment_instrument
-                            .map(|payment_instrument| payment_instrument.id.expose()),
+                            .and_then(|payment_instrument| payment_instrument.id.map(|instrument_id| instrument_id.expose())),
                         payment_method_id: None,
                     }
                 });
@@ -798,14 +798,29 @@ pub struct ClientRiskInformation {
     rules: Option<Vec<ClientRiskInformationRules>>,
     profile: Option<Profile>,
     score: Option<Score>,
+    info_codes: Option<InfoCodes>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InfoCodes {
+    address: Option<Vec<String>>,
+    identity_change: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Score {
     factor_codes: Option<Vec<String>>,
-    result: Option<String>,
+    result: Option<RiskResult>,
     model_used: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum RiskResult {
+   String(String),
+   Int(u64),
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -1228,7 +1243,7 @@ impl
     ) -> Result<Self, Self::Error> {
         let processing_information = ProcessingInformation::try_from((item, None, None))?;
         let payment_instrument = BankOfAmericaPaymentInstrument {
-            id: connector_mandate_id.into(),
+            id: Some(connector_mandate_id.into()),
         };
         let email = item.router_data.request.get_email().ok();
         let bill_to = email.and_then(|email_id| {
@@ -1389,6 +1404,8 @@ pub struct BankOfAmericaClientReferenceResponse {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConsumerAuthenticationInformation {
+    eci_raw: Option<String>,
+    eci: Option<String>,
     acs_transaction_id: Option<String>,
     cavv: Option<String>,
 }
@@ -1423,7 +1440,7 @@ pub struct RuleResults {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentInformationResponse {
-    tokenized_card: Option<TokenizedCardResponse>,
+    tokenized_card: Option<CardResponseObject>,
     customer: Option<CustomerResponseObject>,
     payment_instrument: Option<BankOfAmericaPaymentInstrument>,
     instrument_identifier: Option<InstrumentIdentifier>,
@@ -1435,12 +1452,6 @@ pub struct PaymentInformationResponse {
     bin_country: Option<api_enums::CountryAlpha2>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TokenizedCardResponse {
-    #[serde(rename = "type")]
-    card_type: Option<String>,
-}
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -1490,7 +1501,7 @@ pub struct ProcessingInformationResponse {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FundingOptions {
-    first_recurring_payment: Option<bool>,
+    // first_recurring_payment: Option<bool>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -1519,7 +1530,7 @@ pub struct MerchantInitiatedTransactio {
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaTokenInformation {
     payment_instrument: Option<BankOfAmericaPaymentInstrument>,
-    instrumentidentifier_new: Option<String>,
+    instrumentidentifier_new: Option<bool>,
     instrument_identifier: Option<BankOfAmericaInstrumentIdentifier>,
 }
 
@@ -1548,7 +1559,7 @@ pub struct CardResponseObject {
     expiration_month: Option<String>,
     expiration_year: Option<String>,
     #[serde(rename = "type")]
-    payment_type: Option<String>,
+    card_type: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -1650,7 +1661,7 @@ fn get_payment_response(
                     .map(|token_info| types::MandateReference {
                         connector_mandate_id: token_info
                             .payment_instrument
-                            .map(|payment_instrument| payment_instrument.id.expose()),
+                            .and_then(|payment_instrument| payment_instrument.id.map(|instrument_id| instrument_id.expose())),
                         payment_method_id: None,
                     });
 
@@ -2257,7 +2268,9 @@ impl
         "card_verification": processor_information.card_verification,
         "approval_code": processor_information.approval_code,
         "consumer_authentication_response": processor_information.consumer_authentication_response,
-        "cavv": consumer_authentication_information.cavv
+        "cavv": consumer_authentication_information.cavv,
+        "eci": consumer_authentication_information.eci,
+        "eci_raw": consumer_authentication_information.eci_raw,
         }));
 
         let authentication_data = Some(serde_json::json!({
@@ -2412,34 +2425,34 @@ impl<F>
                     item.data.request.is_auto_capture()?,
                 ));
 
-                let connector_response = match item.data.payment_method {
-                    common_enums::PaymentMethod::Card => app_response
-                        .processor_information
-                        .as_ref()
-                        .and_then(|processor_information| {
-                            app_response
-                                .consumer_authentication_information
-                                .as_ref()
-                                .map(|consumer_auth_information| {
-                                    types::AdditionalPaymentMethodConnectorResponse::from((
-                                        processor_information,
-                                        consumer_auth_information,
-                                    ))
-                                })
-                        })
-                        .map(types::ConnectorResponseData::with_additional_payment_method_data),
-                    common_enums::PaymentMethod::CardRedirect
-                    | common_enums::PaymentMethod::PayLater
-                    | common_enums::PaymentMethod::Wallet
-                    | common_enums::PaymentMethod::BankRedirect
-                    | common_enums::PaymentMethod::BankTransfer
-                    | common_enums::PaymentMethod::Crypto
-                    | common_enums::PaymentMethod::BankDebit
-                    | common_enums::PaymentMethod::Reward
-                    | common_enums::PaymentMethod::Upi
-                    | common_enums::PaymentMethod::Voucher
-                    | common_enums::PaymentMethod::GiftCard => None,
-                };
+                // let connector_response = match item.data.payment_method {
+                //     common_enums::PaymentMethod::Card => app_response
+                //         .processor_information
+                //         .as_ref()
+                //         .and_then(|processor_information| {
+                //             app_response
+                //                 .consumer_authentication_information
+                //                 .as_ref()
+                //                 .map(|consumer_auth_information| {
+                //                     types::AdditionalPaymentMethodConnectorResponse::from((
+                //                         processor_information,
+                //                         consumer_auth_information,
+                //                     ))
+                //                 })
+                //         })
+                //         .map(types::ConnectorResponseData::with_additional_payment_method_data),
+                //     common_enums::PaymentMethod::CardRedirect
+                //     | common_enums::PaymentMethod::PayLater
+                //     | common_enums::PaymentMethod::Wallet
+                //     | common_enums::PaymentMethod::BankRedirect
+                //     | common_enums::PaymentMethod::BankTransfer
+                //     | common_enums::PaymentMethod::Crypto
+                //     | common_enums::PaymentMethod::BankDebit
+                //     | common_enums::PaymentMethod::Reward
+                //     | common_enums::PaymentMethod::Upi
+                //     | common_enums::PaymentMethod::Voucher
+                //     | common_enums::PaymentMethod::GiftCard => None,
+                // };
 
                 let risk_info: Option<ClientRiskInformation> = None;
                 if utils::is_payment_failure(status) {
@@ -2451,7 +2464,7 @@ impl<F>
                             app_response.id.clone(),
                         ))),
                         status: enums::AttemptStatus::Failure,
-                        connector_response,
+                        // connector_response,
                         ..item.data
                     })
                 } else {
@@ -2471,7 +2484,7 @@ impl<F>
                                 .unwrap_or(Some(app_response.id)),
                             incremental_authorization_allowed: None,
                         }),
-                        connector_response,
+                        // connector_response,
                         ..item.data
                     })
                 }
