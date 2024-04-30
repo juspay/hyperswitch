@@ -493,7 +493,7 @@ impl TryFrom<&frm_types::FrmFulfillmentRouterData> for RiskifiedFulfillmentReque
                 field_name: "tracking_numbers",
             })?;
         let tracking_url = match item.request.fulfillment_req.tracking_urls.clone() {
-            Some(urls) => urls.first().map(|url| url.clone()),
+            Some(urls) => urls.first().map(|url| url.to_string()),
             None => None,
         };
         Ok(Self {
