@@ -26,7 +26,7 @@
 
 // commands.js or your custom support file
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
-import ConnectorAuthDetails from "../../../.github/secrets/creds.json";
+import ConnectorAuthDetails from "/Users/preetam.revankar/Downloads/creds.json";
 
 
 
@@ -307,6 +307,7 @@ Cypress.Commands.add("createConfirmPaymentTest", (createConfirmPaymentBody, deta
       if (response.body.authentication_type === "three_ds") {
         expect(response.body).to.have.property("next_action")
           .to.have.property("redirect_to_url")
+          globalState.set("nextActionUrl", response.body.next_action.redirect_to_url);
       }
       else if (response.body.authentication_type === "no_three_ds") {
         expect(details.paymentSuccessfulStatus).to.equal(response.body.status);
@@ -319,6 +320,7 @@ Cypress.Commands.add("createConfirmPaymentTest", (createConfirmPaymentBody, deta
       if (response.body.authentication_type === "three_ds") {
         expect(response.body).to.have.property("next_action")
           .to.have.property("redirect_to_url")
+          globalState.set("nextActionUrl", response.body.next_action.redirect_to_url);
       }
       else if (response.body.authentication_type === "no_three_ds") {
         expect("requires_capture").to.equal(response.body.status);
@@ -533,8 +535,8 @@ Cypress.Commands.add("syncRefundCallTest", (det, globalState) => {
   });
 });
 
-Cypress.Commands.add("citForMandatesCallTest", (requestBody,amount, details, confirm, capture_method, payment_type, globalState) => {
-
+Cypress.Commands.add("citForMandatesCallTest", (requestBody, authentication_type ,amount, details, confirm, capture_method, payment_type, globalState) => {
+  requestBody.authentication_type = authentication_type;
   requestBody.payment_method_data.card = details.card;
   requestBody.payment_type=payment_type;
   requestBody.confirm = confirm;
@@ -570,8 +572,9 @@ Cypress.Commands.add("citForMandatesCallTest", (requestBody,amount, details, con
         expect(response.body).to.have.property("next_action")
           .to.have.property("redirect_to_url");
         const nextActionUrl = response.body.next_action.redirect_to_url;
+        globalState.set("nextActionUrl", response.body.next_action.redirect_to_url);
         cy.log(response.body);
-        cy.log(nextActionUrl);
+        cy.log(nextActionUrl)
       } else if (response.body.authentication_type === "no_three_ds") {
         expect(response.body.status).to.equal(details.paymentSuccessfulStatus);
       } else {
@@ -721,6 +724,8 @@ Cypress.Commands.add("handleRedirection", (globalState, expected_redirection) =>
       })
   } 
   else if (globalState.get("connectorId") === "cybersource" || globalState.get("connectorId") === "bankofamerica" ) {
+    
+    
     cy.get('iframe')
       .its('0.contentDocument.body')
       .within((body) => {
