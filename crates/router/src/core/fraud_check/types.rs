@@ -130,9 +130,9 @@ pub struct FrmFulfillmentRequest {
     pub tracking_company: Option<String>,
     //tracking ID of the product
     #[schema(max_length = 255, example = "track_8327446667")]
-    pub tracking_number: Option<String>,
+    pub tracking_numbers: Option<Vec<String>>,
     //tracking_url for tracking the product
-    pub tracking_url: Option<String>,
+    pub tracking_urls: Option<Vec<String>>,
     // The name of the Shipper.
     pub carrier: Option<String>,
     // Fulfillment method for the shipment.

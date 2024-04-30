@@ -442,8 +442,8 @@ impl From<(core_types::Fulfillments, core_types::FrmFulfillmentRequest)> for Ful
                 .products
                 .map(|products| products.iter().map(|p| Product::from(p.clone())).collect()),
             destination: Destination::from(fulfillment.destination),
-            tracking_urls: fulfillment_req.tracking_url.map(|url| vec![url]),
-            tracking_numbers: fulfillment_req.tracking_number.map(|number| vec![number]),
+            tracking_urls: fulfillment_req.tracking_urls,
+            tracking_numbers: fulfillment_req.tracking_numbers,
             fulfillment_method: fulfillment_req.fulfillment_method,
             carrier: fulfillment_req.carrier,
             shipment_status: fulfillment_req.shipment_status,
