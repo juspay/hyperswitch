@@ -75,19 +75,7 @@ pub async fn get_user_details(
     state: AppState,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<user_api::GetUserDetailsResponse> {
-    let user = state
-        .store
-        .find_user_by_id(&user_from_token.user_id)
-        .await
-        .map_err(|e| {
-            if e.current_context().is_db_not_found() {
-                e.change_context(UserErrors::InvalidCredentials)
-            } else {
-                e.change_context(UserErrors::InternalServerError)
-            }
-        })?
-        .into();
-
+    let user = user_from_token.get_user_from_db(&state).await?;
     let verification_days_left = utils::user::get_verification_days_left(&state, &user)?;
 
     Ok(ApplicationResponse::Json(
