@@ -17,6 +17,7 @@ pub mod payment_methods;
 pub mod payments;
 #[cfg(feature = "payouts")]
 pub mod payouts;
+pub mod poll;
 pub mod refunds;
 pub mod routing;
 #[cfg(feature = "olap")]
@@ -35,7 +36,7 @@ pub use self::fraud_check::*;
 pub use self::payouts::*;
 pub use self::{
     admin::*, api_keys::*, authentication::*, configs::*, customers::*, disputes::*, files::*,
-    payment_link::*, payment_methods::*, payments::*, refunds::*, webhooks::*,
+    payment_link::*, payment_methods::*, payments::*, poll::*, refunds::*, webhooks::*,
 };
 use super::ErrorResponse;
 use crate::{
@@ -379,6 +380,7 @@ impl ConnectorData {
                 enums::Connector::Worldline => Ok(Box::new(&connector::Worldline)),
                 enums::Connector::Worldpay => Ok(Box::new(&connector::Worldpay)),
                 enums::Connector::Multisafepay => Ok(Box::new(&connector::Multisafepay)),
+                enums::Connector::Netcetera => Ok(Box::new(&connector::Netcetera)),
                 enums::Connector::Nexinets => Ok(Box::new(&connector::Nexinets)),
                 enums::Connector::Paypal => Ok(Box::new(&connector::Paypal)),
                 enums::Connector::Trustpay => Ok(Box::new(&connector::Trustpay)),
@@ -425,6 +427,7 @@ pub trait Payouts:
     + PayoutFulfill
     + PayoutQuote
     + PayoutRecipient
+    + PayoutRecipientAccount
 {
 }
 #[cfg(not(feature = "payouts"))]

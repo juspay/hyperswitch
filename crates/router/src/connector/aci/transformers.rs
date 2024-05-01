@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use super::result_codes::{FAILURE_CODES, PENDING_CODES, SUCCESSFUL_CODES};
 use crate::{
-    connector::utils::{self, RouterData},
+    connector::utils::{self, PhoneDetailsData, RouterData},
     core::errors,
     services,
     types::{self, domain, storage::enums},
@@ -106,14 +106,20 @@ pub enum PaymentDetails {
     Mandate,
 }
 
-impl TryFrom<&domain::WalletData> for PaymentDetails {
+impl TryFrom<(&domain::WalletData, &types::PaymentsAuthorizeRouterData)> for PaymentDetails {
     type Error = Error;
-    fn try_from(wallet_data: &domain::WalletData) -> Result<Self, Self::Error> {
+    fn try_from(
+        value: (&domain::WalletData, &types::PaymentsAuthorizeRouterData),
+    ) -> Result<Self, Self::Error> {
+        let (wallet_data, item) = value;
         let payment_data = match wallet_data {
-            domain::WalletData::MbWayRedirect(data) => Self::Wallet(Box::new(WalletPMData {
-                payment_brand: PaymentBrand::Mbway,
-                account_id: Some(data.telephone_number.clone()),
-            })),
+            domain::WalletData::MbWayRedirect(_) => {
+                let phone_details = item.get_billing_phone()?;
+                Self::Wallet(Box::new(WalletPMData {
+                    payment_brand: PaymentBrand::Mbway,
+                    account_id: Some(phone_details.get_number_with_hash_country_code()?),
+                }))
+            }
             domain::WalletData::AliPayRedirect { .. } => Self::Wallet(Box::new(WalletPMData {
                 payment_brand: PaymentBrand::AliPay,
                 account_id: None,
@@ -486,7 +492,7 @@ impl
     ) -> Result<Self, Self::Error> {
         let (item, wallet_data) = value;
         let txn_details = get_transaction_details(item)?;
-        let payment_method = PaymentDetails::try_from(wallet_data)?;
+        let payment_method = PaymentDetails::try_from((wallet_data, item.router_data))?;
 
         Ok(Self {
             txn_details,

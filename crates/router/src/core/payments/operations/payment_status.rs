@@ -18,7 +18,7 @@ use crate::{
         },
     },
     db::StorageInterface,
-    routes::AppState,
+    routes::{app::ReqState, AppState},
     services,
     types::{
         api, domain,
@@ -155,6 +155,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     async fn update_trackers<'b>(
         &'b self,
         _state: &'b AppState,
+        _req_state: ReqState,
         payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         _storage_scheme: enums::MerchantStorageScheme,
@@ -180,6 +181,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     async fn update_trackers<'b>(
         &'b self,
         _state: &'b AppState,
+        _req_state: ReqState,
         payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         _storage_scheme: enums::MerchantStorageScheme,
@@ -488,6 +490,7 @@ async fn get_tracker_for_sync<
         authentication,
         frm_metadata: None,
         recurring_details: None,
+        poll_config: None,
     };
 
     let get_trackers_response = operations::GetTrackerResponse {

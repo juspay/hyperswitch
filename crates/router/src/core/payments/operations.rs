@@ -32,7 +32,7 @@ use crate::{
         payment_methods::PaymentMethodRetrieve,
     },
     db::StorageInterface,
-    routes::AppState,
+    routes::{app::ReqState, AppState},
     services,
     types::{
         self,
@@ -198,6 +198,7 @@ pub trait UpdateTracker<F, D, Req, Ctx: PaymentMethodRetrieve>: Send {
     async fn update_trackers<'b>(
         &'b self,
         db: &'b AppState,
+        req_state: ReqState,
         payment_data: D,
         customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
@@ -211,7 +212,7 @@ pub trait UpdateTracker<F, D, Req, Ctx: PaymentMethodRetrieve>: Send {
 }
 
 #[async_trait]
-pub trait PostUpdateTracker<F, D, R>: Send {
+pub trait PostUpdateTracker<F, D, R: Send>: Send {
     async fn update_tracker<'b>(
         &'b self,
         db: &'b AppState,
@@ -221,7 +222,21 @@ pub trait PostUpdateTracker<F, D, R>: Send {
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<D>
     where
-        F: 'b + Send;
+        F: 'b + Send + Sync;
+
+    async fn save_pm_and_mandate<'b>(
+        &self,
+        _state: &AppState,
+        _resp: &types::RouterData<F, R, PaymentsResponseData>,
+        _merchant_account: &domain::MerchantAccount,
+        _key_store: &domain::MerchantKeyStore,
+        _payment_data: &mut PaymentData<F>,
+    ) -> CustomResult<(), errors::ApiErrorResponse>
+    where
+        F: 'b + Clone + Send + Sync,
+    {
+        Ok(())
+    }
 }
 
 #[async_trait]

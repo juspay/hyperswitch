@@ -22,11 +22,14 @@ pub static FRM_CONFIGS_EG: &str = r#"
 /// Maximum limit for payments list get api
 pub const PAYMENTS_LIST_MAX_LIMIT_V1: u32 = 100;
 /// Maximum limit for payments list post api with filters
-pub const PAYMENTS_LIST_MAX_LIMIT_V2: u32 = 20;
+pub const PAYMENTS_LIST_MAX_LIMIT_V2: u32 = 50;
 /// Default limit for payments list API
 pub fn default_payments_list_limit() -> u32 {
     10
 }
+
+/// Average delay (in seconds) between account onboarding's API response and the changes to actually reflect at Stripe's end
+pub const STRIPE_ACCOUNT_ONBOARDING_DELAY_IN_SECONDS: i64 = 15;
 
 /// Maximum limit for payment link list get api
 pub const PAYMENTS_LINK_LIST_LIMIT: u32 = 100;
@@ -68,3 +71,9 @@ pub const DEFAULT_SDK_LAYOUT: &str = "tabs";
 
 /// Payment intent default client secret expiry (in seconds)
 pub const DEFAULT_SESSION_EXPIRY: i64 = 15 * 60;
+
+/// Default bool for Display sdk only
+pub const DEFAULT_DISPLAY_SDK_ONLY: bool = false;
+
+/// Default bool to enable saved payment method
+pub const DEFAULT_ENABLE_SAVED_PAYMENT_METHOD: bool = false;

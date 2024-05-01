@@ -511,6 +511,7 @@ pub struct Connectors {
     pub klarna: ConnectorParams,
     pub mollie: ConnectorParams,
     pub multisafepay: ConnectorParams,
+    pub netcetera: ConnectorParams,
     pub nexinets: ConnectorParams,
     pub nmi: ConnectorParams,
     pub noon: ConnectorParamsWithModeType,

@@ -13,7 +13,7 @@ use crate::{
         payment_methods::PaymentMethodRetrieve,
         payments::{helpers, operations, PaymentAddress, PaymentData},
     },
-    routes::AppState,
+    routes::{app::ReqState, AppState},
     services,
     types::{
         api::{self, PaymentIdTypeExt},
@@ -174,6 +174,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             authentication: None,
             frm_metadata: None,
             recurring_details: None,
+            poll_config: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -196,6 +197,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     async fn update_trackers<'b>(
         &'b self,
         state: &'b AppState,
+        _req_state: ReqState,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,

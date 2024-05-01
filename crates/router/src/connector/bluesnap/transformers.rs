@@ -550,7 +550,7 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
                                 session_response,
                             ),
                         payment_request_data: Some(api_models::payments::ApplePayPaymentRequest {
-                            country_code: item.data.request.country,
+                            country_code: item.data.get_billing_country()?,
                             currency_code: item.data.request.currency,
                             total: api_models::payments::AmountInfo {
                                 label: payment_request_data.label,
@@ -1133,9 +1133,10 @@ fn get_card_holder_info(
     address: &api::AddressDetails,
     email: Email,
 ) -> CustomResult<Option<BluesnapCardHolderInfo>, errors::ConnectorError> {
+    let first_name = address.get_first_name()?;
     Ok(Some(BluesnapCardHolderInfo {
-        first_name: address.get_first_name()?.clone(),
-        last_name: address.get_last_name()?.clone(),
+        first_name: first_name.clone(),
+        last_name: address.get_last_name().unwrap_or(first_name).clone(),
         email,
     }))
 }

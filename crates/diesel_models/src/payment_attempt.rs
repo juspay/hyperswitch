@@ -209,6 +209,7 @@ pub enum PaymentAttemptUpdate {
         currency: storage_enums::Currency,
         status: storage_enums::AttemptStatus,
         authentication_type: Option<storage_enums::AuthenticationType>,
+        capture_method: Option<storage_enums::CaptureMethod>,
         payment_method: Option<storage_enums::PaymentMethod>,
         browser_info: Option<serde_json::Value>,
         connector: Option<String>,
@@ -235,6 +236,10 @@ pub enum PaymentAttemptUpdate {
     VoidUpdate {
         status: storage_enums::AttemptStatus,
         cancellation_reason: Option<String>,
+        updated_by: String,
+    },
+    PaymentMethodDetailsUpdate {
+        payment_method_id: Option<String>,
         updated_by: String,
     },
     BlocklistUpdate {
@@ -555,6 +560,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 amount,
                 currency,
                 authentication_type,
+                capture_method,
                 status,
                 payment_method,
                 browser_info,
@@ -606,6 +612,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_method_billing_address_id,
                 fingerprint_id,
                 payment_method_id,
+                capture_method,
                 ..Default::default()
             },
             PaymentAttemptUpdate::VoidUpdate {
@@ -642,6 +649,14 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_message,
                 updated_by,
                 merchant_connector_id: Some(None),
+                ..Default::default()
+            },
+            PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
+                payment_method_id,
+                updated_by,
+            } => Self {
+                payment_method_id,
+                updated_by,
                 ..Default::default()
             },
             PaymentAttemptUpdate::ResponseUpdate {

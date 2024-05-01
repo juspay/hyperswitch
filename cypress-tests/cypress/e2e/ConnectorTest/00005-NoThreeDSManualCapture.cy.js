@@ -1,9 +1,9 @@
-import createPaymentBody from "../../fixtures/create-payment-body.json";
-import createConfirmPaymentBody from "../../fixtures/create-confirm-body.json";
-import confirmBody from "../../fixtures/confirm-body.json";
-import getConnectorDetails from "../ConnectorUtils/utils";
-import State from "../../utils/State";
 import captureBody from "../../fixtures/capture-flow-body.json";
+import confirmBody from "../../fixtures/confirm-body.json";
+import createConfirmPaymentBody from "../../fixtures/create-confirm-body.json";
+import createPaymentBody from "../../fixtures/create-payment-body.json";
+import State from "../../utils/State";
+import getConnectorDetails from "../ConnectorUtils/utils";
 
 let globalState;
 
@@ -28,7 +28,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
 
             it("create-payment-call-test", () => {
                 let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
-                cy.createPaymentIntentTest(createPaymentBody, det.currency, "no_three_ds", "manual", globalState);
+                cy.createPaymentIntentTest(createPaymentBody, det, "no_three_ds", "manual", globalState);
             });
 
             it("payment_methods-call-test", () => {
@@ -90,7 +90,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
 
             it("create-payment-call-test", () => {
                 let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
-                cy.createPaymentIntentTest(createPaymentBody, det.currency, "no_three_ds", "manual", globalState);
+                cy.createPaymentIntentTest(createPaymentBody, det, "no_three_ds", "manual", globalState);
             });
 
             it("payment_methods-call-test", () => {

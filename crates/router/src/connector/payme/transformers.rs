@@ -538,11 +538,6 @@ impl<F>
             }
             _ => {
                 let currency_code = item.data.request.get_currency()?;
-                let country_code = item
-                    .data
-                    .get_optional_billing()
-                    .and_then(|billing| billing.address.as_ref())
-                    .and_then(|address| address.country);
                 let amount = item.data.request.get_amount()?;
                 let amount_in_base_unit = utils::to_currency_base_unit(amount, currency_code)?;
                 let pmd = item.data.request.payment_method_data.to_owned();
@@ -557,7 +552,7 @@ impl<F>
                                 api_models::payments::ApplePaySessionResponse::NoSessionResponse,
                             payment_request_data: Some(
                                 api_models::payments::ApplePayPaymentRequest {
-                                    country_code,
+                                    country_code: item.data.get_billing_country()?,
                                     currency_code,
                                     total: api_models::payments::AmountInfo {
                                         label: "Apple Pay".to_string(),

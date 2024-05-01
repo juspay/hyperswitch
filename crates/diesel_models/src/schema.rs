@@ -111,6 +111,12 @@ diesel::table! {
         acs_trans_id -> Nullable<Varchar>,
         three_dsserver_trans_id -> Nullable<Varchar>,
         acs_signed_content -> Nullable<Varchar>,
+        #[max_length = 64]
+        profile_id -> Varchar,
+        #[max_length = 255]
+        payment_id -> Nullable<Varchar>,
+        #[max_length = 128]
+        merchant_connector_id -> Varchar,
     }
 }
 
@@ -187,6 +193,7 @@ diesel::table! {
         payment_link_config -> Nullable<Jsonb>,
         session_expiry -> Nullable<Int8>,
         authentication_connector_details -> Nullable<Jsonb>,
+        is_extended_card_info_enabled -> Nullable<Bool>,
     }
 }
 
@@ -443,6 +450,7 @@ diesel::table! {
         modified_at -> Timestamp,
         #[max_length = 64]
         last_step -> Varchar,
+        payment_capture_method -> Nullable<CaptureMethod>,
     }
 }
 
@@ -898,7 +906,7 @@ diesel::table! {
         direct_debit_token -> Nullable<Varchar>,
         created_at -> Timestamp,
         last_modified -> Timestamp,
-        payment_method -> Varchar,
+        payment_method -> Nullable<Varchar>,
         #[max_length = 64]
         payment_method_type -> Nullable<Varchar>,
         #[max_length = 128]
@@ -915,6 +923,8 @@ diesel::table! {
         status -> Varchar,
         #[max_length = 255]
         network_transaction_id -> Nullable<Varchar>,
+        #[max_length = 128]
+        client_secret -> Nullable<Varchar>,
     }
 }
 
@@ -991,6 +1001,7 @@ diesel::table! {
         #[max_length = 64]
         profile_id -> Varchar,
         status -> PayoutStatus,
+        confirm -> Nullable<Bool>,
     }
 }
 

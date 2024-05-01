@@ -14,7 +14,7 @@ pub enum AuthenticationResponseData {
         threeds_server_transaction_id: String,
         maximum_supported_3ds_version: common_utils::types::SemanticVersion,
         connector_authentication_id: String,
-        three_ds_method_data: String,
+        three_ds_method_data: Option<String>,
         three_ds_method_url: Option<String>,
         message_version: common_utils::types::SemanticVersion,
         connector_metadata: Option<serde_json::Value>,
@@ -114,6 +114,7 @@ pub struct ConnectorAuthenticationRequestData {
     pub email: Option<Email>,
     pub threeds_method_comp_ind: api_models::payments::ThreeDsCompletionIndicator,
     pub three_ds_requestor_url: String,
+    pub webhook_url: String,
 }
 
 #[derive(Clone, Debug)]

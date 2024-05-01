@@ -23,8 +23,6 @@ use super::blocklist;
 use super::dummy_connector::*;
 #[cfg(feature = "payouts")]
 use super::payouts::*;
-#[cfg(feature = "oltp")]
-use super::pm_auth;
 #[cfg(feature = "olap")]
 use super::routing as cloud_routing;
 #[cfg(feature = "olap")]
@@ -41,6 +39,8 @@ use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 use super::{currency, payment_methods::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, webhooks::*};
+#[cfg(feature = "oltp")]
+use super::{pm_auth, poll::retrieve_poll_status};
 use crate::configs::secrets_transformers;
 #[cfg(all(feature = "frm", feature = "oltp"))]
 use crate::routes::fraud_check as frm_routes;
@@ -318,6 +318,7 @@ impl Payments {
                         .route(web::post().to(payments_list_by_filter)),
                 )
                 .service(web::resource("/filter").route(web::post().to(get_filters_for_payments)))
+                .service(web::resource("/filter_v2").route(web::get().to(get_payment_filters)))
         }
         #[cfg(feature = "oltp")]
         {
@@ -775,8 +776,15 @@ impl PaymentMethods {
                 .service(
                     web::resource("/{payment_method_id}")
                         .route(web::get().to(payment_method_retrieve_api))
-                        .route(web::post().to(payment_method_update_api))
                         .route(web::delete().to(payment_method_delete_api)),
+                )
+                .service(
+                    web::resource("/{payment_method_id}/update")
+                        .route(web::post().to(payment_method_update_api)),
+                )
+                .service(
+                    web::resource("/{payment_method_id}/save")
+                        .route(web::post().to(save_payment_method_api)),
                 )
                 .service(
                     web::resource("/auth/link").route(web::post().to(pm_auth::link_token_create)),
@@ -974,6 +982,17 @@ impl Configs {
     }
 }
 
+pub struct Poll;
+
+#[cfg(feature = "oltp")]
+impl Poll {
+    pub fn server(config: AppState) -> Scope {
+        web::scope("/poll")
+            .app_data(web::Data::new(config))
+            .service(web::resource("/status/{poll_id}").route(web::get().to(retrieve_poll_status)))
+    }
+}
+
 pub struct ApiKeys;
 
 #[cfg(feature = "olap")]
@@ -1085,10 +1104,17 @@ impl BusinessProfile {
                     .route(web::get().to(business_profiles_list)),
             )
             .service(
-                web::resource("/{profile_id}")
-                    .route(web::get().to(business_profile_retrieve))
-                    .route(web::post().to(business_profile_update))
-                    .route(web::delete().to(business_profile_delete)),
+                web::scope("/{profile_id}")
+                    .service(
+                        web::resource("")
+                            .route(web::get().to(business_profile_retrieve))
+                            .route(web::post().to(business_profile_update))
+                            .route(web::delete().to(business_profile_delete)),
+                    )
+                    .service(
+                        web::resource("/toggle_extended_card_info")
+                            .route(web::post().to(toggle_extended_card_info)),
+                    ),
             )
     }
 }
@@ -1134,9 +1160,6 @@ impl User {
         let mut route = web::scope("/user").app_data(web::Data::new(state));
 
         route = route
-            .service(
-                web::resource("/signin").route(web::post().to(user_signin_without_invite_checks)),
-            )
             .service(web::resource("/v2/signin").route(web::post().to(user_signin)))
             .service(web::resource("/signout").route(web::post().to(signout)))
             .service(web::resource("/change_password").route(web::post().to(change_password)))
@@ -1169,10 +1192,6 @@ impl User {
                     web::resource("/signup_with_merchant_id")
                         .route(web::post().to(user_signup_with_merchant_id)),
                 )
-                .service(
-                    web::resource("/verify_email")
-                        .route(web::post().to(verify_email_without_invite_checks)),
-                )
                 .service(web::resource("/v2/verify_email").route(web::post().to(verify_email)))
                 .service(
                     web::resource("/verify_email_request")
@@ -1196,7 +1215,6 @@ impl User {
                 .service(
                     web::resource("/list").route(web::get().to(list_users_for_merchant_account)),
                 )
-                .service(web::resource("/invite").route(web::post().to(invite_user)))
                 .service(
                     web::resource("/invite_multiple").route(web::post().to(invite_multiple_user)),
                 )

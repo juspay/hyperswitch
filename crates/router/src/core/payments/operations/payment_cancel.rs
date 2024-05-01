@@ -14,7 +14,8 @@ use crate::{
         payment_methods::PaymentMethodRetrieve,
         payments::{helpers, operations, PaymentData},
     },
-    routes::AppState,
+    events::audit_events::{AuditEvent, AuditEventType},
+    routes::{app::ReqState, AppState},
     services,
     types::{
         self as core_types,
@@ -187,6 +188,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             frm_metadata: None,
             authentication: None,
             recurring_details: None,
+            poll_config: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -209,6 +211,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     async fn update_trackers<'b>(
         &'b self,
         db: &'b AppState,
+        req_state: ReqState,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
@@ -253,13 +256,20 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                 payment_data.payment_attempt.clone(),
                 storage::PaymentAttemptUpdate::VoidUpdate {
                     status: attempt_status_update,
-                    cancellation_reason,
+                    cancellation_reason: cancellation_reason.clone(),
                     updated_by: storage_scheme.to_string(),
                 },
                 storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        req_state
+            .event_context
+            .event(AuditEvent::new(AuditEventType::PaymentCancelled {
+                cancellation_reason,
+            }))
+            .with(payment_data.to_event())
+            .emit();
         Ok((Box::new(self), payment_data))
     }
 }

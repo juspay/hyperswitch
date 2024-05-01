@@ -1,4 +1,8 @@
-use std::{collections::HashMap, fmt, num::NonZeroI64};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt,
+    num::NonZeroI64,
+};
 
 use cards::CardNumber;
 use common_utils::{
@@ -19,8 +23,11 @@ use url::Url;
 use utoipa::ToSchema;
 
 use crate::{
-    admin, disputes, enums as api_enums, ephemeral_key::EphemeralKeyCreateResponse,
-    mandates::RecurringDetails, refunds,
+    admin::{self, MerchantConnectorInfo},
+    disputes, enums as api_enums,
+    ephemeral_key::EphemeralKeyCreateResponse,
+    mandates::RecurringDetails,
+    refunds,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1341,12 +1348,12 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
         match self {
             Self::Card(card_data) => card_data.get_billing_address(),
             Self::CardRedirect(_) => None,
-            Self::Wallet(_) => None,
+            Self::Wallet(wallet_data) => wallet_data.get_billing_address(),
             Self::PayLater(_) => None,
             Self::BankRedirect(_) => None,
             Self::BankDebit(_) => None,
             Self::BankTransfer(_) => None,
-            Self::Voucher(_) => None,
+            Self::Voucher(voucher_data) => voucher_data.get_billing_address(),
             Self::Crypto(_)
             | Self::Reward
             | Self::Upi(_)
@@ -1897,43 +1904,43 @@ impl GetAddressFromPaymentMethodData for BankRedirectData {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct AlfamartVoucherData {
     /// The billing first name for Alfamart
-    #[schema(value_type = String, example = "Jane")]
-    pub first_name: Secret<String>,
+    #[schema(value_type = Option<String>, example = "Jane")]
+    pub first_name: Option<Secret<String>>,
     /// The billing second name for Alfamart
-    #[schema(value_type = String, example = "Doe")]
+    #[schema(value_type = Option<String>, example = "Doe")]
     pub last_name: Option<Secret<String>>,
     /// The Email ID for Alfamart
-    #[schema(value_type = String, example = "example@me.com")]
-    pub email: Email,
+    #[schema(value_type = Option<String>, example = "example@me.com")]
+    pub email: Option<Email>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct IndomaretVoucherData {
     /// The billing first name for Alfamart
-    #[schema(value_type = String, example = "Jane")]
-    pub first_name: Secret<String>,
+    #[schema(value_type = Option<String>, example = "Jane")]
+    pub first_name: Option<Secret<String>>,
     /// The billing second name for Alfamart
-    #[schema(value_type = String, example = "Doe")]
+    #[schema(value_type = Option<String>, example = "Doe")]
     pub last_name: Option<Secret<String>>,
     /// The Email ID for Alfamart
-    #[schema(value_type = String, example = "example@me.com")]
-    pub email: Email,
+    #[schema(value_type = Option<String>, example = "example@me.com")]
+    pub email: Option<Email>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct JCSVoucherData {
     /// The billing first name for Japanese convenience stores
-    #[schema(value_type = String, example = "Jane")]
-    pub first_name: Secret<String>,
+    #[schema(value_type = Option<String>, example = "Jane")]
+    pub first_name: Option<Secret<String>>,
     /// The billing second name Japanese convenience stores
-    #[schema(value_type = String, example = "Doe")]
+    #[schema(value_type = Option<String>, example = "Doe")]
     pub last_name: Option<Secret<String>>,
     /// The Email ID for Japanese convenience stores
-    #[schema(value_type = String, example = "example@me.com")]
-    pub email: Email,
+    #[schema(value_type = Option<String>, example = "example@me.com")]
+    pub email: Option<Email>,
     /// The telephone number for Japanese convenience stores
-    #[schema(value_type = String, example = "9999999999")]
-    pub phone_number: String,
+    #[schema(value_type = Option<String>, example = "9999999999")]
+    pub phone_number: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -2234,7 +2241,7 @@ impl GetAddressFromPaymentMethodData for WalletData {
                 let phone = PhoneDetails {
                     // Portuguese country code, this payment method is applicable only in portugal
                     country_code: Some("+351".into()),
-                    number: Some(mb_way_redirect.telephone_number.clone()),
+                    number: mb_way_redirect.telephone_number.clone(),
                 };
 
                 Some(Address {
@@ -2359,7 +2366,7 @@ pub struct MobilePayRedirection {}
 pub struct MbWayRedirection {
     /// Telephone number of the shopper. Should be Portuguese phone number.
     #[schema(value_type = String)]
-    pub telephone_number: Secret<String>,
+    pub telephone_number: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -2467,21 +2474,21 @@ impl GetAddressFromPaymentMethodData for VoucherData {
         match self {
             Self::Alfamart(voucher_data) => Some(Address {
                 address: Some(AddressDetails {
-                    first_name: Some(voucher_data.first_name.clone()),
+                    first_name: voucher_data.first_name.clone(),
                     last_name: voucher_data.last_name.clone(),
                     ..AddressDetails::default()
                 }),
                 phone: None,
-                email: Some(voucher_data.email.clone()),
+                email: voucher_data.email.clone(),
             }),
             Self::Indomaret(voucher_data) => Some(Address {
                 address: Some(AddressDetails {
-                    first_name: Some(voucher_data.first_name.clone()),
+                    first_name: voucher_data.first_name.clone(),
                     last_name: voucher_data.last_name.clone(),
                     ..AddressDetails::default()
                 }),
                 phone: None,
-                email: Some(voucher_data.email.clone()),
+                email: voucher_data.email.clone(),
             }),
             Self::Lawson(voucher_data)
             | Self::MiniStop(voucher_data)
@@ -2490,15 +2497,15 @@ impl GetAddressFromPaymentMethodData for VoucherData {
             | Self::PayEasy(voucher_data)
             | Self::SevenEleven(voucher_data) => Some(Address {
                 address: Some(AddressDetails {
-                    first_name: Some(voucher_data.first_name.clone()),
+                    first_name: voucher_data.first_name.clone(),
                     last_name: voucher_data.last_name.clone(),
                     ..AddressDetails::default()
                 }),
                 phone: Some(PhoneDetails {
-                    number: Some(voucher_data.phone_number.clone().into()),
+                    number: voucher_data.phone_number.clone().map(Secret::new),
                     country_code: None,
                 }),
-                email: Some(voucher_data.email.clone()),
+                email: voucher_data.email.clone(),
             }),
             Self::Boleto(_)
             | Self::Efecty
@@ -2824,6 +2831,8 @@ pub struct ThreeDsData {
     pub three_ds_authorize_url: String,
     /// ThreeDS method details
     pub three_ds_method_details: ThreeDsMethodData,
+    /// Poll config for a connector
+    pub poll_config: PollConfigResponse,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
@@ -2838,6 +2847,16 @@ pub enum ThreeDsMethodData {
         /// ThreeDS method url
         three_ds_method_url: Option<String>,
     },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub struct PollConfigResponse {
+    /// Poll Id
+    pub poll_id: String,
+    /// Interval of the poll
+    pub delay_in_secs: i8,
+    /// Frequency of the poll
+    pub frequency: i8,
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -3401,6 +3420,8 @@ pub struct PaymentListFilterConstraints {
     pub limit: u32,
     /// The starting point within a list of objects
     pub offset: Option<u32>,
+    /// The amount to filter payments list
+    pub amount_filter: Option<AmountFilter>,
     /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
     #[serde(flatten)]
     pub time_range: Option<TimeRange>,
@@ -3416,6 +3437,8 @@ pub struct PaymentListFilterConstraints {
     pub payment_method_type: Option<Vec<enums::PaymentMethodType>>,
     /// The list of authentication types to filter payments list
     pub authentication_type: Option<Vec<enums::AuthenticationType>>,
+    /// The list of merchant connector ids to filter payments list for selected label
+    pub merchant_connector_id: Option<Vec<String>>,
 }
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct PaymentListFilters {
@@ -3431,6 +3454,26 @@ pub struct PaymentListFilters {
     pub payment_method_type: Vec<enums::PaymentMethodType>,
     /// The list of available authentication types
     pub authentication_type: Vec<enums::AuthenticationType>,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PaymentListFiltersV2 {
+    /// The list of available connector filters
+    pub connector: HashMap<String, Vec<MerchantConnectorInfo>>,
+    /// The list of available currency filters
+    pub currency: Vec<enums::Currency>,
+    /// The list of available payment status filters
+    pub status: Vec<enums::IntentStatus>,
+    /// The list payment method and their corresponding types
+    pub payment_method: HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
+    /// The list of available authentication types
+    pub authentication_type: Vec<enums::AuthenticationType>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct AmountFilter {
+    pub start_amount: Option<i64>,
+    pub end_amount: Option<i64>,
 }
 
 #[derive(
@@ -3871,11 +3914,15 @@ pub struct SessionTokenInfo {
     pub display_name: String,
     pub initiative: String,
     pub initiative_context: String,
+    #[schema(value_type = Option<CountryAlpha2>)]
+    pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct SessionTokenForSimplifiedApplePay {
     pub initiative_context: String,
+    #[schema(value_type = Option<CountryAlpha2>)]
+    pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
@@ -4043,7 +4090,7 @@ pub struct SecretInfoToInitiateSdk {
 pub struct ApplePayPaymentRequest {
     /// The code for country
     #[schema(value_type = CountryAlpha2, example = "US")]
-    pub country_code: Option<api_enums::CountryAlpha2>,
+    pub country_code: api_enums::CountryAlpha2,
     /// The code for currency
     #[schema(value_type = Currency, example = "USD")]
     pub currency_code: api_enums::Currency,
@@ -4478,6 +4525,8 @@ pub struct PaymentLinkDetails {
     pub theme: String,
     pub merchant_description: Option<String>,
     pub sdk_layout: String,
+    pub display_sdk_only: bool,
+    pub enabled_saved_payment_method: bool,
 }
 
 #[derive(Debug, serde::Serialize)]
