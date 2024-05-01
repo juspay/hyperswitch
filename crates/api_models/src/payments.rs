@@ -3951,8 +3951,10 @@ pub struct PaymentRequestMetadata {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct SessionTokenInfo {
-    pub certificate: String,
-    pub certificate_keys: String,
+    #[schema(value_type = String)]
+    pub certificate: Secret<String>,
+    #[schema(value_type = String)]
+    pub certificate_keys: Secret<String>,
     pub merchant_identifier: String,
     pub display_name: String,
     pub initiative: String,
