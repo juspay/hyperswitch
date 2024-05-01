@@ -527,14 +527,14 @@ impl Vaultable for api::BankPayout {
                 pix_key: None,
                 tax_id: None,
             },
-            Self::Pix(b) => TokenizedBankSensitiveValues {
-                bank_account_number: Some(b.bank_account_number.to_owned()),
+            Self::Pix(bank_details) => TokenizedBankSensitiveValues {
+                bank_account_number: Some(bank_details.bank_account_number.to_owned()),
                 bank_routing_number: None,
                 bic: None,
                 bank_sort_code: None,
                 iban: None,
-                pix_key: Some(b.pix_key.to_owned()),
-                tax_id: b.tax_id.to_owned(),
+                pix_key: Some(bank_details.pix_key.to_owned()),
+                tax_id: bank_details.tax_id.to_owned(),
             },
         };
 
@@ -560,19 +560,19 @@ impl Vaultable for api::BankPayout {
                 bank_city: b.bank_city.to_owned(),
                 bank_branch: None,
             },
-            Self::Sepa(b) => TokenizedBankInsensitiveValues {
+            Self::Sepa(bank_details) => TokenizedBankInsensitiveValues {
                 customer_id,
-                bank_name: b.bank_name.to_owned(),
-                bank_country_code: b.bank_country_code.to_owned(),
-                bank_city: b.bank_city.to_owned(),
+                bank_name: bank_details.bank_name.to_owned(),
+                bank_country_code: bank_details.bank_country_code.to_owned(),
+                bank_city: bank_details.bank_city.to_owned(),
                 bank_branch: None,
             },
-            Self::Pix(b) => TokenizedBankInsensitiveValues {
+            Self::Pix(bank_details) => TokenizedBankInsensitiveValues {
                 customer_id,
-                bank_name: b.bank_name.to_owned(),
+                bank_name: bank_details.bank_name.to_owned(),
                 bank_country_code: None,
                 bank_city: None,
-                bank_branch: b.bank_branch.to_owned(),
+                bank_branch: bank_details.bank_branch.to_owned(),
             },
         };
 

@@ -16343,8 +16343,7 @@
         "type": "object",
         "required": [
           "bank_account_number",
-          "pix_key",
-          "tax_id"
+          "pix_key"
         ],
         "properties": {
           "bank_name": {
@@ -16372,7 +16371,8 @@
           "tax_id": {
             "type": "string",
             "description": "Individual taxpayer identification number",
-            "example": "000123456"
+            "example": "000123456",
+            "nullable": true
           }
         }
       },
