@@ -1,4 +1,7 @@
-use api_models::payments;
+use api_models::{
+    payments::{self, AddressDetails, PhoneDetails},
+    payouts::PayoutMethodData,
+};
 use base64::Engine;
 use common_enums::FutureUsage;
 use common_utils::{ext_traits::ValueExt, pii};
@@ -111,7 +114,7 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
                             number: ccard.card_number,
                             expiration_month: ccard.card_exp_month,
                             expiration_year: ccard.card_exp_year,
-                            security_code: ccard.card_cvc,
+                            security_code: Some(ccard.card_cvc),
                             card_type,
                         },
                     }),
@@ -404,7 +407,7 @@ pub struct Card {
     number: cards::CardNumber,
     expiration_month: Secret<String>,
     expiration_year: Secret<String>,
-    security_code: Secret<String>,
+    security_code: Option<Secret<String>>,
     #[serde(rename = "type")]
     card_type: Option<String>,
 }
@@ -849,7 +852,7 @@ impl
                 number: ccard.card_number,
                 expiration_month: ccard.card_exp_month,
                 expiration_year: ccard.card_exp_year,
-                security_code: ccard.card_cvc,
+                security_code: Some(ccard.card_cvc),
                 card_type: card_type.clone(),
             },
         });
@@ -900,7 +903,7 @@ impl
                 number: ccard.card_number,
                 expiration_month: ccard.card_exp_month,
                 expiration_year: ccard.card_exp_year,
-                security_code: ccard.card_cvc,
+                security_code: Some(ccard.card_cvc),
                 card_type,
             },
         });
@@ -1278,7 +1281,7 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                         number: ccard.card_number,
                         expiration_month: ccard.card_exp_month,
                         expiration_year: ccard.card_exp_year,
-                        security_code: ccard.card_cvc,
+                        security_code: Some(ccard.card_cvc),
                         card_type,
                     },
                 });
@@ -1982,7 +1985,7 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsPreProcessingRouterData>>
                         number: ccard.card_number,
                         expiration_month: ccard.card_exp_month,
                         expiration_year: ccard.card_exp_year,
-                        security_code: ccard.card_cvc,
+                        security_code: Some(ccard.card_cvc),
                         card_type,
                     },
                 }))
@@ -2769,6 +2772,219 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, CybersourceRsyncRespon
                 refund_status: enums::RefundStatus::from(
                     item.response.application_information.status,
                 ),
+            }),
+            ..item.data
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CybersourcePayoutFulfillRequest {
+    client_reference_information: ClientReferenceInformation,
+    order_information: OrderInformation,
+    recipient_information: CybersourceRecipientInfo,
+    sender_information: CybersourceSenderInfo,
+    processing_information: CybersourceProcessingInfo,
+    payment_information: PaymentInformation,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CybersourceRecipientInfo {
+    first_name: Secret<String>,
+    last_name: Secret<String>,
+    address1: Secret<String>,
+    locality: String,
+    administrative_area: Secret<String>,
+    postal_code: Secret<String>,
+    country: api_enums::CountryAlpha2,
+    phone_number: Option<Secret<String>>,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CybersourceSenderInfo {
+    reference_number: String,
+    account: CybersourceAccountInfo,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CybersourceAccountInfo {
+    funds_source: CybersourcePayoutFundSourceType,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Serialize)]
+pub enum CybersourcePayoutFundSourceType {
+    #[serde(rename = "05")]
+    Disbursement,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CybersourceProcessingInfo {
+    business_application_id: CybersourcePayoutBusinessType,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Serialize)]
+pub enum CybersourcePayoutBusinessType {
+    #[serde(rename = "PP")]
+    PersonToPerson,
+    #[serde(rename = "AA")]
+    AccountToAccount,
+}
+
+impl TryFrom<&CybersourceRouterData<&types::PayoutsRouterData<api::PoFulfill>>>
+    for CybersourcePayoutFulfillRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &CybersourceRouterData<&types::PayoutsRouterData<api::PoFulfill>>,
+    ) -> Result<Self, Self::Error> {
+        match item.router_data.request.payout_type {
+            enums::PayoutType::Card => {
+                let client_reference_information = ClientReferenceInformation {
+                    code: Some(item.router_data.request.payout_id.clone()),
+                };
+
+                let order_information = OrderInformation {
+                    amount_details: Amount {
+                        total_amount: item.amount.to_owned(),
+                        currency: item.router_data.request.destination_currency,
+                    },
+                };
+
+                let billing_address = item.router_data.get_billing_address()?;
+                let phone_address = item.router_data.get_billing_phone()?;
+                let recipient_information =
+                    CybersourceRecipientInfo::try_from((billing_address, phone_address))?;
+
+                let sender_information = CybersourceSenderInfo {
+                    reference_number: item.router_data.request.payout_id.clone(),
+                    account: CybersourceAccountInfo {
+                        funds_source: CybersourcePayoutFundSourceType::Disbursement,
+                    },
+                };
+
+                let processing_information = CybersourceProcessingInfo {
+                    business_application_id: CybersourcePayoutBusinessType::PersonToPerson, // this means sender and receiver are different
+                };
+
+                let payout_method_data = item.router_data.get_payout_method_data()?;
+                let payment_information = PaymentInformation::try_from(payout_method_data)?;
+
+                Ok(Self {
+                    client_reference_information,
+                    order_information,
+                    recipient_information,
+                    sender_information,
+                    processing_information,
+                    payment_information,
+                })
+            }
+            enums::PayoutType::Bank | enums::PayoutType::Wallet => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: "PayoutType is not supported".to_string(),
+                    connector: "Cybersource",
+                })?
+            }
+        }
+    }
+}
+
+impl TryFrom<(&AddressDetails, &PhoneDetails)> for CybersourceRecipientInfo {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: (&AddressDetails, &PhoneDetails)) -> Result<Self, Self::Error> {
+        let (billing_address, phone_address) = item;
+        Ok(Self {
+            first_name: billing_address.get_first_name()?.to_owned(),
+            last_name: billing_address.get_last_name()?.to_owned(),
+            address1: billing_address.get_line1()?.to_owned(),
+            locality: billing_address.get_city()?.to_owned(),
+            administrative_area: billing_address.get_state()?.to_owned(),
+            postal_code: billing_address.get_zip()?.to_owned(),
+            country: billing_address.get_country()?.to_owned(),
+            phone_number: phone_address.number.clone(),
+        })
+    }
+}
+
+impl TryFrom<PayoutMethodData> for PaymentInformation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: PayoutMethodData) -> Result<Self, Self::Error> {
+        match item {
+            PayoutMethodData::Card(card_details) => {
+                let card_issuer = card_details.get_card_issuer().ok();
+                let card_type = card_issuer.map(|issuer| String::from(issuer));
+                let card = Card {
+                    number: card_details.card_number,
+                    expiration_month: card_details.expiry_month,
+                    expiration_year: card_details.expiry_year,
+                    security_code: None,
+                    card_type,
+                };
+                Ok(Self::Cards(CardPaymentInformation { card }))
+            }
+            PayoutMethodData::Bank(_) | PayoutMethodData::Wallet(_) => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: "PayoutMethod is not supported".to_string(),
+                    connector: "Cybersource",
+                })?
+            }
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CybersourceFulfillResponse {
+    id: String,
+    status: CybersourcePayoutStatus,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum CybersourcePayoutStatus {
+    Accepted,
+    Declined,
+    InvalidRequest,
+}
+
+#[cfg(feature = "payouts")]
+impl ForeignFrom<CybersourcePayoutStatus> for enums::PayoutStatus {
+    fn foreign_from(status: CybersourcePayoutStatus) -> Self {
+        match status {
+            CybersourcePayoutStatus::Accepted => enums::PayoutStatus::Success,
+            CybersourcePayoutStatus::Declined | CybersourcePayoutStatus::InvalidRequest => {
+                enums::PayoutStatus::Failed
+            }
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl<F> TryFrom<types::PayoutsResponseRouterData<F, CybersourceFulfillResponse>>
+    for types::PayoutsRouterData<F>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::PayoutsResponseRouterData<F, CybersourceFulfillResponse>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(types::PayoutsResponseData {
+                status: Some(enums::PayoutStatus::foreign_from(item.response.status)),
+                connector_payout_id: item.response.id,
+                payout_eligible: None,
             }),
             ..item.data
         })

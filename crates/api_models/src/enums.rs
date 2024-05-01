@@ -343,6 +343,7 @@ pub enum PayoutConnectors {
     Wise,
     Paypal,
     Ebanx,
+    Cybersource,
 }
 
 #[cfg(feature = "payouts")]
@@ -353,6 +354,7 @@ impl From<PayoutConnectors> for RoutableConnectors {
             PayoutConnectors::Wise => Self::Wise,
             PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Ebanx => Self::Ebanx,
+            PayoutConnectors::Cybersource => Self::Cybersource,
         }
     }
 }
@@ -365,6 +367,7 @@ impl From<PayoutConnectors> for Connector {
             PayoutConnectors::Wise => Self::Wise,
             PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Ebanx => Self::Ebanx,
+            PayoutConnectors::Cybersource => Self::Cybersource,
         }
     }
 }
@@ -378,6 +381,7 @@ impl TryFrom<Connector> for PayoutConnectors {
             Connector::Wise => Ok(Self::Wise),
             Connector::Paypal => Ok(Self::Paypal),
             Connector::Ebanx => Ok(Self::Ebanx),
+            Connector::Cybersource => Ok(Self::Cybersource),
             _ => Err(format!("Invalid payout connector {}", value)),
         }
     }

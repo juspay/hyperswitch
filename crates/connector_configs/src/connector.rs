@@ -133,6 +133,8 @@ pub struct ConnectorConfig {
     pub coinbase: Option<ConnectorTomlConfig>,
     pub cryptopay: Option<ConnectorTomlConfig>,
     pub cybersource: Option<ConnectorTomlConfig>,
+    #[cfg(feature = "payouts")]
+    pub cybersource_payout: Option<ConnectorTomlConfig>,
     pub iatapay: Option<ConnectorTomlConfig>,
     pub opennode: Option<ConnectorTomlConfig>,
     pub bambora: Option<ConnectorTomlConfig>,
@@ -218,6 +220,7 @@ impl ConnectorConfig {
             PayoutConnectors::Wise => Ok(connector_data.wise_payout),
             PayoutConnectors::Paypal => Ok(connector_data.paypal),
             PayoutConnectors::Ebanx => Ok(connector_data.ebanx_payout),
+            PayoutConnectors::Cybersource => Ok(connector_data.cybersource_payout),
         }
     }
 
