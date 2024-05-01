@@ -283,26 +283,31 @@ pub struct PaymentsRequest {
         example = "cus_y3oqhf46pyzuxjbcn2giaqnb44",
         deprecated
     )]
+    #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
     pub customer_id: Option<String>,
 
     /// The customer's email address.
     /// This field will be deprecated soon, use the customer object instead
     #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com", deprecated)]
+    #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
     pub email: Option<Email>,
 
     /// The customer's name.
     /// This field will be deprecated soon, use the customer object instead.
     #[schema(value_type = Option<String>, max_length = 255, example = "John Test", deprecated)]
+    #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
     pub name: Option<Secret<String>>,
 
     /// The customer's phone number
     /// This field will be deprecated soon, use the customer object instead
     #[schema(value_type = Option<String>, max_length = 255, example = "3141592653", deprecated)]
+    #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
     pub phone: Option<Secret<String>>,
 
     /// The country code for the customer phone number
     /// This field will be deprecated soon, use the customer object instead
     #[schema(max_length = 255, example = "+1", deprecated)]
+    #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
     pub phone_country_code: Option<String>,
 
     /// Set to true to indicate that the customer is not in your checkout flow during this payment, and therefore is unable to authenticate. This parameter is intended for scenarios where you collect card details and charge them later. When making a recurring payment by passing a mandate_id, this parameter is mandatory
