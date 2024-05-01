@@ -4679,6 +4679,12 @@ pub enum PaymentLinkStatusWrap {
     IntentStatus(api_enums::IntentStatus),
 }
 
+#[derive(Debug, Default, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct ExtendedCardInfoResponse {
+    // Encrypted customer payment method data
+    pub payload: String,
+}
+
 #[cfg(test)]
 mod payments_request_api_contract {
     #![allow(clippy::unwrap_used)]

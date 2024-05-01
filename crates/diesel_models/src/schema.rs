@@ -82,8 +82,7 @@ diesel::table! {
         authentication_lifecycle_status -> Varchar,
         created_at -> Timestamp,
         modified_at -> Timestamp,
-        #[max_length = 64]
-        error_message -> Nullable<Varchar>,
+        error_message -> Nullable<Text>,
         #[max_length = 64]
         error_code -> Nullable<Varchar>,
         connector_metadata -> Nullable<Jsonb>,

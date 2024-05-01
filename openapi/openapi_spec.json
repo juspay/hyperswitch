@@ -8792,6 +8792,17 @@
           }
         }
       },
+      "ExtendedCardInfoResponse": {
+        "type": "object",
+        "required": [
+          "payload"
+        ],
+        "properties": {
+          "payload": {
+            "type": "string"
+          }
+        }
+      },
       "ExternalAuthenticationDetailsResponse": {
         "type": "object",
         "required": [
