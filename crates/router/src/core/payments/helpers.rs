@@ -67,15 +67,15 @@ use crate::{
 };
 
 pub fn create_identity_from_certificate_and_key(
-    encoded_certificate: String,
-    encoded_certificate_key: String,
+    encoded_certificate: masking::Secret<String>,
+    encoded_certificate_key: masking::Secret<String>,
 ) -> Result<reqwest::Identity, error_stack::Report<errors::ApiClientError>> {
     let decoded_certificate = BASE64_ENGINE
-        .decode(encoded_certificate)
+        .decode(encoded_certificate.expose())
         .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
 
     let decoded_certificate_key = BASE64_ENGINE
-        .decode(encoded_certificate_key)
+        .decode(encoded_certificate_key.expose())
         .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
 
     let certificate = String::from_utf8(decoded_certificate)
@@ -3245,7 +3245,6 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         description: router_data.description,
         payment_id: router_data.payment_id,
         payment_method: router_data.payment_method,
-        payment_method_id: router_data.payment_method_id,
         return_url: router_data.return_url,
         status: router_data.status,
         attempt_id: router_data.attempt_id,
@@ -4417,4 +4416,8 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
     } else {
         None
     })
+}
+
+pub fn get_redis_key_for_extended_card_info(merchant_id: &str, payment_id: &str) -> String {
+    format!("{merchant_id}_{payment_id}_extended_card_info")
 }
