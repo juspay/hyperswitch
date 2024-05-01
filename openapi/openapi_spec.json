@@ -8711,6 +8711,17 @@
           "mandate_revoked"
         ]
       },
+      "ExtendedCardInfoResponse": {
+        "type": "object",
+        "required": [
+          "payload"
+        ],
+        "properties": {
+          "payload": {
+            "type": "string"
+          }
+        }
+      },
       "ExternalAuthenticationDetailsResponse": {
         "type": "object",
         "required": [
@@ -15611,6 +15622,7 @@
         "type": "string",
         "enum": [
           "adyen",
+          "stripe",
           "wise",
           "paypal",
           "ebanx",
@@ -16217,6 +16229,10 @@
           "force_sync": {
             "type": "boolean",
             "nullable": true
+          },
+          "merchant_id": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -16239,6 +16255,11 @@
             "default": false,
             "example": true,
             "nullable": true
+          },
+          "merchant_id": {
+            "type": "string",
+            "description": "The identifier for the Merchant Account.",
+            "nullable": true
           }
         }
       },
@@ -16252,7 +16273,8 @@
           "ineligible",
           "requires_creation",
           "requires_payout_method_data",
-          "requires_fulfillment"
+          "requires_fulfillment",
+          "requires_vendor_account_creation"
         ]
       },
       "PayoutType": {
@@ -16351,6 +16373,30 @@
             "type": "string",
             "description": "Individual taxpayer identification number",
             "example": "000123456"
+          }
+        }
+      },
+      "PollConfigResponse": {
+        "type": "object",
+        "required": [
+          "poll_id",
+          "delay_in_secs",
+          "frequency"
+        ],
+        "properties": {
+          "poll_id": {
+            "type": "string",
+            "description": "Poll Id"
+          },
+          "delay_in_secs": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Interval of the poll"
+          },
+          "frequency": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Frequency of the poll"
           }
         }
       },
@@ -17918,7 +17964,8 @@
         "required": [
           "three_ds_authentication_url",
           "three_ds_authorize_url",
-          "three_ds_method_details"
+          "three_ds_method_details",
+          "poll_config"
         ],
         "properties": {
           "three_ds_authentication_url": {
@@ -17931,6 +17978,9 @@
           },
           "three_ds_method_details": {
             "$ref": "#/components/schemas/ThreeDsMethodData"
+          },
+          "poll_config": {
+            "$ref": "#/components/schemas/PollConfigResponse"
           }
         }
       },

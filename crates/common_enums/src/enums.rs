@@ -2113,6 +2113,7 @@ pub enum PayoutStatus {
     RequiresCreation,
     RequiresPayoutMethodData,
     RequiresFulfillment,
+    RequiresVendorAccountCreation,
 }
 
 #[derive(
@@ -2249,7 +2250,7 @@ pub enum FrmSuggestion {
     #[default]
     FrmCancelTransaction,
     FrmManualReview,
-    FrmAutoRefund,
+    FrmAuthorizeTransaction, // When manual capture payment which was marked fraud and held, when approved needs to be authorized.
 }
 
 #[derive(

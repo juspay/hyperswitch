@@ -25,6 +25,9 @@ pub struct PoQuote;
 #[derive(Debug, Clone)]
 pub struct PoRecipient;
 
+#[derive(Debug, Clone)]
+pub struct PoRecipientAccount;
+
 pub trait PayoutCancel:
     api::ConnectorIntegration<PoCancel, types::PayoutsData, types::PayoutsResponseData>
 {
@@ -52,5 +55,10 @@ pub trait PayoutQuote:
 
 pub trait PayoutRecipient:
     api::ConnectorIntegration<PoRecipient, types::PayoutsData, types::PayoutsResponseData>
+{
+}
+
+pub trait PayoutRecipientAccount:
+    api::ConnectorIntegration<PoRecipientAccount, types::PayoutsData, types::PayoutsResponseData>
 {
 }

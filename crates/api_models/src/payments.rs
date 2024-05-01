@@ -2825,6 +2825,8 @@ pub struct ThreeDsData {
     pub three_ds_authorize_url: String,
     /// ThreeDS method details
     pub three_ds_method_details: ThreeDsMethodData,
+    /// Poll config for a connector
+    pub poll_config: PollConfigResponse,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
@@ -2839,6 +2841,16 @@ pub enum ThreeDsMethodData {
         /// ThreeDS method url
         three_ds_method_url: Option<String>,
     },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub struct PollConfigResponse {
+    /// Poll Id
+    pub poll_id: String,
+    /// Interval of the poll
+    pub delay_in_secs: i8,
+    /// Frequency of the poll
+    pub frequency: i8,
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -3882,8 +3894,10 @@ pub struct PaymentRequestMetadata {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct SessionTokenInfo {
-    pub certificate: String,
-    pub certificate_keys: String,
+    #[schema(value_type = String)]
+    pub certificate: Secret<String>,
+    #[schema(value_type = String)]
+    pub certificate_keys: Secret<String>,
     pub merchant_identifier: String,
     pub display_name: String,
     pub initiative: String,
@@ -4608,6 +4622,12 @@ pub enum PaymentLinkStatus {
 pub enum PaymentLinkStatusWrap {
     PaymentLinkStatus(PaymentLinkStatus),
     IntentStatus(api_enums::IntentStatus),
+}
+
+#[derive(Debug, Default, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct ExtendedCardInfoResponse {
+    // Encrypted customer payment method data
+    pub payload: String,
 }
 
 #[cfg(test)]
