@@ -120,7 +120,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsRedirect
             | Flow::PaymentsIncrementalAuthorization
             | Flow::PaymentsExternalAuthentication
-            | Flow::PaymentsAuthorize => Self::Payments,
+            | Flow::PaymentsAuthorize
+            | Flow::GetExtendedCardInfo => Self::Payments,
 
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve

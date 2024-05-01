@@ -4319,3 +4319,7 @@ pub fn validate_mandate_data_and_future_usage(
         Ok(())
     }
 }
+
+pub fn get_redis_key_for_extended_card_info(merchant_id: &str, payment_id: &str) -> String {
+    format!("{merchant_id}_{payment_id}_extended_card_info")
+}
