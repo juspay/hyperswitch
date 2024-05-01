@@ -2432,34 +2432,34 @@ impl<F>
                     item.data.request.is_auto_capture()?,
                 ));
 
-                // let connector_response = match item.data.payment_method {
-                //     common_enums::PaymentMethod::Card => app_response
-                //         .processor_information
-                //         .as_ref()
-                //         .and_then(|processor_information| {
-                //             app_response
-                //                 .consumer_authentication_information
-                //                 .as_ref()
-                //                 .map(|consumer_auth_information| {
-                //                     types::AdditionalPaymentMethodConnectorResponse::from((
-                //                         processor_information,
-                //                         consumer_auth_information,
-                //                     ))
-                //                 })
-                //         })
-                //         .map(types::ConnectorResponseData::with_additional_payment_method_data),
-                //     common_enums::PaymentMethod::CardRedirect
-                //     | common_enums::PaymentMethod::PayLater
-                //     | common_enums::PaymentMethod::Wallet
-                //     | common_enums::PaymentMethod::BankRedirect
-                //     | common_enums::PaymentMethod::BankTransfer
-                //     | common_enums::PaymentMethod::Crypto
-                //     | common_enums::PaymentMethod::BankDebit
-                //     | common_enums::PaymentMethod::Reward
-                //     | common_enums::PaymentMethod::Upi
-                //     | common_enums::PaymentMethod::Voucher
-                //     | common_enums::PaymentMethod::GiftCard => None,
-                // };
+                let connector_response = match item.data.payment_method {
+                    common_enums::PaymentMethod::Card => app_response
+                        .processor_information
+                        .as_ref()
+                        .and_then(|processor_information| {
+                            app_response
+                                .consumer_authentication_information
+                                .as_ref()
+                                .map(|consumer_auth_information| {
+                                    types::AdditionalPaymentMethodConnectorResponse::from((
+                                        processor_information,
+                                        consumer_auth_information,
+                                    ))
+                                })
+                        })
+                        .map(types::ConnectorResponseData::with_additional_payment_method_data),
+                    common_enums::PaymentMethod::CardRedirect
+                    | common_enums::PaymentMethod::PayLater
+                    | common_enums::PaymentMethod::Wallet
+                    | common_enums::PaymentMethod::BankRedirect
+                    | common_enums::PaymentMethod::BankTransfer
+                    | common_enums::PaymentMethod::Crypto
+                    | common_enums::PaymentMethod::BankDebit
+                    | common_enums::PaymentMethod::Reward
+                    | common_enums::PaymentMethod::Upi
+                    | common_enums::PaymentMethod::Voucher
+                    | common_enums::PaymentMethod::GiftCard => None,
+                };
 
                 let risk_info: Option<ClientRiskInformation> = None;
                 if utils::is_payment_failure(status) {
@@ -2471,7 +2471,7 @@ impl<F>
                             app_response.id.clone(),
                         ))),
                         status: enums::AttemptStatus::Failure,
-                        // connector_response,
+                        connector_response,
                         ..item.data
                     })
                 } else {
@@ -2491,7 +2491,7 @@ impl<F>
                                 .unwrap_or(Some(app_response.id)),
                             incremental_authorization_allowed: None,
                         }),
-                        // connector_response,
+                        connector_response,
                         ..item.data
                     })
                 }
