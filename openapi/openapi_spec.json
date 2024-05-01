@@ -15613,7 +15613,8 @@
           "adyen",
           "wise",
           "paypal",
-          "ebanx"
+          "ebanx",
+          "cybersource"
         ]
       },
       "PayoutCreateRequest": {
