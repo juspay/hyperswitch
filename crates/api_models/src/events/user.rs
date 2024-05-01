@@ -14,7 +14,7 @@ use crate::user::{
     CreateInternalUserRequest, DashboardEntryResponse, ForgotPasswordRequest,
     GetUserDetailsRequest, GetUserDetailsResponse, InviteUserRequest, ListUsersResponse,
     ReInviteUserRequest, ResetPasswordRequest, SendVerifyEmailRequest, SignInResponse,
-    SignUpRequest, SignUpWithMerchantIdRequest, SwitchMerchantIdRequest,
+    SignInWithTokenResponse, SignUpRequest, SignUpWithMerchantIdRequest, SwitchMerchantIdRequest,
     UpdateUserAccountDetailsRequest, UserMerchantCreate, VerifyEmailRequest,
 };
 
@@ -61,7 +61,8 @@ common_utils::impl_misc_api_event_type!(
     SignInResponse,
     UpdateUserAccountDetailsRequest,
     GetUserDetailsRequest,
-    GetUserDetailsResponse
+    GetUserDetailsResponse,
+    SignInWithTokenResponse
 );
 
 #[cfg(feature = "dummy_connector")]

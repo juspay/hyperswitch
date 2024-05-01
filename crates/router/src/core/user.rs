@@ -103,7 +103,7 @@ pub async fn signup(
 pub async fn signin(
     state: AppState,
     request: user_api::SignInRequest,
-) -> UserResponse<user_api::SignInResponse> {
+) -> UserResponse<user_api::SignInWithTokenResponse> {
     let user_from_db: domain::UserFromStorage = state
         .store
         .find_user_by_email(&request.email)
@@ -141,7 +141,51 @@ pub async fn signin(
 
     let response = signin_strategy.get_signin_response(&state).await?;
     let token = utils::user::get_token_from_signin_response(&response);
-    auth::cookies::set_cookie_response(response, token)
+    auth::cookies::set_cookie_response(user_api::SignInWithTokenResponse::SignInResponse(response), token)
+}
+
+pub async fn signin_pci(
+    state: AppState,
+    request: user_api::SignInRequest,
+) -> UserResponse<user_api::SignInWithTokenResponse> {
+    let user_from_db: domain::UserFromStorage = state
+        .store
+        .find_user_by_email(&request.email)
+        .await
+        .map_err(|e| {
+            if e.current_context().is_db_not_found() {
+                e.change_context(UserErrors::InvalidCredentials)
+            } else {
+                e.change_context(UserErrors::InternalServerError)
+            }
+        })?
+        .into();
+
+    user_from_db.compare_password(request.password)?;
+    #[cfg(feature = "email")] {
+        user_from_db.get_verification_days_left(&state)?;
+    }
+
+    let next_flow =
+        domain::NextFlow::from_origin(domain::Origin::SignIn, user_from_db.clone(), &state).await?;
+
+    let token = match next_flow.get_flow() {
+        domain::Flows::SPTFlows(spt_flow) => spt_flow.generate_spt(&state, &next_flow).await,
+        domain::Flows::JWTFlows(jwt_flow) => {
+            let user_role = user_from_db
+                .get_preferred_or_active_user_role_from_db(&state)
+                .await
+                .to_not_found_response(UserErrors::InternalServerError)?;
+            jwt_flow.generate_jwt(&state, &next_flow, &user_role).await
+        }
+    }?;
+
+    Ok(ApplicationResponse::Json(
+        user_api::SignInWithTokenResponse::Token(user_api::TokenResponse {
+            token,
+            token_type: next_flow.get_flow().into(),
+        }),
+    ))
 }
 
 #[cfg(feature = "email")]

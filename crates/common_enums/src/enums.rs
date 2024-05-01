@@ -2705,3 +2705,15 @@ pub enum BankHolderType {
     Personal,
     Business,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, strum::Display, serde::Deserialize, serde::Serialize)]
+pub enum TokenPurpose {
+    TOTP,
+    VerifyEmail,
+    AcceptInvitationFromEmail,
+    ResetPassword,
+    AcceptInvite,
+    UserInfo,
+    Home,
+}
+

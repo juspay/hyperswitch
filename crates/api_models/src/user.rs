@@ -1,4 +1,4 @@
-use common_enums::{PermissionGroup, RoleScope};
+use common_enums::{PermissionGroup, RoleScope, TokenPurpose};
 use common_utils::{crypto::OptionalEncryptableName, pii};
 use masking::Secret;
 
@@ -200,4 +200,22 @@ pub struct VerifyTokenResponse {
 pub struct UpdateUserAccountDetailsRequest {
     pub name: Option<Secret<String>>,
     pub preferred_merchant_id: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct PCIQueryParam {
+    pub pci: Option<bool>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct TokenResponse {
+    pub token: Secret<String>,
+    pub token_type: TokenPurpose,
+}
+
+#[derive(Debug, serde::Serialize)]
+#[serde(untagged)]
+pub enum SignInWithTokenResponse {
+    Token(TokenResponse),
+    SignInResponse(SignInResponse),
 }
