@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use common_utils::{
+    consts,
     crypto::{Encryptable, OptionalEncryptableName},
     pii,
 };
@@ -1105,5 +1106,41 @@ pub struct ExtendedCardInfoConfig {
     #[schema(value_type = String)]
     pub public_key: Secret<String>,
     /// TTL for extended card info
-    pub ttl_in_secs: u16,
+    #[schema(default = 900, maximum = 3600)]
+    #[serde(default)]
+    pub ttl_in_secs: TtlForExtendedCardInfo,
+}
+
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct TtlForExtendedCardInfo(u16);
+
+impl Default for TtlForExtendedCardInfo {
+    fn default() -> Self {
+        Self(consts::DEFAULT_TTL_FOR_EXTENDED_CARD_INFO)
+    }
+}
+
+impl<'de> Deserialize<'de> for TtlForExtendedCardInfo {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = u16::deserialize(deserializer)?;
+
+        // Check if value exceeds the maximum allowed
+        if value > consts::MAX_TTL_FOR_EXTENDED_CARD_INFO {
+            Err(serde::de::Error::custom(
+                "ttl_in_secs must be less than or equal to 3600 (1hr)",
+            ))
+        } else {
+            Ok(Self(value))
+        }
+    }
+}
+
+impl std::ops::Deref for TtlForExtendedCardInfo {
+    type Target = u16;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }

@@ -8713,8 +8713,7 @@
           "card_number",
           "card_exp_month",
           "card_exp_year",
-          "card_holder_name",
-          "card_cvc"
+          "card_holder_name"
         ],
         "properties": {
           "card_number": {
@@ -8736,11 +8735,6 @@
             "type": "string",
             "description": "The card holder's name",
             "example": "John Test"
-          },
-          "card_cvc": {
-            "type": "string",
-            "description": "The CVC number for the card",
-            "example": "242"
           },
           "card_issuer": {
             "type": "string",
@@ -8776,8 +8770,7 @@
       "ExtendedCardInfoConfig": {
         "type": "object",
         "required": [
-          "public_key",
-          "ttl_in_secs"
+          "public_key"
         ],
         "properties": {
           "public_key": {
@@ -8785,10 +8778,12 @@
             "description": "Merchant public key"
           },
           "ttl_in_secs": {
-            "type": "integer",
-            "format": "int32",
-            "description": "TTL for extended card info",
-            "minimum": 0
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TtlForExtendedCardInfo"
+              }
+            ],
+            "default": 900
           }
         }
       },
@@ -18145,6 +18140,11 @@
         "enum": [
           "payment"
         ]
+      },
+      "TtlForExtendedCardInfo": {
+        "type": "integer",
+        "format": "int32",
+        "minimum": 0
       },
       "UpdateApiKeyRequest": {
         "type": "object",

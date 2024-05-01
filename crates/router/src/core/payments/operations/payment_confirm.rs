@@ -905,61 +905,57 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         business_profile: &storage::BusinessProfile,
         payment_method_data: &Option<api::PaymentMethodData>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        if business_profile
-            .is_extended_card_info_enabled
-            .is_some_and(|flag| flag)
-        {
-            if let (Some(api::PaymentMethodData::Card(card)), Some(merchant_config)) = (
-                payment_method_data,
-                business_profile.extended_card_info_config.clone(),
-            ) {
-                let merchant_config = merchant_config
+        if let (Some(true), Some(api::PaymentMethodData::Card(card)), Some(merchant_config)) = (
+            business_profile.is_extended_card_info_enabled,
+            payment_method_data,
+            business_profile.extended_card_info_config.clone(),
+        ) {
+            let merchant_config = merchant_config
                     .expose()
                     .parse_value::<ExtendedCardInfoConfig>("ExtendedCardInfoConfig")
                     .map_err(|err| logger::error!(parse_err=?err,"Error while parsing ExtendedCardInfoConfig"));
 
-                let card_data = ExtendedCardInfo::from(card.clone())
+            let card_data = ExtendedCardInfo::from(card.clone())
                     .encode_to_vec()
                     .map_err(|err| logger::error!(encode_err=?err,"Error while encoding ExtendedCardInfo to vec"));
 
-                let (Ok(merchant_config), Ok(card_data)) = (merchant_config, card_data) else {
-                    return Ok(());
-                };
+            let (Ok(merchant_config), Ok(card_data)) = (merchant_config, card_data) else {
+                return Ok(());
+            };
 
-                let encrypted_payload =
+            let encrypted_payload =
                     services::encrypt_jwe(&card_data, merchant_config.public_key.peek())
                         .await
                         .map_err(|err| {
-                            logger::error!(encryption_err=?err,"Error while JWE encrypting extended card info")
+                            logger::error!(jwe_encryption_err=?err,"Error while JWE encrypting extended card info")
                         });
 
-                let Ok(encrypted_payload) = encrypted_payload else {
-                    return Ok(());
-                };
+            let Ok(encrypted_payload) = encrypted_payload else {
+                return Ok(());
+            };
 
-                let redis_conn = state
-                    .store
-                    .get_redis_conn()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to get redis connection")?;
+            let redis_conn = state
+                .store
+                .get_redis_conn()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to get redis connection")?;
 
-                let key = helpers::get_redis_key_for_extended_card_info(
-                    &business_profile.merchant_id,
-                    payment_id,
-                );
+            let key = helpers::get_redis_key_for_extended_card_info(
+                &business_profile.merchant_id,
+                payment_id,
+            );
 
-                redis_conn
-                    .set_key_with_expiry(
-                        &key,
-                        encrypted_payload.clone(),
-                        merchant_config.ttl_in_secs.into(),
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to add extended card info in redis")?;
+            redis_conn
+                .set_key_with_expiry(
+                    &key,
+                    encrypted_payload.clone(),
+                    (*merchant_config.ttl_in_secs).into(),
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to add extended card info in redis")?;
 
-                logger::info!("Extended card info added to redis");
-            }
+            logger::info!("Extended card info added to redis");
         }
 
         Ok(())

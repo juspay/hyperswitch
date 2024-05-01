@@ -934,10 +934,6 @@ pub struct ExtendedCardInfo {
     #[schema(value_type = String, example = "John Test")]
     pub card_holder_name: Option<Secret<String>>,
 
-    /// The CVC number for the card
-    #[schema(value_type = String, example = "242")]
-    pub card_cvc: Secret<String>,
-
     /// The name of the issuer of card
     #[schema(example = "chase")]
     pub card_issuer: Option<String>,
@@ -963,7 +959,6 @@ impl From<Card> for ExtendedCardInfo {
             card_exp_month: value.card_exp_month,
             card_exp_year: value.card_exp_year,
             card_holder_name: value.card_holder_name,
-            card_cvc: value.card_cvc,
             card_issuer: value.card_issuer,
             card_network: value.card_network,
             card_type: value.card_type,
