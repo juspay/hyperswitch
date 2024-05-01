@@ -2923,7 +2923,7 @@ impl TryFrom<PayoutMethodData> for PaymentInformation {
         match item {
             PayoutMethodData::Card(card_details) => {
                 let card_issuer = card_details.get_card_issuer().ok();
-                let card_type = card_issuer.map(|issuer| String::from(issuer));
+                let card_type = card_issuer.map(String::from);
                 let card = Card {
                     number: card_details.card_number,
                     expiration_month: card_details.expiry_month,
@@ -2964,9 +2964,9 @@ pub enum CybersourcePayoutStatus {
 impl ForeignFrom<CybersourcePayoutStatus> for enums::PayoutStatus {
     fn foreign_from(status: CybersourcePayoutStatus) -> Self {
         match status {
-            CybersourcePayoutStatus::Accepted => enums::PayoutStatus::Success,
+            CybersourcePayoutStatus::Accepted => Self::Success,
             CybersourcePayoutStatus::Declined | CybersourcePayoutStatus::InvalidRequest => {
-                enums::PayoutStatus::Failed
+                Self::Failed
             }
         }
     }
@@ -2985,6 +2985,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, CybersourceFulfillResponse>>
                 status: Some(enums::PayoutStatus::foreign_from(item.response.status)),
                 connector_payout_id: item.response.id,
                 payout_eligible: None,
+                should_add_next_step_to_process_tracker: false,
             }),
             ..item.data
         })
