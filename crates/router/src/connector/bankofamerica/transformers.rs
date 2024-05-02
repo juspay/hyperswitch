@@ -1452,13 +1452,6 @@ pub struct PaymentInformationResponse {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct InstrumentIdentifier {
-    id: Option<String>,
-    state: Option<String>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct CustomerResponseObject {
     customer_id: Option<String>,
 }
@@ -1520,13 +1513,6 @@ pub struct MerchantInitiatedTransactionResponse {
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaTokenInformation {
     payment_instrument: Option<BankOfAmericaPaymentInstrument>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct BankOfAmericaInstrumentIdentifier {
-    id: Option<String>,
-    state: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
