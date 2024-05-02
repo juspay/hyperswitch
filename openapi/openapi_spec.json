@@ -8778,12 +8778,12 @@
             "description": "Merchant public key"
           },
           "ttl_in_secs": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/TtlForExtendedCardInfo"
-              }
-            ],
-            "default": 900
+            "type": "integer",
+            "format": "int32",
+            "description": "TTL for extended card info",
+            "default": 900,
+            "maximum": 3600,
+            "minimum": 0
           }
         }
       },
@@ -18140,11 +18140,6 @@
         "enum": [
           "payment"
         ]
-      },
-      "TtlForExtendedCardInfo": {
-        "type": "integer",
-        "format": "int32",
-        "minimum": 0
       },
       "UpdateApiKeyRequest": {
         "type": "object",

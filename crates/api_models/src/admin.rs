@@ -1106,12 +1106,12 @@ pub struct ExtendedCardInfoConfig {
     #[schema(value_type = String)]
     pub public_key: Secret<String>,
     /// TTL for extended card info
-    #[schema(default = 900, maximum = 3600)]
+    #[schema(default = 900, maximum = 3600, value_type = u16)]
     #[serde(default)]
     pub ttl_in_secs: TtlForExtendedCardInfo,
 }
 
-#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+#[derive(Debug, serde::Serialize, Clone)]
 pub struct TtlForExtendedCardInfo(u16);
 
 impl Default for TtlForExtendedCardInfo {

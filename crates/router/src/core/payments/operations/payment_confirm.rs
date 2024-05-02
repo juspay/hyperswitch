@@ -898,7 +898,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
     }
 
     #[instrument(skip_all)]
-    async fn store_extended_card_info_in_redis<'a>(
+    async fn store_extended_card_info_temporarily<'a>(
         &'a self,
         state: &AppState,
         payment_id: &str,

@@ -529,7 +529,7 @@ where
 
     operation
         .to_domain()?
-        .store_extended_card_info_in_redis(
+        .store_extended_card_info_temporarily(
             state,
             &payment_data.payment_intent.payment_id,
             &business_profile,

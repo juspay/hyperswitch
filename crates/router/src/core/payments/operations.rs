@@ -191,7 +191,7 @@ pub trait Domain<F: Clone, R, Ctx: PaymentMethodRetrieve>: Send + Sync {
         Ok(false)
     }
 
-    async fn store_extended_card_info_in_redis<'a>(
+    async fn store_extended_card_info_temporarily<'a>(
         &'a self,
         _state: &AppState,
         _payment_id: &str,
