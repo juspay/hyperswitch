@@ -1,5 +1,5 @@
-import merchantCreateBody from "../../fixtures/merchant-create-body.json";
 import apiKeyCreateBody from "../../fixtures/create-api-key-body.json";
+import merchantCreateBody from "../../fixtures/merchant-create-body.json";
 import State from "../../utils/State";
 
 let globalState;

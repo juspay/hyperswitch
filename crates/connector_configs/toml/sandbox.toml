@@ -2582,6 +2582,12 @@ api_key = "Adyen API Key (Payout creation)"
 api_secret = "Adyen Key (Payout submission)"
 key1 = "Adyen Account Id"
 
+[stripe_payout]
+[[stripe_payout.bank_transfer]]
+  payment_method_type = "ach"
+[stripe_payout.connector_auth.HeaderKey]
+api_key = "Stripe API Key"
+
 [wise_payout]
 [[wise_payout.bank_transfer]]
   payment_method_type = "ach"

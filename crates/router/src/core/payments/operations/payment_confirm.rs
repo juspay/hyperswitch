@@ -644,6 +644,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             frm_metadata: request.frm_metadata.clone(),
             authentication,
             recurring_details,
+            poll_config: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -932,6 +933,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         let payment_method = payment_data.payment_attempt.payment_method;
         let browser_info = payment_data.payment_attempt.browser_info.clone();
         let frm_message = payment_data.frm_message.clone();
+        let capture_method = payment_data.payment_attempt.capture_method;
 
         let default_status_result = (
             storage_enums::IntentStatus::Processing,
@@ -954,7 +956,11 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                 storage_enums::AttemptStatus::Unresolved,
                 (None, None),
             ),
-            FrmSuggestion::FrmAutoRefund => default_status_result.clone(),
+            FrmSuggestion::FrmAuthorizeTransaction => (
+                storage_enums::IntentStatus::RequiresCapture,
+                storage_enums::AttemptStatus::Authorized,
+                (None, None),
+            ),
         };
 
         let status_handler_for_authentication_results =
@@ -1054,6 +1060,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         let m_payment_method_id = payment_data.payment_attempt.payment_method_id.clone();
         let m_browser_info = browser_info.clone();
         let m_connector = connector.clone();
+        let m_capture_method = capture_method;
         let m_payment_token = payment_token.clone();
         let m_additional_pm_data = additional_pm_data.clone();
         let m_business_sub_label = business_sub_label.clone();
@@ -1094,6 +1101,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                         status: attempt_status,
                         payment_method,
                         authentication_type,
+                        capture_method: m_capture_method,
                         browser_info: m_browser_info,
                         connector: m_connector,
                         payment_token: m_payment_token,
