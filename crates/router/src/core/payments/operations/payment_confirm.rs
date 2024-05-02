@@ -511,36 +511,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         let store = state.clone().store;
 
-        // level - 3
-        // In case payment method billing details are not passed in the request
-        // get the saved payment method billing from payment method info
-        let payment_method_billing = if payment_method_billing.is_none() {
-            payment_method_info
-                .as_ref()
-                .and_then(|payment_method_info| {
-                    payment_method_info
-                        .payment_method_billing_address_id
-                        .clone()
-                })
-                .async_map(|payment_method_billing_address_id| async move {
-                    store
-                        .find_address_by_merchant_id_payment_id_address_id(
-                            merchant_id,
-                            &payment_id,
-                            &payment_method_billing_address_id,
-                            key_store,
-                            storage_scheme,
-                        )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Error while fetching address")
-                })
-                .await
-                .transpose()?
-        } else {
-            None
-        };
-
         payment_attempt.payment_method = payment_method.or(payment_attempt.payment_method);
 
         payment_attempt.payment_method_type = payment_method_type
@@ -581,6 +551,35 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         } else {
             (None, payment_method_info)
         };
+
+        // In case payment method billing details are not passed in the request
+        // get the saved payment method billing from payment method info
+        let payment_method_billing = match payment_method_billing {
+            Some(payment_method_billing) => Some(payment_method_billing),
+            None => payment_method_info
+                .as_ref()
+                .and_then(|payment_method_info| {
+                    payment_method_info
+                        .payment_method_billing_address_id
+                        .as_ref()
+                })
+                .async_map(|payment_method_billing_address_id| async move {
+                    store
+                        .find_address_by_merchant_id_payment_id_address_id(
+                            merchant_id,
+                            &payment_id,
+                            &payment_method_billing_address_id,
+                            key_store,
+                            storage_scheme,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Error while fetching address")
+                })
+                .await
+                .transpose()?,
+        };
+
         // The operation merges mandate data from both request and payment_attempt
         let setup_mandate = mandate_data.map(|mut sm| {
             sm.mandate_type = payment_attempt.mandate_details.clone().or(sm.mandate_type);

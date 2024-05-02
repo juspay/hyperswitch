@@ -460,7 +460,7 @@ pub async fn get_token_pm_type_mandate_details(
                             None,
                             mandate_generic_data.recurring_mandate_payment_data,
                             mandate_generic_data.mandate_connector,
-                            None,
+                            mandate_generic_data.payment_method_info,
                         )
                     }
                     RecurringDetails::PaymentMethodId(payment_method_id) => {
@@ -514,7 +514,7 @@ pub async fn get_token_pm_type_mandate_details(
                             None,
                             mandate_generic_data.recurring_mandate_payment_data,
                             mandate_generic_data.mandate_connector,
-                            None,
+                            mandate_generic_data.payment_method_info,
                         )
                     } else {
                         (
@@ -672,7 +672,7 @@ pub async fn get_token_for_recurring_mandate(
             payment_method_type: payment_method.payment_method_type,
             mandate_connector: Some(mandate_connector_details),
             mandate_data: None,
-            payment_method_info: None,
+            payment_method_info: Some(payment_method),
         })
     } else {
         Ok(MandateGenericData {
@@ -686,7 +686,7 @@ pub async fn get_token_for_recurring_mandate(
             payment_method_type: payment_method.payment_method_type,
             mandate_connector: Some(mandate_connector_details),
             mandate_data: None,
-            payment_method_info: None,
+            payment_method_info: Some(payment_method),
         })
     }
 }

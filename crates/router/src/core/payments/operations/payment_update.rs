@@ -216,13 +216,36 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         )
         .await?;
 
+        // If request billing address is not passed, use saved billing address id
+        let is_payment_method_billing_address_passed = request
+            .payment_method_data
+            .as_ref()
+            .map(|payment_method_data| payment_method_data.billing.is_some())
+            .unwrap_or(false);
+
+        let recurring_payment_method_billing_address_id =
+            if !is_payment_method_billing_address_passed {
+                payment_method_info
+                    .as_ref()
+                    .and_then(|payment_method_info| {
+                        payment_method_info
+                            .payment_method_billing_address_id
+                            .as_deref()
+                    })
+            } else {
+                None
+            };
+
         let payment_method_billing = helpers::create_or_update_address_for_payment_by_request(
             db,
             request
                 .payment_method_data
                 .as_ref()
                 .and_then(|pmd| pmd.billing.as_ref()),
-            payment_attempt.payment_method_billing_address_id.as_deref(),
+            payment_attempt
+                .payment_method_billing_address_id
+                .as_deref()
+                .or(recurring_payment_method_billing_address_id),
             merchant_id,
             payment_intent
                 .customer_id
