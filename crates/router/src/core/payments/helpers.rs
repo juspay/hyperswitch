@@ -3625,7 +3625,9 @@ pub async fn get_additional_payment_data(
         api_models::payments::PaymentMethodData::Card(card_data) => {
             let card_isin = Some(card_data.card_number.clone().get_card_isin());
             let enable_extended_bin =db
-            .find_config_by_key_unwrap_or(profile_id, Some("false".to_string()))
+            .find_config_by_key_unwrap_or(
+                format!("{}_enable_extended_card_bin", profile_id).as_str(),
+             Some("false".to_string()))
             .await.map_err(|err| services::logger::error!(message="Failed to fetch the config", extended_card_bin_error=?err)).ok();
 
             let card_extended_bin = match enable_extended_bin {
