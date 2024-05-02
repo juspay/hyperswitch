@@ -3,8 +3,8 @@ use std::fmt::Display;
 use actix_web::ResponseError;
 use common_utils::errors::ErrorSwitch;
 use config::ConfigError;
-use data_models::errors::StorageError as DataStorageError;
 use http::StatusCode;
+use hyperswitch_domain_models::errors::StorageError as DataStorageError;
 pub use redis_interface::errors::RedisError;
 use router_env::opentelemetry::metrics::MetricsError;
 

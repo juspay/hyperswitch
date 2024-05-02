@@ -177,7 +177,9 @@ impl mandate::MandateBehaviour for types::SetupMandateRequestData {
         self.payment_method_data.clone()
     }
 
-    fn get_setup_mandate_details(&self) -> Option<&data_models::mandates::MandateData> {
+    fn get_setup_mandate_details(
+        &self,
+    ) -> Option<&hyperswitch_domain_models::mandates::MandateData> {
         self.setup_mandate_details.as_ref()
     }
     fn get_customer_acceptance(&self) -> Option<api_models::payments::CustomerAcceptance> {

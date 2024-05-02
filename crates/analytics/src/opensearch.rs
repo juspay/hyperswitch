@@ -4,8 +4,8 @@ use api_models::{
 };
 use aws_config::{self, meta::region::RegionProviderChain, Region};
 use common_utils::errors::{CustomResult, ErrorSwitch};
-use data_models::errors::{StorageError, StorageResult};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::errors::{StorageError, StorageResult};
 use opensearch::{
     auth::Credentials,
     cert::CertificateValidation,
