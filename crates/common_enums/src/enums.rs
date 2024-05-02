@@ -1429,6 +1429,7 @@ pub enum PaymentMethodType {
     Twint,
     UpiCollect,
     Vipps,
+    Venmo,
     Walley,
     WeChatPay,
     SevenEleven,
