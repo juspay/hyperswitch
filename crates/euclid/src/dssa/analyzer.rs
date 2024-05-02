@@ -244,8 +244,8 @@ mod tests {
 
     use std::{ops::Deref, sync::Weak};
 
-    use constraint_graph as cgraph;
     use euclid_macros::knowledge;
+    use hyperswitch_constraint_graph as cgraph;
 
     use super::*;
     use crate::{
