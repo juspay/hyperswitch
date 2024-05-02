@@ -64,6 +64,8 @@ pub enum Gateway {
     Klarna,
     Googlepay,
     Paypal,
+    Ideal,
+    Giropay,
 }
 
 #[serde_with::skip_serializing_none]
@@ -168,18 +170,89 @@ pub struct PayLaterInfo {
     pub email: Option<Email>,
 }
 
+
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum GatewayInfo {
     Card(CardInfo),
     Wallet(WalletInfo),
     PayLater(PayLaterInfo),
+    BankRedirect(BankRedirectInfo),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct IdealInfo{
+    pub issuer_id:IdealBankNames,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(untagged)]
+pub enum BankRedirectInfo{
+    Ideal(IdealInfo)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum WalletInfo {
     GooglePay(GpayInfo),
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize, Clone)]
+pub enum IdealBankNames{
+    #[serde(rename = "0031")]
+    AbnAmro,
+    #[serde(rename = "0761")]
+    AsnBank,
+    #[serde(rename = "4371")]
+    Bunq,
+    #[serde(rename = "0721")]
+    Ing,
+    #[serde(rename = "0801")]
+    Knab,
+    #[serde(rename = "9927")]
+    NationaleNederlanden,
+    #[serde(rename = "9926")]
+    N26,
+    #[serde(rename = "0021")]
+    Rabobank,
+    #[serde(rename = "0771")]
+    Regiobank,
+    #[serde(rename = "1099")]
+    Revolut,
+    #[serde(rename = "0751")]
+    SnsBank,
+    #[serde(rename = "0511")]
+    TriodosBank,
+    #[serde(rename = "0161")]
+    VanLanschot,
+    #[serde(rename = "0806")]
+    Yoursafe,
+}
+
+impl TryFrom<&common_enums::enums::BankNames> for IdealBankNames{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(bank: &common_enums::enums::BankNames) -> Result<Self, Self::Error>{
+        Ok(match bank{
+            common_enums::enums::BankNames::AbnAmro => Self::AbnAmro,
+            common_enums::enums::BankNames::AsnBank => Self::AsnBank,
+            common_enums::enums::BankNames::Bunq => Self::Bunq,
+            common_enums::enums::BankNames::Ing => Self::Ing,
+            common_enums::enums::BankNames::Knab => Self::Knab,
+            common_enums::enums::BankNames::NationaleNederlanden => Self::NationaleNederlanden,
+            common_enums::enums::BankNames::N26 => Self::N26,
+            common_enums::enums::BankNames::Rabobank => Self::Rabobank,
+            common_enums::enums::BankNames::Regiobank => Self::Regiobank,
+            common_enums::enums::BankNames::Revolut => Self::Revolut,
+            common_enums::enums::BankNames::SnsBank => Self::SnsBank,
+            common_enums::enums::BankNames::TriodosBank => Self::TriodosBank,
+            common_enums::enums::BankNames::VanLanschot => Self::VanLanschot,
+            common_enums::enums::BankNames::Yoursafe => Self::Yoursafe,
+            _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Multisafe pay"),
+            ))?,
+        })
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -312,6 +385,13 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 ))?,
             },
             domain::PaymentMethodData::PayLater(ref _paylater) => Type::Redirect,
+            domain::PaymentMethodData::BankRedirect(ref bank_redirect_data)=> match bank_redirect_data{
+                domain::BankRedirectData::Giropay{..}=> Type::Redirect,
+                domain::BankRedirectData::Ideal{..}=>  Type::Direct,
+                _=>Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("multisafepay"),
+                ))?,
+            },  
             _ => Type::Redirect,
         };
 
@@ -353,10 +433,16 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 billing_email: _,
                 billing_country: _,
             }) => Some(Gateway::Klarna),
+            domain::PaymentMethodData::BankRedirect(ref bank_redirect_data)=>Some(match bank_redirect_data{
+                domain::BankRedirectData::Giropay {..} => Gateway::Giropay,
+                domain::BankRedirectData::Ideal {..} => Gateway::Ideal,
+                _=>Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("multisafepay"),
+                ))?,
+            }),
             domain::PaymentMethodData::MandatePayment => None,
             domain::PaymentMethodData::CardRedirect(_)
             | domain::PaymentMethodData::PayLater(_)
-            | domain::PaymentMethodData::BankRedirect(_)
             | domain::PaymentMethodData::BankDebit(_)
             | domain::PaymentMethodData::BankTransfer(_)
             | domain::PaymentMethodData::Crypto(_)
@@ -505,10 +591,23 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                         }
                     }),
                 }))
-            }
+            },
+            domain::PaymentMethodData::BankRedirect(ref bank_redirect_data)=>{
+                match bank_redirect_data{
+                    domain::BankRedirectData::Ideal{bank_name,..}=>Some(GatewayInfo::BankRedirect(BankRedirectInfo::Ideal(
+                        IdealInfo {
+                            issuer_id: IdealBankNames::try_from(&bank_name.ok_or(
+                                errors::ConnectorError::MissingRequiredField {
+                                    field_name: "ideal.bank_name",
+                                },
+                            )?)?,
+                        },
+                    ))),
+                    _=>None,
+                }
+            },
             domain::PaymentMethodData::MandatePayment => None,
             domain::PaymentMethodData::CardRedirect(_)
-            | domain::PaymentMethodData::BankRedirect(_)
             | domain::PaymentMethodData::BankDebit(_)
             | domain::PaymentMethodData::BankTransfer(_)
             | domain::PaymentMethodData::Crypto(_)
