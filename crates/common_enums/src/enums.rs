@@ -2113,6 +2113,7 @@ pub enum PayoutStatus {
     RequiresCreation,
     RequiresPayoutMethodData,
     RequiresFulfillment,
+    RequiresVendorAccountCreation,
 }
 
 #[derive(
