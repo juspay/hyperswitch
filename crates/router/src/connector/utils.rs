@@ -698,7 +698,10 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     }
 
     fn is_customer_initiated_mandate_payment(&self) -> bool {
-        self.setup_mandate_details.is_some()
+        (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
+            && self.setup_future_usage.map_or(false, |setup_future_usage| {
+                setup_future_usage == storage_enums::FutureUsage::OffSession
+            })
     }
 
     fn get_metadata_as_object(&self) -> Option<pii::SecretSerdeValue> {
@@ -2181,9 +2184,7 @@ pub fn is_mandate_supported(
     mandate_implemented_pmds: HashSet<PaymentMethodDataType>,
     connector: &'static str,
 ) -> Result<(), Error> {
-    if mandate_implemented_pmds.contains(&PaymentMethodDataType::from(selected_pmd.clone()))
-        || domain::payments::PaymentMethodData::MandatePayment == selected_pmd
-    {
+    if mandate_implemented_pmds.contains(&PaymentMethodDataType::from(selected_pmd.clone())) {
         Ok(())
     } else {
         match payment_method_type {

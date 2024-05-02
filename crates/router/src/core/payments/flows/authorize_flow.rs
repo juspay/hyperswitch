@@ -155,7 +155,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     )
                     .to_payment_failed_response()?;
 
-                if crate::connector::utils::PaymentsAuthorizeRequestData::is_mandate_payment(
+                if crate::connector::utils::PaymentsAuthorizeRequestData::is_customer_initiated_mandate_payment(
                     &self.request,
                 ) {
                     connector
