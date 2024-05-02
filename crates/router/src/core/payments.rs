@@ -4034,3 +4034,26 @@ pub async fn payment_external_authentication(
         },
     ))
 }
+
+#[instrument(skip_all)]
+pub async fn get_extended_card_info(
+    state: AppState,
+    merchant_id: String,
+    payment_id: String,
+) -> RouterResponse<payments_api::ExtendedCardInfoResponse> {
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
+
+    let key = helpers::get_redis_key_for_extended_card_info(&merchant_id, &payment_id);
+    let payload = redis_conn
+        .get_key::<String>(&key)
+        .await
+        .change_context(errors::ApiErrorResponse::ExtendedCardInfoNotFound)?;
+
+    Ok(services::ApplicationResponse::Json(
+        payments_api::ExtendedCardInfoResponse { payload },
+    ))
+}

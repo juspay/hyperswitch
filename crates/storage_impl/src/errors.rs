@@ -369,6 +369,8 @@ pub enum HealthCheckDBError {
     SqlxAnalyticsError,
     #[error("Error while executing query in Clickhouse Analytics")]
     ClickhouseAnalyticsError,
+    #[error("Error while executing query in Opensearch")]
+    OpensearchError,
 }
 
 impl From<diesel::result::Error> for HealthCheckDBError {

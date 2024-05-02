@@ -19,6 +19,20 @@ use crate::{
     utils::user::dashboard_metadata::{parse_string_to_enums, set_ip_address_if_required},
 };
 
+pub async fn get_user_details(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+    let flow = Flow::GetUserDetails;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, user, _, _| user_core::get_user_details(state, user),
+        &auth::DashboardNoPermissionAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[cfg(feature = "email")]
 pub async fn user_signup_with_merchant_id(
     state: web::Data<AppState>,
@@ -52,25 +66,6 @@ pub async fn user_signup(
         &http_req,
         req_payload.clone(),
         |state, _, req_body, _| user_core::signup(state, req_body),
-        &auth::NoAuth,
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
-pub async fn user_signin_without_invite_checks(
-    state: web::Data<AppState>,
-    http_req: HttpRequest,
-    json_payload: web::Json<user_api::SignInRequest>,
-) -> HttpResponse {
-    let flow = Flow::UserSignInWithoutInviteChecks;
-    let req_payload = json_payload.into_inner();
-    Box::pin(api::server_wrap(
-        flow.clone(),
-        state,
-        &http_req,
-        req_payload.clone(),
-        |state, _, req_body, _| user_core::signin_without_invite_checks(state, req_body),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -314,7 +309,7 @@ pub async fn list_merchants_for_user(state: web::Data<AppState>, req: HttpReques
 pub async fn get_user_role_details(
     state: web::Data<AppState>,
     req: HttpRequest,
-    payload: web::Query<user_api::GetUserDetailsRequest>,
+    payload: web::Query<user_api::GetUserRoleDetailsRequest>,
 ) -> HttpResponse {
     let flow = Flow::GetUserDetails;
     Box::pin(api::server_wrap(
@@ -383,24 +378,6 @@ pub async fn reset_password(
     ))
     .await
 }
-
-pub async fn invite_user(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    payload: web::Json<user_api::InviteUserRequest>,
-) -> HttpResponse {
-    let flow = Flow::InviteUser;
-    Box::pin(api::server_wrap(
-        flow,
-        state.clone(),
-        &req,
-        payload.into_inner(),
-        |state, user, payload, req_state| user_core::invite_user(state, payload, user, req_state),
-        &auth::JWTAuth(Permission::UsersWrite),
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
 pub async fn invite_multiple_user(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -451,27 +428,6 @@ pub async fn accept_invite_from_email(
         &req,
         payload.into_inner(),
         |state, _, request_payload, _| user_core::accept_invite_from_email(state, request_payload),
-        &auth::NoAuth,
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
-#[cfg(feature = "email")]
-pub async fn verify_email_without_invite_checks(
-    state: web::Data<AppState>,
-    http_req: HttpRequest,
-    json_payload: web::Json<user_api::VerifyEmailRequest>,
-) -> HttpResponse {
-    let flow = Flow::VerifyEmailWithoutInviteChecks;
-    Box::pin(api::server_wrap(
-        flow.clone(),
-        state,
-        &http_req,
-        json_payload.into_inner(),
-        |state, _, req_payload, _| {
-            user_core::verify_email_without_invite_checks(state, req_payload)
-        },
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))

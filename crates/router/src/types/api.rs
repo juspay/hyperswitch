@@ -352,6 +352,7 @@ impl ConnectorData {
                 enums::Connector::DummyConnector6 => Ok(Box::new(&connector::DummyConnector::<6>)),
                 #[cfg(feature = "dummy_connector")]
                 enums::Connector::DummyConnector7 => Ok(Box::new(&connector::DummyConnector::<7>)),
+                enums::Connector::Ebanx => Ok(Box::new(&connector::Ebanx)),
                 enums::Connector::Fiserv => Ok(Box::new(&connector::Fiserv)),
                 enums::Connector::Forte => Ok(Box::new(&connector::Forte)),
                 enums::Connector::Globalpay => Ok(Box::new(&connector::Globalpay)),
