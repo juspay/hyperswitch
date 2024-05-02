@@ -426,7 +426,8 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Gcash
             | api_enums::PaymentMethodType::Momo
             | api_enums::PaymentMethodType::Cashapp
-            | api_enums::PaymentMethodType::KakaoPay => Self::Wallet,
+            | api_enums::PaymentMethodType::KakaoPay
+            | api_enums::PaymentMethodType::Venmo => Self::Wallet,
             api_enums::PaymentMethodType::Affirm
             | api_enums::PaymentMethodType::Alma
             | api_enums::PaymentMethodType::AfterpayClearpay
@@ -971,6 +972,7 @@ impl ForeignFrom<api_models::payouts::Wallet> for api_enums::PaymentMethodType {
     fn foreign_from(value: api_models::payouts::Wallet) -> Self {
         match value {
             api_models::payouts::Wallet::Paypal(_) => Self::Paypal,
+            api_models::payouts::Wallet::Venmo(_) => Self::Venmo,
         }
     }
 }
