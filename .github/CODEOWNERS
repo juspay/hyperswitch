@@ -45,7 +45,7 @@ crates/router/src/compatibility/ @juspay/hyperswitch-compatibility
 crates/router/src/core/ @juspay/hyperswitch-core
 
 crates/api_models/src/routing.rs @juspay/hyperswitch-routing
-crates/constraint_graph @juspay/hyperswitch-routing
+crates/hyperswitch_constraint_graph @juspay/hyperswitch-routing
 crates/euclid @juspay/hyperswitch-routing
 crates/euclid_macros @juspay/hyperswitch-routing
 crates/euclid_wasm @juspay/hyperswitch-routing
