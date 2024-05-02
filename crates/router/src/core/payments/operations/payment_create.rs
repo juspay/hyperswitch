@@ -277,7 +277,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 .map(|address| address.address_id.clone()),
             &payment_method_info,
             merchant_key_store,
-            profile_id.clone(),
+            profile_id,
         )
         .await?;
 

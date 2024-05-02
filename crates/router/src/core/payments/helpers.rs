@@ -3634,12 +3634,6 @@ pub async fn get_additional_payment_data(
                 }
                 _ => None,
             };
-            // let card_extended_bin =
-            //     if let Some(config) = enable_extended_bin.map(|config| config.config == "true") {
-            //         Some(card_data.card_number.clone().get_card_extended_bin())
-            //     } else {
-            //         None
-            //     };
             let last4 = Some(card_data.card_number.clone().get_last4());
             if card_data.card_issuer.is_some()
                 && card_data.card_network.is_some()
