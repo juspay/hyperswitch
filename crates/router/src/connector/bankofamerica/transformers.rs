@@ -1530,8 +1530,8 @@ pub struct IssuerInformation {
 pub struct CardResponseObject {
     suffix: Option<String>,
     prefix: Option<String>,
-    expiration_month: Option<String>,
-    expiration_year: Option<String>,
+    expiration_month: Option<Secret<String>>,
+    expiration_year: Option<Secret<String>>,
     #[serde(rename = "type")]
     card_type: Option<String>,
 }
