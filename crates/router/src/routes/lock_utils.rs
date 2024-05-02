@@ -198,6 +198,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::DeleteSampleData
             | Flow::UserMerchantAccountList
             | Flow::GetUserDetails
+            | Flow::GetUserRoleDetails
             | Flow::ListUsersForMerchantAccount
             | Flow::ForgotPassword
             | Flow::ResetPassword

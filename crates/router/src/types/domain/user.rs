@@ -3,6 +3,7 @@ use std::{collections::HashSet, ops, str::FromStr};
 use api_models::{
     admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
 };
+use common_enums::TokenPurpose;
 use common_utils::{errors::CustomResult, pii};
 use diesel_models::{
     enums::UserStatus,
@@ -935,8 +936,10 @@ impl SignInWithMultipleRolesStrategy {
             user_api::MerchantSelectResponse {
                 name: self.user.get_name(),
                 email: self.user.get_email(),
-                token: auth::UserAuthToken::new_token(
+                token: auth::SinglePurposeToken::new_token(
                     self.user.get_user_id().to_string(),
+                    TokenPurpose::AcceptInvite,
+                    Origin::SignIn,
                     &state.conf,
                 )
                 .await?

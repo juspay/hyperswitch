@@ -19,6 +19,20 @@ use crate::{
     utils::user::dashboard_metadata::{parse_string_to_enums, set_ip_address_if_required},
 };
 
+pub async fn get_user_details(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+    let flow = Flow::GetUserDetails;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, user, _, _| user_core::get_user_details(state, user),
+        &auth::DashboardNoPermissionAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[cfg(feature = "email")]
 pub async fn user_signup_with_merchant_id(
     state: web::Data<AppState>,
@@ -303,7 +317,7 @@ pub async fn list_merchants_for_user(state: web::Data<AppState>, req: HttpReques
 pub async fn get_user_role_details(
     state: web::Data<AppState>,
     req: HttpRequest,
-    payload: web::Query<user_api::GetUserDetailsRequest>,
+    payload: web::Query<user_api::GetUserRoleDetailsRequest>,
 ) -> HttpResponse {
     let flow = Flow::GetUserDetails;
     Box::pin(api::server_wrap(

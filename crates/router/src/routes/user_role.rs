@@ -1,5 +1,6 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::user_role::{self as user_role_api, role as role_api};
+use common_enums::TokenPurpose;
 use router_env::Flow;
 
 use super::AppState;
@@ -214,7 +215,7 @@ pub async fn accept_invitation(
         &req,
         payload,
         user_role_core::accept_invitation,
-        &auth::UserWithoutMerchantJWTAuth,
+        &auth::SinglePurposeJWTAuth(TokenPurpose::AcceptInvite),
         api_locking::LockAction::NotApplicable,
     ))
     .await
