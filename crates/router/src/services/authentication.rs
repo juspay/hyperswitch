@@ -114,12 +114,14 @@ impl AuthenticationType {
     }
 }
 
+#[cfg(feature = "olap")]
 #[derive(Clone, Debug)]
 pub struct UserFromSinglePurposeToken {
     pub user_id: String,
     pub origin: domain::Origin,
 }
 
+#[cfg(feature = "olap")]
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct SinglePurposeToken {
     pub user_id: String,
