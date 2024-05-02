@@ -1,12 +1,13 @@
+use common_enums::TokenPurpose;
+use diesel_models::{enums::UserStatus, user_role::UserRole};
+use masking::Secret;
+
 use super::UserFromStorage;
 use crate::{
     core::errors::{UserErrors, UserResult},
     routes::AppState,
     services::authentication as auth,
 };
-use common_enums::TokenPurpose;
-use diesel_models::{enums::UserStatus, user_role::UserRole};
-use masking::Secret;
 
 #[derive(Eq, PartialEq, Clone, Copy)]
 pub enum UserFlow {
