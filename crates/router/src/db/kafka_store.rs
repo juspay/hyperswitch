@@ -73,16 +73,23 @@ use crate::{
 };
 
 #[derive(Clone)]
+pub struct TenantID{
+    id: String
+}
+
+#[derive(Clone)]
 pub struct KafkaStore {
     kafka_producer: KafkaProducer,
     pub diesel_store: Store,
+    pub tenant_id: TenantID
 }
 
 impl KafkaStore {
-    pub async fn new(store: Store, kafka_producer: KafkaProducer) -> Self {
+    pub async fn new(store: Store, kafka_producer: KafkaProducer, tenant_id: TenantID) -> Self {
         Self {
             kafka_producer,
             diesel_store: store,
+            tenant_id: tenant_id
         }
     }
 }
