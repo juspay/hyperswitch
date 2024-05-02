@@ -99,12 +99,6 @@ pub struct InviteUserRequest {
 }
 
 #[derive(Debug, serde::Serialize)]
-pub struct InviteUserResponse {
-    pub is_email_sent: bool,
-    pub password: Option<Secret<String>>,
-}
-
-#[derive(Debug, serde::Serialize)]
 pub struct InviteMultipleUserResponse {
     pub email: pii::Email,
     pub is_email_sent: bool,

@@ -168,7 +168,6 @@ pub fn construct_router_data<F: Clone, Req, Res>(
         connector_api_version: None,
         request: request_data,
         response: Err(types::ErrorResponse::default()),
-        payment_method_id: None,
         connector_request_reference_id:
             IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_AUTHENTICATION_FLOW.to_owned(),
         #[cfg(feature = "payouts")]
