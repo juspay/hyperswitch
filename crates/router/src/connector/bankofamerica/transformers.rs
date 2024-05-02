@@ -177,7 +177,7 @@ pub struct CaptureOptions {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BankOfAmericaPaymentInstrument {
-    id: Option<Secret<String>>,
+    id: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -363,13 +363,9 @@ impl<F, T>
             BankOfAmericaSetupMandatesResponse::ClientReferenceInformation(info_response) => {
                 let mandate_reference = info_response.token_information.clone().map(|token_info| {
                     types::MandateReference {
-                        connector_mandate_id: token_info.payment_instrument.and_then(
-                            |payment_instrument| {
-                                payment_instrument
-                                    .id
-                                    .map(|instrument_id| instrument_id.expose())
-                            },
-                        ),
+                        connector_mandate_id: token_info
+                            .payment_instrument
+                            .map(|payment_instrument| payment_instrument.id.expose()),
                         payment_method_id: None,
                     }
                 });
@@ -1247,7 +1243,7 @@ impl
     ) -> Result<Self, Self::Error> {
         let processing_information = ProcessingInformation::try_from((item, None, None))?;
         let payment_instrument = BankOfAmericaPaymentInstrument {
-            id: Some(connector_mandate_id.into()),
+            id: connector_mandate_id.into(),
         };
         let email = item.router_data.request.get_email().ok();
         let bill_to = email.and_then(|email_id| {
@@ -1446,8 +1442,6 @@ pub struct RuleResults {
 pub struct PaymentInformationResponse {
     tokenized_card: Option<CardResponseObject>,
     customer: Option<CustomerResponseObject>,
-    payment_instrument: Option<BankOfAmericaPaymentInstrument>,
-    instrument_identifier: Option<InstrumentIdentifier>,
     card: Option<CardResponseObject>,
     scheme: Option<String>,
     bin: Option<String>,
@@ -1504,18 +1498,18 @@ pub struct ProcessingInformationResponse {
 #[serde(rename_all = "camelCase")]
 pub struct AuthorizationOptions {
     auth_type: Option<String>,
-    initiator: Option<MerchantInitiatedTransactionResponse>,
+    initiator: Option<Initiator>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Initiator {
+    merchant_initiated_transaction: Option<MerchantInitiatedTransactionResponse>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MerchantInitiatedTransactionResponse {
-    merchant_initiated_transaction: Option<MerchantInitiatedTransactio>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MerchantInitiatedTransactio {
     agreement_id: Option<String>,
     processor_transaction_id: Option<String>,
     original_authorized_amount: Option<String>,
@@ -1526,8 +1520,6 @@ pub struct MerchantInitiatedTransactio {
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaTokenInformation {
     payment_instrument: Option<BankOfAmericaPaymentInstrument>,
-    instrumentidentifier_new: Option<bool>,
-    instrument_identifier: Option<BankOfAmericaInstrumentIdentifier>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -1655,13 +1647,9 @@ fn get_payment_response(
                     .token_information
                     .clone()
                     .map(|token_info| types::MandateReference {
-                        connector_mandate_id: token_info.payment_instrument.and_then(
-                            |payment_instrument| {
-                                payment_instrument
-                                    .id
-                                    .map(|instrument_id| instrument_id.expose())
-                            },
-                        ),
+                        connector_mandate_id: token_info
+                            .payment_instrument
+                            .map(|payment_instrument| payment_instrument.id.expose()),
                         payment_method_id: None,
                     });
 
