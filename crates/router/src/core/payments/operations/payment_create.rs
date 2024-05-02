@@ -168,11 +168,12 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         let is_payment_method_billing_address_passed = request
             .payment_method_data
             .as_ref()
-            .map(|payment_method_data| payment_method_data.billing.is_some())
-            .unwrap_or(false);
+            .is_some_and(|payment_method_data| payment_method_data.billing.is_some());
 
         let recurring_payment_method_billing_address_id =
-            if !is_payment_method_billing_address_passed {
+            if is_payment_method_billing_address_passed {
+                None
+            } else {
                 payment_method_info
                     .as_ref()
                     .and_then(|payment_method_info| {
@@ -180,8 +181,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                             .payment_method_billing_address_id
                             .as_deref()
                     })
-            } else {
-                None
             };
 
         let payment_method_billing_address =

@@ -568,7 +568,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                         .find_address_by_merchant_id_payment_id_address_id(
                             merchant_id,
                             &payment_id,
-                            &payment_method_billing_address_id,
+                            payment_method_billing_address_id,
                             key_store,
                             storage_scheme,
                         )
