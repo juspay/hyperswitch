@@ -153,6 +153,8 @@ pub struct ConnectorConfig {
     pub nuvei: Option<ConnectorTomlConfig>,
     pub payme: Option<ConnectorTomlConfig>,
     pub paypal: Option<ConnectorTomlConfig>,
+    #[cfg(feature = "payouts")]
+    pub paypal_payout: Option<ConnectorTomlConfig>,
     pub payu: Option<ConnectorTomlConfig>,
     pub placetopay: Option<ConnectorTomlConfig>,
     pub plaid: Option<ConnectorTomlConfig>,
@@ -219,7 +221,7 @@ impl ConnectorConfig {
             PayoutConnectors::Adyen => Ok(connector_data.adyen_payout),
             PayoutConnectors::Stripe => Ok(connector_data.stripe_payout),
             PayoutConnectors::Wise => Ok(connector_data.wise_payout),
-            PayoutConnectors::Paypal => Ok(connector_data.paypal),
+            PayoutConnectors::Paypal => Ok(connector_data.paypal_payout),
             PayoutConnectors::Ebanx => Ok(connector_data.ebanx_payout),
         }
     }
