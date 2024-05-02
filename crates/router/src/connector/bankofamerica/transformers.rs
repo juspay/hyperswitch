@@ -2263,7 +2263,6 @@ impl
 
         let authentication_data = Some(serde_json::json!({
         "retrieval_reference_number": processor_information.retrieval_reference_number,
-        "processor_transaction_id": processor_information.transaction_id,
         "acs_transaction_id": consumer_authentication_information.acs_transaction_id,
         "system_trace_audit_number": processor_information.system_trace_audit_number,
         }));
