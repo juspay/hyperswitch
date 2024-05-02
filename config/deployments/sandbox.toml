@@ -334,3 +334,6 @@ connectors_with_webhook_source_verification_call = "paypal"        # List of con
 
 [unmasked_headers]
 keys = "user-agent"
+
+[saved_payment_methods]
+sdk_eligible_payment_methods = ["card"]
