@@ -387,7 +387,12 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
             domain::PaymentMethodData::PayLater(ref _paylater) => Type::Redirect,
             domain::PaymentMethodData::BankRedirect(ref bank_redirect_data)=> match bank_redirect_data{
                 domain::BankRedirectData::Giropay{..}=> Type::Redirect,
-                domain::BankRedirectData::Ideal{..}=>  Type::Direct,
+                domain::BankRedirectData::Ideal{bank_name,..}=>{
+                    match bank_name{
+                        Some(_)=>Type::Direct,
+                        None=>Type::Redirect,
+                    }
+                },
                 _=>Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("multisafepay"),
                 ))?,
@@ -594,16 +599,23 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
             },
             domain::PaymentMethodData::BankRedirect(ref bank_redirect_data)=>{
                 match bank_redirect_data{
-                    domain::BankRedirectData::Ideal{bank_name,..}=>Some(GatewayInfo::BankRedirect(BankRedirectInfo::Ideal(
-                        IdealInfo {
-                            issuer_id: IdealBankNames::try_from(&bank_name.ok_or(
-                                errors::ConnectorError::MissingRequiredField {
-                                    field_name: "ideal.bank_name",
+                    domain::BankRedirectData::Ideal{bank_name,..}=>{
+                        match bank_name{
+                            //If the Type is Direct
+                            Some(_)=> Some(GatewayInfo::BankRedirect(BankRedirectInfo::Ideal(
+                                IdealInfo {
+                                    issuer_id: IdealBankNames::try_from(&bank_name.ok_or(
+                                        errors::ConnectorError::MissingRequiredField {
+                                            field_name: "ideal.bank_name",
+                                        },
+                                    )?)?,
                                 },
-                            )?)?,
-                        },
-                    ))),
-                    _=>None,
+                            ))),
+                            //If the Type is Redirect
+                            None=>None,
+                        }
+                },
+                 _=>None,
                 }
             },
             domain::PaymentMethodData::MandatePayment => None,
