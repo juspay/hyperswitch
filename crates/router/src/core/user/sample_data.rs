@@ -1,7 +1,7 @@
 use api_models::user::sample_data::SampleDataRequest;
 use common_utils::errors::ReportSwitchExt;
-use data_models::payments::payment_intent::PaymentIntentNew;
 use diesel_models::{user::sample_data::PaymentAttemptBatchNew, RefundNew};
+use hyperswitch_domain_models::payments::payment_intent::PaymentIntentNew;
 
 pub type SampleDataApiResponse<T> = SampleDataResult<ApplicationResponse<T>>;
 

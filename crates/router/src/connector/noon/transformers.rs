@@ -373,11 +373,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
             .get_setup_mandate_details()
             .map(|mandate_data| {
                 let max_amount = match &mandate_data.mandate_type {
-                    Some(data_models::mandates::MandateDataType::SingleUse(mandate))
-                    | Some(data_models::mandates::MandateDataType::MultiUse(Some(mandate))) => {
-                        conn_utils::to_currency_base_unit(mandate.amount, mandate.currency)
-                    }
-                    Some(data_models::mandates::MandateDataType::MultiUse(None)) => {
+                    Some(hyperswitch_domain_models::mandates::MandateDataType::SingleUse(
+                        mandate,
+                    ))
+                    | Some(hyperswitch_domain_models::mandates::MandateDataType::MultiUse(Some(
+                        mandate,
+                    ))) => conn_utils::to_currency_base_unit(mandate.amount, mandate.currency),
+                    Some(hyperswitch_domain_models::mandates::MandateDataType::MultiUse(None)) => {
                         Err(errors::ConnectorError::MissingRequiredField {
                             field_name:
                                 "setup_future_usage.mandate_data.mandate_type.multi_use.amount",

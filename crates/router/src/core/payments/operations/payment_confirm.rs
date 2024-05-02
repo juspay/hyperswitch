@@ -1,10 +1,11 @@
 use std::marker::PhantomData;
 
-use api_models::enums::FrmSuggestion;
+use api_models::{admin::ExtendedCardInfoConfig, enums::FrmSuggestion, payments::ExtendedCardInfo};
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
+use masking::{ExposeInterface, PeekInterface};
 use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
 use tracing_futures::Instrument;
@@ -634,6 +635,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             frm_metadata: request.frm_metadata.clone(),
             authentication,
             recurring_details,
+            poll_config: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -894,6 +896,70 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         blocklist_utils::validate_data_for_blocklist(state, merchant_account, payment_data).await
     }
+
+    #[instrument(skip_all)]
+    async fn store_extended_card_info_temporarily<'a>(
+        &'a self,
+        state: &AppState,
+        payment_id: &str,
+        business_profile: &storage::BusinessProfile,
+        payment_method_data: &Option<api::PaymentMethodData>,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        if let (Some(true), Some(api::PaymentMethodData::Card(card)), Some(merchant_config)) = (
+            business_profile.is_extended_card_info_enabled,
+            payment_method_data,
+            business_profile.extended_card_info_config.clone(),
+        ) {
+            let merchant_config = merchant_config
+                    .expose()
+                    .parse_value::<ExtendedCardInfoConfig>("ExtendedCardInfoConfig")
+                    .map_err(|err| logger::error!(parse_err=?err,"Error while parsing ExtendedCardInfoConfig"));
+
+            let card_data = ExtendedCardInfo::from(card.clone())
+                    .encode_to_vec()
+                    .map_err(|err| logger::error!(encode_err=?err,"Error while encoding ExtendedCardInfo to vec"));
+
+            let (Ok(merchant_config), Ok(card_data)) = (merchant_config, card_data) else {
+                return Ok(());
+            };
+
+            let encrypted_payload =
+                    services::encrypt_jwe(&card_data, merchant_config.public_key.peek())
+                        .await
+                        .map_err(|err| {
+                            logger::error!(jwe_encryption_err=?err,"Error while JWE encrypting extended card info")
+                        });
+
+            let Ok(encrypted_payload) = encrypted_payload else {
+                return Ok(());
+            };
+
+            let redis_conn = state
+                .store
+                .get_redis_conn()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to get redis connection")?;
+
+            let key = helpers::get_redis_key_for_extended_card_info(
+                &business_profile.merchant_id,
+                payment_id,
+            );
+
+            redis_conn
+                .set_key_with_expiry(
+                    &key,
+                    encrypted_payload.clone(),
+                    (*merchant_config.ttl_in_secs).into(),
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to add extended card info in redis")?;
+
+            logger::info!("Extended card info added to redis");
+        }
+
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -922,6 +988,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         let payment_method = payment_data.payment_attempt.payment_method;
         let browser_info = payment_data.payment_attempt.browser_info.clone();
         let frm_message = payment_data.frm_message.clone();
+        let capture_method = payment_data.payment_attempt.capture_method;
 
         let default_status_result = (
             storage_enums::IntentStatus::Processing,
@@ -944,7 +1011,11 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                 storage_enums::AttemptStatus::Unresolved,
                 (None, None),
             ),
-            FrmSuggestion::FrmAutoRefund => default_status_result.clone(),
+            FrmSuggestion::FrmAuthorizeTransaction => (
+                storage_enums::IntentStatus::RequiresCapture,
+                storage_enums::AttemptStatus::Authorized,
+                (None, None),
+            ),
         };
 
         let status_handler_for_authentication_results =
@@ -1037,6 +1108,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         let m_payment_method_id = payment_data.payment_attempt.payment_method_id.clone();
         let m_browser_info = browser_info.clone();
         let m_connector = connector.clone();
+        let m_capture_method = capture_method;
         let m_payment_token = payment_token.clone();
         let m_additional_pm_data = additional_pm_data.clone();
         let m_business_sub_label = business_sub_label.clone();
@@ -1077,6 +1149,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                         status: attempt_status,
                         payment_method,
                         authentication_type,
+                        capture_method: m_capture_method,
                         browser_info: m_browser_info,
                         connector: m_connector,
                         payment_token: m_payment_token,

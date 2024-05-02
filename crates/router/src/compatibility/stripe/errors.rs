@@ -262,6 +262,8 @@ pub enum StripeErrorCode {
     CurrencyConversionFailed,
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "IR_25", message = "Cannot delete the default payment method")]
     PaymentMethodDeleteFailed,
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "Extended card info does not exist")]
+    ExtendedCardInfoNotFound,
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
 
@@ -643,6 +645,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::InvalidWalletToken { wallet_name } => {
                 Self::InvalidWalletToken { wallet_name }
             }
+            errors::ApiErrorResponse::ExtendedCardInfoNotFound => Self::ExtendedCardInfoNotFound,
         }
     }
 }
@@ -714,7 +717,8 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::PaymentMethodUnactivated
             | Self::InvalidConnectorConfiguration { .. }
             | Self::CurrencyConversionFailed
-            | Self::PaymentMethodDeleteFailed => StatusCode::BAD_REQUEST,
+            | Self::PaymentMethodDeleteFailed
+            | Self::ExtendedCardInfoNotFound => StatusCode::BAD_REQUEST,
             Self::RefundFailed
             | Self::PayoutFailed
             | Self::PaymentLinkNotFound

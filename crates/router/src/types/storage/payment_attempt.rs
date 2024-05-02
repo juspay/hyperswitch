@@ -1,8 +1,8 @@
-pub use data_models::payments::payment_attempt::{
-    PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate,
-};
 use diesel_models::{capture::CaptureNew, enums};
 use error_stack::ResultExt;
+pub use hyperswitch_domain_models::payments::payment_attempt::{
+    PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate,
+};
 
 use crate::{
     core::errors, errors::RouterResult, types::transformers::ForeignFrom, utils::OptionExt,

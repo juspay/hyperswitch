@@ -301,6 +301,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::InvalidCookie => {
                 AER::BadRequest(ApiError::new("IR", 26, "Invalid Cookie", None))
             }
+            Self::ExtendedCardInfoNotFound => {
+                AER::NotFound(ApiError::new("IR", 27, "Extended card info does not exist", None))
+            }
         }
     }
 }
