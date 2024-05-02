@@ -164,29 +164,26 @@ const RESET_PASSWORD_FLOW: [UserFlow; 2] = [
 
 pub struct CurrentFlow {
     origin: Origin,
-    current_flow: UserFlow,
+    current_flow_index: usize,
 }
 
 impl CurrentFlow {
     pub fn new(origin: Origin, current_flow: UserFlow) -> UserResult<Self> {
         let flows = origin.get_flows();
-        if !flows.contains(&current_flow) {
-            return Err(UserErrors::InternalServerError.into());
-        }
+        let index = flows
+            .iter()
+            .position(|flow| flow == &current_flow)
+            .ok_or(UserErrors::InternalServerError)?;
 
         Ok(Self {
             origin,
-            current_flow,
+            current_flow_index: index,
         })
     }
 
     pub async fn next(&self, user: UserFromStorage, state: &AppState) -> UserResult<NextFlow> {
         let flows = self.origin.get_flows();
-        let current_flow_index = flows
-            .iter()
-            .position(|flow| flow == &self.current_flow)
-            .ok_or(UserErrors::InternalServerError)?;
-        let remaining_flows = flows.iter().skip(current_flow_index + 1);
+        let remaining_flows = flows.iter().skip(self.current_flow_index + 1);
         for flow in remaining_flows {
             if flow.is_required(&user, state).await? {
                 return Ok(NextFlow {

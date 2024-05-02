@@ -310,6 +310,7 @@ where
     }
 }
 
+#[cfg(feature = "olap")]
 #[derive(Debug)]
 pub(crate) struct SinglePurposeJWTAuth(pub TokenPurpose);
 
