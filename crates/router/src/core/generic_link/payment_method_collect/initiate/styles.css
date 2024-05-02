@@ -26,13 +26,17 @@ body {
   scrollbar-width: none;
 }
 
+.main, #payment-method-collect, #orca-payment-element-iframeRef-payment-method-collect {
+  width: 100vh;
+  height: 100vw;
+}
+
 .main {
-  display: flex;
-  flex-flow: column;
-  justify-content: center;
-  align-items: center;
-  min-width: 600px;
-  width: 50vw;
+  overflow: hidden;
+}
+
+#payment-method-collect {
+  overflow: scroll;
 }
 
 @media only screen and (max-width: 1199px) {
