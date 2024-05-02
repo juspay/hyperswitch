@@ -1497,15 +1497,9 @@ pub struct ProcessingInformationResponse {
     commerce_indicator: Option<String>,
     commerce_indicator_label: Option<String>,
     authorization_options: Option<AuthorizationOptions>,
-    funding_options: Option<FundingOptions>,
     ecommerce_indicator: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FundingOptions {
-    // first_recurring_payment: Option<bool>,
-}
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
