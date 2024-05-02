@@ -166,10 +166,10 @@ pub async fn signin_pci(
     let token = match next_flow.get_flow() {
         domain::UserFlow::SPTFlow(spt_flow) => spt_flow.generate_spt(&state, &next_flow).await,
         domain::UserFlow::JWTFlow(jwt_flow) => {
-    #[cfg(feature = "email")]
-    {
-        user_from_db.get_verification_days_left(&state)?;
-    }
+            #[cfg(feature = "email")]
+            {
+                user_from_db.get_verification_days_left(&state)?;
+            }
 
             let user_role = user_from_db
                 .get_preferred_or_active_user_role_from_db(&state)
