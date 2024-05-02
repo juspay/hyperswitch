@@ -9,9 +9,10 @@ use crate::{
         PaymentMethodListResponse, PaymentMethodResponse, PaymentMethodUpdate,
     },
     payments::{
-        PaymentIdType, PaymentListConstraints, PaymentListFilterConstraints, PaymentListFilters,
-        PaymentListFiltersV2, PaymentListResponse, PaymentListResponseV2, PaymentsApproveRequest,
-        PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsExternalAuthenticationRequest,
+        ExtendedCardInfoResponse, PaymentIdType, PaymentListConstraints,
+        PaymentListFilterConstraints, PaymentListFilters, PaymentListFiltersV2,
+        PaymentListResponse, PaymentListResponseV2, PaymentsApproveRequest, PaymentsCancelRequest,
+        PaymentsCaptureRequest, PaymentsExternalAuthenticationRequest,
         PaymentsExternalAuthenticationResponse, PaymentsIncrementalAuthorizationRequest,
         PaymentsRejectRequest, PaymentsRequest, PaymentsResponse, PaymentsRetrieveRequest,
         PaymentsStartRequest, RedirectionResponse,
@@ -220,3 +221,5 @@ impl ApiEventMetric for PaymentsExternalAuthenticationRequest {
         })
     }
 }
+
+impl ApiEventMetric for ExtendedCardInfoResponse {}

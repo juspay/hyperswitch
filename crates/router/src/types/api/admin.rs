@@ -177,6 +177,7 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
                     field_name: "authentication_connector_details",
                 })?,
             is_extended_card_info_enabled: None,
+            extended_card_info_config: None,
         })
     }
 }

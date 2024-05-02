@@ -111,8 +111,8 @@ fn get_applepay_metadata(
 fn build_apple_pay_session_request(
     state: &routes::AppState,
     request: payment_types::ApplepaySessionRequest,
-    apple_pay_merchant_cert: String,
-    apple_pay_merchant_cert_key: String,
+    apple_pay_merchant_cert: masking::Secret<String>,
+    apple_pay_merchant_cert_key: masking::Secret<String>,
 ) -> RouterResult<services::Request> {
     let mut url = state.conf.connectors.applepay.base_url.to_owned();
     url.push_str("paymentservices/paymentSession");
@@ -188,16 +188,14 @@ async fn create_applepay_session_token(
                         .applepay_decrypt_keys
                         .get_inner()
                         .apple_pay_merchant_cert
-                        .clone()
-                        .expose();
+                        .clone();
 
                     let apple_pay_merchant_cert_key = state
                         .conf
                         .applepay_decrypt_keys
                         .get_inner()
                         .apple_pay_merchant_cert_key
-                        .clone()
-                        .expose();
+                        .clone();
 
                     (
                         payment_request_data,

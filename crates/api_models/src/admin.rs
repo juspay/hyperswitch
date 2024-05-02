@@ -1051,6 +1051,9 @@ pub struct BusinessProfileUpdate {
 
     /// External 3DS authentication details
     pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
+
+    /// Merchant's config to support extended card info feature
+    pub extended_card_info_config: Option<ExtendedCardInfoConfig>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
@@ -1126,3 +1129,9 @@ pub struct ExtendedCardInfoChoice {
 }
 
 impl common_utils::events::ApiEventMetric for ExtendedCardInfoChoice {}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ExtendedCardInfoConfig {
+    pub public_key: Secret<String>,
+    pub ttl_in_secs: u16,
+}

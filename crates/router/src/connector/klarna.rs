@@ -398,6 +398,7 @@ impl
                         | common_enums::PaymentMethodType::Trustly
                         | common_enums::PaymentMethodType::Twint
                         | common_enums::PaymentMethodType::UpiCollect
+                        | common_enums::PaymentMethodType::Venmo
                         | common_enums::PaymentMethodType::Vipps
                         | common_enums::PaymentMethodType::Walley
                         | common_enums::PaymentMethodType::WeChatPay

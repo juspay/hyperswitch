@@ -337,6 +337,7 @@ dependencies = [
  "aws-smithy-types 1.1.8",
  "bigdecimal",
  "common_utils",
+ "data_models",
  "diesel_models",
  "error-stack",
  "external_services",

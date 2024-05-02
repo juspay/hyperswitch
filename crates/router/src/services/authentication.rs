@@ -149,28 +149,6 @@ impl SinglePurposeToken {
     }
 }
 
-// TODO: This has to be removed once single purpose token is used as a intermediate token
-#[derive(Clone, Debug)]
-pub struct UserWithoutMerchantFromToken {
-    pub user_id: String,
-}
-
-#[derive(serde::Serialize, serde::Deserialize)]
-pub struct UserAuthToken {
-    pub user_id: String,
-    pub exp: u64,
-}
-
-#[cfg(feature = "olap")]
-impl UserAuthToken {
-    pub async fn new_token(user_id: String, settings: &Settings) -> UserResult<String> {
-        let exp_duration = std::time::Duration::from_secs(consts::JWT_TOKEN_TIME_IN_SECS);
-        let exp = jwt::generate_exp(exp_duration)?.as_secs();
-        let token_payload = Self { user_id, exp };
-        jwt::generate_jwt(&token_payload, settings).await
-    }
-}
-
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct AuthToken {
     pub user_id: String,
@@ -330,37 +308,6 @@ where
     }
 }
 
-#[derive(Debug)]
-pub struct UserWithoutMerchantJWTAuth;
-
-#[cfg(feature = "olap")]
-#[async_trait]
-impl<A> AuthenticateAndFetch<UserWithoutMerchantFromToken, A> for UserWithoutMerchantJWTAuth
-where
-    A: AppStateInfo + Sync,
-{
-    async fn authenticate_and_fetch(
-        &self,
-        request_headers: &HeaderMap,
-        state: &A,
-    ) -> RouterResult<(UserWithoutMerchantFromToken, AuthenticationType)> {
-        let payload = parse_jwt_payload::<A, UserAuthToken>(request_headers, state).await?;
-        if payload.check_in_blacklist(state).await? {
-            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
-        }
-
-        Ok((
-            UserWithoutMerchantFromToken {
-                user_id: payload.user_id.clone(),
-            },
-            AuthenticationType::UserJwt {
-                user_id: payload.user_id,
-            },
-        ))
-    }
-}
-
-#[allow(dead_code)]
 #[derive(Debug)]
 pub(crate) struct SinglePurposeJWTAuth(pub Purpose);
 
