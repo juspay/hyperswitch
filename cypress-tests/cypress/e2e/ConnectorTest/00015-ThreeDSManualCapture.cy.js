@@ -36,9 +36,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
             });
 
             it("confirm-call-test", () => {
-                console.log("confirm -> " + globalState.get("connectorId"));
                 let det = getConnectorDetails(globalState.get("connectorId"))["3DS"];
-                console.log("det -> " + det.card);
                 cy.confirmCallTest(confirmBody, det, true, globalState);
             });
 
@@ -53,7 +51,6 @@ describe("Card - ThreeDS Manual payment flow test", () => {
 
             it("capture-call-test", () => {
                 let det = getConnectorDetails(globalState.get("connectorId"))["3DS"];
-                console.log("det -> " + det.card);
                 cy.captureCallTest(captureBody, 6500, det.paymentSuccessfulStatus, globalState);
             });
 
@@ -65,9 +62,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
 
         context("Payment Create+Confirm", () => {
             it("create+confirm-payment-call-test", () => {
-                console.log("confirm -> " + globalState.get("connectorId"));
                 let det = getConnectorDetails(globalState.get("connectorId"))["3DS"];
-                console.log("det -> " + det.card);
                 cy.createConfirmPaymentTest(createConfirmPaymentBody, det, "three_ds", "manual", globalState);
             });
 
@@ -83,7 +78,6 @@ describe("Card - ThreeDS Manual payment flow test", () => {
 
             it("capture-call-test", () => {
                 let det = getConnectorDetails(globalState.get("connectorId"))["3DS"];
-                console.log("det -> " + det.card);
                 cy.captureCallTest(captureBody, 6540, det.paymentSuccessfulStatus, globalState);
             });
 
@@ -109,9 +103,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
             });
 
             it("confirm-call-test", () => {
-                console.log("confirm -> " + globalState.get("connectorId"));
                 let det = getConnectorDetails(globalState.get("connectorId"))["3DS"];
-                console.log("det -> " + det.card);
                 cy.confirmCallTest(confirmBody, det, true, globalState);
             });
 
@@ -136,9 +128,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
 
         context("payment + Confirm", () => {
             it("create+confirm-payment-call-test", () => {
-                console.log("confirm -> " + globalState.get("connectorId"));
                 let det = getConnectorDetails(globalState.get("connectorId"))["3DS"];
-                console.log("det -> " + det.card);
                 cy.createConfirmPaymentTest(createConfirmPaymentBody, det, "three_ds", "manual", globalState);
             });
 
@@ -153,7 +143,6 @@ describe("Card - ThreeDS Manual payment flow test", () => {
 
             it("capture-call-test", () => {
                 let det = getConnectorDetails(globalState.get("connectorId"))["3DS"];
-                console.log("det -> " + det.card);
                 cy.captureCallTest(captureBody, 5000, det.paymentSuccessfulStatus, globalState);
             });
 
