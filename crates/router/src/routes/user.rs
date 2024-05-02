@@ -80,14 +80,14 @@ pub async fn user_signin(
 ) -> HttpResponse {
     let flow = Flow::UserSignIn;
     let req_payload = json_payload.into_inner();
-    let is_pci = query.into_inner().token_only;
+    let is_token_only = query.into_inner().token_only;
     Box::pin(api::server_wrap(
         flow.clone(),
         state,
         &http_req,
         req_payload.clone(),
         |state, _, req_body, _| async move {
-            if let Some(true) = is_pci {
+            if let Some(true) = is_token_only {
                 user_core::signin_token_only_flow(state, req_body).await
             } else {
                 user_core::signin(state, req_body).await
