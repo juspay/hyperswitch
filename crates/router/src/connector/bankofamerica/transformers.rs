@@ -819,8 +819,8 @@ pub struct Score {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum RiskResult {
-    String(String),
-    Int(u64),
+    StringVariant(String),
+    IntVariant(u64),
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
