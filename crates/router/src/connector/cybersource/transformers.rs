@@ -1,5 +1,7 @@
+use api_models::payments;
+#[cfg(feature = "payouts")]
 use api_models::{
-    payments::{self, AddressDetails, PhoneDetails},
+    payments::{AddressDetails, PhoneDetails},
     payouts::PayoutMethodData,
 };
 use base64::Engine;
@@ -2842,6 +2844,7 @@ pub enum CybersourcePayoutBusinessType {
     AccountToAccount,
 }
 
+#[cfg(feature = "payouts")]
 impl TryFrom<&CybersourceRouterData<&types::PayoutsRouterData<api::PoFulfill>>>
     for CybersourcePayoutFulfillRequest
 {
@@ -2900,6 +2903,7 @@ impl TryFrom<&CybersourceRouterData<&types::PayoutsRouterData<api::PoFulfill>>>
     }
 }
 
+#[cfg(feature = "payouts")]
 impl TryFrom<(&AddressDetails, &PhoneDetails)> for CybersourceRecipientInfo {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: (&AddressDetails, &PhoneDetails)) -> Result<Self, Self::Error> {
@@ -2917,6 +2921,7 @@ impl TryFrom<(&AddressDetails, &PhoneDetails)> for CybersourceRecipientInfo {
     }
 }
 
+#[cfg(feature = "payouts")]
 impl TryFrom<PayoutMethodData> for PaymentInformation {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: PayoutMethodData) -> Result<Self, Self::Error> {
