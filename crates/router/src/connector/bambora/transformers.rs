@@ -5,7 +5,10 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
-    connector::utils::{BrowserInformationData, PaymentsAuthorizeRequestData, RouterData},
+    connector::{
+        utils,
+        utils::{BrowserInformationData, PaymentsAuthorizeRequestData, RouterData},
+    },
     consts,
     core::errors,
     services,
@@ -152,7 +155,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest {
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::CardToken(_) => {
-                Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("bambora"),
+                )
+                .into())
             }
         }
     }
