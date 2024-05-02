@@ -120,7 +120,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsRedirect
             | Flow::PaymentsIncrementalAuthorization
             | Flow::PaymentsExternalAuthentication
-            | Flow::PaymentsAuthorize => Self::Payments,
+            | Flow::PaymentsAuthorize
+            | Flow::GetExtendedCardInfo => Self::Payments,
 
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve
@@ -166,7 +167,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::BusinessProfileUpdate
             | Flow::BusinessProfileRetrieve
             | Flow::BusinessProfileDelete
-            | Flow::BusinessProfileList => Self::Business,
+            | Flow::BusinessProfileList
+            | Flow::ToggleExtendedCardInfo => Self::Business,
 
             Flow::PaymentLinkRetrieve
             | Flow::PaymentLinkInitiate
@@ -183,7 +185,6 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::UserConnectAccount
             | Flow::UserSignUp
-            | Flow::UserSignInWithoutInviteChecks
             | Flow::UserSignIn
             | Flow::Signout
             | Flow::ChangePassword
@@ -200,11 +201,9 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ListUsersForMerchantAccount
             | Flow::ForgotPassword
             | Flow::ResetPassword
-            | Flow::InviteUser
             | Flow::InviteMultipleUser
             | Flow::ReInviteUser
             | Flow::UserSignUpWithMerchantId
-            | Flow::VerifyEmailWithoutInviteChecks
             | Flow::VerifyEmail
             | Flow::AcceptInviteFromEmail
             | Flow::VerifyEmailRequest
