@@ -120,7 +120,6 @@ pub struct UserFromSinglePurposeToken {
     pub origin: domain::Origin,
 }
 
-
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct SinglePurposeToken {
     pub user_id: String,
