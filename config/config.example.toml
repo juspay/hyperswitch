@@ -613,3 +613,6 @@ payment_attempts = "hyperswitch-payment-attempt-events"
 payment_intents = "hyperswitch-payment-intent-events"
 refunds = "hyperswitch-refund-events"
 disputes = "hyperswitch-dispute-events"
+
+[saved_payment_methods]
+sdk_eligible_payment_methods = ["card"]
