@@ -382,6 +382,9 @@ impl Payments {
                 )
                 .service(
                     web::resource("/{payment_id}/3ds/authentication").route(web::post().to(payments_external_authentication)),
+                )
+                .service(
+                    web::resource("/{payment_id}/extended_card_info").route(web::get().to(retrieve_extended_card_info)),
                 );
         }
         route

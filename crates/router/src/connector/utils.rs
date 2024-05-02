@@ -1216,6 +1216,7 @@ pub trait PhoneDetailsData {
     fn get_country_code(&self) -> Result<String, Error>;
     fn get_number_with_country_code(&self) -> Result<Secret<String>, Error>;
     fn get_number_with_hash_country_code(&self) -> Result<Secret<String>, Error>;
+    fn extract_country_code(&self) -> Result<String, Error>;
 }
 
 impl PhoneDetailsData for api::PhoneDetails {
@@ -1223,6 +1224,10 @@ impl PhoneDetailsData for api::PhoneDetails {
         self.country_code
             .clone()
             .ok_or_else(missing_field_err("billing.phone.country_code"))
+    }
+    fn extract_country_code(&self) -> Result<String, Error> {
+        self.get_country_code()
+            .map(|cc| cc.trim_start_matches('+').to_string())
     }
     fn get_number(&self) -> Result<Secret<String>, Error> {
         self.number
@@ -1258,6 +1263,7 @@ pub trait AddressDetailsData {
     fn get_country(&self) -> Result<&api_models::enums::CountryAlpha2, Error>;
     fn get_combined_address_line(&self) -> Result<Secret<String>, Error>;
     fn to_state_code(&self) -> Result<Secret<String>, Error>;
+    fn to_state_code_as_optional(&self) -> Result<Option<Secret<String>>, Error>;
 }
 
 impl AddressDetailsData for api::AddressDetails {
@@ -1340,6 +1346,18 @@ impl AddressDetailsData for api::AddressDetails {
             )),
             _ => Ok(state.clone()),
         }
+    }
+    fn to_state_code_as_optional(&self) -> Result<Option<Secret<String>>, Error> {
+        self.state
+            .as_ref()
+            .map(|state| {
+                if state.peek().len() == 2 {
+                    Ok(state.to_owned())
+                } else {
+                    self.to_state_code()
+                }
+            })
+            .transpose()
     }
 }
 

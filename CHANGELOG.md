@@ -4,6 +4,34 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.05.02.0
+
+### Features
+
+- **FRM:** Add shipping details for signifyd ([#4500](https://github.com/juspay/hyperswitch/pull/4500)) ([`bda749d`](https://github.com/juspay/hyperswitch/commit/bda749d097ee9cfe80bc509491bec229da3725c3))
+- Add support for merchant to pass public key and ttl for encrypting payload ([#4456](https://github.com/juspay/hyperswitch/pull/4456)) ([`b562e62`](https://github.com/juspay/hyperswitch/commit/b562e62ac895c34574bcc8c3fcce8e5b49d0f923))
+- Add an api for retrieving the extended card info from redis ([#4484](https://github.com/juspay/hyperswitch/pull/4484)) ([`dfa4b50`](https://github.com/juspay/hyperswitch/commit/dfa4b50dbd5cfc927fbbd6a68725d2c51625e6d1))
+
+### Bug Fixes
+
+- **access_token:** Use fallback to `connector_name` if `merchant_connector_id` is not present ([#4503](https://github.com/juspay/hyperswitch/pull/4503)) ([`632a00c`](https://github.com/juspay/hyperswitch/commit/632a00cb6803e3e6f94099e48fb4198a0ea49f99))
+- **connector:** Send valid sdk information in authentication flow netcetera ([#4474](https://github.com/juspay/hyperswitch/pull/4474)) ([`8f0d4d4`](https://github.com/juspay/hyperswitch/commit/8f0d4d4191bb96efd8700fb115d91213c2872ad8))
+- **euclid_wasm:** Connector config wasm metadata update ([#4460](https://github.com/juspay/hyperswitch/pull/4460)) ([`28df646`](https://github.com/juspay/hyperswitch/commit/28df646830f544179b7cf00eb8f51de2a606bdbc))
+
+### Refactors
+
+- **core:** Remove payment_method_id from RouterData struct ([#4485](https://github.com/juspay/hyperswitch/pull/4485)) ([`3077a0d`](https://github.com/juspay/hyperswitch/commit/3077a0d31e8d36f18e359f1edf9a742969601f6b))
+- **cypress:** Read creds from env instead of hardcoding the path ([#4430](https://github.com/juspay/hyperswitch/pull/4430)) ([`0c9ba1e`](https://github.com/juspay/hyperswitch/commit/0c9ba1e848c757cf3e0708f2ed4694259a5344aa))
+- **user:** Deprecate Signin, Verify email and Invite v1 APIs ([#4465](https://github.com/juspay/hyperswitch/pull/4465)) ([`b0133f3`](https://github.com/juspay/hyperswitch/commit/b0133f33693575f2145d295eff78dd07b61efcda))
+
+### Miscellaneous Tasks
+
+- Make client certificate and private key secret across codebase ([#4490](https://github.com/juspay/hyperswitch/pull/4490)) ([`dd7b10a`](https://github.com/juspay/hyperswitch/commit/dd7b10a8bdad4c509a4fbae429f3abd21a5d6758))
+
+**Full Changelog:** [`2024.04.30.0...2024.05.02.0`](https://github.com/juspay/hyperswitch/compare/2024.04.30.0...2024.05.02.0)
+
+- - -
+
 ## 2024.04.30.0
 
 ### Features
