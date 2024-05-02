@@ -71,6 +71,26 @@ pub async fn signup_with_merchant_id(
     }))
 }
 
+pub async fn get_user_details(
+    state: AppState,
+    user_from_token: auth::UserFromToken,
+) -> UserResponse<user_api::GetUserDetailsResponse> {
+    let user = user_from_token.get_user_from_db(&state).await?;
+    let verification_days_left = utils::user::get_verification_days_left(&state, &user)?;
+
+    Ok(ApplicationResponse::Json(
+        user_api::GetUserDetailsResponse {
+            merchant_id: user_from_token.merchant_id,
+            name: user.get_name(),
+            email: user.get_email(),
+            user_id: user.get_user_id().to_string(),
+            verification_days_left,
+            role_id: user_from_token.role_id,
+            org_id: user_from_token.org_id,
+        },
+    ))
+}
+
 pub async fn signup(
     state: AppState,
     request: user_api::SignUpRequest,
@@ -1001,9 +1021,9 @@ pub async fn list_merchants_for_user(
 pub async fn get_user_details_in_merchant_account(
     state: AppState,
     user_from_token: auth::UserFromToken,
-    request: user_api::GetUserDetailsRequest,
+    request: user_api::GetUserRoleDetailsRequest,
     _req_state: ReqState,
-) -> UserResponse<user_api::GetUserDetailsResponse> {
+) -> UserResponse<user_api::GetUserRoleDetailsResponse> {
     let required_user = utils::user::get_user_from_db_by_email(&state, request.email.try_into()?)
         .await
         .to_not_found_response(UserErrors::InvalidRoleOperation)?;
@@ -1029,7 +1049,7 @@ pub async fn get_user_details_in_merchant_account(
     .attach_printable("User role exists but the corresponding role doesn't")?;
 
     Ok(ApplicationResponse::Json(
-        user_api::GetUserDetailsResponse {
+        user_api::GetUserRoleDetailsResponse {
             email: required_user.get_email(),
             name: required_user.get_name(),
             role_id: role_info.get_role_id().to_string(),

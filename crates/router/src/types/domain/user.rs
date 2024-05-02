@@ -935,8 +935,9 @@ impl SignInWithMultipleRolesStrategy {
             user_api::MerchantSelectResponse {
                 name: self.user.get_name(),
                 email: self.user.get_email(),
-                token: auth::UserAuthToken::new_token(
+                token: auth::SinglePurposeToken::new_token(
                     self.user.get_user_id().to_string(),
+                    auth::Purpose::AcceptInvite,
                     &state.conf,
                 )
                 .await?

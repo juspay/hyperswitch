@@ -1,6 +1,8 @@
 use api_models::enums;
 use base64::Engine;
 use common_utils::errors::CustomResult;
+#[cfg(feature = "payouts")]
+use common_utils::pii::Email;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -1462,6 +1464,212 @@ impl<F, T>
                     .clone()
                     .or(Some(item.response.supplementary_data.related_ids.order_id)),
                 incremental_authorization_allowed: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Serialize)]
+pub struct PaypalFulfillRequest {
+    sender_batch_header: PayoutBatchHeader,
+    items: Vec<PaypalPayoutItem>,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Serialize)]
+pub struct PayoutBatchHeader {
+    sender_batch_id: String,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Serialize)]
+pub struct PaypalPayoutItem {
+    amount: PayoutAmount,
+    note: Option<String>,
+    notification_language: String,
+    #[serde(flatten)]
+    payout_method_data: PaypalPayoutMethodData,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Serialize)]
+pub struct PaypalPayoutMethodData {
+    recipient_type: PayoutRecipientType,
+    recipient_wallet: PayoutWalletType,
+    receiver: PaypalPayoutDataType,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PayoutRecipientType {
+    Email,
+    PaypalId,
+    Phone,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PayoutWalletType {
+    Paypal,
+    Venmo,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum PaypalPayoutDataType {
+    EmailType(Email),
+    OtherType(Secret<String>),
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Serialize)]
+pub struct PayoutAmount {
+    value: String,
+    currency: storage_enums::Currency,
+}
+
+#[cfg(feature = "payouts")]
+impl TryFrom<&PaypalRouterData<&types::PayoutsRouterData<api::PoFulfill>>>
+    for PaypalFulfillRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &PaypalRouterData<&types::PayoutsRouterData<api::PoFulfill>>,
+    ) -> Result<Self, Self::Error> {
+        let item_data = PaypalPayoutItem::try_from(item)?;
+        Ok(Self {
+            sender_batch_header: PayoutBatchHeader {
+                sender_batch_id: item.router_data.request.payout_id.to_owned(),
+            },
+            items: vec![item_data],
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl TryFrom<&PaypalRouterData<&types::PayoutsRouterData<api::PoFulfill>>> for PaypalPayoutItem {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &PaypalRouterData<&types::PayoutsRouterData<api::PoFulfill>>,
+    ) -> Result<Self, Self::Error> {
+        let amount = PayoutAmount {
+            value: item.amount.to_owned(),
+            currency: item.router_data.request.destination_currency,
+        };
+
+        let payout_method_data = match item.router_data.get_payout_method_data()? {
+            api::PayoutMethodData::Wallet(wallet_data) => match wallet_data {
+                api::WalletPayout::Paypal(data) => {
+                    let (recipient_type, receiver) =
+                        match (data.email, data.telephone_number, data.paypal_id) {
+                            (Some(email), _, _) => (
+                                PayoutRecipientType::Email,
+                                PaypalPayoutDataType::EmailType(email),
+                            ),
+                            (_, Some(phone), _) => (
+                                PayoutRecipientType::Phone,
+                                PaypalPayoutDataType::OtherType(phone),
+                            ),
+                            (_, _, Some(paypal_id)) => (
+                                PayoutRecipientType::PaypalId,
+                                PaypalPayoutDataType::OtherType(paypal_id),
+                            ),
+                            _ => Err(errors::ConnectorError::MissingRequiredField {
+                                field_name: "receiver_data",
+                            })?,
+                        };
+
+                    PaypalPayoutMethodData {
+                        recipient_type,
+                        recipient_wallet: PayoutWalletType::Paypal,
+                        receiver,
+                    }
+                }
+                api::WalletPayout::Venmo(data) => {
+                    let receiver = PaypalPayoutDataType::OtherType(data.telephone_number.ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "telephone_number",
+                        },
+                    )?);
+                    PaypalPayoutMethodData {
+                        recipient_type: PayoutRecipientType::Phone,
+                        recipient_wallet: PayoutWalletType::Venmo,
+                        receiver,
+                    }
+                }
+            },
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: "PayoutMethodType is not supported".to_string(),
+                connector: "Paypal",
+            })?,
+        };
+
+        Ok(Self {
+            amount,
+            payout_method_data,
+            note: item.router_data.description.to_owned(),
+            notification_language: consts::DEFAULT_NOTIFICATION_SCRIPT_LANGUAGE.to_string(),
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PaypalFulfillResponse {
+    batch_header: PaypalBatchResponse,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PaypalBatchResponse {
+    payout_batch_id: String,
+    batch_status: PaypalFulfillStatus,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PaypalFulfillStatus {
+    Denied,
+    Pending,
+    Processing,
+    Success,
+    Cancelled,
+}
+
+#[cfg(feature = "payouts")]
+impl ForeignFrom<PaypalFulfillStatus> for storage_enums::PayoutStatus {
+    fn foreign_from(status: PaypalFulfillStatus) -> Self {
+        match status {
+            PaypalFulfillStatus::Success => Self::Success,
+            PaypalFulfillStatus::Denied => Self::Failed,
+            PaypalFulfillStatus::Cancelled => Self::Cancelled,
+            PaypalFulfillStatus::Pending | PaypalFulfillStatus::Processing => Self::Pending,
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl<F> TryFrom<types::PayoutsResponseRouterData<F, PaypalFulfillResponse>>
+    for types::PayoutsRouterData<F>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::PayoutsResponseRouterData<F, PaypalFulfillResponse>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(types::PayoutsResponseData {
+                status: Some(storage_enums::PayoutStatus::foreign_from(
+                    item.response.batch_header.batch_status,
+                )),
+                connector_payout_id: item.response.batch_header.payout_batch_id,
+                payout_eligible: None,
+                should_add_next_step_to_process_tracker: false,
             }),
             ..item.data
         })
