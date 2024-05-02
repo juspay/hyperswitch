@@ -2707,13 +2707,15 @@ pub enum BankHolderType {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, strum::Display, serde::Deserialize, serde::Serialize)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
 pub enum TokenPurpose {
+    #[serde(rename = "totp")]
+    #[strum(serialize = "totp")]
     TOTP,
     VerifyEmail,
     AcceptInvitationFromEmail,
     ResetPassword,
     AcceptInvite,
     UserInfo,
-    Home,
 }
-

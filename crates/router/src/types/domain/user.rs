@@ -977,16 +977,16 @@ impl RoleName {
 }
 
 #[derive(Eq, PartialEq, Clone, Copy)]
-pub enum Flows {
-    SPTFlows(SPTFlow),
-    JWTFlows(JWTFlow),
+pub enum UserFlow {
+    SPTFlow(SPTFlow),
+    JWTFlow(JWTFlow),
 }
 
-impl Flows {
+impl UserFlow {
     async fn is_required(&self, user: &UserFromStorage, state: &AppState) -> UserResult<bool> {
         match self {
-            Flows::SPTFlows(flow) => flow.is_required(user, state).await,
-            Flows::JWTFlows(flow) => flow.is_required(user, state).await,
+            Self::SPTFlow(flow) => flow.is_required(user, state).await,
+            Self::JWTFlow(flow) => flow.is_required(user, state).await,
         }
     }
 }
@@ -1012,12 +1012,10 @@ impl SPTFlow {
             // Final Checks
             // TODO: this should be based on last_password_modified_at as a placeholder using false
             Self::ForceSetPassword => Ok(false),
-            Self::MerchantSelect => user.get_roles_from_db(&state).await.map(|roles| {
-                roles
-                    .iter()
-                    .find(|role| role.status == UserStatus::Active)
-                    .is_none()
-            }),
+            Self::MerchantSelect => user
+                .get_roles_from_db(state)
+                .await
+                .map(|roles| !roles.iter().any(|role| role.status == UserStatus::Active)),
         }
     }
 
@@ -1039,7 +1037,7 @@ impl SPTFlow {
 
 #[derive(Eq, PartialEq, Clone, Copy)]
 pub enum JWTFlow {
-    Home,
+    UserInfo,
 }
 
 impl JWTFlow {
@@ -1075,55 +1073,68 @@ pub enum Origin {
     ResetPassword,
 }
 
-const SIGNIN_FLOW: [Flows; 4] = [
-    Flows::SPTFlows(SPTFlow::TOTP),
-    Flows::SPTFlows(SPTFlow::ForceSetPassword),
-    Flows::SPTFlows(SPTFlow::MerchantSelect),
-    Flows::JWTFlows(JWTFlow::Home),
+impl Origin {
+    fn get_flows(&self) -> &'static [UserFlow] {
+        match self {
+            Self::SignIn => &SIGNIN_FLOW,
+            Self::SignUp => &SIGNUP_FLOW,
+            Self::VerifyEmail => &VERIFY_EMAIL_FLOW,
+            Self::MagicLink => &MAGIC_LINK_FLOW,
+            Self::AcceptInvitationFromEmail => &ACCEPT_INVITATION_FROM_EMAIL_FLOW,
+            Self::ResetPassword => &RESET_PASSWORD_FLOW,
+        }
+    }
+}
+
+const SIGNIN_FLOW: [UserFlow; 4] = [
+    UserFlow::SPTFlow(SPTFlow::TOTP),
+    UserFlow::SPTFlow(SPTFlow::ForceSetPassword),
+    UserFlow::SPTFlow(SPTFlow::MerchantSelect),
+    UserFlow::JWTFlow(JWTFlow::UserInfo),
 ];
 
-const SIGNUP_FLOW: [Flows; 4] = [
-    Flows::SPTFlows(SPTFlow::TOTP),
-    Flows::SPTFlows(SPTFlow::ForceSetPassword),
-    Flows::SPTFlows(SPTFlow::MerchantSelect),
-    Flows::JWTFlows(JWTFlow::Home),
+const SIGNUP_FLOW: [UserFlow; 4] = [
+    UserFlow::SPTFlow(SPTFlow::TOTP),
+    UserFlow::SPTFlow(SPTFlow::ForceSetPassword),
+    UserFlow::SPTFlow(SPTFlow::MerchantSelect),
+    UserFlow::JWTFlow(JWTFlow::UserInfo),
 ];
 
-const MAGIC_LINK_FLOW: [Flows; 5] = [
-    Flows::SPTFlows(SPTFlow::TOTP),
-    Flows::SPTFlows(SPTFlow::VerifyEmail),
-    Flows::SPTFlows(SPTFlow::ForceSetPassword),
-    Flows::SPTFlows(SPTFlow::MerchantSelect),
-    Flows::JWTFlows(JWTFlow::Home),
+const MAGIC_LINK_FLOW: [UserFlow; 5] = [
+    UserFlow::SPTFlow(SPTFlow::TOTP),
+    UserFlow::SPTFlow(SPTFlow::VerifyEmail),
+    UserFlow::SPTFlow(SPTFlow::ForceSetPassword),
+    UserFlow::SPTFlow(SPTFlow::MerchantSelect),
+    UserFlow::JWTFlow(JWTFlow::UserInfo),
 ];
 
-const VERIFY_EMAIL_FLOW: [Flows; 5] = [
-    Flows::SPTFlows(SPTFlow::TOTP),
-    Flows::SPTFlows(SPTFlow::VerifyEmail),
-    Flows::SPTFlows(SPTFlow::ForceSetPassword),
-    Flows::SPTFlows(SPTFlow::MerchantSelect),
-    Flows::JWTFlows(JWTFlow::Home),
+const VERIFY_EMAIL_FLOW: [UserFlow; 5] = [
+    UserFlow::SPTFlow(SPTFlow::TOTP),
+    UserFlow::SPTFlow(SPTFlow::VerifyEmail),
+    UserFlow::SPTFlow(SPTFlow::ForceSetPassword),
+    UserFlow::SPTFlow(SPTFlow::MerchantSelect),
+    UserFlow::JWTFlow(JWTFlow::UserInfo),
 ];
 
-const ACCEPT_INVITATION_FROM_EMAIL_FLOW: [Flows; 4] = [
-    Flows::SPTFlows(SPTFlow::TOTP),
-    Flows::SPTFlows(SPTFlow::AcceptInvitationFromEmail),
-    Flows::SPTFlows(SPTFlow::ForceSetPassword),
-    Flows::JWTFlows(JWTFlow::Home),
+const ACCEPT_INVITATION_FROM_EMAIL_FLOW: [UserFlow; 4] = [
+    UserFlow::SPTFlow(SPTFlow::TOTP),
+    UserFlow::SPTFlow(SPTFlow::AcceptInvitationFromEmail),
+    UserFlow::SPTFlow(SPTFlow::ForceSetPassword),
+    UserFlow::JWTFlow(JWTFlow::UserInfo),
 ];
 
-const RESET_PASSWORD_FLOW: [Flows; 2] = [
-    Flows::SPTFlows(SPTFlow::TOTP),
-    Flows::SPTFlows(SPTFlow::ResetPassword),
+const RESET_PASSWORD_FLOW: [UserFlow; 2] = [
+    UserFlow::SPTFlow(SPTFlow::TOTP),
+    UserFlow::SPTFlow(SPTFlow::ResetPassword),
 ];
 
 pub struct CurrentFlow {
     origin: Origin,
-    current_flow: Flows,
+    current_flow: UserFlow,
 }
 
 impl CurrentFlow {
-    pub fn new(origin: Origin, current_flow: Flows) -> UserResult<Self> {
+    pub fn new(origin: Origin, current_flow: UserFlow) -> UserResult<Self> {
         let flows = origin.get_flows();
         if !flows.contains(&current_flow) {
             return Err(UserErrors::InternalServerError.into());
@@ -1146,18 +1157,18 @@ impl CurrentFlow {
             if flow.is_required(&user, state).await? {
                 return Ok(NextFlow {
                     origin: self.origin.clone(),
-                    next_flow: flow.clone(),
+                    next_flow: *flow,
                     user,
                 });
             }
         }
-        return Err(UserErrors::InternalServerError.into());
+        Err(UserErrors::InternalServerError.into())
     }
 }
 
 pub struct NextFlow {
     origin: Origin,
-    next_flow: Flows,
+    next_flow: UserFlow,
     user: UserFromStorage,
 }
 
@@ -1172,7 +1183,7 @@ impl NextFlow {
             if flow.is_required(&user, state).await? {
                 return Ok(Self {
                     origin,
-                    next_flow: flow.clone(),
+                    next_flow: *flow,
                     user,
                 });
             }
@@ -1180,49 +1191,36 @@ impl NextFlow {
         Err(UserErrors::InternalServerError.into())
     }
 
-    pub fn get_flow(&self) -> Flows {
-        self.next_flow.clone()
+    pub fn get_flow(&self) -> UserFlow {
+        self.next_flow
     }
 }
 
-impl Origin {
-    fn get_flows(&self) -> &'static [Flows] {
-        match self {
-            Self::SignIn => &SIGNIN_FLOW,
-            Self::SignUp => &SIGNUP_FLOW,
-            Self::VerifyEmail => &VERIFY_EMAIL_FLOW,
-            Self::MagicLink => &MAGIC_LINK_FLOW,
-            Self::AcceptInvitationFromEmail => &ACCEPT_INVITATION_FROM_EMAIL_FLOW,
-            Self::ResetPassword => &RESET_PASSWORD_FLOW,
+impl From<UserFlow> for TokenPurpose {
+    fn from(value: UserFlow) -> Self {
+        match value {
+            UserFlow::SPTFlow(flow) => flow.into(),
+            UserFlow::JWTFlow(flow) => flow.into(),
         }
     }
 }
 
-impl Into<TokenPurpose> for Flows {
-    fn into(self) -> TokenPurpose {
-        match self {
-            Flows::SPTFlows(flow) => flow.into(),
-            Flows::JWTFlows(flow) => flow.into(),
+impl From<SPTFlow> for TokenPurpose {
+    fn from(value: SPTFlow) -> Self {
+        match value {
+            SPTFlow::TOTP => Self::TOTP,
+            SPTFlow::VerifyEmail => Self::VerifyEmail,
+            SPTFlow::AcceptInvitationFromEmail => Self::AcceptInvitationFromEmail,
+            SPTFlow::MerchantSelect => Self::AcceptInvite,
+            SPTFlow::ResetPassword | SPTFlow::ForceSetPassword => Self::ResetPassword,
         }
     }
 }
 
-impl Into<TokenPurpose> for SPTFlow {
-    fn into(self) -> TokenPurpose {
-        match self {
-            SPTFlow::TOTP => TokenPurpose::TOTP,
-            SPTFlow::VerifyEmail => TokenPurpose::VerifyEmail,
-            SPTFlow::AcceptInvitationFromEmail => TokenPurpose::AcceptInvitationFromEmail,
-            SPTFlow::MerchantSelect => TokenPurpose::AcceptInvite,
-            SPTFlow::ResetPassword | SPTFlow::ForceSetPassword => TokenPurpose::ResetPassword,
-        }
-    }
-}
-
-impl Into<TokenPurpose> for JWTFlow {
-    fn into(self) -> TokenPurpose {
-        match self {
-            JWTFlow::Home => TokenPurpose::Home,
+impl From<JWTFlow> for TokenPurpose {
+    fn from(value: JWTFlow) -> Self {
+        match value {
+            JWTFlow::UserInfo => Self::UserInfo,
         }
     }
 }
