@@ -179,12 +179,11 @@ pub async fn signin_token_only_flow(
         }
     }?;
 
-    Ok(ApplicationResponse::Json(
-        user_api::SignInWithTokenResponse::Token(user_api::TokenResponse {
-            token,
-            token_type: next_flow.get_flow().into(),
-        }),
-    ))
+    let response = user_api::SignInWithTokenResponse::Token(user_api::TokenResponse {
+        token: token.clone(),
+        token_type: next_flow.get_flow().into(),
+    });
+    auth::cookies::set_cookie_response(response, token)
 }
 
 #[cfg(feature = "email")]
