@@ -3,7 +3,7 @@ use once_cell::sync::Lazy;
 
 use crate::{dssa::graph::euclid_graph_prelude, frontend::dir};
 
-pub static ANALYSIS_GRAPH: Lazy<constraint_graph::ConstraintGraph<'_, dir::DirValue>> =
+pub static ANALYSIS_GRAPH: Lazy<hyperswitch_constraint_graph::ConstraintGraph<'_, dir::DirValue>> =
     Lazy::new(|| {
         knowledge! {
             // Payment Method should be `Card` for a CardType to be present

@@ -3,11 +3,11 @@ use std::str::FromStr;
 use api_models::{
     admin as admin_api, enums as api_enums, payment_methods::RequestPaymentMethodTypes,
 };
-use constraint_graph as cgraph;
 use euclid::{
     frontend::{ast, dir},
     types::{NumValue, NumValueRefinement},
 };
+use hyperswitch_constraint_graph as cgraph;
 
 use crate::{error::KgraphError, transformers::IntoDirValue};
 
@@ -328,11 +328,11 @@ mod tests {
     #![allow(clippy::expect_used)]
 
     use api_models::enums as api_enums;
-    use constraint_graph::{ConstraintGraph, CycleCheck, Memoization};
     use euclid::{
         dirval,
         dssa::graph::{AnalysisContext, CgraphExt},
     };
+    use hyperswitch_constraint_graph::{ConstraintGraph, CycleCheck, Memoization};
 
     use super::*;
 

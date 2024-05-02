@@ -21,7 +21,7 @@ utoipa = { version = "4.2.0", features = ["preserve_order", "preserve_path_order
 
 # First party dependencies
 common_enums = { version = "0.1.0", path = "../common_enums" }
-constraint_graph = { version = "0.1.0", path = "../constraint_graph" }
+hyperswitch_constraint_graph = { version = "0.1.0", path = "../hyperswitch_constraint_graph" }
 euclid_macros = { version = "0.1.0", path = "../euclid_macros" }
 
 [features]

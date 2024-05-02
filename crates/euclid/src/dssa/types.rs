@@ -142,7 +142,7 @@ pub enum AnalysisErrorType {
     #[error("Graph analysis error: {0:#?}")]
     GraphAnalysis(
         graph::AnalysisError<dir::DirValue>,
-        constraint_graph::Memoization<dir::DirValue>,
+        hyperswitch_constraint_graph::Memoization<dir::DirValue>,
     ),
     #[error("State machine error")]
     StateMachine(dssa::state_machine::StateMachineError),

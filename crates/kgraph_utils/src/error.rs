@@ -6,7 +6,7 @@ pub enum KgraphError {
     #[error("Invalid connector name encountered: '{0}'")]
     InvalidConnectorName(String),
     #[error("There was an error constructing the graph: {0}")]
-    GraphConstructionError(constraint_graph::GraphError<dir::DirValue>),
+    GraphConstructionError(hyperswitch_constraint_graph::GraphError<dir::DirValue>),
     #[error("There was an error constructing the context")]
     ContextConstructionError(AnalysisErrorType),
     #[error("there was an unprecedented indexing error")]

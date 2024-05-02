@@ -34,7 +34,7 @@ use crate::utils::JsResultExt;
 type JsResult = Result<JsValue, JsValue>;
 
 struct SeedData<'a> {
-    cgraph: constraint_graph::ConstraintGraph<'a, dir::DirValue>,
+    cgraph: hyperswitch_constraint_graph::ConstraintGraph<'a, dir::DirValue>,
     connectors: Vec<ast::ConnectorChoice>,
 }
 
@@ -94,7 +94,7 @@ pub fn seed_knowledge_graph(mcas: JsValue) -> JsResult {
 
     let mca_graph = kgraph_utils::mca::make_mca_graph(mcas).err_to_js()?;
     let analysis_graph =
-        constraint_graph::ConstraintGraph::combine(&mca_graph, &truth::ANALYSIS_GRAPH)
+        hyperswitch_constraint_graph::ConstraintGraph::combine(&mca_graph, &truth::ANALYSIS_GRAPH)
             .err_to_js()?;
 
     SEED_DATA
@@ -136,7 +136,11 @@ pub fn get_valid_connectors_for_rule(rule: JsValue) -> JsResult {
         // checking it against merchant's connectors
         seed_data
             .cgraph
-            .perform_context_analysis(ctx, &mut constraint_graph::Memoization::new(), None)
+            .perform_context_analysis(
+                ctx,
+                &mut hyperswitch_constraint_graph::Memoization::new(),
+                None,
+            )
             .err_to_js()?;
 
         // Update conjunctive context and run analysis on all of merchant's connectors.
@@ -149,7 +153,7 @@ pub fn get_valid_connectors_for_rule(rule: JsValue) -> JsResult {
             ctx.push(ctx_val);
             let analysis_result = seed_data.cgraph.perform_context_analysis(
                 ctx,
-                &mut constraint_graph::Memoization::new(),
+                &mut hyperswitch_constraint_graph::Memoization::new(),
                 None,
             );
             if analysis_result.is_err() {

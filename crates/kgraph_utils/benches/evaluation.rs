@@ -5,7 +5,6 @@ use std::str::FromStr;
 use api_models::{
     admin as admin_api, enums as api_enums, payment_methods::RequestPaymentMethodTypes,
 };
-use constraint_graph::{CycleCheck, Memoization};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use euclid::{
     dirval,
@@ -13,12 +12,13 @@ use euclid::{
     frontend::dir,
     types::{NumValue, NumValueRefinement},
 };
+use hyperswitch_constraint_graph::{CycleCheck, Memoization};
 use kgraph_utils::{error::KgraphError, transformers::IntoDirValue};
 
 fn build_test_data<'a>(
     total_enabled: usize,
     total_pm_types: usize,
-) -> constraint_graph::ConstraintGraph<'a, dir::DirValue> {
+) -> hyperswitch_constraint_graph::ConstraintGraph<'a, dir::DirValue> {
     use api_models::{admin::*, payment_methods::*};
 
     let mut pms_enabled: Vec<PaymentMethodsEnabled> = Vec::new();

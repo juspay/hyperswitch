@@ -13,7 +13,7 @@ connector_choice_mca_id = ["api_models/connector_choice_mca_id", "euclid/connect
 [dependencies]
 api_models = { version = "0.1.0", path = "../api_models", package = "api_models" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
-constraint_graph = { version = "0.1.0", path = "../constraint_graph" }
+hyperswitch_constraint_graph = { version = "0.1.0", path = "../hyperswitch_constraint_graph" }
 euclid = { version = "0.1.0", path = "../euclid" }
 masking = { version = "0.1.0", path = "../masking/" }
 

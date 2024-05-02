@@ -103,7 +103,7 @@ analytics = { version = "0.1.0", path = "../analytics", optional = true }
 cards = { version = "0.1.0", path = "../cards" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["signals", "async_ext", "logs"] }
-constraint_graph = { version = "0.1.0", path = "../constraint_graph" }
+hyperswitch_constraint_graph = { version = "0.1.0", path = "../hyperswitch_constraint_graph" }
 currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
 data_models = { version = "0.1.0", path = "../data_models", default-features = false }
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store"] }

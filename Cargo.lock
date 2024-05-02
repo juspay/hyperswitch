@@ -2050,18 +2050,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f7144d30dcf0fafbce74250a3963025d8d52177934239851c917d29f1df280c2"
 
 [[package]]
-name = "constraint_graph"
-version = "0.1.0"
-dependencies = [
- "erased-serde 0.3.31",
- "rustc-hash",
- "serde",
- "serde_json",
- "strum 0.25.0",
- "thiserror",
-]
-
-[[package]]
 name = "convert_case"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2769,12 +2757,12 @@ name = "euclid"
 version = "0.1.0"
 dependencies = [
  "common_enums",
- "constraint_graph",
  "criterion",
  "erased-serde 0.4.4",
  "euclid_macros",
  "frunk",
  "frunk_core",
+ "hyperswitch_constraint_graph",
  "nom",
  "once_cell",
  "rustc-hash",
@@ -2803,10 +2791,10 @@ dependencies = [
  "api_models",
  "common_enums",
  "connector_configs",
- "constraint_graph",
  "currency_conversion",
  "euclid",
  "getrandom",
+ "hyperswitch_constraint_graph",
  "kgraph_utils",
  "once_cell",
  "ron-parser",
@@ -3642,6 +3630,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "hyperswitch_constraint_graph"
+version = "0.1.0"
+dependencies = [
+ "erased-serde 0.3.31",
+ "rustc-hash",
+ "serde",
+ "serde_json",
+ "strum 0.25.0",
+ "thiserror",
+]
+
+[[package]]
 name = "hyperswitch_interfaces"
 version = "0.1.0"
 dependencies = [
@@ -3931,9 +3931,9 @@ version = "0.1.0"
 dependencies = [
  "api_models",
  "common_enums",
- "constraint_graph",
  "criterion",
  "euclid",
+ "hyperswitch_constraint_graph",
  "masking",
  "serde",
  "serde_json",
@@ -5614,7 +5614,6 @@ dependencies = [
  "common_enums",
  "common_utils",
  "config",
- "constraint_graph",
  "cookie 0.18.1",
  "currency_conversion",
  "data_models",
@@ -5633,6 +5632,7 @@ dependencies = [
  "hex",
  "http 0.2.12",
  "hyper 0.14.28",
+ "hyperswitch_constraint_graph",
  "hyperswitch_interfaces",
  "image",
  "infer",

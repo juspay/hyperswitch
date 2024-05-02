@@ -1,5 +1,5 @@
 [package]
-name = "constraint_graph"
+name = "hyperswitch_constraint_graph"
 description = "Constraint Graph Framework for modeling Domain-Specific Constraints"
 version = "0.1.0"
 edition.workspace = true

@@ -82,8 +82,9 @@ pub struct SessionRoutingPmTypeInput<'a> {
     profile_id: Option<String>,
 }
 static ROUTING_CACHE: StaticCache<CachedAlgorithm> = StaticCache::new();
-static KGRAPH_CACHE: StaticCache<constraint_graph::ConstraintGraph<'_, euclid_dir::DirValue>> =
-    StaticCache::new();
+static KGRAPH_CACHE: StaticCache<
+    hyperswitch_constraint_graph::ConstraintGraph<'_, euclid_dir::DirValue>,
+> = StaticCache::new();
 
 type RoutingResult<O> = oss_errors::CustomResult<O, errors::RoutingError>;
 
@@ -543,7 +544,7 @@ pub async fn get_merchant_kgraph<'a>(
     merchant_last_modified: i64,
     #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
     transaction_type: &api_enums::TransactionType,
-) -> RoutingResult<Arc<constraint_graph::ConstraintGraph<'a, euclid_dir::DirValue>>> {
+) -> RoutingResult<Arc<hyperswitch_constraint_graph::ConstraintGraph<'a, euclid_dir::DirValue>>> {
     let merchant_id = &key_store.merchant_id;
 
     #[cfg(feature = "business_profile_routing")]
@@ -694,8 +695,8 @@ async fn perform_kgraph_filtering(
             .check_value_validity(
                 dir_val,
                 &context,
-                &mut constraint_graph::Memoization::new(),
-                &mut constraint_graph::CycleCheck::new(),
+                &mut hyperswitch_constraint_graph::Memoization::new(),
+                &mut hyperswitch_constraint_graph::CycleCheck::new(),
                 None,
             )
             .change_context(errors::RoutingError::KgraphAnalysisError)?;
