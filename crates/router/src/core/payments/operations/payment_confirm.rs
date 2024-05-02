@@ -341,7 +341,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             request
                 .payment_method_data
                 .as_ref()
-                .map(|pmd| pmd.payment_method_data.clone()),
+                .and_then(|pmd| pmd.payment_method_data.clone()),
         )?;
 
         payment_attempt.browser_info = browser_info;
@@ -412,7 +412,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         let n_request_payment_method_data = request
             .payment_method_data
             .as_ref()
-            .map(|pmd| pmd.payment_method_data.clone());
+            .and_then(|pmd| pmd.payment_method_data.clone());
 
         let store = state.clone().store;
 
@@ -524,7 +524,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             &request
                 .payment_method_data
                 .as_ref()
-                .map(|pmd| pmd.payment_method_data.clone()),
+                .and_then(|pmd| pmd.payment_method_data.clone()),
             &request.payment_method_type,
             &mandate_type,
             &token,
@@ -570,11 +570,12 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         let payment_method_data_after_card_bin_call = request
             .payment_method_data
             .as_ref()
+            .and_then(|request_payment_method_data| {
+                request_payment_method_data.payment_method_data.as_ref()
+            })
             .zip(additional_pm_data)
             .map(|(payment_method_data, additional_payment_data)| {
-                payment_method_data
-                    .payment_method_data
-                    .apply_additional_payment_data(additional_payment_data)
+                payment_method_data.apply_additional_payment_data(additional_payment_data)
             });
         let authentication = payment_attempt.authentication_id.as_ref().async_map(|authentication_id| async move {
             state
