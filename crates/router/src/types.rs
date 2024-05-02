@@ -25,12 +25,15 @@ use common_enums::MandateStatus;
 pub use common_utils::request::RequestContent;
 use common_utils::{pii, pii::Email};
 use error_stack::ResultExt;
-use hyperswitch_domain_models::mandates::{CustomerAcceptance, MandateData};
+use hyperswitch_domain_models::{
+    mandates::{CustomerAcceptance, MandateData},
+    router_data::RouterData,
+};
 use masking::Secret;
 use serde::Serialize;
 
 use self::storage::enums as storage_enums;
-pub use crate::core::payments::{payment_address::PaymentAddress, CustomerDetails};
+pub use crate::core::payments::CustomerDetails;
 #[cfg(feature = "payouts")]
 use crate::{
     connector::utils::missing_field_err,
@@ -40,7 +43,7 @@ use crate::{
     consts,
     core::{
         errors::{self},
-        payments::{types, PaymentData, RecurringMandatePaymentData},
+        payments::{types, PaymentData},
     },
     services,
     types::{transformers::ForeignFrom, types::AuthenticationData},
@@ -266,69 +269,6 @@ pub type PayoutsRouterData<F> = RouterData<F, PayoutsData, PayoutsResponseData>;
 #[cfg(feature = "payouts")]
 pub type PayoutsResponseRouterData<F, R> =
     ResponseRouterData<F, R, PayoutsData, PayoutsResponseData>;
-
-#[derive(Debug, Clone)]
-pub struct RouterData<Flow, Request, Response> {
-    pub flow: PhantomData<Flow>,
-    pub merchant_id: String,
-    pub customer_id: Option<String>,
-    pub connector_customer: Option<String>,
-    pub connector: String,
-    pub payment_id: String,
-    pub attempt_id: String,
-    pub status: storage_enums::AttemptStatus,
-    pub payment_method: storage_enums::PaymentMethod,
-    pub connector_auth_type: ConnectorAuthType,
-    pub description: Option<String>,
-    pub return_url: Option<String>,
-    pub address: PaymentAddress,
-    pub auth_type: storage_enums::AuthenticationType,
-    pub connector_meta_data: Option<pii::SecretSerdeValue>,
-    pub amount_captured: Option<i64>,
-    pub access_token: Option<AccessToken>,
-    pub session_token: Option<String>,
-    pub reference_id: Option<String>,
-    pub payment_method_token: Option<PaymentMethodToken>,
-    pub recurring_mandate_payment_data: Option<RecurringMandatePaymentData>,
-    pub preprocessing_id: Option<String>,
-    /// This is the balance amount for gift cards or voucher
-    pub payment_method_balance: Option<PaymentMethodBalance>,
-
-    ///for switching between two different versions of the same connector
-    pub connector_api_version: Option<String>,
-
-    /// Contains flow-specific data required to construct a request and send it to the connector.
-    pub request: Request,
-
-    /// Contains flow-specific data that the connector responds with.
-    pub response: Result<Response, ErrorResponse>,
-
-    /// Contains a reference ID that should be sent in the connector request
-    pub connector_request_reference_id: String,
-
-    #[cfg(feature = "payouts")]
-    /// Contains payout method data
-    pub payout_method_data: Option<api::PayoutMethodData>,
-
-    #[cfg(feature = "payouts")]
-    /// Contains payout's quote ID
-    pub quote_id: Option<String>,
-
-    pub test_mode: Option<bool>,
-    pub connector_http_status_code: Option<u16>,
-    pub external_latency: Option<u128>,
-    /// Contains apple pay flow type simplified or manual
-    pub apple_pay_flow: Option<storage_enums::ApplePayFlow>,
-
-    pub frm_metadata: Option<serde_json::Value>,
-
-    pub dispute_id: Option<String>,
-    pub refund_id: Option<String>,
-
-    /// This field is used to store various data regarding the response from connector
-    pub connector_response: Option<ConnectorResponseData>,
-    pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
-}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum AdditionalPaymentMethodConnectorResponse {
@@ -1515,10 +1455,10 @@ impl From<&SetupMandateRouterData> for PaymentsAuthorizeData {
     }
 }
 
-impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
+impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
     for RouterData<F2, T2, PaymentsResponseData>
 {
-    fn from(item: (&RouterData<F1, T1, PaymentsResponseData>, T2)) -> Self {
+    fn foreign_from(item: (&RouterData<F1, T1, PaymentsResponseData>, T2)) -> Self {
         let data = item.0;
         let request = item.1;
         Self {
@@ -1568,12 +1508,12 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
 
 #[cfg(feature = "payouts")]
 impl<F1, F2>
-    From<(
+    ForeignFrom<(
         &&mut RouterData<F1, PayoutsData, PayoutsResponseData>,
         PayoutsData,
     )> for RouterData<F2, PayoutsData, PayoutsResponseData>
 {
-    fn from(
+    fn foreign_from(
         item: (
             &&mut RouterData<F1, PayoutsData, PayoutsResponseData>,
             PayoutsData,

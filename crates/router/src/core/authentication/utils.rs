@@ -1,4 +1,5 @@
 use error_stack::ResultExt;
+use hyperswitch_domain_models::router_data::RouterData;
 
 use crate::{
     consts,
@@ -14,7 +15,6 @@ use crate::{
         authentication::AuthenticationResponseData,
         storage,
         transformers::ForeignFrom,
-        RouterData,
     },
 };
 

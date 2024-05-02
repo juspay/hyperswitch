@@ -15,7 +15,11 @@ use crate::{
 pub async fn create_connector_customer<F: Clone, T: Clone>(
     state: &AppState,
     connector: &api::ConnectorData,
-    router_data: &types::RouterData<F, T, types::PaymentsResponseData>,
+    router_data: &hyperswitch_domain_models::router_data::RouterData<
+        F,
+        T,
+        types::PaymentsResponseData,
+    >,
     customer_request_data: types::ConnectorCustomerData,
 ) -> RouterResult<Option<String>> {
     let connector_integration: services::BoxedConnectorIntegration<

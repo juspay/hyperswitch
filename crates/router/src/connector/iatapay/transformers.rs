@@ -67,7 +67,7 @@ pub struct IatapayAuthUpdateResponse {
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, IatapayAuthUpdateResponse, T, types::AccessToken>>
-    for types::RouterData<F, T, types::AccessToken>
+    for hyperswitch_domain_models::router_data::RouterData<F, T, types::AccessToken>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -113,7 +113,7 @@ pub struct IatapayPaymentsRequest {
 impl
     TryFrom<
         &IatapayRouterData<
-            &types::RouterData<
+            &hyperswitch_domain_models::router_data::RouterData<
                 types::api::payments::Authorize,
                 PaymentsAuthorizeData,
                 types::PaymentsResponseData,
@@ -125,7 +125,7 @@ impl
 
     fn try_from(
         item: &IatapayRouterData<
-            &types::RouterData<
+            &hyperswitch_domain_models::router_data::RouterData<
                 types::api::payments::Authorize,
                 PaymentsAuthorizeData,
                 types::PaymentsResponseData,
@@ -332,7 +332,7 @@ fn get_iatpay_response(
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, IatapayPaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(

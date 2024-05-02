@@ -67,7 +67,7 @@ where
 {
     fn build_headers(
         &self,
-        req: &types::RouterData<Flow, Request, Response>,
+        req: &hyperswitch_domain_models::router_data::RouterData<Flow, Request, Response>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let method = self.get_http_method();
@@ -201,7 +201,7 @@ impl
 {
     fn build_request(
         &self,
-        _req: &types::RouterData<
+        _req: &hyperswitch_domain_models::router_data::RouterData<
             api::SetupMandate,
             types::SetupMandateRequestData,
             types::PaymentsResponseData,
@@ -287,7 +287,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from((
+        hyperswitch_domain_models::router_data::RouterData::try_from((
             types::ResponseRouterData {
                 response,
                 data: data.clone(),
@@ -374,7 +374,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from((
+        hyperswitch_domain_models::router_data::RouterData::try_from((
             types::ResponseRouterData {
                 response,
                 data: data.clone(),

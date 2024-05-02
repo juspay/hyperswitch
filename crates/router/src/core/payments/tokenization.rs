@@ -37,10 +37,17 @@ pub struct SavePaymentMethodData<Req> {
     attempt_status: common_enums::AttemptStatus,
 }
 
-impl<F, Req: Clone> From<&types::RouterData<F, Req, types::PaymentsResponseData>>
+impl<F, Req: Clone>
+    From<&hyperswitch_domain_models::router_data::RouterData<F, Req, types::PaymentsResponseData>>
     for SavePaymentMethodData<Req>
 {
-    fn from(router_data: &types::RouterData<F, Req, types::PaymentsResponseData>) -> Self {
+    fn from(
+        router_data: &hyperswitch_domain_models::router_data::RouterData<
+            F,
+            Req,
+            types::PaymentsResponseData,
+        >,
+    ) -> Self {
         Self {
             request: router_data.request.clone(),
             response: router_data.response.clone(),
@@ -730,7 +737,11 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
     state: &AppState,
     connector: &api::ConnectorData,
     tokenization_action: &payments::TokenizationAction,
-    router_data: &mut types::RouterData<F, T, types::PaymentsResponseData>,
+    router_data: &mut hyperswitch_domain_models::router_data::RouterData<
+        F,
+        T,
+        types::PaymentsResponseData,
+    >,
     pm_token_request_data: types::PaymentMethodTokenizationData,
 ) -> RouterResult<Option<String>> {
     match tokenization_action {

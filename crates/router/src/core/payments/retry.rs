@@ -37,7 +37,11 @@ pub async fn do_gsm_actions<F, ApiRequest, FData, Ctx>(
     payment_data: &mut payments::PaymentData<F>,
     mut connectors: IntoIter<api::ConnectorData>,
     original_connector_data: api::ConnectorData,
-    mut router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
+    mut router_data: hyperswitch_domain_models::router_data::RouterData<
+        F,
+        FData,
+        types::PaymentsResponseData,
+    >,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     operation: &operations::BoxedOperation<'_, F, ApiRequest, Ctx>,
@@ -45,14 +49,17 @@ pub async fn do_gsm_actions<F, ApiRequest, FData, Ctx>(
     validate_result: &operations::ValidateResult<'_>,
     schedule_time: Option<time::PrimitiveDateTime>,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
-) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
+) -> RouterResult<
+    hyperswitch_domain_models::router_data::RouterData<F, FData, types::PaymentsResponseData>,
+>
 where
     F: Clone + Send + Sync,
     FData: Send + Sync,
     payments::PaymentResponse: operations::Operation<F, FData, Ctx>,
 
     payments::PaymentData<F>: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
-    types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
+    hyperswitch_domain_models::router_data::RouterData<F, FData, types::PaymentsResponseData>:
+        Feature<F, FData>,
     dyn api::Connector: services::api::ConnectorIntegration<F, FData, types::PaymentsResponseData>,
     Ctx: PaymentMethodRetrieve,
 {
@@ -219,7 +226,11 @@ pub async fn get_retries(
 #[instrument(skip_all)]
 pub async fn get_gsm<F, FData>(
     state: &app::AppState,
-    router_data: &types::RouterData<F, FData, types::PaymentsResponseData>,
+    router_data: &hyperswitch_domain_models::router_data::RouterData<
+        F,
+        FData,
+        types::PaymentsResponseData,
+    >,
 ) -> RouterResult<Option<storage::gsm::GatewayStatusMap>> {
     let error_response = router_data.response.as_ref().err();
     let error_code = error_response.map(|err| err.code.to_owned());
@@ -276,19 +287,26 @@ pub async fn do_retry<F, ApiRequest, FData, Ctx>(
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     payment_data: &mut payments::PaymentData<F>,
-    router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
+    router_data: hyperswitch_domain_models::router_data::RouterData<
+        F,
+        FData,
+        types::PaymentsResponseData,
+    >,
     validate_result: &operations::ValidateResult<'_>,
     schedule_time: Option<time::PrimitiveDateTime>,
     is_step_up: bool,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
-) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
+) -> RouterResult<
+    hyperswitch_domain_models::router_data::RouterData<F, FData, types::PaymentsResponseData>,
+>
 where
     F: Clone + Send + Sync,
     FData: Send + Sync,
     payments::PaymentResponse: operations::Operation<F, FData, Ctx>,
 
     payments::PaymentData<F>: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
-    types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
+    hyperswitch_domain_models::router_data::RouterData<F, FData, types::PaymentsResponseData>:
+        Feature<F, FData>,
     dyn api::Connector: services::api::ConnectorIntegration<F, FData, types::PaymentsResponseData>,
     Ctx: PaymentMethodRetrieve,
 {
@@ -328,7 +346,11 @@ pub async fn modify_trackers<F, FData>(
     connector: String,
     payment_data: &mut payments::PaymentData<F>,
     storage_scheme: storage_enums::MerchantStorageScheme,
-    router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
+    router_data: hyperswitch_domain_models::router_data::RouterData<
+        F,
+        FData,
+        types::PaymentsResponseData,
+    >,
     is_step_up: bool,
 ) -> RouterResult<()>
 where
@@ -537,7 +559,7 @@ pub trait GsmValidation<F: Send + Clone + Sync, FData: Send + Sync, Resp> {
 
 impl<F: Send + Clone + Sync, FData: Send + Sync>
     GsmValidation<F, FData, types::PaymentsResponseData>
-    for types::RouterData<F, FData, types::PaymentsResponseData>
+    for hyperswitch_domain_models::router_data::RouterData<F, FData, types::PaymentsResponseData>
 {
     #[inline(always)]
     fn should_call_gsm(&self) -> bool {

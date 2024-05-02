@@ -673,7 +673,7 @@ pub enum TrustpayPaymentsResponse {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, TrustpayPaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(
@@ -983,7 +983,7 @@ pub struct TrustpayAccessTokenErrorResponse {
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, TrustpayAuthUpdateResponse, T, types::AccessToken>>
-    for types::RouterData<F, T, types::AccessToken>
+    for hyperswitch_domain_models::router_data::RouterData<F, T, types::AccessToken>
 {
     type Error = Error;
     fn try_from(
@@ -1165,7 +1165,12 @@ impl<F>
             types::PaymentsPreProcessingData,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::PaymentsPreProcessingData, types::PaymentsResponseData>
+    >
+    for hyperswitch_domain_models::router_data::RouterData<
+        F,
+        types::PaymentsPreProcessingData,
+        types::PaymentsResponseData,
+    >
 {
     type Error = Error;
     fn try_from(
@@ -1206,10 +1211,10 @@ pub fn get_apple_pay_session<F, T>(
         types::PaymentsResponseData,
     >,
 ) -> Result<
-    types::RouterData<F, T, types::PaymentsResponseData>,
+    hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>,
     error_stack::Report<errors::ConnectorError>,
 > {
-    Ok(types::RouterData {
+    Ok(hyperswitch_domain_models::router_data::RouterData {
         response: Ok(types::PaymentsResponseData::PreProcessingResponse {
             connector_metadata: None,
             pre_processing_id: types::PreprocessingResponseId::ConnectorTransactionId(instance_id),
@@ -1262,10 +1267,10 @@ pub fn get_google_pay_session<F, T>(
         types::PaymentsResponseData,
     >,
 ) -> Result<
-    types::RouterData<F, T, types::PaymentsResponseData>,
+    hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>,
     error_stack::Report<errors::ConnectorError>,
 > {
-    Ok(types::RouterData {
+    Ok(hyperswitch_domain_models::router_data::RouterData {
         response: Ok(types::PaymentsResponseData::PreProcessingResponse {
             connector_metadata: None,
             pre_processing_id: types::PreprocessingResponseId::ConnectorTransactionId(instance_id),

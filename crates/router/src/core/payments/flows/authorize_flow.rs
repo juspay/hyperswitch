@@ -34,7 +34,7 @@ impl
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
     ) -> RouterResult<
-        types::RouterData<
+        hyperswitch_domain_models::router_data::RouterData<
             api::Authorize,
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
@@ -247,10 +247,20 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
 
 pub async fn authorize_preprocessing_steps<F: Clone>(
     state: &AppState,
-    router_data: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+    router_data: &hyperswitch_domain_models::router_data::RouterData<
+        F,
+        types::PaymentsAuthorizeData,
+        types::PaymentsResponseData,
+    >,
     confirm: bool,
     connector: &api::ConnectorData,
-) -> RouterResult<types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>> {
+) -> RouterResult<
+    hyperswitch_domain_models::router_data::RouterData<
+        F,
+        types::PaymentsAuthorizeData,
+        types::PaymentsResponseData,
+    >,
+> {
     if confirm {
         let connector_integration: services::BoxedConnectorIntegration<
             '_,
@@ -316,13 +326,23 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
     }
 }
 
-impl<F> TryFrom<&types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>>
-    for types::ConnectorCustomerData
+impl<F>
+    TryFrom<
+        &hyperswitch_domain_models::router_data::RouterData<
+            F,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+    > for types::ConnectorCustomerData
 {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(
-        data: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+        data: &hyperswitch_domain_models::router_data::RouterData<
+            F,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             email: data.request.email.clone(),

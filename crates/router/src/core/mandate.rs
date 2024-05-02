@@ -260,7 +260,11 @@ pub async fn get_customer_mandates(
 }
 
 fn get_insensitive_payment_method_data_if_exists<F, FData>(
-    router_data: &types::RouterData<F, FData, types::PaymentsResponseData>,
+    router_data: &hyperswitch_domain_models::router_data::RouterData<
+        F,
+        FData,
+        types::PaymentsResponseData,
+    >,
 ) -> Option<domain::PaymentMethodData>
 where
     FData: MandateBehaviour,
@@ -272,12 +276,14 @@ where
 }
 pub async fn update_mandate_procedure<F, FData>(
     state: &AppState,
-    resp: types::RouterData<F, FData, types::PaymentsResponseData>,
+    resp: hyperswitch_domain_models::router_data::RouterData<F, FData, types::PaymentsResponseData>,
     mandate: Mandate,
     merchant_id: &str,
     pm_id: Option<String>,
     storage_scheme: MerchantStorageScheme,
-) -> errors::RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
+) -> errors::RouterResult<
+    hyperswitch_domain_models::router_data::RouterData<F, FData, types::PaymentsResponseData>,
+>
 where
     FData: MandateBehaviour,
 {
@@ -343,7 +349,11 @@ where
 
 pub async fn mandate_procedure<F, FData>(
     state: &AppState,
-    resp: &types::RouterData<F, FData, types::PaymentsResponseData>,
+    resp: &hyperswitch_domain_models::router_data::RouterData<
+        F,
+        FData,
+        types::PaymentsResponseData,
+    >,
     customer_id: &Option<String>,
     pm_id: Option<String>,
     merchant_connector_id: Option<String>,

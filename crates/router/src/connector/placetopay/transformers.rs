@@ -257,7 +257,7 @@ pub struct PlacetopayPaymentsResponse {
 impl<F, T>
     TryFrom<
         types::ResponseRouterData<F, PlacetopayPaymentsResponse, T, types::PaymentsResponseData>,
-    > for types::RouterData<F, T, types::PaymentsResponseData>
+    > for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(

@@ -50,7 +50,7 @@ where
 {
     fn build_headers(
         &self,
-        req: &types::RouterData<Flow, Request, Response>,
+        req: &hyperswitch_domain_models::router_data::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = self.get_auth_header(&req.connector_auth_type)?;
@@ -239,7 +239,7 @@ impl
 {
     fn build_request(
         &self,
-        _req: &types::RouterData<
+        _req: &hyperswitch_domain_models::router_data::RouterData<
             api::SetupMandate,
             types::SetupMandateRequestData,
             types::PaymentsResponseData,
@@ -320,7 +320,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
+        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -423,7 +423,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
+        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -506,7 +506,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
+        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -594,7 +594,7 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -716,7 +716,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
 
-                Ok(types::RouterData {
+                Ok(hyperswitch_domain_models::router_data::RouterData {
                     status: enums::AttemptStatus::AuthenticationPending,
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
                         resource_id: types::ResponseId::NoResponseId,
@@ -739,11 +739,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
-                types::RouterData::try_from(types::ResponseRouterData {
-                    response,
-                    data: data.clone(),
-                    http_code: res.status_code,
-                })
+                hyperswitch_domain_models::router_data::RouterData::try_from(
+                    types::ResponseRouterData {
+                        response,
+                        data: data.clone(),
+                        http_code: res.status_code,
+                    },
+                )
             }
         }
     }
@@ -834,7 +836,7 @@ impl
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
+        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -929,7 +931,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
+        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -1015,7 +1017,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
+        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,

@@ -298,7 +298,7 @@ pub struct ZslPaymentsResponse {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, ZslPaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -413,7 +413,7 @@ impl types::transformers::ForeignFrom<String> for api_models::webhooks::Incoming
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, ZslWebhookResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(

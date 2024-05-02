@@ -656,7 +656,7 @@ pub enum MultisafepayAuthResponse {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, MultisafepayAuthResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(

@@ -310,7 +310,7 @@ impl ForeignFrom<(u8, bool, bool)> for enums::AttemptStatus {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, PowertranzBaseResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(

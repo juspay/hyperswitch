@@ -43,7 +43,11 @@ impl
 
 #[async_trait]
 impl Feature<api::Capture, types::PaymentsCaptureData>
-    for types::RouterData<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
+    for hyperswitch_domain_models::router_data::RouterData<
+        api::Capture,
+        types::PaymentsCaptureData,
+        types::PaymentsResponseData,
+    >
 {
     async fn decide_flows<'a>(
         self,

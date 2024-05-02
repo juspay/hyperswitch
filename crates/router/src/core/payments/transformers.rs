@@ -39,10 +39,13 @@ pub async fn construct_payment_router_data<'a, F, T>(
     _key_store: &domain::MerchantKeyStore,
     customer: &'a Option<domain::Customer>,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
-) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
+) -> RouterResult<
+    hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>,
+>
 where
     T: TryFrom<PaymentAdditionalData<'a, F>>,
-    types::RouterData<F, T, types::PaymentsResponseData>: Feature<F, T>,
+    hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>:
+        Feature<F, T>,
     F: Clone,
     error_stack::Report<errors::ApiErrorResponse>:
         From<<T as TryFrom<PaymentAdditionalData<'a, F>>>::Error>,
@@ -129,7 +132,7 @@ where
         .as_ref()
         .and_then(|payment_method_data| payment_method_data.get_billing_address());
 
-    router_data = types::RouterData {
+    router_data = hyperswitch_domain_models::router_data::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
         customer_id,

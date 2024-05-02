@@ -167,7 +167,7 @@ impl
 {
     fn build_request(
         &self,
-        _req: &types::RouterData<
+        _req: &hyperswitch_domain_models::router_data::RouterData<
             api::SetupMandate,
             types::SetupMandateRequestData,
             types::PaymentsResponseData,
@@ -266,7 +266,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -298,7 +298,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
+        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -319,7 +319,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 {
     fn build_request(
         &self,
-        _req: &types::RouterData<
+        _req: &hyperswitch_domain_models::router_data::RouterData<
             api::Capture,
             types::PaymentsCaptureData,
             types::PaymentsResponseData,
@@ -339,7 +339,11 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
 {
     fn build_request(
         &self,
-        _req: &types::RouterData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>,
+        _req: &hyperswitch_domain_models::router_data::RouterData<
+            api::Void,
+            types::PaymentsCancelData,
+            types::PaymentsResponseData,
+        >,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
@@ -446,7 +450,7 @@ impl ConnectorIntegration<api::refunds::Execute, types::RefundsData, types::Refu
 {
     fn build_request(
         &self,
-        _req: &types::RouterData<
+        _req: &hyperswitch_domain_models::router_data::RouterData<
             api::refunds::Execute,
             types::RefundsData,
             types::RefundsResponseData,

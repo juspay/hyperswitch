@@ -195,7 +195,7 @@ pub struct VoltAuthUpdateResponse {
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, VoltAuthUpdateResponse, T, types::AccessToken>>
-    for types::RouterData<F, T, types::AccessToken>
+    for hyperswitch_domain_models::router_data::RouterData<F, T, types::AccessToken>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -266,7 +266,7 @@ pub struct VoltPaymentsResponse {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, VoltPaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -331,7 +331,7 @@ pub struct VoltPsyncResponse {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, VoltPaymentsResponseData, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(

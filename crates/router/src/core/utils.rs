@@ -8,13 +8,14 @@ use common_enums::{IntentStatus, RequestIncrementalAuthorization};
 use common_utils::{crypto::Encryptable, pii::Email};
 use common_utils::{errors::CustomResult, ext_traits::AsyncExt};
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::payment_address::PaymentAddress;
 #[cfg(feature = "payouts")]
 use masking::PeekInterface;
 use maud::{html, PreEscaped};
 use router_env::{instrument, tracing};
 use uuid::Uuid;
 
-use super::payments::{helpers, PaymentAddress};
+use super::payments::helpers;
 #[cfg(feature = "payouts")]
 use super::payouts::PayoutData;
 #[cfg(feature = "payouts")]
@@ -147,7 +148,7 @@ pub async fn construct_payout_router_data<'a, F>(
             _ => None,
         };
 
-    let router_data = types::RouterData {
+    let router_data = hyperswitch_domain_models::router_data::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.to_owned(),
         customer_id: None,
@@ -298,7 +299,7 @@ pub async fn construct_refund_router_data<'a, F>(
             field_name: "browser_info",
         })?;
 
-    let router_data = types::RouterData {
+    let router_data = hyperswitch_domain_models::router_data::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
         customer_id: payment_intent.customer_id.to_owned(),
@@ -544,7 +545,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
     let payment_method = payment_attempt
         .payment_method
         .get_required_value("payment_method_type")?;
-    let router_data = types::RouterData {
+    let router_data = hyperswitch_domain_models::router_data::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
         connector: dispute.connector.to_string(),
@@ -638,7 +639,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
     let payment_method = payment_attempt
         .payment_method
         .get_required_value("payment_method_type")?;
-    let router_data = types::RouterData {
+    let router_data = hyperswitch_domain_models::router_data::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
         connector: connector_id.to_string(),
@@ -730,7 +731,7 @@ pub async fn construct_upload_file_router_data<'a>(
     let payment_method = payment_attempt
         .payment_method
         .get_required_value("payment_method_type")?;
-    let router_data = types::RouterData {
+    let router_data = hyperswitch_domain_models::router_data::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
         connector: connector_id.to_string(),
@@ -826,7 +827,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
     let payment_method = payment_attempt
         .payment_method
         .get_required_value("payment_method_type")?;
-    let router_data = types::RouterData {
+    let router_data = hyperswitch_domain_models::router_data::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
         connector: connector_id.to_string(),
@@ -911,7 +912,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    let router_data = types::RouterData {
+    let router_data = hyperswitch_domain_models::router_data::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
         connector: connector_id.to_string(),

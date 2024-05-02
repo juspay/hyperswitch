@@ -162,7 +162,7 @@ pub struct GenerateSaleResponse {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, PaymePaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -191,7 +191,7 @@ impl<F, T>
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, PaymePaySaleResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -262,7 +262,7 @@ impl TryFrom<&PaymePaySaleResponse> for types::PaymentsResponseData {
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, SaleQueryResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -482,7 +482,12 @@ impl<F>
             types::PaymentsPreProcessingData,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::PaymentsPreProcessingData, types::PaymentsResponseData>
+    >
+    for hyperswitch_domain_models::router_data::RouterData<
+        F,
+        types::PaymentsPreProcessingData,
+        types::PaymentsResponseData,
+    >
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -884,7 +889,7 @@ pub struct PaymeMetadata {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, CaptureBuyerResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1024,14 +1029,22 @@ pub struct PaymeVoidRequest {
 impl
     TryFrom<
         &PaymeRouterData<
-            &types::RouterData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>,
+            &hyperswitch_domain_models::router_data::RouterData<
+                api::Void,
+                types::PaymentsCancelData,
+                types::PaymentsResponseData,
+            >,
         >,
     > for PaymeVoidRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: &PaymeRouterData<
-            &types::RouterData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>,
+            &hyperswitch_domain_models::router_data::RouterData<
+                api::Void,
+                types::PaymentsCancelData,
+                types::PaymentsResponseData,
+            >,
         >,
     ) -> Result<Self, Self::Error> {
         let auth_type = PaymeAuthType::try_from(&item.router_data.connector_auth_type)?;
@@ -1110,7 +1123,7 @@ pub struct TransactionQuery {
 impl<F, T>
     TryFrom<
         types::ResponseRouterData<F, PaymeQueryTransactionResponse, T, types::RefundsResponseData>,
-    > for types::RouterData<F, T, types::RefundsResponseData>
+    > for hyperswitch_domain_models::router_data::RouterData<F, T, types::RefundsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(

@@ -359,7 +359,12 @@ impl<F>
             types::SetupMandateRequestData,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::SetupMandateRequestData, types::PaymentsResponseData>
+    >
+    for hyperswitch_domain_models::router_data::RouterData<
+        F,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    >
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -401,7 +406,12 @@ impl<F>
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+    >
+    for hyperswitch_domain_models::router_data::RouterData<
+        F,
+        types::PaymentsAuthorizeData,
+        types::PaymentsResponseData,
+    >
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -472,7 +482,12 @@ impl<F>
             types::PaymentsSyncData,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>
+    >
+    for hyperswitch_domain_models::router_data::RouterData<
+        F,
+        types::PaymentsSyncData,
+        types::PaymentsResponseData,
+    >
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -559,7 +574,12 @@ impl<F>
             types::PaymentsCaptureData,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::PaymentsCaptureData, types::PaymentsResponseData>
+    >
+    for hyperswitch_domain_models::router_data::RouterData<
+        F,
+        types::PaymentsCaptureData,
+        types::PaymentsResponseData,
+    >
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -621,7 +641,12 @@ impl<F>
             types::PaymentsCancelData,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::PaymentsCancelData, types::PaymentsResponseData>
+    >
+    for hyperswitch_domain_models::router_data::RouterData<
+        F,
+        types::PaymentsCancelData,
+        types::PaymentsResponseData,
+    >
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(

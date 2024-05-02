@@ -111,7 +111,7 @@ pub trait ConnectorValidation: ConnectorCommon {
 pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Resp> + Sync {
     fn get_headers(
         &self,
-        _req: &types::RouterData<T, Req, Resp>,
+        _req: &hyperswitch_domain_models::router_data::RouterData<T, Req, Resp>,
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![])
@@ -128,7 +128,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
 
     fn get_url(
         &self,
-        _req: &types::RouterData<T, Req, Resp>,
+        _req: &hyperswitch_domain_models::router_data::RouterData<T, Req, Resp>,
         _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(String::new())
@@ -136,7 +136,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
 
     fn get_request_body(
         &self,
-        _req: &types::RouterData<T, Req, Resp>,
+        _req: &hyperswitch_domain_models::router_data::RouterData<T, Req, Resp>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         Ok(RequestContent::Json(Box::new(json!(r#"{}"#))))
@@ -144,7 +144,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
 
     fn get_request_form_data(
         &self,
-        _req: &types::RouterData<T, Req, Resp>,
+        _req: &hyperswitch_domain_models::router_data::RouterData<T, Req, Resp>,
     ) -> CustomResult<Option<reqwest::multipart::Form>, errors::ConnectorError> {
         Ok(None)
     }
@@ -153,7 +153,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
     /// Eg: Some connectors requires one-time session token before making a payment, we can add the session token creation logic in this block
     async fn execute_pretasks(
         &self,
-        _router_data: &mut types::RouterData<T, Req, Resp>,
+        _router_data: &mut hyperswitch_domain_models::router_data::RouterData<T, Req, Resp>,
         _app_state: &AppState,
     ) -> CustomResult<(), errors::ConnectorError> {
         Ok(())
@@ -163,7 +163,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
     /// Eg: Some connectors require payment sync to happen immediately after the authorize call to complete the transaction, we can add that logic in this block
     async fn execute_posttasks(
         &self,
-        _router_data: &mut types::RouterData<T, Req, Resp>,
+        _router_data: &mut hyperswitch_domain_models::router_data::RouterData<T, Req, Resp>,
         _app_state: &AppState,
     ) -> CustomResult<(), errors::ConnectorError> {
         Ok(())
@@ -171,7 +171,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
 
     fn build_request(
         &self,
-        req: &types::RouterData<T, Req, Resp>,
+        req: &hyperswitch_domain_models::router_data::RouterData<T, Req, Resp>,
         _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         metrics::UNIMPLEMENTED_FLOW.add(
@@ -187,10 +187,13 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
 
     fn handle_response(
         &self,
-        data: &types::RouterData<T, Req, Resp>,
+        data: &hyperswitch_domain_models::router_data::RouterData<T, Req, Resp>,
         event_builder: Option<&mut ConnectorEvent>,
         _res: types::Response,
-    ) -> CustomResult<types::RouterData<T, Req, Resp>, errors::ConnectorError>
+    ) -> CustomResult<
+        hyperswitch_domain_models::router_data::RouterData<T, Req, Resp>,
+        errors::ConnectorError,
+    >
     where
         T: Clone,
         Req: Clone,
@@ -248,14 +251,14 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
 
     fn get_certificate(
         &self,
-        _req: &types::RouterData<T, Req, Resp>,
+        _req: &hyperswitch_domain_models::router_data::RouterData<T, Req, Resp>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         Ok(None)
     }
 
     fn get_certificate_key(
         &self,
-        _req: &types::RouterData<T, Req, Resp>,
+        _req: &hyperswitch_domain_models::router_data::RouterData<T, Req, Resp>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         Ok(None)
     }
@@ -279,10 +282,13 @@ pub async fn execute_connector_processing_step<
 >(
     state: &'b AppState,
     connector_integration: BoxedConnectorIntegration<'a, T, Req, Resp>,
-    req: &'b types::RouterData<T, Req, Resp>,
+    req: &'b hyperswitch_domain_models::router_data::RouterData<T, Req, Resp>,
     call_connector_action: payments::CallConnectorAction,
     connector_request: Option<Request>,
-) -> CustomResult<types::RouterData<T, Req, Resp>, errors::ConnectorError>
+) -> CustomResult<
+    hyperswitch_domain_models::router_data::RouterData<T, Req, Resp>,
+    errors::ConnectorError,
+>
 where
     T: Clone + Debug,
     // BoxedConnectorIntegration<T, Req, Resp>: 'b,

@@ -39,7 +39,7 @@ where
     #[cfg(feature = "payouts")]
     fn build_headers(
         &self,
-        req: &types::RouterData<Flow, Request, Response>,
+        req: &hyperswitch_domain_models::router_data::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
@@ -165,7 +165,7 @@ impl
 {
     fn build_request(
         &self,
-        _req: &types::RouterData<
+        _req: &hyperswitch_domain_models::router_data::RouterData<
             api::SetupMandate,
             types::SetupMandateRequestData,
             types::PaymentsResponseData,
@@ -295,7 +295,7 @@ impl services::ConnectorIntegration<api::PoCancel, types::PayoutsData, types::Pa
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -401,7 +401,7 @@ impl services::ConnectorIntegration<api::PoQuote, types::PayoutsData, types::Pay
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -482,7 +482,7 @@ impl
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -599,7 +599,7 @@ impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::Pa
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -712,7 +712,7 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,

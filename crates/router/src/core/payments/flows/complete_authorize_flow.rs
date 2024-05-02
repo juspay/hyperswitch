@@ -29,7 +29,7 @@ impl
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
     ) -> RouterResult<
-        types::RouterData<
+        hyperswitch_domain_models::router_data::RouterData<
             api::CompleteAuthorize,
             types::CompleteAuthorizeData,
             types::PaymentsResponseData,
@@ -53,7 +53,7 @@ impl
 
 #[async_trait]
 impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
-    for types::RouterData<
+    for hyperswitch_domain_models::router_data::RouterData<
         api::CompleteAuthorize,
         types::CompleteAuthorizeData,
         types::PaymentsResponseData,
@@ -153,10 +153,20 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
 
 pub async fn complete_authorize_preprocessing_steps<F: Clone>(
     state: &AppState,
-    router_data: &types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>,
+    router_data: &hyperswitch_domain_models::router_data::RouterData<
+        F,
+        types::CompleteAuthorizeData,
+        types::PaymentsResponseData,
+    >,
     confirm: bool,
     connector: &api::ConnectorData,
-) -> RouterResult<types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>> {
+) -> RouterResult<
+    hyperswitch_domain_models::router_data::RouterData<
+        F,
+        types::CompleteAuthorizeData,
+        types::PaymentsResponseData,
+    >,
+> {
     if confirm {
         let connector_integration: services::BoxedConnectorIntegration<
             '_,

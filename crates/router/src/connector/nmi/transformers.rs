@@ -740,7 +740,12 @@ impl
             types::PaymentsCaptureData,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
+    >
+    for hyperswitch_domain_models::router_data::RouterData<
+        api::Capture,
+        types::PaymentsCaptureData,
+        types::PaymentsResponseData,
+    >
 {
     type Error = Error;
     fn try_from(
@@ -834,7 +839,12 @@ impl<T>
             T,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<api::SetupMandate, T, types::PaymentsResponseData>
+    >
+    for hyperswitch_domain_models::router_data::RouterData<
+        api::SetupMandate,
+        T,
+        types::PaymentsResponseData,
+    >
 {
     type Error = Error;
     fn try_from(
@@ -890,7 +900,11 @@ impl ForeignFrom<(StandardResponse, u16)> for types::ErrorResponse {
 }
 
 impl TryFrom<types::PaymentsResponseRouterData<StandardResponse>>
-    for types::RouterData<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+    for hyperswitch_domain_models::router_data::RouterData<
+        api::Authorize,
+        types::PaymentsAuthorizeData,
+        types::PaymentsResponseData,
+    >
 {
     type Error = Error;
     fn try_from(
@@ -940,7 +954,11 @@ impl TryFrom<types::PaymentsResponseRouterData<StandardResponse>>
 
 impl<T>
     TryFrom<types::ResponseRouterData<api::Void, StandardResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<api::Void, T, types::PaymentsResponseData>
+    for hyperswitch_domain_models::router_data::RouterData<
+        api::Void,
+        T,
+        types::PaymentsResponseData,
+    >
 {
     type Error = Error;
     fn try_from(
@@ -996,7 +1014,7 @@ pub enum NmiStatus {
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, SyncResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(

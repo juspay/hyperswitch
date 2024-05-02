@@ -190,7 +190,7 @@ pub struct PayuPaymentsResponse {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, PayuPaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -243,7 +243,7 @@ pub struct PayuPaymentsCaptureResponse {
 impl<F, T>
     TryFrom<
         types::ResponseRouterData<F, PayuPaymentsCaptureResponse, T, types::PaymentsResponseData>,
-    > for types::RouterData<F, T, types::PaymentsResponseData>
+    > for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -297,7 +297,7 @@ pub struct PayuAuthUpdateResponse {
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, PayuAuthUpdateResponse, T, types::AccessToken>>
-    for types::RouterData<F, T, types::AccessToken>
+    for hyperswitch_domain_models::router_data::RouterData<F, T, types::AccessToken>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -324,7 +324,7 @@ pub struct PayuPaymentsCancelResponse {
 impl<F, T>
     TryFrom<
         types::ResponseRouterData<F, PayuPaymentsCancelResponse, T, types::PaymentsResponseData>,
-    > for types::RouterData<F, T, types::PaymentsResponseData>
+    > for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -456,7 +456,7 @@ pub struct PayuPaymentsSyncResponse {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, PayuPaymentsSyncResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(

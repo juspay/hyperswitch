@@ -3229,7 +3229,12 @@ impl<F>
             types::PaymentsPreProcessingData,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::PaymentsPreProcessingData, types::PaymentsResponseData>
+    >
+    for hyperswitch_domain_models::router_data::RouterData<
+        F,
+        types::PaymentsPreProcessingData,
+        types::PaymentsResponseData,
+    >
 {
     type Error = Error;
     fn try_from(
@@ -3845,15 +3850,15 @@ pub fn get_present_to_shopper_metadata(
 }
 
 impl<F, Req>
-    TryFrom<(
+    ForeignTryFrom<(
         types::ResponseRouterData<F, AdyenPaymentResponse, Req, types::PaymentsResponseData>,
         Option<storage_enums::CaptureMethod>,
         bool,
         Option<enums::PaymentMethodType>,
-    )> for types::RouterData<F, Req, types::PaymentsResponseData>
+    )> for hyperswitch_domain_models::router_data::RouterData<F, Req, types::PaymentsResponseData>
 {
     type Error = Error;
-    fn try_from(
+    fn foreign_try_from(
         (item, capture_method, is_multiple_capture_psync_flow, pmt): (
             types::ResponseRouterData<F, AdyenPaymentResponse, Req, types::PaymentsResponseData>,
             Option<storage_enums::CaptureMethod>,

@@ -154,7 +154,7 @@ pub enum GlobepayReturnCode {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, GlobepayPaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(
@@ -243,7 +243,7 @@ impl From<GlobepayPaymentPsyncStatus> for enums::AttemptStatus {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, GlobepaySyncResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(

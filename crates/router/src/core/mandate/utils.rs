@@ -3,10 +3,11 @@ use std::marker::PhantomData;
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use diesel_models::Mandate;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::payment_address::PaymentAddress;
 
 use crate::{
     core::{errors, payments::helpers},
-    types::{self, domain, PaymentAddress},
+    types::{self, domain},
 };
 const IRRELEVANT_PAYMENT_ID_IN_MANDATE_REVOKE_FLOW: &str =
     "irrelevant_payment_id_in_mandate_revoke_flow";
@@ -26,7 +27,7 @@ pub async fn construct_mandate_revoke_router_data(
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    let router_data = types::RouterData {
+    let router_data = hyperswitch_domain_models::router_data::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
         customer_id: Some(mandate.customer_id),

@@ -1,8 +1,10 @@
 pub mod errors;
 pub mod mandates;
+pub mod payment_address;
 pub mod payments;
 #[cfg(feature = "payouts")]
 pub mod payouts;
+pub mod router_data;
 
 #[cfg(not(feature = "payouts"))]
 pub trait PayoutAttemptInterface {}

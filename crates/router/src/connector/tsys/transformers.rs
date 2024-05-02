@@ -250,7 +250,7 @@ fn get_payments_sync_response(
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, TsysPaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -356,7 +356,7 @@ pub struct TsysSyncResponse {
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, TsysSyncResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(

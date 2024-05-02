@@ -59,10 +59,10 @@ impl VerifyConnectorData {
         &self,
         request_data: R1,
         access_token: Option<types::AccessToken>,
-    ) -> types::RouterData<F, R1, R2> {
+    ) -> hyperswitch_domain_models::router_data::RouterData<F, R1, R2> {
         let attempt_id =
             common_utils::generate_id_with_default_len(consts::VERIFY_CONNECTOR_ID_PREFIX);
-        types::RouterData {
+        hyperswitch_domain_models::router_data::RouterData {
             flow: std::marker::PhantomData,
             status: storage_enums::AttemptStatus::Started,
             request: request_data,
@@ -89,7 +89,9 @@ impl VerifyConnectorData {
             recurring_mandate_payment_data: None,
             payment_method_status: None,
             connector_request_reference_id: attempt_id,
-            address: types::PaymentAddress::new(None, None, None),
+            address: hyperswitch_domain_models::payment_address::PaymentAddress::new(
+                None, None, None,
+            ),
             payment_id: common_utils::generate_id_with_default_len(
                 consts::VERIFY_CONNECTOR_ID_PREFIX,
             ),

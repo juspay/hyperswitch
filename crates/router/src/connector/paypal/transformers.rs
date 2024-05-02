@@ -767,7 +767,7 @@ pub struct PaypalAuthUpdateResponse {
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, PaypalAuthUpdateResponse, T, types::AccessToken>>
-    for types::RouterData<F, T, types::AccessToken>
+    for hyperswitch_domain_models::router_data::RouterData<F, T, types::AccessToken>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1135,7 +1135,7 @@ fn get_id_based_on_intent(
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, PaypalOrdersResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1230,7 +1230,12 @@ impl<F>
             types::PaymentsSyncData,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>
+    >
+    for hyperswitch_domain_models::router_data::RouterData<
+        F,
+        types::PaymentsSyncData,
+        types::PaymentsResponseData,
+    >
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1276,7 +1281,7 @@ impl<F>
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, PaypalRedirectResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1323,7 +1328,12 @@ impl<F>
             types::PaymentsSyncData,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>
+    >
+    for hyperswitch_domain_models::router_data::RouterData<
+        F,
+        types::PaymentsSyncData,
+        types::PaymentsResponseData,
+    >
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1360,7 +1370,12 @@ impl<F>
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+    >
+    for hyperswitch_domain_models::router_data::RouterData<
+        F,
+        types::PaymentsAuthorizeData,
+        types::PaymentsResponseData,
+    >
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1433,7 +1448,7 @@ fn paypal_threeds_link(
 impl<F, T>
     TryFrom<
         types::ResponseRouterData<F, PaypalPaymentsSyncResponse, T, types::PaymentsResponseData>,
-    > for types::RouterData<F, T, types::PaymentsResponseData>
+    > for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1823,7 +1838,7 @@ pub struct PaypalPaymentsCancelResponse {
 impl<F, T>
     TryFrom<
         types::ResponseRouterData<F, PaypalPaymentsCancelResponse, T, types::PaymentsResponseData>,
-    > for types::RouterData<F, T, types::PaymentsResponseData>
+    > for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(

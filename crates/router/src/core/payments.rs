@@ -32,9 +32,12 @@ use error_stack::{report, ResultExt};
 use events::EventInfo;
 use futures::future::join_all;
 use helpers::ApplePayData;
-use hyperswitch_domain_models::mandates::{CustomerAcceptance, MandateData};
+use hyperswitch_domain_models::{
+    mandates::{CustomerAcceptance, MandateData},
+    payment_address::PaymentAddress,
+    router_data::RouterData,
+};
 use masking::{ExposeInterface, Secret};
-pub use payment_address::PaymentAddress;
 use redis_interface::errors::RedisError;
 use router_env::{instrument, tracing};
 #[cfg(feature = "olap")]
@@ -116,7 +119,7 @@ where
 
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
-    router_types::RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
+    RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
 
     // To construct connector flow specific api
     dyn router_types::api::Connector:
@@ -750,7 +753,7 @@ where
     Res: transformers::ToResponse<PaymentData<F>, Op>,
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
-    router_types::RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
+    RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
     Ctx: PaymentMethodRetrieve,
 
     // To construct connector flow specific api
@@ -1397,15 +1400,14 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest, Ctx>(
     schedule_time: Option<time::PrimitiveDateTime>,
     header_payload: HeaderPayload,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
-) -> RouterResult<router_types::RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
+) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
     RouterDReq: Send + Sync,
 
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
-    router_types::RouterData<F, RouterDReq, router_types::PaymentsResponseData>:
-        Feature<F, RouterDReq> + Send,
+    RouterData<F, RouterDReq, router_types::PaymentsResponseData>: Feature<F, RouterDReq> + Send,
     Ctx: PaymentMethodRetrieve,
 
     // To construct connector flow specific api
@@ -1664,7 +1666,7 @@ where
 
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, Req, router_types::PaymentsResponseData>,
-    router_types::RouterData<F, Req, router_types::PaymentsResponseData>: Feature<F, Req>,
+    RouterData<F, Req, router_types::PaymentsResponseData>: Feature<F, Req>,
 
     // To construct connector flow specific api
     dyn api::Connector:
@@ -1778,7 +1780,7 @@ where
 
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, Req, router_types::PaymentsResponseData>,
-    router_types::RouterData<F, Req, router_types::PaymentsResponseData>: Feature<F, Req> + Send,
+    RouterData<F, Req, router_types::PaymentsResponseData>: Feature<F, Req> + Send,
 
     // To construct connector flow specific api
     dyn api::Connector:
@@ -1870,17 +1872,14 @@ async fn complete_preprocessing_steps_if_required<F, Req, Q, Ctx>(
     state: &AppState,
     connector: &api::ConnectorData,
     payment_data: &PaymentData<F>,
-    mut router_data: router_types::RouterData<F, Req, router_types::PaymentsResponseData>,
+    mut router_data: RouterData<F, Req, router_types::PaymentsResponseData>,
     operation: &BoxedOperation<'_, F, Q, Ctx>,
     should_continue_payment: bool,
-) -> RouterResult<(
-    router_types::RouterData<F, Req, router_types::PaymentsResponseData>,
-    bool,
-)>
+) -> RouterResult<(RouterData<F, Req, router_types::PaymentsResponseData>, bool)>
 where
     F: Send + Clone + Sync,
     Req: Send + Sync,
-    router_types::RouterData<F, Req, router_types::PaymentsResponseData>: Feature<F, Req> + Send,
+    RouterData<F, Req, router_types::PaymentsResponseData>: Feature<F, Req> + Send,
     dyn api::Connector:
         services::api::ConnectorIntegration<F, Req, router_types::PaymentsResponseData>,
 {
@@ -2407,86 +2406,6 @@ pub enum CallConnectorAction {
         error_message: Option<String>,
     },
     HandleResponse(Vec<u8>),
-}
-
-pub mod payment_address {
-    use super::*;
-
-    #[derive(Clone, Default, Debug)]
-    pub struct PaymentAddress {
-        shipping: Option<api::Address>,
-        billing: Option<api::Address>,
-        unified_payment_method_billing: Option<api::Address>,
-        payment_method_billing: Option<api::Address>,
-    }
-
-    impl PaymentAddress {
-        pub fn new(
-            shipping: Option<api::Address>,
-            billing: Option<api::Address>,
-            payment_method_billing: Option<api::Address>,
-        ) -> Self {
-            // billing -> .billing, this is the billing details passed in the root of payments request
-            // payment_method_billing -> .payment_method_data.billing
-
-            // Merge the billing details field from both `payment.billing` and `payment.payment_method_data.billing`
-            // The unified payment_method_billing will be used as billing address and passed to the connector module
-            // This unification is required in order to provide backwards compatibility
-            // so that if `payment.billing` is passed it should be sent to the connector module
-            // Unify the billing details with `payment_method_data.billing`
-            let unified_payment_method_billing = payment_method_billing
-                .as_ref()
-                .map(|payment_method_billing| {
-                    payment_method_billing
-                        .clone()
-                        .unify_address(billing.as_ref())
-                })
-                .or(billing.clone());
-
-            Self {
-                shipping,
-                billing,
-                unified_payment_method_billing,
-                payment_method_billing,
-            }
-        }
-
-        pub fn get_shipping(&self) -> Option<&api::Address> {
-            self.shipping.as_ref()
-        }
-
-        pub fn get_payment_method_billing(&self) -> Option<&api::Address> {
-            self.unified_payment_method_billing.as_ref()
-        }
-
-        /// Unify the billing details from `payment_method_data.[payment_method_data].billing details`.
-        pub fn unify_with_payment_method_data_billing(
-            self,
-            payment_method_data_billing: Option<api::Address>,
-        ) -> Self {
-            // Unify the billing details with `payment_method_data.billing_details`
-            let unified_payment_method_billing = payment_method_data_billing
-                .map(|payment_method_data_billing| {
-                    payment_method_data_billing.unify_address(self.get_payment_method_billing())
-                })
-                .or(self.get_payment_method_billing().cloned());
-
-            Self {
-                shipping: self.shipping,
-                billing: self.billing,
-                unified_payment_method_billing,
-                payment_method_billing: self.payment_method_billing,
-            }
-        }
-
-        pub fn get_request_payment_method_billing(&self) -> Option<&api::Address> {
-            self.payment_method_billing.as_ref()
-        }
-
-        pub fn get_payment_billing(&self) -> Option<&api::Address> {
-            self.billing.as_ref()
-        }
-    }
 }
 
 #[derive(Clone)]

@@ -34,7 +34,7 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
-    ) -> RouterResult<types::RouterData<F, Req, Res>>;
+    ) -> RouterResult<hyperswitch_domain_models::router_data::RouterData<F, Req, Res>>;
 }
 
 #[allow(clippy::too_many_arguments)]

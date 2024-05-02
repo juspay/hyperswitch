@@ -117,7 +117,7 @@ pub trait PaymentResponseRouterData {
 }
 
 impl<Flow, Request, Response> PaymentResponseRouterData
-    for types::RouterData<Flow, Request, Response>
+    for hyperswitch_domain_models::router_data::RouterData<Flow, Request, Response>
 where
     Request: types::Capturable,
 {
@@ -159,7 +159,9 @@ pub fn get_unimplemented_payment_method_error_message(connector: &str) -> String
     format!("{} through {}", SELECTED_PAYMENT_METHOD, connector)
 }
 
-impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Response> {
+impl<Flow, Request, Response> RouterData
+    for hyperswitch_domain_models::router_data::RouterData<Flow, Request, Response>
+{
     fn get_billing(&self) -> Result<&api::Address, Error> {
         self.address
             .get_payment_method_billing()

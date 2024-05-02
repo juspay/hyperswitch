@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 use api_models::enums::{AttemptStatus, FrmSuggestion, IntentStatus};
 use async_trait::async_trait;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::payment_address::PaymentAddress;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 
@@ -19,7 +20,6 @@ use crate::{
         api::{self, PaymentIdTypeExt},
         domain,
         storage::{self, enums as storage_enums},
-        PaymentAddress,
     },
     utils::OptionExt,
 };

@@ -228,7 +228,12 @@ impl<F>
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+    >
+    for hyperswitch_domain_models::router_data::RouterData<
+        F,
+        types::PaymentsAuthorizeData,
+        types::PaymentsResponseData,
+    >
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -410,7 +415,12 @@ impl<F>
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+    >
+    for hyperswitch_domain_models::router_data::RouterData<
+        F,
+        types::PaymentsAuthorizeData,
+        types::PaymentsResponseData,
+    >
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -472,7 +482,12 @@ impl<F>
             types::CompleteAuthorizeData,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>
+    >
+    for hyperswitch_domain_models::router_data::RouterData<
+        F,
+        types::CompleteAuthorizeData,
+        types::PaymentsResponseData,
+    >
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -517,7 +532,12 @@ impl<F>
             types::CompleteAuthorizeData,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>
+    >
+    for hyperswitch_domain_models::router_data::RouterData<
+        F,
+        types::CompleteAuthorizeData,
+        types::PaymentsResponseData,
+    >
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -953,7 +973,7 @@ pub enum BraintreeTokenResponse {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, BraintreeTokenResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1147,7 +1167,7 @@ pub enum BraintreeCancelResponse {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, BraintreeCancelResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1238,7 +1258,7 @@ pub struct PSyncResponse {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, BraintreePSyncResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(

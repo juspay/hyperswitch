@@ -15,6 +15,7 @@ use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     mandates::MandateData,
     payments::{payment_attempt::PaymentAttempt, PaymentIntent},
+    router_data::RouterData,
 };
 use josekit::jwe;
 use masking::{ExposeInterface, PeekInterface};
@@ -56,7 +57,7 @@ use crate::{
             self, enums as storage_enums, ephemeral_key, CardTokenData, CustomerUpdate::Update,
         },
         transformers::{ForeignFrom, ForeignTryFrom},
-        ErrorResponse, MandateReference, RouterData,
+        ErrorResponse, MandateReference,
     },
     utils::{
         self,

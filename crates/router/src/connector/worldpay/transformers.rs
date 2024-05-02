@@ -114,7 +114,7 @@ fn fetch_payment_instrument(
 impl
     TryFrom<
         &WorldpayRouterData<
-            &types::RouterData<
+            &hyperswitch_domain_models::router_data::RouterData<
                 types::api::payments::Authorize,
                 PaymentsAuthorizeData,
                 PaymentsResponseData,
@@ -126,7 +126,7 @@ impl
 
     fn try_from(
         item: &WorldpayRouterData<
-            &types::RouterData<
+            &hyperswitch_domain_models::router_data::RouterData<
                 types::api::payments::Authorize,
                 PaymentsAuthorizeData,
                 PaymentsResponseData,

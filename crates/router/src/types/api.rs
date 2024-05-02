@@ -157,7 +157,7 @@ pub trait ConnectorCommonExt<Flow, Req, Resp>:
     /// common header builder when every request for the connector have same headers
     fn build_headers(
         &self,
-        _req: &types::RouterData<Flow, Req, Resp>,
+        _req: &hyperswitch_domain_models::router_data::RouterData<Flow, Req, Resp>,
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(Vec::new())

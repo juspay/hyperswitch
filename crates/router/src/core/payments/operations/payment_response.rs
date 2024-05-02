@@ -56,7 +56,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         db: &'b AppState,
         payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
-        router_data: types::RouterData<
+        router_data: hyperswitch_domain_models::router_data::RouterData<
             F,
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
@@ -85,7 +85,11 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
     async fn save_pm_and_mandate<'b>(
         &self,
         state: &AppState,
-        resp: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+        resp: &hyperswitch_domain_models::router_data::RouterData<
+            F,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
@@ -237,7 +241,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
         db: &'b AppState,
         _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
-        router_data: types::RouterData<
+        router_data: hyperswitch_domain_models::router_data::RouterData<
             F,
             types::PaymentsIncrementalAuthorizationData,
             types::PaymentsResponseData,
@@ -365,7 +369,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         db: &'b AppState,
         payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
-        router_data: types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
+        router_data: hyperswitch_domain_models::router_data::RouterData<
+            F,
+            types::PaymentsSyncData,
+            types::PaymentsResponseData,
+        >,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentData<F>>
     where
@@ -384,7 +392,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
     async fn save_pm_and_mandate<'b>(
         &self,
         state: &AppState,
-        resp: &types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
+        resp: &hyperswitch_domain_models::router_data::RouterData<
+            F,
+            types::PaymentsSyncData,
+            types::PaymentsResponseData,
+        >,
         merchant_account: &domain::MerchantAccount,
         _key_store: &domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
@@ -413,7 +425,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
         db: &'b AppState,
         payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
-        router_data: types::RouterData<F, types::PaymentsSessionData, types::PaymentsResponseData>,
+        router_data: hyperswitch_domain_models::router_data::RouterData<
+            F,
+            types::PaymentsSessionData,
+            types::PaymentsResponseData,
+        >,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentData<F>>
     where
@@ -441,7 +457,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
         db: &'b AppState,
         payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
-        router_data: types::RouterData<F, types::PaymentsCaptureData, types::PaymentsResponseData>,
+        router_data: hyperswitch_domain_models::router_data::RouterData<
+            F,
+            types::PaymentsCaptureData,
+            types::PaymentsResponseData,
+        >,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentData<F>>
     where
@@ -467,7 +487,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
         db: &'b AppState,
         payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
-        router_data: types::RouterData<F, types::PaymentsCancelData, types::PaymentsResponseData>,
+        router_data: hyperswitch_domain_models::router_data::RouterData<
+            F,
+            types::PaymentsCancelData,
+            types::PaymentsResponseData,
+        >,
 
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentData<F>>
@@ -496,7 +520,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
         db: &'b AppState,
         payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
-        router_data: types::RouterData<F, types::PaymentsApproveData, types::PaymentsResponseData>,
+        router_data: hyperswitch_domain_models::router_data::RouterData<
+            F,
+            types::PaymentsApproveData,
+            types::PaymentsResponseData,
+        >,
 
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentData<F>>
@@ -523,7 +551,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> f
         db: &'b AppState,
         payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
-        router_data: types::RouterData<F, types::PaymentsRejectData, types::PaymentsResponseData>,
+        router_data: hyperswitch_domain_models::router_data::RouterData<
+            F,
+            types::PaymentsRejectData,
+            types::PaymentsResponseData,
+        >,
 
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentData<F>>
@@ -552,7 +584,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         db: &'b AppState,
         payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
-        router_data: types::RouterData<
+        router_data: hyperswitch_domain_models::router_data::RouterData<
             F,
             types::SetupMandateRequestData,
             types::PaymentsResponseData,
@@ -583,7 +615,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
     async fn save_pm_and_mandate<'b>(
         &self,
         state: &AppState,
-        resp: &types::RouterData<F, types::SetupMandateRequestData, types::PaymentsResponseData>,
+        resp: &hyperswitch_domain_models::router_data::RouterData<
+            F,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
@@ -651,7 +687,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
         db: &'b AppState,
         payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
-        response: types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>,
+        response: hyperswitch_domain_models::router_data::RouterData<
+            F,
+            types::CompleteAuthorizeData,
+            types::PaymentsResponseData,
+        >,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentData<F>>
     where
@@ -670,7 +710,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     async fn save_pm_and_mandate<'b>(
         &self,
         state: &AppState,
-        resp: &types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>,
+        resp: &hyperswitch_domain_models::router_data::RouterData<
+            F,
+            types::CompleteAuthorizeData,
+            types::PaymentsResponseData,
+        >,
         merchant_account: &domain::MerchantAccount,
         _key_store: &domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
@@ -695,7 +739,11 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     state: &AppState,
     _payment_id: &api::PaymentIdType,
     mut payment_data: PaymentData<F>,
-    router_data: types::RouterData<F, T, types::PaymentsResponseData>,
+    router_data: hyperswitch_domain_models::router_data::RouterData<
+        F,
+        T,
+        types::PaymentsResponseData,
+    >,
     storage_scheme: enums::MerchantStorageScheme,
 ) -> RouterResult<PaymentData<F>> {
     // Update additional payment data with the payment method response that we received from connector

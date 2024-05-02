@@ -13,8 +13,8 @@ use crate::{
     },
     core::{errors, fraud_check::types as core_types},
     types::{
-        self, api::Fulfillment, fraud_check as frm_types, storage::enums as storage_enums,
-        ResponseId, ResponseRouterData,
+        api::Fulfillment, fraud_check as frm_types, storage::enums as storage_enums, ResponseId,
+        ResponseRouterData,
     },
 };
 
@@ -186,7 +186,7 @@ pub struct SignifydPaymentsResponse {
 
 impl<F, T>
     TryFrom<ResponseRouterData<F, SignifydPaymentsResponse, T, frm_types::FraudCheckResponseData>>
-    for types::RouterData<F, T, frm_types::FraudCheckResponseData>
+    for hyperswitch_domain_models::router_data::RouterData<F, T, frm_types::FraudCheckResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -497,7 +497,7 @@ impl
             frm_types::FraudCheckResponseData,
         >,
     >
-    for types::RouterData<
+    for hyperswitch_domain_models::router_data::RouterData<
         Fulfillment,
         frm_types::FraudCheckFulfillmentData,
         frm_types::FraudCheckResponseData,
@@ -566,7 +566,8 @@ impl<F, T>
             T,
             frm_types::FraudCheckResponseData,
         >,
-    > for types::RouterData<F, T, frm_types::FraudCheckResponseData>
+    >
+    for hyperswitch_domain_models::router_data::RouterData<F, T, frm_types::FraudCheckResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(

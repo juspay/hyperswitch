@@ -17,7 +17,7 @@ use crate::{
     consts,
     core::errors,
     services::{self, RedirectForm},
-    types::{self, api, domain, storage::enums, ErrorResponse},
+    types::{self, api, domain, storage::enums, transformers::ForeignTryFrom, ErrorResponse},
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -241,7 +241,7 @@ fn get_payment_response(
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, GlobalpayPaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(
@@ -279,14 +279,14 @@ impl<F, T>
 }
 
 impl
-    TryFrom<(
+    ForeignTryFrom<(
         types::PaymentsSyncResponseRouterData<GlobalpayPaymentsResponse>,
         bool,
     )> for types::PaymentsSyncRouterData
 {
     type Error = Error;
 
-    fn try_from(
+    fn foreign_try_from(
         (value, is_multiple_capture_sync): (
             types::PaymentsSyncResponseRouterData<GlobalpayPaymentsResponse>,
             bool,
@@ -309,7 +309,7 @@ impl
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, GlobalpayRefreshTokenResponse, T, types::AccessToken>>
-    for types::RouterData<F, T, types::AccessToken>
+    for hyperswitch_domain_models::router_data::RouterData<F, T, types::AccessToken>
 {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(

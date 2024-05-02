@@ -50,7 +50,7 @@ where
 {
     fn build_headers(
         &self,
-        _req: &types::RouterData<Flow, Request, Response>,
+        _req: &hyperswitch_domain_models::router_data::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let header = vec![(
@@ -211,7 +211,7 @@ impl
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -320,7 +320,7 @@ impl
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -359,7 +359,7 @@ impl
 {
     fn build_request(
         &self,
-        _req: &types::RouterData<
+        _req: &hyperswitch_domain_models::router_data::RouterData<
             api::SetupMandate,
             types::SetupMandateRequestData,
             types::PaymentsResponseData,
@@ -457,7 +457,7 @@ impl
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -570,7 +570,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -600,7 +600,11 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 {
     fn get_url(
         &self,
-        _req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
+        _req: &hyperswitch_domain_models::router_data::RouterData<
+            api::PSync,
+            types::PaymentsSyncData,
+            types::PaymentsResponseData,
+        >,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}api/get-sales", self.base_url(connectors)))
@@ -612,7 +616,11 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn get_headers(
         &self,
-        req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
+        req: &hyperswitch_domain_models::router_data::RouterData<
+            api::PSync,
+            types::PaymentsSyncData,
+            types::PaymentsResponseData,
+        >,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
@@ -620,7 +628,11 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn get_request_body(
         &self,
-        req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
+        req: &hyperswitch_domain_models::router_data::RouterData<
+            api::PSync,
+            types::PaymentsSyncData,
+            types::PaymentsResponseData,
+        >,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = payme::PaymeQuerySaleRequest::try_from(req)?;
@@ -629,7 +641,11 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn build_request(
         &self,
-        req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
+        req: &hyperswitch_domain_models::router_data::RouterData<
+            api::PSync,
+            types::PaymentsSyncData,
+            types::PaymentsResponseData,
+        >,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
@@ -647,11 +663,19 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn handle_response(
         &self,
-        data: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
+        data: &hyperswitch_domain_models::router_data::RouterData<
+            api::PSync,
+            types::PaymentsSyncData,
+            types::PaymentsResponseData,
+        >,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<
-        types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
+        hyperswitch_domain_models::router_data::RouterData<
+            api::PSync,
+            types::PaymentsSyncData,
+            types::PaymentsResponseData,
+        >,
         errors::ConnectorError,
     >
     where
@@ -667,7 +691,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -756,7 +780,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -859,7 +883,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -953,7 +977,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -981,7 +1005,11 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Payme {
     fn get_url(
         &self,
-        _req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
+        _req: &hyperswitch_domain_models::router_data::RouterData<
+            api::RSync,
+            types::RefundsData,
+            types::RefundsResponseData,
+        >,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}api/get-transactions", self.base_url(connectors)))
@@ -989,7 +1017,11 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
     fn get_headers(
         &self,
-        req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
+        req: &hyperswitch_domain_models::router_data::RouterData<
+            api::RSync,
+            types::RefundsData,
+            types::RefundsResponseData,
+        >,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
@@ -1001,7 +1033,11 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
     fn get_request_body(
         &self,
-        req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
+        req: &hyperswitch_domain_models::router_data::RouterData<
+            api::RSync,
+            types::RefundsData,
+            types::RefundsResponseData,
+        >,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = payme::PaymeQueryTransactionRequest::try_from(req)?;
@@ -1010,7 +1046,11 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
     fn build_request(
         &self,
-        req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
+        req: &hyperswitch_domain_models::router_data::RouterData<
+            api::RSync,
+            types::RefundsData,
+            types::RefundsResponseData,
+        >,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let request = services::RequestBuilder::new()
@@ -1027,11 +1067,19 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
     fn handle_response(
         &self,
-        data: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
+        data: &hyperswitch_domain_models::router_data::RouterData<
+            api::RSync,
+            types::RefundsData,
+            types::RefundsResponseData,
+        >,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<
-        types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
+        hyperswitch_domain_models::router_data::RouterData<
+            api::RSync,
+            types::RefundsData,
+            types::RefundsResponseData,
+        >,
         errors::ConnectorError,
     >
     where
@@ -1047,7 +1095,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,

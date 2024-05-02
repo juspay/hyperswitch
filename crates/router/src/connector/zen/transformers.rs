@@ -886,7 +886,7 @@ pub struct ZenMerchantActionData {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, ZenPaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -963,7 +963,7 @@ fn get_zen_response(
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, ApiResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -981,7 +981,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ApiResponse, T, types::PaymentsR
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, CheckoutResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(

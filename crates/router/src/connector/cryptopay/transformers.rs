@@ -10,7 +10,7 @@ use crate::{
     consts,
     core::errors,
     services,
-    types::{self, domain, storage::enums},
+    types::{self, domain, storage::enums, transformers::ForeignTryFrom},
 };
 
 #[derive(Debug, Serialize)]
@@ -148,13 +148,13 @@ pub struct CryptopayPaymentsResponse {
 }
 
 impl<F, T>
-    TryFrom<(
+    ForeignTryFrom<(
         types::ResponseRouterData<F, CryptopayPaymentsResponse, T, types::PaymentsResponseData>,
         diesel_models::enums::Currency,
-    )> for types::RouterData<F, T, types::PaymentsResponseData>
+    )> for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
+    fn foreign_try_from(
         (item, currency): (
             types::ResponseRouterData<F, CryptopayPaymentsResponse, T, types::PaymentsResponseData>,
             diesel_models::enums::Currency,

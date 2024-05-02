@@ -21,7 +21,7 @@ use crate::{
         api::{self, enums as api_enums},
         domain,
         storage::enums,
-        transformers::ForeignFrom,
+        transformers::{ForeignFrom, ForeignTryFrom},
         ApplePayPredecryptData,
     },
     unimplemented_payment_method,
@@ -1679,13 +1679,13 @@ pub struct CybersourceErrorInformation {
 }
 
 impl<F, T>
-    From<(
+    ForeignFrom<(
         &CybersourceErrorInformationResponse,
         types::ResponseRouterData<F, CybersourcePaymentsResponse, T, types::PaymentsResponseData>,
         Option<enums::AttemptStatus>,
-    )> for types::RouterData<F, T, types::PaymentsResponseData>
+    )> for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
-    fn from(
+    fn foreign_from(
         (error_response, item, transaction_status): (
             &CybersourceErrorInformationResponse,
             types::ResponseRouterData<
@@ -1799,7 +1799,12 @@ impl<F>
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+    >
+    for hyperswitch_domain_models::router_data::RouterData<
+        F,
+        types::PaymentsAuthorizeData,
+        types::PaymentsResponseData,
+    >
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1847,7 +1852,12 @@ impl<F>
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+    >
+    for hyperswitch_domain_models::router_data::RouterData<
+        F,
+        types::PaymentsAuthorizeData,
+        types::PaymentsResponseData,
+    >
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -2181,7 +2191,12 @@ impl<F>
             types::PaymentsPreProcessingData,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::PaymentsPreProcessingData, types::PaymentsResponseData>
+    >
+    for hyperswitch_domain_models::router_data::RouterData<
+        F,
+        types::PaymentsPreProcessingData,
+        types::PaymentsResponseData,
+    >
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -2291,7 +2306,12 @@ impl<F>
             types::CompleteAuthorizeData,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>
+    >
+    for hyperswitch_domain_models::router_data::RouterData<
+        F,
+        types::CompleteAuthorizeData,
+        types::PaymentsResponseData,
+    >
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -2352,7 +2372,12 @@ impl<F>
             types::PaymentsCaptureData,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::PaymentsCaptureData, types::PaymentsResponseData>
+    >
+    for hyperswitch_domain_models::router_data::RouterData<
+        F,
+        types::PaymentsCaptureData,
+        types::PaymentsResponseData,
+    >
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -2389,7 +2414,12 @@ impl<F>
             types::PaymentsCancelData,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::PaymentsCancelData, types::PaymentsResponseData>
+    >
+    for hyperswitch_domain_models::router_data::RouterData<
+        F,
+        types::PaymentsCancelData,
+        types::PaymentsResponseData,
+    >
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -2427,7 +2457,7 @@ impl<F, T>
             T,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, T, types::PaymentsResponseData>
+    > for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -2523,7 +2553,7 @@ impl<F, T>
 }
 
 impl<F, T>
-    TryFrom<(
+    ForeignTryFrom<(
         types::ResponseRouterData<
             F,
             CybersourcePaymentsIncrementalAuthorizationResponse,
@@ -2531,10 +2561,10 @@ impl<F, T>
             types::PaymentsResponseData,
         >,
         bool,
-    )> for types::RouterData<F, T, types::PaymentsResponseData>
+    )> for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
+    fn foreign_try_from(
         data: (
             types::ResponseRouterData<
                 F,
@@ -2600,7 +2630,12 @@ impl<F>
             types::PaymentsSyncData,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>
+    >
+    for hyperswitch_domain_models::router_data::RouterData<
+        F,
+        types::PaymentsSyncData,
+        types::PaymentsResponseData,
+    >
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(

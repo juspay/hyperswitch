@@ -549,7 +549,7 @@ pub struct NoonPaymentsResponse {
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, NoonPaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -736,7 +736,12 @@ impl<F>
             types::MandateRevokeRequestData,
             types::MandateRevokeResponseData,
         >,
-    > for types::RouterData<F, types::MandateRevokeRequestData, types::MandateRevokeResponseData>
+    >
+    for hyperswitch_domain_models::router_data::RouterData<
+        F,
+        types::MandateRevokeRequestData,
+        types::MandateRevokeResponseData,
+    >
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(

@@ -348,7 +348,7 @@ impl<F, T>
             T,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, T, types::PaymentsResponseData>
+    > for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1309,13 +1309,13 @@ pub struct BankOfAmericaErrorInformation {
 }
 
 impl<F, T>
-    From<(
+    ForeignFrom<(
         &BankOfAmericaErrorInformationResponse,
         types::ResponseRouterData<F, BankOfAmericaPaymentsResponse, T, types::PaymentsResponseData>,
         Option<enums::AttemptStatus>,
-    )> for types::RouterData<F, T, types::PaymentsResponseData>
+    )> for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
-    fn from(
+    fn foreign_from(
         (error_response, item, transaction_status): (
             &BankOfAmericaErrorInformationResponse,
             types::ResponseRouterData<
@@ -1425,7 +1425,7 @@ impl<F, T>
             T,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, T, types::PaymentsResponseData>
+    > for hyperswitch_domain_models::router_data::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1747,7 +1747,12 @@ impl<F>
             types::PaymentsPreProcessingData,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::PaymentsPreProcessingData, types::PaymentsResponseData>
+    >
+    for hyperswitch_domain_models::router_data::RouterData<
+        F,
+        types::PaymentsPreProcessingData,
+        types::PaymentsResponseData,
+    >
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1843,7 +1848,12 @@ impl<F>
             types::CompleteAuthorizeData,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>
+    >
+    for hyperswitch_domain_models::router_data::RouterData<
+        F,
+        types::CompleteAuthorizeData,
+        types::PaymentsResponseData,
+    >
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1893,7 +1903,12 @@ impl<F>
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+    >
+    for hyperswitch_domain_models::router_data::RouterData<
+        F,
+        types::PaymentsAuthorizeData,
+        types::PaymentsResponseData,
+    >
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1956,7 +1971,12 @@ impl<F>
             types::PaymentsCaptureData,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::PaymentsCaptureData, types::PaymentsResponseData>
+    >
+    for hyperswitch_domain_models::router_data::RouterData<
+        F,
+        types::PaymentsCaptureData,
+        types::PaymentsResponseData,
+    >
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1993,7 +2013,12 @@ impl<F>
             types::PaymentsCancelData,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::PaymentsCancelData, types::PaymentsResponseData>
+    >
+    for hyperswitch_domain_models::router_data::RouterData<
+        F,
+        types::PaymentsCancelData,
+        types::PaymentsResponseData,
+    >
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -2052,7 +2077,12 @@ impl<F>
             types::PaymentsSyncData,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>
+    >
+    for hyperswitch_domain_models::router_data::RouterData<
+        F,
+        types::PaymentsSyncData,
+        types::PaymentsResponseData,
+    >
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(

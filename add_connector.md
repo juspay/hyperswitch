@@ -143,8 +143,8 @@ In this impl block we build the request type from RouterData which will almost a
 An example implementation for checkout.com is given below.
 
 ```rust
-impl<'a> From<&types::RouterData<'a>> for CheckoutPaymentsRequest {
-    fn from(item: &types::RouterData) -> Self {
+impl<'a> From<&hyperswitch_domain_models::router_data::RouterData<'a>> for CheckoutPaymentsRequest {
+    fn from(item: &hyperswitch_domain_models::router_data::RouterData) -> Self {
 
         let ccard = match item.payment_method_data {
             Some(api::PaymentMethod::Card(ref ccard)) => Some(ccard),
@@ -538,7 +538,7 @@ Within the `ConnectorIntegration` trait, you'll find the following methods imple
 ```rust
   fn build_request(
       &self,
-      req: &types::RouterData<
+      req: &hyperswitch_domain_models::router_data::RouterData<
           api::Authorize,
           types::PaymentsAuthorizeData,
           types::PaymentsResponseData,
@@ -578,7 +578,7 @@ Within the `ConnectorIntegration` trait, you'll find the following methods imple
           .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
             router_env::logger::info!(connector_response=?response);
-      types::RouterData::try_from(types::ResponseRouterData {
+      hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
           response,
           data: data.clone(),
           http_code: res.status_code,
@@ -607,7 +607,7 @@ Within the `ConnectorIntegration` trait, you'll find the following methods imple
 {
     fn build_headers(
       &self,
-      req: &types::RouterData<Flow, Request, Response>,
+      req: &hyperswitch_domain_models::router_data::RouterData<Flow, Request, Response>,
       _connectors: &settings::Connectors,
   ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
       let header = vec![(

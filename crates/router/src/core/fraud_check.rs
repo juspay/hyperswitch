@@ -30,7 +30,6 @@ use crate::{
     routes::{app::ReqState, AppState},
     services,
     types::{
-        self as oss_types,
         api::{
             fraud_check as frm_api, routing::FrmRoutingAlgorithm, Connector,
             FraudCheckConnectorData, Fulfillment,
@@ -59,13 +58,16 @@ pub async fn call_frm_service<D: Clone, F, Req>(
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     customer: &Option<domain::Customer>,
-) -> RouterResult<oss_types::RouterData<F, Req, frm_types::FraudCheckResponseData>>
+) -> RouterResult<
+    hyperswitch_domain_models::router_data::RouterData<F, Req, frm_types::FraudCheckResponseData>,
+>
 where
     F: Send + Clone,
 
     // To create connector flow specific interface data
     FrmData: ConstructFlowSpecificData<F, Req, frm_types::FraudCheckResponseData>,
-    oss_types::RouterData<F, Req, frm_types::FraudCheckResponseData>: FeatureFrm<F, Req> + Send,
+    hyperswitch_domain_models::router_data::RouterData<F, Req, frm_types::FraudCheckResponseData>:
+        FeatureFrm<F, Req> + Send,
 
     // To construct connector flow specific api
     dyn Connector: services::api::ConnectorIntegration<F, Req, frm_types::FraudCheckResponseData>,

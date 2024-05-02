@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::payment_address::PaymentAddress;
 
 use crate::{
     core::{
@@ -10,7 +11,7 @@ use crate::{
     },
     db::{get_and_deserialize_key, StorageInterface},
     services::logger,
-    types::{self, api, domain, PaymentAddress},
+    types::{self, api, domain},
 };
 
 const IRRELEVANT_PAYMENT_ID_IN_SOURCE_VERIFICATION_FLOW: &str =
@@ -71,7 +72,7 @@ pub async fn construct_webhook_router_data<'a>(
             .parse_value("ConnectorAuthType")
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let router_data = types::RouterData {
+    let router_data = hyperswitch_domain_models::router_data::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
         connector: connector_name.to_string(),

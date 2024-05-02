@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::router_data::RouterData;
 
 use crate::{
     core::{
@@ -16,7 +17,7 @@ use crate::{
             FraudCheckResponseData, FraudCheckTransactionData, FrmTransactionRouterData,
         },
         storage::enums as storage_enums,
-        ConnectorAuthType, ResponseId, RouterData,
+        ConnectorAuthType, ResponseId,
     },
     AppState,
 };

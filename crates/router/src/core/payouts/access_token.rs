@@ -135,7 +135,7 @@ pub async fn refresh_connector_auth(
     state: &AppState,
     connector: &api_types::ConnectorData,
     _merchant_account: &domain::MerchantAccount,
-    router_data: &types::RouterData<
+    router_data: &hyperswitch_domain_models::router_data::RouterData<
         api_types::AccessTokenAuth,
         types::AccessTokenRequestData,
         types::AccessToken,

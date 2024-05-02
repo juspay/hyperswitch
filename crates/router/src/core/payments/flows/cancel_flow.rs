@@ -42,7 +42,11 @@ impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::Paym
 
 #[async_trait]
 impl Feature<api::Void, types::PaymentsCancelData>
-    for types::RouterData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
+    for hyperswitch_domain_models::router_data::RouterData<
+        api::Void,
+        types::PaymentsCancelData,
+        types::PaymentsResponseData,
+    >
 {
     async fn decide_flows<'a>(
         self,

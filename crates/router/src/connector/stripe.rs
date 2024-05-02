@@ -44,7 +44,7 @@ where
 {
     fn build_headers(
         &self,
-        req: &types::RouterData<Flow, Request, Response>,
+        req: &hyperswitch_domain_models::router_data::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
@@ -245,7 +245,7 @@ impl
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -377,7 +377,7 @@ impl
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -505,7 +505,7 @@ impl
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -642,7 +642,7 @@ impl
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -773,11 +773,13 @@ impl
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
 
-                types::RouterData::try_from(types::ResponseRouterData {
-                    response,
-                    data: data.clone(),
-                    http_code: res.status_code,
-                })
+                hyperswitch_domain_models::router_data::RouterData::try_from(
+                    types::ResponseRouterData {
+                        response,
+                        data: data.clone(),
+                        http_code: res.status_code,
+                    },
+                )
             }
             Ok(_) => {
                 let response: stripe::PaymentIntentSyncResponse = res
@@ -788,11 +790,13 @@ impl
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
 
-                types::RouterData::try_from(types::ResponseRouterData {
-                    response,
-                    data: data.clone(),
-                    http_code: res.status_code,
-                })
+                hyperswitch_domain_models::router_data::RouterData::try_from(
+                    types::ResponseRouterData {
+                        response,
+                        data: data.clone(),
+                        http_code: res.status_code,
+                    },
+                )
             }
             Err(err) => {
                 Err(err).change_context(errors::ConnectorError::MissingConnectorTransactionID)
@@ -952,11 +956,13 @@ impl
                     event_builder.map(|i| i.set_response_body(&response));
                     router_env::logger::info!(connector_response=?response);
 
-                    types::RouterData::try_from(types::ResponseRouterData {
-                        response,
-                        data: data.clone(),
-                        http_code: res.status_code,
-                    })
+                    hyperswitch_domain_models::router_data::RouterData::try_from(
+                        types::ResponseRouterData {
+                            response,
+                            data: data.clone(),
+                            http_code: res.status_code,
+                        },
+                    )
                 }
                 _ => {
                     let response: stripe::PaymentIntentResponse = res
@@ -967,11 +973,13 @@ impl
                     event_builder.map(|i| i.set_response_body(&response));
                     router_env::logger::info!(connector_response=?response);
 
-                    types::RouterData::try_from(types::ResponseRouterData {
-                        response,
-                        data: data.clone(),
-                        http_code: res.status_code,
-                    })
+                    hyperswitch_domain_models::router_data::RouterData::try_from(
+                        types::ResponseRouterData {
+                            response,
+                            data: data.clone(),
+                            http_code: res.status_code,
+                        },
+                    )
                 }
             },
             _ => {
@@ -983,11 +991,13 @@ impl
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
 
-                types::RouterData::try_from(types::ResponseRouterData {
-                    response,
-                    data: data.clone(),
-                    http_code: res.status_code,
-                })
+                hyperswitch_domain_models::router_data::RouterData::try_from(
+                    types::ResponseRouterData {
+                        response,
+                        data: data.clone(),
+                        http_code: res.status_code,
+                    },
+                )
                 .change_context(errors::ConnectorError::ResponseHandlingFailed)
             }
         }
@@ -1110,7 +1120,7 @@ impl
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -1171,7 +1181,7 @@ impl
 {
     fn get_headers(
         &self,
-        req: &types::RouterData<
+        req: &hyperswitch_domain_models::router_data::RouterData<
             api::SetupMandate,
             types::SetupMandateRequestData,
             types::PaymentsResponseData,
@@ -1193,7 +1203,7 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::RouterData<
+        _req: &hyperswitch_domain_models::router_data::RouterData<
             api::SetupMandate,
             types::SetupMandateRequestData,
             types::PaymentsResponseData,
@@ -1209,7 +1219,7 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::RouterData<
+        req: &hyperswitch_domain_models::router_data::RouterData<
             api::SetupMandate,
             types::SetupMandateRequestData,
             types::PaymentsResponseData,
@@ -1222,7 +1232,7 @@ impl
 
     fn build_request(
         &self,
-        req: &types::RouterData<
+        req: &hyperswitch_domain_models::router_data::RouterData<
             api::SetupMandate,
             types::SetupMandateRequestData,
             types::PaymentsResponseData,
@@ -1242,7 +1252,7 @@ impl
 
     fn handle_response(
         &self,
-        data: &types::RouterData<
+        data: &hyperswitch_domain_models::router_data::RouterData<
             api::SetupMandate,
             types::SetupMandateRequestData,
             types::PaymentsResponseData,
@@ -1250,7 +1260,7 @@ impl
         event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<
-        types::RouterData<
+        hyperswitch_domain_models::router_data::RouterData<
             api::SetupMandate,
             types::SetupMandateRequestData,
             types::PaymentsResponseData,
@@ -1270,7 +1280,7 @@ impl
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -1395,7 +1405,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -1447,7 +1457,11 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
 {
     fn get_headers(
         &self,
-        req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
+        req: &hyperswitch_domain_models::router_data::RouterData<
+            api::RSync,
+            types::RefundsData,
+            types::RefundsResponseData,
+        >,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
@@ -1496,7 +1510,11 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<
-        types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
+        hyperswitch_domain_models::router_data::RouterData<
+            api::RSync,
+            types::RefundsData,
+            types::RefundsResponseData,
+        >,
         errors::ConnectorError,
     > {
         let response: stripe::RefundResponse =
@@ -1507,7 +1525,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -1593,7 +1611,7 @@ impl
 {
     fn get_headers(
         &self,
-        req: &types::RouterData<
+        req: &hyperswitch_domain_models::router_data::RouterData<
             api::Upload,
             types::UploadFileRequestData,
             types::UploadFileResponse,
@@ -1652,7 +1670,11 @@ impl
         event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<
-        types::RouterData<api::Upload, types::UploadFileRequestData, types::UploadFileResponse>,
+        hyperswitch_domain_models::router_data::RouterData<
+            api::Upload,
+            types::UploadFileRequestData,
+            types::UploadFileResponse,
+        >,
         errors::ConnectorError,
     > {
         let response: stripe::FileUploadResponse = res
@@ -1719,7 +1741,7 @@ impl
 {
     fn get_headers(
         &self,
-        req: &types::RouterData<
+        req: &hyperswitch_domain_models::router_data::RouterData<
             api::Retrieve,
             types::RetrieveFileRequestData,
             types::RetrieveFileResponse,
@@ -1762,7 +1784,7 @@ impl
         event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<
-        types::RouterData<
+        hyperswitch_domain_models::router_data::RouterData<
             api::Retrieve,
             types::RetrieveFileRequestData,
             types::RetrieveFileResponse,
@@ -2327,7 +2349,11 @@ impl services::ConnectorIntegration<api::PoCancel, types::PayoutsData, types::Pa
 
     fn get_request_body(
         &self,
-        req: &types::RouterData<api::PoCancel, types::PayoutsData, types::PayoutsResponseData>,
+        req: &hyperswitch_domain_models::router_data::RouterData<
+            api::PoCancel,
+            types::PayoutsData,
+            types::PayoutsResponseData,
+        >,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = stripe::StripeConnectReversalRequest::try_from(req)?;
@@ -2363,7 +2389,7 @@ impl services::ConnectorIntegration<api::PoCancel, types::PayoutsData, types::Pa
             .parse_struct("StripeConnectReversalResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_error_response_body(&response));
-        types::RouterData::try_from(types::ResponseRouterData {
+        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -2441,7 +2467,7 @@ impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::Pa
             .parse_struct("StripeConnectPayoutCreateResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_error_response_body(&response));
-        types::RouterData::try_from(types::ResponseRouterData {
+        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -2528,7 +2554,7 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
             .parse_struct("StripeConnectPayoutFulfillResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_error_response_body(&response));
-        types::RouterData::try_from(types::ResponseRouterData {
+        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -2609,7 +2635,7 @@ impl
             .parse_struct("StripeConnectRecipientCreateResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_error_response_body(&response));
-        types::RouterData::try_from(types::ResponseRouterData {
+        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -2700,7 +2726,7 @@ impl
             .parse_struct("StripeConnectRecipientAccountCreateResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_error_response_body(&response));
-        types::RouterData::try_from(types::ResponseRouterData {
+        hyperswitch_domain_models::router_data::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,

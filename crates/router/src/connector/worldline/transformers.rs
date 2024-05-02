@@ -217,7 +217,7 @@ impl<T>
 impl
     TryFrom<
         &WorldlineRouterData<
-            &types::RouterData<
+            &hyperswitch_domain_models::router_data::RouterData<
                 types::api::payments::Authorize,
                 PaymentsAuthorizeData,
                 PaymentsResponseData,
@@ -229,7 +229,7 @@ impl
 
     fn try_from(
         item: &WorldlineRouterData<
-            &types::RouterData<
+            &hyperswitch_domain_models::router_data::RouterData<
                 types::api::payments::Authorize,
                 PaymentsAuthorizeData,
                 PaymentsResponseData,
@@ -582,7 +582,7 @@ pub struct Payment {
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, PaymentsResponseData>>
-    for types::RouterData<F, T, PaymentsResponseData>
+    for hyperswitch_domain_models::router_data::RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -627,7 +627,7 @@ pub struct RedirectData {
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentResponse, T, PaymentsResponseData>>
-    for types::RouterData<F, T, PaymentsResponseData>
+    for hyperswitch_domain_models::router_data::RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(

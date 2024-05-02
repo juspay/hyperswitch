@@ -20,7 +20,7 @@ use crate::{
 /// false - There was an error, cannot proceed further
 pub fn update_router_data_with_access_token_result<F, Req, Res>(
     add_access_token_result: &types::AddAccessTokenResult,
-    router_data: &mut types::RouterData<F, Req, Res>,
+    router_data: &mut hyperswitch_domain_models::router_data::RouterData<F, Req, Res>,
     call_connector_action: &payments::CallConnectorAction,
 ) -> bool {
     // Update router data with access token or error only if it will be calling connector
@@ -56,7 +56,7 @@ pub async fn add_access_token<
     state: &AppState,
     connector: &api_types::ConnectorData,
     merchant_account: &domain::MerchantAccount,
-    router_data: &types::RouterData<F, Req, Res>,
+    router_data: &hyperswitch_domain_models::router_data::RouterData<F, Req, Res>,
 ) -> RouterResult<types::AddAccessTokenResult> {
     if connector
         .connector_name
@@ -155,7 +155,7 @@ pub async fn refresh_connector_auth(
     state: &AppState,
     connector: &api_types::ConnectorData,
     _merchant_account: &domain::MerchantAccount,
-    router_data: &types::RouterData<
+    router_data: &hyperswitch_domain_models::router_data::RouterData<
         api_types::AccessTokenAuth,
         types::AccessTokenRequestData,
         types::AccessToken,

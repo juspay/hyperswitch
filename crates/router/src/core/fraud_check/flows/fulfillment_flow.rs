@@ -1,19 +1,18 @@
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::{payment_address::PaymentAddress, router_data::RouterData};
 use router_env::tracing::{self, instrument};
 
 use crate::{
     core::{
-        errors::RouterResult,
-        fraud_check::frm_core_types::FrmFulfillmentRequest,
-        payments::{helpers, PaymentAddress},
-        utils as core_utils,
+        errors::RouterResult, fraud_check::frm_core_types::FrmFulfillmentRequest,
+        payments::helpers, utils as core_utils,
     },
     errors,
     types::{
         domain,
         fraud_check::{FraudCheckFulfillmentData, FrmFulfillmentRouterData},
-        storage, ConnectorAuthType, ErrorResponse, RouterData,
+        storage, ConnectorAuthType, ErrorResponse,
     },
     utils, AppState,
 };

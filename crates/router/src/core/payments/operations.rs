@@ -35,7 +35,6 @@ use crate::{
     routes::{app::ReqState, AppState},
     services,
     types::{
-        self,
         api::{self, ConnectorCallType},
         domain,
         storage::{self, enums},
@@ -228,7 +227,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         db: &'b AppState,
         payment_id: &api::PaymentIdType,
         payment_data: D,
-        response: types::RouterData<F, R, PaymentsResponseData>,
+        response: hyperswitch_domain_models::router_data::RouterData<F, R, PaymentsResponseData>,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<D>
     where
@@ -237,7 +236,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
     async fn save_pm_and_mandate<'b>(
         &self,
         _state: &AppState,
-        _resp: &types::RouterData<F, R, PaymentsResponseData>,
+        _resp: &hyperswitch_domain_models::router_data::RouterData<F, R, PaymentsResponseData>,
         _merchant_account: &domain::MerchantAccount,
         _key_store: &domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,

@@ -26,7 +26,11 @@ impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::Payme
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
     ) -> RouterResult<
-        types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
+        hyperswitch_domain_models::router_data::RouterData<
+            api::PSync,
+            types::PaymentsSyncData,
+            types::PaymentsResponseData,
+        >,
     > {
         Box::pin(transformers::construct_payment_router_data::<
             api::PSync,
@@ -46,7 +50,11 @@ impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::Payme
 
 #[async_trait]
 impl Feature<api::PSync, types::PaymentsSyncData>
-    for types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
+    for hyperswitch_domain_models::router_data::RouterData<
+        api::PSync,
+        types::PaymentsSyncData,
+        types::PaymentsResponseData,
+    >
 {
     async fn decide_flows<'a>(
         mut self,
@@ -144,7 +152,13 @@ impl Feature<api::PSync, types::PaymentsSyncData>
     }
 }
 
-impl types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData> {
+impl
+    hyperswitch_domain_models::router_data::RouterData<
+        api::PSync,
+        types::PaymentsSyncData,
+        types::PaymentsResponseData,
+    >
+{
     async fn execute_connector_processing_step_for_each_capture(
         mut self,
         state: &AppState,
