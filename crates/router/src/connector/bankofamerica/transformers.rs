@@ -756,7 +756,7 @@ pub struct ClientProcessorInformation {
     retrieval_reference_number: Option<String>,
     consumer_authentication_response: Option<ConsumerAuthenticationResponse>,
     response_details: Option<String>,
-    transaction_id: Option<String>,
+    transaction_id: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -1511,7 +1511,7 @@ pub struct Initiator {
 #[serde(rename_all = "camelCase")]
 pub struct MerchantInitiatedTransactionResponse {
     agreement_id: Option<String>,
-    processor_transaction_id: Option<String>,
+    previous_transaction_id: Option<String>,
     original_authorized_amount: Option<String>,
     reason: Option<String>,
 }
@@ -2263,7 +2263,6 @@ impl
 
         let authentication_data = Some(serde_json::json!({
         "retrieval_reference_number": processor_information.retrieval_reference_number,
-        "network_transaction_id": processor_information.network_transaction_id,
         "processor_transaction_id": processor_information.transaction_id,
         "acs_transaction_id": consumer_authentication_information.acs_transaction_id,
         "system_trace_audit_number": processor_information.system_trace_audit_number,
