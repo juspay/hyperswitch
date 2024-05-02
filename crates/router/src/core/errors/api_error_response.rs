@@ -269,6 +269,8 @@ pub enum ApiErrorResponse {
         message = "Invalid Cookie"
     )]
     InvalidCookie,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_27", message = "Extended card info does not exist")]
+    ExtendedCardInfoNotFound,
 }
 
 impl PTError for ApiErrorResponse {

@@ -439,6 +439,7 @@ pub async fn update_business_profile_cascade(
             payment_link_config: None,
             session_expiry: None,
             authentication_connector_details: None,
+            extended_card_info_config: None,
         };
 
         let update_futures = business_profiles.iter().map(|business_profile| async {
@@ -1648,6 +1649,19 @@ pub async fn update_business_profile(
         })
         .transpose()?;
 
+    let extended_card_info_config = request
+        .extended_card_info_config
+        .as_ref()
+        .map(|config| {
+            config
+                .encode_to_value()
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "extended_card_info_config",
+                })
+        })
+        .transpose()?
+        .map(Secret::new);
+
     let business_profile_update = storage::business_profile::BusinessProfileUpdate::Update {
         profile_name: request.profile_name,
         modified_at: Some(date_time::now()),
@@ -1676,6 +1690,7 @@ pub async fn update_business_profile(
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "authentication_connector_details",
             })?,
+        extended_card_info_config,
     };
 
     let updated_business_profile = db

@@ -1,11 +1,15 @@
 use std::{marker::PhantomData, str::FromStr};
 
 use api_models::enums::{DisputeStage, DisputeStatus};
+#[cfg(feature = "payouts")]
+use api_models::payouts::PayoutVendorAccountDetails;
 use common_enums::{IntentStatus, RequestIncrementalAuthorization};
 #[cfg(feature = "payouts")]
 use common_utils::{crypto::Encryptable, pii::Email};
 use common_utils::{errors::CustomResult, ext_traits::AsyncExt};
 use error_stack::{report, ResultExt};
+#[cfg(feature = "payouts")]
+use masking::PeekInterface;
 use maud::{html, PreEscaped};
 use router_env::{instrument, tracing};
 use uuid::Uuid;
@@ -31,6 +35,9 @@ use crate::{
 
 pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW: &str =
     "irrelevant_connector_request_reference_id_in_dispute_flow";
+#[cfg(feature = "payouts")]
+pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLOW: &str =
+    "irrelevant_connector_request_reference_id_in_payouts_flow";
 const IRRELEVANT_PAYMENT_ID_IN_DISPUTE_FLOW: &str = "irrelevant_payment_id_in_dispute_flow";
 const IRRELEVANT_ATTEMPT_ID_IN_DISPUTE_FLOW: &str = "irrelevant_attempt_id_in_dispute_flow";
 
@@ -65,15 +72,14 @@ pub async fn get_mca_for_payout<'a>(
 #[instrument(skip_all)]
 pub async fn construct_payout_router_data<'a, F>(
     state: &'a AppState,
-    connector_id: &str,
+    connector_name: &api_models::enums::Connector,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    _request: &api_models::payouts::PayoutRequest,
     payout_data: &mut PayoutData,
 ) -> RouterResult<types::PayoutsRouterData<F>> {
     let merchant_connector_account = get_mca_for_payout(
         state,
-        connector_id,
+        &connector_name.to_string(),
         merchant_account,
         key_store,
         payout_data,
@@ -117,25 +123,36 @@ pub async fn construct_payout_router_data<'a, F>(
     let payouts = &payout_data.payouts;
     let payout_attempt = &payout_data.payout_attempt;
     let customer_details = &payout_data.customer_details;
-    let connector_name = payout_attempt
-        .connector
-        .clone()
-        .get_required_value("connector")
-        .change_context(errors::ApiErrorResponse::InvalidRequestData {
-            message: "Could not decide to route the connector".to_string(),
-        })?;
     let connector_label = format!("{}_{}", payout_data.profile_id, connector_name);
     let connector_customer_id = customer_details
         .as_ref()
         .and_then(|c| c.connector_customer.as_ref())
         .and_then(|cc| cc.get(connector_label))
         .and_then(|id| serde_json::from_value::<String>(id.to_owned()).ok());
+
+    let vendor_details: Option<PayoutVendorAccountDetails> =
+        match api_models::enums::PayoutConnectors::try_from(connector_name.to_owned()).map_err(
+            |err| report!(errors::ApiErrorResponse::InternalServerError).attach_printable(err),
+        )? {
+            api_models::enums::PayoutConnectors::Stripe => {
+                payout_data.payouts.metadata.to_owned().and_then(|meta| {
+                    let val = meta
+                        .peek()
+                        .to_owned()
+                        .parse_value("PayoutVendorAccountDetails")
+                        .ok();
+                    val
+                })
+            }
+            _ => None,
+        };
+
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.to_owned(),
         customer_id: None,
         connector_customer: connector_customer_id,
-        connector: connector_id.to_string(),
+        connector: connector_name.to_string(),
         payment_id: "".to_string(),
         attempt_id: "".to_string(),
         status: enums::AttemptStatus::Failure,
@@ -143,7 +160,6 @@ pub async fn construct_payout_router_data<'a, F>(
         connector_auth_type,
         description: None,
         return_url: payouts.return_url.to_owned(),
-        payment_method_id: None,
         address,
         auth_type: enums::AuthenticationType::default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
@@ -157,6 +173,7 @@ pub async fn construct_payout_router_data<'a, F>(
             source_currency: payouts.source_currency,
             entity_type: payouts.entity_type.to_owned(),
             payout_type: payouts.payout_type,
+            vendor_details,
             customer_details: customer_details
                 .to_owned()
                 .map(|c| payments::CustomerDetails {
@@ -174,7 +191,7 @@ pub async fn construct_payout_router_data<'a, F>(
         payment_method_token: None,
         recurring_mandate_payment_data: None,
         preprocessing_id: None,
-        connector_request_reference_id: IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW
+        connector_request_reference_id: IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLOW
             .to_string(),
         payout_method_data: payout_data.payout_method_data.to_owned(),
         quote_id: None,
@@ -293,7 +310,6 @@ pub async fn construct_refund_router_data<'a, F>(
         connector_auth_type: auth_type,
         description: None,
         return_url: payment_intent.return_url.clone(),
-        payment_method_id: payment_attempt.payment_method_id.clone(),
         // Does refund need shipping/billing address ?
         address: PaymentAddress::default(),
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
@@ -539,7 +555,6 @@ pub async fn construct_accept_dispute_router_data<'a>(
         connector_auth_type: auth_type,
         description: None,
         return_url: payment_intent.return_url.clone(),
-        payment_method_id: payment_attempt.payment_method_id.clone(),
         address: PaymentAddress::default(),
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
@@ -634,7 +649,6 @@ pub async fn construct_submit_evidence_router_data<'a>(
         connector_auth_type: auth_type,
         description: None,
         return_url: payment_intent.return_url.clone(),
-        payment_method_id: payment_attempt.payment_method_id.clone(),
         address: PaymentAddress::default(),
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
@@ -727,7 +741,6 @@ pub async fn construct_upload_file_router_data<'a>(
         connector_auth_type: auth_type,
         description: None,
         return_url: payment_intent.return_url.clone(),
-        payment_method_id: payment_attempt.payment_method_id.clone(),
         address: PaymentAddress::default(),
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
@@ -824,7 +837,6 @@ pub async fn construct_defend_dispute_router_data<'a>(
         connector_auth_type: auth_type,
         description: None,
         return_url: payment_intent.return_url.clone(),
-        payment_method_id: payment_attempt.payment_method_id.clone(),
         address: PaymentAddress::default(),
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
@@ -912,7 +924,6 @@ pub async fn construct_retrieve_file_router_data<'a>(
         connector_auth_type: auth_type,
         description: None,
         return_url: None,
-        payment_method_id: None,
         address: PaymentAddress::default(),
         auth_type: diesel_models::enums::AuthenticationType::default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
