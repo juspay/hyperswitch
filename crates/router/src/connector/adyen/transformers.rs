@@ -4674,6 +4674,12 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
                             },
                         )?,
                     },
+                    api_models::payouts::Wallet::Venmo(_) => {
+                        Err(errors::ConnectorError::NotSupported {
+                            message: "Venmo Wallet is not supported".to_string(),
+                            connector: "Adyen",
+                        })?
+                    }
                 };
                 let address: &payments::AddressDetails = item.router_data.get_billing_address()?;
                 let payout_wallet = PayoutWalletData {

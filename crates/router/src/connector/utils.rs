@@ -13,9 +13,9 @@ use common_utils::{
     errors::ReportSwitchExt,
     pii::{self, Email, IpAddress},
 };
-use data_models::payments::payment_attempt::PaymentAttempt;
 use diesel_models::enums;
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
 use masking::{ExposeInterface, Secret};
 use once_cell::sync::Lazy;
 use regex::Regex;

@@ -916,6 +916,58 @@ pub struct Card {
     pub nick_name: Option<Secret<String>>,
 }
 
+#[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct ExtendedCardInfo {
+    /// The card number
+    #[schema(value_type = String, example = "4242424242424242")]
+    pub card_number: CardNumber,
+
+    /// The card's expiry month
+    #[schema(value_type = String, example = "24")]
+    pub card_exp_month: Secret<String>,
+
+    /// The card's expiry year
+    #[schema(value_type = String, example = "24")]
+    pub card_exp_year: Secret<String>,
+
+    /// The card holder's name
+    #[schema(value_type = String, example = "John Test")]
+    pub card_holder_name: Option<Secret<String>>,
+
+    /// The name of the issuer of card
+    #[schema(example = "chase")]
+    pub card_issuer: Option<String>,
+
+    /// The card network for the card
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    pub card_network: Option<api_enums::CardNetwork>,
+
+    #[schema(example = "CREDIT")]
+    pub card_type: Option<String>,
+
+    #[schema(example = "INDIA")]
+    pub card_issuing_country: Option<String>,
+
+    #[schema(example = "JP_AMEX")]
+    pub bank_code: Option<String>,
+}
+
+impl From<Card> for ExtendedCardInfo {
+    fn from(value: Card) -> Self {
+        Self {
+            card_number: value.card_number,
+            card_exp_month: value.card_exp_month,
+            card_exp_year: value.card_exp_year,
+            card_holder_name: value.card_holder_name,
+            card_issuer: value.card_issuer,
+            card_network: value.card_network,
+            card_type: value.card_type,
+            card_issuing_country: value.card_issuing_country,
+            bank_code: value.bank_code,
+        }
+    }
+}
+
 impl GetAddressFromPaymentMethodData for Card {
     fn get_billing_address(&self) -> Option<Address> {
         // Create billing address if first_name is some or if it is not ""

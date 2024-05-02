@@ -289,6 +289,7 @@ pub struct PixBankTransfer {
 #[serde(rename_all = "snake_case")]
 pub enum Wallet {
     Paypal(Paypal),
+    Venmo(Venmo),
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -296,6 +297,21 @@ pub struct Paypal {
     /// Email linked with paypal account
     #[schema(value_type = String, example = "john.doe@example.com")]
     pub email: Option<Email>,
+
+    /// mobile number linked to paypal account
+    #[schema(value_type = String, example = "16608213349")]
+    pub telephone_number: Option<Secret<String>>,
+
+    /// id of the paypal account
+    #[schema(value_type = String, example = "G83KXTJ5EHCQ2")]
+    pub paypal_id: Option<Secret<String>>,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct Venmo {
+    /// mobile number linked to venmo account
+    #[schema(value_type = String, example = "16608213349")]
+    pub telephone_number: Option<Secret<String>>,
 }
 
 #[derive(Debug, Default, ToSchema, Clone, Serialize)]

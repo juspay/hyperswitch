@@ -76,15 +76,23 @@ pub async fn user_signin(
     state: web::Data<AppState>,
     http_req: HttpRequest,
     json_payload: web::Json<user_api::SignInRequest>,
+    query: web::Query<user_api::TokenOnlyQueryParam>,
 ) -> HttpResponse {
     let flow = Flow::UserSignIn;
     let req_payload = json_payload.into_inner();
+    let is_token_only = query.into_inner().token_only;
     Box::pin(api::server_wrap(
         flow.clone(),
         state,
         &http_req,
         req_payload.clone(),
-        |state, _, req_body, _| user_core::signin(state, req_body),
+        |state, _, req_body, _| async move {
+            if let Some(true) = is_token_only {
+                user_core::signin_token_only_flow(state, req_body).await
+            } else {
+                user_core::signin(state, req_body).await
+            }
+        },
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
