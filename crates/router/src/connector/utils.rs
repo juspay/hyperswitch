@@ -2181,7 +2181,9 @@ pub fn is_mandate_supported(
     mandate_implemented_pmds: HashSet<PaymentMethodDataType>,
     connector: &'static str,
 ) -> Result<(), Error> {
-    if mandate_implemented_pmds.contains(&PaymentMethodDataType::from(selected_pmd)) {
+    if mandate_implemented_pmds.contains(&PaymentMethodDataType::from(selected_pmd.clone()))
+        || domain::payments::PaymentMethodData::MandatePayment == selected_pmd
+    {
         Ok(())
     } else {
         match payment_method_type {

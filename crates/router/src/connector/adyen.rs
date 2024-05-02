@@ -254,7 +254,6 @@ impl ConnectorValidation for Adyen {
             PaymentMethodDataType::AchBankDebit,
             PaymentMethodDataType::SepaBankDebit,
             PaymentMethodDataType::BecsBankDebit,
-            PaymentMethodDataType::MandatePayment,
         ]);
         is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
