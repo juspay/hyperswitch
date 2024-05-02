@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+#[cfg(feature = "payouts")]
+use api_models::payouts::PayoutVendorAccountDetails;
 use api_models::{
     enums::{CanadaStatesAbbreviation, UsStatesAbbreviation},
     payments::{self, OrderDetailsWithAmount},
@@ -846,6 +848,66 @@ impl PaymentsSyncRequestData for types::PaymentsSyncData {
     }
 }
 
+#[cfg(feature = "payouts")]
+pub trait CustomerDetails {
+    fn get_customer_id(&self) -> Result<String, errors::ConnectorError>;
+    fn get_customer_name(
+        &self,
+    ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError>;
+    fn get_customer_email(&self) -> Result<Email, errors::ConnectorError>;
+    fn get_customer_phone(
+        &self,
+    ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError>;
+    fn get_customer_phone_country_code(&self) -> Result<String, errors::ConnectorError>;
+}
+
+#[cfg(feature = "payouts")]
+impl CustomerDetails for types::CustomerDetails {
+    fn get_customer_id(&self) -> Result<String, errors::ConnectorError> {
+        self.customer_id
+            .clone()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "customer_id",
+            })
+    }
+
+    fn get_customer_name(
+        &self,
+    ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError> {
+        self.name
+            .clone()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "customer_name",
+            })
+    }
+
+    fn get_customer_email(&self) -> Result<Email, errors::ConnectorError> {
+        self.email
+            .clone()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "customer_email",
+            })
+    }
+
+    fn get_customer_phone(
+        &self,
+    ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError> {
+        self.phone
+            .clone()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "customer_phone",
+            })
+    }
+
+    fn get_customer_phone_country_code(&self) -> Result<String, errors::ConnectorError> {
+        self.phone_country_code
+            .clone()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "customer_phone_country_code",
+            })
+    }
+}
+
 pub trait PaymentsCancelRequestData {
     fn get_amount(&self) -> Result<i64, Error>;
     fn get_currency(&self) -> Result<diesel_models::enums::Currency, Error>;
@@ -895,6 +957,32 @@ impl RefundsRequestData for types::RefundsData {
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
+    }
+}
+
+#[cfg(feature = "payouts")]
+pub trait PayoutsData {
+    fn get_transfer_id(&self) -> Result<String, Error>;
+    fn get_customer_details(&self) -> Result<types::CustomerDetails, Error>;
+    fn get_vendor_details(&self) -> Result<PayoutVendorAccountDetails, Error>;
+}
+
+#[cfg(feature = "payouts")]
+impl PayoutsData for types::PayoutsData {
+    fn get_transfer_id(&self) -> Result<String, Error> {
+        self.connector_payout_id
+            .clone()
+            .ok_or_else(missing_field_err("transfer_id"))
+    }
+    fn get_customer_details(&self) -> Result<types::CustomerDetails, Error> {
+        self.customer_details
+            .clone()
+            .ok_or_else(missing_field_err("customer_details"))
+    }
+    fn get_vendor_details(&self) -> Result<PayoutVendorAccountDetails, Error> {
+        self.vendor_details
+            .clone()
+            .ok_or_else(missing_field_err("vendor_details"))
     }
 }
 
@@ -1186,6 +1274,7 @@ pub trait PhoneDetailsData {
     fn get_country_code(&self) -> Result<String, Error>;
     fn get_number_with_country_code(&self) -> Result<Secret<String>, Error>;
     fn get_number_with_hash_country_code(&self) -> Result<Secret<String>, Error>;
+    fn extract_country_code(&self) -> Result<String, Error>;
 }
 
 impl PhoneDetailsData for api::PhoneDetails {
@@ -1193,6 +1282,10 @@ impl PhoneDetailsData for api::PhoneDetails {
         self.country_code
             .clone()
             .ok_or_else(missing_field_err("billing.phone.country_code"))
+    }
+    fn extract_country_code(&self) -> Result<String, Error> {
+        self.get_country_code()
+            .map(|cc| cc.trim_start_matches('+').to_string())
     }
     fn get_number(&self) -> Result<Secret<String>, Error> {
         self.number
@@ -1228,6 +1321,7 @@ pub trait AddressDetailsData {
     fn get_country(&self) -> Result<&api_models::enums::CountryAlpha2, Error>;
     fn get_combined_address_line(&self) -> Result<Secret<String>, Error>;
     fn to_state_code(&self) -> Result<Secret<String>, Error>;
+    fn to_state_code_as_optional(&self) -> Result<Option<Secret<String>>, Error>;
 }
 
 impl AddressDetailsData for api::AddressDetails {
@@ -1310,6 +1404,18 @@ impl AddressDetailsData for api::AddressDetails {
             )),
             _ => Ok(state.clone()),
         }
+    }
+    fn to_state_code_as_optional(&self) -> Result<Option<Secret<String>>, Error> {
+        self.state
+            .as_ref()
+            .map(|state| {
+                if state.peek().len() == 2 {
+                    Ok(state.to_owned())
+                } else {
+                    self.to_state_code()
+                }
+            })
+            .transpose()
     }
 }
 

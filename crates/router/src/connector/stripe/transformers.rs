@@ -15,6 +15,10 @@ use serde_json::Value;
 use time::PrimitiveDateTime;
 use url::Url;
 
+#[cfg(feature = "payouts")]
+pub mod connect;
+#[cfg(feature = "payouts")]
+pub use self::connect::*;
 use crate::{
     collect_missing_value_keys,
     connector::utils::{
