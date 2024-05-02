@@ -746,7 +746,7 @@ pub struct ClientProcessorInformation {
     avs: Option<Avs>,
     card_verification: Option<CardVerification>,
     processor: Option<ProcessorResponse>,
-    network_transaction_id: Option<String>,
+    network_transaction_id: Option<Secret<String>>,
     approval_code: Option<String>,
     merchant_advice: Option<MerchantAdvice>,
     response_code: Option<String>,
