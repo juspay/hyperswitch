@@ -147,7 +147,7 @@ pub async fn signin(
     )
 }
 
-pub async fn signin_pci(
+pub async fn signin_token_only_flow(
     state: AppState,
     request: user_api::SignInRequest,
 ) -> UserResponse<user_api::SignInWithTokenResponse> {

@@ -203,8 +203,8 @@ pub struct UpdateUserAccountDetailsRequest {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct PCIQueryParam {
-    pub pci: Option<bool>,
+pub struct TokenOnlyQueryParam {
+    pub token_only: Option<bool>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
