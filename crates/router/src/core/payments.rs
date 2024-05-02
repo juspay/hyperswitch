@@ -527,6 +527,16 @@ where
     let cloned_payment_data = payment_data.clone();
     let cloned_customer = customer.clone();
 
+    operation
+        .to_domain()?
+        .store_extended_card_info_temporarily(
+            state,
+            &payment_data.payment_intent.payment_id,
+            &business_profile,
+            &payment_data.payment_method_data,
+        )
+        .await?;
+
     crate::utils::trigger_payments_webhook(
         merchant_account,
         business_profile,
