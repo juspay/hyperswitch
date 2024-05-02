@@ -431,6 +431,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payouts::AchBankTransfer,
         api_models::payouts::BacsBankTransfer,
         api_models::payouts::SepaBankTransfer,
+        api_models::payouts::PixBankTransfer,
         api_models::payouts::PayoutRequest,
         api_models::payouts::PayoutAttemptResponse,
         api_models::payouts::PayoutActionRequest,
