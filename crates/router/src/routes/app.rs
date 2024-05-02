@@ -1163,6 +1163,7 @@ impl User {
         let mut route = web::scope("/user").app_data(web::Data::new(state));
 
         route = route
+            .service(web::resource("").route(web::get().to(get_user_details)))
             .service(web::resource("/v2/signin").route(web::post().to(user_signin)))
             .service(web::resource("/signout").route(web::post().to(signout)))
             .service(web::resource("/change_password").route(web::post().to(change_password)))
