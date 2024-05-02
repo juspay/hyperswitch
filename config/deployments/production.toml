@@ -14,7 +14,7 @@ przelewy24.stripe.banks = "alior_bank,bank_millennium,bank_nowy_bfg_sa,bank_peka
 
 [connector_customer]
 connector_list = "stax,stripe,gocardless"
-payout_connector_list = "wise"
+payout_connector_list = "stripe,wise"
 
 # Connector configuration, provided attributes will be used to fulfill API requests.
 # Examples provided here are sandbox/test base urls, can be replaced by live or mock

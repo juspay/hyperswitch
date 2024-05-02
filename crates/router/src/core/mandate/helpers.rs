@@ -1,9 +1,9 @@
 use api_models::payments as api_payments;
 use common_enums::enums;
 use common_utils::errors::CustomResult;
-use data_models::mandates::MandateData;
 use diesel_models::Mandate;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::mandates::MandateData;
 
 use crate::{
     core::{errors, payments},
