@@ -121,7 +121,6 @@ pub struct UserFromSinglePurposeToken {
     pub origin: domain::Origin,
 }
 
-
 #[cfg(feature = "olap")]
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct SinglePurposeToken {
