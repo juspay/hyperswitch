@@ -156,19 +156,31 @@ impl UserPassword {
     pub fn new(password: Secret<String>) -> UserResult<Self> {
         let password = password.expose();
 
-        let has_upper_case = password.chars().any(|c| c.is_ascii_uppercase());
-        let has_lower_case = password.chars().any(|c| c.is_ascii_lowercase());
-        let has_numeric_value = password.chars().any(|c| c.is_numeric());
-        let has_special_character = password
-            .chars()
-            .any(|c| !(c.is_alphanumeric() || c.is_whitespace()));
+        let mut has_upper_case = false;
+        let mut has_lower_case = false;
+        let mut has_numeric_value = false;
+        let mut has_special_character = false;
+        let mut has_whitespace = false;
 
-        let is_password_format_valid =
-            has_upper_case && has_lower_case && has_numeric_value && has_special_character;
+        for c in password.chars() {
+            has_upper_case = has_upper_case || c.is_uppercase();
+            has_lower_case = has_lower_case || c.is_lowercase();
+            has_numeric_value = has_numeric_value || c.is_numeric();
+            has_special_character =
+                has_special_character || !(c.is_alphanumeric() && c.is_whitespace());
+            has_whitespace = has_whitespace || c.is_whitespace();
+        }
+
+        let is_password_format_valid = has_upper_case
+            && has_lower_case
+            && has_numeric_value
+            && has_special_character
+            && !has_whitespace;
+
         let is_too_long = password.graphemes(true).count() > consts::user::MAX_PASSWORD_LENGTH;
         let is_too_short = password.graphemes(true).count() < consts::user::MIN_PASSWORD_LENGTH;
 
-        if password.is_empty() || !is_password_format_valid || is_too_long || is_too_short {
+        if is_too_short || is_too_long || !is_password_format_valid {
             Err(UserErrors::PasswordParsingError.into())
         } else {
             Ok(Self(password.into()))
