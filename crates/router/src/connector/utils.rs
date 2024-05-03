@@ -1,11 +1,10 @@
 use std::collections::HashMap;
 
 #[cfg(feature = "payouts")]
-use api_models::payouts::PayoutVendorAccountDetails;
+use api_models::payouts::{self, PayoutVendorAccountDetails};
 use api_models::{
     enums::{CanadaStatesAbbreviation, UsStatesAbbreviation},
     payments::{self, OrderDetailsWithAmount},
-    payouts,
 };
 use base64::Engine;
 use common_utils::{
