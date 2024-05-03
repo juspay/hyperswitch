@@ -477,7 +477,6 @@ pub struct CardThreeDsData {
     email: Option<Email>,
     cardholder_auth: Option<String>,
     cavv: Option<String>,
-    xid: Option<String>,
     eci: Option<String>,
     cvv: Secret<String>,
     three_ds_version: Option<String>,
@@ -623,10 +622,9 @@ impl TryFrom<(&domain::payments::Card, &types::PaymentsAuthorizeData)> for Payme
             email: item.email.clone(),
             cavv: Some(auth_data.cavv.clone()),
             eci: auth_data.eci.clone(),
-            xid: Some(auth_data.threeds_server_transaction_id.clone()),
             cardholder_auth: None,
             three_ds_version: Some(auth_data.message_version.clone()),
-            directory_server_id: None,
+            directory_server_id: Some(auth_data.threeds_server_transaction_id.clone().into()),
         };
 
         Ok(Self::CardThreeDs(Box::new(card_3ds_details)))

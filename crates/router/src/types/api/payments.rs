@@ -247,7 +247,7 @@ mod payments_test {
         PaymentsRequest {
             amount: Some(Amount::from(200)),
             payment_method_data: Some(PaymentMethodDataRequest {
-                payment_method_data: PaymentMethodData::Card(card()),
+                payment_method_data: Some(PaymentMethodData::Card(card())),
                 billing: None,
             }),
             ..PaymentsRequest::default()
