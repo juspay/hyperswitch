@@ -319,11 +319,8 @@ impl EmailData for InviteUser {
         .await
         .change_context(EmailError::TokenGenerationFailure)?;
 
-        let invite_user_link = get_link_with_token(
-            &self.settings.email.base_url,
-            token,
-            "set_password",
-        );
+        let invite_user_link =
+            get_link_with_token(&self.settings.email.base_url, token, "set_password");
 
         let body = html::get_html_body(EmailBody::InviteUser {
             link: invite_user_link,
