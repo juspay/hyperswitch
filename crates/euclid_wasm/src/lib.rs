@@ -190,9 +190,7 @@ pub fn run_program(program: JsValue, input: JsValue) -> JsResult {
 
 #[wasm_bindgen(js_name = getAllConnectors)]
 pub fn get_all_connectors() -> JsResult {
-    Ok(serde_wasm_bindgen::to_value(
-        common_enums::RoutableConnectors::VARIANTS,
-    )?)
+    Ok(serde_wasm_bindgen::to_value(RoutableConnectors::VARIANTS)?)
 }
 
 #[wasm_bindgen(js_name = getAllKeys)]

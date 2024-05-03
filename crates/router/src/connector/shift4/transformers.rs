@@ -747,9 +747,9 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for Shift4RefundRequest {
 impl From<Shift4RefundStatus> for enums::RefundStatus {
     fn from(item: Shift4RefundStatus) -> Self {
         match item {
-            self::Shift4RefundStatus::Successful => Self::Success,
-            self::Shift4RefundStatus::Failed => Self::Failure,
-            self::Shift4RefundStatus::Processing => Self::Pending,
+            Shift4RefundStatus::Successful => Self::Success,
+            Shift4RefundStatus::Failed => Self::Failure,
+            Shift4RefundStatus::Processing => Self::Pending,
         }
     }
 }

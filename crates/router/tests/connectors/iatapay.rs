@@ -12,12 +12,12 @@ use crate::{
 struct IatapayTest;
 impl ConnectorActions for IatapayTest {}
 impl Connector for IatapayTest {
-    fn get_data(&self) -> types::api::ConnectorData {
+    fn get_data(&self) -> api::ConnectorData {
         use router::connector::Iatapay;
-        types::api::ConnectorData {
+        api::ConnectorData {
             connector: Box::new(&Iatapay),
             connector_name: types::Connector::Iatapay,
-            get_token: types::api::GetToken::Connector,
+            get_token: api::GetToken::Connector,
             merchant_connector_id: None,
         }
     }
@@ -155,7 +155,7 @@ async fn should_sync_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Charged,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     "PE9OTYNP639XW".to_string(),
                 ),
                 ..Default::default()

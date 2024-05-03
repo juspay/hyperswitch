@@ -105,7 +105,7 @@ impl From<ring::error::Unspecified> for EncryptionError {
 
 pub fn http_not_implemented() -> actix_web::HttpResponse<BoxBody> {
     ApiErrorResponse::NotImplemented {
-        message: api_error_response::NotImplementedMessage::Default,
+        message: NotImplementedMessage::Default,
     }
     .error_response()
 }

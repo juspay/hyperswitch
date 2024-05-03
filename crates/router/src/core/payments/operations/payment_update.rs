@@ -719,8 +719,6 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        payment_data.mandate_id = payment_data.mandate_id.clone();
-
         Ok((
             payments::is_confirm(self, payment_data.confirm),
             payment_data,
@@ -824,7 +822,9 @@ impl PaymentUpdate {
 
         payment_intent.business_country = request.business_country;
 
-        payment_intent.business_label = request.business_label.clone();
+        payment_intent
+            .business_label
+            .clone_from(&request.business_label);
 
         request
             .description

@@ -114,7 +114,7 @@ pub async fn do_gsm_single_connector_actions(
         if let Ordering::Equal = gsm.cmp(&previous_gsm) {
             break;
         }
-        previous_gsm = gsm.clone();
+        previous_gsm.clone_from(&gsm);
 
         match get_gsm_decision(gsm) {
             api_models::gsm::GsmDecision::Retry => {

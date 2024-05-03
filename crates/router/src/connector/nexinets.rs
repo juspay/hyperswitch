@@ -120,7 +120,7 @@ impl ConnectorCommon for Nexinets {
             if !field.is_empty() {
                 msg.push_str(format!("{} : {}", field, error.message).as_str());
             } else {
-                msg = error.message.to_owned();
+                error.message.clone_into(&mut msg)
             }
             if message.is_empty() {
                 message.push_str(&msg);

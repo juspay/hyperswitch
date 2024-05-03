@@ -1,10 +1,7 @@
 use std::str::FromStr;
 
 use masking::Secret;
-use router::types::{
-    self,
-    storage::{self, enums},
-};
+use router::types::{self, storage::enums};
 use serde_json::json;
 
 use crate::{
@@ -102,7 +99,7 @@ async fn should_sync_authorized_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     txn_id.unwrap(),
                 ),
                 connector_meta: Some(json!({
@@ -126,7 +123,7 @@ async fn should_void_authorized_payment() {
             Some(types::PaymentsCancelData {
                 cancellation_reason: Some("requested_by_customer".to_string()),
                 amount: Some(100),
-                currency: Some(storage::enums::Currency::USD),
+                currency: Some(enums::Currency::USD),
                 ..Default::default()
             }),
             None,
@@ -194,7 +191,7 @@ async fn should_sync_auto_captured_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Charged,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     txn_id.unwrap(),
                 ),
                 connector_meta: Some(json!({
@@ -345,7 +342,7 @@ async fn should_fail_void_payment_for_auto_capture() {
             Some(types::PaymentsCancelData {
                 cancellation_reason: Some("requested_by_customer".to_string()),
                 amount: Some(100),
-                currency: Some(storage::enums::Currency::USD),
+                currency: Some(enums::Currency::USD),
                 ..Default::default()
             }),
             None,

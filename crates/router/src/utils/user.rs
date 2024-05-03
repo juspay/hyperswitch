@@ -11,7 +11,7 @@ use crate::{
     routes::AppState,
     services::{
         authentication::{AuthToken, UserFromToken},
-        authorization::roles::{self, RoleInfo},
+        authorization::roles::RoleInfo,
     },
     types::domain::{self, MerchantAccount, UserFromStorage},
 };
@@ -64,7 +64,7 @@ impl UserFromToken {
     }
 
     pub async fn get_role_info_from_db(&self, state: &AppState) -> UserResult<RoleInfo> {
-        roles::RoleInfo::from_role_id(state, &self.role_id, &self.merchant_id, &self.org_id)
+        RoleInfo::from_role_id(state, &self.role_id, &self.merchant_id, &self.org_id)
             .await
             .change_context(UserErrors::InternalServerError)
     }

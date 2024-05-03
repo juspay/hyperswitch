@@ -244,7 +244,7 @@ impl TryFrom<types::PaymentsResponseRouterData<WorldpayPaymentsResponse>>
                 })?,
             },
             description: item.response.description,
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
+            response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::try_from(item.response.links)?,
                 redirection_data: None,
                 mandate_reference: None,

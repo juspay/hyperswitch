@@ -647,7 +647,7 @@ fn from_timestamp_to_datetime(
             }
         })?;
 
-        Ok(Some(time::PrimitiveDateTime::new(time.date(), time.time())))
+        Ok(Some(PrimitiveDateTime::new(time.date(), time.time())))
     } else {
         Ok(None)
     }
@@ -742,7 +742,7 @@ impl ForeignTryFrom<(Option<MandateData>, Option<String>)> for Option<payments::
                         },
                     ))),
                 },
-                None => Some(api_models::payments::MandateType::MultiUse(Some(
+                None => Some(payments::MandateType::MultiUse(Some(
                     payments::MandateAmountData {
                         amount: mandate.amount.unwrap_or_default(),
                         currency,

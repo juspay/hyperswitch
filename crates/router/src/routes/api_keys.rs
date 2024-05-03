@@ -131,7 +131,7 @@ pub async fn api_key_update(
     let (merchant_id, key_id) = path.into_inner();
     let mut payload = json_payload.into_inner();
     payload.key_id = key_id;
-    payload.merchant_id = merchant_id.clone();
+    payload.merchant_id.clone_from(&merchant_id);
 
     api::server_wrap(
         flow,

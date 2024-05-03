@@ -63,7 +63,7 @@ fn get_dir_path(name: impl AsRef<str>) -> String {
 
 // This function currently allows you to add only custom headers.
 // In future, as we scale, this can be modified based on the need
-fn insert_content<T, U>(dir: T, content_to_insert: U) -> std::io::Result<()>
+fn insert_content<T, U>(dir: T, content_to_insert: U) -> io::Result<()>
 where
     T: AsRef<Path>,
     U: AsRef<str>,
@@ -72,7 +72,7 @@ where
     let file_path = dir.as_ref().join(file_name);
 
     // Open the file in write mode or create it if it doesn't exist
-    let mut file = std::fs::OpenOptions::new()
+    let mut file = OpenOptions::new()
         .append(true)
         .create(true)
         .open(file_path)?;

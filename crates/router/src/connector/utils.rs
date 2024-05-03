@@ -363,10 +363,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
     }
 
     fn is_three_ds(&self) -> bool {
-        matches!(
-            self.auth_type,
-            diesel_models::enums::AuthenticationType::ThreeDs
-        )
+        matches!(self.auth_type, enums::AuthenticationType::ThreeDs)
     }
 
     fn get_shipping_address(&self) -> Result<&api::AddressDetails, Error> {
@@ -430,8 +427,8 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
 
 pub trait PaymentsPreProcessingData {
     fn get_email(&self) -> Result<Email, Error>;
-    fn get_payment_method_type(&self) -> Result<diesel_models::enums::PaymentMethodType, Error>;
-    fn get_currency(&self) -> Result<diesel_models::enums::Currency, Error>;
+    fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error>;
+    fn get_currency(&self) -> Result<enums::Currency, Error>;
     fn get_amount(&self) -> Result<i64, Error>;
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
@@ -445,12 +442,12 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
     fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
     }
-    fn get_payment_method_type(&self) -> Result<diesel_models::enums::PaymentMethodType, Error> {
+    fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error> {
         self.payment_method_type
             .to_owned()
             .ok_or_else(missing_field_err("payment_method_type"))
     }
-    fn get_currency(&self) -> Result<diesel_models::enums::Currency, Error> {
+    fn get_currency(&self) -> Result<enums::Currency, Error> {
         self.currency.ok_or_else(missing_field_err("currency"))
     }
     fn get_amount(&self) -> Result<i64, Error> {
@@ -458,8 +455,8 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
     }
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
-            Some(diesel_models::enums::CaptureMethod::Automatic) | None => Ok(true),
-            Some(diesel_models::enums::CaptureMethod::Manual) => Ok(false),
+            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Manual) => Ok(false),
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
     }
@@ -551,7 +548,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_router_return_url(&self) -> Result<String, Error>;
     fn is_wallet(&self) -> bool;
     fn is_card(&self) -> bool;
-    fn get_payment_method_type(&self) -> Result<diesel_models::enums::PaymentMethodType, Error>;
+    fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error>;
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
     fn get_ip_address_as_optional(&self) -> Option<Secret<String, IpAddress>>;
@@ -578,8 +575,8 @@ impl PaymentMethodTokenizationRequestData for types::PaymentMethodTokenizationDa
 impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
-            Some(diesel_models::enums::CaptureMethod::Automatic) | None => Ok(true),
-            Some(diesel_models::enums::CaptureMethod::Manual) => Ok(false),
+            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Manual) => Ok(false),
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
     }
@@ -619,9 +616,9 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
         self.mandate_id
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
-                Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                    connector_mandate_ids,
-                )) => connector_mandate_ids.connector_mandate_id.clone(),
+                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                    connector_mandate_ids.connector_mandate_id.clone()
+                }
                 _ => None,
             })
     }
@@ -653,7 +650,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
         matches!(self.payment_method_data, domain::PaymentMethodData::Card(_))
     }
 
-    fn get_payment_method_type(&self) -> Result<diesel_models::enums::PaymentMethodType, Error> {
+    fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error> {
         self.payment_method_type
             .to_owned()
             .ok_or_else(missing_field_err("payment_method_type"))
@@ -797,8 +794,8 @@ pub trait PaymentsCompleteAuthorizeRequestData {
 impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
-            Some(diesel_models::enums::CaptureMethod::Automatic) | None => Ok(true),
-            Some(diesel_models::enums::CaptureMethod::Manual) => Ok(false),
+            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Manual) => Ok(false),
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
     }
@@ -831,8 +828,8 @@ pub trait PaymentsSyncRequestData {
 impl PaymentsSyncRequestData for types::PaymentsSyncData {
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
-            Some(diesel_models::enums::CaptureMethod::Automatic) | None => Ok(true),
-            Some(diesel_models::enums::CaptureMethod::Manual) => Ok(false),
+            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Manual) => Ok(false),
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
     }
@@ -910,7 +907,7 @@ impl CustomerDetails for types::CustomerDetails {
 
 pub trait PaymentsCancelRequestData {
     fn get_amount(&self) -> Result<i64, Error>;
-    fn get_currency(&self) -> Result<diesel_models::enums::Currency, Error>;
+    fn get_currency(&self) -> Result<enums::Currency, Error>;
     fn get_cancellation_reason(&self) -> Result<String, Error>;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
 }
@@ -919,7 +916,7 @@ impl PaymentsCancelRequestData for PaymentsCancelData {
     fn get_amount(&self) -> Result<i64, Error> {
         self.amount.ok_or_else(missing_field_err("amount"))
     }
-    fn get_currency(&self) -> Result<diesel_models::enums::Currency, Error> {
+    fn get_currency(&self) -> Result<enums::Currency, Error> {
         self.currency.ok_or_else(missing_field_err("currency"))
     }
     fn get_cancellation_reason(&self) -> Result<String, Error> {
@@ -1466,7 +1463,7 @@ impl MandateData for payments::MandateAmountData {
 
 pub trait RecurringMandateData {
     fn get_original_payment_amount(&self) -> Result<i64, Error>;
-    fn get_original_payment_currency(&self) -> Result<diesel_models::enums::Currency, Error>;
+    fn get_original_payment_currency(&self) -> Result<enums::Currency, Error>;
 }
 
 impl RecurringMandateData for RecurringMandatePaymentData {
@@ -1474,7 +1471,7 @@ impl RecurringMandateData for RecurringMandatePaymentData {
         self.original_payment_authorized_amount
             .ok_or_else(missing_field_err("original_payment_authorized_amount"))
     }
-    fn get_original_payment_currency(&self) -> Result<diesel_models::enums::Currency, Error> {
+    fn get_original_payment_currency(&self) -> Result<enums::Currency, Error> {
         self.original_payment_authorized_currency
             .ok_or_else(missing_field_err("original_payment_authorized_currency"))
     }
@@ -1484,7 +1481,7 @@ pub trait MandateReferenceData {
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
 }
 
-impl MandateReferenceData for api_models::payments::ConnectorMandateReferenceId {
+impl MandateReferenceData for payments::ConnectorMandateReferenceId {
     fn get_connector_mandate_id(&self) -> Result<String, Error> {
         self.connector_mandate_id
             .clone()
@@ -1571,7 +1568,7 @@ pub fn base64_decode(data: String) -> Result<Vec<u8>, Error> {
 
 pub fn to_currency_base_unit_from_optional_amount(
     amount: Option<i64>,
-    currency: diesel_models::enums::Currency,
+    currency: enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     match amount {
         Some(a) => to_currency_base_unit(a, currency),
@@ -1583,25 +1580,25 @@ pub fn to_currency_base_unit_from_optional_amount(
 }
 
 pub fn get_amount_as_string(
-    currency_unit: &types::api::CurrencyUnit,
+    currency_unit: &api::CurrencyUnit,
     amount: i64,
-    currency: diesel_models::enums::Currency,
+    currency: enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     let amount = match currency_unit {
-        types::api::CurrencyUnit::Minor => amount.to_string(),
-        types::api::CurrencyUnit::Base => to_currency_base_unit(amount, currency)?,
+        api::CurrencyUnit::Minor => amount.to_string(),
+        api::CurrencyUnit::Base => to_currency_base_unit(amount, currency)?,
     };
     Ok(amount)
 }
 
 pub fn get_amount_as_f64(
-    currency_unit: &types::api::CurrencyUnit,
+    currency_unit: &api::CurrencyUnit,
     amount: i64,
-    currency: diesel_models::enums::Currency,
+    currency: enums::Currency,
 ) -> Result<f64, error_stack::Report<errors::ConnectorError>> {
     let amount = match currency_unit {
-        types::api::CurrencyUnit::Base => to_currency_base_unit_asf64(amount, currency)?,
-        types::api::CurrencyUnit::Minor => u32::try_from(amount)
+        api::CurrencyUnit::Base => to_currency_base_unit_asf64(amount, currency)?,
+        api::CurrencyUnit::Minor => u32::try_from(amount)
             .change_context(errors::ConnectorError::ParsingFailed)?
             .into(),
     };
@@ -1610,7 +1607,7 @@ pub fn get_amount_as_f64(
 
 pub fn to_currency_base_unit(
     amount: i64,
-    currency: diesel_models::enums::Currency,
+    currency: enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     currency
         .to_currency_base_unit(amount)
@@ -1619,7 +1616,7 @@ pub fn to_currency_base_unit(
 
 pub fn to_currency_lower_unit(
     amount: String,
-    currency: diesel_models::enums::Currency,
+    currency: enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     currency
         .to_currency_lower_unit(amount)
@@ -1647,7 +1644,7 @@ pub fn construct_not_supported_error_report(
 
 pub fn to_currency_base_unit_with_zero_decimal_check(
     amount: i64,
-    currency: diesel_models::enums::Currency,
+    currency: enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     currency
         .to_currency_base_unit_with_zero_decimal_check(amount)
@@ -1656,7 +1653,7 @@ pub fn to_currency_base_unit_with_zero_decimal_check(
 
 pub fn to_currency_base_unit_asf64(
     amount: i64,
-    currency: diesel_models::enums::Currency,
+    currency: enums::Currency,
 ) -> Result<f64, error_stack::Report<errors::ConnectorError>> {
     currency
         .to_currency_base_unit_asf64(amount)

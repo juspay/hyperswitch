@@ -2274,7 +2274,7 @@ impl services::ConnectorRedirectResponse for Stripe {
         _query_params: &str,
         _json_payload: Option<serde_json::Value>,
         action: services::PaymentAction,
-    ) -> CustomResult<crate::core::payments::CallConnectorAction, errors::ConnectorError> {
+    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
         match action {
             services::PaymentAction::PSync
             | services::PaymentAction::CompleteAuthorize

@@ -36,22 +36,10 @@ pub struct BluesnapRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for BluesnapRouterData<T>
-{
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for BluesnapRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (currency_unit, currency, amount, item): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
+        (currency_unit, currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
     ) -> Result<Self, Self::Error> {
         let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
         Ok(Self {
@@ -150,7 +138,7 @@ pub struct BluesnapGooglePayObject {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapApplePayObject {
-    token: api_models::payments::ApplePayWalletData,
+    token: payments::ApplePayWalletData,
 }
 
 #[derive(Debug, Serialize)]
@@ -447,23 +435,19 @@ impl TryFrom<&types::PaymentsSessionRouterData> for BluesnapCreateWalletToken {
         let apple_pay_metadata = item.get_connector_meta()?.expose();
         let applepay_metadata = apple_pay_metadata
             .clone()
-            .parse_value::<api_models::payments::ApplepayCombinedSessionTokenData>(
+            .parse_value::<payments::ApplepayCombinedSessionTokenData>(
                 "ApplepayCombinedSessionTokenData",
             )
             .map(|combined_metadata| {
-                api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
+                payments::ApplepaySessionTokenMetadata::ApplePayCombined(
                     combined_metadata.apple_pay_combined,
                 )
             })
             .or_else(|_| {
                 apple_pay_metadata
-                    .parse_value::<api_models::payments::ApplepaySessionTokenData>(
-                        "ApplepaySessionTokenData",
-                    )
+                    .parse_value::<payments::ApplepaySessionTokenData>("ApplepaySessionTokenData")
                     .map(|old_metadata| {
-                        api_models::payments::ApplepaySessionTokenMetadata::ApplePay(
-                            old_metadata.apple_pay,
-                        )
+                        payments::ApplepaySessionTokenMetadata::ApplePay(old_metadata.apple_pay)
                     })
             })
             .change_context(errors::ConnectorError::ParsingFailed)?;
@@ -500,31 +484,26 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
             .decode(response.wallet_token.clone().expose())
             .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
-        let session_response: api_models::payments::NoThirdPartySdkSessionResponse =
-            wallet_token[..]
-                .parse_struct("NoThirdPartySdkSessionResponse")
-                .change_context(errors::ConnectorError::ParsingFailed)?;
+        let session_response: payments::NoThirdPartySdkSessionResponse = wallet_token[..]
+            .parse_struct("NoThirdPartySdkSessionResponse")
+            .change_context(errors::ConnectorError::ParsingFailed)?;
 
         let metadata = item.data.get_connector_meta()?.expose();
         let applepay_metadata = metadata
             .clone()
-            .parse_value::<api_models::payments::ApplepayCombinedSessionTokenData>(
+            .parse_value::<payments::ApplepayCombinedSessionTokenData>(
                 "ApplepayCombinedSessionTokenData",
             )
             .map(|combined_metadata| {
-                api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
+                payments::ApplepaySessionTokenMetadata::ApplePayCombined(
                     combined_metadata.apple_pay_combined,
                 )
             })
             .or_else(|_| {
                 metadata
-                    .parse_value::<api_models::payments::ApplepaySessionTokenData>(
-                        "ApplepaySessionTokenData",
-                    )
+                    .parse_value::<payments::ApplepaySessionTokenData>("ApplepaySessionTokenData")
                     .map(|old_metadata| {
-                        api_models::payments::ApplepaySessionTokenMetadata::ApplePay(
-                            old_metadata.apple_pay,
-                        )
+                        payments::ApplepaySessionTokenMetadata::ApplePay(old_metadata.apple_pay)
                     })
             })
             .change_context(errors::ConnectorError::ParsingFailed)?;
@@ -543,16 +522,15 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
 
         Ok(Self {
             response: Ok(types::PaymentsResponseData::SessionResponse {
-                session_token: types::api::SessionToken::ApplePay(Box::new(
-                    api_models::payments::ApplepaySessionTokenResponse {
-                        session_token_data:
-                            api_models::payments::ApplePaySessionResponse::NoThirdPartySdk(
-                                session_response,
-                            ),
-                        payment_request_data: Some(api_models::payments::ApplePayPaymentRequest {
+                session_token: api::SessionToken::ApplePay(Box::new(
+                    payments::ApplepaySessionTokenResponse {
+                        session_token_data: payments::ApplePaySessionResponse::NoThirdPartySdk(
+                            session_response,
+                        ),
+                        payment_request_data: Some(payments::ApplePayPaymentRequest {
                             country_code: item.data.get_billing_country()?,
                             currency_code: item.data.request.currency,
-                            total: api_models::payments::AmountInfo {
+                            total: payments::AmountInfo {
                                 label: payment_request_data.label,
                                 total_type: Some("final".to_string()),
                                 amount: item.data.request.amount.to_string(),

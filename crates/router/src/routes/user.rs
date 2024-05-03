@@ -159,9 +159,10 @@ pub async fn set_dashboard_metadata(
     let flow = Flow::SetDashboardMetadata;
     let mut payload = json_payload.into_inner();
 
-    if let Err(e) = common_utils::errors::ReportSwitchExt::<(), ApiErrorResponse>::switch(
-        set_ip_address_if_required(&mut payload, req.headers()),
-    ) {
+    if let Err(e) = ReportSwitchExt::<(), ApiErrorResponse>::switch(set_ip_address_if_required(
+        &mut payload,
+        req.headers(),
+    )) {
         return api::log_and_return_error_response(e);
     }
 

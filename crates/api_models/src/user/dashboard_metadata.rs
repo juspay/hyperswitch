@@ -33,7 +33,7 @@ pub enum SetMetaDataRequest {
 pub struct ProductionAgreementRequest {
     pub version: String,
     #[serde(skip_deserializing)]
-    pub ip_address: Option<Secret<String, common_utils::pii::IpAddress>>,
+    pub ip_address: Option<Secret<String, pii::IpAddress>>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]

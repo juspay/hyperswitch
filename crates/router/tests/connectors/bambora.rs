@@ -40,7 +40,7 @@ static CONNECTOR: BamboraTest = BamboraTest {};
 
 fn get_default_payment_authorize_data() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
-        payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+        payment_method_data: domain::PaymentMethodData::Card(domain::Card {
             card_number: cards::CardNumber::from_str("4030000010001234").unwrap(),
             card_exp_year: Secret::new("25".to_string()),
             card_cvc: Secret::new("123".to_string()),
@@ -101,7 +101,7 @@ async fn should_sync_authorized_payment() {
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
                 mandate_id: None,
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     txn_id.unwrap(),
                 ),
                 encoded_data: None,
@@ -217,7 +217,7 @@ async fn should_sync_auto_captured_payment() {
             enums::AttemptStatus::Charged,
             Some(types::PaymentsSyncData {
                 mandate_id: None,
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     txn_id.unwrap(),
                 ),
                 encoded_data: None,
@@ -296,7 +296,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_number: cards::CardNumber::from_str("1234567891011").unwrap(),
                     card_exp_year: Secret::new("25".to_string()),
                     ..utils::CCardType::default().0
@@ -319,7 +319,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_exp_year: Secret::new("25".to_string()),
                     card_cvc: Secret::new("12345".to_string()),
                     ..utils::CCardType::default().0
@@ -342,7 +342,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_exp_month: Secret::new("20".to_string()),
                     card_number: cards::CardNumber::from_str("4030000010001234").unwrap(),
                     card_exp_year: Secret::new("25".to_string()),
@@ -367,7 +367,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_exp_year: Secret::new("2000".to_string()),
                     card_number: cards::CardNumber::from_str("4030000010001234").unwrap(),
                     card_cvc: Secret::new("123".to_string()),

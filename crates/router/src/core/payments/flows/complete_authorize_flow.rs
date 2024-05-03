@@ -172,7 +172,7 @@ pub async fn complete_authorize_preprocessing_steps<F: Clone>(
             Err(types::ErrorResponse::default());
 
         let preprocessing_router_data =
-            payments::helpers::router_data_type_conversion::<_, api::PreProcessing, _, _, _, _>(
+            helpers::router_data_type_conversion::<_, api::PreProcessing, _, _, _, _>(
                 router_data.clone(),
                 preprocessing_request_data,
                 preprocessing_response_data,
@@ -206,15 +206,14 @@ pub async fn complete_authorize_preprocessing_steps<F: Clone>(
             connector_metadata, ..
         }) = &resp.response
         {
-            router_data_request.connector_meta = connector_metadata.to_owned();
+            connector_metadata.clone_into(&mut router_data_request.connector_meta);
         };
 
-        let authorize_router_data =
-            payments::helpers::router_data_type_conversion::<_, F, _, _, _, _>(
-                resp.clone(),
-                router_data_request,
-                resp.response,
-            );
+        let authorize_router_data = helpers::router_data_type_conversion::<_, F, _, _, _, _>(
+            resp.clone(),
+            router_data_request,
+            resp.response,
+        );
 
         Ok(authorize_router_data)
     } else {

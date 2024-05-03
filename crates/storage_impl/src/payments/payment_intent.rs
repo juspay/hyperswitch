@@ -257,7 +257,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, StorageError> {
         match payment.active_attempt.clone() {
-            hyperswitch_domain_models::RemoteStorageObject::ForeignID(attempt_id) => {
+            RemoteStorageObject::ForeignID(attempt_id) => {
                 let conn = pg_connection_read(self).await?;
 
                 let pa = DieselPaymentAttempt::find_by_merchant_id_attempt_id(
@@ -271,11 +271,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     er.change_context(new_err)
                 })
                 .map(PaymentAttempt::from_storage_model)?;
-                payment.active_attempt =
-                    hyperswitch_domain_models::RemoteStorageObject::Object(pa.clone());
+                payment.active_attempt = RemoteStorageObject::Object(pa.clone());
                 Ok(pa)
             }
-            hyperswitch_domain_models::RemoteStorageObject::Object(pa) => Ok(pa.clone()),
+            RemoteStorageObject::Object(pa) => Ok(pa.clone()),
         }
     }
 
@@ -397,7 +396,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, StorageError> {
         match &payment.active_attempt {
-            hyperswitch_domain_models::RemoteStorageObject::ForeignID(attempt_id) => {
+            RemoteStorageObject::ForeignID(attempt_id) => {
                 let conn = pg_connection_read(self).await?;
 
                 let pa = DieselPaymentAttempt::find_by_merchant_id_attempt_id(
@@ -411,11 +410,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     er.change_context(new_err)
                 })
                 .map(PaymentAttempt::from_storage_model)?;
-                payment.active_attempt =
-                    hyperswitch_domain_models::RemoteStorageObject::Object(pa.clone());
+                payment.active_attempt = RemoteStorageObject::Object(pa.clone());
                 Ok(pa)
             }
-            hyperswitch_domain_models::RemoteStorageObject::Object(pa) => Ok(pa.clone()),
+            RemoteStorageObject::Object(pa) => Ok(pa.clone()),
         }
     }
 

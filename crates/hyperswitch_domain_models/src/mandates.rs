@@ -169,8 +169,7 @@ impl CustomerAcceptance {
     }
 
     pub fn get_accepted_at(&self) -> PrimitiveDateTime {
-        self.accepted_at
-            .unwrap_or_else(common_utils::date_time::now)
+        self.accepted_at.unwrap_or_else(date_time::now)
     }
 }
 

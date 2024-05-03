@@ -268,7 +268,7 @@ pub async fn create_merchant_account(
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)?;
 
-    db.insert_config(diesel_models::configs::ConfigNew {
+    db.insert_config(configs::ConfigNew {
         key: format!("{}_requires_cvv", merchant_account.merchant_id),
         config: "true".to_string(),
     })
@@ -545,7 +545,7 @@ pub async fn merchant_account_update(
     let updated_merchant_account = storage::MerchantAccountUpdate::Update {
         merchant_name: req
             .merchant_name
-            .map(masking::Secret::new)
+            .map(Secret::new)
             .async_lift(|inner| domain_types::encrypt_optional(inner, key))
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -554,11 +554,11 @@ pub async fn merchant_account_update(
         merchant_details: req
             .merchant_details
             .as_ref()
-            .map(utils::Encode::encode_to_value)
+            .map(Encode::encode_to_value)
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to convert merchant_details to a value")?
-            .map(masking::Secret::new)
+            .map(Secret::new)
             .async_lift(|inner| domain_types::encrypt_optional(inner, key))
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -569,7 +569,7 @@ pub async fn merchant_account_update(
         webhook_details: req
             .webhook_details
             .as_ref()
-            .map(utils::Encode::encode_to_value)
+            .map(Encode::encode_to_value)
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)?,
 
@@ -941,8 +941,8 @@ pub async fn create_payment_connector(
         business_country: req.business_country,
         business_label: req.business_label.clone(),
         business_sub_label: req.business_sub_label.clone(),
-        created_at: common_utils::date_time::now(),
-        modified_at: common_utils::date_time::now(),
+        created_at: date_time::now(),
+        modified_at: date_time::now(),
         id: None,
         connector_webhook_details: match req.connector_webhook_details {
             Some(connector_webhook_details) => {
@@ -951,7 +951,7 @@ pub async fn create_payment_connector(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(format!("Failed to serialize api_models::admin::MerchantConnectorWebhookDetails for Merchant: {}", merchant_id))
                 .map(Some)?
-                .map(masking::Secret::new)
+                .map(Secret::new)
             }
             None => None,
         },
@@ -1278,7 +1278,7 @@ pub async fn update_payment_connector(
                 .encode_to_value()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .map(Some)?
-                .map(masking::Secret::new),
+                .map(Secret::new),
             None => None,
         },
         applepay_verified_domains: None,
@@ -1458,7 +1458,7 @@ pub fn get_frm_config_as_secret(
                     config
                         .encode_to_value()
                         .change_context(errors::ApiErrorResponse::ConfigNotFound)
-                        .map(masking::Secret::new)
+                        .map(Secret::new)
                 })
                 .collect::<Result<Vec<_>, _>>()
                 .ok()?;

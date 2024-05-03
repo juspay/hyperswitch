@@ -270,7 +270,7 @@ mod api_key_expiration_tests {
         let date = time::Date::from_calendar_date(2022, time::Month::September, 10).unwrap();
         let time = time::Time::from_hms(11, 12, 13).unwrap();
         assert_eq!(
-            serde_json::to_string(&ApiKeyExpiration::DateTime(time::PrimitiveDateTime::new(
+            serde_json::to_string(&ApiKeyExpiration::DateTime(PrimitiveDateTime::new(
                 date, time
             )))
             .unwrap(),
@@ -289,7 +289,7 @@ mod api_key_expiration_tests {
         let time = time::Time::from_hms(11, 12, 13).unwrap();
         assert_eq!(
             serde_json::from_str::<ApiKeyExpiration>(r#""2022-09-10T11:12:13.000Z""#).unwrap(),
-            ApiKeyExpiration::DateTime(time::PrimitiveDateTime::new(date, time))
+            ApiKeyExpiration::DateTime(PrimitiveDateTime::new(date, time))
         );
     }
 

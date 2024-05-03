@@ -1,4 +1,8 @@
-use std::{hash::Hash, rc::Rc};
+use std::{
+    fmt::{Display, Formatter},
+    hash::Hash,
+    rc::Rc,
+};
 
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote};
@@ -24,15 +28,16 @@ enum Comparison {
     LessThanEqual,
 }
 
-impl ToString for Comparison {
-    fn to_string(&self) -> String {
-        match self {
-            Self::LessThan => "< ".to_string(),
-            Self::Equal => String::new(),
-            Self::GreaterThanEqual => ">= ".to_string(),
-            Self::LessThanEqual => "<= ".to_string(),
-            Self::GreaterThan => "> ".to_string(),
-        }
+impl Display for Comparison {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let symbol = match self {
+            Self::LessThan => "< ",
+            Self::Equal => return Ok(()),
+            Self::GreaterThanEqual => ">= ",
+            Self::LessThanEqual => "<= ",
+            Self::GreaterThan => "> ",
+        };
+        write!(f, "{}", symbol)
     }
 }
 
@@ -69,7 +74,7 @@ impl ValueType {
             Self::Any => format!("{key}(any)"),
             Self::EnumVariant(s) => format!("{key}({s})"),
             Self::Number { number, comparison } => {
-                format!("{}({}{})", key, comparison.to_string(), number)
+                format!("{}({}{})", key, comparison, number)
             }
         }
     }
@@ -104,9 +109,9 @@ struct Atom {
     value: ValueType,
 }
 
-impl ToString for Atom {
-    fn to_string(&self) -> String {
-        self.value.to_string(&self.key)
+impl Display for Atom {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.value.to_string(&self.key))
     }
 }
 
@@ -317,15 +322,14 @@ impl Parse for Scope {
     }
 }
 
-impl ToString for Scope {
-    fn to_string(&self) -> String {
+impl Display for Scope {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Crate => "crate".to_string(),
-            Self::Extern => "euclid".to_string(),
+            Self::Crate => write!(f, "crate"),
+            Self::Extern => write!(f, "euclid"),
         }
     }
 }
-
 #[derive(Clone)]
 struct Program {
     rules: Vec<Rc<Rule>>,

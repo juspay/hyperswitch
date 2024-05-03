@@ -5,10 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     connector::utils::{self, CardData, PaymentsAuthorizeRequestData, RefundsRequestData},
     core::errors,
-    types::{
-        self, api, domain,
-        storage::{self, enums},
-    },
+    types::{self, api, domain, storage::enums},
 };
 
 #[derive(Debug, Serialize)]
@@ -25,7 +22,7 @@ pub struct TsysPaymentAuthSaleRequest {
     transaction_key: Secret<String>,
     card_data_source: String,
     transaction_amount: String,
-    currency_code: storage::enums::Currency,
+    currency_code: enums::Currency,
     card_number: cards::CardNumber,
     expiration_date: Secret<String>,
     cvv2: Secret<String>,

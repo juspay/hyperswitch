@@ -35,7 +35,7 @@ pub fn update_router_data_with_access_token_result<F, Req, Res>(
     if should_update_router_data {
         match add_access_token_result.access_token_result.as_ref() {
             Ok(access_token) => {
-                router_data.access_token = access_token.clone();
+                router_data.access_token.clone_from(access_token);
                 true
             }
             Err(connector_error) => {

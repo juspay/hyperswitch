@@ -24,7 +24,7 @@ where
 #[inline]
 pub async fn record_operation_time<F, R>(
     future: F,
-    metric: &once_cell::sync::Lazy<router_env::opentelemetry::metrics::Histogram<f64>>,
+    metric: &once_cell::sync::Lazy<opentelemetry::metrics::Histogram<f64>>,
     key_value: &[opentelemetry::KeyValue],
 ) -> R
 where
@@ -35,11 +35,11 @@ where
     result
 }
 
-pub fn add_attributes<T: Into<router_env::opentelemetry::Value>>(
+pub fn add_attributes<T: Into<opentelemetry::Value>>(
     key: &'static str,
     value: T,
-) -> router_env::opentelemetry::KeyValue {
-    router_env::opentelemetry::KeyValue::new(key, value)
+) -> opentelemetry::KeyValue {
+    opentelemetry::KeyValue::new(key, value)
 }
 
 pub fn status_code_metrics(status_code: i64, flow: String, merchant_id: String) {

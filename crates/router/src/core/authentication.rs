@@ -12,7 +12,6 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 
-use super::errors;
 use crate::{
     core::{errors::ApiErrorResponse, payments as payments_core},
     routes::AppState,
@@ -26,10 +25,10 @@ pub async fn perform_authentication(
     authentication_connector: String,
     payment_method_data: payments::PaymentMethodData,
     payment_method: common_enums::PaymentMethod,
-    billing_address: api_models::payments::Address,
-    shipping_address: Option<api_models::payments::Address>,
+    billing_address: payments::Address,
+    shipping_address: Option<payments::Address>,
     browser_details: Option<core_types::BrowserInformation>,
-    business_profile: core_types::storage::BusinessProfile,
+    business_profile: storage::BusinessProfile,
     merchant_connector_account: payments_core::helpers::MerchantConnectorAccountType,
     amount: Option<i64>,
     currency: Option<Currency>,
@@ -38,10 +37,10 @@ pub async fn perform_authentication(
     authentication_data: storage::Authentication,
     return_url: Option<String>,
     sdk_information: Option<payments::SdkInformation>,
-    threeds_method_comp_ind: api_models::payments::ThreeDsCompletionIndicator,
+    threeds_method_comp_ind: payments::ThreeDsCompletionIndicator,
     email: Option<common_utils::pii::Email>,
     webhook_url: String,
-) -> CustomResult<core_types::api::authentication::AuthenticationResponse, ApiErrorResponse> {
+) -> CustomResult<api::authentication::AuthenticationResponse, ApiErrorResponse> {
     let router_data = transformers::construct_authentication_router_data(
         authentication_connector.clone(),
         payment_method_data,
@@ -82,7 +81,7 @@ pub async fn perform_authentication(
             ..
         } => Ok(match authn_flow_type {
             core_types::authentication::AuthNFlowType::Challenge(challenge_params) => {
-                core_types::api::AuthenticationResponse {
+                api::AuthenticationResponse {
                     trans_status,
                     acs_url: challenge_params.acs_url,
                     challenge_request: challenge_params.challenge_request,
@@ -93,7 +92,7 @@ pub async fn perform_authentication(
                 }
             }
             core_types::authentication::AuthNFlowType::Frictionless => {
-                core_types::api::AuthenticationResponse {
+                api::AuthenticationResponse {
                     trans_status,
                     acs_url: None,
                     challenge_request: None,
@@ -104,7 +103,7 @@ pub async fn perform_authentication(
                 }
             }
         }),
-        _ => Err(report!(errors::ApiErrorResponse::InternalServerError))
+        _ => Err(report!(ApiErrorResponse::InternalServerError))
             .attach_printable("unexpected response in authentication flow")?,
     }
 }
@@ -112,7 +111,7 @@ pub async fn perform_authentication(
 pub async fn perform_post_authentication<F: Clone + Send>(
     state: &AppState,
     authentication_connector: String,
-    business_profile: core_types::storage::BusinessProfile,
+    business_profile: storage::BusinessProfile,
     merchant_connector_account: payments_core::helpers::MerchantConnectorAccountType,
     authentication_flow_input: types::PostAuthenthenticationFlowInput<'_, F>,
 ) -> CustomResult<(), ApiErrorResponse> {
@@ -182,7 +181,7 @@ pub async fn perform_pre_authentication<F: Clone + Send>(
     state: &AppState,
     authentication_connector_name: String,
     authentication_flow_input: types::PreAuthenthenticationFlowInput<'_, F>,
-    business_profile: &core_types::storage::BusinessProfile,
+    business_profile: &storage::BusinessProfile,
     three_ds_connector_account: payments_core::helpers::MerchantConnectorAccountType,
     payment_connector_account: payments_core::helpers::MerchantConnectorAccountType,
 ) -> CustomResult<(), ApiErrorResponse> {
@@ -195,7 +194,7 @@ pub async fn perform_pre_authentication<F: Clone + Send>(
         payment_id,
         three_ds_connector_account
             .get_mca_id()
-            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .ok_or(ApiErrorResponse::InternalServerError)
             .attach_printable("Error while finding mca_id from merchant_connector_account")?,
     )
     .await?;
@@ -241,7 +240,7 @@ pub async fn perform_pre_authentication<F: Clone + Send>(
                 let default_poll_config = core_types::PollConfig::default();
                 let default_config_str = default_poll_config
                     .encode_to_string_of_json()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .change_context(ApiErrorResponse::InternalServerError)
                     .attach_printable("Error while stringifying default poll config")?;
                 let poll_config = state
                     .store
@@ -250,12 +249,12 @@ pub async fn perform_pre_authentication<F: Clone + Send>(
                         Some(default_config_str),
                     )
                     .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .change_context(ApiErrorResponse::InternalServerError)
                     .attach_printable("The poll config was not found in the DB")?;
                 let poll_config: core_types::PollConfig = poll_config
                     .config
                     .parse_struct("PollConfig")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .change_context(ApiErrorResponse::InternalServerError)
                     .attach_printable("Error while parsing PollConfig")?;
                 payment_data.poll_config = Some(poll_config)
             }

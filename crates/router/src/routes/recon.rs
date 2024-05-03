@@ -18,7 +18,7 @@ use crate::{
         recon::ReconToken,
     },
     types::{
-        api::{self as api_types, enums},
+        api::{self as api_types},
         domain::{UserEmail, UserFromStorage, UserName},
         storage,
     },
@@ -125,7 +125,7 @@ pub async fn send_recon_request(
 
     if is_email_sent {
         let updated_merchant_account = storage::MerchantAccountUpdate::ReconUpdate {
-            recon_status: enums::ReconStatus::Requested,
+            recon_status: ReconStatus::Requested,
         };
 
         let response = db
@@ -144,7 +144,7 @@ pub async fn send_recon_request(
     } else {
         Ok(service_api::ApplicationResponse::Json(
             recon_api::ReconStatusResponse {
-                recon_status: enums::ReconStatus::NotRequested,
+                recon_status: ReconStatus::NotRequested,
             },
         ))
     }

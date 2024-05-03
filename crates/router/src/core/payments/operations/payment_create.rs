@@ -31,7 +31,6 @@ use crate::{
     routes::{app::ReqState, AppState},
     services,
     types::{
-        self,
         api::{self, PaymentIdTypeExt},
         domain,
         storage::{
@@ -933,7 +932,7 @@ impl PaymentCreate {
     #[allow(clippy::too_many_arguments)]
     async fn make_payment_intent(
         payment_id: &str,
-        merchant_account: &types::domain::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
         money: (api::Amount, enums::Currency),
         request: &api::PaymentsRequest,
         shipping_address_id: Option<String>,
@@ -947,7 +946,7 @@ impl PaymentCreate {
         let status =
             helpers::payment_intent_status_fsm(&request.payment_method_data, request.confirm);
         let client_secret =
-            crate::utils::generate_id(consts::ID_LENGTH, format!("{payment_id}_secret").as_str());
+            utils::generate_id(consts::ID_LENGTH, format!("{payment_id}_secret").as_str());
         let (amount, currency) = (money.0, Some(money.1));
 
         let order_details = request

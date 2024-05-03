@@ -89,7 +89,7 @@ pub async fn get_verified_apple_domains_with_mid_mca_id(
     merchant_id: String,
     merchant_connector_id: String,
 ) -> CustomResult<
-    services::ApplicationResponse<api_models::verifications::ApplepayVerifiedDomainsResponse>,
+    services::ApplicationResponse<verifications::ApplepayVerifiedDomainsResponse>,
     api_error_response::ApiErrorResponse,
 > {
     let db = state.store.as_ref();
@@ -110,6 +110,6 @@ pub async fn get_verified_apple_domains_with_mid_mca_id(
         .unwrap_or_default();
 
     Ok(services::api::ApplicationResponse::Json(
-        api_models::verifications::ApplepayVerifiedDomainsResponse { verified_domains },
+        verifications::ApplepayVerifiedDomainsResponse { verified_domains },
     ))
 }

@@ -14,7 +14,7 @@ use crate::{
 
 #[derive(Clone, Debug)]
 pub struct VerifyConnectorData {
-    pub connector: &'static (dyn types::api::Connector + Sync),
+    pub connector: &'static (dyn api::Connector + Sync),
     pub connector_auth: types::ConnectorAuthType,
     pub card_details: domain::Card,
 }
@@ -155,11 +155,11 @@ pub trait VerifyConnector {
     }
 
     async fn handle_payment_error_response<F, R1, R2>(
-        connector: &(dyn types::api::Connector + Sync),
+        connector: &(dyn api::Connector + Sync),
         error_response: types::Response,
     ) -> errors::RouterResponse<()>
     where
-        dyn types::api::Connector + Sync: ConnectorIntegration<F, R1, R2>,
+        dyn api::Connector + Sync: ConnectorIntegration<F, R1, R2>,
     {
         let error = connector
             .get_error_response(error_response, None)
@@ -171,11 +171,11 @@ pub trait VerifyConnector {
     }
 
     async fn handle_access_token_error_response<F, R1, R2>(
-        connector: &(dyn types::api::Connector + Sync),
+        connector: &(dyn api::Connector + Sync),
         error_response: types::Response,
     ) -> errors::RouterResult<Option<types::AccessToken>>
     where
-        dyn types::api::Connector + Sync: ConnectorIntegration<F, R1, R2>,
+        dyn api::Connector + Sync: ConnectorIntegration<F, R1, R2>,
     {
         let error = connector
             .get_error_response(error_response, None)

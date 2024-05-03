@@ -377,8 +377,8 @@ impl UserRoleInterface for MockDb {
                         status,
                         modified_by,
                     } => {
-                        user_role.status = status.to_owned();
-                        user_role.last_modified_by = modified_by.to_owned();
+                        status.clone_into(&mut user_role.status);
+                        modified_by.clone_into(&mut user_role.last_modified_by);
                     }
                 }
                 updated_user_roles.push(user_role.to_owned());

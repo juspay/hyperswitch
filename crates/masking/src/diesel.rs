@@ -52,7 +52,7 @@ where
     S: FromSql<T, DB>,
     I: Strategy<S>,
 {
-    fn from_sql(bytes: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
         S::from_sql(bytes).map(|raw| raw.into())
     }
 }
@@ -122,7 +122,7 @@ where
     S: FromSql<T, DB> + ZeroizableSecret,
     I: Strategy<S>,
 {
-    fn from_sql(bytes: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
         S::from_sql(bytes).map(|raw| raw.into())
     }
 }

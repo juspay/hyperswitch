@@ -16,23 +16,23 @@ use crate::{
 struct WiseTest;
 impl ConnectorActions for WiseTest {}
 impl utils::Connector for WiseTest {
-    fn get_data(&self) -> types::api::ConnectorData {
+    fn get_data(&self) -> api::ConnectorData {
         use router::connector::Adyen;
-        types::api::ConnectorData {
+        api::ConnectorData {
             connector: Box::new(&Adyen),
             connector_name: types::Connector::Adyen,
-            get_token: types::api::GetToken::Connector,
+            get_token: api::GetToken::Connector,
             merchant_connector_id: None,
         }
     }
 
     #[cfg(feature = "payouts")]
-    fn get_payout_data(&self) -> Option<types::api::ConnectorData> {
+    fn get_payout_data(&self) -> Option<api::ConnectorData> {
         use router::connector::Wise;
-        Some(types::api::ConnectorData {
+        Some(api::ConnectorData {
             connector: Box::new(&Wise),
             connector_name: types::Connector::Wise,
-            get_token: types::api::GetToken::Connector,
+            get_token: api::GetToken::Connector,
             merchant_connector_id: None,
         })
     }

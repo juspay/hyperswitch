@@ -7,7 +7,7 @@ use super::errors::{self, RouterResponse};
 use crate::{
     consts,
     routes::AppState,
-    services::{self, ApplicationResponse},
+    services::ApplicationResponse,
     types::{api, domain},
 };
 
@@ -72,9 +72,9 @@ pub async fn files_create_core(
         .attach_printable_lazy(|| {
             format!("Unable to update file_metadata with file_id: {}", file_id)
         })?;
-    Ok(services::api::ApplicationResponse::Json(
-        files::CreateFileResponse { file_id },
-    ))
+    Ok(ApplicationResponse::Json(files::CreateFileResponse {
+        file_id,
+    }))
 }
 
 pub async fn files_delete_core(

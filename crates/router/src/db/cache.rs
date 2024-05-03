@@ -43,7 +43,7 @@ where
     };
     match redis_val {
         Err(err) => match err.current_context() {
-            errors::RedisError::NotFound | errors::RedisError::JsonDeserializationFailed => {
+            RedisError::NotFound | RedisError::JsonDeserializationFailed => {
                 get_data_set_redis().await
             }
             _ => Err(err

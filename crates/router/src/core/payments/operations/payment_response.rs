@@ -19,7 +19,6 @@ use crate::{
         mandate,
         payment_methods::{self, PaymentMethodRetrieve},
         payments::{
-            self,
             helpers::{
                 self as payments_helpers,
                 update_additional_payment_data_with_connector_response_pm_data,
@@ -722,8 +721,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 Some(multiple_capture_data) => {
                     let capture_update = storage::CaptureUpdate::ErrorUpdate {
                         status: match err.status_code {
-                            500..=511 => storage::enums::CaptureStatus::Pending,
-                            _ => storage::enums::CaptureStatus::Failed,
+                            500..=511 => enums::CaptureStatus::Pending,
+                            _ => enums::CaptureStatus::Failed,
                         },
                         error_code: Some(err.code),
                         error_message: Some(err.message),
@@ -756,20 +755,20 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             if flow_name == "PSync" {
                                 match err.status_code {
                                     // marking failure for 2xx because this is genuine payment failure
-                                    200..=299 => storage::enums::AttemptStatus::Failure,
+                                    200..=299 => enums::AttemptStatus::Failure,
                                     _ => router_data.status,
                                 }
                             } else if flow_name == "Capture" {
                                 match err.status_code {
-                                    500..=511 => storage::enums::AttemptStatus::Pending,
+                                    500..=511 => enums::AttemptStatus::Pending,
                                     // don't update the status for 429 error status
                                     429 => router_data.status,
-                                    _ => storage::enums::AttemptStatus::Failure,
+                                    _ => enums::AttemptStatus::Failure,
                                 }
                             } else {
                                 match err.status_code {
-                                    500..=511 => storage::enums::AttemptStatus::Pending,
-                                    _ => storage::enums::AttemptStatus::Failure,
+                                    500..=511 => enums::AttemptStatus::Pending,
+                                    _ => enums::AttemptStatus::Failure,
                                 }
                             }
                         }
@@ -891,8 +890,10 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     };
 
                     if router_data.status == enums::AttemptStatus::Charged {
-                        payment_data.payment_intent.fingerprint_id =
-                            payment_data.payment_attempt.fingerprint_id.clone();
+                        payment_data
+                            .payment_intent
+                            .fingerprint_id
+                            .clone_from(&payment_data.payment_attempt.fingerprint_id);
                         metrics::SUCCESSFUL_PAYMENT.add(&metrics::CONTEXT, 1, &[]);
                     }
 
@@ -1070,8 +1071,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     payment_data.authentication = match payment_data.authentication {
         Some(authentication) => {
             let authentication_update = storage::AuthenticationUpdate::PostAuthorizationUpdate {
-                authentication_lifecycle_status:
-                    storage::enums::AuthenticationLifecycleStatus::Used,
+                authentication_lifecycle_status: enums::AuthenticationLifecycleStatus::Used,
             };
             let updated_authentication = state
                 .store
@@ -1154,7 +1154,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         };
         if let Some(payment_method) = payment_data.payment_method_info.clone() {
             let connector_mandate_details =
-                payments::tokenization::update_connector_mandate_details_in_payment_method(
+                tokenization::update_connector_mandate_details_in_payment_method(
                     payment_method.clone(),
                     payment_method.payment_method_type,
                     Some(payment_data.payment_attempt.amount),

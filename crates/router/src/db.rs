@@ -190,7 +190,7 @@ where
     let bytes = db.get_key(key).await?;
     bytes
         .parse_struct(type_name)
-        .change_context(redis_interface::errors::RedisError::JsonDeserializationFailed)
+        .change_context(RedisError::JsonDeserializationFailed)
 }
 
 dyn_clone::clone_trait_object!(StorageInterface);

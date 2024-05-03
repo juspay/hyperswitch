@@ -563,7 +563,7 @@ pub fn get_card_detail(
         card_token: None,
         card_fingerprint: None,
         card_holder_name: response.name_on_card,
-        nick_name: response.nick_name.map(masking::Secret::new),
+        nick_name: response.nick_name.map(Secret::new),
         card_isin: None,
         card_issuer: None,
         card_network: None,

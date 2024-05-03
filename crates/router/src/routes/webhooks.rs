@@ -43,19 +43,3 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
     ))
     .await
 }
-
-#[derive(Debug)]
-struct WebhookBytes(web::Bytes);
-
-impl serde::Serialize for WebhookBytes {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let payload: serde_json::Value = serde_json::from_slice(&self.0).unwrap_or_default();
-        payload.serialize(serializer)
-    }
-}
-
-impl common_utils::events::ApiEventMetric for WebhookBytes {
-    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
-        Some(common_utils::events::ApiEventsType::Miscellaneous)
-    }
-}

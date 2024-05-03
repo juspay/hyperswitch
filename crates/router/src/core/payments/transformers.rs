@@ -1546,8 +1546,8 @@ impl TryFrom<types::CaptureSyncResponse> for storage::CaptureUpdate {
                 ..
             } => Ok(Self::ErrorUpdate {
                 status: match status_code {
-                    500..=511 => storage::enums::CaptureStatus::Pending,
-                    _ => storage::enums::CaptureStatus::Failed,
+                    500..=511 => enums::CaptureStatus::Pending,
+                    _ => enums::CaptureStatus::Failed,
                 },
                 error_code: Some(code),
                 error_message: Some(message),

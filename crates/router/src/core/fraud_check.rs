@@ -81,10 +81,10 @@ where
     )
     .await?;
 
-    frm_data.payment_attempt.connector_transaction_id = payment_data
+    frm_data
         .payment_attempt
         .connector_transaction_id
-        .clone();
+        .clone_from(&payment_data.payment_attempt.connector_transaction_id);
 
     let mut router_data = frm_data
         .construct_router_data(
@@ -675,7 +675,7 @@ where
     if matches!(fraud_capture_method, Some(Some(CaptureMethod::Manual)))
         && matches!(
             payment_data.payment_attempt.status,
-            api_models::enums::AttemptStatus::Unresolved
+            AttemptStatus::Unresolved
         )
     {
         if let Some(info) = frm_info {

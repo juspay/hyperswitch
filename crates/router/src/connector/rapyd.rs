@@ -652,7 +652,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     }
 
     fn get_content_type(&self) -> &'static str {
-        api::ConnectorCommon::common_get_content_type(self)
+        ConnectorCommon::common_get_content_type(self)
     }
 
     fn get_url(

@@ -286,12 +286,12 @@ pub enum Order {
     Descending,
 }
 
-impl ToString for Order {
-    fn to_string(&self) -> String {
-        String::from(match self {
-            Self::Ascending => "asc",
-            Self::Descending => "desc",
-        })
+impl std::fmt::Display for Order {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Ascending => write!(f, "asc"),
+            Self::Descending => write!(f, "desc"),
+        }
     }
 }
 
@@ -709,12 +709,12 @@ where
         Ok(query)
     }
 
-    pub async fn execute_query<R, P: AnalyticsDataSource>(
+    pub async fn execute_query<R, P>(
         &mut self,
         store: &P,
     ) -> CustomResult<CustomResult<Vec<R>, QueryExecutionError>, QueryBuildingError>
     where
-        P: LoadRow<R>,
+        P: LoadRow<R> + AnalyticsDataSource,
         Aggregate<&'static str>: ToSql<T>,
         Window<&'static str>: ToSql<T>,
     {

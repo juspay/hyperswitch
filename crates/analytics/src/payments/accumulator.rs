@@ -153,10 +153,7 @@ impl PaymentMetricAccumulator for SumAccumulator {
     fn add_metrics_bucket(&mut self, metrics: &PaymentMetricRow) {
         self.total = match (
             self.total,
-            metrics
-                .total
-                .as_ref()
-                .and_then(bigdecimal::ToPrimitive::to_i64),
+            metrics.total.as_ref().and_then(ToPrimitive::to_i64),
         ) {
             (None, None) => None,
             (None, i @ Some(_)) | (i @ Some(_), None) => i,
@@ -173,10 +170,7 @@ impl PaymentMetricAccumulator for AverageAccumulator {
     type MetricOutput = Option<f64>;
 
     fn add_metrics_bucket(&mut self, metrics: &PaymentMetricRow) {
-        let total = metrics
-            .total
-            .as_ref()
-            .and_then(bigdecimal::ToPrimitive::to_u32);
+        let total = metrics.total.as_ref().and_then(ToPrimitive::to_u32);
         let count = metrics.count.and_then(|total| u32::try_from(total).ok());
 
         match (total, count) {

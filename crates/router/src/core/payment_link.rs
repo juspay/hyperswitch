@@ -350,7 +350,9 @@ fn validate_order_details(
                     order_details_amount_string.product_img_link =
                         Some(DEFAULT_PRODUCT_IMG.to_string())
                 } else {
-                    order_details_amount_string.product_img_link = order.product_img_link.clone()
+                    order_details_amount_string
+                        .product_img_link
+                        .clone_from(&order.product_img_link)
                 };
                 order_details_amount_string.amount =
                     currency
