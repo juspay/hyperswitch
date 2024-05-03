@@ -28,12 +28,11 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[PaymentDimensions],
-        merchant_id: &str,
         filters: &PaymentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-        merchant_ids: &Vec<String>,
+        merchant_ids: &[String],
     ) -> MetricsResult<Vec<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>> {
         let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::Payment);
 
@@ -62,9 +61,6 @@ where
 
         filters.set_filter_clause(&mut query_builder).switch()?;
 
-        // query_builder
-        //     .add_filter_clause("merchant_id", merchant_id)
-        //     .switch()?;
         query_builder
             .add_filter_in_range_clause("merchant_id", merchant_ids)
             .switch()?;

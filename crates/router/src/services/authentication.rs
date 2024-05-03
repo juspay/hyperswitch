@@ -728,7 +728,6 @@ where
 
         let permissions = authorization::get_permissions(state, &payload).await?;
         authorization::check_authorization(&self.0, &permissions)?;
-        logger::debug!("{:?} PERMISSIONS PERMISSIONS", permissions);
         let org_id = payload.org_id;
 
         let key_store = state
@@ -792,7 +791,6 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
-        let a = self.0;
         let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());

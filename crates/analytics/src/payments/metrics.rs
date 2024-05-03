@@ -53,12 +53,12 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[PaymentDimensions],
-        merchant_id: &str,
+
         filters: &PaymentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-        merchant_ids: &Vec<String>,
+        merchant_ids: &[String],
     ) -> MetricsResult<Vec<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>>;
 }
 
@@ -75,19 +75,18 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[PaymentDimensions],
-        merchant_id: &str,
+
         filters: &PaymentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-        merchant_ids: &Vec<String>,
+        merchant_ids: &[String],
     ) -> MetricsResult<Vec<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>> {
         match self {
             Self::PaymentSuccessRate => {
                 PaymentSuccessRate
                     .load_metrics(
                         dimensions,
-                        merchant_id,
                         filters,
                         granularity,
                         time_range,
@@ -100,7 +99,6 @@ where
                 PaymentCount
                     .load_metrics(
                         dimensions,
-                        merchant_id,
                         filters,
                         granularity,
                         time_range,
@@ -113,7 +111,6 @@ where
                 PaymentSuccessCount
                     .load_metrics(
                         dimensions,
-                        merchant_id,
                         filters,
                         granularity,
                         time_range,
@@ -126,7 +123,6 @@ where
                 PaymentProcessedAmount
                     .load_metrics(
                         dimensions,
-                        merchant_id,
                         filters,
                         granularity,
                         time_range,
@@ -139,7 +135,6 @@ where
                 AvgTicketSize
                     .load_metrics(
                         dimensions,
-                        merchant_id,
                         filters,
                         granularity,
                         time_range,
@@ -152,7 +147,6 @@ where
                 RetriesCount
                     .load_metrics(
                         dimensions,
-                        merchant_id,
                         filters,
                         granularity,
                         time_range,
@@ -165,7 +159,6 @@ where
                 ConnectorSuccessRate
                     .load_metrics(
                         dimensions,
-                        merchant_id,
                         filters,
                         granularity,
                         time_range,

@@ -16,10 +16,9 @@ pub trait PaymentFilterAnalytics: LoadRow<FilterRow> {}
 
 pub async fn get_payment_filter_for_dimension<T>(
     dimension: PaymentDimensions,
-    merchant: &String,
     time_range: &TimeRange,
     pool: &T,
-    merchant_ids: &Vec<String>,
+    merchant_ids: &[String],
 ) -> FiltersResult<Vec<FilterRow>>
 where
     T: AnalyticsDataSource + PaymentFilterAnalytics,

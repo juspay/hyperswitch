@@ -29,7 +29,6 @@ pub async fn get_metrics(
     pool: &AnalyticsProvider,
     merchant_id: &String,
     req: GetRefundMetricRequest,
-    list_merchant_id: &Vec<String>,
 ) -> AnalyticsResult<MetricsResponse<RefundMetricsBucketResponse>> {
     let mut metrics_accumulator: HashMap<RefundMetricsBucketIdentifier, RefundMetricsAccumulator> =
         HashMap::new();

@@ -155,14 +155,9 @@ pub mod routes {
             &req,
             payload,
             |state, auth: AuthenticationDataOrg, req, _| async move {
-                analytics::payments::get_metrics(
-                    &state.pool,
-                    &auth.merchant_account.merchant_id,
-                    req,
-                    &auth.org_merchant_ids,
-                )
-                .await
-                .map(ApplicationResponse::Json)
+                analytics::payments::get_metrics(&state.pool, req, &auth.org_merchant_ids)
+                    .await
+                    .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth(Permission::Analytics),
             api_locking::LockAction::NotApplicable,
@@ -196,7 +191,6 @@ pub mod routes {
                     &state.pool,
                     &auth.merchant_account.merchant_id,
                     req,
-                    &auth.org_merchant_ids,
                 )
                 .await
                 .map(ApplicationResponse::Json)
@@ -256,14 +250,9 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, auth: AuthenticationDataOrg, req, _| async move {
-                analytics::payments::get_filters(
-                    &state.pool,
-                    req,
-                    &auth.merchant_account.merchant_id,
-                    &auth.org_merchant_ids,
-                )
-                .await
-                .map(ApplicationResponse::Json)
+                analytics::payments::get_filters(&state.pool, req, &auth.org_merchant_ids)
+                    .await
+                    .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth(Permission::Analytics),
             api_locking::LockAction::NotApplicable,

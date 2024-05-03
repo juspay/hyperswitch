@@ -41,10 +41,7 @@ pub enum TaskType {
     ),
 }
 
-fn compare_and_return_matching(
-    org_merchant_ids: &Vec<String>,
-    payload: &Vec<String>,
-) -> Vec<String> {
+fn compare_and_return_matching(org_merchant_ids: &Vec<String>, payload: &[String]) -> Vec<String> {
     let mut matching_values = vec![];
 
     for m in org_merchant_ids {
@@ -64,18 +61,15 @@ fn compare_and_return_matching(
 #[instrument(skip_all)]
 pub async fn get_metrics(
     pool: &AnalyticsProvider,
-    merchant_id: &str,
+
     req: GetPaymentMetricRequest,
     merchant_ids: &Vec<String>,
 ) -> AnalyticsResult<MetricsResponse<MetricsBucketResponse>> {
-    println!("{:?}ORG MERCHANT_IDSSS", merchant_ids);
     let org_merchant_ids = compare_and_return_matching(merchant_ids, &req.filters.merchant_id);
-    println!("{:?}MERCHANT_IDSSS", org_merchant_ids);
     let mut metrics_accumulator: HashMap<
         PaymentMetricsBucketIdentifier,
         PaymentMetricsAccumulator,
     > = HashMap::new();
-    // println!("{:?} List of Merchant ID", merchant_ids);
     let mut set = tokio::task::JoinSet::new();
     for metric_type in req.metrics.iter().cloned() {
         let req = req.clone();
@@ -87,7 +81,7 @@ pub async fn get_metrics(
 
         // TODO: lifetime issues with joinset,
         // can be optimized away if joinset lifetime requirements are relaxed
-        let merchant_id_scoped = merchant_id.to_owned();
+
         let merchant_ids = org_merchant_ids.to_owned();
         set.spawn(
             async move {
@@ -95,7 +89,6 @@ pub async fn get_metrics(
                     .get_payment_metrics(
                         &metric_type,
                         &req.group_by_names.clone(),
-                        &merchant_id_scoped,
                         &req.filters,
                         &req.time_series.map(|t| t.granularity),
                         &req.time_range,
@@ -117,14 +110,14 @@ pub async fn get_metrics(
             payment_distribution = distribution.distribution_for.as_ref()
         );
 
-        let merchant_id_scoped = merchant_id.to_owned();
+        let merchant_ids = org_merchant_ids.to_owned();
         set.spawn(
             async move {
                 let data = pool
                     .get_payment_distribution(
                         &distribution,
                         &req.group_by_names.clone(),
-                        &merchant_id_scoped,
+                        &merchant_ids,
                         &req.filters,
                         &req.time_series.map(|t| t.granularity),
                         &req.time_range,
@@ -247,28 +240,23 @@ pub async fn get_metrics(
 pub async fn get_filters(
     pool: &AnalyticsProvider,
     req: GetPaymentFiltersRequest,
-    merchant_id: &String,
-    merchant_ids: &Vec<String>,
+    merchant_ids: &[String],
 ) -> AnalyticsResult<PaymentFiltersResponse> {
-    println!("{:?} merchant_id merchant_id FG LOF", merchant_id);
-    // println!("{:?} merchant_id list", list_merchant_id);
-
     let mut res = PaymentFiltersResponse::default();
 
     for dim in req.group_by_names {
         let values = match pool {
                         AnalyticsProvider::Sqlx(pool) => {
-                get_payment_filter_for_dimension(dim, merchant_id, &req.time_range, pool,merchant_ids)
+                get_payment_filter_for_dimension(dim,  &req.time_range, pool,merchant_ids)
                     .await
             }
                         AnalyticsProvider::Clickhouse(pool) => {
-                get_payment_filter_for_dimension(dim, merchant_id, &req.time_range, pool,merchant_ids)
+                get_payment_filter_for_dimension(dim,  &req.time_range, pool,merchant_ids)
                     .await
             }
                     AnalyticsProvider::CombinedCkh(sqlx_poll, ckh_pool) => {
                 let ckh_result = get_payment_filter_for_dimension(
                     dim,
-                    merchant_id,
                     &req.time_range,
                     ckh_pool,
                     merchant_ids
@@ -276,7 +264,6 @@ pub async fn get_filters(
                 .await;
                 let sqlx_result = get_payment_filter_for_dimension(
                     dim,
-                    merchant_id,
                     &req.time_range,
                     sqlx_poll,
                     merchant_ids
@@ -293,7 +280,6 @@ pub async fn get_filters(
                     AnalyticsProvider::CombinedSqlx(sqlx_poll, ckh_pool) => {
                 let ckh_result = get_payment_filter_for_dimension(
                     dim,
-                    merchant_id,
                     &req.time_range,
                     ckh_pool,
                     merchant_ids
@@ -301,7 +287,6 @@ pub async fn get_filters(
                 .await;
                 let sqlx_result = get_payment_filter_for_dimension(
                     dim,
-                    merchant_id,
                     &req.time_range,
                     sqlx_poll,
                     merchant_ids
