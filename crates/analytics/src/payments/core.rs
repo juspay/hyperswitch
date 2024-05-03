@@ -41,15 +41,12 @@ pub enum TaskType {
     ),
 }
 
-fn compare_and_return_matching(org_merchant_ids: &Vec<String>, payload: &[String]) -> Vec<String> {
-    let mut matching_values = vec![];
-
-    for m in org_merchant_ids {
-        let t = m.clone();
-        if payload.contains(&t) {
-            matching_values.push(t);
-        }
-    }
+fn compare_and_return_matching(org_merchant_ids: &[String], payload: &[String]) -> Vec<String> {
+    let matching_values: Vec<String> = payload
+        .iter()
+        .filter(|i| org_merchant_ids.contains(i))
+        .cloned()
+        .collect();
 
     if matching_values.is_empty() {
         org_merchant_ids.to_vec()
@@ -63,7 +60,7 @@ pub async fn get_metrics(
     pool: &AnalyticsProvider,
 
     req: GetPaymentMetricRequest,
-    merchant_ids: &Vec<String>,
+    merchant_ids: &[String],
 ) -> AnalyticsResult<MetricsResponse<MetricsBucketResponse>> {
     let org_merchant_ids = compare_and_return_matching(merchant_ids, &req.filters.merchant_id);
     let mut metrics_accumulator: HashMap<

@@ -41,6 +41,7 @@ pub struct PaymentMetricRow {
     pub start_bucket: Option<PrimitiveDateTime>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub end_bucket: Option<PrimitiveDateTime>,
+    pub merchant_id: Option<String>,
 }
 
 pub trait PaymentMetricAnalytics: LoadRow<PaymentMetricRow> {}

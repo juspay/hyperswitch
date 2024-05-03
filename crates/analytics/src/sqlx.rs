@@ -268,6 +268,10 @@ impl<'a> FromRow<'a, PgRow> for super::payments::metrics::PaymentMetricRow {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
         })?;
+        let merchant_id: Option<String> = row.try_get("merchant_id").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
         // Removing millisecond precision to get accurate diffs against clickhouse
         let start_bucket: Option<PrimitiveDateTime> = row
             .try_get::<Option<PrimitiveDateTime>, _>("start_bucket")?
@@ -286,6 +290,7 @@ impl<'a> FromRow<'a, PgRow> for super::payments::metrics::PaymentMetricRow {
             count,
             start_bucket,
             end_bucket,
+            merchant_id,
         })
     }
 }
@@ -340,6 +345,10 @@ impl<'a> FromRow<'a, PgRow> for super::payments::distribution::PaymentDistributi
         let end_bucket: Option<PrimitiveDateTime> = row
             .try_get::<Option<PrimitiveDateTime>, _>("end_bucket")?
             .and_then(|dt| dt.replace_millisecond(0).ok());
+        let merchant_id: Option<String> = row.try_get("merchant_id").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
         Ok(Self {
             currency,
             status,
@@ -352,6 +361,7 @@ impl<'a> FromRow<'a, PgRow> for super::payments::distribution::PaymentDistributi
             error_message,
             start_bucket,
             end_bucket,
+            merchant_id,
         })
     }
 }
