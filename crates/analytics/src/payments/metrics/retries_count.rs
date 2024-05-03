@@ -36,6 +36,7 @@ where
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
+        merchant_ids: &Vec<String>,
     ) -> MetricsResult<Vec<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>> {
         let mut query_builder: QueryBuilder<T> =
             QueryBuilder::new(AnalyticsCollection::PaymentIntent);
@@ -63,8 +64,11 @@ where
                 alias: Some("end_bucket"),
             })
             .switch()?;
+        // query_builder
+        //     .add_filter_clause("merchant_id", merchant_id)
+        //     .switch()?;
         query_builder
-            .add_filter_clause("merchant_id", merchant_id)
+            .add_filter_in_range_clause("merchant_id", merchant_ids)
             .switch()?;
         query_builder
             .add_custom_filter_clause("attempt_count", "1", FilterTypes::Gt)

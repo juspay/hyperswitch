@@ -84,7 +84,8 @@ pub static MERCHANT_DETAILS_MANAGE: [Permission; 6] = [
     Permission::WebhookEventWrite,
 ];
 
-pub static ORGANIZATION_MANAGE: [Permission; 2] = [
+pub static ORGANIZATION_MANAGE: [Permission; 3] = [
     Permission::MerchantAccountCreate,
     Permission::MerchantAccountRead,
+    Permission::OrgAnalytics,
 ];

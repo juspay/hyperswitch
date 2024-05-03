@@ -22,6 +22,8 @@ pub struct PaymentFilters {
     pub payment_method: Vec<PaymentMethod>,
     #[serde(default)]
     pub payment_method_type: Vec<PaymentMethodType>,
+    #[serde(default)]
+    pub merchant_id: Vec<String>,
 }
 
 #[derive(
@@ -53,6 +55,9 @@ pub enum PaymentDimensions {
     #[strum(serialize = "status")]
     #[serde(rename = "status")]
     PaymentStatus,
+    #[strum(serialize = "merchant_id")]
+    #[serde(rename = "merchant_id")]
+    MerchantId,
 }
 
 #[derive(

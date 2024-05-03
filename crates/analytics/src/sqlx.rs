@@ -387,6 +387,10 @@ impl<'a> FromRow<'a, PgRow> for super::payments::filters::FilterRow {
                 ColumnNotFound(_) => Ok(Default::default()),
                 e => Err(e),
             })?;
+        let merchant_id: Option<String> = row.try_get("merchant_id").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
         Ok(Self {
             currency,
             status,
@@ -394,6 +398,7 @@ impl<'a> FromRow<'a, PgRow> for super::payments::filters::FilterRow {
             authentication_type,
             payment_method,
             payment_method_type,
+            merchant_id,
         })
     }
 }

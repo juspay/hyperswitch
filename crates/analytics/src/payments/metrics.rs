@@ -58,6 +58,7 @@ where
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
+        merchant_ids: &Vec<String>,
     ) -> MetricsResult<Vec<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>>;
 }
 
@@ -79,6 +80,7 @@ where
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
+        merchant_ids: &Vec<String>,
     ) -> MetricsResult<Vec<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>> {
         match self {
             Self::PaymentSuccessRate => {
@@ -90,6 +92,7 @@ where
                         granularity,
                         time_range,
                         pool,
+                        merchant_ids,
                     )
                     .await
             }
@@ -102,6 +105,7 @@ where
                         granularity,
                         time_range,
                         pool,
+                        merchant_ids,
                     )
                     .await
             }
@@ -114,6 +118,7 @@ where
                         granularity,
                         time_range,
                         pool,
+                        merchant_ids,
                     )
                     .await
             }
@@ -126,6 +131,7 @@ where
                         granularity,
                         time_range,
                         pool,
+                        merchant_ids,
                     )
                     .await
             }
@@ -138,6 +144,7 @@ where
                         granularity,
                         time_range,
                         pool,
+                        merchant_ids,
                     )
                     .await
             }
@@ -150,6 +157,7 @@ where
                         granularity,
                         time_range,
                         pool,
+                        merchant_ids,
                     )
                     .await
             }
@@ -162,6 +170,7 @@ where
                         granularity,
                         time_range,
                         pool,
+                        merchant_ids,
                     )
                     .await
             }

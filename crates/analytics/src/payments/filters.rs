@@ -19,6 +19,7 @@ pub async fn get_payment_filter_for_dimension<T>(
     merchant: &String,
     time_range: &TimeRange,
     pool: &T,
+    merchant_ids: &Vec<String>,
 ) -> FiltersResult<Vec<FilterRow>>
 where
     T: AnalyticsDataSource + PaymentFilterAnalytics,
@@ -37,11 +38,9 @@ where
         .switch()?;
 
     query_builder
-        .add_filter_clause("merchant_id", merchant)
+        .add_filter_in_range_clause("merchant_id", merchant_ids)
         .switch()?;
-
     query_builder.set_distinct();
-
     query_builder
         .execute_query::<FilterRow, _>(pool)
         .await
@@ -57,4 +56,5 @@ pub struct FilterRow {
     pub authentication_type: Option<DBEnumWrapper<AuthenticationType>>,
     pub payment_method: Option<String>,
     pub payment_method_type: Option<String>,
+    pub merchant_id: Option<String>,
 }

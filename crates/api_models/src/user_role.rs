@@ -35,6 +35,7 @@ pub enum Permission {
     PayoutWrite,
     PayoutRead,
     WebhookEventWrite,
+    OrgAnalytics,
 }
 
 #[derive(Debug, serde::Serialize)]
