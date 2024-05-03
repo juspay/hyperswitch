@@ -72,7 +72,10 @@ impl ConfigInterface for Store {
 
         self.get_redis_conn()
             .map_err(Into::<errors::StorageError>::into)?
-            .publish(consts::PUB_SUB_CHANNEL, CacheKind::Config((&inserted.key).into()))
+            .publish(
+                consts::PUB_SUB_CHANNEL,
+                CacheKind::Config((&inserted.key).into()),
+            )
             .await
             .map_err(Into::<errors::StorageError>::into)?;
 
@@ -146,13 +149,15 @@ impl ConfigInterface for Store {
                 Ok(a) => Ok(a),
                 Err(err) => {
                     if err.current_context().is_db_not_found() {
-                        default_config.map(|c| {
-                            storage::ConfigNew{
-                                key : key.to_string(),
-                                config: c
-                            }.into()
-                        })
-                        .ok_or(err)
+                        default_config
+                            .map(|c| {
+                                storage::ConfigNew {
+                                    key: key.to_string(),
+                                    config: c,
+                                }
+                                .into()
+                            })
+                            .ok_or(err)
                     } else {
                         Err(err)
                     }

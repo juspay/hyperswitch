@@ -16,6 +16,7 @@ use data_models::{
 use diesel_models::enums;
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, ResultExt};
+use futures::future::Either;
 use josekit::jwe;
 use masking::{ExposeInterface, PeekInterface};
 use openssl::{
@@ -64,7 +65,6 @@ use crate::{
         OptionExt, StringExt,
     },
 };
-use futures::future::Either;
 
 pub fn create_identity_from_certificate_and_key(
     encoded_certificate: masking::Secret<String>,
@@ -3062,18 +3062,24 @@ pub async fn insert_merchant_connector_creds_to_config(
 ) -> RouterResult<()> {
     if let Some(encoded_data) = merchant_connector_details.encoded_data {
         let redis = &db
-                .get_redis_conn()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to get redis connection")?;
-        
-        let key = format!("mcd_{merchant_id}_{}", merchant_connector_details.creds_identifier);
-        
+            .get_redis_conn()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get redis connection")?;
+
+        let key = format!(
+            "mcd_{merchant_id}_{}",
+            merchant_connector_details.creds_identifier
+        );
+
         redis
             .serialize_and_set_key_with_expiry(key.as_str(), &encoded_data.peek(), i64::from(900))
             .await
             .map_or_else(
-                |e| {Err(e.change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to insert connector_creds to config"))},
+                |e| {
+                    Err(e
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to insert connector_creds to config"))
+                },
                 |_| Ok(()),
             )
     } else {
@@ -3149,43 +3155,48 @@ pub async fn get_merchant_connector_account(
     match creds_identifier {
         Some(creds_identifier) => {
             let key = format!("mcd_{merchant_id}_{creds_identifier}");
-            let redis_fetch = || async { db
-                .get_redis_conn()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to get redis connection")
-                .async_and_then(|redis| async move {
-                    redis
-                        .get_and_deserialize_key(key.as_str(), "String")
-                        .await
-                        .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound{id: key})
-                        .attach_printable("Failed to get redis Value")
-                    }
-                )
-                .await
+            let redis_fetch = || async {
+                db.get_redis_conn()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to get redis connection")
+                    .async_and_then(|redis| async move {
+                        redis
+                            .get_and_deserialize_key(key.as_str(), "String")
+                            .await
+                            .change_context(
+                                errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                                    id: key,
+                                },
+                            )
+                            .attach_printable("Failed to get redis Value")
+                    })
+                    .await
             };
 
             let db_fetch = || async {
-                db
-                .find_config_by_key(format!("mcd_{merchant_id}_{creds_identifier}").as_str())
-                .await
-                .to_not_found_response(
-                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: format!("mcd_{merchant_id}_{creds_identifier}"),
-                    },
-                )
+                db.find_config_by_key(format!("mcd_{merchant_id}_{creds_identifier}").as_str())
+                    .await
+                    .to_not_found_response(
+                        errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                            id: format!("mcd_{merchant_id}_{creds_identifier}"),
+                        },
+                    )
             };
 
-            let mca_config : String = redis_fetch()
+            let mca_config: String = redis_fetch()
                 .await
                 .map_or_else(
-                    |_| Either::Left(async {
-                        match db_fetch().await{
-                            Ok(config_entry) => Ok(config_entry.config),
-                            Err(e ) => Err(e)
-                        }
-                    }),
-                    |result| Either::Right(async {Ok(result)})
-                ).await?;
+                    |_| {
+                        Either::Left(async {
+                            match db_fetch().await {
+                                Ok(config_entry) => Ok(config_entry.config),
+                                Err(e) => Err(e),
+                            }
+                        })
+                    },
+                    |result| Either::Right(async { Ok(result) }),
+                )
+                .await?;
 
             let private_key = state
                 .conf
