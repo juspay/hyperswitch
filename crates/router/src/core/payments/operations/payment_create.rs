@@ -796,7 +796,12 @@ impl PaymentCreate {
                 payment_method_data_request.payment_method_data.as_ref()
             })
             .async_map(|payment_method_data| async {
-                helpers::get_additional_payment_data(payment_method_data, &*state.store,&profile_id,).await
+                helpers::get_additional_payment_data(
+                    payment_method_data,
+                    &*state.store,
+                    &profile_id,
+                )
+                .await
             })
             .await;
 
