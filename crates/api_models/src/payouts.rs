@@ -189,6 +189,7 @@ pub enum Bank {
     Ach(AchBankTransfer),
     Bacs(BacsBankTransfer),
     Sepa(SepaBankTransfer),
+    Pix(PixBankTransfer),
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -261,10 +262,34 @@ pub struct SepaBankTransfer {
     pub bic: Option<Secret<String>>,
 }
 
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct PixBankTransfer {
+    /// Bank name
+    #[schema(value_type = Option<String>, example = "Deutsche Bank")]
+    pub bank_name: Option<String>,
+
+    /// Bank branch
+    #[schema(value_type = Option<String>, example = "3707")]
+    pub bank_branch: Option<String>,
+
+    /// Bank account number is an unique identifier assigned by a bank to a customer.
+    #[schema(value_type = String, example = "000123456")]
+    pub bank_account_number: Secret<String>,
+
+    /// Unique key for pix customer
+    #[schema(value_type = String, example = "000123456")]
+    pub pix_key: Secret<String>,
+
+    /// Individual taxpayer identification number
+    #[schema(value_type = Option<String>, example = "000123456")]
+    pub tax_id: Option<Secret<String>>,
+}
+
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Wallet {
     Paypal(Paypal),
+    Venmo(Venmo),
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -272,6 +297,21 @@ pub struct Paypal {
     /// Email linked with paypal account
     #[schema(value_type = String, example = "john.doe@example.com")]
     pub email: Option<Email>,
+
+    /// mobile number linked to paypal account
+    #[schema(value_type = String, example = "16608213349")]
+    pub telephone_number: Option<Secret<String>>,
+
+    /// id of the paypal account
+    #[schema(value_type = String, example = "G83KXTJ5EHCQ2")]
+    pub paypal_id: Option<Secret<String>>,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct Venmo {
+    /// mobile number linked to venmo account
+    #[schema(value_type = String, example = "16608213349")]
+    pub telephone_number: Option<Secret<String>>,
 }
 
 #[derive(Debug, Default, ToSchema, Clone, Serialize)]
@@ -446,6 +486,7 @@ pub struct PayoutAttemptResponse {
 #[derive(Default, Debug, Clone, Deserialize, ToSchema)]
 pub struct PayoutRetrieveBody {
     pub force_sync: Option<bool>,
+    pub merchant_id: Option<String>,
 }
 
 #[derive(Default, Debug, Serialize, ToSchema, Clone, Deserialize)]
@@ -464,6 +505,9 @@ pub struct PayoutRetrieveRequest {
     /// (defaults to false)
     #[schema(value_type = Option<bool>, default = false, example = true)]
     pub force_sync: Option<bool>,
+
+    /// The identifier for the Merchant Account.
+    pub merchant_id: Option<String>,
 }
 
 #[derive(Default, Debug, Serialize, ToSchema, Clone, Deserialize)]
@@ -477,6 +521,43 @@ pub struct PayoutActionRequest {
         example = "payout_mbabizu24mvu3mela5njyhpit4"
     )]
     pub payout_id: String,
+}
+
+#[derive(Default, Debug, ToSchema, Clone, Deserialize)]
+pub struct PayoutVendorAccountDetails {
+    pub vendor_details: PayoutVendorDetails,
+    pub individual_details: PayoutIndividualDetails,
+}
+
+#[derive(Default, Debug, Serialize, ToSchema, Clone, Deserialize)]
+pub struct PayoutVendorDetails {
+    pub account_type: String,
+    pub business_type: String,
+    pub business_profile_mcc: Option<i32>,
+    pub business_profile_url: Option<String>,
+    pub business_profile_name: Option<Secret<String>>,
+    pub company_address_line1: Option<Secret<String>>,
+    pub company_address_line2: Option<Secret<String>>,
+    pub company_address_postal_code: Option<Secret<String>>,
+    pub company_address_city: Option<Secret<String>>,
+    pub company_address_state: Option<Secret<String>>,
+    pub company_phone: Option<Secret<String>>,
+    pub company_tax_id: Option<Secret<String>>,
+    pub company_owners_provided: Option<bool>,
+    pub capabilities_card_payments: Option<bool>,
+    pub capabilities_transfers: Option<bool>,
+}
+
+#[derive(Default, Debug, Serialize, ToSchema, Clone, Deserialize)]
+pub struct PayoutIndividualDetails {
+    pub tos_acceptance_date: Option<i64>,
+    pub tos_acceptance_ip: Option<Secret<String>>,
+    pub individual_dob_day: Option<Secret<String>>,
+    pub individual_dob_month: Option<Secret<String>>,
+    pub individual_dob_year: Option<Secret<String>>,
+    pub individual_id_number: Option<Secret<String>>,
+    pub individual_ssn_last_4: Option<Secret<String>>,
+    pub external_account_account_holder_type: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]

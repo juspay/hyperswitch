@@ -82,8 +82,7 @@ diesel::table! {
         authentication_lifecycle_status -> Varchar,
         created_at -> Timestamp,
         modified_at -> Timestamp,
-        #[max_length = 64]
-        error_message -> Nullable<Varchar>,
+        error_message -> Nullable<Text>,
         #[max_length = 64]
         error_code -> Nullable<Varchar>,
         connector_metadata -> Nullable<Jsonb>,
@@ -195,6 +194,7 @@ diesel::table! {
         authentication_connector_details -> Nullable<Jsonb>,
         is_extended_card_info_enabled -> Nullable<Bool>,
         is_connector_agnostic_mit_enabled -> Nullable<Bool>,
+        extended_card_info_config -> Nullable<Jsonb>,
     }
 }
 
@@ -1002,6 +1002,7 @@ diesel::table! {
         #[max_length = 64]
         profile_id -> Varchar,
         status -> PayoutStatus,
+        confirm -> Nullable<Bool>,
     }
 }
 

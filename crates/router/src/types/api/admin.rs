@@ -177,6 +177,7 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
                 })?,
             is_connector_agnostic_mit_enabled: None,
             is_extended_card_info_enabled: None,
+            extended_card_info_config: None,
         })
     }
 }

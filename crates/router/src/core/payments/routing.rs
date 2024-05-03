@@ -171,10 +171,10 @@ where
                     .customer_acceptance
                     .clone()
                     .map(|cat| match cat.acceptance_type {
-                        data_models::mandates::AcceptanceType::Online => {
+                        hyperswitch_domain_models::mandates::AcceptanceType::Online => {
                             euclid_enums::MandateAcceptanceType::Online
                         }
-                        data_models::mandates::AcceptanceType::Offline => {
+                        hyperswitch_domain_models::mandates::AcceptanceType::Offline => {
                             euclid_enums::MandateAcceptanceType::Offline
                         }
                     })
@@ -184,10 +184,10 @@ where
             .as_ref()
             .and_then(|mandate_data| {
                 mandate_data.mandate_type.clone().map(|mt| match mt {
-                    data_models::mandates::MandateDataType::SingleUse(_) => {
+                    hyperswitch_domain_models::mandates::MandateDataType::SingleUse(_) => {
                         euclid_enums::MandateType::SingleUse
                     }
-                    data_models::mandates::MandateDataType::MultiUse(_) => {
+                    hyperswitch_domain_models::mandates::MandateDataType::MultiUse(_) => {
                         euclid_enums::MandateType::MultiUse
                     }
                 })

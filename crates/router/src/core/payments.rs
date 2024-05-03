@@ -27,12 +27,12 @@ use common_utils::{
     pii,
     types::Surcharge,
 };
-use data_models::mandates::{CustomerAcceptance, MandateData};
 use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
 use error_stack::{report, ResultExt};
 use events::EventInfo;
 use futures::future::join_all;
 use helpers::ApplePayData;
+use hyperswitch_domain_models::mandates::{CustomerAcceptance, MandateData};
 use masking::{ExposeInterface, Secret};
 pub use payment_address::PaymentAddress;
 use redis_interface::errors::RedisError;
@@ -63,6 +63,7 @@ use super::{
 use crate::core::fraud_check as frm_core;
 use crate::{
     configs::settings::{ApplePayPreDecryptFlow, PaymentMethodTypeTokenFilter},
+    connector::utils::missing_field_err,
     core::{
         authentication as authentication_core,
         errors::{self, CustomResult, RouterResponse, RouterResult},
@@ -525,6 +526,16 @@ where
 
     let cloned_payment_data = payment_data.clone();
     let cloned_customer = customer.clone();
+
+    operation
+        .to_domain()?
+        .store_extended_card_info_temporarily(
+            state,
+            &payment_data.payment_intent.payment_id,
+            &business_profile,
+            &payment_data.payment_method_data,
+        )
+        .await?;
 
     crate::utils::trigger_payments_webhook(
         merchant_account,
@@ -1160,6 +1171,20 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        let authentication_id = payment_attempt
+            .authentication_id
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("missing authentication_id in payment_attempt")?;
+        let authentication = state
+            .store
+            .find_authentication_by_merchant_id_authentication_id(
+                merchant_id.clone(),
+                authentication_id.clone(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::AuthenticationNotFound {
+                id: authentication_id,
+            })?;
         // Fetching merchant_connector_account to check if pull_mechanism is enabled for 3ds connector
         let authentication_merchant_connector_account = helpers::get_merchant_connector_account(
             state,
@@ -1183,7 +1208,10 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
                     .get_metadata()
                     .map(|metadata| metadata.expose()),
             );
-        let response = if is_pull_mechanism_enabled {
+        let response = if is_pull_mechanism_enabled
+            || authentication.authentication_type
+                == Some(common_enums::DecoupledAuthenticationType::Frictionless)
+        {
             let payment_confirm_req = api::PaymentsRequest {
                 payment_id: Some(req.resource_id.clone()),
                 merchant_id: req.merchant_id.clone(),
@@ -2562,6 +2590,22 @@ pub struct CustomerDetails {
     pub phone_country_code: Option<String>,
 }
 
+pub trait CustomerDetailsExt {
+    type Error;
+    fn get_name(&self) -> Result<Secret<String, masking::WithType>, Self::Error>;
+    fn get_email(&self) -> Result<pii::Email, Self::Error>;
+}
+
+impl CustomerDetailsExt for CustomerDetails {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn get_name(&self) -> Result<Secret<String, masking::WithType>, Self::Error> {
+        self.name.clone().ok_or_else(missing_field_err("name"))
+    }
+    fn get_email(&self) -> Result<pii::Email, Self::Error> {
+        self.email.clone().ok_or_else(missing_field_err("email"))
+    }
+}
+
 pub fn if_not_create_change_operation<'a, Op, F, Ctx>(
     status: storage_enums::IntentStatus,
     confirm: Option<bool>,
@@ -2669,7 +2713,7 @@ pub async fn list_payments(
     merchant: domain::MerchantAccount,
     constraints: api::PaymentListConstraints,
 ) -> RouterResponse<api::PaymentListResponse> {
-    use data_models::errors::StorageError;
+    use hyperswitch_domain_models::errors::StorageError;
     helpers::validate_payment_list_request(&constraints)?;
     let merchant_id = &merchant.merchant_id;
     let db = state.store.as_ref();
@@ -3998,5 +4042,28 @@ pub async fn payment_external_authentication(
             three_dsserver_trans_id: authentication_response.three_dsserver_trans_id,
             acs_signed_content: authentication_response.acs_signed_content,
         },
+    ))
+}
+
+#[instrument(skip_all)]
+pub async fn get_extended_card_info(
+    state: AppState,
+    merchant_id: String,
+    payment_id: String,
+) -> RouterResponse<payments_api::ExtendedCardInfoResponse> {
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
+
+    let key = helpers::get_redis_key_for_extended_card_info(&merchant_id, &payment_id);
+    let payload = redis_conn
+        .get_key::<String>(&key)
+        .await
+        .change_context(errors::ApiErrorResponse::ExtendedCardInfoNotFound)?;
+
+    Ok(services::ApplicationResponse::Json(
+        payments_api::ExtendedCardInfoResponse { payload },
     ))
 }
