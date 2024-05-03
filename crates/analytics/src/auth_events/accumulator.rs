@@ -1,5 +1,4 @@
 use api_models::analytics::auth_events::AuthEventMetricsBucketValue;
-use router_env::logger;
 
 use super::metrics::AuthEventMetricRow;
 
