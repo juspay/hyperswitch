@@ -6,7 +6,8 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
     connector::utils::{
-        BrowserInformationData, CardData as OtherCardData, PaymentsAuthorizeRequestData, RouterData,
+        AddressDetailsData, BrowserInformationData, CardData as OtherCardData,
+        PaymentsAuthorizeRequestData, RouterData,
     },
     consts,
     core::errors,
@@ -156,10 +157,7 @@ impl TryFrom<BamboraRouterData<&types::PaymentsAuthorizeRouterData>> for Bambora
                     enums::AuthenticationType::NoThreeDs => None,
                 };
                 let bambora_card = BamboraCard {
-                    name: item
-                        .router_data
-                        .get_optional_billing_full_name()
-                        .unwrap_or(Secret::new("".to_string())),
+                    name: item.router_data.get_billing_address()?.get_full_name()?,
                     expiry_year: req_card.get_card_expiry_year_2_digit()?,
                     number: req_card.card_number,
                     expiry_month: req_card.card_exp_month,
