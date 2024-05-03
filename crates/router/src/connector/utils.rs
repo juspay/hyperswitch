@@ -1078,6 +1078,7 @@ pub trait CardData {
     fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error>;
 }
 
+#[cfg(feature = "payouts")]
 impl CardData for payouts::Card {
     fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
         let binding = self.expiry_year.clone();
