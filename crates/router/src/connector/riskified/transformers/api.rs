@@ -484,6 +484,21 @@ pub struct FulfilmentData {
 impl TryFrom<&frm_types::FrmFulfillmentRouterData> for RiskifiedFulfillmentRequest {
     type Error = Error;
     fn try_from(item: &frm_types::FrmFulfillmentRouterData) -> Result<Self, Self::Error> {
+        let tracking_number = item
+            .request
+            .fulfillment_req
+            .tracking_numbers
+            .as_ref()
+            .and_then(|numbers| numbers.first().cloned())
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "tracking_number",
+            })?;
+        let tracking_url = item
+            .request
+            .fulfillment_req
+            .tracking_urls
+            .as_ref()
+            .and_then(|urls| urls.first().cloned().map(|url| url.to_string()));
         Ok(Self {
             order: OrderFulfillment {
                 id: item.attempt_id.clone(),
@@ -504,12 +519,8 @@ impl TryFrom<&frm_types::FrmFulfillmentRouterData> for RiskifiedFulfillmentReque
                         .ok_or(errors::ConnectorError::MissingRequiredField {
                             field_name: "tracking_company",
                         })?,
-                    tracking_number: item.request.fulfillment_req.tracking_number.clone().ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "tracking_number",
-                        },
-                    )?,
-                    tracking_url: item.request.fulfillment_req.tracking_url.clone(),
+                    tracking_number,
+                    tracking_url,
                 },
             },
         })

@@ -606,9 +606,9 @@ pub mod routes {
             json_payload.into_inner(),
             |state, auth: AuthenticationData, req, _| async move {
                 analytics::search::msearch_results(
+                    &state.opensearch_client,
                     req,
                     &auth.merchant_account.merchant_id,
-                    state.conf.opensearch.clone(),
                 )
                 .await
                 .map(ApplicationResponse::Json)
@@ -637,9 +637,9 @@ pub mod routes {
             indexed_req,
             |state, auth: AuthenticationData, req, _| async move {
                 analytics::search::search_results(
+                    &state.opensearch_client,
                     req,
                     &auth.merchant_account.merchant_id,
-                    state.conf.opensearch.clone(),
                 )
                 .await
                 .map(ApplicationResponse::Json)
