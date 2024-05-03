@@ -170,8 +170,6 @@ pub struct PayLaterInfo {
     pub email: Option<Email>,
 }
 
-
-
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum GatewayInfo {
@@ -182,14 +180,14 @@ pub enum GatewayInfo {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
-pub struct IdealInfo{
-    pub issuer_id:IdealBankNames,
+pub struct IdealInfo {
+    pub issuer_id: IdealBankNames,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
-pub enum BankRedirectInfo{
-    Ideal(IdealInfo)
+pub enum BankRedirectInfo {
+    Ideal(IdealInfo),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -199,7 +197,7 @@ pub enum WalletInfo {
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Clone)]
-pub enum IdealBankNames{
+pub enum IdealBankNames {
     #[serde(rename = "0031")]
     AbnAmro,
     #[serde(rename = "0761")]
@@ -230,10 +228,10 @@ pub enum IdealBankNames{
     Yoursafe,
 }
 
-impl TryFrom<&common_enums::enums::BankNames> for IdealBankNames{
+impl TryFrom<&common_enums::enums::BankNames> for IdealBankNames {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(bank: &common_enums::enums::BankNames) -> Result<Self, Self::Error>{
-        Ok(match bank{
+    fn try_from(bank: &common_enums::enums::BankNames) -> Result<Self, Self::Error> {
+        Ok(match bank {
             common_enums::enums::BankNames::AbnAmro => Self::AbnAmro,
             common_enums::enums::BankNames::AsnBank => Self::AsnBank,
             common_enums::enums::BankNames::Bunq => Self::Bunq,
@@ -385,18 +383,18 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 ))?,
             },
             domain::PaymentMethodData::PayLater(ref _paylater) => Type::Redirect,
-            domain::PaymentMethodData::BankRedirect(ref bank_redirect_data)=> match bank_redirect_data{
-                domain::BankRedirectData::Giropay{..}=> Type::Redirect,
-                domain::BankRedirectData::Ideal{bank_name,..}=>{
-                    match bank_name{
-                        Some(_)=>Type::Direct,
-                        None=>Type::Redirect,
-                    }
-                },
-                _=>Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("multisafepay"),
-                ))?,
-            },  
+            domain::PaymentMethodData::BankRedirect(ref bank_redirect_data) => {
+                match bank_redirect_data {
+                    domain::BankRedirectData::Giropay { .. } => Type::Redirect,
+                    domain::BankRedirectData::Ideal { bank_name, .. } => match bank_name {
+                        Some(_) => Type::Direct,
+                        None => Type::Redirect,
+                    },
+                    _ => Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("multisafepay"),
+                    ))?,
+                }
+            }
             _ => Type::Redirect,
         };
 
@@ -438,13 +436,15 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 billing_email: _,
                 billing_country: _,
             }) => Some(Gateway::Klarna),
-            domain::PaymentMethodData::BankRedirect(ref bank_redirect_data)=>Some(match bank_redirect_data{
-                domain::BankRedirectData::Giropay {..} => Gateway::Giropay,
-                domain::BankRedirectData::Ideal {..} => Gateway::Ideal,
-                _=>Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("multisafepay"),
-                ))?,
-            }),
+            domain::PaymentMethodData::BankRedirect(ref bank_redirect_data) => {
+                Some(match bank_redirect_data {
+                    domain::BankRedirectData::Giropay { .. } => Gateway::Giropay,
+                    domain::BankRedirectData::Ideal { .. } => Gateway::Ideal,
+                    _ => Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("multisafepay"),
+                    ))?,
+                })
+            }
             domain::PaymentMethodData::MandatePayment => None,
             domain::PaymentMethodData::CardRedirect(_)
             | domain::PaymentMethodData::PayLater(_)
@@ -596,13 +596,12 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                         }
                     }),
                 }))
-            },
-            domain::PaymentMethodData::BankRedirect(ref bank_redirect_data)=>{
-                match bank_redirect_data{
-                    domain::BankRedirectData::Ideal{bank_name,..}=>{
-                        match bank_name{
-                            //If the Type is Direct
-                            Some(_)=> Some(GatewayInfo::BankRedirect(BankRedirectInfo::Ideal(
+            }
+            domain::PaymentMethodData::BankRedirect(ref bank_redirect_data) => {
+                match bank_redirect_data {
+                    domain::BankRedirectData::Ideal { bank_name, .. } => {
+                        match bank_name {
+                            Some(_) => Some(GatewayInfo::BankRedirect(BankRedirectInfo::Ideal(
                                 IdealInfo {
                                     issuer_id: IdealBankNames::try_from(&bank_name.ok_or(
                                         errors::ConnectorError::MissingRequiredField {
@@ -611,13 +610,12 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                                     )?)?,
                                 },
                             ))),
-                            //If the Type is Redirect
-                            None=>None,
+                            None => None,
                         }
-                },
-                 _=>None,
+                    }
+                    _ => None,
                 }
-            },
+            }
             domain::PaymentMethodData::MandatePayment => None,
             domain::PaymentMethodData::CardRedirect(_)
             | domain::PaymentMethodData::BankDebit(_)
