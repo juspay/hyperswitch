@@ -81,7 +81,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             request
                 .payment_method_data
                 .as_ref()
-                .map(|pmd| pmd.payment_method_data.clone()),
+                .and_then(|pmd| pmd.payment_method_data.clone()),
         )?;
 
         helpers::validate_payment_status_against_not_allowed_statuses(
@@ -146,6 +146,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             mandate_type.to_owned(),
             merchant_account,
             key_store,
+            None,
         )
         .await?;
         helpers::validate_amount_to_capture_and_capture_method(Some(&payment_attempt), request)?;
@@ -264,7 +265,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 &request
                     .payment_method_data
                     .as_ref()
-                    .map(|pmd| pmd.payment_method_data.clone()),
+                    .and_then(|pmd| pmd.payment_method_data.clone()),
                 &request.payment_method_type,
                 &mandate_type,
                 &token,
@@ -290,7 +291,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         })
             .async_and_then(|mandate_id| async {
                 let mandate = db
-                    .find_mandate_by_merchant_id_mandate_id(merchant_id, mandate_id)
+                    .find_mandate_by_merchant_id_mandate_id(merchant_id, mandate_id, merchant_account.storage_scheme)
                     .await
                     .change_context(errors::ApiErrorResponse::MandateNotFound);
                 Some(mandate.and_then(|mandate_obj| {
@@ -429,7 +430,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             payment_method_data: request
                 .payment_method_data
                 .as_ref()
-                .map(|pmd| pmd.payment_method_data.clone()),
+                .and_then(|pmd| pmd.payment_method_data.clone()),
             payment_method_info,
             force_sync: None,
             refunds: vec![],
@@ -452,6 +453,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             authentication: None,
             frm_metadata: request.frm_metadata.clone(),
             recurring_details,
+            poll_config: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

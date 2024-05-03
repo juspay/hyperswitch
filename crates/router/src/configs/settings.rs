@@ -4,7 +4,7 @@ use std::{
 };
 
 #[cfg(feature = "olap")]
-use analytics::{OpensearchConfig, ReportConfig};
+use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::{enums, payment_methods::RequiredFieldInfo};
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
@@ -114,7 +114,7 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "olap")]
     pub report_download_config: ReportConfig,
     #[cfg(feature = "olap")]
-    pub opensearch: OpensearchConfig,
+    pub opensearch: OpenSearchConfig,
     pub events: EventsConfig,
     #[cfg(feature = "olap")]
     pub connector_onboarding: SecretStateContainer<ConnectorOnboarding, S>,
@@ -511,6 +511,7 @@ pub struct Connectors {
     pub klarna: ConnectorParams,
     pub mollie: ConnectorParams,
     pub multisafepay: ConnectorParams,
+    pub netcetera: ConnectorParams,
     pub nexinets: ConnectorParams,
     pub nmi: ConnectorParams,
     pub noon: ConnectorParamsWithModeType,
@@ -728,6 +729,9 @@ impl Settings<SecuredSecret> {
 
         self.lock_settings.validate()?;
         self.events.validate()?;
+
+        #[cfg(feature = "olap")]
+        self.opensearch.validate()?;
 
         self.encryption_management
             .validate()

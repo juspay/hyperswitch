@@ -336,3 +336,34 @@ services:
       nofile:
         soft: 262144
         hard: 262144
+
+  fluentd:
+    build: ./docker/fluentd
+    volumes:
+      - ./docker/fluentd/conf:/fluentd/etc
+    networks:
+      - router_net
+
+  opensearch:
+    image: public.ecr.aws/opensearchproject/opensearch:1.3.14
+    container_name: opensearch
+    hostname: opensearch
+    environment:
+      - "discovery.type=single-node"
+    expose:
+      - "9200"
+    ports:
+      - "9200:9200"
+    networks:
+      - router_net
+
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:1.3.14
+    ports:
+      - 5601:5601
+    expose:
+      - "5601"
+    environment:
+      OPENSEARCH_HOSTS: '["https://opensearch:9200"]'
+    networks:
+      - router_net

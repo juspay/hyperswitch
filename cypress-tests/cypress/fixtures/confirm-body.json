@@ -15,6 +15,14 @@
       "card_network": "Visa"
     }
   },
+  "customer_acceptance": {
+    "acceptance_type": "offline",
+    "accepted_at": "1963-05-03T04:07:52.723Z",
+    "online": {
+      "ip_address": "127.0.0.1",
+      "user_agent": "amet irure esse"
+    }
+  },
   "billing": {
     "address": {
       "state": "New York",
@@ -28,6 +36,7 @@
       "line3": "123 Main Street Apt 4B"
     }
   },
+
   "email": "hyperswitch_sdk_demo_id@gmail.com",
   "browser_info": {
     "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",

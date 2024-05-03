@@ -98,10 +98,11 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
                     let payment_pending_url = item.router_data.request.router_return_url.clone();
                     let payment_cancel_url = item.router_data.request.router_return_url.clone();
                     let address = item.router_data.get_billing_address()?;
+                    let first_name = address.get_first_name()?;
                     let shopper = ShopperDetails {
                         email: item.router_data.request.email.clone(),
-                        first_name: address.get_first_name()?.to_owned(),
-                        last_name: address.get_last_name()?.to_owned(),
+                        first_name: first_name.to_owned(),
+                        last_name: address.get_last_name().unwrap_or(first_name).to_owned(),
                         reference: item.router_data.get_customer_id()?.to_owned(),
                     };
                     let transaction_type = TransactionType::Services; //transaction_type is a form of enum, it is pre defined and value for this can not be taken from user so we are keeping it as Services as this transaction is type of service.

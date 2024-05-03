@@ -4516,6 +4516,47 @@
           }
         ]
       }
+    },
+    "/poll/status/{poll_id}": {
+      "get": {
+        "tags": [
+          "Poll"
+        ],
+        "summary": "Poll - Retrieve Poll Status",
+        "description": "Poll - Retrieve Poll Status",
+        "operationId": "Retrieve Poll Status",
+        "parameters": [
+          {
+            "name": "poll_id",
+            "in": "path",
+            "description": "The identifier for poll",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The poll status was retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PollResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Poll not found"
+          }
+        },
+        "security": [
+          {
+            "publishable_key": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -4841,26 +4882,24 @@
       },
       "AlfamartVoucherData": {
         "type": "object",
-        "required": [
-          "first_name",
-          "last_name",
-          "email"
-        ],
         "properties": {
           "first_name": {
             "type": "string",
             "description": "The billing first name for Alfamart",
-            "example": "Jane"
+            "example": "Jane",
+            "nullable": true
           },
           "last_name": {
             "type": "string",
             "description": "The billing second name for Alfamart",
-            "example": "Doe"
+            "example": "Doe",
+            "nullable": true
           },
           "email": {
             "type": "string",
             "description": "The Email ID for Alfamart",
-            "example": "example@me.com"
+            "example": "example@me.com",
+            "nullable": true
           }
         }
       },
@@ -5125,7 +5164,8 @@
       "AuthenticationConnectors": {
         "type": "string",
         "enum": [
-          "threedsecureio"
+          "threedsecureio",
+          "netcetera"
         ]
       },
       "AuthenticationStatus": {
@@ -5224,6 +5264,9 @@
           },
           {
             "$ref": "#/components/schemas/SepaBankTransfer"
+          },
+          {
+            "$ref": "#/components/schemas/PixBankTransfer"
           }
         ]
       },
@@ -6993,6 +7036,38 @@
           }
         }
       },
+      "CardDetailUpdate": {
+        "type": "object",
+        "required": [
+          "card_exp_month",
+          "card_exp_year",
+          "card_holder_name"
+        ],
+        "properties": {
+          "card_exp_month": {
+            "type": "string",
+            "description": "Card Expiry Month",
+            "example": "10"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "Card Expiry Year",
+            "example": "25"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "Card Holder Name",
+            "example": "John Doe"
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "Card Holder's Nick Name",
+            "example": "John Doe",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "CardNetwork": {
         "type": "string",
         "description": "Indicates the card network.",
@@ -7146,6 +7221,7 @@
           "cryptopay",
           "cybersource",
           "dlocal",
+          "ebanx",
           "fiserv",
           "forte",
           "globalpay",
@@ -7156,6 +7232,7 @@
           "klarna",
           "mollie",
           "multisafepay",
+          "netcetera",
           "nexinets",
           "nmi",
           "noon",
@@ -8634,6 +8711,97 @@
           "mandate_revoked"
         ]
       },
+      "ExtendedCardInfo": {
+        "type": "object",
+        "required": [
+          "card_number",
+          "card_exp_month",
+          "card_exp_year",
+          "card_holder_name"
+        ],
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "description": "The card number",
+            "example": "4242424242424242"
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month",
+            "example": "24"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year",
+            "example": "24"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test"
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "The name of the issuer of card",
+            "example": "chase",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "example": "CREDIT",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "example": "INDIA",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "example": "JP_AMEX",
+            "nullable": true
+          }
+        }
+      },
+      "ExtendedCardInfoConfig": {
+        "type": "object",
+        "required": [
+          "public_key"
+        ],
+        "properties": {
+          "public_key": {
+            "type": "string",
+            "description": "Merchant public key"
+          },
+          "ttl_in_secs": {
+            "type": "integer",
+            "format": "int32",
+            "description": "TTL for extended card info",
+            "default": 900,
+            "maximum": 3600,
+            "minimum": 0
+          }
+        }
+      },
+      "ExtendedCardInfoResponse": {
+        "type": "object",
+        "required": [
+          "payload"
+        ],
+        "properties": {
+          "payload": {
+            "type": "string"
+          }
+        }
+      },
       "ExternalAuthenticationDetailsResponse": {
         "type": "object",
         "required": [
@@ -9678,26 +9846,24 @@
       },
       "IndomaretVoucherData": {
         "type": "object",
-        "required": [
-          "first_name",
-          "last_name",
-          "email"
-        ],
         "properties": {
           "first_name": {
             "type": "string",
             "description": "The billing first name for Alfamart",
-            "example": "Jane"
+            "example": "Jane",
+            "nullable": true
           },
           "last_name": {
             "type": "string",
             "description": "The billing second name for Alfamart",
-            "example": "Doe"
+            "example": "Doe",
+            "nullable": true
           },
           "email": {
             "type": "string",
             "description": "The Email ID for Alfamart",
-            "example": "example@me.com"
+            "example": "example@me.com",
+            "nullable": true
           }
         }
       },
@@ -9719,32 +9885,30 @@
       },
       "JCSVoucherData": {
         "type": "object",
-        "required": [
-          "first_name",
-          "last_name",
-          "email",
-          "phone_number"
-        ],
         "properties": {
           "first_name": {
             "type": "string",
             "description": "The billing first name for Japanese convenience stores",
-            "example": "Jane"
+            "example": "Jane",
+            "nullable": true
           },
           "last_name": {
             "type": "string",
             "description": "The billing second name Japanese convenience stores",
-            "example": "Doe"
+            "example": "Doe",
+            "nullable": true
           },
           "email": {
             "type": "string",
             "description": "The Email ID for Japanese convenience stores",
-            "example": "example@me.com"
+            "example": "example@me.com",
+            "nullable": true
           },
           "phone_number": {
             "type": "string",
             "description": "The telephone number for Japanese convenience stores",
-            "example": "9999999999"
+            "example": "9999999999",
+            "nullable": true
           }
         }
       },
@@ -12135,7 +12299,9 @@
           "theme",
           "logo",
           "seller_name",
-          "sdk_layout"
+          "sdk_layout",
+          "display_sdk_only",
+          "enabled_saved_payment_method"
         ],
         "properties": {
           "theme": {
@@ -12153,6 +12319,14 @@
           "sdk_layout": {
             "type": "string",
             "description": "Custom layout for sdk"
+          },
+          "display_sdk_only": {
+            "type": "boolean",
+            "description": "Display only the sdk for payment link"
+          },
+          "enabled_saved_payment_method": {
+            "type": "boolean",
+            "description": "Enable saved payment method option for payment link"
           }
         }
       },
@@ -12186,6 +12360,20 @@
             "example": "accordion",
             "nullable": true,
             "maxLength": 255
+          },
+          "display_sdk_only": {
+            "type": "boolean",
+            "description": "Display only the sdk for payment link",
+            "default": false,
+            "example": true,
+            "nullable": true
+          },
+          "enabled_saved_payment_method": {
+            "type": "boolean",
+            "description": "Enable saved payment method option for payment link",
+            "default": false,
+            "example": true,
+            "nullable": true
           }
         }
       },
@@ -12402,9 +12590,37 @@
               }
             ],
             "nullable": true
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "For Client based calls, SDK will use the client_secret\nin order to call /payment_methods\nClient secret will be generated whenever a new\npayment method is created",
+            "nullable": true
+          },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodCreateData"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
+      },
+      "PaymentMethodCreateData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "card"
+            ],
+            "properties": {
+              "card": {
+                "$ref": "#/components/schemas/CardDetail"
+              }
+            }
+          }
+        ]
       },
       "PaymentMethodData": {
         "oneOf": [
@@ -12571,7 +12787,12 @@
       "PaymentMethodDataRequest": {
         "allOf": [
           {
-            "$ref": "#/components/schemas/PaymentMethodData"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodData"
+              }
+            ],
+            "nullable": true
           },
           {
             "type": "object",
@@ -12791,6 +13012,11 @@
             "format": "date-time",
             "example": "2024-02-24T11:04:09.922Z",
             "nullable": true
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "For Client based calls",
+            "nullable": true
           }
         }
       },
@@ -12799,7 +13025,8 @@
         "enum": [
           "active",
           "inactive",
-          "processing"
+          "processing",
+          "awaiting_data"
         ]
       },
       "PaymentMethodType": {
@@ -12881,6 +13108,7 @@
           "twint",
           "upi_collect",
           "vipps",
+          "venmo",
           "walley",
           "we_chat_pay",
           "seven_eleven",
@@ -12898,7 +13126,7 @@
           "card": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/CardDetail"
+                "$ref": "#/components/schemas/CardDetailUpdate"
               }
             ],
             "nullable": true
@@ -12931,6 +13159,14 @@
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
             "nullable": true
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK",
+            "example": "secret_k2uj3he2893eiu2d",
+            "nullable": true,
+            "maxLength": 30,
+            "minLength": 30
           }
         },
         "additionalProperties": false
@@ -15472,7 +15708,10 @@
         "type": "string",
         "enum": [
           "adyen",
-          "wise"
+          "stripe",
+          "wise",
+          "paypal",
+          "ebanx"
         ]
       },
       "PayoutCreateRequest": {
@@ -16075,6 +16314,10 @@
           "force_sync": {
             "type": "boolean",
             "nullable": true
+          },
+          "merchant_id": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -16097,6 +16340,11 @@
             "default": false,
             "example": true,
             "nullable": true
+          },
+          "merchant_id": {
+            "type": "string",
+            "description": "The identifier for the Merchant Account.",
+            "nullable": true
           }
         }
       },
@@ -16110,7 +16358,8 @@
           "ineligible",
           "requires_creation",
           "requires_payout_method_data",
-          "requires_fulfillment"
+          "requires_fulfillment",
+          "requires_vendor_account_creation"
         ]
       },
       "PayoutType": {
@@ -16124,13 +16373,25 @@
       "Paypal": {
         "type": "object",
         "required": [
-          "email"
+          "email",
+          "telephone_number",
+          "paypal_id"
         ],
         "properties": {
           "email": {
             "type": "string",
             "description": "Email linked with paypal account",
             "example": "john.doe@example.com"
+          },
+          "telephone_number": {
+            "type": "string",
+            "description": "mobile number linked to paypal account",
+            "example": "16608213349"
+          },
+          "paypal_id": {
+            "type": "string",
+            "description": "id of the paypal account",
+            "example": "G83KXTJ5EHCQ2"
           }
         }
       },
@@ -16174,6 +16435,91 @@
             "nullable": true
           }
         }
+      },
+      "PixBankTransfer": {
+        "type": "object",
+        "required": [
+          "bank_account_number",
+          "pix_key"
+        ],
+        "properties": {
+          "bank_name": {
+            "type": "string",
+            "description": "Bank name",
+            "example": "Deutsche Bank",
+            "nullable": true
+          },
+          "bank_branch": {
+            "type": "string",
+            "description": "Bank branch",
+            "example": "3707",
+            "nullable": true
+          },
+          "bank_account_number": {
+            "type": "string",
+            "description": "Bank account number is an unique identifier assigned by a bank to a customer.",
+            "example": "000123456"
+          },
+          "pix_key": {
+            "type": "string",
+            "description": "Unique key for pix customer",
+            "example": "000123456"
+          },
+          "tax_id": {
+            "type": "string",
+            "description": "Individual taxpayer identification number",
+            "example": "000123456",
+            "nullable": true
+          }
+        }
+      },
+      "PollConfigResponse": {
+        "type": "object",
+        "required": [
+          "poll_id",
+          "delay_in_secs",
+          "frequency"
+        ],
+        "properties": {
+          "poll_id": {
+            "type": "string",
+            "description": "Poll Id"
+          },
+          "delay_in_secs": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Interval of the poll"
+          },
+          "frequency": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Frequency of the poll"
+          }
+        }
+      },
+      "PollResponse": {
+        "type": "object",
+        "required": [
+          "poll_id",
+          "status"
+        ],
+        "properties": {
+          "poll_id": {
+            "type": "string",
+            "description": "The poll id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PollStatus"
+          }
+        }
+      },
+      "PollStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "completed",
+          "not_found"
+        ]
       },
       "PrimaryBusinessDetails": {
         "type": "object",
@@ -16934,6 +17280,7 @@
           "cryptopay",
           "cybersource",
           "dlocal",
+          "ebanx",
           "fiserv",
           "forte",
           "globalpay",
@@ -17714,7 +18061,8 @@
         "required": [
           "three_ds_authentication_url",
           "three_ds_authorize_url",
-          "three_ds_method_details"
+          "three_ds_method_details",
+          "poll_config"
         ],
         "properties": {
           "three_ds_authentication_url": {
@@ -17727,6 +18075,9 @@
           },
           "three_ds_method_details": {
             "$ref": "#/components/schemas/ThreeDsMethodData"
+          },
+          "poll_config": {
+            "$ref": "#/components/schemas/PollConfigResponse"
           }
         }
       },
@@ -18041,6 +18392,19 @@
           "propertyName": "type"
         }
       },
+      "Venmo": {
+        "type": "object",
+        "required": [
+          "telephone_number"
+        ],
+        "properties": {
+          "telephone_number": {
+            "type": "string",
+            "description": "mobile number linked to venmo account",
+            "example": "16608213349"
+          }
+        }
+      },
       "VoucherData": {
         "oneOf": [
           {
@@ -18184,6 +18548,17 @@
             "properties": {
               "paypal": {
                 "$ref": "#/components/schemas/Paypal"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "venmo"
+            ],
+            "properties": {
+              "venmo": {
+                "$ref": "#/components/schemas/Venmo"
               }
             }
           }

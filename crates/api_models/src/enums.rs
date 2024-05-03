@@ -89,7 +89,7 @@ pub enum Connector {
     Cryptopay,
     Cybersource,
     Dlocal,
-    // Ebanx,
+    Ebanx,
     Fiserv,
     Forte,
     Globalpay,
@@ -100,6 +100,7 @@ pub enum Connector {
     Klarna,
     Mollie,
     Multisafepay,
+    Netcetera,
     Nexinets,
     Nmi,
     Noon,
@@ -134,6 +135,29 @@ pub enum Connector {
 }
 
 impl Connector {
+    #[cfg(feature = "payouts")]
+    pub fn supports_instant_payout(&self, payout_method: PayoutType) -> bool {
+        matches!(
+            (self, payout_method),
+            (Self::Paypal, PayoutType::Wallet) | (_, PayoutType::Card)
+        )
+    }
+    #[cfg(feature = "payouts")]
+    pub fn supports_create_recipient(&self, payout_method: PayoutType) -> bool {
+        matches!((self, payout_method), (_, PayoutType::Bank))
+    }
+    #[cfg(feature = "payouts")]
+    pub fn supports_payout_eligibility(&self, payout_method: PayoutType) -> bool {
+        matches!((self, payout_method), (_, PayoutType::Card))
+    }
+    #[cfg(feature = "payouts")]
+    pub fn supports_access_token_for_payout(&self, payout_method: PayoutType) -> bool {
+        matches!((self, payout_method), (Self::Paypal, _))
+    }
+    #[cfg(feature = "payouts")]
+    pub fn supports_vendor_disburse_account_create_for_payout(&self) -> bool {
+        matches!(self, Self::Stripe)
+    }
     pub fn supports_access_token(&self, payment_method: PaymentMethod) -> bool {
         matches!(
             (self, payment_method),
@@ -177,6 +201,7 @@ impl Connector {
             | Self::Coinbase
             | Self::Cryptopay
             | Self::Dlocal
+            | Self::Ebanx
             | Self::Fiserv
             | Self::Forte
             | Self::Globalpay
@@ -188,7 +213,6 @@ impl Connector {
             | Self::Mollie
             | Self::Multisafepay
             | Self::Nexinets
-            | Self::Nmi
             | Self::Nuvei
             | Self::Opennode
             | Self::Payme
@@ -213,10 +237,11 @@ impl Connector {
             | Self::Plaid
             | Self::Riskified
             | Self::Threedsecureio
+            | Self::Netcetera
             | Self::Cybersource
             | Self::Noon
             | Self::Stripe => false,
-            Self::Checkout => true,
+            Self::Checkout | Self::Nmi => true,
         }
         #[cfg(not(feature = "dummy_connector"))]
         match self {
@@ -235,6 +260,7 @@ impl Connector {
             | Self::Coinbase
             | Self::Cryptopay
             | Self::Dlocal
+            | Self::Ebanx
             | Self::Fiserv
             | Self::Forte
             | Self::Globalpay
@@ -273,6 +299,7 @@ impl Connector {
             | Self::Threedsecureio
             | Self::Cybersource
             | Self::Noon
+            | Self::Netcetera
             | Self::Stripe => false,
             Self::Checkout => true,
         }
@@ -296,6 +323,7 @@ impl Connector {
 #[strum(serialize_all = "snake_case")]
 pub enum AuthenticationConnectors {
     Threedsecureio,
+    Netcetera,
 }
 
 #[cfg(feature = "payouts")]
@@ -316,7 +344,10 @@ pub enum AuthenticationConnectors {
 #[strum(serialize_all = "snake_case")]
 pub enum PayoutConnectors {
     Adyen,
+    Stripe,
     Wise,
+    Paypal,
+    Ebanx,
 }
 
 #[cfg(feature = "payouts")]
@@ -324,7 +355,10 @@ impl From<PayoutConnectors> for RoutableConnectors {
     fn from(value: PayoutConnectors) -> Self {
         match value {
             PayoutConnectors::Adyen => Self::Adyen,
+            PayoutConnectors::Stripe => Self::Stripe,
             PayoutConnectors::Wise => Self::Wise,
+            PayoutConnectors::Paypal => Self::Paypal,
+            PayoutConnectors::Ebanx => Self::Ebanx,
         }
     }
 }
@@ -334,7 +368,10 @@ impl From<PayoutConnectors> for Connector {
     fn from(value: PayoutConnectors) -> Self {
         match value {
             PayoutConnectors::Adyen => Self::Adyen,
+            PayoutConnectors::Stripe => Self::Stripe,
             PayoutConnectors::Wise => Self::Wise,
+            PayoutConnectors::Paypal => Self::Paypal,
+            PayoutConnectors::Ebanx => Self::Ebanx,
         }
     }
 }
@@ -345,7 +382,10 @@ impl TryFrom<Connector> for PayoutConnectors {
     fn try_from(value: Connector) -> Result<Self, Self::Error> {
         match value {
             Connector::Adyen => Ok(Self::Adyen),
+            Connector::Stripe => Ok(Self::Stripe),
             Connector::Wise => Ok(Self::Wise),
+            Connector::Paypal => Ok(Self::Paypal),
+            Connector::Ebanx => Ok(Self::Ebanx),
             _ => Err(format!("Invalid payout connector {}", value)),
         }
     }

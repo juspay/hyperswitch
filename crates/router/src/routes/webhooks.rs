@@ -25,8 +25,8 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
         flow.clone(),
         state,
         &req,
-        WebhookBytes(body),
-        |state, auth, payload, req_state| {
+        (),
+        |state, auth, _, req_state| {
             webhooks::webhooks_wrapper::<W, Oss>(
                 &flow,
                 state.to_owned(),
@@ -35,7 +35,7 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
                 auth.merchant_account,
                 auth.key_store,
                 &connector_id_or_name,
-                payload.0,
+                body.clone(),
             )
         },
         &auth::MerchantIdAuth(merchant_id),

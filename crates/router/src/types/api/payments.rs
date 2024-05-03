@@ -3,10 +3,10 @@ pub use api_models::payments::{
     CryptoData, CustomerAcceptance, HeaderPayload, MandateAmountData, MandateData,
     MandateTransactionType, MandateType, MandateValidationFields, NextActionType, OnlineMandate,
     PayLaterData, PaymentIdType, PaymentListConstraints, PaymentListFilterConstraints,
-    PaymentListFilters, PaymentListResponse, PaymentListResponseV2, PaymentMethodData,
-    PaymentMethodDataRequest, PaymentMethodDataResponse, PaymentOp, PaymentRetrieveBody,
-    PaymentRetrieveBodyWithCredentials, PaymentsApproveRequest, PaymentsCancelRequest,
-    PaymentsCaptureRequest, PaymentsExternalAuthenticationRequest,
+    PaymentListFilters, PaymentListFiltersV2, PaymentListResponse, PaymentListResponseV2,
+    PaymentMethodData, PaymentMethodDataRequest, PaymentMethodDataResponse, PaymentOp,
+    PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials, PaymentsApproveRequest,
+    PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsExternalAuthenticationRequest,
     PaymentsIncrementalAuthorizationRequest, PaymentsRedirectRequest, PaymentsRedirectionResponse,
     PaymentsRejectRequest, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
     PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
@@ -261,7 +261,7 @@ mod payments_test {
         PaymentsRequest {
             amount: Some(Amount::from(200)),
             payment_method_data: Some(PaymentMethodDataRequest {
-                payment_method_data: PaymentMethodData::Card(card()),
+                payment_method_data: Some(PaymentMethodData::Card(card())),
                 billing: None,
             }),
             ..PaymentsRequest::default()

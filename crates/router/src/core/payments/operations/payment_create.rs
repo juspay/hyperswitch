@@ -5,12 +5,12 @@ use api_models::{
 };
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
-use data_models::{
+use diesel_models::{ephemeral_key, PaymentMethod};
+use error_stack::{self, ResultExt};
+use hyperswitch_domain_models::{
     mandates::{MandateData, MandateDetails},
     payments::payment_attempt::PaymentAttempt,
 };
-use diesel_models::{ephemeral_key, PaymentMethod};
-use error_stack::{self, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
@@ -134,6 +134,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             mandate_type.clone(),
             merchant_account,
             merchant_key_store,
+            None,
         )
         .await?;
 
@@ -320,7 +321,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         })
             .async_and_then(|mandate_id| async {
                 let mandate = db
-                    .find_mandate_by_merchant_id_mandate_id(merchant_id, mandate_id)
+                    .find_mandate_by_merchant_id_mandate_id(merchant_id, mandate_id, storage_scheme)
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::MandateNotFound);
                 Some(mandate.and_then(|mandate_obj| {
@@ -395,11 +396,14 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         let payment_method_data_after_card_bin_call = request
             .payment_method_data
             .as_ref()
+            .and_then(|payment_method_data_from_request| {
+                payment_method_data_from_request
+                    .payment_method_data
+                    .as_ref()
+            })
             .zip(additional_payment_data)
             .map(|(payment_method_data, additional_payment_data)| {
-                payment_method_data
-                    .payment_method_data
-                    .apply_additional_payment_data(additional_payment_data)
+                payment_method_data.apply_additional_payment_data(additional_payment_data)
             });
 
         let amount = payment_attempt.get_total_amount().into();
@@ -446,6 +450,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             authentication: None,
             frm_metadata: request.frm_metadata.clone(),
             recurring_details,
+            poll_config: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -700,7 +705,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
             request
                 .payment_method_data
                 .as_ref()
-                .map(|pmd| pmd.payment_method_data.clone()),
+                .and_then(|pmd| pmd.payment_method_data.clone()),
         )?;
 
         helpers::validate_payment_method_fields_present(request)?;
@@ -720,7 +725,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
                 &request
                     .payment_method_data
                     .as_ref()
-                    .map(|pmd| pmd.payment_method_data.clone()),
+                    .and_then(|pmd| pmd.payment_method_data.clone()),
                 &request.payment_method_type,
                 &mandate_type,
                 &request.payment_token,
@@ -770,20 +775,26 @@ impl PaymentCreate {
         storage::PaymentAttemptNew,
         Option<api_models::payments::AdditionalPaymentData>,
     )> {
+        let payment_method_data =
+            request
+                .payment_method_data
+                .as_ref()
+                .and_then(|payment_method_data_request| {
+                    payment_method_data_request.payment_method_data.as_ref()
+                });
+
         let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
-        let status =
-            helpers::payment_attempt_status_fsm(&request.payment_method_data, request.confirm);
+        let status = helpers::payment_attempt_status_fsm(payment_method_data, request.confirm);
         let (amount, currency) = (money.0, Some(money.1));
 
         let mut additional_pm_data = request
             .payment_method_data
             .as_ref()
+            .and_then(|payment_method_data_request| {
+                payment_method_data_request.payment_method_data.as_ref()
+            })
             .async_map(|payment_method_data| async {
-                helpers::get_additional_payment_data(
-                    &payment_method_data.payment_method_data,
-                    &*state.store,
-                )
-                .await
+                helpers::get_additional_payment_data(payment_method_data, &*state.store).await
             })
             .await;
 
@@ -942,8 +953,16 @@ impl PaymentCreate {
         session_expiry: PrimitiveDateTime,
     ) -> RouterResult<storage::PaymentIntentNew> {
         let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
-        let status =
-            helpers::payment_intent_status_fsm(&request.payment_method_data, request.confirm);
+
+        let status = helpers::payment_intent_status_fsm(
+            request
+                .payment_method_data
+                .as_ref()
+                .and_then(|request_payment_method_data| {
+                    request_payment_method_data.payment_method_data.as_ref()
+                }),
+            request.confirm,
+        );
         let client_secret =
             crate::utils::generate_id(consts::ID_LENGTH, format!("{payment_id}_secret").as_str());
         let (amount, currency) = (money.0, Some(money.1));
@@ -997,7 +1016,9 @@ impl PaymentCreate {
             metadata: request.metadata.clone(),
             business_country: request.business_country,
             business_label: request.business_label.clone(),
-            active_attempt: data_models::RemoteStorageObject::ForeignID(active_attempt_id),
+            active_attempt: hyperswitch_domain_models::RemoteStorageObject::ForeignID(
+                active_attempt_id,
+            ),
             order_details,
             amount_captured: None,
             customer_id: None,

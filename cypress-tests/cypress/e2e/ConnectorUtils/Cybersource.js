@@ -7,7 +7,7 @@ const successfulNo3DSCardDetails = {
 };
 
 const successfulThreeDSTestCardDetails = {
-    "card_number": "4000000000001000",
+    "card_number": "4000000000001091",
     "card_exp_month": "01",
     "card_exp_year": "25",
     "card_holder_name": "joseph Doe",
@@ -22,6 +22,8 @@ export const connectorDetails = {
         "paymentSyncStatus": "succeeded",
         "refundStatus": "pending",
         "refundSyncStatus": "pending",
+        "customer_acceptance": null,
+        "setup_future_usage": "on_session",
     },
     "No3DS": {
         "card": successfulNo3DSCardDetails,
@@ -30,6 +32,8 @@ export const connectorDetails = {
         "paymentSyncStatus": "succeeded",
         "refundStatus": "pending",
         "refundSyncStatus": "pending",
+        "customer_acceptance": null,
+        "setup_future_usage": "on_session",
     },
     "MandateSingleUse3DS": {
         "card": successfulThreeDSTestCardDetails,
@@ -86,5 +90,22 @@ export const connectorDetails = {
                 "currency": "USD"
             }
         }
+    },
+    "SaveCardUseNo3DS": {
+        "card": successfulNo3DSCardDetails,
+        "currency": "USD",
+        "paymentSuccessfulStatus": "succeeded",
+        "paymentSyncStatus": "succeeded",
+        "refundStatus": "succeeded",
+        "refundSyncStatus": "succeeded",
+        "setup_future_usage": "on_session",
+        "customer_acceptance": {
+            "acceptance_type": "offline",
+            "accepted_at": "1963-05-03T04:07:52.723Z",
+            "online": {
+                "ip_address": "127.0.0.1",
+                "user_agent": "amet irure esse"
+            }
+        },
     },
 };
