@@ -396,11 +396,14 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         let payment_method_data_after_card_bin_call = request
             .payment_method_data
             .as_ref()
+            .and_then(|payment_method_data_from_request| {
+                payment_method_data_from_request
+                    .payment_method_data
+                    .as_ref()
+            })
             .zip(additional_payment_data)
             .map(|(payment_method_data, additional_payment_data)| {
-                payment_method_data
-                    .payment_method_data
-                    .apply_additional_payment_data(additional_payment_data)
+                payment_method_data.apply_additional_payment_data(additional_payment_data)
             });
 
         let amount = payment_attempt.get_total_amount().into();
@@ -702,7 +705,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
             request
                 .payment_method_data
                 .as_ref()
-                .map(|pmd| pmd.payment_method_data.clone()),
+                .and_then(|pmd| pmd.payment_method_data.clone()),
         )?;
 
         helpers::validate_payment_method_fields_present(request)?;
@@ -722,7 +725,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
                 &request
                     .payment_method_data
                     .as_ref()
-                    .map(|pmd| pmd.payment_method_data.clone()),
+                    .and_then(|pmd| pmd.payment_method_data.clone()),
                 &request.payment_method_type,
                 &mandate_type,
                 &request.payment_token,
@@ -772,20 +775,26 @@ impl PaymentCreate {
         storage::PaymentAttemptNew,
         Option<api_models::payments::AdditionalPaymentData>,
     )> {
+        let payment_method_data =
+            request
+                .payment_method_data
+                .as_ref()
+                .and_then(|payment_method_data_request| {
+                    payment_method_data_request.payment_method_data.as_ref()
+                });
+
         let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
-        let status =
-            helpers::payment_attempt_status_fsm(&request.payment_method_data, request.confirm);
+        let status = helpers::payment_attempt_status_fsm(payment_method_data, request.confirm);
         let (amount, currency) = (money.0, Some(money.1));
 
         let mut additional_pm_data = request
             .payment_method_data
             .as_ref()
+            .and_then(|payment_method_data_request| {
+                payment_method_data_request.payment_method_data.as_ref()
+            })
             .async_map(|payment_method_data| async {
-                helpers::get_additional_payment_data(
-                    &payment_method_data.payment_method_data,
-                    &*state.store,
-                )
-                .await
+                helpers::get_additional_payment_data(payment_method_data, &*state.store).await
             })
             .await;
 
@@ -944,8 +953,16 @@ impl PaymentCreate {
         session_expiry: PrimitiveDateTime,
     ) -> RouterResult<storage::PaymentIntentNew> {
         let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
-        let status =
-            helpers::payment_intent_status_fsm(&request.payment_method_data, request.confirm);
+
+        let status = helpers::payment_intent_status_fsm(
+            request
+                .payment_method_data
+                .as_ref()
+                .and_then(|request_payment_method_data| {
+                    request_payment_method_data.payment_method_data.as_ref()
+                }),
+            request.confirm,
+        );
         let client_secret =
             crate::utils::generate_id(consts::ID_LENGTH, format!("{payment_id}_secret").as_str());
         let (amount, currency) = (money.0, Some(money.1));
