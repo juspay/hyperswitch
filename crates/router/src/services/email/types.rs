@@ -182,7 +182,7 @@ impl EmailToken {
     }
 
     pub fn get_flow(&self) -> domain::Origin {
-        self.flow
+        self.flow.clone()
     }
 }
 
@@ -204,9 +204,14 @@ pub struct VerifyEmail {
 #[async_trait::async_trait]
 impl EmailData for VerifyEmail {
     async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
-        let token = EmailToken::new_token(self.recipient_email.clone(), None, &self.settings)
-            .await
-            .change_context(EmailError::TokenGenerationFailure)?;
+        let token = EmailToken::new_token(
+            self.recipient_email.clone(),
+            None,
+            domain::Origin::VerifyEmail,
+            &self.settings,
+        )
+        .await
+        .change_context(EmailError::TokenGenerationFailure)?;
 
         let verify_email_link =
             get_link_with_token(&self.settings.email.base_url, token, "verify_email");
@@ -233,9 +238,14 @@ pub struct ResetPassword {
 #[async_trait::async_trait]
 impl EmailData for ResetPassword {
     async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
-        let token = EmailToken::new_token(self.recipient_email.clone(), None, &self.settings)
-            .await
-            .change_context(EmailError::TokenGenerationFailure)?;
+        let token = EmailToken::new_token(
+            self.recipient_email.clone(),
+            None,
+            domain::Origin::ResetPassword,
+            &self.settings,
+        )
+        .await
+        .change_context(EmailError::TokenGenerationFailure)?;
 
         let reset_password_link =
             get_link_with_token(&self.settings.email.base_url, token, "set_password");
@@ -263,9 +273,14 @@ pub struct MagicLink {
 #[async_trait::async_trait]
 impl EmailData for MagicLink {
     async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
-        let token = EmailToken::new_token(self.recipient_email.clone(), None, &self.settings)
-            .await
-            .change_context(EmailError::TokenGenerationFailure)?;
+        let token = EmailToken::new_token(
+            self.recipient_email.clone(),
+            None,
+            domain::Origin::MagicLink,
+            &self.settings,
+        )
+        .await
+        .change_context(EmailError::TokenGenerationFailure)?;
 
         let magic_link_login =
             get_link_with_token(&self.settings.email.base_url, token, "verify_email");
@@ -297,13 +312,17 @@ impl EmailData for InviteUser {
         let token = EmailToken::new_token(
             self.recipient_email.clone(),
             Some(self.merchant_id.clone()),
+            domain::Origin::ResetPassword,
             &self.settings,
         )
         .await
         .change_context(EmailError::TokenGenerationFailure)?;
 
-        let invite_user_link =
-            get_link_with_token(&self.settings.email.base_url, token, "set_password");
+        let invite_user_link = get_link_with_token(
+            &self.settings.email.base_url,
+            token,
+            "accept_invite_from_email",
+        );
 
         let body = html::get_html_body(EmailBody::InviteUser {
             link: invite_user_link,
@@ -317,6 +336,7 @@ impl EmailData for InviteUser {
         })
     }
 }
+
 pub struct InviteRegisteredUser {
     pub recipient_email: domain::UserEmail,
     pub user_name: domain::UserName,
@@ -331,6 +351,7 @@ impl EmailData for InviteRegisteredUser {
         let token = EmailToken::new_token(
             self.recipient_email.clone(),
             Some(self.merchant_id.clone()),
+            domain::Origin::AcceptInvitationFromEmail,
             &self.settings,
         )
         .await
