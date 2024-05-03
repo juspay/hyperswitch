@@ -2,7 +2,7 @@ use api_models::payments::HeaderPayload;
 use async_trait::async_trait;
 use common_enums::{CaptureMethod, FrmSuggestion};
 use common_utils::ext_traits::Encode;
-use data_models::payments::{
+use hyperswitch_domain_models::payments::{
     payment_attempt::PaymentAttemptUpdate, payment_intent::PaymentIntentUpdate,
 };
 use router_env::{instrument, logger, tracing};
