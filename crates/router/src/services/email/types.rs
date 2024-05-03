@@ -151,6 +151,7 @@ Email         : {user_email}
 pub struct EmailToken {
     email: String,
     merchant_id: Option<String>,
+    flow: domain::Origin,
     exp: u64,
 }
 
@@ -158,6 +159,7 @@ impl EmailToken {
     pub async fn new_token(
         email: domain::UserEmail,
         merchant_id: Option<String>,
+        flow: domain::Origin,
         settings: &configs::Settings,
     ) -> CustomResult<String, UserErrors> {
         let expiration_duration = std::time::Duration::from_secs(consts::EMAIL_TOKEN_TIME_IN_SECS);
@@ -165,6 +167,7 @@ impl EmailToken {
         let token_payload = Self {
             email: email.get_secret().expose(),
             merchant_id,
+            flow,
             exp,
         };
         jwt::generate_jwt(&token_payload, settings).await
@@ -176,6 +179,10 @@ impl EmailToken {
 
     pub fn get_merchant_id(&self) -> Option<&str> {
         self.merchant_id.as_deref()
+    }
+
+    pub fn get_flow(&self) -> domain::Origin {
+        self.flow
     }
 }
 

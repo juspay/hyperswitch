@@ -1004,3 +1004,12 @@ impl RoleName {
         self.0
     }
 }
+
+#[derive(Clone)]
+pub enum Origin {
+    SignIn,
+    SignUp,
+    VerifyEmail,
+    AcceptInvitationFromEmail,
+    ResetPassword,
+}
