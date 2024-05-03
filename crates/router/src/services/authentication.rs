@@ -763,7 +763,6 @@ where
             })
             .next()
             .unwrap_or_else(|| vec![merchant.merchant_id.clone()]);
-        println!("{:?} AUTH ORG MECHANT IDS", org_merchant_ids);
 
         let auth = AuthenticationDataOrg {
             merchant_account: merchant,

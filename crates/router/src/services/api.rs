@@ -948,7 +948,6 @@ pub enum AuthFlow {
     skip(request, payload, state, func, api_auth, request_state),
     fields(merchant_id)
 )]
-
 pub async fn server_wrap_util<'a, 'b, U, T, Q, F, Fut, E, OErr>(
     flow: &'a impl router_env::types::FlowMetric,
     state: web::Data<AppState>,

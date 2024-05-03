@@ -243,7 +243,6 @@ pub mod routes {
         json_payload: web::Json<GetPaymentFiltersRequest>,
     ) -> impl Responder {
         let flow = AnalyticsFlow::GetPaymentFilters;
-
         Box::pin(api::server_wrap(
             flow,
             state,
