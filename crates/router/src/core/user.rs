@@ -1329,7 +1329,7 @@ pub async fn user_from_email(
     state: AppState,
     req: user_api::UserFromEmailRequest,
 ) -> UserResponse<user_api::TokenResponse> {
-    let token = req.token.clone().expose();
+    let token = req.token.expose();
     let email_token = auth::decode_jwt::<email_types::EmailToken>(&token, &state)
         .await
         .change_context(UserErrors::LinkInvalid)?;
