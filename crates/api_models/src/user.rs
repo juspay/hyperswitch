@@ -87,7 +87,7 @@ pub struct ForgotPasswordRequest {
 
 #[derive(serde::Deserialize, Debug, serde::Serialize)]
 pub struct ResetPasswordRequest {
-    pub token: Secret<String>,
+    pub token: Option<Secret<String>>,
     pub password: Secret<String>,
 }
 

@@ -20,6 +20,7 @@ pub struct User {
     pub created_at: PrimitiveDateTime,
     pub last_modified_at: PrimitiveDateTime,
     pub preferred_merchant_id: Option<String>,
+    pub last_password_changed_at: Option<PrimitiveDateTime>,
 }
 
 #[derive(
@@ -35,6 +36,7 @@ pub struct UserNew {
     pub created_at: Option<PrimitiveDateTime>,
     pub last_modified_at: Option<PrimitiveDateTime>,
     pub preferred_merchant_id: Option<String>,
+    pub last_password_changed_at: Option<PrimitiveDateTime>,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
@@ -45,6 +47,7 @@ pub struct UserUpdateInternal {
     is_verified: Option<bool>,
     last_modified_at: PrimitiveDateTime,
     preferred_merchant_id: Option<String>,
+    last_password_changed_at: Option<PrimitiveDateTime>,
 }
 
 #[derive(Debug)]
@@ -52,9 +55,11 @@ pub enum UserUpdate {
     VerifyUser,
     AccountUpdate {
         name: Option<String>,
-        password: Option<Secret<String>>,
         is_verified: Option<bool>,
         preferred_merchant_id: Option<String>,
+    },
+    PasswordUpdate {
+        password: Option<Secret<String>>,
     },
 }
 
@@ -68,18 +73,27 @@ impl From<UserUpdate> for UserUpdateInternal {
                 is_verified: Some(true),
                 last_modified_at,
                 preferred_merchant_id: None,
+                last_password_changed_at: None,
             },
             UserUpdate::AccountUpdate {
                 name,
-                password,
                 is_verified,
                 preferred_merchant_id,
             } => Self {
                 name,
-                password,
+                password: None,
                 is_verified,
                 last_modified_at,
                 preferred_merchant_id,
+                last_password_changed_at: None,
+            },
+            UserUpdate::PasswordUpdate { password } => Self {
+                name: None,
+                password,
+                is_verified: None,
+                last_modified_at,
+                preferred_merchant_id: None,
+                last_password_changed_at: Some(last_modified_at),
             },
         }
     }

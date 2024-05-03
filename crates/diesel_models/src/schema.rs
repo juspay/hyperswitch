@@ -1190,6 +1190,7 @@ diesel::table! {
         last_modified_at -> Timestamp,
         #[max_length = 64]
         preferred_merchant_id -> Nullable<Varchar>,
+        last_password_changed_at -> Nullable<Timestamp>,
     }
 }
 

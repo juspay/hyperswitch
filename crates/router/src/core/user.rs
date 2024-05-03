@@ -331,11 +331,8 @@ pub async fn change_password(
         .store
         .update_user_by_user_id(
             user.get_user_id(),
-            diesel_models::user::UserUpdate::AccountUpdate {
-                name: None,
+            diesel_models::user::UserUpdate::PasswordUpdate {
                 password: Some(new_password_hash),
-                is_verified: None,
-                preferred_merchant_id: None,
             },
         )
         .await
@@ -1310,7 +1307,6 @@ pub async fn update_user_details(
 
     let user_update = storage_user::UserUpdate::AccountUpdate {
         name: name.map(|x| x.get_secret().expose()),
-        password: None,
         is_verified: None,
         preferred_merchant_id: req.preferred_merchant_id,
     };
