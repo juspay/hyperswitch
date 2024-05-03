@@ -65,9 +65,8 @@ pub struct BusinessProfileNew {
     pub session_expiry: Option<i64>,
     pub authentication_connector_details: Option<serde_json::Value>,
     pub is_extended_card_info_enabled: Option<bool>,
-    pub is_connector_agnostic_mit_enabled: Option<bool>,
-
     pub extended_card_info_config: Option<pii::SecretSerdeValue>,
+    pub is_connector_agnostic_mit_enabled: Option<bool>,
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
