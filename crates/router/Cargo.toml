@@ -14,7 +14,7 @@ email = ["external_services/email", "scheduler/email", "olap"]
 frm = ["api_models/frm"]
 stripe = ["dep:serde_qs"]
 release = ["stripe", "email", "backwards_compatibility", "business_profile_routing", "accounts_cache", "kv_store", "connector_choice_mca_id", "profile_specific_fallback_routing", "vergen", "recon", "external_services/aws_kms", "external_services/aws_s3"]
-olap = ["data_models/olap", "storage_impl/olap", "scheduler/olap", "api_models/olap", "dep:analytics"]
+olap = ["hyperswitch_domain_models/olap", "storage_impl/olap", "scheduler/olap", "api_models/olap", "dep:analytics"]
 oltp = ["storage_impl/oltp"]
 kv_store = ["scheduler/kv_store"]
 accounts_cache = []
@@ -26,7 +26,7 @@ dummy_connector = ["api_models/dummy_connector", "euclid/dummy_connector", "kgra
 connector_choice_mca_id = ["api_models/connector_choice_mca_id", "euclid/connector_choice_mca_id", "kgraph_utils/connector_choice_mca_id"]
 external_access_dc = ["dummy_connector"]
 detailed_errors = ["api_models/detailed_errors", "error-stack/serde"]
-payouts = ["api_models/payouts", "common_enums/payouts", "data_models/payouts", "storage_impl/payouts"]
+payouts = ["api_models/payouts", "common_enums/payouts", "hyperswitch_domain_models/payouts", "storage_impl/payouts"]
 payout_retry = ["payouts"]
 recon = ["email", "api_models/recon"]
 retry = []
@@ -105,7 +105,7 @@ common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["signals", "async_ext", "logs"] }
 hyperswitch_constraint_graph = { version = "0.1.0", path = "../hyperswitch_constraint_graph" }
 currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
-data_models = { version = "0.1.0", path = "../data_models", default-features = false }
+hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models", default-features = false }
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store"] }
 euclid = { version = "0.1.0", path = "../euclid", features = ["valued_jit"] }
 pm_auth = { version = "0.1.0", path = "../pm_auth", package = "pm_auth" }

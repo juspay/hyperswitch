@@ -24,8 +24,8 @@ pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 use common_enums::MandateStatus;
 pub use common_utils::request::RequestContent;
 use common_utils::{pii, pii::Email};
-use data_models::mandates::{CustomerAcceptance, MandateData};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::mandates::{CustomerAcceptance, MandateData};
 use masking::Secret;
 use serde::Serialize;
 
@@ -302,9 +302,6 @@ pub struct RouterData<Flow, Request, Response> {
 
     /// Contains flow-specific data that the connector responds with.
     pub response: Result<Response, ErrorResponse>,
-
-    /// Contains any error response that the connector returns.
-    pub payment_method_id: Option<String>,
 
     /// Contains a reference ID that should be sent in the connector request
     pub connector_request_reference_id: String,
@@ -1541,7 +1538,6 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             amount_captured: data.amount_captured,
             access_token: data.access_token.clone(),
             response: data.response.clone(),
-            payment_method_id: data.payment_method_id.clone(),
             payment_id: data.payment_id.clone(),
             session_token: data.session_token.clone(),
             reference_id: data.reference_id.clone(),
@@ -1602,7 +1598,6 @@ impl<F1, F2>
             amount_captured: data.amount_captured,
             access_token: data.access_token.clone(),
             response: data.response.clone(),
-            payment_method_id: data.payment_method_id.clone(),
             payment_id: data.payment_id.clone(),
             session_token: data.session_token.clone(),
             reference_id: data.reference_id.clone(),

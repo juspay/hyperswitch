@@ -113,7 +113,7 @@ enabled = true
 
 [connector_customer]
 connector_list = "gocardless,stax,stripe"
-payout_connector_list = "wise"
+payout_connector_list = "stripe,wise"
 
 [delayed_session_response]
 connectors_with_delayed_session_response = "trustpay,payme"     # List of connectors which have delayed session response

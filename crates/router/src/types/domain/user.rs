@@ -3,6 +3,7 @@ use std::{collections::HashSet, ops, str::FromStr};
 use api_models::{
     admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
 };
+use common_enums::TokenPurpose;
 use common_utils::{errors::CustomResult, pii};
 use diesel_models::{
     enums::UserStatus,
@@ -31,6 +32,8 @@ use crate::{
 };
 
 pub mod dashboard_metadata;
+pub mod decision_manager;
+pub use decision_manager::*;
 
 #[derive(Clone)]
 pub struct UserName(Secret<String>);
@@ -155,7 +158,32 @@ pub struct UserPassword(Secret<String>);
 impl UserPassword {
     pub fn new(password: Secret<String>) -> UserResult<Self> {
         let password = password.expose();
-        if password.is_empty() {
+
+        let mut has_upper_case = false;
+        let mut has_lower_case = false;
+        let mut has_numeric_value = false;
+        let mut has_special_character = false;
+        let mut has_whitespace = false;
+
+        for c in password.chars() {
+            has_upper_case = has_upper_case || c.is_uppercase();
+            has_lower_case = has_lower_case || c.is_lowercase();
+            has_numeric_value = has_numeric_value || c.is_numeric();
+            has_special_character =
+                has_special_character || !(c.is_alphanumeric() && c.is_whitespace());
+            has_whitespace = has_whitespace || c.is_whitespace();
+        }
+
+        let is_password_format_valid = has_upper_case
+            && has_lower_case
+            && has_numeric_value
+            && has_special_character
+            && !has_whitespace;
+
+        let is_too_long = password.graphemes(true).count() > consts::user::MAX_PASSWORD_LENGTH;
+        let is_too_short = password.graphemes(true).count() < consts::user::MIN_PASSWORD_LENGTH;
+
+        if is_too_short || is_too_long || !is_password_format_valid {
             Err(UserErrors::PasswordParsingError.into())
         } else {
             Ok(Self(password.into()))
@@ -785,6 +813,29 @@ impl UserFromStorage {
             .find_user_role_by_user_id_merchant_id(self.get_user_id(), merchant_id)
             .await
     }
+
+    pub async fn get_preferred_or_active_user_role_from_db(
+        &self,
+        state: &AppState,
+    ) -> CustomResult<UserRole, errors::StorageError> {
+        if let Some(preferred_merchant_id) = self.get_preferred_merchant_id() {
+            self.get_role_from_db_by_merchant_id(state, &preferred_merchant_id)
+                .await
+        } else {
+            state
+                .store
+                .list_user_roles_by_user_id(&self.0.user_id)
+                .await?
+                .into_iter()
+                .find(|role| role.status == UserStatus::Active)
+                .ok_or(
+                    errors::StorageError::ValueNotFound(
+                        "No active role found for user".to_string(),
+                    )
+                    .into(),
+                )
+        }
+    }
 }
 
 impl From<info::ModuleInfo> for user_role_api::ModuleInfo {
@@ -910,8 +961,10 @@ impl SignInWithMultipleRolesStrategy {
             user_api::MerchantSelectResponse {
                 name: self.user.get_name(),
                 email: self.user.get_email(),
-                token: auth::UserAuthToken::new_token(
+                token: auth::SinglePurposeToken::new_token(
                     self.user.get_user_id().to_string(),
+                    TokenPurpose::AcceptInvite,
+                    Origin::SignIn,
                     &state.conf,
                 )
                 .await?

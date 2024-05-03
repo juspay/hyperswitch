@@ -69,7 +69,6 @@ impl
             connector_auth_type: auth_type,
             description: None,
             return_url: None,
-            payment_method_id: None,
             address: self.address.clone(),
             auth_type: storage_enums::AuthenticationType::NoThreeDs,
             connector_meta_data: None,
@@ -82,6 +81,7 @@ impl
                 error_code: self.payment_attempt.error_code.clone(),
                 error_message: self.payment_attempt.error_message.clone(),
                 connector_transaction_id: self.payment_attempt.connector_transaction_id.clone(),
+                connector: self.payment_attempt.connector.clone(),
             }, // self.order_details
             response: Ok(FraudCheckResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId("".to_string()),

@@ -35,8 +35,8 @@ pub struct Request {
     pub url: String,
     pub headers: Headers,
     pub method: Method,
-    pub certificate: Option<String>,
-    pub certificate_key: Option<String>,
+    pub certificate: Option<Secret<String>>,
+    pub certificate_key: Option<Secret<String>>,
     pub body: Option<RequestContent>,
 }
 
@@ -96,11 +96,11 @@ impl Request {
         self.headers.insert((String::from(header), value));
     }
 
-    pub fn add_certificate(&mut self, certificate: Option<String>) {
+    pub fn add_certificate(&mut self, certificate: Option<Secret<String>>) {
         self.certificate = certificate;
     }
 
-    pub fn add_certificate_key(&mut self, certificate_key: Option<String>) {
+    pub fn add_certificate_key(&mut self, certificate_key: Option<Secret<String>>) {
         self.certificate = certificate_key;
     }
 }
@@ -110,8 +110,8 @@ pub struct RequestBuilder {
     pub url: String,
     pub headers: Headers,
     pub method: Method,
-    pub certificate: Option<String>,
-    pub certificate_key: Option<String>,
+    pub certificate: Option<Secret<String>>,
+    pub certificate_key: Option<Secret<String>>,
     pub body: Option<RequestContent>,
 }
 
@@ -157,12 +157,12 @@ impl RequestBuilder {
         self
     }
 
-    pub fn add_certificate(mut self, certificate: Option<String>) -> Self {
+    pub fn add_certificate(mut self, certificate: Option<Secret<String>>) -> Self {
         self.certificate = certificate;
         self
     }
 
-    pub fn add_certificate_key(mut self, certificate_key: Option<String>) -> Self {
+    pub fn add_certificate_key(mut self, certificate_key: Option<Secret<String>>) -> Self {
         self.certificate_key = certificate_key;
         self
     }

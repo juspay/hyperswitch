@@ -22,8 +22,8 @@ pub async fn verify_merchant_creds_for_applepay(
         .common_merchant_identifier
         .clone()
         .expose();
-    let cert_data = applepay_merchant_configs.merchant_cert.clone().expose();
-    let key_data = applepay_merchant_configs.merchant_cert_key.clone().expose();
+    let cert_data = applepay_merchant_configs.merchant_cert.clone();
+    let key_data = applepay_merchant_configs.merchant_cert_key.clone();
     let applepay_endpoint = &applepay_merchant_configs.applepay_endpoint;
 
     let request_body = verifications::ApplepayMerchantVerificationConfigs {

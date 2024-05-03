@@ -5,12 +5,12 @@ use api_models::{
 };
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
-use data_models::{
+use diesel_models::{ephemeral_key, PaymentMethod};
+use error_stack::{self, ResultExt};
+use hyperswitch_domain_models::{
     mandates::{MandateData, MandateDetails},
     payments::payment_attempt::PaymentAttempt,
 };
-use diesel_models::{ephemeral_key, PaymentMethod};
-use error_stack::{self, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
@@ -999,7 +999,9 @@ impl PaymentCreate {
             metadata: request.metadata.clone(),
             business_country: request.business_country,
             business_label: request.business_label.clone(),
-            active_attempt: data_models::RemoteStorageObject::ForeignID(active_attempt_id),
+            active_attempt: hyperswitch_domain_models::RemoteStorageObject::ForeignID(
+                active_attempt_id,
+            ),
             order_details,
             amount_captured: None,
             customer_id: None,
