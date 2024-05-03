@@ -3060,27 +3060,21 @@ pub async fn insert_merchant_connector_creds_to_config(
     merchant_connector_details: admin::MerchantConnectorDetailsWrap,
 ) -> RouterResult<()> {
     if let Some(encoded_data) = merchant_connector_details.encoded_data {
-        match db
-            .insert_config(storage::ConfigNew {
-                key: format!(
-                    "mcd_{merchant_id}_{}",
-                    merchant_connector_details.creds_identifier
-                ),
-                config: encoded_data.peek().to_owned(),
-            })
+        let redis = &db
+                .get_redis_conn()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to get redis connection")?;
+        
+        let key = format!("mcd_{merchant_id}_{}", merchant_connector_details.creds_identifier);
+        
+        redis
+            .serialize_and_set_key_with_expiry(key.as_str(), &encoded_data.peek(), i64::from(900))
             .await
-        {
-            Ok(_) => Ok(()),
-            Err(err) => {
-                if err.current_context().is_db_unique_violation() {
-                    Ok(())
-                } else {
-                    Err(err
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to insert connector_creds to config"))
-                }
-            }
-        }
+            .map_or_else(
+                |e| {Err(e.change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to insert connector_creds to config"))},
+                |_| Ok(()),
+            )
     } else {
         Ok(())
     }
@@ -3153,14 +3147,19 @@ pub async fn get_merchant_connector_account(
     let db = &*state.store;
     match creds_identifier {
         Some(creds_identifier) => {
-            let mca_config = db
-                .find_config_by_key(format!("mcd_{merchant_id}_{creds_identifier}").as_str())
-                .await
-                .to_not_found_response(
-                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: format!("mcd_{merchant_id}_{creds_identifier}"),
-                    },
-                )?;
+            let key = format!("mcd_{merchant_id}_{creds_identifier}");
+            let mca_config : String = db
+                .get_redis_conn()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to get redis connection")
+                .async_and_then(|redis| async move {
+                    redis
+                        .get_and_deserialize_key(key.as_str(), "String")
+                        .await
+                        .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound{id: key})
+                        .attach_printable("Failed to get redis Value")
+                }
+            ).await?;
 
             let private_key = state
                 .conf
@@ -3170,7 +3169,7 @@ pub async fn get_merchant_connector_account(
                 .peek()
                 .as_bytes();
 
-            let decrypted_mca = services::decrypt_jwe(mca_config.config.as_str(), services::KeyIdCheck::SkipKeyIdCheck, private_key, jwe::RSA_OAEP_256)
+            let decrypted_mca = services::decrypt_jwe(mca_config.as_str(), services::KeyIdCheck::SkipKeyIdCheck, private_key, jwe::RSA_OAEP_256)
                                      .await
                                      .change_context(errors::ApiErrorResponse::UnprocessableEntity{
                                         message: "decoding merchant_connector_details failed due to invalid data format!".into()})

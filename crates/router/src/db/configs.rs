@@ -65,10 +65,18 @@ impl ConfigInterface for Store {
         config: storage::ConfigNew,
     ) -> CustomResult<storage::Config, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        config
+        let inserted = config
             .insert(&conn)
             .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+            .map_err(|error| report!(errors::StorageError::from(error)))?;
+
+        self.get_redis_conn()
+            .map_err(Into::<errors::StorageError>::into)?
+            .publish(consts::PUB_SUB_CHANNEL, CacheKind::Config((&inserted.key).into()))
+            .await
+            .map_err(Into::<errors::StorageError>::into)?;
+
+        Ok(inserted)
     }
 
     #[instrument(skip_all)]
@@ -126,7 +134,7 @@ impl ConfigInterface for Store {
     async fn find_config_by_key_unwrap_or(
         &self,
         key: &str,
-        // If the config is not found it will be created with the default value.
+        // If the config is not found it will be cached with the default value.
         default_config: Option<String>,
     ) -> CustomResult<storage::Config, errors::StorageError> {
         let find_else_unwrap_or = || async {
@@ -138,18 +146,13 @@ impl ConfigInterface for Store {
                 Ok(a) => Ok(a),
                 Err(err) => {
                     if err.current_context().is_db_not_found() {
-                        default_config
-                            .ok_or(err)
-                            .async_and_then(|c| async {
-                                storage::ConfigNew {
-                                    key: key.to_string(),
-                                    config: c,
-                                }
-                                .insert(&conn)
-                                .await
-                                .map_err(|error| report!(errors::StorageError::from(error)))
-                            })
-                            .await
+                        default_config.map(|c| {
+                            storage::ConfigNew{
+                                key : key.to_string(),
+                                config: c
+                            }.into()
+                        })
+                        .ok_or(err)
                     } else {
                         Err(err)
                     }

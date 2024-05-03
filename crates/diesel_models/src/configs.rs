@@ -47,3 +47,9 @@ impl From<ConfigUpdate> for ConfigUpdateInternal {
         }
     }
 }
+
+impl From<ConfigNew> for Config{
+    fn from(config_new: ConfigNew) -> Self{
+        Self { id: 0i32, key: config_new.key , config: config_new.config }
+    }
+}
