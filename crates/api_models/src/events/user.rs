@@ -16,7 +16,7 @@ use crate::user::{
     InviteUserRequest, ListUsersResponse, ReInviteUserRequest, ResetPasswordRequest,
     SendVerifyEmailRequest, SignInResponse, SignInWithTokenResponse, SignUpRequest,
     SignUpWithMerchantIdRequest, SwitchMerchantIdRequest, TokenResponse,
-    UpdateUserAccountDetailsRequest, UserMerchantCreate, VerifyEmailRequest, UserFromEmailRequest,
+    UpdateUserAccountDetailsRequest, UserFromEmailRequest, UserMerchantCreate, VerifyEmailRequest,
 };
 
 impl ApiEventMetric for DashboardEntryResponse {
