@@ -8711,6 +8711,86 @@
           "mandate_revoked"
         ]
       },
+      "ExtendedCardInfo": {
+        "type": "object",
+        "required": [
+          "card_number",
+          "card_exp_month",
+          "card_exp_year",
+          "card_holder_name"
+        ],
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "description": "The card number",
+            "example": "4242424242424242"
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month",
+            "example": "24"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year",
+            "example": "24"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test"
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "The name of the issuer of card",
+            "example": "chase",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "example": "CREDIT",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "example": "INDIA",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "example": "JP_AMEX",
+            "nullable": true
+          }
+        }
+      },
+      "ExtendedCardInfoConfig": {
+        "type": "object",
+        "required": [
+          "public_key"
+        ],
+        "properties": {
+          "public_key": {
+            "type": "string",
+            "description": "Merchant public key"
+          },
+          "ttl_in_secs": {
+            "type": "integer",
+            "format": "int32",
+            "description": "TTL for extended card info",
+            "default": 900,
+            "maximum": 3600,
+            "minimum": 0
+          }
+        }
+      },
       "ExtendedCardInfoResponse": {
         "type": "object",
         "required": [
@@ -12707,7 +12787,12 @@
       "PaymentMethodDataRequest": {
         "allOf": [
           {
-            "$ref": "#/components/schemas/PaymentMethodData"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodData"
+              }
+            ],
+            "nullable": true
           },
           {
             "type": "object",
@@ -13023,6 +13108,7 @@
           "twint",
           "upi_collect",
           "vipps",
+          "venmo",
           "walley",
           "we_chat_pay",
           "seven_eleven",
@@ -16287,13 +16373,25 @@
       "Paypal": {
         "type": "object",
         "required": [
-          "email"
+          "email",
+          "telephone_number",
+          "paypal_id"
         ],
         "properties": {
           "email": {
             "type": "string",
             "description": "Email linked with paypal account",
             "example": "john.doe@example.com"
+          },
+          "telephone_number": {
+            "type": "string",
+            "description": "mobile number linked to paypal account",
+            "example": "16608213349"
+          },
+          "paypal_id": {
+            "type": "string",
+            "description": "id of the paypal account",
+            "example": "G83KXTJ5EHCQ2"
           }
         }
       },
@@ -18294,6 +18392,19 @@
           "propertyName": "type"
         }
       },
+      "Venmo": {
+        "type": "object",
+        "required": [
+          "telephone_number"
+        ],
+        "properties": {
+          "telephone_number": {
+            "type": "string",
+            "description": "mobile number linked to venmo account",
+            "example": "16608213349"
+          }
+        }
+      },
       "VoucherData": {
         "oneOf": [
           {
@@ -18437,6 +18548,17 @@
             "properties": {
               "paypal": {
                 "$ref": "#/components/schemas/Paypal"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "venmo"
+            ],
+            "properties": {
+              "venmo": {
+                "$ref": "#/components/schemas/Venmo"
               }
             }
           }

@@ -190,6 +190,16 @@ pub trait Domain<F: Clone, R, Ctx: PaymentMethodRetrieve>: Send + Sync {
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
     }
+
+    async fn store_extended_card_info_temporarily<'a>(
+        &'a self,
+        _state: &AppState,
+        _payment_id: &str,
+        _business_profile: &storage::BusinessProfile,
+        _payment_method_data: &Option<api::PaymentMethodData>,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        Ok(())
+    }
 }
 
 #[async_trait]
