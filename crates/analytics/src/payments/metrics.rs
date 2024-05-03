@@ -53,7 +53,6 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[PaymentDimensions],
-
         filters: &PaymentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -75,7 +74,6 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[PaymentDimensions],
-
         filters: &PaymentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
