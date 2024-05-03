@@ -228,19 +228,19 @@ impl NextFlow {
 
     pub async fn get_token(&self, state: &AppState) -> UserResult<Secret<String>> {
         match self.next_flow {
-            UserFlow::SPTFlow(spt_flow) => spt_flow.generate_spt(&state, self).await,
+            UserFlow::SPTFlow(spt_flow) => spt_flow.generate_spt(state, self).await,
             UserFlow::JWTFlow(jwt_flow) => {
                 #[cfg(feature = "email")]
                 {
-                    self.user.get_verification_days_left(&state)?;
+                    self.user.get_verification_days_left(state)?;
                 }
 
                 let user_role = self
                     .user
-                    .get_preferred_or_active_user_role_from_db(&state)
+                    .get_preferred_or_active_user_role_from_db(state)
                     .await
                     .to_not_found_response(UserErrors::InternalServerError)?;
-                jwt_flow.generate_jwt(&state, self, &user_role).await
+                jwt_flow.generate_jwt(state, self, &user_role).await
             }
         }
     }
