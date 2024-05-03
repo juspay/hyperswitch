@@ -183,21 +183,7 @@ pub async fn signin_token_only_flow(
     let next_flow =
         domain::NextFlow::from_origin(domain::Origin::SignIn, user_from_db.clone(), &state).await?;
 
-    let token = match next_flow.get_flow() {
-        domain::UserFlow::SPTFlow(spt_flow) => spt_flow.generate_spt(&state, &next_flow).await,
-        domain::UserFlow::JWTFlow(jwt_flow) => {
-            #[cfg(feature = "email")]
-            {
-                user_from_db.get_verification_days_left(&state)?;
-            }
-
-            let user_role = user_from_db
-                .get_preferred_or_active_user_role_from_db(&state)
-                .await
-                .to_not_found_response(UserErrors::InternalServerError)?;
-            jwt_flow.generate_jwt(&state, &next_flow, &user_role).await
-        }
-    }?;
+    let token = next_flow.get_token(&state).await?;
 
     let response = user_api::SignInWithTokenResponse::Token(user_api::TokenResponse {
         token: token.clone(),
@@ -1350,21 +1336,7 @@ pub async fn user_from_email(
     let next_flow =
         domain::NextFlow::from_origin(email_token.get_flow(), user_from_db.clone(), &state).await?;
 
-    let token = match next_flow.get_flow() {
-        domain::UserFlow::SPTFlow(spt_flow) => spt_flow.generate_spt(&state, &next_flow).await,
-        domain::UserFlow::JWTFlow(jwt_flow) => {
-            #[cfg(feature = "email")]
-            {
-                user_from_db.get_verification_days_left(&state)?;
-            }
-
-            let user_role = user_from_db
-                .get_preferred_or_active_user_role_from_db(&state)
-                .await
-                .to_not_found_response(UserErrors::InternalServerError)?;
-            jwt_flow.generate_jwt(&state, &next_flow, &user_role).await
-        }
-    }?;
+    let token = next_flow.get_token(&state).await?;
 
     let response = user_api::TokenResponse {
         token: token.clone(),

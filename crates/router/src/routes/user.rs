@@ -513,6 +513,7 @@ pub async fn update_user_account_details(
     .await
 }
 
+#[cfg(feature = "email")]
 pub async fn user_from_email(
     state: web::Data<AppState>,
     req: HttpRequest,

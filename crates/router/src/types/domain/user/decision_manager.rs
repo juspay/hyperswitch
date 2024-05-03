@@ -4,7 +4,7 @@ use masking::Secret;
 
 use super::UserFromStorage;
 use crate::{
-    core::errors::{UserErrors, UserResult},
+    core::errors::{UserErrors, UserResult, StorageErrorExt},
     routes::AppState,
     services::authentication as auth,
 };
@@ -224,6 +224,25 @@ impl NextFlow {
 
     pub fn get_flow(&self) -> UserFlow {
         self.next_flow
+    }
+
+    pub async fn get_token(&self, state: &AppState) -> UserResult<Secret<String>> {
+        match self.next_flow {
+            UserFlow::SPTFlow(spt_flow) => spt_flow.generate_spt(&state, self).await,
+            UserFlow::JWTFlow(jwt_flow) => {
+                #[cfg(feature = "email")]
+                {
+                    self.user.get_verification_days_left(&state)?;
+                }
+
+                let user_role = self
+                    .user
+                    .get_preferred_or_active_user_role_from_db(&state)
+                    .await
+                    .to_not_found_response(UserErrors::InternalServerError)?;
+                jwt_flow.generate_jwt(&state, self, &user_role).await
+            }
+        }
     }
 }
 
