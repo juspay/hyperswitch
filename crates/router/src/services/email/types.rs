@@ -298,6 +298,7 @@ impl EmailData for MagicLink {
     }
 }
 
+// TODO: Deprecate this and use InviteRegisteredUser for new invites
 pub struct InviteUser {
     pub recipient_email: domain::UserEmail,
     pub user_name: domain::UserName,
