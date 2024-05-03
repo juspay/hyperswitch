@@ -64,6 +64,7 @@ use crate::{
         OptionExt, StringExt,
     },
 };
+use futures::future::Either;
 
 pub fn create_identity_from_certificate_and_key(
     encoded_certificate: masking::Secret<String>,
@@ -3148,7 +3149,7 @@ pub async fn get_merchant_connector_account(
     match creds_identifier {
         Some(creds_identifier) => {
             let key = format!("mcd_{merchant_id}_{creds_identifier}");
-            let mca_config : String = db
+            let redis_fetch = || async { db
                 .get_redis_conn()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to get redis connection")
@@ -3158,8 +3159,33 @@ pub async fn get_merchant_connector_account(
                         .await
                         .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound{id: key})
                         .attach_printable("Failed to get redis Value")
-                }
-            ).await?;
+                    }
+                )
+                .await
+            };
+
+            let db_fetch = || async {
+                db
+                .find_config_by_key(format!("mcd_{merchant_id}_{creds_identifier}").as_str())
+                .await
+                .to_not_found_response(
+                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                        id: format!("mcd_{merchant_id}_{creds_identifier}"),
+                    },
+                )
+            };
+
+            let mca_config : String = redis_fetch()
+                .await
+                .map_or_else(
+                    |_| Either::Left(async {
+                        match db_fetch().await{
+                            Ok(config_entry) => Ok(config_entry.config),
+                            Err(e ) => Err(e)
+                        }
+                    }),
+                    |result| Either::Right(async {Ok(result)})
+                ).await?;
 
             let private_key = state
                 .conf
