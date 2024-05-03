@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.05.03.1-hotfix1
+
+### Bug Fixes
+
+- **users:** Revert add password validations ([#4547](https://github.com/juspay/hyperswitch/pull/4547)) ([`ed5582b`](https://github.com/juspay/hyperswitch/commit/ed5582b7641011ae3c13847bd91ad07a0ea0d35d))
+
+- - -
+
 ## 2024.05.03.1
 
 ### Bug Fixes
