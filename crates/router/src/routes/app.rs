@@ -41,6 +41,8 @@ use super::{currency, payment_methods::*};
 use super::{ephemeral_key::*, webhooks::*};
 #[cfg(feature = "oltp")]
 use super::{pm_auth, poll::retrieve_poll_status};
+#[cfg(feature = "olap")]
+pub use crate::analytics::opensearch::OpenSearchClient;
 use crate::configs::secrets_transformers;
 #[cfg(all(feature = "frm", feature = "oltp"))]
 use crate::routes::fraud_check as frm_routes;
@@ -73,6 +75,8 @@ pub struct AppState {
     pub api_client: Box<dyn crate::services::ApiClient>,
     #[cfg(feature = "olap")]
     pub pool: crate::analytics::AnalyticsProvider,
+    #[cfg(feature = "olap")]
+    pub opensearch_client: OpenSearchClient,
     pub request_id: Option<RequestId>,
     pub file_storage_client: Box<dyn FileStorageInterface>,
     pub encryption_client: Box<dyn EncryptionManagementInterface>,
@@ -177,6 +181,14 @@ impl AppState {
                 .await
                 .expect("Failed to create event handler");
 
+            #[allow(clippy::expect_used)]
+            #[cfg(feature = "olap")]
+            let opensearch_client = conf
+                .opensearch
+                .get_opensearch_client()
+                .await
+                .expect("Failed to create opensearch client");
+
             let store: Box<dyn StorageInterface> = match storage_impl {
                 StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match &event_handler {
                     EventsHandler::Kafka(kafka_client) => Box::new(
@@ -223,6 +235,8 @@ impl AppState {
                 event_handler,
                 #[cfg(feature = "olap")]
                 pool,
+                #[cfg(feature = "olap")]
+                opensearch_client,
                 request_id: None,
                 file_storage_client,
                 encryption_client,
@@ -382,6 +396,9 @@ impl Payments {
                 )
                 .service(
                     web::resource("/{payment_id}/3ds/authentication").route(web::post().to(payments_external_authentication)),
+                )
+                .service(
+                    web::resource("/{payment_id}/extended_card_info").route(web::get().to(retrieve_extended_card_info)),
                 );
         }
         route
@@ -1160,9 +1177,7 @@ impl User {
         let mut route = web::scope("/user").app_data(web::Data::new(state));
 
         route = route
-            .service(
-                web::resource("/signin").route(web::post().to(user_signin_without_invite_checks)),
-            )
+            .service(web::resource("").route(web::get().to(get_user_details)))
             .service(web::resource("/v2/signin").route(web::post().to(user_signin)))
             .service(web::resource("/signout").route(web::post().to(signout)))
             .service(web::resource("/change_password").route(web::post().to(change_password)))
@@ -1195,10 +1210,6 @@ impl User {
                     web::resource("/signup_with_merchant_id")
                         .route(web::post().to(user_signup_with_merchant_id)),
                 )
-                .service(
-                    web::resource("/verify_email")
-                        .route(web::post().to(verify_email_without_invite_checks)),
-                )
                 .service(web::resource("/v2/verify_email").route(web::post().to(verify_email)))
                 .service(
                     web::resource("/verify_email_request")
@@ -1222,7 +1233,6 @@ impl User {
                 .service(
                     web::resource("/list").route(web::get().to(list_users_for_merchant_account)),
                 )
-                .service(web::resource("/invite").route(web::post().to(invite_user)))
                 .service(
                     web::resource("/invite_multiple").route(web::post().to(invite_multiple_user)),
                 )

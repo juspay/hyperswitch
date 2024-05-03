@@ -125,6 +125,7 @@ async fn should_sync_authorized_payment() {
                 connector_meta,
                 mandate_id: None,
                 payment_method_type: None,
+                currency: enums::Currency::EUR,
             }),
             None,
         )

@@ -64,6 +64,10 @@ pub enum AuthenticationType {
     UserJwt {
         user_id: String,
     },
+    SinglePurposeJWT {
+        user_id: String,
+        purpose: Purpose,
+    },
     MerchantId {
         merchant_id: String,
     },
@@ -101,28 +105,46 @@ impl AuthenticationType {
                 user_id: _,
             }
             | Self::WebhookAuth { merchant_id } => Some(merchant_id.as_ref()),
-            Self::AdminApiKey | Self::UserJwt { .. } | Self::NoAuth => None,
+            Self::AdminApiKey
+            | Self::UserJwt { .. }
+            | Self::SinglePurposeJWT { .. }
+            | Self::NoAuth => None,
         }
     }
 }
 
 #[derive(Clone, Debug)]
-pub struct UserWithoutMerchantFromToken {
+pub struct UserFromSinglePurposeToken {
     pub user_id: String,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
-pub struct UserAuthToken {
+pub struct SinglePurposeToken {
     pub user_id: String,
+    pub purpose: Purpose,
     pub exp: u64,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, strum::Display, serde::Deserialize, serde::Serialize)]
+pub enum Purpose {
+    AcceptInvite,
+}
+
 #[cfg(feature = "olap")]
-impl UserAuthToken {
-    pub async fn new_token(user_id: String, settings: &Settings) -> UserResult<String> {
-        let exp_duration = std::time::Duration::from_secs(consts::JWT_TOKEN_TIME_IN_SECS);
+impl SinglePurposeToken {
+    pub async fn new_token(
+        user_id: String,
+        purpose: Purpose,
+        settings: &Settings,
+    ) -> UserResult<String> {
+        let exp_duration =
+            std::time::Duration::from_secs(consts::SINGLE_PURPOSE_TOKEN_TIME_IN_SECS);
         let exp = jwt::generate_exp(exp_duration)?.as_secs();
-        let token_payload = Self { user_id, exp };
+        let token_payload = Self {
+            user_id,
+            purpose,
+            exp,
+        };
         jwt::generate_jwt(&token_payload, settings).await
     }
 }
@@ -287,11 +309,11 @@ where
 }
 
 #[derive(Debug)]
-pub struct UserWithoutMerchantJWTAuth;
+pub(crate) struct SinglePurposeJWTAuth(pub Purpose);
 
 #[cfg(feature = "olap")]
 #[async_trait]
-impl<A> AuthenticateAndFetch<UserWithoutMerchantFromToken, A> for UserWithoutMerchantJWTAuth
+impl<A> AuthenticateAndFetch<UserFromSinglePurposeToken, A> for SinglePurposeJWTAuth
 where
     A: AppStateInfo + Sync,
 {
@@ -299,18 +321,23 @@ where
         &self,
         request_headers: &HeaderMap,
         state: &A,
-    ) -> RouterResult<(UserWithoutMerchantFromToken, AuthenticationType)> {
-        let payload = parse_jwt_payload::<A, UserAuthToken>(request_headers, state).await?;
+    ) -> RouterResult<(UserFromSinglePurposeToken, AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, SinglePurposeToken>(request_headers, state).await?;
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
+        if self.0 != payload.purpose {
+            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+        }
+
         Ok((
-            UserWithoutMerchantFromToken {
+            UserFromSinglePurposeToken {
                 user_id: payload.user_id.clone(),
             },
-            AuthenticationType::UserJwt {
+            AuthenticationType::SinglePurposeJWT {
                 user_id: payload.user_id,
+                purpose: payload.purpose,
             },
         ))
     }
@@ -611,19 +638,17 @@ where
     T: serde::de::DeserializeOwned,
     A: AppStateInfo + Sync,
 {
-    let token = get_jwt_from_authorization_header(headers)?;
-    if let Some(token_from_cookies) = get_cookie_from_header(headers)
-        .ok()
-        .and_then(|cookies| cookies::parse_cookie(cookies).ok())
-    {
-        logger::info!(
-            "Cookie header and authorization header JWT comparison result: {}",
-            token == token_from_cookies
-        );
-    }
-    let payload = decode_jwt(token, state).await?;
-
-    Ok(payload)
+    let token = match get_cookie_from_header(headers).and_then(cookies::parse_cookie) {
+        Ok(cookies) => cookies,
+        Err(e) => {
+            let token = get_jwt_from_authorization_header(headers);
+            if token.is_err() {
+                logger::error!(?e);
+            }
+            token?.to_owned()
+        }
+    };
+    decode_jwt(&token, state).await
 }
 
 #[async_trait]
@@ -949,6 +974,9 @@ pub async fn is_ephemeral_auth<A: AppStateInfo + Sync>(
 
 pub fn is_jwt_auth(headers: &HeaderMap) -> bool {
     headers.get(crate::headers::AUTHORIZATION).is_some()
+        || get_cookie_from_header(headers)
+            .and_then(cookies::parse_cookie)
+            .is_ok()
 }
 
 pub async fn decode_jwt<T>(token: &str, state: &impl AppStateInfo) -> RouterResult<T>

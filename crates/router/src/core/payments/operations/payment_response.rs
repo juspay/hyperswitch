@@ -3,9 +3,9 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use common_enums::AuthorizationStatus;
 use common_utils::ext_traits::Encode;
-use data_models::payments::payment_attempt::PaymentAttempt;
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
+use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
 use router_derive;
 use router_env::{instrument, logger, tracing};
 use storage_impl::DataModelExt;
@@ -966,7 +966,10 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             status: updated_attempt_status,
                             connector: None,
                             connector_transaction_id,
-                            payment_method_id: router_data.payment_method_id,
+                            payment_method_id: payment_data
+                                .payment_attempt
+                                .payment_method_id
+                                .clone(),
                             error_code: Some(reason.clone().map(|cd| cd.code)),
                             error_message: Some(reason.clone().map(|cd| cd.message)),
                             error_reason: Some(reason.map(|cd| cd.message)),
