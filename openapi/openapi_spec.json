@@ -12787,7 +12787,12 @@
       "PaymentMethodDataRequest": {
         "allOf": [
           {
-            "$ref": "#/components/schemas/PaymentMethodData"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodData"
+              }
+            ],
+            "nullable": true
           },
           {
             "type": "object",
