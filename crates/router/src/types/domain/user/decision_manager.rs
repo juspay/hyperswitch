@@ -4,7 +4,7 @@ use masking::Secret;
 
 use super::UserFromStorage;
 use crate::{
-    core::errors::{UserErrors, UserResult, StorageErrorExt},
+    core::errors::{StorageErrorExt, UserErrors, UserResult},
     routes::AppState,
     services::authentication as auth,
 };
