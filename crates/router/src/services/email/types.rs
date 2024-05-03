@@ -322,7 +322,7 @@ impl EmailData for InviteUser {
         let invite_user_link = get_link_with_token(
             &self.settings.email.base_url,
             token,
-            "accept_invite_from_email",
+            "set_password",
         );
 
         let body = html::get_html_body(EmailBody::InviteUser {
