@@ -593,12 +593,20 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                 storage_enums::AttemptStatus::ConfirmationAwaited
             }
         };
+        let profile_id = payment_data
+            .payment_intent
+            .profile_id
+            .as_ref()
+            .get_required_value("profile_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("'profile_id' not set in payment intent")?;
 
         let additional_pm_data = payment_data
             .payment_method_data
             .as_ref()
             .async_map(|payment_method_data| async {
-                helpers::get_additional_payment_data(payment_method_data, &*state.store).await
+                helpers::get_additional_payment_data(payment_method_data, &*state.store, profile_id)
+                    .await
             })
             .await
             .as_ref()
