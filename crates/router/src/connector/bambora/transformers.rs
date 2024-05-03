@@ -5,7 +5,9 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
-    connector::utils::{BrowserInformationData, PaymentsAuthorizeRequestData, RouterData},
+    connector::utils::{
+        BrowserInformationData, CardData as OtherCardData, PaymentsAuthorizeRequestData, RouterData,
+    },
     consts,
     core::errors,
     services,
@@ -120,9 +122,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest {
                     name: item
                         .get_optional_billing_full_name()
                         .unwrap_or(Secret::new("".to_string())),
+                    expiry_year: req_card.get_card_expiry_year_2_digit()?,
                     number: req_card.card_number,
                     expiry_month: req_card.card_exp_month,
-                    expiry_year: req_card.card_exp_year,
                     cvd: req_card.card_cvc,
                     three_d_secure: three_ds,
                     complete: item.request.is_auto_capture()?,
