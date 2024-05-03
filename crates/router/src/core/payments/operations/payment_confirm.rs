@@ -564,14 +564,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                         .as_ref()
                 })
                 .async_map(|payment_method_billing_address_id| async move {
+                    // Cannot support KV feature for this lookup
                     store
-                        .find_address_by_merchant_id_payment_id_address_id(
-                            merchant_id,
-                            &payment_id,
-                            payment_method_billing_address_id,
-                            key_store,
-                            storage_scheme,
-                        )
+                        .find_address_by_address_id(payment_method_billing_address_id, key_store)
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Error while fetching address")
