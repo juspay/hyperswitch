@@ -317,6 +317,10 @@ impl From<ApiModelMetaData> for DashboardMetaData {
             merchant_name: api_model.merchant_name,
             acquirer_bin: api_model.acquirer_bin,
             acquirer_merchant_id: api_model.acquirer_merchant_id,
+            three_ds_requestor_name: api_model.three_ds_requestor_name,
+            three_ds_requestor_id: api_model.three_ds_requestor_id,
+            pull_mechanism_for_external_3ds_enabled: api_model
+                .pull_mechanism_for_external_3ds_enabled,
         }
     }
 }

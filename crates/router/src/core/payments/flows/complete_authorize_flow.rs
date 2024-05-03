@@ -63,12 +63,8 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         mut self,
         state: &AppState,
         connector: &api::ConnectorData,
-        _customer: &Option<domain::Customer>,
         call_connector_action: payments::CallConnectorAction,
-        _merchant_account: &domain::MerchantAccount,
         connector_request: Option<services::Request>,
-        _key_store: &domain::MerchantKeyStore,
-        _profile_id: Option<String>,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedConnectorIntegration<
             '_,

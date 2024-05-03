@@ -7,14 +7,18 @@ use common_utils::{
     pii::{self, Email},
     request::RequestContent,
 };
-use data_models::mandates::AcceptanceType;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::mandates::AcceptanceType;
 use masking::{ExposeInterface, ExposeOptionInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use time::PrimitiveDateTime;
 use url::Url;
 
+#[cfg(feature = "payouts")]
+pub mod connect;
+#[cfg(feature = "payouts")]
+pub use self::connect::*;
 use crate::{
     collect_missing_value_keys,
     connector::utils::{
@@ -115,6 +119,14 @@ pub enum ExpandableObjects {
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct StripeBrowserInformation {
+    #[serde(rename = "payment_method_data[ip]")]
+    pub ip_address: Option<Secret<String, pii::IpAddress>>,
+    #[serde(rename = "payment_method_data[user_agent]")]
+    pub user_agent: Option<String>,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct PaymentIntentRequest {
     pub amount: i64, //amount in cents, hence passed as integer
     pub currency: String,
@@ -144,6 +156,8 @@ pub struct PaymentIntentRequest {
     pub payment_method_types: Option<StripePaymentMethodType>,
     #[serde(rename = "expand[0]")]
     pub expand: Option<ExpandableObjects>,
+    #[serde(flatten)]
+    pub browser_info: Option<StripeBrowserInformation>,
 }
 
 // Field rename is required only in case of serialization as it is passed in the request to the connector.
@@ -177,6 +191,8 @@ pub struct SetupIntentRequest {
     pub payment_method_types: Option<StripePaymentMethodType>,
     #[serde(rename = "expand[0]")]
     pub expand: Option<ExpandableObjects>,
+    #[serde(flatten)]
+    pub browser_info: Option<StripeBrowserInformation>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -686,6 +702,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::Trustly
             | enums::PaymentMethodType::Twint
             | enums::PaymentMethodType::Vipps
+            | enums::PaymentMethodType::Venmo
             | enums::PaymentMethodType::Alfamart
             | enums::PaymentMethodType::BcaBankTransfer
             | enums::PaymentMethodType::BniVa
@@ -1982,6 +1999,17 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
 
         let meta_data = get_transaction_metadata(item.request.metadata.clone(), order_id);
 
+        // We pass browser_info only when payment_data exists.
+        // Hence, we're pass Null during recurring payments as payment_method_data[type] is not passed
+        let browser_info = if payment_data.is_some() {
+            item.request
+                .browser_info
+                .clone()
+                .map(StripeBrowserInformation::from)
+        } else {
+            None
+        };
+
         Ok(Self {
             amount: item.request.amount, //hopefully we don't loose some cents here
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
@@ -2007,6 +2035,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             setup_future_usage: item.request.setup_future_usage,
             payment_method_types,
             expand: Some(ExpandableObjects::LatestCharge),
+            browser_info,
         })
     }
 }
@@ -2044,6 +2073,15 @@ fn get_payment_method_type_for_saved_payment_method_payment(
     }
 }
 
+impl From<types::BrowserInformation> for StripeBrowserInformation {
+    fn from(item: types::BrowserInformation) -> Self {
+        Self {
+            ip_address: item.ip_address.map(|ip| Secret::new(ip.to_string())),
+            user_agent: item.user_agent,
+        }
+    }
+}
+
 impl TryFrom<&types::SetupMandateRouterData> for SetupIntentRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
@@ -2060,6 +2098,12 @@ impl TryFrom<&types::SetupMandateRouterData> for SetupIntentRequest {
             item.connector_request_reference_id.clone(),
         ));
 
+        let browser_info = item
+            .request
+            .browser_info
+            .clone()
+            .map(StripeBrowserInformation::from);
+
         Ok(Self {
             confirm: true,
             payment_data,
@@ -2071,6 +2115,7 @@ impl TryFrom<&types::SetupMandateRouterData> for SetupIntentRequest {
             meta_data,
             payment_method_types: Some(pm_type),
             expand: Some(ExpandableObjects::LatestAttempt),
+            browser_info,
         })
     }
 }

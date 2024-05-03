@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, str::FromStr};
 
 use api_models::{
     mandates::RecurringDetails,
@@ -9,13 +9,13 @@ use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt, Encode, ValueExt},
     fp_utils, generate_id, pii,
 };
-use data_models::{
-    mandates::MandateData,
-    payments::{payment_attempt::PaymentAttempt, PaymentIntent},
-};
 use diesel_models::enums;
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::{
+    mandates::MandateData,
+    payments::{payment_attempt::PaymentAttempt, PaymentIntent},
+};
 use josekit::jwe;
 use masking::{ExposeInterface, PeekInterface};
 use openssl::{
@@ -66,15 +66,15 @@ use crate::{
 };
 
 pub fn create_identity_from_certificate_and_key(
-    encoded_certificate: String,
-    encoded_certificate_key: String,
+    encoded_certificate: masking::Secret<String>,
+    encoded_certificate_key: masking::Secret<String>,
 ) -> Result<reqwest::Identity, error_stack::Report<errors::ApiClientError>> {
     let decoded_certificate = BASE64_ENGINE
-        .decode(encoded_certificate)
+        .decode(encoded_certificate.expose())
         .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
 
     let decoded_certificate_key = BASE64_ENGINE
-        .decode(encoded_certificate_key)
+        .decode(encoded_certificate_key.expose())
         .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
 
     let certificate = String::from_utf8(decoded_certificate)
@@ -1159,7 +1159,7 @@ pub fn verify_mandate_details_for_recurring_payments(
 
 #[instrument(skip_all)]
 pub fn payment_attempt_status_fsm(
-    payment_method_data: &Option<api::payments::PaymentMethodDataRequest>,
+    payment_method_data: Option<&api::payments::PaymentMethodData>,
     confirm: Option<bool>,
 ) -> storage_enums::AttemptStatus {
     match payment_method_data {
@@ -1172,7 +1172,7 @@ pub fn payment_attempt_status_fsm(
 }
 
 pub fn payment_intent_status_fsm(
-    payment_method_data: &Option<api::PaymentMethodDataRequest>,
+    payment_method_data: Option<&api::PaymentMethodData>,
     confirm: Option<bool>,
 ) -> storage_enums::IntentStatus {
     match payment_method_data {
@@ -1247,7 +1247,7 @@ pub(crate) async fn get_payment_method_create_request(
     payment_method_data: Option<&domain::PaymentMethodData>,
     payment_method: Option<storage_enums::PaymentMethod>,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
-    customer: &domain::Customer,
+    customer_id: &Option<String>,
     billing_name: Option<masking::Secret<String>>,
 ) -> RouterResult<api::PaymentMethodCreate> {
     match payment_method_data {
@@ -1265,7 +1265,6 @@ pub(crate) async fn get_payment_method_create_request(
                         card_issuer: card.card_issuer.clone(),
                         card_type: card.card_type.clone(),
                     };
-                    let customer_id = customer.customer_id.clone();
                     let payment_method_request = api::PaymentMethodCreate {
                         payment_method: Some(payment_method),
                         payment_method_type,
@@ -1277,7 +1276,7 @@ pub(crate) async fn get_payment_method_create_request(
                         wallet: None,
                         card: Some(card_detail),
                         metadata: None,
-                        customer_id: Some(customer_id),
+                        customer_id: customer_id.clone(),
                         card_network: card
                             .card_network
                             .as_ref()
@@ -1299,7 +1298,7 @@ pub(crate) async fn get_payment_method_create_request(
                         wallet: None,
                         card: None,
                         metadata: None,
-                        customer_id: Some(customer.customer_id.to_owned()),
+                        customer_id: customer_id.clone(),
                         card_network: None,
                         client_secret: None,
                         payment_method_data: None,
@@ -1780,9 +1779,17 @@ pub async fn retrieve_card_with_permanent_token(
             .unwrap_or_default()
             .card_cvc
             .unwrap_or_default(),
-        card_issuer: card.card_brand,
+        card_issuer: None,
         nick_name: card.nick_name.map(masking::Secret::new),
-        card_network: None,
+        card_network: card
+            .card_brand
+            .map(|card_brand| enums::CardNetwork::from_str(&card_brand))
+            .transpose()
+            .map_err(|e| {
+                logger::error!("Failed to parse card network {}", e);
+            })
+            .ok()
+            .flatten(),
         card_type: None,
         card_issuing_country: None,
         bank_code: None,
@@ -2122,8 +2129,14 @@ pub(crate) fn validate_amount_to_capture(
 pub(crate) fn validate_payment_method_fields_present(
     req: &api::PaymentsRequest,
 ) -> RouterResult<()> {
+    let payment_method_data =
+        req.payment_method_data
+            .as_ref()
+            .and_then(|request_payment_method_data| {
+                request_payment_method_data.payment_method_data.as_ref()
+            });
     utils::when(
-        req.payment_method.is_none() && req.payment_method_data.is_some(),
+        req.payment_method.is_none() && payment_method_data.is_some(),
         || {
             Err(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "payment_method",
@@ -2145,7 +2158,7 @@ pub(crate) fn validate_payment_method_fields_present(
 
     utils::when(
         req.payment_method.is_some()
-            && req.payment_method_data.is_none()
+            && payment_method_data.is_none()
             && req.payment_token.is_none()
             && req.recurring_details.is_none(),
         || {
@@ -2187,14 +2200,14 @@ pub(crate) fn validate_payment_method_fields_present(
         };
 
     utils::when(
-        req.payment_method.is_some() && req.payment_method_data.is_some(),
+        req.payment_method.is_some() && payment_method_data.is_some(),
         || {
-            req.payment_method_data
-                .clone()
-                .map_or(Ok(()), |req_payment_method_data| {
+            payment_method_data
+                .cloned()
+                .map_or(Ok(()), |payment_method_data| {
                     req.payment_method.map_or(Ok(()), |req_payment_method| {
                         validate_payment_method_and_payment_method_data(
-                            req_payment_method_data.payment_method_data,
+                            payment_method_data,
                             req_payment_method,
                         )
                     })
@@ -2618,7 +2631,7 @@ pub fn generate_mandate(
     payment_id: String,
     connector: String,
     setup_mandate_details: Option<MandateData>,
-    customer: &Option<domain::Customer>,
+    customer_id: &Option<String>,
     payment_method_id: String,
     connector_mandate_id: Option<pii::SecretSerdeValue>,
     network_txn_id: Option<String>,
@@ -2626,8 +2639,8 @@ pub fn generate_mandate(
     mandate_reference: Option<MandateReference>,
     merchant_connector_id: Option<String>,
 ) -> CustomResult<Option<storage::MandateNew>, errors::ApiErrorResponse> {
-    match (setup_mandate_details, customer) {
-        (Some(data), Some(cus)) => {
+    match (setup_mandate_details, customer_id) {
+        (Some(data), Some(cus_id)) => {
             let mandate_id = utils::generate_id(consts::ID_LENGTH, "man");
 
             // The construction of the mandate new must be visible
@@ -2638,7 +2651,7 @@ pub fn generate_mandate(
                 .get_required_value("customer_acceptance")?;
             new_mandate
                 .set_mandate_id(mandate_id)
-                .set_customer_id(cus.customer_id.clone())
+                .set_customer_id(cus_id.clone())
                 .set_merchant_id(merchant_id)
                 .set_original_payment_id(Some(payment_id))
                 .set_payment_method_id(payment_method_id)
@@ -2665,24 +2678,28 @@ pub fn generate_mandate(
 
             Ok(Some(
                 match data.mandate_type.get_required_value("mandate_type")? {
-                    data_models::mandates::MandateDataType::SingleUse(data) => new_mandate
-                        .set_mandate_amount(Some(data.amount))
-                        .set_mandate_currency(Some(data.currency))
-                        .set_mandate_type(storage_enums::MandateType::SingleUse)
-                        .to_owned(),
-
-                    data_models::mandates::MandateDataType::MultiUse(op_data) => match op_data {
-                        Some(data) => new_mandate
+                    hyperswitch_domain_models::mandates::MandateDataType::SingleUse(data) => {
+                        new_mandate
                             .set_mandate_amount(Some(data.amount))
                             .set_mandate_currency(Some(data.currency))
-                            .set_start_date(data.start_date)
-                            .set_end_date(data.end_date),
-                        // .set_metadata(data.metadata),
-                        // we are storing PaymentMethodData in metadata of mandate
-                        None => &mut new_mandate,
+                            .set_mandate_type(storage_enums::MandateType::SingleUse)
+                            .to_owned()
                     }
-                    .set_mandate_type(storage_enums::MandateType::MultiUse)
-                    .to_owned(),
+
+                    hyperswitch_domain_models::mandates::MandateDataType::MultiUse(op_data) => {
+                        match op_data {
+                            Some(data) => new_mandate
+                                .set_mandate_amount(Some(data.amount))
+                                .set_mandate_currency(Some(data.currency))
+                                .set_start_date(data.start_date)
+                                .set_end_date(data.end_date),
+                            // .set_metadata(data.metadata),
+                            // we are storing PaymentMethodData in metadata of mandate
+                            None => &mut new_mandate,
+                        }
+                        .set_mandate_type(storage_enums::MandateType::MultiUse)
+                        .to_owned()
+                    }
                 },
             ))
         }
@@ -2904,7 +2921,9 @@ mod tests {
             fingerprint_id: None,
             off_session: None,
             client_secret: Some("1".to_string()),
-            active_attempt: data_models::RemoteStorageObject::ForeignID("nopes".to_string()),
+            active_attempt: hyperswitch_domain_models::RemoteStorageObject::ForeignID(
+                "nopes".to_string(),
+            ),
             business_country: None,
             business_label: None,
             order_details: None,
@@ -2960,7 +2979,9 @@ mod tests {
             setup_future_usage: None,
             off_session: None,
             client_secret: Some("1".to_string()),
-            active_attempt: data_models::RemoteStorageObject::ForeignID("nopes".to_string()),
+            active_attempt: hyperswitch_domain_models::RemoteStorageObject::ForeignID(
+                "nopes".to_string(),
+            ),
             business_country: None,
             business_label: None,
             order_details: None,
@@ -3015,7 +3036,9 @@ mod tests {
             off_session: None,
             client_secret: None,
             fingerprint_id: None,
-            active_attempt: data_models::RemoteStorageObject::ForeignID("nopes".to_string()),
+            active_attempt: hyperswitch_domain_models::RemoteStorageObject::ForeignID(
+                "nopes".to_string(),
+            ),
             business_country: None,
             business_label: None,
             order_details: None,
@@ -3237,7 +3260,6 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         description: router_data.description,
         payment_id: router_data.payment_id,
         payment_method: router_data.payment_method,
-        payment_method_id: router_data.payment_method_id,
         return_url: router_data.return_url,
         status: router_data.status,
         attempt_id: router_data.attempt_id,
@@ -3393,7 +3415,7 @@ impl AttemptType {
     // In case if fields are not overridden by the request then they contain the same data that was in the previous attempt provided it is populated in this function.
     #[inline(always)]
     fn make_new_payment_attempt(
-        payment_method_data: &Option<api_models::payments::PaymentMethodDataRequest>,
+        payment_method_data: Option<&api_models::payments::PaymentMethodData>,
         old_payment_attempt: PaymentAttempt,
         new_attempt_count: i16,
         storage_scheme: enums::MerchantStorageScheme,
@@ -3491,7 +3513,11 @@ impl AttemptType {
                 let new_payment_attempt = db
                     .insert_payment_attempt(
                         Self::make_new_payment_attempt(
-                            &request.payment_method_data,
+                            request.payment_method_data.as_ref().and_then(
+                                |request_payment_method_data| {
+                                    request_payment_method_data.payment_method_data.as_ref()
+                                },
+                            ),
                             fetched_payment_attempt,
                             new_attempt_count,
                             storage_scheme,
@@ -3508,7 +3534,11 @@ impl AttemptType {
                         fetched_payment_intent,
                         storage::PaymentIntentUpdate::StatusAndAttemptUpdate {
                             status: payment_intent_status_fsm(
-                                &request.payment_method_data,
+                                request.payment_method_data.as_ref().and_then(
+                                    |request_payment_method_data| {
+                                        request_payment_method_data.payment_method_data.as_ref()
+                                    },
+                                ),
                                 Some(true),
                             ),
                             active_attempt_id: new_payment_attempt.attempt_id.clone(),
@@ -3619,11 +3649,23 @@ mod test {
 pub async fn get_additional_payment_data(
     pm_data: &api_models::payments::PaymentMethodData,
     db: &dyn StorageInterface,
+    profile_id: &str,
 ) -> api_models::payments::AdditionalPaymentData {
     match pm_data {
         api_models::payments::PaymentMethodData::Card(card_data) => {
             let card_isin = Some(card_data.card_number.clone().get_card_isin());
-            let card_extended_bin = Some(card_data.card_number.clone().get_card_extended_bin());
+            let enable_extended_bin =db
+            .find_config_by_key_unwrap_or(
+                format!("{}_enable_extended_card_bin", profile_id).as_str(),
+             Some("false".to_string()))
+            .await.map_err(|err| services::logger::error!(message="Failed to fetch the config", extended_card_bin_error=?err)).ok();
+
+            let card_extended_bin = match enable_extended_bin {
+                Some(config) if config.config == "true" => {
+                    Some(card_data.card_number.clone().get_card_extended_bin())
+                }
+                _ => None,
+            };
             let last4 = Some(card_data.card_number.clone().get_last4());
             if card_data.card_issuer.is_some()
                 && card_data.card_network.is_some()
@@ -4312,4 +4354,8 @@ pub fn validate_mandate_data_and_future_usage(
     } else {
         Ok(())
     }
+}
+
+pub fn get_redis_key_for_extended_card_info(merchant_id: &str, payment_id: &str) -> String {
+    format!("{merchant_id}_{payment_id}_extended_card_info")
 }

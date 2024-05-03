@@ -1,12 +1,12 @@
 use common_utils::errors::CustomResult;
-use data_models::{
+use diesel_models::enums as storage_enums;
+use hyperswitch_domain_models::{
     errors::StorageError,
     payouts::{
         payout_attempt::PayoutAttempt,
         payouts::{Payouts, PayoutsInterface, PayoutsNew, PayoutsUpdate},
     },
 };
-use diesel_models::enums as storage_enums;
 
 use super::MockDb;
 
@@ -56,7 +56,7 @@ impl PayoutsInterface for MockDb {
     async fn filter_payouts_by_constraints(
         &self,
         _merchant_id: &str,
-        _filters: &data_models::payouts::PayoutFetchConstraints,
+        _filters: &hyperswitch_domain_models::payouts::PayoutFetchConstraints,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<Payouts>, StorageError> {
         // TODO: Implement function for `MockDb`
@@ -67,7 +67,7 @@ impl PayoutsInterface for MockDb {
     async fn filter_payouts_and_attempts(
         &self,
         _merchant_id: &str,
-        _filters: &data_models::payouts::PayoutFetchConstraints,
+        _filters: &hyperswitch_domain_models::payouts::PayoutFetchConstraints,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<(Payouts, PayoutAttempt, diesel_models::Customer)>, StorageError> {
         // TODO: Implement function for `MockDb`
