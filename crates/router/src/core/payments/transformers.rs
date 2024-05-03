@@ -141,7 +141,6 @@ where
         connector_auth_type: auth_type,
         description: payment_data.payment_intent.description.clone(),
         return_url: payment_data.payment_intent.return_url.clone(),
-        payment_method_id: payment_data.payment_attempt.payment_method_id.clone(),
         address: payment_data
             .address
             .unify_with_payment_method_data_billing(payment_method_data_billing),
@@ -662,10 +661,10 @@ where
                         customer_acceptance: d.customer_acceptance.map(|d| {
                             api::CustomerAcceptance {
                                 acceptance_type: match d.acceptance_type {
-                                    data_models::mandates::AcceptanceType::Online => {
+                                    hyperswitch_domain_models::mandates::AcceptanceType::Online => {
                                         api::AcceptanceType::Online
                                     }
-                                    data_models::mandates::AcceptanceType::Offline => {
+                                    hyperswitch_domain_models::mandates::AcceptanceType::Offline => {
                                         api::AcceptanceType::Offline
                                     }
                                 },
@@ -677,7 +676,7 @@ where
                             }
                         }),
                         mandate_type: d.mandate_type.map(|d| match d {
-                            data_models::mandates::MandateDataType::MultiUse(Some(i)) => {
+                            hyperswitch_domain_models::mandates::MandateDataType::MultiUse(Some(i)) => {
                                 api::MandateType::MultiUse(Some(api::MandateAmountData {
                                     amount: i.amount,
                                     currency: i.currency,
@@ -686,7 +685,7 @@ where
                                     metadata: i.metadata,
                                 }))
                             }
-                            data_models::mandates::MandateDataType::SingleUse(i) => {
+                            hyperswitch_domain_models::mandates::MandateDataType::SingleUse(i) => {
                                 api::MandateType::SingleUse(api::payments::MandateAmountData {
                                     amount: i.amount,
                                     currency: i.currency,
@@ -695,7 +694,7 @@ where
                                     metadata: i.metadata,
                                 })
                             }
-                            data_models::mandates::MandateDataType::MultiUse(None) => {
+                            hyperswitch_domain_models::mandates::MandateDataType::MultiUse(None) => {
                                 api::MandateType::MultiUse(None)
                             }
                         }),

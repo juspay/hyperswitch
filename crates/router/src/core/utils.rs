@@ -160,7 +160,6 @@ pub async fn construct_payout_router_data<'a, F>(
         connector_auth_type,
         description: None,
         return_url: payouts.return_url.to_owned(),
-        payment_method_id: None,
         address,
         auth_type: enums::AuthenticationType::default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
@@ -311,7 +310,6 @@ pub async fn construct_refund_router_data<'a, F>(
         connector_auth_type: auth_type,
         description: None,
         return_url: payment_intent.return_url.clone(),
-        payment_method_id: payment_attempt.payment_method_id.clone(),
         // Does refund need shipping/billing address ?
         address: PaymentAddress::default(),
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
@@ -557,7 +555,6 @@ pub async fn construct_accept_dispute_router_data<'a>(
         connector_auth_type: auth_type,
         description: None,
         return_url: payment_intent.return_url.clone(),
-        payment_method_id: payment_attempt.payment_method_id.clone(),
         address: PaymentAddress::default(),
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
@@ -652,7 +649,6 @@ pub async fn construct_submit_evidence_router_data<'a>(
         connector_auth_type: auth_type,
         description: None,
         return_url: payment_intent.return_url.clone(),
-        payment_method_id: payment_attempt.payment_method_id.clone(),
         address: PaymentAddress::default(),
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
@@ -745,7 +741,6 @@ pub async fn construct_upload_file_router_data<'a>(
         connector_auth_type: auth_type,
         description: None,
         return_url: payment_intent.return_url.clone(),
-        payment_method_id: payment_attempt.payment_method_id.clone(),
         address: PaymentAddress::default(),
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
@@ -842,7 +837,6 @@ pub async fn construct_defend_dispute_router_data<'a>(
         connector_auth_type: auth_type,
         description: None,
         return_url: payment_intent.return_url.clone(),
-        payment_method_id: payment_attempt.payment_method_id.clone(),
         address: PaymentAddress::default(),
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
@@ -930,7 +924,6 @@ pub async fn construct_retrieve_file_router_data<'a>(
         connector_auth_type: auth_type,
         description: None,
         return_url: None,
-        payment_method_id: None,
         address: PaymentAddress::default(),
         auth_type: diesel_models::enums::AuthenticationType::default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
@@ -983,7 +976,7 @@ pub fn is_merchant_enabled_for_payment_id_as_connector_request_id(
 pub fn get_connector_request_reference_id(
     conf: &Settings,
     merchant_id: &str,
-    payment_attempt: &data_models::payments::payment_attempt::PaymentAttempt,
+    payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
 ) -> String {
     let is_config_enabled_for_merchant =
         is_merchant_enabled_for_payment_id_as_connector_request_id(conf, merchant_id);
