@@ -1,5 +1,5 @@
 use std::sync::Arc;
-
+use serde::{Serialize};
 use common_enums::enums::MerchantStorageScheme;
 use common_utils::errors::CustomResult;
 use data_models::payments::{
@@ -72,7 +72,7 @@ use crate::{
     },
 };
 
-#[derive(Clone)]
+#[derive(Clone,Serialize)]
 pub struct TenantID(pub String);
 
 #[derive(Clone)]
