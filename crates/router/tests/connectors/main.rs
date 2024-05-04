@@ -62,6 +62,7 @@ mod trustpay;
 mod tsys;
 mod utils;
 mod volt;
+#[cfg(feature = "payouts")]
 mod wise;
 mod worldline;
 mod worldpay;

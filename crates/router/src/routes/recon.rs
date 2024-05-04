@@ -1,6 +1,5 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::recon as recon_api;
-use common_enums::ReconStatus;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::Flow;
@@ -18,7 +17,7 @@ use crate::{
         recon::ReconToken,
     },
     types::{
-        api::{self as api_types},
+        api::{self as api_types, enums},
         domain::{UserEmail, UserFromStorage, UserName},
         storage,
     },
@@ -125,7 +124,7 @@ pub async fn send_recon_request(
 
     if is_email_sent {
         let updated_merchant_account = storage::MerchantAccountUpdate::ReconUpdate {
-            recon_status: ReconStatus::Requested,
+            recon_status: enums::ReconStatus::Requested,
         };
 
         let response = db
@@ -144,7 +143,7 @@ pub async fn send_recon_request(
     } else {
         Ok(service_api::ApplicationResponse::Json(
             recon_api::ReconStatusResponse {
-                recon_status: ReconStatus::NotRequested,
+                recon_status: enums::ReconStatus::NotRequested,
             },
         ))
     }
@@ -195,7 +194,7 @@ pub async fn recon_merchant_account_update(
         subject: "Approval of Recon Request - Access Granted to Recon Dashboard",
     };
 
-    if req.recon_status == ReconStatus::Active {
+    if req.recon_status == enums::ReconStatus::Active {
         let _is_email_sent = state
             .email_client
             .compose_and_send_email(

@@ -1530,8 +1530,10 @@ impl GetLockingInput for payment_types::PaymentsCaptureRequest {
     }
 }
 
+#[cfg(feature = "oltp")]
 struct FPaymentsApproveRequest<'a>(&'a payment_types::PaymentsApproveRequest);
 
+#[cfg(feature = "oltp")]
 impl<'a> GetLockingInput for FPaymentsApproveRequest<'a> {
     fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
     where
@@ -1548,8 +1550,10 @@ impl<'a> GetLockingInput for FPaymentsApproveRequest<'a> {
     }
 }
 
+#[cfg(feature = "oltp")]
 struct FPaymentsRejectRequest<'a>(&'a payment_types::PaymentsRejectRequest);
 
+#[cfg(feature = "oltp")]
 impl<'a> GetLockingInput for FPaymentsRejectRequest<'a> {
     fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
     where

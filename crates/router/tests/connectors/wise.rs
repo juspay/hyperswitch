@@ -1,14 +1,14 @@
-use crate::utils::PaymentInfo;
-use crate::{
-    connector_auth,
-    utils::{self, ConnectorActions},
-};
 use api_models::payments::{Address, AddressDetails};
 use masking::Secret;
-use router::types;
-use router::types::api;
+use router::{
+    types,
+    types::{api, storage::enums, PaymentAddress},
+};
 
-use router::types::{storage::enums, PaymentAddress};
+use crate::{
+    connector_auth,
+    utils::{self, ConnectorActions, PaymentInfo},
+};
 
 struct WiseTest;
 
