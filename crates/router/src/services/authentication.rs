@@ -1,10 +1,14 @@
 use actix_web::http::header::HeaderMap;
-use api_models::{payment_methods::PaymentMethodListRequest, payments};
+use api_models::{
+    payment_methods::{PaymentMethodCreate, PaymentMethodListRequest},
+    payments,
+};
 use async_trait::async_trait;
 use common_utils::date_time;
 use error_stack::{report, ResultExt};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use masking::PeekInterface;
+use router_env::logger;
 use serde::Serialize;
 
 use self::blacklist::BlackList;
@@ -33,7 +37,6 @@ use crate::{
     utils::OptionExt,
 };
 pub mod blacklist;
-#[cfg(feature = "olap")]
 pub mod cookies;
 
 #[derive(Clone, Debug)]
@@ -71,6 +74,17 @@ pub enum AuthenticationType {
         merchant_id: String,
     },
     NoAuth,
+}
+
+impl events::EventInfo for AuthenticationType {
+    type Data = Self;
+    fn data(&self) -> error_stack::Result<Self::Data, events::EventsError> {
+        Ok(self.clone())
+    }
+
+    fn key(&self) -> String {
+        "auth_info".to_string()
+    }
 }
 
 impl AuthenticationType {
@@ -598,6 +612,15 @@ where
     A: AppStateInfo + Sync,
 {
     let token = get_jwt_from_authorization_header(headers)?;
+    if let Some(token_from_cookies) = get_cookie_from_header(headers)
+        .ok()
+        .and_then(|cookies| cookies::parse_cookie(cookies).ok())
+    {
+        logger::info!(
+            "Cookie header and authorization header JWT comparison result: {}",
+            token == token_from_cookies
+        );
+    }
     let payload = decode_jwt(token, state).await?;
 
     Ok(payload)
@@ -812,6 +835,12 @@ impl ClientSecretFetch for PaymentMethodListRequest {
     }
 }
 
+impl ClientSecretFetch for PaymentMethodCreate {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref()
+    }
+}
+
 impl ClientSecretFetch for api_models::cards_info::CardsInfoRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
@@ -837,6 +866,12 @@ impl ClientSecretFetch for api_models::pm_auth::LinkTokenCreateRequest {
 }
 
 impl ClientSecretFetch for api_models::pm_auth::ExchangeTokenCreateRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref()
+    }
+}
+
+impl ClientSecretFetch for api_models::payment_methods::PaymentMethodUpdate {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
     }
@@ -957,6 +992,13 @@ pub fn get_jwt_from_authorization_header(headers: &HeaderMap) -> RouterResult<&s
         .attach_printable("Failed to convert JWT token to string")?
         .strip_prefix("Bearer ")
         .ok_or(errors::ApiErrorResponse::InvalidJwtToken.into())
+}
+
+pub fn get_cookie_from_header(headers: &HeaderMap) -> RouterResult<&str> {
+    headers
+        .get(cookies::get_cookie_header())
+        .and_then(|header_value| header_value.to_str().ok())
+        .ok_or(errors::ApiErrorResponse::InvalidCookie.into())
 }
 
 pub fn strip_jwt_token(token: &str) -> RouterResult<&str> {

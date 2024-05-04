@@ -85,11 +85,13 @@ static BLOCKED_EMAIL: Lazy<HashSet<String>> = Lazy::new(|| {
 
 impl UserEmail {
     pub fn new(email: Secret<String, pii::EmailStrategy>) -> UserResult<Self> {
+        use validator::ValidateEmail;
+
         let email_string = email.expose();
         let email =
             pii::Email::from_str(&email_string).change_context(UserErrors::EmailParsingError)?;
 
-        if validator::validate_email(&email_string) {
+        if email_string.validate_email() {
             let (_username, domain) = match email_string.as_str().split_once('@') {
                 Some((u, d)) => (u, d),
                 None => return Err(UserErrors::EmailParsingError.into()),
@@ -105,8 +107,10 @@ impl UserEmail {
     }
 
     pub fn from_pii_email(email: pii::Email) -> UserResult<Self> {
+        use validator::ValidateEmail;
+
         let email_string = email.peek();
-        if validator::validate_email(email_string) {
+        if email_string.validate_email() {
             let (_username, domain) = match email_string.split_once('@') {
                 Some((u, d)) => (u, d),
                 None => return Err(UserErrors::EmailParsingError.into()),
@@ -511,7 +515,7 @@ impl NewUser {
     pub async fn check_if_already_exists_in_db(&self, state: AppState) -> UserResult<()> {
         if state
             .store
-            .find_user_by_email(self.get_email().into_inner().expose().expose().as_str())
+            .find_user_by_email(&self.get_email().into_inner())
             .await
             .is_ok()
         {
@@ -892,9 +896,14 @@ impl SignInWithMultipleRolesStrategy {
             .await
             .change_context(UserErrors::InternalServerError)?;
 
+        let roles =
+            utils::user_role::get_multiple_role_info_for_user_roles(state, &self.user_roles)
+                .await?;
+
         let merchant_details = utils::user::get_multiple_merchant_details_with_status(
             self.user_roles,
             merchant_accounts,
+            roles,
         )?;
 
         Ok(user_api::SignInResponse::MerchantSelect(

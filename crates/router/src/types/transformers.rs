@@ -1,6 +1,9 @@
 // use actix_web::HttpMessage;
 use actix_web::http::header::HeaderMap;
-use api_models::{enums as api_enums, gsm as gsm_api_types, payments, routing::ConnectorSelection};
+use api_models::{
+    enums as api_enums, gsm as gsm_api_types, payment_methods, payments,
+    routing::ConnectorSelection,
+};
 use common_utils::{
     consts::X_HS_LATENCY,
     crypto::Encryptable,
@@ -67,6 +70,28 @@ impl ForeignFrom<api_models::refunds::RefundType> for storage_enums::RefundType 
         match item {
             api_models::refunds::RefundType::Instant => Self::InstantRefund,
             api_models::refunds::RefundType::Scheduled => Self::RegularRefund,
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::PaymentMethod> for payment_methods::PaymentMethodResponse {
+    fn foreign_from(item: diesel_models::PaymentMethod) -> Self {
+        Self {
+            merchant_id: item.merchant_id,
+            customer_id: Some(item.customer_id),
+            payment_method_id: item.payment_method_id,
+            payment_method: item.payment_method,
+            payment_method_type: item.payment_method_type,
+            card: None,
+            recurring_enabled: false,
+            installment_payment_enabled: false,
+            payment_experience: None,
+            metadata: item.metadata,
+            created: Some(item.created_at),
+            #[cfg(feature = "payouts")]
+            bank_transfer: None,
+            last_used_at: None,
+            client_secret: item.client_secret,
         }
     }
 }
@@ -188,7 +213,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Authorizedotnet => Self::Authorizedotnet,
             api_enums::Connector::Bambora => Self::Bambora,
             api_enums::Connector::Bankofamerica => Self::Bankofamerica,
-            // api_enums::Connector::Billwerk => Self::Billwerk, Added as template code for future usage
+            api_enums::Connector::Billwerk => Self::Billwerk,
             api_enums::Connector::Bitpay => Self::Bitpay,
             api_enums::Connector::Bluesnap => Self::Bluesnap,
             api_enums::Connector::Boku => Self::Boku,
@@ -209,6 +234,11 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Klarna => Self::Klarna,
             api_enums::Connector::Mollie => Self::Mollie,
             api_enums::Connector::Multisafepay => Self::Multisafepay,
+            api_enums::Connector::Netcetera => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "netcetera is not a routable connector".to_string(),
+                })?
+            }
             api_enums::Connector::Nexinets => Self::Nexinets,
             api_enums::Connector::Nmi => Self::Nmi,
             api_enums::Connector::Noon => Self::Noon,
@@ -247,6 +277,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Worldline => Self::Worldline,
             api_enums::Connector::Worldpay => Self::Worldpay,
             api_enums::Connector::Zen => Self::Zen,
+            api_enums::Connector::Zsl => Self::Zsl,
             #[cfg(feature = "dummy_connector")]
             api_enums::Connector::DummyConnector1 => Self::DummyConnector1,
             #[cfg(feature = "dummy_connector")]
@@ -453,6 +484,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::CimbVa
             | api_enums::PaymentMethodType::DanamonVa
             | api_enums::PaymentMethodType::MandiriVa
+            | api_enums::PaymentMethodType::LocalBankTransfer
             | api_enums::PaymentMethodType::Pix => Self::BankTransfer,
             api_enums::PaymentMethodType::Givex | api_enums::PaymentMethodType::PaySafeCard => {
                 Self::GiftCard
@@ -586,6 +618,7 @@ impl<'a> From<&'a domain::Address> for api_types::Address {
             && address.line2.is_none()
             && address.line3.is_none()
             && address.state.is_none()
+            && address.country.is_none()
             && address.zip.is_none()
             && address.first_name.is_none()
             && address.last_name.is_none()
@@ -1126,6 +1159,24 @@ impl ForeignFrom<storage::GatewayStatusMap> for gsm_api_types::GsmResponse {
             step_up_possible: value.step_up_possible,
             unified_code: value.unified_code,
             unified_message: value.unified_message,
+        }
+    }
+}
+
+impl ForeignFrom<&domain::Customer> for api_models::payments::CustomerDetails {
+    fn foreign_from(customer: &domain::Customer) -> Self {
+        Self {
+            id: customer.customer_id.clone(),
+            name: customer
+                .name
+                .as_ref()
+                .map(|name| name.get_inner().to_owned()),
+            email: customer.email.clone().map(Into::into),
+            phone: customer
+                .phone
+                .as_ref()
+                .map(|phone| phone.get_inner().to_owned()),
+            phone_country_code: customer.phone_country_code.clone(),
         }
     }
 }

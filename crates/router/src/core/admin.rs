@@ -1731,10 +1731,10 @@ pub(crate) fn validate_auth_and_metadata_type(
             bankofamerica::transformers::BankOfAmericaAuthType::try_from(val)?;
             Ok(())
         }
-        // api_enums::Connector::Billwerk => {
-        //     billwerk::transformers::BillwerkAuthType::try_from(val)?;
-        //     Ok(())
-        // } Added as template code for future usage
+        api_enums::Connector::Billwerk => {
+            billwerk::transformers::BillwerkAuthType::try_from(val)?;
+            Ok(())
+        }
         api_enums::Connector::Bitpay => {
             bitpay::transformers::BitpayAuthType::try_from(val)?;
             Ok(())
@@ -1822,6 +1822,11 @@ pub(crate) fn validate_auth_and_metadata_type(
         }
         api_enums::Connector::Multisafepay => {
             multisafepay::transformers::MultisafepayAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Netcetera => {
+            netcetera::transformers::NetceteraAuthType::try_from(val)?;
+            netcetera::transformers::NetceteraMetaData::try_from(connector_meta_data)?;
             Ok(())
         }
         api_enums::Connector::Nexinets => {
@@ -1914,6 +1919,10 @@ pub(crate) fn validate_auth_and_metadata_type(
         }
         api_enums::Connector::Zen => {
             zen::transformers::ZenAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Zsl => {
+            zsl::transformers::ZslAuthType::try_from(val)?;
             Ok(())
         }
         api_enums::Connector::Signifyd => {

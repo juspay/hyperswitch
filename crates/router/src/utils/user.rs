@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use api_models::user as user_api;
 use common_utils::errors::CustomResult;
 use diesel_models::{enums::UserStatus, user_role::UserRole};
-use error_stack::{report, ResultExt};
-use masking::{ExposeInterface, Secret};
+use error_stack::ResultExt;
+use masking::Secret;
 
 use crate::{
     core::errors::{StorageError, UserErrors, UserResult},
@@ -137,24 +137,38 @@ pub fn get_verification_days_left(
 pub fn get_multiple_merchant_details_with_status(
     user_roles: Vec<UserRole>,
     merchant_accounts: Vec<MerchantAccount>,
+    roles: Vec<RoleInfo>,
 ) -> UserResult<Vec<user_api::UserMerchantAccount>> {
-    let roles: HashMap<_, _> = user_roles
+    let merchant_account_map = merchant_accounts
         .into_iter()
-        .map(|user_role| (user_role.merchant_id.clone(), user_role))
-        .collect();
+        .map(|merchant_account| (merchant_account.merchant_id.clone(), merchant_account))
+        .collect::<HashMap<_, _>>();
 
-    merchant_accounts
+    let role_map = roles
         .into_iter()
-        .map(|merchant| {
-            let role = roles
-                .get(merchant.merchant_id.as_str())
-                .ok_or(report!(UserErrors::InternalServerError))
-                .attach_printable("Merchant exists but user role doesn't")?;
+        .map(|role_info| (role_info.get_role_id().to_string(), role_info))
+        .collect::<HashMap<_, _>>();
+
+    user_roles
+        .into_iter()
+        .map(|user_role| {
+            let merchant_account = merchant_account_map
+                .get(&user_role.merchant_id)
+                .ok_or(UserErrors::InternalServerError)
+                .attach_printable("Merchant account for user role doesn't exist")?;
+
+            let role_info = role_map
+                .get(&user_role.role_id)
+                .ok_or(UserErrors::InternalServerError)
+                .attach_printable("Role info for user role doesn't exist")?;
 
             Ok(user_api::UserMerchantAccount {
-                merchant_id: merchant.merchant_id.clone(),
-                merchant_name: merchant.merchant_name.clone(),
-                is_active: role.status == UserStatus::Active,
+                merchant_id: user_role.merchant_id,
+                merchant_name: merchant_account.merchant_name.clone(),
+                is_active: user_role.status == UserStatus::Active,
+                role_id: user_role.role_id,
+                role_name: role_info.get_role_name().to_string(),
+                org_id: user_role.org_id,
             })
         })
         .collect()
@@ -166,7 +180,7 @@ pub async fn get_user_from_db_by_email(
 ) -> CustomResult<UserFromStorage, StorageError> {
     state
         .store
-        .find_user_by_email(email.get_secret().expose().as_str())
+        .find_user_by_email(&email.into_inner())
         .await
         .map(UserFromStorage::from)
 }

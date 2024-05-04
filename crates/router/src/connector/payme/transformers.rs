@@ -1,9 +1,6 @@
 use std::collections::HashMap;
 
-use api_models::{
-    enums::{AuthenticationType, PaymentMethod},
-    payments::PaymentMethodData,
-};
+use api_models::enums::{AuthenticationType, PaymentMethod};
 use common_utils::pii;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
@@ -20,7 +17,7 @@ use crate::{
     consts,
     core::errors,
     services,
-    types::{self, api, storage::enums, MandateReference},
+    types::{self, api, domain, domain::PaymentMethodData, storage::enums, MandateReference},
     unimplemented_payment_method,
 };
 
@@ -388,38 +385,36 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
         match item {
             PaymentMethodData::Card(_) => Ok(Self::CreditCard),
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                api_models::payments::WalletData::ApplePayThirdPartySdk(_) => Ok(Self::ApplePay),
-                api_models::payments::WalletData::AliPayQr(_)
-                | api_models::payments::WalletData::AliPayRedirect(_)
-                | api_models::payments::WalletData::AliPayHkRedirect(_)
-                | api_models::payments::WalletData::MomoRedirect(_)
-                | api_models::payments::WalletData::KakaoPayRedirect(_)
-                | api_models::payments::WalletData::GoPayRedirect(_)
-                | api_models::payments::WalletData::GcashRedirect(_)
-                | api_models::payments::WalletData::ApplePayRedirect(_)
-                | api_models::payments::WalletData::DanaRedirect {}
-                | api_models::payments::WalletData::GooglePay(_)
-                | api_models::payments::WalletData::GooglePayRedirect(_)
-                | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
-                | api_models::payments::WalletData::MbWayRedirect(_)
-                | api_models::payments::WalletData::MobilePayRedirect(_)
-                | api_models::payments::WalletData::PaypalRedirect(_)
-                | api_models::payments::WalletData::PaypalSdk(_)
-                | api_models::payments::WalletData::SamsungPay(_)
-                | api_models::payments::WalletData::TwintRedirect {}
-                | api_models::payments::WalletData::VippsRedirect {}
-                | api_models::payments::WalletData::TouchNGoRedirect(_)
-                | api_models::payments::WalletData::WeChatPayRedirect(_)
-                | api_models::payments::WalletData::WeChatPayQr(_)
-                | api_models::payments::WalletData::CashappQr(_)
-                | api_models::payments::WalletData::ApplePay(_)
-                | api_models::payments::WalletData::SwishQr(_) => {
-                    Err(errors::ConnectorError::NotSupported {
-                        message: "Wallet".to_string(),
-                        connector: "payme",
-                    }
-                    .into())
+                domain::WalletData::ApplePayThirdPartySdk(_) => Ok(Self::ApplePay),
+                domain::WalletData::AliPayQr(_)
+                | domain::WalletData::AliPayRedirect(_)
+                | domain::WalletData::AliPayHkRedirect(_)
+                | domain::WalletData::MomoRedirect(_)
+                | domain::WalletData::KakaoPayRedirect(_)
+                | domain::WalletData::GoPayRedirect(_)
+                | domain::WalletData::GcashRedirect(_)
+                | domain::WalletData::ApplePayRedirect(_)
+                | domain::WalletData::DanaRedirect {}
+                | domain::WalletData::GooglePay(_)
+                | domain::WalletData::GooglePayRedirect(_)
+                | domain::WalletData::GooglePayThirdPartySdk(_)
+                | domain::WalletData::MbWayRedirect(_)
+                | domain::WalletData::MobilePayRedirect(_)
+                | domain::WalletData::PaypalRedirect(_)
+                | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::SamsungPay(_)
+                | domain::WalletData::TwintRedirect {}
+                | domain::WalletData::VippsRedirect {}
+                | domain::WalletData::TouchNGoRedirect(_)
+                | domain::WalletData::WeChatPayRedirect(_)
+                | domain::WalletData::WeChatPayQr(_)
+                | domain::WalletData::CashappQr(_)
+                | domain::WalletData::ApplePay(_)
+                | domain::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotSupported {
+                    message: "Wallet".to_string(),
+                    connector: "payme",
                 }
+                .into()),
             },
             PaymentMethodData::PayLater(_)
             | PaymentMethodData::BankRedirect(_)
@@ -543,26 +538,21 @@ impl<F>
             }
             _ => {
                 let currency_code = item.data.request.get_currency()?;
-                let country_code = item
-                    .data
-                    .get_optional_billing()
-                    .and_then(|billing| billing.address.as_ref())
-                    .and_then(|address| address.country);
                 let amount = item.data.request.get_amount()?;
                 let amount_in_base_unit = utils::to_currency_base_unit(amount, currency_code)?;
                 let pmd = item.data.request.payment_method_data.to_owned();
                 let payme_auth_type = PaymeAuthType::try_from(&item.data.connector_auth_type)?;
 
                 let session_token = match pmd {
-                    Some(PaymentMethodData::Wallet(
-                        api_models::payments::WalletData::ApplePayThirdPartySdk(_),
-                    )) => Some(api_models::payments::SessionToken::ApplePay(Box::new(
+                    Some(PaymentMethodData::Wallet(domain::WalletData::ApplePayThirdPartySdk(
+                        _,
+                    ))) => Some(api_models::payments::SessionToken::ApplePay(Box::new(
                         api_models::payments::ApplepaySessionTokenResponse {
                             session_token_data:
                                 api_models::payments::ApplePaySessionResponse::NoSessionResponse,
                             payment_request_data: Some(
                                 api_models::payments::ApplePayPaymentRequest {
-                                    country_code,
+                                    country_code: item.data.get_billing_country()?,
                                     currency_code,
                                     total: api_models::payments::AmountInfo {
                                         label: "Apple Pay".to_string(),
@@ -640,7 +630,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(req_card) => {
+            domain::PaymentMethodData::Card(req_card) => {
                 let card = PaymeCard {
                     credit_card_cvv: req_card.card_cvc.clone(),
                     credit_card_exp: req_card
@@ -662,21 +652,23 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayRequest {
                     language: LANGUAGE.to_string(),
                 })
             }
-            api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::Wallet(_)
-            | api::PaymentMethodData::PayLater(_)
-            | api::PaymentMethodData::BankRedirect(_)
-            | api::PaymentMethodData::BankDebit(_)
-            | api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::Crypto(_)
-            | api::PaymentMethodData::MandatePayment
-            | api::PaymentMethodData::Reward
-            | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("payme"),
-            ))?,
+            domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("payme"),
+                ))?
+            }
         }
     }
 }
@@ -689,7 +681,7 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCompleteAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
-            Some(api::PaymentMethodData::Card(_)) => {
+            Some(domain::PaymentMethodData::Card(_)) => {
                 let buyer_email = item.request.get_email()?;
                 let buyer_name = item.get_billing_address()?.get_full_name()?;
 
@@ -720,19 +712,19 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
                     meta_data_jwt: Secret::new(jwt_data.meta_data),
                 })
             }
-            Some(api::PaymentMethodData::CardRedirect(_))
-            | Some(api::PaymentMethodData::Wallet(_))
-            | Some(api::PaymentMethodData::PayLater(_))
-            | Some(api::PaymentMethodData::BankRedirect(_))
-            | Some(api::PaymentMethodData::BankDebit(_))
-            | Some(api::PaymentMethodData::BankTransfer(_))
-            | Some(api::PaymentMethodData::Crypto(_))
-            | Some(api::PaymentMethodData::MandatePayment)
-            | Some(api::PaymentMethodData::Reward)
-            | Some(api::PaymentMethodData::Upi(_))
-            | Some(api::PaymentMethodData::Voucher(_))
-            | Some(api::PaymentMethodData::GiftCard(_))
-            | Some(api::PaymentMethodData::CardToken(_))
+            Some(domain::PaymentMethodData::CardRedirect(_))
+            | Some(domain::PaymentMethodData::Wallet(_))
+            | Some(domain::PaymentMethodData::PayLater(_))
+            | Some(domain::PaymentMethodData::BankRedirect(_))
+            | Some(domain::PaymentMethodData::BankDebit(_))
+            | Some(domain::PaymentMethodData::BankTransfer(_))
+            | Some(domain::PaymentMethodData::Crypto(_))
+            | Some(domain::PaymentMethodData::MandatePayment)
+            | Some(domain::PaymentMethodData::Reward)
+            | Some(domain::PaymentMethodData::Upi(_))
+            | Some(domain::PaymentMethodData::Voucher(_))
+            | Some(domain::PaymentMethodData::GiftCard(_))
+            | Some(domain::PaymentMethodData::CardToken(_))
             | None => {
                 Err(errors::ConnectorError::NotImplemented("Tokenize Flow".to_string()).into())
             }
@@ -744,7 +736,7 @@ impl TryFrom<&types::TokenizationRouterData> for CaptureBuyerRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::TokenizationRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(req_card) => {
+            domain::PaymentMethodData::Card(req_card) => {
                 let seller_payme_id =
                     PaymeAuthType::try_from(&item.connector_auth_type)?.seller_payme_id;
                 let card = PaymeCard {
@@ -758,19 +750,19 @@ impl TryFrom<&types::TokenizationRouterData> for CaptureBuyerRequest {
                     seller_payme_id,
                 })
             }
-            api::PaymentMethodData::Wallet(_)
-            | api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::PayLater(_)
-            | api::PaymentMethodData::BankRedirect(_)
-            | api::PaymentMethodData::BankDebit(_)
-            | api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::Crypto(_)
-            | api::PaymentMethodData::MandatePayment
-            | api::PaymentMethodData::Reward
-            | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardToken(_) => {
+            domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented("Tokenize Flow".to_string()).into())
             }
         }

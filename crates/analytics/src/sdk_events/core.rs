@@ -88,9 +88,6 @@ pub async fn get_metrics(
                     SdkEventMetrics::PaymentAttempts => {
                         metrics_builder.payment_attempts.add_metrics_bucket(&value)
                     }
-                    SdkEventMetrics::PaymentSuccessCount => {
-                        metrics_builder.payment_success.add_metrics_bucket(&value)
-                    }
                     SdkEventMetrics::PaymentMethodsCallCount => metrics_builder
                         .payment_methods_call_count
                         .add_metrics_bucket(&value),
@@ -108,6 +105,27 @@ pub async fn get_metrics(
                         .add_metrics_bucket(&value),
                     SdkEventMetrics::AveragePaymentTime => metrics_builder
                         .average_payment_time
+                        .add_metrics_bucket(&value),
+                    SdkEventMetrics::ThreeDsMethodInvokedCount => metrics_builder
+                        .three_ds_method_invoked_count
+                        .add_metrics_bucket(&value),
+                    SdkEventMetrics::ThreeDsMethodSkippedCount => metrics_builder
+                        .three_ds_method_skipped_count
+                        .add_metrics_bucket(&value),
+                    SdkEventMetrics::ThreeDsMethodSuccessfulCount => metrics_builder
+                        .three_ds_method_successful_count
+                        .add_metrics_bucket(&value),
+                    SdkEventMetrics::ThreeDsMethodUnsuccessfulCount => metrics_builder
+                        .three_ds_method_unsuccessful_count
+                        .add_metrics_bucket(&value),
+                    SdkEventMetrics::AuthenticationUnsuccessfulCount => metrics_builder
+                        .authentication_unsuccessful_count
+                        .add_metrics_bucket(&value),
+                    SdkEventMetrics::ThreeDsChallengeFlowCount => metrics_builder
+                        .three_ds_challenge_flow_count
+                        .add_metrics_bucket(&value),
+                    SdkEventMetrics::ThreeDsFrictionlessFlowCount => metrics_builder
+                        .three_ds_frictionless_flow_count
                         .add_metrics_bucket(&value),
                 }
             }

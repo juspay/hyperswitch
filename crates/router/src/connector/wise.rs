@@ -628,7 +628,7 @@ impl
         _req: &types::PayoutsRouterData<api::PoEligibility>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        // Eligiblity check for cards is not implemented
+        // Eligibility check for cards is not implemented
         Err(
             errors::ConnectorError::NotImplemented("Payout Eligibility for Wise".to_string())
                 .into(),
