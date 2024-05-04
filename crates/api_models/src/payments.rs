@@ -1319,14 +1319,12 @@ mod payment_method_data_serde {
                                     payment_method_data_value,
                                 )
                                 .map_err(|serde_json_error| {
-                                    serde::de::Error::custom(serde_json_error.to_string())
+                                    de::Error::custom(serde_json_error.to_string())
                                 })?,
                             )
                         }
                     } else {
-                        Err(serde::de::Error::custom(
-                            "Expected a map for payment_method_data",
-                        ))?
+                        Err(de::Error::custom("Expected a map for payment_method_data"))?
                     }
                 } else {
                     None
