@@ -1,20 +1,19 @@
-#[cfg(feature = "payouts")]
-use api_models::payments::{Address, AddressDetails};
-#[cfg(feature = "payouts")]
-use masking::Secret;
-use router::types;
-#[cfg(feature = "payouts")]
-use router::types::{api, storage::enums, PaymentAddress};
-
-#[cfg(feature = "payouts")]
 use crate::utils::PaymentInfo;
 use crate::{
     connector_auth,
     utils::{self, ConnectorActions},
 };
+use api_models::payments::{Address, AddressDetails};
+use masking::Secret;
+use router::types;
+use router::types::api;
+
+use router::types::{storage::enums, PaymentAddress};
 
 struct WiseTest;
+
 impl ConnectorActions for WiseTest {}
+
 impl utils::Connector for WiseTest {
     fn get_data(&self) -> api::ConnectorData {
         use router::connector::Adyen;
@@ -26,7 +25,6 @@ impl utils::Connector for WiseTest {
         }
     }
 
-    #[cfg(feature = "payouts")]
     fn get_payout_data(&self) -> Option<api::ConnectorData> {
         use router::connector::Wise;
         Some(api::ConnectorData {
@@ -52,7 +50,6 @@ impl utils::Connector for WiseTest {
 }
 
 impl WiseTest {
-    #[cfg(feature = "payouts")]
     fn get_payout_info() -> Option<PaymentInfo> {
         Some(PaymentInfo {
             country: Some(api_models::enums::CountryAlpha2::NL),
@@ -86,12 +83,11 @@ impl WiseTest {
     }
 }
 
-#[cfg(feature = "payouts")]
 static CONNECTOR: WiseTest = WiseTest {};
 
 /******************** Payouts test cases ********************/
 // Creates a recipient at connector's end
-#[cfg(feature = "payouts")]
+
 #[actix_web::test]
 async fn should_create_payout_recipient() {
     let payout_type = enums::PayoutType::Bank;
@@ -107,7 +103,7 @@ async fn should_create_payout_recipient() {
 }
 
 // Create BACS payout
-#[cfg(feature = "payouts")]
+
 #[actix_web::test]
 async fn should_create_bacs_payout() {
     let payout_type = enums::PayoutType::Bank;
@@ -138,7 +134,7 @@ async fn should_create_bacs_payout() {
 }
 
 // Create and fulfill BACS payout
-#[cfg(feature = "payouts")]
+
 #[actix_web::test]
 async fn should_create_and_fulfill_bacs_payout() {
     let payout_type = enums::PayoutType::Bank;
