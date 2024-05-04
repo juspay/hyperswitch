@@ -1,9 +1,6 @@
 // use actix_web::HttpMessage;
 use actix_web::http::header::HeaderMap;
-use api_models::{
-    enums as api_enums, gsm as gsm_api_types, payment_methods, payments,
-    routing::ConnectorSelection,
-};
+use api_models::{enums as api_enums, gsm as gsm_api_types, payments, routing::ConnectorSelection};
 use common_utils::{
     consts::X_HS_LATENCY,
     crypto::Encryptable,
@@ -70,28 +67,6 @@ impl ForeignFrom<api_models::refunds::RefundType> for storage_enums::RefundType 
         match item {
             api_models::refunds::RefundType::Instant => Self::InstantRefund,
             api_models::refunds::RefundType::Scheduled => Self::RegularRefund,
-        }
-    }
-}
-
-impl ForeignFrom<diesel_models::PaymentMethod> for payment_methods::PaymentMethodResponse {
-    fn foreign_from(item: diesel_models::PaymentMethod) -> Self {
-        Self {
-            merchant_id: item.merchant_id,
-            customer_id: Some(item.customer_id),
-            payment_method_id: item.payment_method_id,
-            payment_method: item.payment_method,
-            payment_method_type: item.payment_method_type,
-            card: None,
-            recurring_enabled: false,
-            installment_payment_enabled: false,
-            payment_experience: None,
-            metadata: item.metadata,
-            created: Some(item.created_at),
-            #[cfg(feature = "payouts")]
-            bank_transfer: None,
-            last_used_at: None,
-            client_secret: item.client_secret,
         }
     }
 }
@@ -213,7 +188,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Authorizedotnet => Self::Authorizedotnet,
             api_enums::Connector::Bambora => Self::Bambora,
             api_enums::Connector::Bankofamerica => Self::Bankofamerica,
-            api_enums::Connector::Billwerk => Self::Billwerk,
+            // api_enums::Connector::Billwerk => Self::Billwerk, Added as template code for future usage
             api_enums::Connector::Bitpay => Self::Bitpay,
             api_enums::Connector::Bluesnap => Self::Bluesnap,
             api_enums::Connector::Boku => Self::Boku,
@@ -224,7 +199,6 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Cryptopay => Self::Cryptopay,
             api_enums::Connector::Cybersource => Self::Cybersource,
             api_enums::Connector::Dlocal => Self::Dlocal,
-            api_enums::Connector::Ebanx => Self::Ebanx,
             api_enums::Connector::Fiserv => Self::Fiserv,
             api_enums::Connector::Forte => Self::Forte,
             api_enums::Connector::Globalpay => Self::Globalpay,
@@ -235,11 +209,6 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Klarna => Self::Klarna,
             api_enums::Connector::Mollie => Self::Mollie,
             api_enums::Connector::Multisafepay => Self::Multisafepay,
-            api_enums::Connector::Netcetera => {
-                Err(common_utils::errors::ValidationError::InvalidValue {
-                    message: "netcetera is not a routable connector".to_string(),
-                })?
-            }
             api_enums::Connector::Nexinets => Self::Nexinets,
             api_enums::Connector::Nmi => Self::Nmi,
             api_enums::Connector::Noon => Self::Noon,
@@ -278,7 +247,6 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Worldline => Self::Worldline,
             api_enums::Connector::Worldpay => Self::Worldpay,
             api_enums::Connector::Zen => Self::Zen,
-            api_enums::Connector::Zsl => Self::Zsl,
             #[cfg(feature = "dummy_connector")]
             api_enums::Connector::DummyConnector1 => Self::DummyConnector1,
             #[cfg(feature = "dummy_connector")]
@@ -315,34 +283,30 @@ impl ForeignFrom<storage_enums::MandateAmountData> for api_models::payments::Man
 }
 
 // TODO: remove foreign from since this conversion won't be needed in the router crate once data models is treated as a single & primary source of truth for structure information
-impl ForeignFrom<api_models::payments::MandateData>
-    for hyperswitch_domain_models::mandates::MandateData
-{
+impl ForeignFrom<api_models::payments::MandateData> for data_models::mandates::MandateData {
     fn foreign_from(d: api_models::payments::MandateData) -> Self {
         Self {
             customer_acceptance: d.customer_acceptance.map(|d| {
-                hyperswitch_domain_models::mandates::CustomerAcceptance {
+                data_models::mandates::CustomerAcceptance {
                     acceptance_type: match d.acceptance_type {
                         api_models::payments::AcceptanceType::Online => {
-                            hyperswitch_domain_models::mandates::AcceptanceType::Online
+                            data_models::mandates::AcceptanceType::Online
                         }
                         api_models::payments::AcceptanceType::Offline => {
-                            hyperswitch_domain_models::mandates::AcceptanceType::Offline
+                            data_models::mandates::AcceptanceType::Offline
                         }
                     },
                     accepted_at: d.accepted_at,
-                    online: d
-                        .online
-                        .map(|d| hyperswitch_domain_models::mandates::OnlineMandate {
-                            ip_address: d.ip_address,
-                            user_agent: d.user_agent,
-                        }),
+                    online: d.online.map(|d| data_models::mandates::OnlineMandate {
+                        ip_address: d.ip_address,
+                        user_agent: d.user_agent,
+                    }),
                 }
             }),
             mandate_type: d.mandate_type.map(|d| match d {
                 api_models::payments::MandateType::MultiUse(Some(i)) => {
-                    hyperswitch_domain_models::mandates::MandateDataType::MultiUse(Some(
-                        hyperswitch_domain_models::mandates::MandateAmountData {
+                    data_models::mandates::MandateDataType::MultiUse(Some(
+                        data_models::mandates::MandateAmountData {
                             amount: i.amount,
                             currency: i.currency,
                             start_date: i.start_date,
@@ -352,8 +316,8 @@ impl ForeignFrom<api_models::payments::MandateData>
                     ))
                 }
                 api_models::payments::MandateType::SingleUse(i) => {
-                    hyperswitch_domain_models::mandates::MandateDataType::SingleUse(
-                        hyperswitch_domain_models::mandates::MandateAmountData {
+                    data_models::mandates::MandateDataType::SingleUse(
+                        data_models::mandates::MandateAmountData {
                             amount: i.amount,
                             currency: i.currency,
                             start_date: i.start_date,
@@ -363,7 +327,7 @@ impl ForeignFrom<api_models::payments::MandateData>
                     )
                 }
                 api_models::payments::MandateType::MultiUse(None) => {
-                    hyperswitch_domain_models::mandates::MandateDataType::MultiUse(None)
+                    data_models::mandates::MandateDataType::MultiUse(None)
                 }
             }),
             update_mandate_id: d.update_mandate_id,
@@ -430,8 +394,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Gcash
             | api_enums::PaymentMethodType::Momo
             | api_enums::PaymentMethodType::Cashapp
-            | api_enums::PaymentMethodType::KakaoPay
-            | api_enums::PaymentMethodType::Venmo => Self::Wallet,
+            | api_enums::PaymentMethodType::KakaoPay => Self::Wallet,
             api_enums::PaymentMethodType::Affirm
             | api_enums::PaymentMethodType::Alma
             | api_enums::PaymentMethodType::AfterpayClearpay
@@ -490,7 +453,6 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::CimbVa
             | api_enums::PaymentMethodType::DanamonVa
             | api_enums::PaymentMethodType::MandiriVa
-            | api_enums::PaymentMethodType::LocalBankTransfer
             | api_enums::PaymentMethodType::Pix => Self::BankTransfer,
             api_enums::PaymentMethodType::Givex | api_enums::PaymentMethodType::PaySafeCard => {
                 Self::GiftCard
@@ -624,7 +586,6 @@ impl<'a> From<&'a domain::Address> for api_types::Address {
             && address.line2.is_none()
             && address.line3.is_none()
             && address.state.is_none()
-            && address.country.is_none()
             && address.zip.is_none()
             && address.first_name.is_none()
             && address.last_name.is_none()
@@ -966,7 +927,6 @@ impl ForeignFrom<api_models::payouts::Bank> for api_enums::PaymentMethodType {
             api_models::payouts::Bank::Ach(_) => Self::Ach,
             api_models::payouts::Bank::Bacs(_) => Self::Bacs,
             api_models::payouts::Bank::Sepa(_) => Self::Sepa,
-            api_models::payouts::Bank::Pix(_) => Self::Pix,
         }
     }
 }
@@ -976,7 +936,6 @@ impl ForeignFrom<api_models::payouts::Wallet> for api_enums::PaymentMethodType {
     fn foreign_from(value: api_models::payouts::Wallet) -> Self {
         match value {
             api_models::payouts::Wallet::Paypal(_) => Self::Paypal,
-            api_models::payouts::Wallet::Venmo(_) => Self::Venmo,
         }
     }
 }
@@ -1167,24 +1126,6 @@ impl ForeignFrom<storage::GatewayStatusMap> for gsm_api_types::GsmResponse {
             step_up_possible: value.step_up_possible,
             unified_code: value.unified_code,
             unified_message: value.unified_message,
-        }
-    }
-}
-
-impl ForeignFrom<&domain::Customer> for api_models::payments::CustomerDetails {
-    fn foreign_from(customer: &domain::Customer) -> Self {
-        Self {
-            id: customer.customer_id.clone(),
-            name: customer
-                .name
-                .as_ref()
-                .map(|name| name.get_inner().to_owned()),
-            email: customer.email.clone().map(Into::into),
-            phone: customer
-                .phone
-                .as_ref()
-                .map(|phone| phone.get_inner().to_owned()),
-            phone_country_code: customer.phone_country_code.clone(),
         }
     }
 }

@@ -6,7 +6,7 @@ use api_models::{
 };
 use common_enums::FrmSuggestion;
 use common_utils::pii::Email;
-use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
+use data_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 use masking::Serialize;
 use serde::Deserialize;
 use utoipa::ToSchema;
@@ -129,18 +129,10 @@ pub struct FrmFulfillmentRequest {
     #[schema(max_length = 255, example = "fedex")]
     pub tracking_company: Option<String>,
     //tracking ID of the product
-    #[schema(example = r#"["track_8327446667", "track_8327446668"]"#)]
-    pub tracking_numbers: Option<Vec<String>>,
+    #[schema(max_length = 255, example = "track_8327446667")]
+    pub tracking_number: Option<String>,
     //tracking_url for tracking the product
-    pub tracking_urls: Option<Vec<String>>,
-    // The name of the Shipper.
-    pub carrier: Option<String>,
-    // Fulfillment method for the shipment.
-    pub fulfillment_method: Option<String>,
-    // Statuses to indicate shipment state.
-    pub shipment_status: Option<String>,
-    // The date and time items are ready to be shipped.
-    pub shipped_at: Option<String>,
+    pub tracking_url: Option<String>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -223,4 +215,4 @@ pub struct FrmFulfillmentSignifydApiResponse {
     pub shipment_ids: Vec<String>,
 }
 
-pub const CANCEL_INITIATED: &str = "Cancel Initiated with the processor";
+pub const REFUND_INITIATED: &str = "Refund Initiated with the processor";

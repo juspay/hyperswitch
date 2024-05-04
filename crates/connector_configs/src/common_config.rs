@@ -87,9 +87,6 @@ pub struct ApiModelMetaData {
     pub merchant_name: Option<String>,
     pub acquirer_bin: Option<String>,
     pub acquirer_merchant_id: Option<String>,
-    pub three_ds_requestor_name: Option<String>,
-    pub three_ds_requestor_id: Option<String>,
-    pub pull_mechanism_for_external_3ds_enabled: Option<bool>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -188,7 +185,4 @@ pub struct DashboardMetaData {
     pub merchant_name: Option<String>,
     pub acquirer_bin: Option<String>,
     pub acquirer_merchant_id: Option<String>,
-    pub three_ds_requestor_name: Option<String>,
-    pub three_ds_requestor_id: Option<String>,
-    pub pull_mechanism_for_external_3ds_enabled: Option<bool>,
 }

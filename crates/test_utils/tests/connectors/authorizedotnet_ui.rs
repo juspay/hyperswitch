@@ -14,7 +14,7 @@ impl SeleniumTest for AuthorizedotnetSeleniumTest {
 
 async fn should_make_gpay_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = AuthorizedotnetSeleniumTest {};
-    let amount = rand::thread_rng().gen_range(1..1000); //This connector detects it as fraudulent payment if the same amount is used for multiple payments so random amount is passed for testing
+    let amount = rand::thread_rng().gen_range(1..1000); //This connector detects it as fradulent payment if the same amount is used for multiple payments so random amount is passed for testing
     let pub_key = conn
         .get_configs()
         .automation_configs

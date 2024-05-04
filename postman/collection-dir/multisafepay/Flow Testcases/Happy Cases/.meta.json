@@ -2,6 +2,6 @@
   "childrenOrder": [
     "Scenario1-Create payment without PMD",
     "Scenario2-Create 3DS payment",
-    "Scenario3-Create 3DS payment with confirm false"
+    "Scenario3-Create 3DS payment with confrm false"
   ]
 }

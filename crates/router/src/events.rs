@@ -1,11 +1,8 @@
+use data_models::errors::{StorageError, StorageResult};
 use error_stack::ResultExt;
-use events::{EventsError, Message, MessagingInterface};
-use hyperswitch_domain_models::errors::{StorageError, StorageResult};
-use masking::ErasedMaskSerialize;
 use router_env::logger;
 use serde::{Deserialize, Serialize};
 use storage_impl::errors::ApplicationError;
-use time::PrimitiveDateTime;
 
 use crate::{
     db::KafkaProducer,
@@ -17,6 +14,7 @@ pub mod audit_events;
 pub mod connector_api_logs;
 pub mod event_logger;
 pub mod outgoing_webhook_logs;
+
 #[derive(Debug, Serialize, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum EventType {
@@ -28,8 +26,6 @@ pub enum EventType {
     OutgoingWebhookLogs,
     Dispute,
     AuditEvent,
-    #[cfg(feature = "payouts")]
-    Payout,
 }
 
 #[derive(Debug, Default, Deserialize, Clone)]
@@ -43,7 +39,6 @@ pub enum EventsConfig {
     Logs,
 }
 
-#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone)]
 pub enum EventsHandler {
     Kafka(KafkaProducer),
@@ -84,23 +79,5 @@ impl EventsHandler {
             }),
             Self::Logs(logger) => logger.log_event(event),
         };
-    }
-}
-
-impl MessagingInterface for EventsHandler {
-    type MessageClass = EventType;
-
-    fn send_message<T>(
-        &self,
-        data: T,
-        timestamp: PrimitiveDateTime,
-    ) -> error_stack::Result<(), EventsError>
-    where
-        T: Message<Class = Self::MessageClass> + ErasedMaskSerialize,
-    {
-        match self {
-            Self::Kafka(a) => a.send_message(data, timestamp),
-            Self::Logs(a) => a.send_message(data, timestamp),
-        }
     }
 }

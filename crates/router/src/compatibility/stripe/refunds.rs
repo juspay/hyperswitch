@@ -40,6 +40,7 @@ pub async fn refund_create(
         _,
         _,
         _,
+        _,
         types::StripeRefundResponse,
         errors::StripeErrorCode,
         _,
@@ -48,7 +49,7 @@ pub async fn refund_create(
         state.into_inner(),
         &req,
         create_refund_req,
-        |state, auth, req, _| {
+        |state, auth, req| {
             refunds::refund_create_core(state, auth.merchant_account, auth.key_store, req)
         },
         &auth::ApiKeyAuth,
@@ -84,6 +85,7 @@ pub async fn refund_retrieve_with_gateway_creds(
         _,
         _,
         _,
+        _,
         types::StripeRefundResponse,
         errors::StripeErrorCode,
         _,
@@ -92,7 +94,7 @@ pub async fn refund_retrieve_with_gateway_creds(
         state.into_inner(),
         &req,
         refund_request,
-        |state, auth, refund_request, _| {
+        |state, auth, refund_request| {
             refunds::refund_response_wrapper(
                 state,
                 auth.merchant_account,
@@ -126,6 +128,7 @@ pub async fn refund_retrieve(
         _,
         _,
         _,
+        _,
         types::StripeRefundResponse,
         errors::StripeErrorCode,
         _,
@@ -134,7 +137,7 @@ pub async fn refund_retrieve(
         state.into_inner(),
         &req,
         refund_request,
-        |state, auth, refund_request, _| {
+        |state, auth, refund_request| {
             refunds::refund_response_wrapper(
                 state,
                 auth.merchant_account,
@@ -166,6 +169,7 @@ pub async fn refund_update(
         _,
         _,
         _,
+        _,
         types::StripeRefundResponse,
         errors::StripeErrorCode,
         _,
@@ -174,7 +178,7 @@ pub async fn refund_update(
         state.into_inner(),
         &req,
         create_refund_update_req,
-        |state, auth, req, _| refunds::refund_update_core(state, auth.merchant_account, req),
+        |state, auth, req| refunds::refund_update_core(state, auth.merchant_account, req),
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))

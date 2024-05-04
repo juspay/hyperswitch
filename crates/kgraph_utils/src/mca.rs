@@ -544,7 +544,6 @@ mod tests {
                 "connector_type": "payment_processor",
                 "connector_name": "bluesnap",
                 "merchant_connector_id": "REDACTED",
-                "status": "inactive",
                 "connector_account_details": {
                     "auth_type": "BodyKey",
                     "api_key": "REDACTED",
@@ -626,7 +625,6 @@ mod tests {
                 "connector_type": "payment_processor",
                 "connector_name": "stripe",
                 "merchant_connector_id": "REDACTED",
-                "status": "inactive",
                 "connector_account_details": {
                     "auth_type": "HeaderKey",
                     "api_key": "REDACTED"

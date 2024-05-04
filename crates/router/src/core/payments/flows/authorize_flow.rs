@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use error_stack;
+use router_env::tracing::Instrument;
 
-// use router_env::tracing::Instrument;
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
@@ -61,8 +61,11 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         mut self,
         state: &AppState,
         connector: &api::ConnectorData,
+        maybe_customer: &Option<domain::Customer>,
         call_connector_action: payments::CallConnectorAction,
+        merchant_account: &domain::MerchantAccount,
         connector_request: Option<services::Request>,
+        key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedConnectorIntegration<
             '_,
@@ -74,7 +77,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         if self.should_proceed_with_authorize() {
             self.decide_authentication_type();
             logger::debug!(auth_type=?self.auth_type);
-            let resp = services::execute_connector_processing_step(
+            let mut resp = services::execute_connector_processing_step(
                 state,
                 connector_integration,
                 &self,
@@ -85,7 +88,73 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             .to_payment_failed_response()?;
 
             metrics::PAYMENT_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
-            Ok(resp)
+
+            let is_mandate = resp.request.setup_mandate_details.is_some();
+
+            if is_mandate {
+                let (payment_method_id, payment_method_status) =
+                    Box::pin(tokenization::save_payment_method(
+                        state,
+                        connector,
+                        resp.to_owned(),
+                        maybe_customer,
+                        merchant_account,
+                        self.request.payment_method_type,
+                        key_store,
+                        Some(resp.request.amount),
+                        Some(resp.request.currency),
+                    ))
+                    .await?;
+
+                resp.payment_method_id = payment_method_id.clone();
+                resp.payment_method_status = payment_method_status;
+
+                Ok(mandate::mandate_procedure(
+                    state,
+                    resp,
+                    maybe_customer,
+                    payment_method_id,
+                    connector.merchant_connector_id.clone(),
+                )
+                .await?)
+            } else {
+                let connector = connector.clone();
+                let response = resp.clone();
+                let maybe_customer = maybe_customer.clone();
+                let merchant_account = merchant_account.clone();
+                let key_store = key_store.clone();
+                let state = state.clone();
+
+                logger::info!("Call to save_payment_method in locker");
+                let _task_handle = tokio::spawn(
+                    async move {
+                        logger::info!("Starting async call to save_payment_method in locker");
+
+                        let result = Box::pin(tokenization::save_payment_method(
+                            &state,
+                            &connector,
+                            response,
+                            &maybe_customer,
+                            &merchant_account,
+                            self.request.payment_method_type,
+                            &key_store,
+                            Some(resp.request.amount),
+                            Some(resp.request.currency),
+                        ))
+                        .await;
+
+                        if let Err(err) = result {
+                            logger::error!(
+                                "Asynchronously saving card in locker failed : {:?}",
+                                err
+                            );
+                        }
+                    }
+                    .in_current_span(),
+                );
+
+                Ok(resp)
+            }
         } else {
             Ok(self.clone())
         }
@@ -225,15 +294,13 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
     fn get_mandate_id(&self) -> Option<&api_models::payments::MandateIds> {
         self.mandate_id.as_ref()
     }
-    fn get_payment_method_data(&self) -> domain::payments::PaymentMethodData {
+    fn get_payment_method_data(&self) -> api_models::payments::PaymentMethodData {
         self.payment_method_data.clone()
     }
     fn get_setup_future_usage(&self) -> Option<diesel_models::enums::FutureUsage> {
         self.setup_future_usage
     }
-    fn get_setup_mandate_details(
-        &self,
-    ) -> Option<&hyperswitch_domain_models::mandates::MandateData> {
+    fn get_setup_mandate_details(&self) -> Option<&data_models::mandates::MandateData> {
         self.setup_mandate_details.as_ref()
     }
 

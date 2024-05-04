@@ -31,7 +31,6 @@ pub mod payments;
 pub mod payouts;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 pub mod pm_auth;
-pub mod poll;
 #[cfg(feature = "recon")]
 pub mod recon;
 pub mod refunds;
@@ -60,7 +59,7 @@ pub use self::app::Recon;
 pub use self::app::{
     ApiKeys, AppState, BusinessProfile, Cache, Cards, Configs, ConnectorOnboarding, Customers,
     Disputes, EphemeralKey, Files, Gsm, Health, Mandates, MerchantAccount,
-    MerchantConnectorAccount, PaymentLink, PaymentMethods, Payments, Poll, Refunds, User, Webhooks,
+    MerchantConnectorAccount, PaymentLink, PaymentMethods, Payments, Refunds, User, Webhooks,
 };
 #[cfg(feature = "olap")]
 pub use self::app::{Blocklist, Routing, Verify, WebhookEvents};

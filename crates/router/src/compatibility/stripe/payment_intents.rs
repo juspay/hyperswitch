@@ -7,8 +7,7 @@ use router_env::{instrument, tracing, Flow, Tag};
 use crate::{
     compatibility::{stripe::errors, wrap},
     core::{api_locking::GetLockingInput, payment_methods::Oss, payments},
-    logger,
-    routes::{self, payments::get_or_generate_payment_id},
+    logger, routes,
     services::{api, authentication as auth},
     types::api as api_types,
 };
@@ -27,22 +26,19 @@ pub async fn payment_intents_create(
         Ok(p) => p,
         Err(err) => return api::log_and_return_error_response(err),
     };
-
     tracing::Span::current().record("payment_id", &payload.id.clone().unwrap_or_default());
 
     logger::info!(tag = ?Tag::CompatibilityLayerRequest, payload = ?payload);
 
-    let mut create_payment_req: payment_types::PaymentsRequest = match payload.try_into() {
+    let create_payment_req: payment_types::PaymentsRequest = match payload.try_into() {
         Ok(req) => req,
         Err(err) => return api::log_and_return_error_response(err),
     };
 
-    if let Err(err) = get_or_generate_payment_id(&mut create_payment_req) {
-        return api::log_and_return_error_response(err);
-    }
     let flow = Flow::PaymentsCreate;
     let locking_action = create_payment_req.get_locking_input(flow.clone());
     Box::pin(wrap::compatibility_api_wrap::<
+        _,
         _,
         _,
         _,
@@ -56,11 +52,10 @@ pub async fn payment_intents_create(
         state.into_inner(),
         &req,
         create_payment_req,
-        |state, auth, req, req_state| {
+        |state, auth, req| {
             let eligible_connectors = req.connector.clone();
             payments::payments_core::<api_types::Authorize, api_types::PaymentsResponse, _, _, _,Oss>(
                 state,
-                req_state,
                 auth.merchant_account,
                 auth.key_store,
                 payments::PaymentCreate,
@@ -109,6 +104,7 @@ pub async fn payment_intents_retrieve(
         _,
         _,
         _,
+        _,
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
         _,
@@ -117,10 +113,9 @@ pub async fn payment_intents_retrieve(
         state.into_inner(),
         &req,
         payload,
-        |state, auth, payload, req_state| {
+        |state, auth, payload| {
             payments::payments_core::<api_types::PSync, api_types::PaymentsResponse, _, _, _, Oss>(
                 state,
-                req_state,
                 auth.merchant_account,
                 auth.key_store,
                 payments::PaymentStatus,
@@ -179,6 +174,7 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
         _,
         _,
         _,
+        _,
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
         _,
@@ -187,10 +183,9 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
         state.into_inner(),
         &req,
         payload,
-        |state, auth, req, req_state| {
+        |state, auth, req| {
             payments::payments_core::<api_types::PSync, payment_types::PaymentsResponse, _, _, _,Oss>(
                 state,
-                req_state,
                 auth.merchant_account,
                 auth.key_store,
                 payments::PaymentStatus,
@@ -244,6 +239,7 @@ pub async fn payment_intents_update(
         _,
         _,
         _,
+        _,
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
         _,
@@ -252,11 +248,10 @@ pub async fn payment_intents_update(
         state.into_inner(),
         &req,
         payload,
-        |state, auth, req, req_state| {
+        |state, auth, req| {
             let eligible_connectors = req.connector.clone();
             payments::payments_core::<api_types::Authorize, api_types::PaymentsResponse, _, _, _,Oss>(
                 state,
-                req_state,
                 auth.merchant_account,
                 auth.key_store,
                 payments::PaymentUpdate,
@@ -316,6 +311,7 @@ pub async fn payment_intents_confirm(
         _,
         _,
         _,
+        _,
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
         _,
@@ -324,11 +320,10 @@ pub async fn payment_intents_confirm(
         state.into_inner(),
         &req,
         payload,
-        |state, auth, req, req_state| {
+        |state, auth, req| {
             let eligible_connectors = req.connector.clone();
             payments::payments_core::<api_types::Authorize, api_types::PaymentsResponse, _, _, _,Oss>(
                 state,
-                req_state,
                 auth.merchant_account,
                 auth.key_store,
                 payments::PaymentConfirm,
@@ -378,6 +373,7 @@ pub async fn payment_intents_capture(
         _,
         _,
         _,
+        _,
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
         _,
@@ -386,10 +382,9 @@ pub async fn payment_intents_capture(
         state.into_inner(),
         &req,
         payload,
-        |state, auth, payload, req_state| {
+        |state, auth, payload| {
             payments::payments_core::<api_types::Capture, api_types::PaymentsResponse, _, _, _,Oss>(
                 state,
-                req_state,
                 auth.merchant_account,
                 auth.key_store,
                 payments::PaymentCapture,
@@ -443,6 +438,7 @@ pub async fn payment_intents_cancel(
         _,
         _,
         _,
+        _,
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
         _,
@@ -451,10 +447,9 @@ pub async fn payment_intents_cancel(
         state.into_inner(),
         &req,
         payload,
-        |state, auth, req, req_state| {
+        |state, auth, req| {
             payments::payments_core::<api_types::Void, api_types::PaymentsResponse, _, _, _, Oss>(
                 state,
-                req_state,
                 auth.merchant_account,
                 auth.key_store,
                 payments::PaymentCancel,
@@ -489,6 +484,7 @@ pub async fn payment_intent_list(
         _,
         _,
         _,
+        _,
         types::StripePaymentIntentListResponse,
         errors::StripeErrorCode,
         _,
@@ -497,7 +493,7 @@ pub async fn payment_intent_list(
         state.into_inner(),
         &req,
         payload,
-        |state, auth, req, _| payments::list_payments(state, auth.merchant_account, req),
+        |state, auth, req| payments::list_payments(state, auth.merchant_account, req),
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))

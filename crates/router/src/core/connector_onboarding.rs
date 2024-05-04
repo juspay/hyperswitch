@@ -3,9 +3,8 @@ use masking::Secret;
 
 use crate::{
     core::errors::{ApiErrorResponse, RouterResponse, RouterResult},
-    routes::app::ReqState,
     services::{authentication as auth, ApplicationResponse},
-    types as oss_types,
+    types::{self as oss_types},
     utils::connector_onboarding as utils,
     AppState,
 };
@@ -21,7 +20,6 @@ pub async fn get_action_url(
     state: AppState,
     user_from_token: auth::UserFromToken,
     request: api::ActionUrlRequest,
-    _req_state: ReqState,
 ) -> RouterResponse<api::ActionUrlResponse> {
     utils::check_if_connector_exists(&state, &request.connector_id, &user_from_token.merchant_id)
         .await?;
@@ -56,7 +54,6 @@ pub async fn sync_onboarding_status(
     state: AppState,
     user_from_token: auth::UserFromToken,
     request: api::OnboardingSyncRequest,
-    _req_state: ReqState,
 ) -> RouterResponse<api::OnboardingStatus> {
     utils::check_if_connector_exists(&state, &request.connector_id, &user_from_token.merchant_id)
         .await?;
@@ -110,7 +107,6 @@ pub async fn reset_tracking_id(
     state: AppState,
     user_from_token: auth::UserFromToken,
     request: api::ResetTrackingIdRequest,
-    _req_state: ReqState,
 ) -> RouterResponse<()> {
     utils::check_if_connector_exists(&state, &request.connector_id, &user_from_token.merchant_id)
         .await?;

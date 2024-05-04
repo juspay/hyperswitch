@@ -3,14 +3,38 @@ use std::fmt::Display;
 use actix_web::ResponseError;
 use common_utils::errors::ErrorSwitch;
 use config::ConfigError;
+use data_models::errors::StorageError as DataStorageError;
 use http::StatusCode;
-use hyperswitch_domain_models::errors::StorageError as DataStorageError;
 pub use redis_interface::errors::RedisError;
 use router_env::opentelemetry::metrics::MetricsError;
 
 use crate::{errors as storage_errors, store::errors::DatabaseError};
 
 pub type ApplicationResult<T> = Result<T, ApplicationError>;
+
+macro_rules! impl_error_display {
+    ($st: ident, $arg: tt) => {
+        impl Display for $st {
+            fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(
+                    fmt,
+                    "{{ error_type: {:?}, error_description: {} }}",
+                    self, $arg
+                )
+            }
+        }
+    };
+}
+macro_rules! impl_error_type {
+    ($name: ident, $arg: tt) => {
+        #[derive(Debug)]
+        pub struct $name;
+
+        impl_error_display!($name, $arg);
+
+        impl std::error::Error for $name {}
+    };
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {
@@ -152,6 +176,8 @@ impl RedisErrorExt for error_stack::Report<RedisError> {
     }
 }
 
+impl_error_type!(EncryptionError, "Encryption error");
+
 #[derive(Debug, thiserror::Error)]
 pub enum ApplicationError {
     // Display's impl can be overridden by the attribute error marco.
@@ -181,6 +207,12 @@ impl From<MetricsError> for ApplicationError {
 impl From<std::io::Error> for ApplicationError {
     fn from(err: std::io::Error) -> Self {
         Self::IoError(err)
+    }
+}
+
+impl From<ring::error::Unspecified> for EncryptionError {
+    fn from(_: ring::error::Unspecified) -> Self {
+        Self
     }
 }
 
@@ -369,8 +401,6 @@ pub enum HealthCheckDBError {
     SqlxAnalyticsError,
     #[error("Error while executing query in Clickhouse Analytics")]
     ClickhouseAnalyticsError,
-    #[error("Error while executing query in Opensearch")]
-    OpensearchError,
 }
 
 impl From<diesel::result::Error> for HealthCheckDBError {

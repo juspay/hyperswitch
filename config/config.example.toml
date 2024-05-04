@@ -171,7 +171,6 @@ authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 bambora.base_url = "https://api.na.bambora.com"
 bankofamerica.base_url = "https://apitest.merchant-services.bankofamerica.com/"
 billwerk.base_url = "https://api.reepay.com/"
-billwerk.secondary_base_url = "https://card.reepay.com/"
 bitpay.base_url = "https://test.bitpay.com"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
 bluesnap.secondary_base_url = "https://sandpay.bluesnap.com/"
@@ -185,7 +184,6 @@ cryptopay.base_url = "https://business-sandbox.cryptopay.me"
 cybersource.base_url = "https://apitest.cybersource.com/"
 dlocal.base_url = "https://sandbox.dlocal.com/"
 dummyconnector.base_url = "http://localhost:8080/dummy-connector"
-ebanx.base_url = "https://sandbox.ebanxpay.com/"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
 forte.base_url = "https://sandbox.forte.net/api/v3"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
@@ -197,7 +195,6 @@ klarna.base_url = "https://api-na.playground.klarna.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
 mollie.secondary_base_url = "https://api.cc.mollie.com/v1/"
 multisafepay.base_url = "https://testapi.multisafepay.com/"
-netcetera.base_url = "https://{{merchant_endpoint_prefix}}.3ds-server.prev.netcetera-cloud-payment.ch"
 nexinets.base_url = "https://apitest.payengine.de/v1"
 nmi.base_url = "https://secure.nmi.com/"
 noon.base_url = "https://api-test.noonpayments.com/"
@@ -229,7 +226,6 @@ volt.base_url = "https://api.sandbox.volt.io/"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
-zsl.base_url = "https://api.sitoffalb.net/"
 zen.base_url = "https://api.zen-test.com/"
 zen.secondary_base_url = "https://secure.zen-test.com/"
 
@@ -282,11 +278,10 @@ cards = [
     "threedsecureio",
     "worldpay",
     "zen",
-    "zsl",
 ]
 
 # Scheduler settings provides a point to modify the behaviour of scheduler flow.
-# It defines the streams/queues name and configuration as well as event selection variables
+# It defines the the streams/queues name and configuration as well as event selection variables
 [scheduler]
 stream = "SCHEDULER_STREAM"
 graceful_shutdown_interval = 60000 # Specifies how much time to wait while re-attempting shutdown for a service (in milliseconds)
@@ -354,7 +349,6 @@ stax = { long_lived_token = true, payment_method = "card,bank_debit" }
 square = { long_lived_token = false, payment_method = "card" }
 braintree = { long_lived_token = false, payment_method = "card" }
 gocardless = { long_lived_token = true, payment_method = "bank_debit" }
-billwerk = {long_lived_token = false, payment_method = "card"}
 
 [temp_locker_enable_config]
 stripe = { payment_method = "bank_transfer" }
@@ -387,7 +381,7 @@ slack_invite_url = "https://www.example.com/"   # Slack invite url for hyperswit
 discord_invite_url = "https://www.example.com/" # Discord invite url for hyperswitch
 
 [mandates.supported_payment_methods]
-card.credit = { connector_list = "stripe,adyen,cybersource,bankofamerica"}           # Mandate supported payment method type and connector for card
+card.credit = { connector_list = "stripe,adyen,cybersource" }           # Mandate supported payment method type and connector for card
 wallet.paypal = { connector_list = "adyen" }                            # Mandate supported payment method type and connector for wallets
 pay_later.klarna = { connector_list = "adyen" }                         # Mandate supported payment method type and connector for pay_later
 bank_debit.ach = { connector_list = "gocardless" }                      # Mandate supported payment method type and connector for bank_debit
@@ -395,8 +389,7 @@ bank_debit.becs = { connector_list = "gocardless" }                     # Mandat
 bank_debit.sepa = { connector_list = "gocardless" }                     # Mandate supported payment method type and connector for bank_debit
 bank_redirect.ideal = { connector_list = "stripe,adyen,globalpay" }     # Mandate supported payment method type and connector for bank_redirect
 bank_redirect.sofort = { connector_list = "stripe,adyen,globalpay" }
-wallet.apple_pay = { connector_list = "stripe,adyen,cybersource,noon,bankofamerica" }
-wallet.google_pay = { connector_list = "bankofamerica"}
+wallet.apple_pay = { connector_list = "stripe,adyen,cybersource,noon" }
 bank_redirect.giropay = { connector_list = "adyen,globalpay" }
 
 
@@ -464,9 +457,6 @@ pix = { country = "BR", currency = "BRL" }
 red_compra = { country = "CL", currency = "CLP" }
 red_pagos = { country = "UY", currency = "UYU" }
 
-[pm_filters.zsl]
-local_bank_transfer = { country = "CN", currency = "CNY" }
-
 [pm_filters.bankofamerica]
 credit = { currency = "USD" }
 debit = { currency = "USD" }
@@ -487,7 +477,7 @@ debit = { currency = "USD" }
 
 [connector_customer]
 connector_list = "gocardless,stax,stripe"
-payout_connector_list = "stripe,wise"
+payout_connector_list = "wise"
 
 [bank_config.online_banking_fpx]
 adyen.banks = "affin_bank,agro_bank,alliance_bank,am_bank,bank_islam,bank_muamalat,bank_rakyat,bank_simpanan_nasional,cimb_bank,hong_leong_bank,hsbc_bank,kuwait_finance_house,maybank,ocbc_bank,public_bank,rhb_bank,standard_chartered_bank,uob_bank"
@@ -575,7 +565,6 @@ connector_logs_topic = "topic"        # Kafka topic to be used for connector api
 outgoing_webhook_logs_topic = "topic" # Kafka topic to be used for outgoing webhook events
 dispute_analytics_topic = "topic"     # Kafka topic to be used for Dispute events
 audit_events_topic = "topic"          # Kafka topic to be used for Payment Audit events
-payout_analytics_topic = "topic"      # Kafka topic to be used for Payouts and PayoutAttempt events
 
 # File storage configuration
 [file_storage]

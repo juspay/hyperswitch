@@ -4,7 +4,7 @@ use std::{
 };
 
 #[cfg(feature = "olap")]
-use analytics::{opensearch::OpenSearchConfig, ReportConfig};
+use analytics::{OpensearchConfig, ReportConfig};
 use api_models::{enums, payment_methods::RequiredFieldInfo};
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
@@ -91,7 +91,6 @@ pub struct Settings<S: SecretState> {
     pub email: EmailSettings,
     pub cors: CorsSettings,
     pub mandates: Mandates,
-    pub network_transaction_id_supported_connectors: NetworkTransactionIdSupportedConnectors,
     pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
     pub webhook_source_verification_call: WebhookSourceVerificationCall,
@@ -114,7 +113,7 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "olap")]
     pub report_download_config: ReportConfig,
     #[cfg(feature = "olap")]
-    pub opensearch: OpenSearchConfig,
+    pub opensearch: OpensearchConfig,
     pub events: EventsConfig,
     #[cfg(feature = "olap")]
     pub connector_onboarding: SecretStateContainer<ConnectorOnboarding, S>,
@@ -252,12 +251,6 @@ pub struct Mandates {
     pub update_mandate_supported: SupportedPaymentMethodsForMandate,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
-pub struct NetworkTransactionIdSupportedConnectors {
-    #[serde(deserialize_with = "deserialize_hashset")]
-    pub connector_list: HashSet<api_models::enums::Connector>,
-}
-
 #[derive(Debug, Deserialize, Clone)]
 pub struct SupportedPaymentMethodsForMandate(
     pub HashMap<enums::PaymentMethod, SupportedPaymentMethodTypesForMandate>,
@@ -323,7 +316,7 @@ pub struct ConnectorBankNames(pub HashMap<String, BanksVector>);
 #[derive(Debug, Deserialize, Clone)]
 pub struct BanksVector {
     #[serde(deserialize_with = "deserialize_hashset")]
-    pub banks: HashSet<common_enums::enums::BankNames>,
+    pub banks: HashSet<api_models::enums::BankNames>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -500,7 +493,6 @@ pub struct Connectors {
     pub dlocal: ConnectorParams,
     #[cfg(feature = "dummy_connector")]
     pub dummyconnector: ConnectorParams,
-    pub ebanx: ConnectorParams,
     pub fiserv: ConnectorParams,
     pub forte: ConnectorParams,
     pub globalpay: ConnectorParams,
@@ -511,7 +503,6 @@ pub struct Connectors {
     pub klarna: ConnectorParams,
     pub mollie: ConnectorParams,
     pub multisafepay: ConnectorParams,
-    pub netcetera: ConnectorParams,
     pub nexinets: ConnectorParams,
     pub nmi: ConnectorParams,
     pub noon: ConnectorParamsWithModeType,
@@ -540,7 +531,6 @@ pub struct Connectors {
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
     pub zen: ConnectorParams,
-    pub zsl: ConnectorParams,
 }
 
 #[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
@@ -729,9 +719,6 @@ impl Settings<SecuredSecret> {
 
         self.lock_settings.validate()?;
         self.events.validate()?;
-
-        #[cfg(feature = "olap")]
-        self.opensearch.validate()?;
 
         self.encryption_management
             .validate()

@@ -157,7 +157,7 @@ pub enum Surcharge {
 }
 
 /// This struct lets us represent a semantic version type
-#[derive(Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, Ord, PartialOrd)]
+#[derive(Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Jsonb)]
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct SemanticVersion(#[serde(with = "Version")] Version);
@@ -166,10 +166,6 @@ impl SemanticVersion {
     /// returns major version number
     pub fn get_major(&self) -> u64 {
         self.0.major
-    }
-    /// Constructs new SemanticVersion instance
-    pub fn new(major: u64, minor: u64, patch: u64) -> Self {
-        Self(Version::new(major, minor, patch))
     }
 }
 

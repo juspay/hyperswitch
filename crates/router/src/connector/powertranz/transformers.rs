@@ -1,3 +1,4 @@
+use api_models::payments::Card;
 use common_utils::pii::{Email, IpAddress};
 use diesel_models::enums::RefundStatus;
 use masking::{ExposeInterface, Secret};
@@ -5,11 +6,11 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::{
-    connector::utils::{self, CardData, PaymentsAuthorizeRequestData, RouterData},
+    connector::utils::{self, CardData, PaymentsAuthorizeRequestData},
     consts,
     core::errors,
     services,
-    types::{self, api, domain, storage::enums, transformers::ForeignFrom},
+    types::{self, api, storage::enums, transformers::ForeignFrom},
 };
 
 const ISO_SUCCESS_CODES: [&str; 7] = ["00", "3D0", "3D1", "HP0", "TK0", "SP4", "FC0"];
@@ -99,29 +100,24 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest 
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let source = match item.request.payment_method_data.clone() {
-            domain::PaymentMethodData::Card(card) => {
-                let card_holder_name = item.get_optional_billing_full_name();
-                Source::try_from((&card, card_holder_name))
+            api::PaymentMethodData::Card(card) => Source::try_from(&card),
+            api::PaymentMethodData::Wallet(_)
+            | api::PaymentMethodData::CardRedirect(_)
+            | api::PaymentMethodData::PayLater(_)
+            | api::PaymentMethodData::BankRedirect(_)
+            | api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::MandatePayment
+            | api::PaymentMethodData::Reward
+            | api::PaymentMethodData::Upi(_)
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotSupported {
+                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                connector: "powertranz",
             }
-            domain::PaymentMethodData::Wallet(_)
-            | domain::PaymentMethodData::CardRedirect(_)
-            | domain::PaymentMethodData::PayLater(_)
-            | domain::PaymentMethodData::BankRedirect(_)
-            | domain::PaymentMethodData::BankDebit(_)
-            | domain::PaymentMethodData::BankTransfer(_)
-            | domain::PaymentMethodData::Crypto(_)
-            | domain::PaymentMethodData::MandatePayment
-            | domain::PaymentMethodData::Reward
-            | domain::PaymentMethodData::Upi(_)
-            | domain::PaymentMethodData::Voucher(_)
-            | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::CardToken(_) => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
-                    connector: "powertranz",
-                }
-                .into())
-            }
+            .into()),
         }?;
         // let billing_address = get_address_details(&item.address.billing, &item.request.email);
         // let shipping_address = get_address_details(&item.address.shipping, &item.request.email);
@@ -216,13 +212,14 @@ impl TryFrom<&types::BrowserInformation> for BrowserInfo {
         })
 }*/
 
-impl TryFrom<(&domain::Card, Option<Secret<String>>)> for Source {
+impl TryFrom<&Card> for Source {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (card, card_holder_name): (&domain::Card, Option<Secret<String>>),
-    ) -> Result<Self, Self::Error> {
+    fn try_from(card: &Card) -> Result<Self, Self::Error> {
         let card = PowertranzCard {
-            cardholder_name: card_holder_name.unwrap_or(Secret::new("".to_string())),
+            cardholder_name: card
+                .card_holder_name
+                .clone()
+                .unwrap_or(Secret::new("".to_string())),
             card_pan: card.card_number.clone(),
             card_expiration: card.get_expiry_date_as_yymm()?,
             card_cvv: card.card_cvc.clone(),

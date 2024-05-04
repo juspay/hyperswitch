@@ -199,22 +199,6 @@ key1= "Trankey"
 api_key="API Key"
 
 
-[ebanx]
-api_key="API Key"
-
 
 [billwerk]
 api_key="API Key"
-
-
-[netcetera]
-certificate="Certificate"
-private_key="Private Key"
-
-
-[ebanx]
-api_key="API Key"
-
-[zsl]
-api_key= "Key"
-key1= "Merchant id"

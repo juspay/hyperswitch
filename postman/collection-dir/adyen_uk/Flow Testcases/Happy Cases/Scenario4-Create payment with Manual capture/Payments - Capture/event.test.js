@@ -83,12 +83,12 @@ if (jsonData?.amount) {
   );
 }
 
-// Response body should have value "0" for "amount_received"
+// Response body should have value "6000" for "amount_received"
 if (jsonData?.amount_received) {
   pm.test(
-    "[POST]::/payments:id/capture - Content check if value for 'amount_received' matches '0'",
+    "[POST]::/payments:id/capture - Content check if value for 'amount_received' matches '6000'",
     function () {
-      pm.expect(jsonData.amount_received).to.eql(0);
+      pm.expect(jsonData.amount_received).to.eql(6000);
     },
   );
 }

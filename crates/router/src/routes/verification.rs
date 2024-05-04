@@ -22,7 +22,7 @@ pub async fn apple_pay_merchant_registration(
         state,
         &req,
         json_payload.into_inner(),
-        |state, _, body, _| {
+        |state, _, body| {
             verification::verify_merchant_creds_for_applepay(
                 state.clone(),
                 body,
@@ -54,7 +54,7 @@ pub async fn retrieve_apple_pay_verified_domains(
         state,
         &req,
         merchant_id.clone(),
-        |state, _, _, _| {
+        |state, _, _| {
             verification::get_verified_apple_domains_with_mid_mca_id(
                 state,
                 merchant_id.to_string(),

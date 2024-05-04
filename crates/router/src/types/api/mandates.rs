@@ -1,6 +1,5 @@
 use api_models::mandates;
 pub use api_models::mandates::{MandateId, MandateResponse, MandateRevokedResponse};
-use common_utils::ext_traits::OptionExt;
 use error_stack::ResultExt;
 use masking::PeekInterface;
 use serde::{Deserialize, Serialize};
@@ -29,7 +28,6 @@ pub(crate) trait MandateResponseExt: Sized {
         state: &AppState,
         key_store: domain::MerchantKeyStore,
         mandate: storage::Mandate,
-        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<Self>;
 }
 
@@ -39,21 +37,14 @@ impl MandateResponseExt for MandateResponse {
         state: &AppState,
         key_store: domain::MerchantKeyStore,
         mandate: storage::Mandate,
-        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<Self> {
         let db = &*state.store;
         let payment_method = db
-            .find_payment_method(&mandate.payment_method_id, storage_scheme)
+            .find_payment_method(&mandate.payment_method_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
-        let pm = payment_method
-            .payment_method
-            .get_required_value("payment_method")
-            .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
-            .attach_printable("payment_method not found")?;
-
-        let card = if pm == storage_enums::PaymentMethod::Card {
+        let card = if payment_method.payment_method == storage_enums::PaymentMethod::Card {
             // if locker is disabled , decrypt the payment method data
             let card_details = if state.conf.locker.locker_enabled {
                 let card = payment_methods::cards::get_card_from_locker(
@@ -102,7 +93,7 @@ impl MandateResponseExt for MandateResponse {
             }),
             card,
             status: mandate.mandate_status,
-            payment_method: pm.to_string(),
+            payment_method: payment_method.payment_method.to_string(),
             payment_method_type,
             payment_method_id: mandate.payment_method_id,
         })

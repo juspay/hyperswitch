@@ -1,3 +1,4 @@
+use serial_test::serial;
 use thirtyfour::{prelude::*, WebDriver};
 
 use crate::{selenium::*, tester};
@@ -27,6 +28,7 @@ async fn should_make_webhook(web_driver: WebDriver) -> Result<(), WebDriverError
 }
 
 #[test]
+#[serial]
 fn should_make_webhook_test() {
     tester!(should_make_webhook);
 }

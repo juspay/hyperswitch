@@ -265,22 +265,3 @@ pub mod iso8601custom {
         })
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use serde::{Deserialize, Serialize};
-    use serde_json::json;
-
-    #[test]
-    fn test_leap_second_parse() {
-        #[derive(Serialize, Deserialize)]
-        struct Try {
-            #[serde(with = "crate::custom_serde::iso8601")]
-            f: time::PrimitiveDateTime,
-        }
-        let leap_second_date_time = json!({"f": "2023-12-31T23:59:60.000Z"});
-        let deser = serde_json::from_value::<Try>(leap_second_date_time);
-
-        assert!(deser.is_ok())
-    }
-}

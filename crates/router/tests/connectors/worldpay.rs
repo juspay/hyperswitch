@@ -1,5 +1,5 @@
 use futures::future::OptionFuture;
-use router::types::{self, domain, storage::enums};
+use router::types::{self, api, storage::enums};
 use serde_json::json;
 use serial_test::serial;
 use wiremock::{
@@ -62,15 +62,15 @@ async fn should_authorize_gpay_payment() {
     let response = conn
         .authorize_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::domain::PaymentMethodData::Wallet(
-                    domain::WalletData::GooglePay(domain::GooglePayWalletData {
+                payment_method_data: types::api::PaymentMethodData::Wallet(
+                    api::WalletData::GooglePay(api_models::payments::GooglePayWalletData {
                         pm_type: "CARD".to_string(),
                         description: "Visa1234567890".to_string(),
-                        info: domain::GooglePayPaymentMethodInfo {
+                        info: api_models::payments::GooglePayPaymentMethodInfo {
                             card_network: "VISA".to_string(),
                             card_details: "1234".to_string(),
                         },
-                        tokenization_data: domain::GpayTokenizationData {
+                        tokenization_data: api_models::payments::GpayTokenizationData {
                             token_type: "worldpay".to_string(),
                             token: "someToken".to_string(),
                         },
@@ -97,11 +97,11 @@ async fn should_authorize_applepay_payment() {
     let response = conn
         .authorize_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::domain::PaymentMethodData::Wallet(
-                    domain::WalletData::ApplePay(domain::ApplePayWalletData {
+                payment_method_data: types::api::PaymentMethodData::Wallet(
+                    api::WalletData::ApplePay(api_models::payments::ApplePayWalletData {
                         payment_data: "someData".to_string(),
                         transaction_identifier: "someId".to_string(),
-                        payment_method: domain::ApplepayPaymentMethod {
+                        payment_method: api_models::payments::ApplepayPaymentMethod {
                             display_name: "someName".to_string(),
                             network: "visa".to_string(),
                             pm_type: "card".to_string(),

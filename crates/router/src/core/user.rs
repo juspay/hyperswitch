@@ -15,7 +15,7 @@ use super::errors::{StorageErrorExt, UserErrors, UserResponse, UserResult};
 use crate::services::email::types as email_types;
 use crate::{
     consts,
-    routes::{app::ReqState, AppState},
+    routes::AppState,
     services::{authentication as auth, authorization::roles, ApplicationResponse},
     types::{domain, transformers::ForeignInto},
     utils,
@@ -71,26 +71,6 @@ pub async fn signup_with_merchant_id(
     }))
 }
 
-pub async fn get_user_details(
-    state: AppState,
-    user_from_token: auth::UserFromToken,
-) -> UserResponse<user_api::GetUserDetailsResponse> {
-    let user = user_from_token.get_user_from_db(&state).await?;
-    let verification_days_left = utils::user::get_verification_days_left(&state, &user)?;
-
-    Ok(ApplicationResponse::Json(
-        user_api::GetUserDetailsResponse {
-            merchant_id: user_from_token.merchant_id,
-            name: user.get_name(),
-            email: user.get_email(),
-            user_id: user.get_user_id().to_string(),
-            verification_days_left,
-            role_id: user_from_token.role_id,
-            org_id: user_from_token.org_id,
-        },
-    ))
-}
-
 pub async fn signup(
     state: AppState,
     request: user_api::SignUpRequest,
@@ -120,13 +100,41 @@ pub async fn signup(
     auth::cookies::set_cookie_response(response, token)
 }
 
+pub async fn signin_without_invite_checks(
+    state: AppState,
+    request: user_api::SignInRequest,
+) -> UserResponse<user_api::DashboardEntryResponse> {
+    let user_from_db: domain::UserFromStorage = state
+        .store
+        .find_user_by_email(request.email.clone().expose().expose().as_str())
+        .await
+        .map_err(|e| {
+            if e.current_context().is_db_not_found() {
+                e.change_context(UserErrors::InvalidCredentials)
+            } else {
+                e.change_context(UserErrors::InternalServerError)
+            }
+        })?
+        .into();
+
+    user_from_db.compare_password(request.password)?;
+
+    let user_role = user_from_db.get_role_from_db(state.clone()).await?;
+    utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &user_role).await;
+
+    let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
+    let response =
+        utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token.clone())?;
+    auth::cookies::set_cookie_response(response, token)
+}
+
 pub async fn signin(
     state: AppState,
     request: user_api::SignInRequest,
-) -> UserResponse<user_api::SignInWithTokenResponse> {
+) -> UserResponse<user_api::SignInResponse> {
     let user_from_db: domain::UserFromStorage = state
         .store
-        .find_user_by_email(&request.email)
+        .find_user_by_email(request.email.clone().expose().expose().as_str())
         .await
         .map_err(|e| {
             if e.current_context().is_db_not_found() {
@@ -161,48 +169,6 @@ pub async fn signin(
 
     let response = signin_strategy.get_signin_response(&state).await?;
     let token = utils::user::get_token_from_signin_response(&response);
-    auth::cookies::set_cookie_response(
-        user_api::SignInWithTokenResponse::SignInResponse(response),
-        token,
-    )
-}
-
-pub async fn signin_token_only_flow(
-    state: AppState,
-    request: user_api::SignInRequest,
-) -> UserResponse<user_api::SignInWithTokenResponse> {
-    let user_from_db: domain::UserFromStorage = state
-        .store
-        .find_user_by_email(&request.email)
-        .await
-        .to_not_found_response(UserErrors::InvalidCredentials)?
-        .into();
-
-    user_from_db.compare_password(request.password)?;
-
-    let next_flow =
-        domain::NextFlow::from_origin(domain::Origin::SignIn, user_from_db.clone(), &state).await?;
-
-    let token = match next_flow.get_flow() {
-        domain::UserFlow::SPTFlow(spt_flow) => spt_flow.generate_spt(&state, &next_flow).await,
-        domain::UserFlow::JWTFlow(jwt_flow) => {
-            #[cfg(feature = "email")]
-            {
-                user_from_db.get_verification_days_left(&state)?;
-            }
-
-            let user_role = user_from_db
-                .get_preferred_or_active_user_role_from_db(&state)
-                .await
-                .to_not_found_response(UserErrors::InternalServerError)?;
-            jwt_flow.generate_jwt(&state, &next_flow, &user_role).await
-        }
-    }?;
-
-    let response = user_api::SignInWithTokenResponse::Token(user_api::TokenResponse {
-        token: token.clone(),
-        token_type: next_flow.get_flow().into(),
-    });
     auth::cookies::set_cookie_response(response, token)
 }
 
@@ -211,7 +177,10 @@ pub async fn connect_account(
     state: AppState,
     request: user_api::ConnectAccountRequest,
 ) -> UserResponse<user_api::ConnectAccountResponse> {
-    let find_user = state.store.find_user_by_email(&request.email).await;
+    let find_user = state
+        .store
+        .find_user_by_email(request.email.clone().expose().expose().as_str())
+        .await;
 
     if let Ok(found_user) = find_user {
         let user_from_db: domain::UserFromStorage = found_user.into();
@@ -371,7 +340,7 @@ pub async fn forgot_password(
 
     let user_from_db = state
         .store
-        .find_user_by_email(&user_email.into_inner())
+        .find_user_by_email(user_email.get_secret().expose().as_str())
         .await
         .map_err(|e| {
             if e.current_context().is_db_not_found() {
@@ -420,9 +389,7 @@ pub async fn reset_password(
     let user = state
         .store
         .update_user_by_email(
-            &email_token
-                .get_email()
-                .change_context(UserErrors::InternalServerError)?,
+            email_token.get_email(),
             storage_user::UserUpdate::AccountUpdate {
                 name: None,
                 password: Some(hash_password),
@@ -458,11 +425,205 @@ pub async fn reset_password(
     Ok(ApplicationResponse::StatusOk)
 }
 
+pub async fn invite_user(
+    state: AppState,
+    request: user_api::InviteUserRequest,
+    user_from_token: auth::UserFromToken,
+) -> UserResponse<user_api::InviteUserResponse> {
+    let inviter_user = state
+        .store
+        .find_user_by_id(user_from_token.user_id.as_str())
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    if inviter_user.email == request.email {
+        return Err(UserErrors::InvalidRoleOperationWithMessage(
+            "User Inviting themselves".to_string(),
+        )
+        .into());
+    }
+
+    let role_info = roles::RoleInfo::from_role_id(
+        &state,
+        &request.role_id,
+        &user_from_token.merchant_id,
+        &user_from_token.org_id,
+    )
+    .await
+    .to_not_found_response(UserErrors::InvalidRoleId)?;
+
+    if !role_info.is_invitable() {
+        return Err(report!(UserErrors::InvalidRoleId))
+            .attach_printable(format!("role_id = {} is not invitable", request.role_id));
+    }
+
+    let invitee_email = domain::UserEmail::from_pii_email(request.email.clone())?;
+
+    let invitee_user = state
+        .store
+        .find_user_by_email(invitee_email.clone().get_secret().expose().as_str())
+        .await;
+
+    if let Ok(invitee_user) = invitee_user {
+        let invitee_user_from_db = domain::UserFromStorage::from(invitee_user);
+
+        let now = common_utils::date_time::now();
+        state
+            .store
+            .insert_user_role(UserRoleNew {
+                user_id: invitee_user_from_db.get_user_id().to_owned(),
+                merchant_id: user_from_token.merchant_id.clone(),
+                role_id: request.role_id,
+                org_id: user_from_token.org_id,
+                status: {
+                    if cfg!(feature = "email") {
+                        UserStatus::InvitationSent
+                    } else {
+                        UserStatus::Active
+                    }
+                },
+                created_by: user_from_token.user_id.clone(),
+                last_modified_by: user_from_token.user_id,
+                created_at: now,
+                last_modified: now,
+            })
+            .await
+            .map_err(|e| {
+                if e.current_context().is_db_unique_violation() {
+                    e.change_context(UserErrors::UserExists)
+                } else {
+                    e.change_context(UserErrors::InternalServerError)
+                }
+            })?;
+
+        let is_email_sent;
+        #[cfg(feature = "email")]
+        {
+            let email_contents = email_types::InviteRegisteredUser {
+                recipient_email: invitee_email,
+                user_name: domain::UserName::new(invitee_user_from_db.get_name())?,
+                settings: state.conf.clone(),
+                subject: "You have been invited to join Hyperswitch Community!",
+                merchant_id: user_from_token.merchant_id,
+            };
+
+            is_email_sent = state
+                .email_client
+                .compose_and_send_email(
+                    Box::new(email_contents),
+                    state.conf.proxy.https_url.as_ref(),
+                )
+                .await
+                .map(|email_result| logger::info!(?email_result))
+                .map_err(|email_result| logger::error!(?email_result))
+                .is_ok();
+        }
+        #[cfg(not(feature = "email"))]
+        {
+            is_email_sent = false;
+        }
+        Ok(ApplicationResponse::Json(user_api::InviteUserResponse {
+            is_email_sent,
+            password: None,
+        }))
+    } else if invitee_user
+        .as_ref()
+        .map_err(|e| e.current_context().is_db_not_found())
+        .err()
+        .unwrap_or(false)
+    {
+        let new_user = domain::NewUser::try_from((request.clone(), user_from_token.clone()))?;
+
+        new_user
+            .insert_user_in_db(state.store.as_ref())
+            .await
+            .change_context(UserErrors::InternalServerError)?;
+
+        let invitation_status = if cfg!(feature = "email") {
+            UserStatus::InvitationSent
+        } else {
+            UserStatus::Active
+        };
+
+        let now = common_utils::date_time::now();
+        state
+            .store
+            .insert_user_role(UserRoleNew {
+                user_id: new_user.get_user_id().to_owned(),
+                merchant_id: user_from_token.merchant_id.clone(),
+                role_id: request.role_id.clone(),
+                org_id: user_from_token.org_id.clone(),
+                status: invitation_status,
+                created_by: user_from_token.user_id.clone(),
+                last_modified_by: user_from_token.user_id,
+                created_at: now,
+                last_modified: now,
+            })
+            .await
+            .map_err(|e| {
+                if e.current_context().is_db_unique_violation() {
+                    e.change_context(UserErrors::UserExists)
+                } else {
+                    e.change_context(UserErrors::InternalServerError)
+                }
+            })?;
+
+        let is_email_sent;
+        #[cfg(feature = "email")]
+        {
+            let email_contents = email_types::InviteUser {
+                recipient_email: invitee_email,
+                user_name: domain::UserName::new(new_user.get_name())?,
+                settings: state.conf.clone(),
+                subject: "You have been invited to join Hyperswitch Community!",
+                merchant_id: user_from_token.merchant_id,
+            };
+            let send_email_result = state
+                .email_client
+                .compose_and_send_email(
+                    Box::new(email_contents),
+                    state.conf.proxy.https_url.as_ref(),
+                )
+                .await;
+            logger::info!(?send_email_result);
+            is_email_sent = send_email_result.is_ok();
+        }
+        #[cfg(not(feature = "email"))]
+        {
+            is_email_sent = false;
+            let invited_user_token = auth::UserFromToken {
+                user_id: new_user.get_user_id(),
+                merchant_id: user_from_token.merchant_id,
+                org_id: user_from_token.org_id,
+                role_id: request.role_id,
+            };
+
+            let set_metadata_request = SetMetaDataRequest::IsChangePasswordRequired;
+            dashboard_metadata::set_metadata(
+                state.clone(),
+                invited_user_token,
+                set_metadata_request,
+            )
+            .await?;
+        }
+
+        Ok(ApplicationResponse::Json(user_api::InviteUserResponse {
+            is_email_sent,
+            password: if cfg!(not(feature = "email")) {
+                Some(new_user.get_password().get_secret())
+            } else {
+                None
+            },
+        }))
+    } else {
+        Err(report!(UserErrors::InternalServerError))
+    }
+}
+
 pub async fn invite_multiple_user(
     state: AppState,
     user_from_token: auth::UserFromToken,
     requests: Vec<user_api::InviteUserRequest>,
-    req_state: ReqState,
 ) -> UserResponse<Vec<InviteMultipleUserResponse>> {
     if requests.len() > 10 {
         return Err(report!(UserErrors::MaxInvitationsError))
@@ -470,7 +631,7 @@ pub async fn invite_multiple_user(
     }
 
     let responses = futures::future::join_all(requests.iter().map(|request| async {
-        match handle_invitation(&state, &user_from_token, request, &req_state).await {
+        match handle_invitation(&state, &user_from_token, request).await {
             Ok(response) => response,
             Err(error) => InviteMultipleUserResponse {
                 email: request.email.clone(),
@@ -489,7 +650,6 @@ async fn handle_invitation(
     state: &AppState,
     user_from_token: &auth::UserFromToken,
     request: &user_api::InviteUserRequest,
-    req_state: &ReqState,
 ) -> UserResult<InviteMultipleUserResponse> {
     let inviter_user = user_from_token.get_user_from_db(state).await?;
 
@@ -517,7 +677,7 @@ async fn handle_invitation(
     let invitee_email = domain::UserEmail::from_pii_email(request.email.clone())?;
     let invitee_user = state
         .store
-        .find_user_by_email(&invitee_email.into_inner())
+        .find_user_by_email(invitee_email.clone().get_secret().expose().as_str())
         .await;
 
     if let Ok(invitee_user) = invitee_user {
@@ -528,7 +688,7 @@ async fn handle_invitation(
         .err()
         .unwrap_or(false)
     {
-        handle_new_user_invitation(state, user_from_token, request, req_state.clone()).await
+        handle_new_user_invitation(state, user_from_token, request).await
     } else {
         Err(UserErrors::InternalServerError.into())
     }
@@ -610,7 +770,6 @@ async fn handle_new_user_invitation(
     state: &AppState,
     user_from_token: &auth::UserFromToken,
     request: &user_api::InviteUserRequest,
-    req_state: ReqState,
 ) -> UserResult<InviteMultipleUserResponse> {
     let new_user = domain::NewUser::try_from((request.clone(), user_from_token.clone()))?;
 
@@ -651,9 +810,6 @@ async fn handle_new_user_invitation(
     let is_email_sent;
     #[cfg(feature = "email")]
     {
-        // TODO: Adding this to avoid clippy lints
-        // Will be adding actual usage for this variable later
-        let _ = req_state.clone();
         let invitee_email = domain::UserEmail::from_pii_email(request.email.clone())?;
         let email_contents = email_types::InviteUser {
             recipient_email: invitee_email,
@@ -684,13 +840,8 @@ async fn handle_new_user_invitation(
         };
 
         let set_metadata_request = SetMetaDataRequest::IsChangePasswordRequired;
-        dashboard_metadata::set_metadata(
-            state.clone(),
-            invited_user_token,
-            set_metadata_request,
-            req_state,
-        )
-        .await?;
+        dashboard_metadata::set_metadata(state.clone(), invited_user_token, set_metadata_request)
+            .await?;
     }
 
     Ok(InviteMultipleUserResponse {
@@ -710,12 +861,11 @@ pub async fn resend_invite(
     state: AppState,
     user_from_token: auth::UserFromToken,
     request: user_api::ReInviteUserRequest,
-    _req_state: ReqState,
 ) -> UserResponse<()> {
     let invitee_email = domain::UserEmail::from_pii_email(request.email)?;
     let user: domain::UserFromStorage = state
         .store
-        .find_user_by_email(&invitee_email.clone().into_inner())
+        .find_user_by_email(invitee_email.clone().get_secret().expose().as_str())
         .await
         .map_err(|e| {
             if e.current_context().is_db_not_found() {
@@ -782,11 +932,7 @@ pub async fn accept_invite_from_email(
 
     let user: domain::UserFromStorage = state
         .store
-        .find_user_by_email(
-            &email_token
-                .get_email()
-                .change_context(UserErrors::InternalServerError)?,
-        )
+        .find_user_by_email(email_token.get_email())
         .await
         .change_context(UserErrors::InternalServerError)?
         .into();
@@ -1027,7 +1173,7 @@ pub async fn create_merchant_account(
     Ok(ApplicationResponse::StatusOk)
 }
 
-pub async fn list_merchants_for_user(
+pub async fn list_merchant_ids_for_user(
     state: AppState,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<Vec<user_api::UserMerchantAccount>> {
@@ -1048,24 +1194,16 @@ pub async fn list_merchants_for_user(
         .await
         .change_context(UserErrors::InternalServerError)?;
 
-    let roles =
-        utils::user_role::get_multiple_role_info_for_user_roles(&state, &user_roles).await?;
-
     Ok(ApplicationResponse::Json(
-        utils::user::get_multiple_merchant_details_with_status(
-            user_roles,
-            merchant_accounts,
-            roles,
-        )?,
+        utils::user::get_multiple_merchant_details_with_status(user_roles, merchant_accounts)?,
     ))
 }
 
 pub async fn get_user_details_in_merchant_account(
     state: AppState,
     user_from_token: auth::UserFromToken,
-    request: user_api::GetUserRoleDetailsRequest,
-    _req_state: ReqState,
-) -> UserResponse<user_api::GetUserRoleDetailsResponse> {
+    request: user_api::GetUserDetailsRequest,
+) -> UserResponse<user_api::GetUserDetailsResponse> {
     let required_user = utils::user::get_user_from_db_by_email(&state, request.email.try_into()?)
         .await
         .to_not_found_response(UserErrors::InvalidRoleOperation)?;
@@ -1091,7 +1229,7 @@ pub async fn get_user_details_in_merchant_account(
     .attach_printable("User role exists but the corresponding role doesn't")?;
 
     Ok(ApplicationResponse::Json(
-        user_api::GetUserRoleDetailsResponse {
+        user_api::GetUserDetailsResponse {
             email: required_user.get_email(),
             name: required_user.get_name(),
             role_id: role_info.get_role_id().to_string(),
@@ -1152,6 +1290,40 @@ pub async fn list_users_for_merchant_account(
 }
 
 #[cfg(feature = "email")]
+pub async fn verify_email_without_invite_checks(
+    state: AppState,
+    req: user_api::VerifyEmailRequest,
+) -> UserResponse<user_api::DashboardEntryResponse> {
+    let token = req.token.clone().expose();
+    let email_token = auth::decode_jwt::<email_types::EmailToken>(&token, &state)
+        .await
+        .change_context(UserErrors::LinkInvalid)?;
+    auth::blacklist::check_email_token_in_blacklist(&state, &token).await?;
+    let user = state
+        .store
+        .find_user_by_email(email_token.get_email())
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+    let user = state
+        .store
+        .update_user_by_user_id(user.user_id.as_str(), storage_user::UserUpdate::VerifyUser)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+    let user_from_db: domain::UserFromStorage = user.into();
+    let user_role = user_from_db.get_role_from_db(state.clone()).await?;
+    let _ = auth::blacklist::insert_email_token_in_blacklist(&state, &token)
+        .await
+        .map_err(|e| logger::error!(?e));
+    let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
+    utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &user_role).await;
+
+    let response =
+        utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token.clone())?;
+
+    auth::cookies::set_cookie_response(response, token)
+}
+
+#[cfg(feature = "email")]
 pub async fn verify_email(
     state: AppState,
     req: user_api::VerifyEmailRequest,
@@ -1165,11 +1337,7 @@ pub async fn verify_email(
 
     let user = state
         .store
-        .find_user_by_email(
-            &email_token
-                .get_email()
-                .change_context(UserErrors::InternalServerError)?,
-        )
+        .find_user_by_email(email_token.get_email())
         .await
         .change_context(UserErrors::InternalServerError)?;
 
@@ -1218,7 +1386,7 @@ pub async fn send_verification_mail(
     let user_email = domain::UserEmail::try_from(req.email)?;
     let user = state
         .store
-        .find_user_by_email(&user_email.into_inner())
+        .find_user_by_email(user_email.clone().get_secret().expose().as_str())
         .await
         .map_err(|e| {
             if e.current_context().is_db_not_found() {
@@ -1283,7 +1451,6 @@ pub async fn update_user_details(
     state: AppState,
     user_token: auth::UserFromToken,
     req: user_api::UpdateUserAccountDetailsRequest,
-    _req_state: ReqState,
 ) -> UserResponse<()> {
     let user: domain::UserFromStorage = state
         .store

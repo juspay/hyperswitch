@@ -10,7 +10,7 @@ use router_env::logger;
 
 use crate::{
     core::errors::{UserErrors, UserResponse, UserResult},
-    routes::{app::ReqState, AppState},
+    routes::AppState,
     services::{authentication::UserFromToken, ApplicationResponse},
     types::domain::{user::dashboard_metadata as types, MerchantKeyStore},
     utils::user::dashboard_metadata as utils,
@@ -22,7 +22,6 @@ pub async fn set_metadata(
     state: AppState,
     user: UserFromToken,
     request: api::SetMetaDataRequest,
-    _req_state: ReqState,
 ) -> UserResponse<()> {
     let metadata_value = parse_set_request(request)?;
     let metadata_key = DBEnum::from(&metadata_value);
@@ -36,7 +35,6 @@ pub async fn get_multiple_metadata(
     state: AppState,
     user: UserFromToken,
     request: GetMultipleMetaDataPayload,
-    _req_state: ReqState,
 ) -> UserResponse<Vec<api::GetMetaDataResponse>> {
     let metadata_keys: Vec<DBEnum> = request.results.into_iter().map(parse_get_request).collect();
 
@@ -112,9 +110,6 @@ fn parse_set_request(data_enum: api::SetMetaDataRequest) -> UserResult<types::Me
         api::SetMetaDataRequest::IsChangePasswordRequired => {
             Ok(types::MetaData::IsChangePasswordRequired(true))
         }
-        api::SetMetaDataRequest::OnboardingSurvey(req) => {
-            Ok(types::MetaData::OnboardingSurvey(req))
-        }
     }
 }
 
@@ -142,7 +137,6 @@ fn parse_get_request(data_enum: api::GetMetaDataRequest) -> DBEnum {
         api::GetMetaDataRequest::SetupWoocomWebhook => DBEnum::SetupWoocomWebhook,
         api::GetMetaDataRequest::IsMultipleConfiguration => DBEnum::IsMultipleConfiguration,
         api::GetMetaDataRequest::IsChangePasswordRequired => DBEnum::IsChangePasswordRequired,
-        api::GetMetaDataRequest::OnboardingSurvey => DBEnum::OnboardingSurvey,
     }
 }
 
@@ -222,10 +216,6 @@ fn into_response(
         DBEnum::IsChangePasswordRequired => Ok(api::GetMetaDataResponse::IsChangePasswordRequired(
             data.is_some(),
         )),
-        DBEnum::OnboardingSurvey => {
-            let resp = utils::deserialize_to_response(data)?;
-            Ok(api::GetMetaDataResponse::OnboardingSurvey(resp))
-        }
     }
 }
 
@@ -547,17 +537,6 @@ async fn insert_metadata(
         }
         types::MetaData::IsChangePasswordRequired(data) => {
             utils::insert_user_scoped_metadata_to_db(
-                state,
-                user.user_id,
-                user.merchant_id,
-                user.org_id,
-                metadata_key,
-                data,
-            )
-            .await
-        }
-        types::MetaData::OnboardingSurvey(data) => {
-            utils::insert_merchant_scoped_metadata_to_db(
                 state,
                 user.user_id,
                 user.merchant_id,

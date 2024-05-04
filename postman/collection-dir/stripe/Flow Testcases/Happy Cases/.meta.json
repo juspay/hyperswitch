@@ -9,7 +9,7 @@
     "Scenario4a-Create payment with manual_multiple capture",
     "Scenario5-Void the payment",
     "Scenario6-Create 3DS payment",
-    "Scenario7-Create 3DS payment with confirm false",
+    "Scenario7-Create 3DS payment with confrm false",
     "Scenario8-Create a failure card payment with confirm true",
     "Scenario9-Refund full payment",
     "Scenario9a-Partial refund",

@@ -19,20 +19,6 @@ use crate::{
     utils::user::dashboard_metadata::{parse_string_to_enums, set_ip_address_if_required},
 };
 
-pub async fn get_user_details(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
-    let flow = Flow::GetUserDetails;
-    Box::pin(api::server_wrap(
-        flow,
-        state,
-        &req,
-        (),
-        |state, user, _, _| user_core::get_user_details(state, user),
-        &auth::DashboardNoPermissionAuth,
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
 #[cfg(feature = "email")]
 pub async fn user_signup_with_merchant_id(
     state: web::Data<AppState>,
@@ -46,7 +32,7 @@ pub async fn user_signup_with_merchant_id(
         state,
         &http_req,
         req_payload.clone(),
-        |state, _, req_body, _| user_core::signup_with_merchant_id(state, req_body),
+        |state, _, req_body| user_core::signup_with_merchant_id(state, req_body),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -65,7 +51,26 @@ pub async fn user_signup(
         state,
         &http_req,
         req_payload.clone(),
-        |state, _, req_body, _| user_core::signup(state, req_body),
+        |state, _, req_body| user_core::signup(state, req_body),
+        &auth::NoAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn user_signin_without_invite_checks(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+    json_payload: web::Json<user_api::SignInRequest>,
+) -> HttpResponse {
+    let flow = Flow::UserSignInWithoutInviteChecks;
+    let req_payload = json_payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow.clone(),
+        state,
+        &http_req,
+        req_payload.clone(),
+        |state, _, req_body| user_core::signin_without_invite_checks(state, req_body),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -76,23 +81,15 @@ pub async fn user_signin(
     state: web::Data<AppState>,
     http_req: HttpRequest,
     json_payload: web::Json<user_api::SignInRequest>,
-    query: web::Query<user_api::TokenOnlyQueryParam>,
 ) -> HttpResponse {
     let flow = Flow::UserSignIn;
     let req_payload = json_payload.into_inner();
-    let is_token_only = query.into_inner().token_only;
     Box::pin(api::server_wrap(
         flow.clone(),
         state,
         &http_req,
         req_payload.clone(),
-        |state, _, req_body, _| async move {
-            if let Some(true) = is_token_only {
-                user_core::signin_token_only_flow(state, req_body).await
-            } else {
-                user_core::signin(state, req_body).await
-            }
-        },
+        |state, _, req_body| user_core::signin(state, req_body),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -112,7 +109,7 @@ pub async fn user_connect_account(
         state,
         &http_req,
         req_payload.clone(),
-        |state, _, req_body, _| user_core::connect_account(state, req_body),
+        |state, _, req_body| user_core::connect_account(state, req_body),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -126,7 +123,7 @@ pub async fn signout(state: web::Data<AppState>, http_req: HttpRequest) -> HttpR
         state.clone(),
         &http_req,
         (),
-        |state, user, _, _| user_core::signout(state, user),
+        |state, user, _| user_core::signout(state, user),
         &auth::DashboardNoPermissionAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -144,7 +141,7 @@ pub async fn change_password(
         state.clone(),
         &http_req,
         json_payload.into_inner(),
-        |state, user, req, _| user_core::change_password(state, req, user),
+        |state, user, req| user_core::change_password(state, req, user),
         &auth::DashboardNoPermissionAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -214,7 +211,7 @@ pub async fn internal_user_signup(
         state.clone(),
         &http_req,
         json_payload.into_inner(),
-        |state, _, req, _| user_core::create_internal_user(state, req),
+        |state, _, req| user_core::create_internal_user(state, req),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -232,7 +229,7 @@ pub async fn switch_merchant_id(
         state.clone(),
         &http_req,
         json_payload.into_inner(),
-        |state, user, req, _| user_core::switch_merchant_id(state, req, user),
+        |state, user, req| user_core::switch_merchant_id(state, req, user),
         &auth::DashboardNoPermissionAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -250,7 +247,7 @@ pub async fn user_merchant_account_create(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth: auth::UserFromToken, json_payload, _| {
+        |state, auth: auth::UserFromToken, json_payload| {
             user_core::create_merchant_account(state, auth, json_payload)
         },
         &auth::JWTAuth(Permission::MerchantAccountCreate),
@@ -300,14 +297,17 @@ pub async fn delete_sample_data(
     .await
 }
 
-pub async fn list_merchants_for_user(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+pub async fn list_merchant_ids_for_user(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> HttpResponse {
     let flow = Flow::UserMerchantAccountList;
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         (),
-        |state, user, _, _| user_core::list_merchants_for_user(state, user),
+        |state, user, _| user_core::list_merchant_ids_for_user(state, user),
         &auth::DashboardNoPermissionAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -317,7 +317,7 @@ pub async fn list_merchants_for_user(state: web::Data<AppState>, req: HttpReques
 pub async fn get_user_role_details(
     state: web::Data<AppState>,
     req: HttpRequest,
-    payload: web::Query<user_api::GetUserRoleDetailsRequest>,
+    payload: web::Query<user_api::GetUserDetailsRequest>,
 ) -> HttpResponse {
     let flow = Flow::GetUserDetails;
     Box::pin(api::server_wrap(
@@ -342,7 +342,7 @@ pub async fn list_users_for_merchant_account(
         state.clone(),
         &req,
         (),
-        |state, user, _, _| user_core::list_users_for_merchant_account(state, user),
+        |state, user, _| user_core::list_users_for_merchant_account(state, user),
         &auth::JWTAuth(Permission::UsersRead),
         api_locking::LockAction::NotApplicable,
     ))
@@ -361,7 +361,7 @@ pub async fn forgot_password(
         state.clone(),
         &req,
         payload.into_inner(),
-        |state, _, payload, _| user_core::forgot_password(state, payload),
+        |state, _, payload| user_core::forgot_password(state, payload),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -380,8 +380,26 @@ pub async fn reset_password(
         state.clone(),
         &req,
         payload.into_inner(),
-        |state, _, payload, _| user_core::reset_password(state, payload),
+        |state, _, payload| user_core::reset_password(state, payload),
         &auth::NoAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn invite_user(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Json<user_api::InviteUserRequest>,
+) -> HttpResponse {
+    let flow = Flow::InviteUser;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload.into_inner(),
+        |state, user, payload| user_core::invite_user(state, payload, user),
+        &auth::JWTAuth(Permission::UsersWrite),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -435,7 +453,26 @@ pub async fn accept_invite_from_email(
         state.clone(),
         &req,
         payload.into_inner(),
-        |state, _, request_payload, _| user_core::accept_invite_from_email(state, request_payload),
+        |state, _, request_payload| user_core::accept_invite_from_email(state, request_payload),
+        &auth::NoAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "email")]
+pub async fn verify_email_without_invite_checks(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+    json_payload: web::Json<user_api::VerifyEmailRequest>,
+) -> HttpResponse {
+    let flow = Flow::VerifyEmailWithoutInviteChecks;
+    Box::pin(api::server_wrap(
+        flow.clone(),
+        state,
+        &http_req,
+        json_payload.into_inner(),
+        |state, _, req_payload| user_core::verify_email_without_invite_checks(state, req_payload),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -454,7 +491,7 @@ pub async fn verify_email(
         state,
         &http_req,
         json_payload.into_inner(),
-        |state, _, req_payload, _| user_core::verify_email(state, req_payload),
+        |state, _, req_payload| user_core::verify_email(state, req_payload),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -473,7 +510,7 @@ pub async fn verify_email_request(
         state.clone(),
         &http_req,
         json_payload.into_inner(),
-        |state, _, req_body, _| user_core::send_verification_mail(state, req_body),
+        |state, _, req_body| user_core::send_verification_mail(state, req_body),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -488,7 +525,7 @@ pub async fn verify_recon_token(state: web::Data<AppState>, http_req: HttpReques
         state.clone(),
         &http_req,
         (),
-        |state, user, _req, _| user_core::verify_token(state, user),
+        |state, user, _req| user_core::verify_token(state, user),
         &auth::ReconJWT,
         api_locking::LockAction::NotApplicable,
     ))

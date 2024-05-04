@@ -70,8 +70,8 @@ impl UserRole {
         conn: &PgPooledConn,
         user_id: String,
         merchant_id: String,
-    ) -> StorageResult<Self> {
-        generics::generic_delete_one_with_result::<<Self as HasTable>::Table, _, _>(
+    ) -> StorageResult<bool> {
+        generics::generic_delete::<<Self as HasTable>::Table, _>(
             conn,
             dsl::user_id
                 .eq(user_id)

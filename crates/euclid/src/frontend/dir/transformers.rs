@@ -143,9 +143,6 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
             global_enums::PaymentMethodType::DanamonVa => Ok(dirval!(BankTransferType = DanamonVa)),
             global_enums::PaymentMethodType::Indomaret => Ok(dirval!(VoucherType = Indomaret)),
             global_enums::PaymentMethodType::MandiriVa => Ok(dirval!(BankTransferType = MandiriVa)),
-            global_enums::PaymentMethodType::LocalBankTransfer => {
-                Ok(dirval!(BankTransferType = LocalBankTransfer))
-            }
             global_enums::PaymentMethodType::PermataBankTransfer => {
                 Ok(dirval!(BankTransferType = PermataBankTransfer))
             }
@@ -167,7 +164,6 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
             global_enums::PaymentMethodType::CardRedirect => {
                 Ok(dirval!(CardRedirectType = CardRedirect))
             }
-            global_enums::PaymentMethodType::Venmo => Ok(dirval!(WalletType = Venmo)),
         }
     }
 }

@@ -35,7 +35,7 @@ pub async fn update_merchant(
         state,
         &req,
         json_payload.into_inner(),
-        |state, _user, req, _| recon_merchant_account_update(state, req),
+        |state, _user, req| recon_merchant_account_update(state, req),
         &auth::ReconAdmin,
         api_locking::LockAction::NotApplicable,
     ))
@@ -49,7 +49,7 @@ pub async fn request_for_recon(state: web::Data<AppState>, http_req: HttpRequest
         state,
         &http_req,
         (),
-        |state, user: UserFromToken, _req, _| send_recon_request(state, user),
+        |state, user: UserFromToken, _req| send_recon_request(state, user),
         &auth::DashboardNoPermissionAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -63,7 +63,7 @@ pub async fn get_recon_token(state: web::Data<AppState>, req: HttpRequest) -> Ht
         state,
         &req,
         (),
-        |state, user: ReconUser, _, _| generate_recon_token(state, user),
+        |state, user: ReconUser, _| generate_recon_token(state, user),
         &auth::ReconJWT,
         api_locking::LockAction::NotApplicable,
     ))

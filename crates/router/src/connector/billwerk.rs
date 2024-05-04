@@ -2,15 +2,12 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use base64::Engine;
 use error_stack::{report, ResultExt};
-use masking::PeekInterface;
+use masking::ExposeInterface;
 use transformers as billwerk;
 
-use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
-    consts,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
     headers,
@@ -42,6 +39,16 @@ impl api::Refund for Billwerk {}
 impl api::RefundExecute for Billwerk {}
 impl api::RefundSync for Billwerk {}
 impl api::PaymentToken for Billwerk {}
+
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for Billwerk
+{
+    // Not Implemented (R)
+}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Billwerk
 where
@@ -85,10 +92,9 @@ impl ConnectorCommon for Billwerk {
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth = billwerk::BillwerkAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let encoded_api_key = consts::BASE64_ENGINE.encode(format!("{}:", auth.api_key.peek()));
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            format!("Basic {encoded_api_key}").into_masked(),
+            auth.api_key.expose().into_masked(),
         )])
     }
 
@@ -107,13 +113,9 @@ impl ConnectorCommon for Billwerk {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response
-                .code
-                .map_or(consts::NO_ERROR_CODE.to_string(), |code| code.to_string()),
-            message: response
-                .message
-                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-            reason: Some(response.error),
+            code: response.code,
+            message: response.message,
+            reason: response.reason,
             attempt_status: None,
             connector_transaction_id: None,
         })
@@ -121,20 +123,7 @@ impl ConnectorCommon for Billwerk {
 }
 
 impl ConnectorValidation for Billwerk {
-    fn validate_capture_method(
-        &self,
-        capture_method: Option<common_enums::CaptureMethod>,
-        _pmt: Option<common_enums::PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            common_enums::CaptureMethod::Automatic | common_enums::CaptureMethod::Manual => Ok(()),
-            common_enums::CaptureMethod::ManualMultiple
-            | common_enums::CaptureMethod::Scheduled => Err(
-                super::utils::construct_not_implemented_error_report(capture_method, self.id()),
-            ),
-        }
-    }
+    //TODO: implement functions when support enabled
 }
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
@@ -157,105 +146,6 @@ impl
 {
 }
 
-impl
-    ConnectorIntegration<
-        api::PaymentMethodToken,
-        types::PaymentMethodTokenizationData,
-        types::PaymentsResponseData,
-    > for Billwerk
-{
-    fn get_headers(
-        &self,
-        req: &types::TokenizationRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &types::TokenizationRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        let base_url = connectors
-            .billwerk
-            .secondary_base_url
-            .as_ref()
-            .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
-        Ok(format!("{base_url}v1/token"))
-    }
-
-    fn get_request_body(
-        &self,
-        req: &types::TokenizationRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = billwerk::BillwerkTokenRequest::try_from(req)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
-    }
-
-    fn build_request(
-        &self,
-        req: &types::TokenizationRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&types::TokenizationType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::TokenizationType::get_headers(self, req, connectors)?)
-                .set_body(types::TokenizationType::get_request_body(
-                    self, req, connectors,
-                )?)
-                .build(),
-        ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &types::TokenizationRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<types::TokenizationRouterData, errors::ConnectorError>
-    where
-        types::PaymentsResponseData: Clone,
-    {
-        let response: billwerk::BillwerkTokenResponse = res
-            .response
-            .parse_struct("BillwerkTokenResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
-
-    fn get_5xx_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
-}
-
 impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
     for Billwerk
 {
@@ -274,9 +164,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_url(
         &self,
         _req: &types::PaymentsAuthorizeRouterData,
-        connectors: &settings::Connectors,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}v1/charge", self.base_url(connectors)))
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn get_request_body(
@@ -324,7 +214,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: billwerk::BillwerkPaymentsResponse = res
             .response
-            .parse_struct("Billwerk BillwerkPaymentsResponse")
+            .parse_struct("Billwerk PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -336,14 +226,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     }
 
     fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
-
-    fn get_5xx_error_response(
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
@@ -369,14 +251,10 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn get_url(
         &self,
-        req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
+        _req: &types::PaymentsSyncRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}v1/charge/{}",
-            self.base_url(connectors),
-            req.connector_request_reference_id
-        ))
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn build_request(
@@ -402,7 +280,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
         let response: billwerk::BillwerkPaymentsResponse = res
             .response
-            .parse_struct("billwerk BillwerkPaymentsResponse")
+            .parse_struct("billwerk PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -414,14 +292,6 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     }
 
     fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
-
-    fn get_5xx_error_response(
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
@@ -447,29 +317,18 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 
     fn get_url(
         &self,
-        req: &types::PaymentsCaptureRouterData,
-        connectors: &settings::Connectors,
+        _req: &types::PaymentsCaptureRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_transaction_id = &req.request.connector_transaction_id;
-        Ok(format!(
-            "{}v1/charge/{connector_transaction_id}/settle",
-            self.base_url(connectors)
-        ))
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsCaptureRouterData,
+        _req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = billwerk::BillwerkRouterData::try_from((
-            &self.get_currency_unit(),
-            req.request.currency,
-            req.request.amount_to_capture,
-            req,
-        ))?;
-        let connector_req = billwerk::BillwerkCaptureRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
     }
 
     fn build_request(
@@ -500,7 +359,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
         let response: billwerk::BillwerkPaymentsResponse = res
             .response
-            .parse_struct("Billwerk BillwerkPaymentsResponse")
+            .parse_struct("Billwerk PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -512,14 +371,6 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     }
 
     fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
-
-    fn get_5xx_error_response(
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
@@ -531,79 +382,6 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
     for Billwerk
 {
-    fn get_headers(
-        &self,
-        req: &types::PaymentsCancelRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        req: &types::PaymentsCancelRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_transaction_id = &req.request.connector_transaction_id;
-        Ok(format!(
-            "{}v1/charge/{connector_transaction_id}/cancel",
-            self.base_url(connectors)
-        ))
-    }
-
-    fn build_request(
-        &self,
-        req: &types::PaymentsCancelRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
-                .build(),
-        ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &types::PaymentsCancelRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
-        let response: billwerk::BillwerkPaymentsResponse = res
-            .response
-            .parse_struct("Billwerk BillwerkPaymentsResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
-
-    fn get_5xx_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
 }
 
 impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
@@ -624,9 +402,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_url(
         &self,
         _req: &types::RefundsRouterData<api::Execute>,
-        connectors: &settings::Connectors,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}v1/refund", self.base_url(connectors)))
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn get_request_body(
@@ -689,14 +467,6 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
-
-    fn get_5xx_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
 }
 
 impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Billwerk {
@@ -714,14 +484,10 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
     fn get_url(
         &self,
-        req: &types::RefundSyncRouterData,
-        connectors: &settings::Connectors,
+        _req: &types::RefundSyncRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let refund_id = req.request.get_connector_refund_id()?;
-        Ok(format!(
-            "{}v1/refund/{refund_id}",
-            self.base_url(connectors)
-        ))
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn build_request(
@@ -762,14 +528,6 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     }
 
     fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
-
-    fn get_5xx_error_response(
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,

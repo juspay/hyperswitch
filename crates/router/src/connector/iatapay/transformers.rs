@@ -12,7 +12,7 @@ use crate::{
     consts,
     core::errors,
     services,
-    types::{self, api, domain, storage::enums, PaymentsAuthorizeData},
+    types::{self, api, storage::enums, PaymentsAuthorizeData},
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -149,22 +149,22 @@ impl
         };
         let return_url = item.router_data.get_return_url()?;
         let payer_info = match item.router_data.request.payment_method_data.clone() {
-            domain::PaymentMethodData::Upi(upi_data) => upi_data.vpa_id.map(|id| PayerInfo {
+            api::PaymentMethodData::Upi(upi_data) => upi_data.vpa_id.map(|id| PayerInfo {
                 token_id: id.switch_strategy(),
             }),
-            domain::PaymentMethodData::Card(_)
-            | domain::PaymentMethodData::CardRedirect(_)
-            | domain::PaymentMethodData::Wallet(_)
-            | domain::PaymentMethodData::PayLater(_)
-            | domain::PaymentMethodData::BankRedirect(_)
-            | domain::PaymentMethodData::BankDebit(_)
-            | domain::PaymentMethodData::BankTransfer(_)
-            | domain::PaymentMethodData::Crypto(_)
-            | domain::PaymentMethodData::MandatePayment
-            | domain::PaymentMethodData::Reward
-            | domain::PaymentMethodData::Voucher(_)
-            | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::CardToken(_) => None,
+            api::PaymentMethodData::Card(_)
+            | api::PaymentMethodData::CardRedirect(_)
+            | api::PaymentMethodData::Wallet(_)
+            | api::PaymentMethodData::PayLater(_)
+            | api::PaymentMethodData::BankRedirect(_)
+            | api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::MandatePayment
+            | api::PaymentMethodData::Reward
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => None,
         };
         let payload = Self {
             merchant_id: IatapayAuthType::try_from(&item.router_data.connector_auth_type)?

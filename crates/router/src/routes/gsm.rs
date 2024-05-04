@@ -39,7 +39,7 @@ pub async fn create_gsm_rule(
         state.clone(),
         &req,
         payload,
-        |state, _, payload, _| gsm::create_gsm_rule(state, payload),
+        |state, _, payload| gsm::create_gsm_rule(state, payload),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -76,7 +76,7 @@ pub async fn get_gsm_rule(
         state.clone(),
         &req,
         gsm_retrieve_req,
-        |state, _, gsm_retrieve_req, _| gsm::retrieve_gsm_rule(state, gsm_retrieve_req),
+        |state, _, gsm_retrieve_req| gsm::retrieve_gsm_rule(state, gsm_retrieve_req),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -114,7 +114,7 @@ pub async fn update_gsm_rule(
         state.clone(),
         &req,
         payload,
-        |state, _, payload, _| gsm::update_gsm_rule(state, payload),
+        |state, _, payload| gsm::update_gsm_rule(state, payload),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -153,7 +153,7 @@ pub async fn delete_gsm_rule(
         state,
         &req,
         payload,
-        |state, _, payload, _| gsm::delete_gsm_rule(state, payload),
+        |state, _, payload| gsm::delete_gsm_rule(state, payload),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))

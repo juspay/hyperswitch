@@ -19,13 +19,10 @@ use crate::{
         },
     },
     db::StorageInterface,
-    routes::{
-        self,
-        app::{self, ReqState},
-        metrics,
-    },
-    services,
-    types::{self, api, domain, storage},
+    routes,
+    routes::{app, metrics},
+    services, types,
+    types::{api, domain, storage},
     utils,
 };
 
@@ -33,7 +30,6 @@ use crate::{
 #[allow(clippy::too_many_arguments)]
 pub async fn do_gsm_actions<F, ApiRequest, FData, Ctx>(
     state: &app::AppState,
-    req_state: ReqState,
     payment_data: &mut payments::PaymentData<F>,
     mut connectors: IntoIter<api::ConnectorData>,
     original_connector_data: api::ConnectorData,
@@ -85,7 +81,6 @@ where
     if should_step_up {
         router_data = do_retry(
             &state.clone(),
-            req_state.clone(),
             original_connector_data,
             operation,
             customer,
@@ -129,7 +124,6 @@ where
 
                     router_data = do_retry(
                         &state.clone(),
-                        req_state.clone(),
                         connector,
                         operation,
                         customer,
@@ -269,7 +263,6 @@ fn get_flow_name<F>() -> RouterResult<String> {
 #[instrument(skip_all)]
 pub async fn do_retry<F, ApiRequest, FData, Ctx>(
     state: &routes::AppState,
-    req_state: ReqState,
     connector: api::ConnectorData,
     operation: &operations::BoxedOperation<'_, F, ApiRequest, Ctx>,
     customer: &Option<domain::Customer>,
@@ -306,7 +299,6 @@ where
 
     payments::call_connector_service(
         state,
-        req_state,
         merchant_account,
         key_store,
         connector,
@@ -384,7 +376,7 @@ where
                         .connector_response_reference_id
                         .clone(),
                     authentication_type: None,
-                    payment_method_id: payment_data.payment_attempt.payment_method_id.clone(),
+                    payment_method_id: Some(router_data.payment_method_id),
                     mandate_id: payment_data
                         .mandate_id
                         .clone()

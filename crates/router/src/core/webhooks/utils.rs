@@ -83,6 +83,7 @@ pub async fn construct_webhook_router_data<'a>(
         connector_auth_type: auth_type,
         description: None,
         return_url: None,
+        payment_method_id: None,
         address: PaymentAddress::default(),
         auth_type: diesel_models::enums::AuthenticationType::default(),
         connector_meta_data: None,

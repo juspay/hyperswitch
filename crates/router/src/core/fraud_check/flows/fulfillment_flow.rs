@@ -71,6 +71,7 @@ pub async fn construct_fulfillment_router_data<'a>(
         connector_auth_type: auth_type,
         description: None,
         return_url: payment_intent.return_url.clone(),
+        payment_method_id: payment_attempt.payment_method_id.clone(),
         address: PaymentAddress::default(),
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),

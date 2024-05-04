@@ -1,4 +1,4 @@
-use common_enums::{PermissionGroup, RoleScope, TokenPurpose};
+use common_enums::{PermissionGroup, RoleScope};
 use common_utils::{crypto::OptionalEncryptableName, pii};
 use masking::Secret;
 
@@ -99,6 +99,12 @@ pub struct InviteUserRequest {
 }
 
 #[derive(Debug, serde::Serialize)]
+pub struct InviteUserResponse {
+    pub is_email_sent: bool,
+    pub password: Option<Secret<String>>,
+}
+
+#[derive(Debug, serde::Serialize)]
 pub struct InviteMultipleUserResponse {
     pub email: pii::Email,
     pub is_email_sent: bool,
@@ -149,25 +155,13 @@ pub struct UserDetails {
     pub last_modified_at: time::PrimitiveDateTime,
 }
 
-#[derive(serde::Serialize, Debug, Clone)]
-pub struct GetUserDetailsResponse {
-    pub merchant_id: String,
-    pub name: Secret<String>,
-    pub email: pii::Email,
-    pub verification_days_left: Option<i64>,
-    pub role_id: String,
-    // This field is added for audit/debug reasons
-    #[serde(skip_serializing)]
-    pub user_id: String,
-    pub org_id: String,
-}
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct GetUserRoleDetailsRequest {
+pub struct GetUserDetailsRequest {
     pub email: pii::Email,
 }
 
 #[derive(Debug, serde::Serialize)]
-pub struct GetUserRoleDetailsResponse {
+pub struct GetUserDetailsResponse {
     pub email: pii::Email,
     pub name: Secret<String>,
     pub role_id: String,
@@ -196,9 +190,6 @@ pub struct UserMerchantAccount {
     pub merchant_id: String,
     pub merchant_name: OptionalEncryptableName,
     pub is_active: bool,
-    pub role_id: String,
-    pub role_name: String,
-    pub org_id: String,
 }
 
 #[cfg(feature = "recon")]
@@ -212,22 +203,4 @@ pub struct VerifyTokenResponse {
 pub struct UpdateUserAccountDetailsRequest {
     pub name: Option<Secret<String>>,
     pub preferred_merchant_id: Option<String>,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct TokenOnlyQueryParam {
-    pub token_only: Option<bool>,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct TokenResponse {
-    pub token: Secret<String>,
-    pub token_type: TokenPurpose,
-}
-
-#[derive(Debug, serde::Serialize)]
-#[serde(untagged)]
-pub enum SignInWithTokenResponse {
-    Token(TokenResponse),
-    SignInResponse(SignInResponse),
 }

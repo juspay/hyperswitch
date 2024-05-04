@@ -8,6 +8,6 @@
     "Scenario11-Create Partial Capture payment",
     "Scenario5-Void the payment",
     "Scenario6-Create Wallet - Paypal",
-    "Scenario7-Create Wallet - Paypal with confirm false"
+    "Scenario7-Create Wallet - Paypal with confrm false"
   ]
 }

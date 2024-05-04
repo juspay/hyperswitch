@@ -113,7 +113,7 @@ impl DirKey {
     serde::Serialize,
     strum::Display,
     strum::EnumIter,
-    strum::VariantNames,
+    strum::EnumVariantNames,
     strum::EnumString,
     strum::EnumMessage,
     strum::EnumProperty,
@@ -306,7 +306,7 @@ pub enum DirKeyKind {
     #[serde(rename = "setup_future_usage")]
     SetupFutureUsage,
     #[strum(
-        serialize = "card_redirect",
+        serialize = "card_redirect_type",
         detailed_message = "Supported types of Card Redirect payment method",
         props(Category = "Payment Method Types")
     )]
@@ -490,7 +490,7 @@ impl DirKeyKind {
 }
 
 #[derive(
-    Debug, Clone, Hash, PartialEq, Eq, serde::Serialize, strum::Display, strum::VariantNames,
+    Debug, Clone, Hash, PartialEq, Eq, serde::Serialize, strum::Display, strum::EnumVariantNames,
 )]
 #[serde(tag = "key", content = "value")]
 pub enum DirValue {
@@ -559,7 +559,7 @@ impl DirValue {
             Self::CardBin(_) => (DirKeyKind::CardBin, None),
             Self::RewardType(_) => (DirKeyKind::RewardType, None),
             Self::BusinessCountry(_) => (DirKeyKind::BusinessCountry, None),
-            Self::BillingCountry(_) => (DirKeyKind::BillingCountry, None),
+            Self::BillingCountry(_) => (DirKeyKind::CardBin, None),
             Self::BankTransferType(_) => (DirKeyKind::BankTransferType, None),
             Self::UpiType(_) => (DirKeyKind::UpiType, None),
             Self::CardType(_) => (DirKeyKind::CardType, None),
@@ -677,7 +677,7 @@ impl DirValue {
     serde::Serialize,
     strum::Display,
     strum::EnumIter,
-    strum::VariantNames,
+    strum::EnumVariantNames,
     strum::EnumString,
     strum::EnumMessage,
     strum::EnumProperty,
@@ -743,7 +743,7 @@ pub enum PayoutDirKeyKind {
 
 #[cfg(feature = "payouts")]
 #[derive(
-    Debug, Clone, Hash, PartialEq, Eq, serde::Serialize, strum::Display, strum::VariantNames,
+    Debug, Clone, Hash, PartialEq, Eq, serde::Serialize, strum::Display, strum::EnumVariantNames,
 )]
 pub enum PayoutDirValue {
     #[serde(rename = "business_country", alias = "country")]

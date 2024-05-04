@@ -24,13 +24,13 @@ pub trait ConnectorAccessToken {
     async fn get_access_token(
         &self,
         merchant_id: &str,
-        merchant_connector_id_or_connector_name: &str,
+        connector_name: &str,
     ) -> CustomResult<Option<types::AccessToken>, errors::StorageError>;
 
     async fn set_access_token(
         &self,
         merchant_id: &str,
-        merchant_connector_id_or_connector_name: &str,
+        connector_name: &str,
         access_token: types::AccessToken,
     ) -> CustomResult<(), errors::StorageError>;
 }
@@ -41,16 +41,12 @@ impl ConnectorAccessToken for Store {
     async fn get_access_token(
         &self,
         merchant_id: &str,
-        merchant_connector_id_or_connector_name: &str,
+        connector_name: &str,
     ) -> CustomResult<Option<types::AccessToken>, errors::StorageError> {
         //TODO: Handle race condition
         // This function should acquire a global lock on some resource, if access token is already
         // being refreshed by other request then wait till it finishes and use the same access token
-        let key = common_utils::access_token::create_access_token_key(
-            merchant_id,
-            merchant_connector_id_or_connector_name,
-        );
-
+        let key = format!("access_token_{merchant_id}_{connector_name}");
         let maybe_token = self
             .get_redis_conn()
             .map_err(Into::<errors::StorageError>::into)?
@@ -59,9 +55,10 @@ impl ConnectorAccessToken for Store {
             .change_context(errors::StorageError::KVError)
             .attach_printable("DB error when getting access token")?;
 
-        let access_token = maybe_token
-            .map(|token| token.parse_struct::<types::AccessToken>("AccessToken"))
+        let access_token: Option<types::AccessToken> = maybe_token
+            .map(|token| token.parse_struct("AccessToken"))
             .transpose()
+            .change_context(errors::ParsingError::UnknownError)
             .change_context(errors::StorageError::DeserializationFailed)?;
 
         Ok(access_token)
@@ -71,13 +68,10 @@ impl ConnectorAccessToken for Store {
     async fn set_access_token(
         &self,
         merchant_id: &str,
-        merchant_connector_id_or_connector_name: &str,
+        connector_name: &str,
         access_token: types::AccessToken,
     ) -> CustomResult<(), errors::StorageError> {
-        let key = common_utils::access_token::create_access_token_key(
-            merchant_id,
-            merchant_connector_id_or_connector_name,
-        );
+        let key = format!("access_token_{merchant_id}_{connector_name}");
         let serialized_access_token = access_token
             .encode_to_string_of_json()
             .change_context(errors::StorageError::SerializationFailed)?;
@@ -94,7 +88,7 @@ impl ConnectorAccessToken for MockDb {
     async fn get_access_token(
         &self,
         _merchant_id: &str,
-        _merchant_connector_id_or_connector_name: &str,
+        _connector_name: &str,
     ) -> CustomResult<Option<types::AccessToken>, errors::StorageError> {
         Ok(None)
     }
@@ -102,7 +96,7 @@ impl ConnectorAccessToken for MockDb {
     async fn set_access_token(
         &self,
         _merchant_id: &str,
-        _merchant_connector_id_or_connector_name: &str,
+        _connector_name: &str,
         _access_token: types::AccessToken,
     ) -> CustomResult<(), errors::StorageError> {
         Ok(())

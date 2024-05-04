@@ -31,7 +31,6 @@ pub enum Permission {
     UsersWrite,
     MerchantAccountCreate,
     WebhookEventRead,
-    WebhookEventWrite,
     PayoutRead,
     PayoutWrite,
 }
@@ -72,7 +71,6 @@ impl Permission {
             Self::UsersWrite => "Invite users, assign and update roles",
             Self::MerchantAccountCreate => "Create merchant account",
             Self::WebhookEventRead => "View webhook events",
-            Self::WebhookEventWrite => "Trigger retries for webhook events",
             Self::PayoutRead => "View all payouts",
             Self::PayoutWrite => "Create payout, download payout data",
         }

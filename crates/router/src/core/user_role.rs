@@ -1,14 +1,15 @@
 use api_models::{user as user_api, user_role as user_role_api};
 use diesel_models::{enums::UserStatus, user_role::UserRoleUpdate};
 use error_stack::{report, ResultExt};
+use masking::ExposeInterface;
 use router_env::logger;
 
 use crate::{
     consts,
     core::errors::{StorageErrorExt, UserErrors, UserResponse},
-    routes::{app::ReqState, AppState},
+    routes::AppState,
     services::{
-        authentication as auth,
+        authentication::{self as auth},
         authorization::{info, roles},
         ApplicationResponse,
     },
@@ -49,7 +50,6 @@ pub async fn update_user_role(
     state: AppState,
     user_from_token: auth::UserFromToken,
     req: user_role_api::UpdateUserRoleRequest,
-    _req_state: ReqState,
 ) -> UserResponse<()> {
     let role_info = roles::RoleInfo::from_role_id(
         &state,
@@ -120,7 +120,6 @@ pub async fn transfer_org_ownership(
     state: AppState,
     user_from_token: auth::UserFromToken,
     req: user_role_api::TransferOrgOwnershipRequest,
-    _req_state: ReqState,
 ) -> UserResponse<user_api::DashboardEntryResponse> {
     if user_from_token.role_id != consts::user_role::ROLE_ID_ORGANIZATION_ADMIN {
         return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
@@ -170,9 +169,8 @@ pub async fn transfer_org_ownership(
 
 pub async fn accept_invitation(
     state: AppState,
-    user_token: auth::UserFromSinglePurposeToken,
+    user_token: auth::UserWithoutMerchantFromToken,
     req: user_role_api::AcceptInvitationRequest,
-    _req_state: ReqState,
 ) -> UserResponse<user_api::DashboardEntryResponse> {
     let user_role = futures::future::join_all(req.merchant_ids.iter().map(|merchant_id| async {
         state
@@ -225,11 +223,15 @@ pub async fn delete_user_role(
     state: AppState,
     user_from_token: auth::UserFromToken,
     request: user_role_api::DeleteUserRoleRequest,
-    _req_state: ReqState,
 ) -> UserResponse<()> {
     let user_from_db: domain::UserFromStorage = state
         .store
-        .find_user_by_email(&domain::UserEmail::from_pii_email(request.email)?.into_inner())
+        .find_user_by_email(
+            domain::UserEmail::from_pii_email(request.email)?
+                .get_secret()
+                .expose()
+                .as_str(),
+        )
         .await
         .map_err(|e| {
             if e.current_context().is_db_not_found() {
@@ -276,7 +278,7 @@ pub async fn delete_user_role(
         }
     };
 
-    let deleted_user_role = if user_roles.len() > 1 {
+    if user_roles.len() > 1 {
         state
             .store
             .delete_user_role_by_user_id_merchant_id(
@@ -285,7 +287,9 @@ pub async fn delete_user_role(
             )
             .await
             .change_context(UserErrors::InternalServerError)
-            .attach_printable("Error while deleting user role")?
+            .attach_printable("Error while deleting user role")?;
+
+        Ok(ApplicationResponse::StatusOk)
     } else {
         state
             .store
@@ -302,9 +306,8 @@ pub async fn delete_user_role(
             )
             .await
             .change_context(UserErrors::InternalServerError)
-            .attach_printable("Error while deleting user role")?
-    };
+            .attach_printable("Error while deleting user role")?;
 
-    auth::blacklist::insert_user_in_blacklist(&state, &deleted_user_role.user_id).await?;
-    Ok(ApplicationResponse::StatusOk)
+        Ok(ApplicationResponse::StatusOk)
+    }
 }

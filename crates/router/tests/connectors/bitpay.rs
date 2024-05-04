@@ -1,5 +1,6 @@
+use api_models::payments::CryptoData;
 use masking::Secret;
-use router::types::{self, api, domain, storage::enums, PaymentAddress};
+use router::types::{self, api, storage::enums, PaymentAddress};
 
 use crate::{
     connector_auth,
@@ -67,7 +68,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
         amount: 1,
         currency: enums::Currency::USD,
-        payment_method_data: types::domain::PaymentMethodData::Crypto(domain::CryptoData {
+        payment_method_data: types::api::PaymentMethodData::Crypto(CryptoData {
             pay_currency: None,
         }),
         confirm: true,

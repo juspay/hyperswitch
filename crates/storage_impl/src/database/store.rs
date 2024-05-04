@@ -1,8 +1,8 @@
 use async_bb8_diesel::{AsyncConnection, ConnectionError};
 use bb8::CustomizeConnection;
+use data_models::errors::{StorageError, StorageResult};
 use diesel::PgConnection;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::errors::{StorageError, StorageResult};
 use masking::PeekInterface;
 
 use crate::config::Database;

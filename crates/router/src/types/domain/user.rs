@@ -3,7 +3,6 @@ use std::{collections::HashSet, ops, str::FromStr};
 use api_models::{
     admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
 };
-use common_enums::TokenPurpose;
 use common_utils::{errors::CustomResult, pii};
 use diesel_models::{
     enums::UserStatus,
@@ -32,8 +31,6 @@ use crate::{
 };
 
 pub mod dashboard_metadata;
-pub mod decision_manager;
-pub use decision_manager::*;
 
 #[derive(Clone)]
 pub struct UserName(Secret<String>);
@@ -88,13 +85,11 @@ static BLOCKED_EMAIL: Lazy<HashSet<String>> = Lazy::new(|| {
 
 impl UserEmail {
     pub fn new(email: Secret<String, pii::EmailStrategy>) -> UserResult<Self> {
-        use validator::ValidateEmail;
-
         let email_string = email.expose();
         let email =
             pii::Email::from_str(&email_string).change_context(UserErrors::EmailParsingError)?;
 
-        if email_string.validate_email() {
+        if validator::validate_email(&email_string) {
             let (_username, domain) = match email_string.as_str().split_once('@') {
                 Some((u, d)) => (u, d),
                 None => return Err(UserErrors::EmailParsingError.into()),
@@ -110,10 +105,8 @@ impl UserEmail {
     }
 
     pub fn from_pii_email(email: pii::Email) -> UserResult<Self> {
-        use validator::ValidateEmail;
-
         let email_string = email.peek();
-        if email_string.validate_email() {
+        if validator::validate_email(email_string) {
             let (_username, domain) = match email_string.split_once('@') {
                 Some((u, d)) => (u, d),
                 None => return Err(UserErrors::EmailParsingError.into()),
@@ -518,7 +511,7 @@ impl NewUser {
     pub async fn check_if_already_exists_in_db(&self, state: AppState) -> UserResult<()> {
         if state
             .store
-            .find_user_by_email(&self.get_email().into_inner())
+            .find_user_by_email(self.get_email().into_inner().expose().expose().as_str())
             .await
             .is_ok()
         {
@@ -788,29 +781,6 @@ impl UserFromStorage {
             .find_user_role_by_user_id_merchant_id(self.get_user_id(), merchant_id)
             .await
     }
-
-    pub async fn get_preferred_or_active_user_role_from_db(
-        &self,
-        state: &AppState,
-    ) -> CustomResult<UserRole, errors::StorageError> {
-        if let Some(preferred_merchant_id) = self.get_preferred_merchant_id() {
-            self.get_role_from_db_by_merchant_id(state, &preferred_merchant_id)
-                .await
-        } else {
-            state
-                .store
-                .list_user_roles_by_user_id(&self.0.user_id)
-                .await?
-                .into_iter()
-                .find(|role| role.status == UserStatus::Active)
-                .ok_or(
-                    errors::StorageError::ValueNotFound(
-                        "No active role found for user".to_string(),
-                    )
-                    .into(),
-                )
-        }
-    }
 }
 
 impl From<info::ModuleInfo> for user_role_api::ModuleInfo {
@@ -922,24 +892,17 @@ impl SignInWithMultipleRolesStrategy {
             .await
             .change_context(UserErrors::InternalServerError)?;
 
-        let roles =
-            utils::user_role::get_multiple_role_info_for_user_roles(state, &self.user_roles)
-                .await?;
-
         let merchant_details = utils::user::get_multiple_merchant_details_with_status(
             self.user_roles,
             merchant_accounts,
-            roles,
         )?;
 
         Ok(user_api::SignInResponse::MerchantSelect(
             user_api::MerchantSelectResponse {
                 name: self.user.get_name(),
                 email: self.user.get_email(),
-                token: auth::SinglePurposeToken::new_token(
+                token: auth::UserAuthToken::new_token(
                     self.user.get_user_id().to_string(),
-                    TokenPurpose::AcceptInvite,
-                    Origin::SignIn,
                     &state.conf,
                 )
                 .await?

@@ -1465,7 +1465,7 @@ mod test {
             ]),
             &mut memo,
         );
-        let _answer = memo
+        let _ans = memo
             .0
             .get(&(
                 _node_3.expect("node3 construction failed"),
@@ -1473,6 +1473,6 @@ mod test {
                 Strength::Strong,
             ))
             .expect("Memoization not workng");
-        matches!(_answer, Ok(()));
+        matches!(_ans, Ok(()));
     }
 }

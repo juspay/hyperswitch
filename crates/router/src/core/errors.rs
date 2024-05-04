@@ -10,8 +10,8 @@ use std::fmt::Display;
 
 use actix_web::{body::BoxBody, ResponseError};
 pub use common_utils::errors::{CustomResult, ParsingError, ValidationError};
+pub use data_models::errors::StorageError as DataStorageError;
 use diesel_models::errors as storage_errors;
-pub use hyperswitch_domain_models::errors::StorageError as DataStorageError;
 pub use redis_interface::errors::RedisError;
 use scheduler::errors as sch_errors;
 use storage_impl::errors as storage_impl_errors;

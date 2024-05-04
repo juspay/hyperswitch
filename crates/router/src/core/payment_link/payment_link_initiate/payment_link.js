@@ -194,52 +194,38 @@ function boot() {
 
   // @ts-ignore
   var paymentDetails = window.__PAYMENT_DETAILS;
+  var orderDetails = paymentDetails.order_details;
+  if (orderDetails!==null) {
+    var charges = 0;
 
-  if (paymentDetails.display_sdk_only) {
-    hide(".checkout-page")
-    var sdkDisplayWidth = document.querySelector('.hyper-checkout-sdk');
-    sdkDisplayWidth.style.width = '100vw';
+    for (var i = 0; i < orderDetails.length; i++) {
+      charges += parseFloat(orderDetails[i].amount * orderDetails[i].quantity);
+    }
+    orderDetails.push({
+      "amount": (paymentDetails.amount - charges).toFixed(2),
+      "product_img_link": "https://live.hyperswitch.io/payment-link-assets/cart_placeholder.png",
+      "product_name": "Miscellaneous charges\n" +
+                      "(includes taxes, shipping, discounts, offers etc.)",
+      "quantity": null
+    });
   }
-  else {
-    var orderDetails = paymentDetails.order_details;
-    if (orderDetails!==null) {
-      var charges = 0;
 
-      for (var i = 0; i < orderDetails.length; i++) {
-        charges += parseFloat(orderDetails[i].amount * orderDetails[i].quantity);
-      }
-      orderDetails.push({
-        "amount": (paymentDetails.amount - charges).toFixed(2),
-        "product_img_link": "https://live.hyperswitch.io/payment-link-assets/cart_placeholder.png",
-        "product_name": "Miscellaneous charges\n" +
-                        "(includes taxes, shipping, discounts, offers etc.)",
-        "quantity": null
-      });
-    }
-
-    if (paymentDetails.merchant_name) {
-      document.title = "Payment requested by " + paymentDetails.merchant_name;
-    }
-
-    if (paymentDetails.merchant_logo) {
-      var link = document.createElement("link");
-      link.rel = "icon";
-      link.href = paymentDetails.merchant_logo;
-      link.type = "image/x-icon";
-      document.head.appendChild(link);
-    }
+  if (paymentDetails.merchant_name) {
+    document.title = "Payment requested by " + paymentDetails.merchant_name;
   }
+
+  if (paymentDetails.merchant_logo) {
+    var link = document.createElement("link");
+    link.rel = "icon";
+    link.href = paymentDetails.merchant_logo;
+    link.type = "image/x-icon";
+    document.head.appendChild(link);
+  }
+
   // Render UI
-
-  if (paymentDetails.display_sdk_only){
-    renderSDKHeader(paymentDetails);
-  }
-  else{
-    renderPaymentDetails(paymentDetails);
-    renderCart(paymentDetails);
-    renderSDKHeader(paymentDetails);
-  }
-
+  renderPaymentDetails(paymentDetails);
+  renderSDKHeader(paymentDetails);
+  renderCart(paymentDetails);
 
   // Deal w loaders
   show("#sdk-spinner");
@@ -369,11 +355,9 @@ function initializeEventListeners(paymentDetails) {
  * Trigger - post mounting SDK
  * Use - set relevant classes to elements in the doc for showing SDK
  **/
-function showSDK(display_sdk_only) {
-  if (!display_sdk_only) {
-    show("#hyper-checkout-details");
-  }
+function showSDK() {
   show("#hyper-checkout-sdk");
+  show("#hyper-checkout-details");
   show("#submit");
   show("#unified-checkout");
   hide("#sdk-spinner");
@@ -417,10 +401,9 @@ function initializeSDK() {
       ? "accordion"
       : paymentDetails.sdk_layout;
 
-  var enableSavedPaymentMethod = paymentDetails.enabled_saved_payment_method;
   var unifiedCheckoutOptions = {
-    displaySavedPaymentMethodsCheckbox: enableSavedPaymentMethod,
-    displaySavedPaymentMethods: enableSavedPaymentMethod,
+    displaySavedPaymentMethodsCheckbox: false,
+    displaySavedPaymentMethods: false,
     layout: {
       type: type, //accordion , tabs, spaced accordion
       spacedAccordionItems: paymentDetails.sdk_layout === "spaced_accordion",
@@ -437,7 +420,7 @@ function initializeSDK() {
   };
   unifiedCheckout = widgets.create("payment", unifiedCheckoutOptions);
   mountUnifiedCheckout("#unified-checkout");
-  showSDK(paymentDetails.display_sdk_only);
+  showSDK();
 
   let shimmer = document.getElementById("payment-details-shimmer");
   shimmer.classList.add("reduce-opacity")

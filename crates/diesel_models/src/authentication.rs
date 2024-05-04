@@ -40,9 +40,6 @@ pub struct Authentication {
     pub acs_trans_id: Option<String>,
     pub three_ds_server_trans_id: Option<String>,
     pub acs_signed_content: Option<String>,
-    pub profile_id: String,
-    pub payment_id: Option<String>,
-    pub merchant_connector_id: String,
 }
 
 impl Authentication {
@@ -85,9 +82,6 @@ pub struct AuthenticationNew {
     pub acs_trans_id: Option<String>,
     pub three_dsserver_trans_id: Option<String>,
     pub acs_signed_content: Option<String>,
-    pub profile_id: String,
-    pub payment_id: Option<String>,
-    pub merchant_connector_id: String,
 }
 
 #[derive(Debug)]
@@ -96,7 +90,7 @@ pub enum AuthenticationUpdate {
         threeds_server_transaction_id: String,
         maximum_supported_3ds_version: common_utils::types::SemanticVersion,
         connector_authentication_id: String,
-        three_ds_method_data: Option<String>,
+        three_ds_method_data: String,
         three_ds_method_url: Option<String>,
         message_version: common_utils::types::SemanticVersion,
         connector_metadata: Option<serde_json::Value>,
@@ -316,7 +310,7 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 threeds_server_transaction_id: Some(threeds_server_transaction_id),
                 maximum_supported_version: Some(maximum_supported_3ds_version),
                 connector_authentication_id: Some(connector_authentication_id),
-                three_ds_method_data,
+                three_ds_method_data: Some(three_ds_method_data),
                 three_ds_method_url,
                 message_version: Some(message_version),
                 connector_metadata,

@@ -1,3 +1,4 @@
+use api_models::payments;
 use common_utils::date_time;
 use diesel_models::enums;
 use error_stack::ResultExt;
@@ -12,7 +13,7 @@ use crate::{
     },
     consts,
     core::errors,
-    types::{self, api, domain, storage::enums as storage_enums},
+    types::{self, api, storage::enums as storage_enums},
 };
 
 pub struct PlacetopayRouterData<T> {
@@ -125,7 +126,7 @@ impl TryFrom<&PlacetopayRouterData<&types::PaymentsAuthorizeRouterData>>
             },
         };
         match item.router_data.request.payment_method_data.clone() {
-            domain::PaymentMethodData::Card(req_card) => {
+            payments::PaymentMethodData::Card(req_card) => {
                 let card = PlacetopayCard {
                     number: req_card.card_number.clone(),
                     expiration: req_card
@@ -143,19 +144,19 @@ impl TryFrom<&PlacetopayRouterData<&types::PaymentsAuthorizeRouterData>>
                     },
                 })
             }
-            domain::PaymentMethodData::Wallet(_)
-            | domain::PaymentMethodData::CardRedirect(_)
-            | domain::PaymentMethodData::PayLater(_)
-            | domain::PaymentMethodData::BankRedirect(_)
-            | domain::PaymentMethodData::BankDebit(_)
-            | domain::PaymentMethodData::BankTransfer(_)
-            | domain::PaymentMethodData::Crypto(_)
-            | domain::PaymentMethodData::MandatePayment
-            | domain::PaymentMethodData::Reward
-            | domain::PaymentMethodData::Upi(_)
-            | domain::PaymentMethodData::Voucher(_)
-            | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::CardToken(_) => {
+            payments::PaymentMethodData::Wallet(_)
+            | payments::PaymentMethodData::CardRedirect(_)
+            | payments::PaymentMethodData::PayLater(_)
+            | payments::PaymentMethodData::BankRedirect(_)
+            | payments::PaymentMethodData::BankDebit(_)
+            | payments::PaymentMethodData::BankTransfer(_)
+            | payments::PaymentMethodData::Crypto(_)
+            | payments::PaymentMethodData::MandatePayment
+            | payments::PaymentMethodData::Reward
+            | payments::PaymentMethodData::Upi(_)
+            | payments::PaymentMethodData::Voucher(_)
+            | payments::PaymentMethodData::GiftCard(_)
+            | payments::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Placetopay"),
                 )

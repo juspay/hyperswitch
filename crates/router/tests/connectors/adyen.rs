@@ -1,8 +1,8 @@
 use std::str::FromStr;
 
-use api_models::payments::{Address, AddressDetails, PhoneDetails};
+use api_models::payments::{Address, AddressDetails};
 use masking::Secret;
-use router::types::{self, storage::enums, PaymentAddress};
+use router::types::{self, api, storage::enums, PaymentAddress};
 
 use crate::{
     connector_auth,
@@ -61,14 +61,9 @@ impl AdyenTest {
                         zip: Some(Secret::new("94122".to_string())),
                         line1: Some(Secret::new("1467".to_string())),
                         line2: Some(Secret::new("Harrison Street".to_string())),
-                        line3: None,
-                        first_name: Some(Secret::new("John".to_string())),
-                        last_name: Some(Secret::new("Dough".to_string())),
+                        ..Default::default()
                     }),
-                    phone: Some(PhoneDetails {
-                        number: Some(Secret::new("8056594427".to_string())),
-                        country_code: Some("+351".to_string()),
-                    }),
+                    phone: None,
                     email: None,
                 }),
                 None,
@@ -102,16 +97,16 @@ impl AdyenTest {
                 None,
             )),
             payout_method_data: match payout_type {
-                enums::PayoutType::Card => Some(types::api::PayoutMethodData::Card(
-                    types::api::payouts::CardPayout {
+                enums::PayoutType::Card => {
+                    Some(api::PayoutMethodData::Card(api::payouts::CardPayout {
                         card_number: cards::CardNumber::from_str("4111111111111111").unwrap(),
                         expiry_month: Secret::new("3".to_string()),
                         expiry_year: Secret::new("2030".to_string()),
                         card_holder_name: Some(Secret::new("John Doe".to_string())),
-                    },
-                )),
-                enums::PayoutType::Bank => Some(types::api::PayoutMethodData::Bank(
-                    types::api::payouts::BankPayout::Sepa(types::api::SepaBankTransfer {
+                    }))
+                }
+                enums::PayoutType::Bank => Some(api::PayoutMethodData::Bank(
+                    api::payouts::BankPayout::Sepa(api::SepaBankTransfer {
                         iban: "NL46TEST0136169112".to_string().into(),
                         bic: Some("ABNANL2A".to_string().into()),
                         bank_name: Some("Deutsche Bank".to_string()),
@@ -119,11 +114,9 @@ impl AdyenTest {
                         bank_city: Some("Amsterdam".to_string()),
                     }),
                 )),
-                enums::PayoutType::Wallet => Some(types::api::PayoutMethodData::Wallet(
-                    types::api::payouts::WalletPayout::Paypal(api_models::payouts::Paypal {
+                enums::PayoutType::Wallet => Some(api::PayoutMethodData::Wallet(
+                    api::payouts::WalletPayout::Paypal(api_models::payouts::Paypal {
                         email: Email::from_str("EmailUsedForPayPalAccount@example.com").ok(),
-                        telephone_number: None,
-                        paypal_id: None,
                     }),
                 )),
             },
@@ -141,10 +134,11 @@ impl AdyenTest {
         Some(types::PaymentsAuthorizeData {
             amount: 3500,
             currency: enums::Currency::USD,
-            payment_method_data: types::domain::PaymentMethodData::Card(types::domain::Card {
+            payment_method_data: types::api::PaymentMethodData::Card(types::api::Card {
                 card_number: cards::CardNumber::from_str(card_number).unwrap(),
                 card_exp_month: Secret::new(card_exp_month.to_string()),
                 card_exp_year: Secret::new(card_exp_year.to_string()),
+                card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
                 card_cvc: Secret::new(card_cvc.to_string()),
                 card_issuer: None,
                 card_network: None,
@@ -443,7 +437,7 @@ async fn should_refund_succeeded_payment_multiple_times() {
     }
 }
 
-// Cards Negative scenarios
+// Cards Negative scenerios
 // Creates a payment with incorrect card number.
 #[actix_web::test]
 async fn should_fail_payment_for_incorrect_card_number() {
@@ -451,7 +445,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 router_return_url: Some(String::from("http://localhost:8080")),
-                payment_method_data: types::domain::PaymentMethodData::Card(types::domain::Card {
+                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
                     card_number: cards::CardNumber::from_str("4024007134364842").unwrap(),
                     ..utils::CCardType::default().0
                 }),
@@ -471,7 +465,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 router_return_url: Some(String::from("http://localhost:8080")),
-                payment_method_data: types::domain::PaymentMethodData::Card(types::domain::Card {
+                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
                     card_cvc: Secret::new("12345".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -494,7 +488,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 router_return_url: Some(String::from("http://localhost:8080")),
-                payment_method_data: types::domain::PaymentMethodData::Card(types::domain::Card {
+                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
                     card_exp_month: Secret::new("20".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -515,7 +509,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 router_return_url: Some(String::from("http://localhost:8080")),
-                payment_method_data: types::domain::PaymentMethodData::Card(types::domain::Card {
+                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
                     card_exp_year: Secret::new("2000".to_string()),
                     ..utils::CCardType::default().0
                 }),

@@ -225,7 +225,6 @@ pub struct Transactions {
     payment_method: storage_enums::PaymentMethod,
     amount: i64,
     currency: storage_enums::Currency,
-    gateway: Option<String>,
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
@@ -257,7 +256,6 @@ impl TryFrom<&frm_types::FrmTransactionRouterData> for SignifydPaymentsTransacti
             gateway_status_code: GatewayStatusCode::from(item.status).to_string(),
             payment_method: item.payment_method,
             currency,
-            gateway: item.request.connector.clone(),
         };
         Ok(Self {
             order_id: item.attempt_id.clone(),
@@ -355,7 +353,7 @@ impl TryFrom<&frm_types::FrmCheckoutRouterData> for SignifydPaymentsCheckoutRequ
 #[serde(deny_unknown_fields)]
 #[serde_with::skip_serializing_none]
 #[serde(rename_all = "camelCase")]
-pub struct FrmFulfillmentSignifydRequest {
+pub struct FrmFullfillmentSignifydRequest {
     pub order_id: String,
     pub fulfillment_status: Option<FulfillmentStatus>,
     pub fulfillments: Vec<Fulfillments>,
@@ -379,12 +377,6 @@ pub struct Fulfillments {
     pub shipment_id: String,
     pub products: Option<Vec<Product>>,
     pub destination: Destination,
-    pub fulfillment_method: Option<String>,
-    pub carrier: Option<String>,
-    pub shipment_status: Option<String>,
-    pub tracking_urls: Option<Vec<String>>,
-    pub tracking_numbers: Option<Vec<String>>,
-    pub shipped_at: Option<String>,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -396,7 +388,7 @@ pub struct Product {
     pub item_id: String,
 }
 
-impl TryFrom<&frm_types::FrmFulfillmentRouterData> for FrmFulfillmentSignifydRequest {
+impl TryFrom<&frm_types::FrmFulfillmentRouterData> for FrmFullfillmentSignifydRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &frm_types::FrmFulfillmentRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -405,9 +397,15 @@ impl TryFrom<&frm_types::FrmFulfillmentRouterData> for FrmFulfillmentSignifydReq
                 .request
                 .fulfillment_req
                 .fulfillment_status
-                .as_ref()
-                .map(|fulfillment_status| FulfillmentStatus::from(&fulfillment_status.clone())),
-            fulfillments: Vec::<Fulfillments>::from(&item.request.fulfillment_req),
+                .clone()
+                .map(|fulfillment_status| FulfillmentStatus::from(&fulfillment_status)),
+            fulfillments: item
+                .request
+                .fulfillment_req
+                .fulfillments
+                .iter()
+                .map(|f| Fulfillments::from(f.clone()))
+                .collect(),
         })
     }
 }
@@ -423,26 +421,15 @@ impl From<&core_types::FulfillmentStatus> for FulfillmentStatus {
     }
 }
 
-impl From<&core_types::FrmFulfillmentRequest> for Vec<Fulfillments> {
-    fn from(fulfillment_req: &core_types::FrmFulfillmentRequest) -> Self {
-        fulfillment_req
-            .fulfillments
-            .iter()
-            .map(|fulfillment| Fulfillments {
-                shipment_id: fulfillment.shipment_id.clone(),
-                products: fulfillment
-                    .products
-                    .as_ref()
-                    .map(|products| products.iter().map(|p| Product::from(p.clone())).collect()),
-                destination: Destination::from(fulfillment.destination.clone()),
-                tracking_urls: fulfillment_req.tracking_urls.clone(),
-                tracking_numbers: fulfillment_req.tracking_numbers.clone(),
-                fulfillment_method: fulfillment_req.fulfillment_method.clone(),
-                carrier: fulfillment_req.carrier.clone(),
-                shipment_status: fulfillment_req.shipment_status.clone(),
-                shipped_at: fulfillment_req.shipped_at.clone(),
-            })
-            .collect()
+impl From<core_types::Fulfillments> for Fulfillments {
+    fn from(fulfillment: core_types::Fulfillments) -> Self {
+        Self {
+            shipment_id: fulfillment.shipment_id,
+            products: fulfillment
+                .products
+                .map(|products| products.iter().map(|p| Product::from(p.clone())).collect()),
+            destination: Destination::from(fulfillment.destination),
+        }
     }
 }
 
@@ -483,7 +470,7 @@ impl From<core_types::Address> for Address {
 #[derive(Debug, Deserialize, Serialize, Clone, ToSchema)]
 #[serde_with::skip_serializing_none]
 #[serde(rename_all = "camelCase")]
-pub struct FrmFulfillmentSignifydApiResponse {
+pub struct FrmFullfillmentSignifydApiResponse {
     pub order_id: String,
     pub shipment_ids: Vec<String>,
 }
@@ -492,7 +479,7 @@ impl
     TryFrom<
         ResponseRouterData<
             Fulfillment,
-            FrmFulfillmentSignifydApiResponse,
+            FrmFullfillmentSignifydApiResponse,
             frm_types::FraudCheckFulfillmentData,
             frm_types::FraudCheckResponseData,
         >,
@@ -507,7 +494,7 @@ impl
     fn try_from(
         item: ResponseRouterData<
             Fulfillment,
-            FrmFulfillmentSignifydApiResponse,
+            FrmFullfillmentSignifydApiResponse,
             frm_types::FraudCheckFulfillmentData,
             frm_types::FraudCheckResponseData,
         >,

@@ -23,11 +23,6 @@ pub trait HealthCheckInterface {
     #[cfg(feature = "olap")]
     async fn health_check_analytics(&self)
         -> CustomResult<HealthState, errors::HealthCheckDBError>;
-
-    #[cfg(feature = "olap")]
-    async fn health_check_opensearch(
-        &self,
-    ) -> CustomResult<HealthState, errors::HealthCheckDBError>;
 }
 
 #[async_trait::async_trait]
@@ -123,18 +118,6 @@ impl HealthCheckInterface for app::AppState {
                     .change_context(errors::HealthCheckDBError::ClickhouseAnalyticsError)
             }
         }?;
-
-        Ok(HealthState::Running)
-    }
-
-    #[cfg(feature = "olap")]
-    async fn health_check_opensearch(
-        &self,
-    ) -> CustomResult<HealthState, errors::HealthCheckDBError> {
-        self.opensearch_client
-            .deep_health_check()
-            .await
-            .change_context(errors::HealthCheckDBError::OpensearchError)?;
 
         Ok(HealthState::Running)
     }

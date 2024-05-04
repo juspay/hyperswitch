@@ -15,7 +15,7 @@ use crate::{
         payments,
     },
     db::StorageInterface,
-    routes::{app::ReqState, AppState},
+    routes::AppState,
     types::{domain, fraud_check::FrmRouterData},
 };
 
@@ -47,12 +47,10 @@ pub trait GetTracker<D>: Send {
 }
 
 #[async_trait]
-#[allow(clippy::too_many_arguments)]
 pub trait Domain<F>: Send + Sync {
     async fn post_payment_frm<'a>(
         &'a self,
         state: &'a AppState,
-        req_state: ReqState,
         payment_data: &mut payments::PaymentData<F>,
         frm_data: &mut FrmData,
         merchant_account: &domain::MerchantAccount,
@@ -80,7 +78,6 @@ pub trait Domain<F>: Send + Sync {
     async fn execute_post_tasks(
         &self,
         _state: &AppState,
-        _req_state: ReqState,
         frm_data: &mut FrmData,
         _merchant_account: &domain::MerchantAccount,
         _frm_configs: FrmConfigsObject,
@@ -88,7 +85,6 @@ pub trait Domain<F>: Send + Sync {
         _key_store: domain::MerchantKeyStore,
         _payment_data: &mut payments::PaymentData<F>,
         _customer: &Option<domain::Customer>,
-        _should_continue_capture: &mut bool,
     ) -> RouterResult<Option<FrmData>>
     where
         F: Send + Clone,
