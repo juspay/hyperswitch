@@ -427,7 +427,6 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             | errors::ApiErrorResponse::InvalidJwtToken
             | errors::ApiErrorResponse::GenericUnauthorized { .. }
             | errors::ApiErrorResponse::AccessForbidden { .. }
-            | errors::ApiErrorResponse::InvalidCookie
             | errors::ApiErrorResponse::InvalidEphemeralKey => Self::Unauthorized,
             errors::ApiErrorResponse::InvalidRequestUrl
             | errors::ApiErrorResponse::InvalidHttpMethod
@@ -591,16 +590,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 object: "dispute".to_owned(),
                 id: dispute_id,
             },
-            errors::ApiErrorResponse::AuthenticationNotFound { id } => Self::ResourceMissing {
-                object: "authentication".to_owned(),
-                id,
-            },
             errors::ApiErrorResponse::BusinessProfileNotFound { id } => Self::ResourceMissing {
                 object: "business_profile".to_owned(),
-                id,
-            },
-            errors::ApiErrorResponse::PollNotFound { id } => Self::ResourceMissing {
-                object: "poll".to_owned(),
                 id,
             },
             errors::ApiErrorResponse::DisputeStatusValidationFailed { reason } => {
@@ -648,8 +639,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
 }
 
 impl actix_web::ResponseError for StripeErrorCode {
-    fn status_code(&self) -> reqwest::StatusCode {
-        use reqwest::StatusCode;
+    fn status_code(&self) -> actix_http::StatusCode {
+        use actix_http::StatusCode;
 
         match self {
             Self::Unauthorized => StatusCode::UNAUTHORIZED,

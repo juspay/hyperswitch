@@ -1,9 +1,5 @@
 #[cfg(feature = "olap")]
-use api_models::payments::AmountFilter;
-#[cfg(feature = "olap")]
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
-#[cfg(feature = "olap")]
-use common_utils::errors::ReportSwitchExt;
 use common_utils::{date_time, ext_traits::Encode};
 #[cfg(feature = "olap")]
 use data_models::payments::payment_intent::PaymentIntentFetchConstraints;
@@ -43,7 +39,7 @@ use crate::connection;
 use crate::{
     diesel_error_to_data_error,
     errors::RedisErrorExt,
-    redis::kv_store::{kv_wrapper, KvOperation, PartitionKey},
+    redis::kv_store::{kv_wrapper, KvOperation},
     utils::{self, pg_connection_read, pg_connection_write},
     DataModelExt, DatabaseStore, KVRouterStore,
 };
@@ -63,13 +59,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             }
 
             MerchantStorageScheme::RedisKv => {
-                let merchant_id = new.merchant_id.clone();
-                let payment_id = new.payment_id.clone();
-                let key = PartitionKey::MerchantIdPaymentId {
-                    merchant_id: &merchant_id,
-                    payment_id: &payment_id,
-                };
-                let key_str = key.to_string();
+                let key = format!("mid_{}_pid_{}", new.merchant_id, new.payment_id);
                 let field = format!("pi_{}", new.payment_id);
                 let created_intent = PaymentIntent {
                     id: 0i32,
@@ -129,15 +119,15 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                         &created_intent.clone().to_storage_model(),
                         redis_entry,
                     ),
-                    key,
+                    &key,
                 )
                 .await
-                .map_err(|err| err.to_redis_failed_response(&key_str))?
+                .map_err(|err| err.to_redis_failed_response(&key))?
                 .try_into_hsetnx()
                 {
                     Ok(HsetnxReply::KeyNotSet) => Err(StorageError::DuplicateValue {
                         entity: "payment_intent",
-                        key: Some(key_str),
+                        key: Some(key),
                     }
                     .into()),
                     Ok(HsetnxReply::KeySet) => Ok(created_intent),
@@ -161,13 +151,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     .await
             }
             MerchantStorageScheme::RedisKv => {
-                let merchant_id = this.merchant_id.clone();
-                let payment_id = this.payment_id.clone();
-                let key = PartitionKey::MerchantIdPaymentId {
-                    merchant_id: &merchant_id,
-                    payment_id: &payment_id,
-                };
-                let key_str = key.to_string();
+                let key = format!("mid_{}_pid_{}", this.merchant_id, this.payment_id);
                 let field = format!("pi_{}", this.payment_id);
 
                 let diesel_intent_update = payment_intent_update.to_storage_model();
@@ -196,10 +180,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                 kv_wrapper::<(), _, _>(
                     self,
                     KvOperation::<DieselPaymentIntent>::Hset((&field, redis_value), redis_entry),
-                    key,
+                    &key,
                 )
                 .await
-                .map_err(|err| err.to_redis_failed_response(&key_str))?
+                .map_err(|err| err.to_redis_failed_response(&key))?
                 .try_into_hset()
                 .change_context(StorageError::KVError)?;
 
@@ -228,17 +212,14 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             MerchantStorageScheme::PostgresOnly => database_call().await,
 
             MerchantStorageScheme::RedisKv => {
-                let key = PartitionKey::MerchantIdPaymentId {
-                    merchant_id,
-                    payment_id,
-                };
+                let key = format!("mid_{merchant_id}_pid_{payment_id}");
                 let field = format!("pi_{payment_id}");
                 Box::pin(utils::try_redis_get_else_try_database_get(
                     async {
                         kv_wrapper::<DieselPaymentIntent, _, _>(
                             self,
                             KvOperation::<DieselPaymentIntent>::HGet(&field),
-                            key,
+                            &key,
                         )
                         .await?
                         .try_into_hget()
@@ -553,6 +534,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         constraints: &PaymentIntentFetchConstraints,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, StorageError> {
+        use common_utils::errors::ReportSwitchExt;
+
         let conn = connection::pg_connection_read(self).await.switch()?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
         let mut query = DieselPaymentIntent::table()
@@ -617,26 +600,9 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
 
                 query = query.offset(params.offset.into());
 
-                query = match params.amount_filter {
-                    Some(AmountFilter {
-                        start_amount: Some(start),
-                        end_amount: Some(end),
-                    }) => query.filter(pi_dsl::amount.between(start, end)),
-                    Some(AmountFilter {
-                        start_amount: Some(start),
-                        end_amount: None,
-                    }) => query.filter(pi_dsl::amount.ge(start)),
-                    Some(AmountFilter {
-                        start_amount: None,
-                        end_amount: Some(end),
-                    }) => query.filter(pi_dsl::amount.le(end)),
-                    _ => query,
-                };
-
-                query = match &params.currency {
-                    Some(currency) => query.filter(pi_dsl::currency.eq_any(currency.clone())),
-                    None => query,
-                };
+                if let Some(currency) = &params.currency {
+                    query = query.filter(pi_dsl::currency.eq_any(currency.clone()));
+                }
 
                 let connectors = params
                     .connector
@@ -669,13 +635,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 query = match &params.authentication_type {
                     Some(authentication_type) => query
                         .filter(pa_dsl::authentication_type.eq_any(authentication_type.clone())),
-                    None => query,
-                };
-
-                query = match &params.merchant_connector_id {
-                    Some(merchant_connector_id) => query.filter(
-                        pa_dsl::merchant_connector_id.eq_any(merchant_connector_id.clone()),
-                    ),
                     None => query,
                 };
 
@@ -716,6 +675,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         constraints: &PaymentIntentFetchConstraints,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<String>, StorageError> {
+        use common_utils::errors::ReportSwitchExt;
+
         let conn = connection::pg_connection_read(self).await.switch()?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
         let mut query = DieselPaymentIntent::table()
@@ -744,22 +705,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 query = match params.ending_at {
                     Some(ending_at) => query.filter(pi_dsl::created_at.le(ending_at)),
                     None => query,
-                };
-
-                query = match params.amount_filter {
-                    Some(AmountFilter {
-                        start_amount: Some(start),
-                        end_amount: Some(end),
-                    }) => query.filter(pi_dsl::amount.between(start, end)),
-                    Some(AmountFilter {
-                        start_amount: Some(start),
-                        end_amount: None,
-                    }) => query.filter(pi_dsl::amount.ge(start)),
-                    Some(AmountFilter {
-                        start_amount: None,
-                        end_amount: Some(end),
-                    }) => query.filter(pi_dsl::amount.le(end)),
-                    _ => query,
                 };
 
                 query = match &params.currency {

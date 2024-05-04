@@ -5,7 +5,7 @@ use cards::CardNumber;
 use masking::Secret;
 use router::{
     core::errors,
-    types::{self, storage::enums, PaymentsAuthorizeData},
+    types::{self, api, storage::enums, PaymentsAuthorizeData},
 };
 
 use crate::{
@@ -46,7 +46,7 @@ impl utils::Connector for PayeezyTest {
 impl PayeezyTest {
     fn get_payment_data() -> Option<PaymentsAuthorizeData> {
         Some(PaymentsAuthorizeData {
-            payment_method_data: types::domain::PaymentMethodData::Card(types::domain::Card {
+            payment_method_data: types::api::PaymentMethodData::Card(api::Card {
                 card_number: CardNumber::from_str("4012000033330026").unwrap(),
                 ..utils::CCardType::default().0
             }),
@@ -365,13 +365,13 @@ async fn should_refund_succeeded_payment_multiple_times() {
 #[ignore]
 async fn should_sync_refund() {}
 
-// Cards Negative scenarios
+// Cards Negative scenerios
 // Creates a payment with incorrect card issuer.
 
 #[actix_web::test]
 async fn should_throw_not_implemented_for_unsupported_issuer() {
     let authorize_data = Some(PaymentsAuthorizeData {
-        payment_method_data: types::domain::PaymentMethodData::Card(types::domain::Card {
+        payment_method_data: types::api::PaymentMethodData::Card(api::Card {
             card_number: CardNumber::from_str("630495060000000000").unwrap(),
             ..utils::CCardType::default().0
         }),
@@ -396,7 +396,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
     let response = CONNECTOR
         .make_payment(
             Some(PaymentsAuthorizeData {
-                payment_method_data: types::domain::PaymentMethodData::Card(types::domain::Card {
+                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
                     card_cvc: Secret::new("12345d".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -418,7 +418,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
     let response = CONNECTOR
         .make_payment(
             Some(PaymentsAuthorizeData {
-                payment_method_data: types::domain::PaymentMethodData::Card(types::domain::Card {
+                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
                     card_exp_month: Secret::new("20".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -440,7 +440,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
     let response = CONNECTOR
         .make_payment(
             Some(PaymentsAuthorizeData {
-                payment_method_data: types::domain::PaymentMethodData::Card(types::domain::Card {
+                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
                     card_exp_year: Secret::new("2000".to_string()),
                     ..utils::CCardType::default().0
                 }),

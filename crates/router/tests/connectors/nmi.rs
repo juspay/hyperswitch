@@ -1,6 +1,6 @@
 use std::{str::FromStr, time::Duration};
 
-use router::types::{self, domain, storage::enums};
+use router::types::{self, api, storage::enums};
 
 use crate::{
     connector_auth,
@@ -38,7 +38,7 @@ static CONNECTOR: NmiTest = NmiTest {};
 
 fn get_payment_authorize_data() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
-        payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+        payment_method_data: types::api::PaymentMethodData::Card(api::Card {
             card_number: cards::CardNumber::from_str("4111111111111111").unwrap(),
             ..utils::CCardType::default().0
         }),

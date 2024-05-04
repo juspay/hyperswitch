@@ -15,10 +15,10 @@ use crate::{
 };
 
 #[derive(Default)]
-pub(super) struct ThreeDsMethodInvokedCount;
+pub(super) struct PaymentSuccessCount;
 
 #[async_trait::async_trait]
-impl<T> super::SdkEventMetric<T> for ThreeDsMethodInvokedCount
+impl<T> super::SdkEventMetric<T> for PaymentSuccessCount
 where
     T: AnalyticsDataSource + super::SdkEventMetricAnalytics,
     PrimitiveDateTime: ToSql<T>,
@@ -63,18 +63,12 @@ where
             .switch()?;
 
         query_builder
-            .add_filter_clause("event_name", SdkEventNames::ThreeDsMethod)
+            .add_bool_filter_clause("first_event", 1)
             .switch()?;
 
         query_builder
-            .add_filter_clause("log_type", "INFO")
+            .add_filter_clause("event_name", SdkEventNames::PaymentSuccess)
             .switch()?;
-
-        query_builder
-            .add_filter_clause("category", "USER_EVENT")
-            .switch()?;
-
-        query_builder.add_filter_clause("value", "Y").switch()?;
 
         time_range
             .set_filter_clause(&mut query_builder)

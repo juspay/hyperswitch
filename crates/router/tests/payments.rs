@@ -373,8 +373,7 @@ async fn payments_create_core() {
         _,
         Oss,
     >(
-        state.clone(),
-        state.get_req_state(),
+        state,
         merchant_account,
         key_store,
         payments::PaymentCreate,
@@ -556,8 +555,7 @@ async fn payments_create_core_adyen_no_redirect() {
         _,
         Oss,
     >(
-        state.clone(),
-        state.get_req_state(),
+        state,
         merchant_account,
         key_store,
         payments::PaymentCreate,

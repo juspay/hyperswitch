@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, to_string};
 
 use crate::{
-    connector::utils::{get_card_details, to_connector_meta, AddressDetailsData, CardData},
+    connector::utils::{to_connector_meta, AddressDetailsData, CardData, SELECTED_PAYMENT_METHOD},
     consts::{BASE64_ENGINE, NO_ERROR_MESSAGE},
     core::errors,
     types::{
@@ -106,7 +106,7 @@ impl
                             )
                             .change_context(errors::ConnectorError::ParsingFailed)?,
                         connector_authentication_id: pre_authn_response.threeds_server_trans_id,
-                        three_ds_method_data: Some(three_ds_method_data_base64),
+                        three_ds_method_data: three_ds_method_data_base64,
                         three_ds_method_url: pre_authn_response.threeds_method_url,
                         message_version: common_utils::types::SemanticVersion::from_str(
                             &pre_authn_response.acs_end_protocol_version,
@@ -243,6 +243,18 @@ impl TryFrom<&types::ConnectorAuthType> for ThreedsecureioAuthType {
     }
 }
 
+fn get_card_details(
+    payment_method_data: api_models::payments::PaymentMethodData,
+) -> Result<api_models::payments::Card, errors::ConnectorError> {
+    match payment_method_data {
+        api_models::payments::PaymentMethodData::Card(details) => Ok(details),
+        _ => Err(errors::ConnectorError::NotSupported {
+            message: SELECTED_PAYMENT_METHOD.to_string(),
+            connector: "threedsecureio",
+        })?,
+    }
+}
+
 impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenticationRouterData>>
     for ThreedsecureioAuthenticationRequest
 {
@@ -264,7 +276,7 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
                 }
             }
         }?;
-        let card_details = get_card_details(request.payment_method_data.clone(), "threedsecureio")?;
+        let card_details = get_card_details(request.payment_method_data.clone())?;
         let currency = request
             .currency
             .map(|currency| currency.to_string())
@@ -315,9 +327,6 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
             })?;
         let meta: ThreeDSecureIoConnectorMetaData =
             to_connector_meta(request.pre_authentication_data.connector_metadata.clone())?;
-
-        let card_holder_name = billing_address.get_optional_full_name();
-
         Ok(Self {
             ds_start_protocol_version: meta.ds_start_protocol_version.clone(),
             ds_end_protocol_version: meta.ds_end_protocol_version.clone(),
@@ -404,7 +413,7 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
             merchant_country_code: connector_meta_data.merchant_country_code,
             merchant_name: connector_meta_data.merchant_name,
             message_type: "AReq".to_string(),
-            message_version: pre_authentication_data.message_version.to_string(),
+            message_version: pre_authentication_data.message_version.clone(),
             purchase_amount: item.amount.clone(),
             purchase_currency: purchase_currency.numeric().to_string(),
             trans_type: "01".to_string(),
@@ -442,7 +451,7 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
                 }),
                 DeviceChannel::Browser => None,
             },
-            cardholder_name: card_holder_name,
+            cardholder_name: card_details.card_holder_name,
             email: request.email.clone(),
         })
     }

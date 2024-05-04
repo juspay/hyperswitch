@@ -3,94 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    {{rendered_meta_tag_html}}
     <title>Payments requested by HyperSwitch</title>
     {{ preload_link_tags }}
     <link rel="preconnect" href="https://fonts.gstatic.com">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800">
     <style>
-      #payment-details-shimmer{
-        min-width: 300px;
-        width: 100%;
-        margin: 0;
-        border: 0;
-        border-radius: 0;
-        height: 100%;
-        position: fixed;
-        top: 0;
-        left: 0;
-        background: linear-gradient(to right, #f6f7f8 0%, #edeef1 50%, #f6f7f8 100%);
-        background-size: 300%;
-        animation: shimmer 1.5s infinite linear;
-        background-position-x: -100%;
-        justify-content: center;
-        display: flex;
-        align-items: center;
-        flex-direction: column; 
-        z-index: 3;
-        transition: opacity 0.5s;
-        opacity: 1;
-      }
-
-      .reduce-opacity {
-        opacity: 0 !important;
-      }
-
-      .shine {
-        background: #f6f7f8;
-        background-image: linear-gradient(to right, #f6f7f8 0%, #edeef1 20%, #f6f7f8 40%, #f6f7f8 100%);
-        background-repeat: no-repeat;
-        background-size: 800px 104px; 
-        display: inline-block;
-        position: relative; 
-        justify-content: center;
-        display: flex;
-        -webkit-animation-duration: 2s;
-        -webkit-animation-fill-mode: forwards; 
-        -webkit-animation-iteration-count: infinite;
-        -webkit-animation-name: placeholderShimmer;
-        -webkit-animation-timing-function: linear;
-      }
-
-      .wrap {
-        display: inline-flex;
-        margin: 10px;
-      }
-
-      box {
-        height: 104px;
-        width: 100px;
-        border-radius: 25px;
-      }
-
-      lines {
-        height: 15px;
-        width: 200px; 
-        border-radius: 25px;
-        margin: 7px;
-      } 
-
-      .line-shimmer > :first-child{
-        width: 140px; 
-      }
-
-      .line-shimmer {
-        display: inline-flex;
-        flex-direction: column; 
-        margin-left: 25px;
-        margin-top: 15px;
-        vertical-align: top; 
-      } 
-
-      @-webkit-keyframes placeholderShimmer {
-        0% {
-          background-position: -468px 0;
-        }
-        
-        100% {
-          background-position: 468px 0; 
-        }
-      }
+      {{rendered_css}}
     </style>
   </head>
   <body class="hide-scrollbar">
@@ -120,10 +38,6 @@
         </div>
       </div>
     </div>
-    <style>
-      {{rendered_css}}
-    </style>
-
     <!-- SVG ICONS -->
     <svg xmlns="http://www.w3.org/2000/svg" display="none">
       <defs>
@@ -193,7 +107,7 @@
         </div>
         <div id="hyper-checkout-status-redirect-message"></div>
       </div>
-      <div class="main checkout-page" id="hyper-checkout-details">
+      <div class="main" id="hyper-checkout-details">
         <div id="hyper-checkout-payment" class="hyper-checkout-payment">
           <div class="hyper-checkout-payment-content-details">
             <div class="content-details-wrap">

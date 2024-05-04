@@ -1,26 +1,31 @@
-use events::{Event, EventInfo};
+use data_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 use serde::Serialize;
-use time::PrimitiveDateTime;
+
+use crate::services::kafka::KafkaMessage;
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(tag = "event_type")]
 pub enum AuditEventType {
-    Error { error_message: String },
+    Error {
+        error_message: String,
+    },
     PaymentCreated,
     ConnectorDecided,
     ConnectorCalled,
     RefundCreated,
     RefundSuccess,
     RefundFail,
-    PaymentCancelled { cancellation_reason: Option<String> },
+    PaymentUpdate {
+        payment_id: String,
+        merchant_id: String,
+        payment_intent: PaymentIntent,
+        payment_attempt: PaymentAttempt,
+    },
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct AuditEvent {
-    #[serde(flatten)]
     event_type: AuditEventType,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    created_at: PrimitiveDateTime,
+    created_at: time::PrimitiveDateTime,
 }
 
 impl AuditEvent {
@@ -32,43 +37,12 @@ impl AuditEvent {
     }
 }
 
-impl Event for AuditEvent {
-    type EventType = super::EventType;
-
-    fn timestamp(&self) -> PrimitiveDateTime {
-        self.created_at
-    }
-
-    fn identifier(&self) -> String {
-        let event_type = match &self.event_type {
-            AuditEventType::Error { .. } => "error",
-            AuditEventType::PaymentCreated => "payment_created",
-            AuditEventType::ConnectorDecided => "connector_decided",
-            AuditEventType::ConnectorCalled => "connector_called",
-            AuditEventType::RefundCreated => "refund_created",
-            AuditEventType::RefundSuccess => "refund_success",
-            AuditEventType::RefundFail => "refund_fail",
-            AuditEventType::PaymentCancelled { .. } => "payment_cancelled",
-        };
-        format!(
-            "{event_type}-{}",
-            self.timestamp().assume_utc().unix_timestamp_nanos()
-        )
-    }
-
-    fn class(&self) -> Self::EventType {
-        super::EventType::AuditEvent
-    }
-}
-
-impl EventInfo for AuditEvent {
-    type Data = Self;
-
-    fn data(&self) -> error_stack::Result<Self::Data, events::EventsError> {
-        Ok(self.clone())
-    }
-
+impl KafkaMessage for AuditEvent {
     fn key(&self) -> String {
-        "event".to_string()
+        format!("{}", self.created_at.assume_utc().unix_timestamp_nanos())
+    }
+
+    fn event_type(&self) -> super::EventType {
+        super::EventType::AuditEvent
     }
 }

@@ -1,15 +1,15 @@
 use api_models::enums::Connector;
 use error_stack::ResultExt;
 
-use crate::{core::errors, types::domain};
+use crate::{core::errors, types::api};
 
 pub fn generate_card_from_details(
     card_number: String,
     card_exp_year: String,
     card_exp_month: String,
     card_cvv: String,
-) -> errors::RouterResult<domain::Card> {
-    Ok(domain::Card {
+) -> errors::RouterResult<api::Card> {
+    Ok(api::Card {
         card_number: card_number
             .parse::<cards::CardNumber>()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -19,6 +19,7 @@ pub fn generate_card_from_details(
         card_network: None,
         card_exp_year: masking::Secret::new(card_exp_year),
         card_exp_month: masking::Secret::new(card_exp_month),
+        card_holder_name: Some(masking::Secret::new("HyperSwitch".to_string())),
         nick_name: None,
         card_type: None,
         card_issuing_country: None,
@@ -26,9 +27,7 @@ pub fn generate_card_from_details(
     })
 }
 
-pub fn get_test_card_details(
-    connector_name: Connector,
-) -> errors::RouterResult<Option<domain::Card>> {
+pub fn get_test_card_details(connector_name: Connector) -> errors::RouterResult<Option<api::Card>> {
     match connector_name {
         Connector::Stripe => Some(generate_card_from_details(
             "4242424242424242".to_string(),

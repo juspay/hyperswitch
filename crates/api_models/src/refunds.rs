@@ -9,7 +9,7 @@ use crate::{admin, enums};
 #[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RefundRequest {
-    /// The payment id against which refund is to be initiated
+    /// The payment id against which refund is to be intiated
     #[schema(
         max_length = 30,
         min_length = 30,
@@ -102,7 +102,7 @@ pub enum RefundType {
 pub struct RefundResponse {
     /// Unique Identifier for the refund
     pub refund_id: String,
-    /// The payment id against which refund is initiated
+    /// The payment id against which refund is intiated
     pub payment_id: String,
     /// The refund amount, which should be less than or equal to the total payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc
     pub amount: i64,

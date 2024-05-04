@@ -59,7 +59,6 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
             )
             .await?;
 
-        // TODO: Add support for ReqState in PT flows
         let (mut payment_data, _, customer, _, _) =
             Box::pin(payment_flows::payments_operation_core::<
                 api::PSync,
@@ -69,7 +68,6 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                 Oss,
             >(
                 state,
-                state.get_req_state(),
                 merchant_account.clone(),
                 key_store.clone(),
                 operations::PaymentStatus,
@@ -178,11 +176,16 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
 
                     // Trigger the outgoing webhook to notify the merchant about failed payment
                     let operation = operations::PaymentStatus;
-                    Box::pin(utils::trigger_payments_webhook(
+                    Box::pin(utils::trigger_payments_webhook::<
+                        _,
+                        api_models::payments::PaymentsRequest,
+                        _,
+                    >(
                         merchant_account,
                         business_profile,
                         &key_store,
                         payment_data,
+                        None,
                         customer,
                         state,
                         operation,

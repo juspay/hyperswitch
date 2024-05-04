@@ -1,7 +1,7 @@
 use api_models::admin::MerchantConnectorWebhookDetails;
 pub use api_models::webhooks::{
-    AuthenticationIdType, IncomingWebhookDetails, IncomingWebhookEvent, MerchantWebhookConfig,
-    ObjectReferenceId, OutgoingWebhook, OutgoingWebhookContent, WebhookFlow,
+    IncomingWebhookDetails, IncomingWebhookEvent, MerchantWebhookConfig, ObjectReferenceId,
+    OutgoingWebhook, OutgoingWebhookContent, WebhookFlow,
 };
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
@@ -23,7 +23,7 @@ use crate::{
 pub struct IncomingWebhookRequestDetails<'a> {
     pub method: actix_web::http::Method,
     pub uri: actix_web::http::Uri,
-    pub headers: &'a actix_web::http::header::HeaderMap,
+    pub headers: &'a reqwest::header::HeaderMap,
     pub body: &'a [u8],
     pub query_params: String,
 }
@@ -269,15 +269,5 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         _request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<super::disputes::DisputePayload, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("get_dispute_details method".to_string()).into())
-    }
-
-    fn get_external_authentication_details(
-        &self,
-        _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<super::ExternalAuthenticationPayload, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented(
-            "get_external_authentication_details method".to_string(),
-        )
-        .into())
     }
 }

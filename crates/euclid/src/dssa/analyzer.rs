@@ -304,7 +304,7 @@ mod tests {
                                     & payment_method /= reward
                                     & payment_method /= voucher
                                     & payment_method /= gift_card
-                                    & payment_method /= card_redirect
+
                             }
                         }
                     }

@@ -1,10 +1,11 @@
+use api_models::payments;
 use cards::CardNumber;
 use common_utils::pii::Email;
 use serde::{Deserialize, Serialize};
 
 use super::{
     api::{self, authentication},
-    domain, BrowserInformation, RouterData,
+    BrowserInformation, RouterData,
 };
 use crate::services;
 
@@ -14,7 +15,7 @@ pub enum AuthenticationResponseData {
         threeds_server_transaction_id: String,
         maximum_supported_3ds_version: common_utils::types::SemanticVersion,
         connector_authentication_id: String,
-        three_ds_method_data: Option<String>,
+        three_ds_method_data: String,
         three_ds_method_url: Option<String>,
         message_version: common_utils::types::SemanticVersion,
         connector_metadata: Option<serde_json::Value>,
@@ -100,7 +101,7 @@ pub struct PreAuthNRequestData {
 
 #[derive(Clone, Debug)]
 pub struct ConnectorAuthenticationRequestData {
-    pub payment_method_data: domain::PaymentMethodData,
+    pub payment_method_data: payments::PaymentMethodData,
     pub billing_address: api_models::payments::Address,
     pub shipping_address: Option<api_models::payments::Address>,
     pub browser_details: Option<BrowserInformation>,
@@ -114,7 +115,6 @@ pub struct ConnectorAuthenticationRequestData {
     pub email: Option<Email>,
     pub threeds_method_comp_ind: api_models::payments::ThreeDsCompletionIndicator,
     pub three_ds_requestor_url: String,
-    pub webhook_url: String,
 }
 
 #[derive(Clone, Debug)]

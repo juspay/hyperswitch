@@ -190,9 +190,6 @@ pub struct UserMerchantAccount {
     pub merchant_id: String,
     pub merchant_name: OptionalEncryptableName,
     pub is_active: bool,
-    pub role_id: String,
-    pub role_name: String,
-    pub org_id: String,
 }
 
 #[cfg(feature = "recon")]

@@ -303,7 +303,7 @@ impl
         types::authentication::ConnectorAuthenticationRouterData,
         errors::ConnectorError,
     > {
-        let response: threedsecureio::ThreedsecureioAuthenticationResponse = res
+        let response = res
             .response
             .parse_struct("ThreedsecureioAuthenticationResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;

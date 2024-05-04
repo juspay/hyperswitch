@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use actix_web::http::StatusCode;
 use common_utils::errors::ParsingError;
 use error_stack::{report, Report, ResultExt};
+use reqwest::StatusCode;
 use router_env::logger;
 use time::PrimitiveDateTime;
 

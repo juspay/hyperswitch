@@ -1,6 +1,0 @@
-{
-    "client_secret": "{{client_secret}}",
-    "payment_method": "card",
-    "payment_token": "{{payment_token}}",
-    "card_cvc": "card_cvc"
-}

@@ -48,7 +48,7 @@ pub trait UserRoleInterface {
         &self,
         user_id: &str,
         merchant_id: &str,
-    ) -> CustomResult<storage::UserRole, errors::StorageError>;
+    ) -> CustomResult<bool, errors::StorageError>;
 
     async fn list_user_roles_by_user_id(
         &self,
@@ -145,9 +145,8 @@ impl UserRoleInterface for Store {
         &self,
         user_id: &str,
         merchant_id: &str,
-    ) -> CustomResult<storage::UserRole, errors::StorageError> {
+    ) -> CustomResult<bool, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-
         storage::UserRole::delete_by_user_id_merchant_id(
             &conn,
             user_id.to_owned(),
@@ -460,19 +459,18 @@ impl UserRoleInterface for MockDb {
         &self,
         user_id: &str,
         merchant_id: &str,
-    ) -> CustomResult<storage::UserRole, errors::StorageError> {
+    ) -> CustomResult<bool, errors::StorageError> {
         let mut user_roles = self.user_roles.lock().await;
-
-        match user_roles
+        let user_role_index = user_roles
             .iter()
-            .position(|role| role.user_id == user_id && role.merchant_id == merchant_id)
-        {
-            Some(index) => Ok(user_roles.remove(index)),
-            None => Err(errors::StorageError::ValueNotFound(
-                "Cannot find user role to delete".to_string(),
-            )
-            .into()),
-        }
+            .position(|user_role| {
+                user_role.user_id == user_id && user_role.merchant_id == merchant_id
+            })
+            .ok_or(errors::StorageError::ValueNotFound(format!(
+                "No user available for user_id = {user_id}"
+            )))?;
+        user_roles.remove(user_role_index);
+        Ok(true)
     }
 
     async fn list_user_roles_by_user_id(
@@ -523,7 +521,7 @@ impl UserRoleInterface for super::KafkaStore {
         &self,
         user_id: &str,
         merchant_id: &str,
-    ) -> CustomResult<storage::UserRole, errors::StorageError> {
+    ) -> CustomResult<bool, errors::StorageError> {
         self.diesel_store
             .delete_user_role_by_user_id_merchant_id(user_id, merchant_id)
             .await

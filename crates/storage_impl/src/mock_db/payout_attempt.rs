@@ -1,11 +1,8 @@
 use common_utils::errors::CustomResult;
 use data_models::{
     errors::StorageError,
-    payouts::{
-        payout_attempt::{
-            PayoutAttempt, PayoutAttemptInterface, PayoutAttemptNew, PayoutAttemptUpdate,
-        },
-        payouts::Payouts,
+    payouts::payout_attempt::{
+        PayoutAttempt, PayoutAttemptInterface, PayoutAttemptNew, PayoutAttemptUpdate,
     },
 };
 use diesel_models::enums as storage_enums;
@@ -18,7 +15,6 @@ impl PayoutAttemptInterface for MockDb {
         &self,
         _this: &PayoutAttempt,
         _payout_attempt_update: PayoutAttemptUpdate,
-        _payouts: &Payouts,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<PayoutAttempt, StorageError> {
         // TODO: Implement function for `MockDb`
@@ -27,8 +23,7 @@ impl PayoutAttemptInterface for MockDb {
 
     async fn insert_payout_attempt(
         &self,
-        _payout_attempt: PayoutAttemptNew,
-        _payouts: &Payouts,
+        _payout: PayoutAttemptNew,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<PayoutAttempt, StorageError> {
         // TODO: Implement function for `MockDb`
@@ -47,7 +42,7 @@ impl PayoutAttemptInterface for MockDb {
 
     async fn get_filters_for_payouts(
         &self,
-        _payouts: &[Payouts],
+        _payouts: &[data_models::payouts::payouts::Payouts],
         _merchant_id: &str,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<data_models::payouts::payout_attempt::PayoutListFilters, StorageError> {

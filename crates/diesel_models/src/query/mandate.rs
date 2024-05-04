@@ -65,14 +65,14 @@ impl Mandate {
         conn: &PgPooledConn,
         merchant_id: &str,
         mandate_id: &str,
-        mandate: MandateUpdateInternal,
+        mandate: MandateUpdate,
     ) -> StorageResult<Self> {
         generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
                 .and(dsl::mandate_id.eq(mandate_id.to_owned())),
-            mandate,
+            MandateUpdateInternal::from(mandate),
         )
         .await?
         .first()

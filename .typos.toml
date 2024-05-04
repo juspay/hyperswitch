@@ -3,62 +3,44 @@ check-filename = true
 
 [default.extend-identifiers]
 "ABD" = "ABD"  # Aberdeenshire, UK ISO 3166-2 code
-AER = "AER" # An alias to Api Error Response
-ANG = "ANG" # Netherlands Antillean guilder currency code
 BA = "BA"  # Bosnia and Herzegovina country code
-bottm = "bottm" # name of a css class for nexinets ui test
 CAF = "CAF"  # Central African Republic country code
-FO = "FO"  # Faroe Islands (the) country code
 flate2 = "flate2"
-hd = "hd" # animation data parameter
+FO = "FO"  # Faroe Islands (the) country code
 HypoNoeLbFurNiederosterreichUWien = "HypoNoeLbFurNiederosterreichUWien"
 hypo_noe_lb_fur_niederosterreich_u_wien = "hypo_noe_lb_fur_niederosterreich_u_wien"
-IOT = "IOT" # British Indian Ocean Territory country code
-klick = "klick" # Swedish word for clicks
-LSO = "LSO" # Lesotho country code
 NAM = "NAM"  # Namibia country code
 ND = "ND"  # North Dakota state code
-optin = "optin" # Boku preflow name
-optin_id = "optin_id" # Boku's id for optin flow
-passord = "passord" # name of a css class for adyen ui test
 payment_vas = "payment_vas"
 PaymentVas = "PaymentVas"
-PN = "PN" # Pitcairn country code
 RegioBank = "RegioBank"
-RO = "RO"  # Romania country code
-skip_ws = "skip_ws" # skip white space
 SOM = "SOM"  # Somalia country code
-SUR = "SUR"  # Single South American currency code
 THA = "THA"  # Thailand country code
-TTO = "TTO" # Trinidad and Tobago country code
-WS = "WS" # Samoa country code
-ws = "ws" # Web socket
-ws2ipdef = "ws2ipdef" # WinSock Extension
-ws2tcpip = "ws2tcpip" # WinSock Extension
 ZAR = "ZAR"  # South African Rand currency code
-
+SUR = "SUR"  # Single South American currency code
+passord = "passord" # name of a css class for adyen ui test
+bottm = "bottm" # name of a css class for nexinets ui test
+klick = "klick" # Swedish word for clicks
+optin = "optin" # Boku preflow name
+optin_id = "optin_id" # Boku's id for optin flow
 
 [default.extend-words]
-aci = "aci" # Name of a connector
-afe = "afe" # Commit id
-ba = "ba" # ignore minor commit conversions
-daa = "daa" # Commit id
-deriver = "deriver"
-ede = "ede" # ignore minor commit conversions
-encrypter = "encrypter" # Used by the `ring` crate
-guid = "guid" # globally unique identifier
-Hashi = "Hashi" # HashiCorp
-iin = "iin" # Card iin
-kms = "kms" # Key management service
-nin = "nin" # National identification number, a field used by PayU connector
-requestor = "requestor" #Used in external 3ds flows
+aci = "aci"                   # Name of a connector
+encrypter = "encrypter"       # Used by the `ring` crate
+nin = "nin"                   # National identification number, a field used by PayU connector
 substituters = "substituters" # Present in `flake.nix`
-unsuccess = "unsuccess" # Used in cryptopay request
+unsuccess = "unsuccess"       # Used in cryptopay request
+ba = "ba" # ignore minor commit conversions
+ede = "ede" # ignore minor commit conversions
+daa = "daa" # Commit id
+afe = "afe" # Commit id
+Hashi = "Hashi" # HashiCorp
+requestor = "requestor" #Used in external 3ds flows
+deriver = "deriver"
 
 [files]
 extend-exclude = [
     "config/redis.conf", # `typos` also checked "AKE" in the file, which is present as a quoted string
     "openapi/open_api_spec.yaml", # no longer updated
     "crates/router/src/utils/user/blocker_emails.txt", # this file contains various email domains
-    "CHANGELOG.md", # This file contains all the commits
 ]

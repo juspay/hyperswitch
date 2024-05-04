@@ -653,18 +653,18 @@ impl
                         .clone(),
                 ) {
                     (
-                        Some(paypal::EnrollmentStatus::Ready),
+                        Some(paypal::EnrollementStatus::Ready),
                         Some(paypal::AuthenticationStatus::Success),
                         paypal::LiabilityShift::Possible,
                     )
                     | (
-                        Some(paypal::EnrollmentStatus::Ready),
+                        Some(paypal::EnrollementStatus::Ready),
                         Some(paypal::AuthenticationStatus::Attempted),
                         paypal::LiabilityShift::Possible,
                     )
-                    | (Some(paypal::EnrollmentStatus::NotReady), None, paypal::LiabilityShift::No)
-                    | (Some(paypal::EnrollmentStatus::Unavailable), None, paypal::LiabilityShift::No)
-                    | (Some(paypal::EnrollmentStatus::Bypassed), None, paypal::LiabilityShift::No) => {
+                    | (Some(paypal::EnrollementStatus::NotReady), None, paypal::LiabilityShift::No)
+                    | (Some(paypal::EnrollementStatus::Unavailable), None, paypal::LiabilityShift::No)
+                    | (Some(paypal::EnrollementStatus::Bypassed), None, paypal::LiabilityShift::No) => {
                         Ok(types::PaymentsPreProcessingRouterData {
                             status: storage_enums::AttemptStatus::AuthenticationSuccessful,
                             response: Ok(types::PaymentsResponseData::TransactionResponse {
@@ -698,7 +698,7 @@ impl
                                 .authentication_result
                                 .three_d_secure
                                 .enrollment_status
-                                .unwrap_or(paypal::EnrollmentStatus::Null),
+                                .unwrap_or(paypal::EnrollementStatus::Null),
                             liability_response
                                 .payment_source
                                 .card
@@ -714,7 +714,7 @@ impl
                 }
             }
             // if card does not supports 3DS check for liability
-            paypal::PaypalPreProcessingResponse::PaypalNonLiabilityResponse(_) => {
+            paypal::PaypalPreProcessingResponse::PaypalNonLiablityResponse(_) => {
                 Ok(types::PaymentsPreProcessingRouterData {
                     status: storage_enums::AttemptStatus::AuthenticationSuccessful,
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
@@ -1521,9 +1521,7 @@ impl services::ConnectorRedirectResponse for Paypal {
         action: PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
         match action {
-            services::PaymentAction::PSync
-            | services::PaymentAction::CompleteAuthorize
-            | services::PaymentAction::PaymentAuthenticateCompleteAuthorize => {
+            services::PaymentAction::PSync | services::PaymentAction::CompleteAuthorize => {
                 Ok(payments::CallConnectorAction::Trigger)
             }
         }

@@ -69,18 +69,4 @@ impl Authentication {
         )
         .await
     }
-
-    pub async fn find_authentication_by_merchant_id_connector_authentication_id(
-        conn: &PgPooledConn,
-        merchant_id: &str,
-        connector_authentication_id: &str,
-    ) -> StorageResult<Self> {
-        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
-            conn,
-            dsl::merchant_id
-                .eq(merchant_id.to_owned())
-                .and(dsl::connector_authentication_id.eq(connector_authentication_id.to_owned())),
-        )
-        .await
-    }
 }

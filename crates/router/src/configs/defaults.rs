@@ -6526,26 +6526,14 @@ impl Default for super::settings::RequiredFields {
                                         }
                                     ),
                                 ])}),
-                                (enums::PaymentMethodType::LocalBankTransfer,
+                                (enums::PaymentMethodType::Multibanco,
                             ConnectorFields {
                                 fields: HashMap::from([
                                     (
-                                        enums::Connector::Zsl,
+                                        enums::Connector::Stripe,
                                         RequiredFieldFinal {
                                             mandate: HashMap::new(),
-                                            non_mandate: HashMap::from([ (
-                                                "billing.address.country".to_string(),
-                                                RequiredFieldInfo {
-                                                    required_field: "billing.address.country".to_string(),
-                                                    display_name: "country".to_string(),
-                                                    field_type: enums::FieldType::UserAddressCountry{
-                                                        options: vec![
-                                                            "CN".to_string(),
-                                                        ]
-                                                    },
-                                                    value: None,
-                                                }
-                                            )]),
+                                            non_mandate: HashMap::new(),
                                             common: HashMap::new(),
                                         }
                                     ),
