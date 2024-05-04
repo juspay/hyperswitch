@@ -1,4 +1,3 @@
-use api_models::payments;
 use common_utils::{
     crypto::{self, GenerateDigest},
     date_time,
@@ -6,8 +5,8 @@ use common_utils::{
     fp_utils,
     pii::{Email, IpAddress},
 };
-use data_models::mandates::MandateDataType;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::mandates::MandateDataType;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -20,7 +19,7 @@ use crate::{
     consts,
     core::errors,
     services,
-    types::{self, api, storage::enums, transformers::ForeignTryFrom, BrowserInformation},
+    types::{self, api, domain, storage::enums, transformers::ForeignTryFrom, BrowserInformation},
     utils::OptionExt,
 };
 
@@ -424,14 +423,16 @@ impl<F, T>
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct NuveiCardDetails {
-    card: payments::Card,
+    card: domain::Card,
     three_d: Option<ThreeD>,
+    card_holder_name: Option<Secret<String>>,
 }
-impl TryFrom<payments::GooglePayWalletData> for NuveiPaymentsRequest {
+
+impl TryFrom<domain::GooglePayWalletData> for NuveiPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(gpay_data: payments::GooglePayWalletData) -> Result<Self, Self::Error> {
+    fn try_from(gpay_data: domain::GooglePayWalletData) -> Result<Self, Self::Error> {
         Ok(Self {
             payment_option: PaymentOption {
                 card: Some(Card {
@@ -451,8 +452,8 @@ impl TryFrom<payments::GooglePayWalletData> for NuveiPaymentsRequest {
         })
     }
 }
-impl From<payments::ApplePayWalletData> for NuveiPaymentsRequest {
-    fn from(apple_pay_data: payments::ApplePayWalletData) -> Self {
+impl From<domain::ApplePayWalletData> for NuveiPaymentsRequest {
+    fn from(apple_pay_data: domain::ApplePayWalletData) -> Self {
         Self {
             payment_option: PaymentOption {
                 card: Some(Card {
@@ -469,156 +470,156 @@ impl From<payments::ApplePayWalletData> for NuveiPaymentsRequest {
     }
 }
 
-impl TryFrom<api_models::enums::BankNames> for NuveiBIC {
+impl TryFrom<common_enums::enums::BankNames> for NuveiBIC {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(bank: api_models::enums::BankNames) -> Result<Self, Self::Error> {
+    fn try_from(bank: common_enums::enums::BankNames) -> Result<Self, Self::Error> {
         match bank {
-            api_models::enums::BankNames::AbnAmro => Ok(Self::Abnamro),
-            api_models::enums::BankNames::AsnBank => Ok(Self::ASNBank),
-            api_models::enums::BankNames::Bunq => Ok(Self::Bunq),
-            api_models::enums::BankNames::Ing => Ok(Self::Ing),
-            api_models::enums::BankNames::Knab => Ok(Self::Knab),
-            api_models::enums::BankNames::Rabobank => Ok(Self::Rabobank),
-            api_models::enums::BankNames::SnsBank => Ok(Self::SNSBank),
-            api_models::enums::BankNames::TriodosBank => Ok(Self::TriodosBank),
-            api_models::enums::BankNames::VanLanschot => Ok(Self::VanLanschotBankiers),
-            api_models::enums::BankNames::Moneyou => Ok(Self::Moneyou),
+            common_enums::enums::BankNames::AbnAmro => Ok(Self::Abnamro),
+            common_enums::enums::BankNames::AsnBank => Ok(Self::ASNBank),
+            common_enums::enums::BankNames::Bunq => Ok(Self::Bunq),
+            common_enums::enums::BankNames::Ing => Ok(Self::Ing),
+            common_enums::enums::BankNames::Knab => Ok(Self::Knab),
+            common_enums::enums::BankNames::Rabobank => Ok(Self::Rabobank),
+            common_enums::enums::BankNames::SnsBank => Ok(Self::SNSBank),
+            common_enums::enums::BankNames::TriodosBank => Ok(Self::TriodosBank),
+            common_enums::enums::BankNames::VanLanschot => Ok(Self::VanLanschotBankiers),
+            common_enums::enums::BankNames::Moneyou => Ok(Self::Moneyou),
 
-            api_models::enums::BankNames::AmericanExpress
-            | api_models::enums::BankNames::AffinBank
-            | api_models::enums::BankNames::AgroBank
-            | api_models::enums::BankNames::AllianceBank
-            | api_models::enums::BankNames::AmBank
-            | api_models::enums::BankNames::BankOfAmerica
-            | api_models::enums::BankNames::BankIslam
-            | api_models::enums::BankNames::BankMuamalat
-            | api_models::enums::BankNames::BankRakyat
-            | api_models::enums::BankNames::BankSimpananNasional
-            | api_models::enums::BankNames::Barclays
-            | api_models::enums::BankNames::BlikPSP
-            | api_models::enums::BankNames::CapitalOne
-            | api_models::enums::BankNames::Chase
-            | api_models::enums::BankNames::Citi
-            | api_models::enums::BankNames::CimbBank
-            | api_models::enums::BankNames::Discover
-            | api_models::enums::BankNames::NavyFederalCreditUnion
-            | api_models::enums::BankNames::PentagonFederalCreditUnion
-            | api_models::enums::BankNames::SynchronyBank
-            | api_models::enums::BankNames::WellsFargo
-            | api_models::enums::BankNames::Handelsbanken
-            | api_models::enums::BankNames::HongLeongBank
-            | api_models::enums::BankNames::HsbcBank
-            | api_models::enums::BankNames::KuwaitFinanceHouse
-            | api_models::enums::BankNames::Regiobank
-            | api_models::enums::BankNames::Revolut
-            | api_models::enums::BankNames::ArzteUndApothekerBank
-            | api_models::enums::BankNames::AustrianAnadiBankAg
-            | api_models::enums::BankNames::BankAustria
-            | api_models::enums::BankNames::Bank99Ag
-            | api_models::enums::BankNames::BankhausCarlSpangler
-            | api_models::enums::BankNames::BankhausSchelhammerUndSchatteraAg
-            | api_models::enums::BankNames::BankMillennium
-            | api_models::enums::BankNames::BankPEKAOSA
-            | api_models::enums::BankNames::BawagPskAg
-            | api_models::enums::BankNames::BksBankAg
-            | api_models::enums::BankNames::BrullKallmusBankAg
-            | api_models::enums::BankNames::BtvVierLanderBank
-            | api_models::enums::BankNames::CapitalBankGraweGruppeAg
-            | api_models::enums::BankNames::CeskaSporitelna
-            | api_models::enums::BankNames::Dolomitenbank
-            | api_models::enums::BankNames::EasybankAg
-            | api_models::enums::BankNames::EPlatbyVUB
-            | api_models::enums::BankNames::ErsteBankUndSparkassen
-            | api_models::enums::BankNames::FrieslandBank
-            | api_models::enums::BankNames::HypoAlpeadriabankInternationalAg
-            | api_models::enums::BankNames::HypoNoeLbFurNiederosterreichUWien
-            | api_models::enums::BankNames::HypoOberosterreichSalzburgSteiermark
-            | api_models::enums::BankNames::HypoTirolBankAg
-            | api_models::enums::BankNames::HypoVorarlbergBankAg
-            | api_models::enums::BankNames::HypoBankBurgenlandAktiengesellschaft
-            | api_models::enums::BankNames::KomercniBanka
-            | api_models::enums::BankNames::MBank
-            | api_models::enums::BankNames::MarchfelderBank
-            | api_models::enums::BankNames::Maybank
-            | api_models::enums::BankNames::OberbankAg
-            | api_models::enums::BankNames::OsterreichischeArzteUndApothekerbank
-            | api_models::enums::BankNames::OcbcBank
-            | api_models::enums::BankNames::PayWithING
-            | api_models::enums::BankNames::PlaceZIPKO
-            | api_models::enums::BankNames::PlatnoscOnlineKartaPlatnicza
-            | api_models::enums::BankNames::PosojilnicaBankEGen
-            | api_models::enums::BankNames::PostovaBanka
-            | api_models::enums::BankNames::PublicBank
-            | api_models::enums::BankNames::RaiffeisenBankengruppeOsterreich
-            | api_models::enums::BankNames::RhbBank
-            | api_models::enums::BankNames::SchelhammerCapitalBankAg
-            | api_models::enums::BankNames::StandardCharteredBank
-            | api_models::enums::BankNames::SchoellerbankAg
-            | api_models::enums::BankNames::SpardaBankWien
-            | api_models::enums::BankNames::SporoPay
-            | api_models::enums::BankNames::SantanderPrzelew24
-            | api_models::enums::BankNames::TatraPay
-            | api_models::enums::BankNames::Viamo
-            | api_models::enums::BankNames::VolksbankGruppe
-            | api_models::enums::BankNames::VolkskreditbankAg
-            | api_models::enums::BankNames::VrBankBraunau
-            | api_models::enums::BankNames::UobBank
-            | api_models::enums::BankNames::PayWithAliorBank
-            | api_models::enums::BankNames::BankiSpoldzielcze
-            | api_models::enums::BankNames::PayWithInteligo
-            | api_models::enums::BankNames::BNPParibasPoland
-            | api_models::enums::BankNames::BankNowySA
-            | api_models::enums::BankNames::CreditAgricole
-            | api_models::enums::BankNames::PayWithBOS
-            | api_models::enums::BankNames::PayWithCitiHandlowy
-            | api_models::enums::BankNames::PayWithPlusBank
-            | api_models::enums::BankNames::ToyotaBank
-            | api_models::enums::BankNames::VeloBank
-            | api_models::enums::BankNames::ETransferPocztowy24
-            | api_models::enums::BankNames::PlusBank
-            | api_models::enums::BankNames::EtransferPocztowy24
-            | api_models::enums::BankNames::BankiSpbdzielcze
-            | api_models::enums::BankNames::BankNowyBfgSa
-            | api_models::enums::BankNames::GetinBank
-            | api_models::enums::BankNames::Blik
-            | api_models::enums::BankNames::NoblePay
-            | api_models::enums::BankNames::IdeaBank
-            | api_models::enums::BankNames::EnveloBank
-            | api_models::enums::BankNames::NestPrzelew
-            | api_models::enums::BankNames::MbankMtransfer
-            | api_models::enums::BankNames::Inteligo
-            | api_models::enums::BankNames::PbacZIpko
-            | api_models::enums::BankNames::BnpParibas
-            | api_models::enums::BankNames::BankPekaoSa
-            | api_models::enums::BankNames::VolkswagenBank
-            | api_models::enums::BankNames::AliorBank
-            | api_models::enums::BankNames::Boz
-            | api_models::enums::BankNames::BangkokBank
-            | api_models::enums::BankNames::KrungsriBank
-            | api_models::enums::BankNames::KrungThaiBank
-            | api_models::enums::BankNames::TheSiamCommercialBank
-            | api_models::enums::BankNames::KasikornBank
-            | api_models::enums::BankNames::OpenBankSuccess
-            | api_models::enums::BankNames::OpenBankFailure
-            | api_models::enums::BankNames::OpenBankCancelled
-            | api_models::enums::BankNames::Aib
-            | api_models::enums::BankNames::BankOfScotland
-            | api_models::enums::BankNames::DanskeBank
-            | api_models::enums::BankNames::FirstDirect
-            | api_models::enums::BankNames::FirstTrust
-            | api_models::enums::BankNames::Halifax
-            | api_models::enums::BankNames::Lloyds
-            | api_models::enums::BankNames::Monzo
-            | api_models::enums::BankNames::NatWest
-            | api_models::enums::BankNames::NationwideBank
-            | api_models::enums::BankNames::RoyalBankOfScotland
-            | api_models::enums::BankNames::Starling
-            | api_models::enums::BankNames::TsbBank
-            | api_models::enums::BankNames::TescoBank
-            | api_models::enums::BankNames::Yoursafe
-            | api_models::enums::BankNames::N26
-            | api_models::enums::BankNames::NationaleNederlanden
-            | api_models::enums::BankNames::UlsterBank => {
+            common_enums::enums::BankNames::AmericanExpress
+            | common_enums::enums::BankNames::AffinBank
+            | common_enums::enums::BankNames::AgroBank
+            | common_enums::enums::BankNames::AllianceBank
+            | common_enums::enums::BankNames::AmBank
+            | common_enums::enums::BankNames::BankOfAmerica
+            | common_enums::enums::BankNames::BankIslam
+            | common_enums::enums::BankNames::BankMuamalat
+            | common_enums::enums::BankNames::BankRakyat
+            | common_enums::enums::BankNames::BankSimpananNasional
+            | common_enums::enums::BankNames::Barclays
+            | common_enums::enums::BankNames::BlikPSP
+            | common_enums::enums::BankNames::CapitalOne
+            | common_enums::enums::BankNames::Chase
+            | common_enums::enums::BankNames::Citi
+            | common_enums::enums::BankNames::CimbBank
+            | common_enums::enums::BankNames::Discover
+            | common_enums::enums::BankNames::NavyFederalCreditUnion
+            | common_enums::enums::BankNames::PentagonFederalCreditUnion
+            | common_enums::enums::BankNames::SynchronyBank
+            | common_enums::enums::BankNames::WellsFargo
+            | common_enums::enums::BankNames::Handelsbanken
+            | common_enums::enums::BankNames::HongLeongBank
+            | common_enums::enums::BankNames::HsbcBank
+            | common_enums::enums::BankNames::KuwaitFinanceHouse
+            | common_enums::enums::BankNames::Regiobank
+            | common_enums::enums::BankNames::Revolut
+            | common_enums::enums::BankNames::ArzteUndApothekerBank
+            | common_enums::enums::BankNames::AustrianAnadiBankAg
+            | common_enums::enums::BankNames::BankAustria
+            | common_enums::enums::BankNames::Bank99Ag
+            | common_enums::enums::BankNames::BankhausCarlSpangler
+            | common_enums::enums::BankNames::BankhausSchelhammerUndSchatteraAg
+            | common_enums::enums::BankNames::BankMillennium
+            | common_enums::enums::BankNames::BankPEKAOSA
+            | common_enums::enums::BankNames::BawagPskAg
+            | common_enums::enums::BankNames::BksBankAg
+            | common_enums::enums::BankNames::BrullKallmusBankAg
+            | common_enums::enums::BankNames::BtvVierLanderBank
+            | common_enums::enums::BankNames::CapitalBankGraweGruppeAg
+            | common_enums::enums::BankNames::CeskaSporitelna
+            | common_enums::enums::BankNames::Dolomitenbank
+            | common_enums::enums::BankNames::EasybankAg
+            | common_enums::enums::BankNames::EPlatbyVUB
+            | common_enums::enums::BankNames::ErsteBankUndSparkassen
+            | common_enums::enums::BankNames::FrieslandBank
+            | common_enums::enums::BankNames::HypoAlpeadriabankInternationalAg
+            | common_enums::enums::BankNames::HypoNoeLbFurNiederosterreichUWien
+            | common_enums::enums::BankNames::HypoOberosterreichSalzburgSteiermark
+            | common_enums::enums::BankNames::HypoTirolBankAg
+            | common_enums::enums::BankNames::HypoVorarlbergBankAg
+            | common_enums::enums::BankNames::HypoBankBurgenlandAktiengesellschaft
+            | common_enums::enums::BankNames::KomercniBanka
+            | common_enums::enums::BankNames::MBank
+            | common_enums::enums::BankNames::MarchfelderBank
+            | common_enums::enums::BankNames::Maybank
+            | common_enums::enums::BankNames::OberbankAg
+            | common_enums::enums::BankNames::OsterreichischeArzteUndApothekerbank
+            | common_enums::enums::BankNames::OcbcBank
+            | common_enums::enums::BankNames::PayWithING
+            | common_enums::enums::BankNames::PlaceZIPKO
+            | common_enums::enums::BankNames::PlatnoscOnlineKartaPlatnicza
+            | common_enums::enums::BankNames::PosojilnicaBankEGen
+            | common_enums::enums::BankNames::PostovaBanka
+            | common_enums::enums::BankNames::PublicBank
+            | common_enums::enums::BankNames::RaiffeisenBankengruppeOsterreich
+            | common_enums::enums::BankNames::RhbBank
+            | common_enums::enums::BankNames::SchelhammerCapitalBankAg
+            | common_enums::enums::BankNames::StandardCharteredBank
+            | common_enums::enums::BankNames::SchoellerbankAg
+            | common_enums::enums::BankNames::SpardaBankWien
+            | common_enums::enums::BankNames::SporoPay
+            | common_enums::enums::BankNames::SantanderPrzelew24
+            | common_enums::enums::BankNames::TatraPay
+            | common_enums::enums::BankNames::Viamo
+            | common_enums::enums::BankNames::VolksbankGruppe
+            | common_enums::enums::BankNames::VolkskreditbankAg
+            | common_enums::enums::BankNames::VrBankBraunau
+            | common_enums::enums::BankNames::UobBank
+            | common_enums::enums::BankNames::PayWithAliorBank
+            | common_enums::enums::BankNames::BankiSpoldzielcze
+            | common_enums::enums::BankNames::PayWithInteligo
+            | common_enums::enums::BankNames::BNPParibasPoland
+            | common_enums::enums::BankNames::BankNowySA
+            | common_enums::enums::BankNames::CreditAgricole
+            | common_enums::enums::BankNames::PayWithBOS
+            | common_enums::enums::BankNames::PayWithCitiHandlowy
+            | common_enums::enums::BankNames::PayWithPlusBank
+            | common_enums::enums::BankNames::ToyotaBank
+            | common_enums::enums::BankNames::VeloBank
+            | common_enums::enums::BankNames::ETransferPocztowy24
+            | common_enums::enums::BankNames::PlusBank
+            | common_enums::enums::BankNames::EtransferPocztowy24
+            | common_enums::enums::BankNames::BankiSpbdzielcze
+            | common_enums::enums::BankNames::BankNowyBfgSa
+            | common_enums::enums::BankNames::GetinBank
+            | common_enums::enums::BankNames::Blik
+            | common_enums::enums::BankNames::NoblePay
+            | common_enums::enums::BankNames::IdeaBank
+            | common_enums::enums::BankNames::EnveloBank
+            | common_enums::enums::BankNames::NestPrzelew
+            | common_enums::enums::BankNames::MbankMtransfer
+            | common_enums::enums::BankNames::Inteligo
+            | common_enums::enums::BankNames::PbacZIpko
+            | common_enums::enums::BankNames::BnpParibas
+            | common_enums::enums::BankNames::BankPekaoSa
+            | common_enums::enums::BankNames::VolkswagenBank
+            | common_enums::enums::BankNames::AliorBank
+            | common_enums::enums::BankNames::Boz
+            | common_enums::enums::BankNames::BangkokBank
+            | common_enums::enums::BankNames::KrungsriBank
+            | common_enums::enums::BankNames::KrungThaiBank
+            | common_enums::enums::BankNames::TheSiamCommercialBank
+            | common_enums::enums::BankNames::KasikornBank
+            | common_enums::enums::BankNames::OpenBankSuccess
+            | common_enums::enums::BankNames::OpenBankFailure
+            | common_enums::enums::BankNames::OpenBankCancelled
+            | common_enums::enums::BankNames::Aib
+            | common_enums::enums::BankNames::BankOfScotland
+            | common_enums::enums::BankNames::DanskeBank
+            | common_enums::enums::BankNames::FirstDirect
+            | common_enums::enums::BankNames::FirstTrust
+            | common_enums::enums::BankNames::Halifax
+            | common_enums::enums::BankNames::Lloyds
+            | common_enums::enums::BankNames::Monzo
+            | common_enums::enums::BankNames::NatWest
+            | common_enums::enums::BankNames::NationwideBank
+            | common_enums::enums::BankNames::RoyalBankOfScotland
+            | common_enums::enums::BankNames::Starling
+            | common_enums::enums::BankNames::TsbBank
+            | common_enums::enums::BankNames::TescoBank
+            | common_enums::enums::BankNames::Yoursafe
+            | common_enums::enums::BankNames::N26
+            | common_enums::enums::BankNames::NationaleNederlanden
+            | common_enums::enums::BankNames::UlsterBank => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Nuvei"),
                 ))?
@@ -630,7 +631,7 @@ impl TryFrom<api_models::enums::BankNames> for NuveiBIC {
 impl<F>
     ForeignTryFrom<(
         AlternativePaymentMethodType,
-        Option<payments::BankRedirectData>,
+        Option<domain::BankRedirectData>,
         &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     )> for NuveiPaymentsRequest
 {
@@ -638,7 +639,7 @@ impl<F>
     fn foreign_try_from(
         data: (
             AlternativePaymentMethodType,
-            Option<payments::BankRedirectData>,
+            Option<domain::BankRedirectData>,
             &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
         ),
     ) -> Result<Self, Self::Error> {
@@ -662,10 +663,11 @@ impl<F>
             ),
             (AlternativePaymentMethodType::Sofort, _) | (AlternativePaymentMethodType::Eps, _) => {
                 let address = item.get_billing_address()?;
+                let first_name = address.get_first_name()?;
                 (
                     Some(BillingAddress {
-                        first_name: Some(address.get_first_name()?.clone()),
-                        last_name: Some(address.get_last_name()?.clone()),
+                        first_name: Some(first_name.clone()),
+                        last_name: Some(address.get_last_name().unwrap_or(first_name).clone()),
                         email: item.request.get_email()?,
                         country: item.get_billing_country()?,
                     }),
@@ -674,13 +676,16 @@ impl<F>
             }
             (
                 AlternativePaymentMethodType::Ideal,
-                Some(payments::BankRedirectData::Ideal { bank_name, .. }),
+                Some(domain::BankRedirectData::Ideal { bank_name, .. }),
             ) => {
                 let address = item.get_billing_address()?;
+                let first_name = address.get_first_name()?.clone();
                 (
                     Some(BillingAddress {
-                        first_name: Some(address.get_first_name()?.clone()),
-                        last_name: Some(address.get_last_name()?.clone()),
+                        first_name: Some(first_name.clone()),
+                        last_name: Some(
+                            address.get_last_name().ok().unwrap_or(&first_name).clone(),
+                        ),
                         email: item.request.get_email()?,
                         country: item.get_billing_country()?,
                     }),
@@ -714,6 +719,7 @@ fn get_pay_later_info<F>(
         .address
         .as_ref()
         .ok_or_else(utils::missing_field_err("billing.address"))?;
+    let first_name = address.get_first_name()?;
     let payment_method = payment_method_type;
     Ok(NuveiPaymentsRequest {
         payment_option: PaymentOption {
@@ -723,8 +729,8 @@ fn get_pay_later_info<F>(
             }),
             billing_address: Some(BillingAddress {
                 email: item.request.get_email()?,
-                first_name: Some(address.get_first_name()?.to_owned()),
-                last_name: Some(address.get_last_name()?.to_owned()),
+                first_name: Some(first_name.clone()),
+                last_name: Some(address.get_last_name().unwrap_or(first_name).clone()),
                 country: address.get_country()?.to_owned(),
             }),
             ..Default::default()
@@ -748,113 +754,113 @@ impl<F>
     ) -> Result<Self, Self::Error> {
         let item = data.0;
         let request_data = match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(card) => get_card_info(item, &card),
-            api::PaymentMethodData::MandatePayment => Self::try_from(item),
-            api::PaymentMethodData::Wallet(wallet) => match wallet {
-                payments::WalletData::GooglePay(gpay_data) => Self::try_from(gpay_data),
-                payments::WalletData::ApplePay(apple_pay_data) => Ok(Self::from(apple_pay_data)),
-                payments::WalletData::PaypalRedirect(_) => Self::foreign_try_from((
+            domain::PaymentMethodData::Card(card) => get_card_info(item, &card),
+            domain::PaymentMethodData::MandatePayment => Self::try_from(item),
+            domain::PaymentMethodData::Wallet(wallet) => match wallet {
+                domain::WalletData::GooglePay(gpay_data) => Self::try_from(gpay_data),
+                domain::WalletData::ApplePay(apple_pay_data) => Ok(Self::from(apple_pay_data)),
+                domain::WalletData::PaypalRedirect(_) => Self::foreign_try_from((
                     AlternativePaymentMethodType::Expresscheckout,
                     None,
                     item,
                 )),
-                payments::WalletData::AliPayQr(_)
-                | payments::WalletData::AliPayRedirect(_)
-                | payments::WalletData::AliPayHkRedirect(_)
-                | payments::WalletData::MomoRedirect(_)
-                | payments::WalletData::KakaoPayRedirect(_)
-                | payments::WalletData::GoPayRedirect(_)
-                | payments::WalletData::GcashRedirect(_)
-                | payments::WalletData::ApplePayRedirect(_)
-                | payments::WalletData::ApplePayThirdPartySdk(_)
-                | payments::WalletData::DanaRedirect {}
-                | payments::WalletData::GooglePayRedirect(_)
-                | payments::WalletData::GooglePayThirdPartySdk(_)
-                | payments::WalletData::MbWayRedirect(_)
-                | payments::WalletData::MobilePayRedirect(_)
-                | payments::WalletData::PaypalSdk(_)
-                | payments::WalletData::SamsungPay(_)
-                | payments::WalletData::TwintRedirect {}
-                | payments::WalletData::VippsRedirect {}
-                | payments::WalletData::TouchNGoRedirect(_)
-                | payments::WalletData::WeChatPayRedirect(_)
-                | payments::WalletData::CashappQr(_)
-                | payments::WalletData::SwishQr(_)
-                | payments::WalletData::WeChatPayQr(_) => {
+                domain::WalletData::AliPayQr(_)
+                | domain::WalletData::AliPayRedirect(_)
+                | domain::WalletData::AliPayHkRedirect(_)
+                | domain::WalletData::MomoRedirect(_)
+                | domain::WalletData::KakaoPayRedirect(_)
+                | domain::WalletData::GoPayRedirect(_)
+                | domain::WalletData::GcashRedirect(_)
+                | domain::WalletData::ApplePayRedirect(_)
+                | domain::WalletData::ApplePayThirdPartySdk(_)
+                | domain::WalletData::DanaRedirect {}
+                | domain::WalletData::GooglePayRedirect(_)
+                | domain::WalletData::GooglePayThirdPartySdk(_)
+                | domain::WalletData::MbWayRedirect(_)
+                | domain::WalletData::MobilePayRedirect(_)
+                | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::SamsungPay(_)
+                | domain::WalletData::TwintRedirect {}
+                | domain::WalletData::VippsRedirect {}
+                | domain::WalletData::TouchNGoRedirect(_)
+                | domain::WalletData::WeChatPayRedirect(_)
+                | domain::WalletData::CashappQr(_)
+                | domain::WalletData::SwishQr(_)
+                | domain::WalletData::WeChatPayQr(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("nuvei"),
                     )
                     .into())
                 }
             },
-            api::PaymentMethodData::BankRedirect(redirect) => match redirect {
-                payments::BankRedirectData::Eps { .. } => Self::foreign_try_from((
+            domain::PaymentMethodData::BankRedirect(redirect) => match redirect {
+                domain::BankRedirectData::Eps { .. } => Self::foreign_try_from((
                     AlternativePaymentMethodType::Eps,
                     Some(redirect),
                     item,
                 )),
-                payments::BankRedirectData::Giropay { .. } => Self::foreign_try_from((
+                domain::BankRedirectData::Giropay { .. } => Self::foreign_try_from((
                     AlternativePaymentMethodType::Giropay,
                     Some(redirect),
                     item,
                 )),
-                payments::BankRedirectData::Ideal { .. } => Self::foreign_try_from((
+                domain::BankRedirectData::Ideal { .. } => Self::foreign_try_from((
                     AlternativePaymentMethodType::Ideal,
                     Some(redirect),
                     item,
                 )),
-                payments::BankRedirectData::Sofort { .. } => Self::foreign_try_from((
+                domain::BankRedirectData::Sofort { .. } => Self::foreign_try_from((
                     AlternativePaymentMethodType::Sofort,
                     Some(redirect),
                     item,
                 )),
-                payments::BankRedirectData::BancontactCard { .. }
-                | payments::BankRedirectData::Bizum {}
-                | payments::BankRedirectData::Blik { .. }
-                | payments::BankRedirectData::Interac { .. }
-                | payments::BankRedirectData::OnlineBankingCzechRepublic { .. }
-                | payments::BankRedirectData::OnlineBankingFinland { .. }
-                | payments::BankRedirectData::OnlineBankingPoland { .. }
-                | payments::BankRedirectData::OnlineBankingSlovakia { .. }
-                | payments::BankRedirectData::Przelewy24 { .. }
-                | payments::BankRedirectData::Trustly { .. }
-                | payments::BankRedirectData::OnlineBankingFpx { .. }
-                | payments::BankRedirectData::OnlineBankingThailand { .. }
-                | payments::BankRedirectData::OpenBankingUk { .. } => {
+                domain::BankRedirectData::BancontactCard { .. }
+                | domain::BankRedirectData::Bizum {}
+                | domain::BankRedirectData::Blik { .. }
+                | domain::BankRedirectData::Interac { .. }
+                | domain::BankRedirectData::OnlineBankingCzechRepublic { .. }
+                | domain::BankRedirectData::OnlineBankingFinland { .. }
+                | domain::BankRedirectData::OnlineBankingPoland { .. }
+                | domain::BankRedirectData::OnlineBankingSlovakia { .. }
+                | domain::BankRedirectData::Przelewy24 { .. }
+                | domain::BankRedirectData::Trustly { .. }
+                | domain::BankRedirectData::OnlineBankingFpx { .. }
+                | domain::BankRedirectData::OnlineBankingThailand { .. }
+                | domain::BankRedirectData::OpenBankingUk { .. } => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("nuvei"),
                     )
                     .into())
                 }
             },
-            api::PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
-                payments::PayLaterData::KlarnaRedirect { .. } => {
+            domain::PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
+                domain::PayLaterData::KlarnaRedirect { .. } => {
                     get_pay_later_info(AlternativePaymentMethodType::Klarna, item)
                 }
-                payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
+                domain::PayLaterData::AfterpayClearpayRedirect { .. } => {
                     get_pay_later_info(AlternativePaymentMethodType::AfterPay, item)
                 }
-                payments::PayLaterData::KlarnaSdk { .. }
-                | payments::PayLaterData::AffirmRedirect {}
-                | payments::PayLaterData::PayBrightRedirect {}
-                | payments::PayLaterData::WalleyRedirect {}
-                | payments::PayLaterData::AlmaRedirect {}
-                | payments::PayLaterData::AtomeRedirect {} => {
+                domain::PayLaterData::KlarnaSdk { .. }
+                | domain::PayLaterData::AffirmRedirect {}
+                | domain::PayLaterData::PayBrightRedirect {}
+                | domain::PayLaterData::WalleyRedirect {}
+                | domain::PayLaterData::AlmaRedirect {}
+                | domain::PayLaterData::AtomeRedirect {} => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("nuvei"),
                     )
                     .into())
                 }
             },
-            payments::PaymentMethodData::BankDebit(_)
-            | payments::PaymentMethodData::BankTransfer(_)
-            | payments::PaymentMethodData::Crypto(_)
-            | payments::PaymentMethodData::Reward
-            | payments::PaymentMethodData::Upi(_)
-            | payments::PaymentMethodData::Voucher(_)
-            | payments::PaymentMethodData::CardRedirect(_)
-            | payments::PaymentMethodData::GiftCard(_)
-            | payments::PaymentMethodData::CardToken(_) => {
+            domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("nuvei"),
                 )
@@ -890,7 +896,7 @@ impl<F>
 
 fn get_card_info<F>(
     item: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
-    card_details: &payments::Card,
+    card_details: &domain::Card,
 ) -> Result<NuveiPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
     let browser_information = item.request.browser_info.clone();
     let related_transaction_id = if item.is_three_ds() {
@@ -904,12 +910,15 @@ fn get_card_info<F>(
         .and_then(|billing_details| billing_details.address.as_ref());
 
     let billing_address = match address {
-        Some(address) => Some(BillingAddress {
-            first_name: Some(address.get_first_name()?.clone()),
-            last_name: Some(address.get_last_name()?.clone()),
-            email: item.request.get_email()?,
-            country: item.get_billing_country()?,
-        }),
+        Some(address) => {
+            let first_name = address.get_first_name()?.clone();
+            Some(BillingAddress {
+                first_name: Some(first_name.clone()),
+                last_name: Some(address.get_last_name().ok().unwrap_or(&first_name).clone()),
+                email: item.request.get_email()?,
+                country: item.get_billing_country()?,
+            })
+        }
         None => None,
     };
     let (is_rebilling, additional_params, user_token_id) =
@@ -994,6 +1003,7 @@ fn get_card_info<F>(
         payment_option: PaymentOption::from(NuveiCardDetails {
             card: card_details.clone(),
             three_d,
+            card_holder_name: item.get_optional_billing_full_name(),
         }),
         billing_address,
         ..Default::default()
@@ -1005,7 +1015,7 @@ impl From<NuveiCardDetails> for PaymentOption {
         Self {
             card: Some(Card {
                 card_number: Some(card.card_number),
-                card_holder_name: card.card_holder_name,
+                card_holder_name: card_details.card_holder_name,
                 expiration_month: Some(card.card_exp_month),
                 expiration_year: Some(card.card_exp_year),
                 three_d: card_details.three_d,
@@ -1026,26 +1036,27 @@ impl TryFrom<(&types::PaymentsCompleteAuthorizeRouterData, Secret<String>)>
     ) -> Result<Self, Self::Error> {
         let item = data.0;
         let request_data = match item.request.payment_method_data.clone() {
-            Some(api::PaymentMethodData::Card(card)) => Ok(Self {
+            Some(domain::PaymentMethodData::Card(card)) => Ok(Self {
                 payment_option: PaymentOption::from(NuveiCardDetails {
                     card,
                     three_d: None,
+                    card_holder_name: item.get_optional_billing_full_name(),
                 }),
                 ..Default::default()
             }),
-            Some(api::PaymentMethodData::Wallet(..))
-            | Some(api::PaymentMethodData::PayLater(..))
-            | Some(api::PaymentMethodData::BankDebit(..))
-            | Some(api::PaymentMethodData::BankRedirect(..))
-            | Some(api::PaymentMethodData::BankTransfer(..))
-            | Some(api::PaymentMethodData::Crypto(..))
-            | Some(api::PaymentMethodData::MandatePayment)
-            | Some(api::PaymentMethodData::GiftCard(..))
-            | Some(api::PaymentMethodData::Voucher(..))
-            | Some(api::PaymentMethodData::CardRedirect(..))
-            | Some(api::PaymentMethodData::Reward)
-            | Some(api::PaymentMethodData::Upi(..))
-            | Some(api::PaymentMethodData::CardToken(..))
+            Some(domain::PaymentMethodData::Wallet(..))
+            | Some(domain::PaymentMethodData::PayLater(..))
+            | Some(domain::PaymentMethodData::BankDebit(..))
+            | Some(domain::PaymentMethodData::BankRedirect(..))
+            | Some(domain::PaymentMethodData::BankTransfer(..))
+            | Some(domain::PaymentMethodData::Crypto(..))
+            | Some(domain::PaymentMethodData::MandatePayment)
+            | Some(domain::PaymentMethodData::GiftCard(..))
+            | Some(domain::PaymentMethodData::Voucher(..))
+            | Some(domain::PaymentMethodData::CardRedirect(..))
+            | Some(domain::PaymentMethodData::Reward)
+            | Some(domain::PaymentMethodData::Upi(..))
+            | Some(domain::PaymentMethodData::CardToken(..))
             | None => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("nuvei"),
             )),

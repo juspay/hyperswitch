@@ -106,6 +106,7 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::PayBright
                 | PaymentMethodType::Sepa
                 | PaymentMethodType::Vipps
+                | PaymentMethodType::Venmo
                 | PaymentMethodType::Paypal => match capture_method {
                     enums::CaptureMethod::Automatic
                     | enums::CaptureMethod::Manual
@@ -202,6 +203,7 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Becs
                 | PaymentMethodType::ClassicReward
                 | PaymentMethodType::Pse
+                | PaymentMethodType::LocalBankTransfer
                 | PaymentMethodType::Efecty
                 | PaymentMethodType::PagoEfectivo
                 | PaymentMethodType::RedCompra

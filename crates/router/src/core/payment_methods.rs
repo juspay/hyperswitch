@@ -7,8 +7,8 @@ pub use api_models::enums::Connector;
 use api_models::payments::CardToken;
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
-use data_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 use diesel_models::enums;
+use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 
 use crate::{
     core::{errors::RouterResult, payments::helpers, pm_auth as core_pm_auth},
@@ -38,6 +38,7 @@ pub trait PaymentMethodRetrieve {
         payment_intent: &PaymentIntent,
         card_token_data: Option<&CardToken>,
         customer: &Option<domain::Customer>,
+        storage_scheme: common_enums::enums::MerchantStorageScheme,
     ) -> RouterResult<storage::PaymentMethodDataWithId>;
 }
 
@@ -122,6 +123,7 @@ impl PaymentMethodRetrieve for Oss {
         payment_intent: &PaymentIntent,
         card_token_data: Option<&CardToken>,
         customer: &Option<domain::Customer>,
+        storage_scheme: common_enums::enums::MerchantStorageScheme,
     ) -> RouterResult<storage::PaymentMethodDataWithId> {
         let token = match token_data {
             storage::PaymentTokenData::TemporaryGeneric(generic_token) => {
@@ -172,6 +174,8 @@ impl PaymentMethodRetrieve for Oss {
                         .unwrap_or(&card_token.token),
                     payment_intent,
                     card_token_data,
+                    merchant_key_store,
+                    storage_scheme,
                 )
                 .await
                 .map(|card| Some((card, enums::PaymentMethod::Card)))?
@@ -201,6 +205,8 @@ impl PaymentMethodRetrieve for Oss {
                         .unwrap_or(&card_token.token),
                     payment_intent,
                     card_token_data,
+                    merchant_key_store,
+                    storage_scheme,
                 )
                 .await
                 .map(|card| Some((card, enums::PaymentMethod::Card)))?

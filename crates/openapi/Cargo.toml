@@ -8,7 +8,7 @@ license.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-serde_json = "1.0.96"
-utoipa = { version = "3.5.0", features = ["preserve_order", "preserve_path_order", "time"] }
+serde_json = "1.0.115"
+utoipa = { version = "4.2.0", features = ["preserve_order", "preserve_path_order", "time"] }
 
 api_models = { version = "0.1.0", path = "../api_models", features = ["frm", "payouts", "openapi"] }

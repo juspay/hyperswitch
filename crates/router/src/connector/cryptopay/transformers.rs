@@ -1,14 +1,16 @@
 use common_utils::pii;
+use error_stack::ResultExt;
 use masking::Secret;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
+use super::utils as connector_utils;
 use crate::{
-    connector::utils::{self, is_payment_failure, CryptoData},
+    connector::utils::{self, is_payment_failure, CryptoData, PaymentsAuthorizeRequestData},
     consts,
     core::errors,
     services,
-    types::{self, api, storage::enums},
+    types::{self, domain, storage::enums},
 };
 
 #[derive(Debug, Serialize)]
@@ -62,7 +64,7 @@ impl TryFrom<&CryptopayRouterData<&types::PaymentsAuthorizeRouterData>>
         item: &CryptopayRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let cryptopay_request = match item.router_data.request.payment_method_data {
-            api::PaymentMethodData::Crypto(ref cryptodata) => {
+            domain::PaymentMethodData::Crypto(ref cryptodata) => {
                 let pay_currency = cryptodata.get_pay_currency()?;
                 Ok(Self {
                     price_amount: item.amount.to_owned(),
@@ -70,23 +72,24 @@ impl TryFrom<&CryptopayRouterData<&types::PaymentsAuthorizeRouterData>>
                     pay_currency,
                     success_redirect_url: item.router_data.request.router_return_url.clone(),
                     unsuccess_redirect_url: item.router_data.request.router_return_url.clone(),
-                    metadata: item.router_data.request.metadata.clone(),
+                    //Cryptopay only accepts metadata as Object. If any other type, payment will fail with error.
+                    metadata: item.router_data.request.get_metadata_as_object(),
                     custom_id: item.router_data.connector_request_reference_id.clone(),
                 })
             }
-            api_models::payments::PaymentMethodData::Card(_)
-            | api_models::payments::PaymentMethodData::CardRedirect(_)
-            | api_models::payments::PaymentMethodData::Wallet(_)
-            | api_models::payments::PaymentMethodData::PayLater(_)
-            | api_models::payments::PaymentMethodData::BankRedirect(_)
-            | api_models::payments::PaymentMethodData::BankDebit(_)
-            | api_models::payments::PaymentMethodData::BankTransfer(_)
-            | api_models::payments::PaymentMethodData::MandatePayment {}
-            | api_models::payments::PaymentMethodData::Reward {}
-            | api_models::payments::PaymentMethodData::Upi(_)
-            | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_)
-            | api_models::payments::PaymentMethodData::CardToken(_) => {
+            domain::PaymentMethodData::Card(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::MandatePayment {}
+            | domain::PaymentMethodData::Reward {}
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("CryptoPay"),
                 ))
@@ -145,17 +148,17 @@ pub struct CryptopayPaymentsResponse {
 }
 
 impl<F, T>
-    TryFrom<types::ResponseRouterData<F, CryptopayPaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    TryFrom<(
+        types::ResponseRouterData<F, CryptopayPaymentsResponse, T, types::PaymentsResponseData>,
+        diesel_models::enums::Currency,
+    )> for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            CryptopayPaymentsResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
+        (item, currency): (
+            types::ResponseRouterData<F, CryptopayPaymentsResponse, T, types::PaymentsResponseData>,
+            diesel_models::enums::Currency,
+        ),
     ) -> Result<Self, Self::Error> {
         let status = enums::AttemptStatus::from(item.response.data.status.clone());
         let response = if is_payment_failure(status) {
@@ -196,11 +199,28 @@ impl<F, T>
                 incremental_authorization_allowed: None,
             })
         };
-        Ok(Self {
-            status,
-            response,
-            ..item.data
-        })
+
+        match item.response.data.price_amount {
+            Some(price_amount) => {
+                let amount_captured = Some(
+                    connector_utils::to_currency_lower_unit(price_amount, currency)?
+                        .parse::<i64>()
+                        .change_context(errors::ConnectorError::ParsingFailed)?,
+                );
+
+                Ok(Self {
+                    status,
+                    response,
+                    amount_captured,
+                    ..item.data
+                })
+            }
+            None => Ok(Self {
+                status,
+                response,
+                ..item.data
+            }),
+        }
     }
 }
 

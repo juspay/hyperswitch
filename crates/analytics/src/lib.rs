@@ -10,6 +10,7 @@ pub mod refunds;
 pub mod api_event;
 pub mod connector_events;
 pub mod health_check;
+pub mod opensearch;
 pub mod outgoing_webhook_event;
 pub mod sdk_events;
 pub mod search;
@@ -47,8 +48,10 @@ use error_stack::report;
 use router_env::{
     logger,
     tracing::{self, instrument},
+    types::FlowMetric,
 };
 use storage_impl::config::Database;
+use strum::Display;
 
 use self::{
     payments::{
@@ -666,43 +669,32 @@ pub struct ReportConfig {
     pub region: String,
 }
 
-#[derive(Clone, Debug, serde::Deserialize)]
-#[serde(tag = "auth")]
-#[serde(rename_all = "lowercase")]
-pub enum OpensearchAuth {
-    Basic { username: String, password: String },
-    Aws { region: String },
+/// Analytics Flow routes Enums
+/// Info - Dimensions and filters available for the domain
+/// Filters - Set of values present for the dimension
+/// Metrics - Analytical data on dimensions and metrics
+#[derive(Debug, Display, Clone, PartialEq, Eq)]
+pub enum AnalyticsFlow {
+    GetInfo,
+    GetPaymentMetrics,
+    GetRefundsMetrics,
+    GetSdkMetrics,
+    GetPaymentFilters,
+    GetRefundFilters,
+    GetSdkEventFilters,
+    GetApiEvents,
+    GetSdkEvents,
+    GeneratePaymentReport,
+    GenerateDisputeReport,
+    GenerateRefundReport,
+    GetApiEventMetrics,
+    GetApiEventFilters,
+    GetConnectorEvents,
+    GetOutgoingWebhookEvents,
+    GetGlobalSearchResults,
+    GetSearchResults,
+    GetDisputeFilters,
+    GetDisputeMetrics,
 }
 
-#[derive(Clone, Debug, serde::Deserialize)]
-pub struct OpensearchIndexes {
-    pub payment_attempts: String,
-    pub payment_intents: String,
-    pub refunds: String,
-    pub disputes: String,
-}
-
-#[derive(Clone, Debug, serde::Deserialize)]
-pub struct OpensearchConfig {
-    host: String,
-    auth: OpensearchAuth,
-    indexes: OpensearchIndexes,
-}
-
-impl Default for OpensearchConfig {
-    fn default() -> Self {
-        Self {
-            host: "https://localhost:9200".to_string(),
-            auth: OpensearchAuth::Basic {
-                username: "admin".to_string(),
-                password: "admin".to_string(),
-            },
-            indexes: OpensearchIndexes {
-                payment_attempts: "hyperswitch-payment-attempt-events".to_string(),
-                payment_intents: "hyperswitch-payment-intent-events".to_string(),
-                refunds: "hyperswitch-refund-events".to_string(),
-                disputes: "hyperswitch-dispute-events".to_string(),
-            },
-        }
-    }
-}
+impl FlowMetric for AnalyticsFlow {}

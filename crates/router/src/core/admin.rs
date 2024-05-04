@@ -439,6 +439,7 @@ pub async fn update_business_profile_cascade(
             payment_link_config: None,
             session_expiry: None,
             authentication_connector_details: None,
+            extended_card_info_config: None,
         };
 
         let update_futures = business_profiles.iter().map(|business_profile| async {
@@ -1648,7 +1649,20 @@ pub async fn update_business_profile(
         })
         .transpose()?;
 
-    let business_profile_update = storage::business_profile::BusinessProfileUpdateInternal {
+    let extended_card_info_config = request
+        .extended_card_info_config
+        .as_ref()
+        .map(|config| {
+            config
+                .encode_to_value()
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "extended_card_info_config",
+                })
+        })
+        .transpose()?
+        .map(Secret::new);
+
+    let business_profile_update = storage::business_profile::BusinessProfileUpdate::Update {
         profile_name: request.profile_name,
         modified_at: Some(date_time::now()),
         return_url: request.return_url.map(|return_url| return_url.to_string()),
@@ -1676,6 +1690,7 @@ pub async fn update_business_profile(
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "authentication_connector_details",
             })?,
+        extended_card_info_config,
     };
 
     let updated_business_profile = db
@@ -1689,6 +1704,39 @@ pub async fn update_business_profile(
         api_models::admin::BusinessProfileResponse::foreign_try_from(updated_business_profile)
             .change_context(errors::ApiErrorResponse::InternalServerError)?,
     ))
+}
+
+pub async fn extended_card_info_toggle(
+    state: AppState,
+    profile_id: &str,
+    ext_card_info_choice: admin_types::ExtendedCardInfoChoice,
+) -> RouterResponse<admin_types::ExtendedCardInfoChoice> {
+    let db = state.store.as_ref();
+    let business_profile = db
+        .find_business_profile_by_profile_id(profile_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+            id: profile_id.to_string(),
+        })?;
+
+    if business_profile.is_extended_card_info_enabled.is_none()
+        || business_profile
+            .is_extended_card_info_enabled
+            .is_some_and(|existing_config| existing_config != ext_card_info_choice.enabled)
+    {
+        let business_profile_update =
+            storage::business_profile::BusinessProfileUpdate::ExtendedCardInfoUpdate {
+                is_extended_card_info_enabled: Some(ext_card_info_choice.enabled),
+            };
+
+        db.update_business_profile_by_profile_id(business_profile, business_profile_update)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+                id: profile_id.to_owned(),
+            })?;
+    }
+
+    Ok(service_api::ApplicationResponse::Json(ext_card_info_choice))
 }
 
 pub(crate) fn validate_auth_and_metadata_type(
@@ -1731,10 +1779,10 @@ pub(crate) fn validate_auth_and_metadata_type(
             bankofamerica::transformers::BankOfAmericaAuthType::try_from(val)?;
             Ok(())
         }
-        // api_enums::Connector::Billwerk => {
-        //     billwerk::transformers::BillwerkAuthType::try_from(val)?;
-        //     Ok(())
-        // } Added as template code for future usage
+        api_enums::Connector::Billwerk => {
+            billwerk::transformers::BillwerkAuthType::try_from(val)?;
+            Ok(())
+        }
         api_enums::Connector::Bitpay => {
             bitpay::transformers::BitpayAuthType::try_from(val)?;
             Ok(())
@@ -1783,6 +1831,10 @@ pub(crate) fn validate_auth_and_metadata_type(
             dlocal::transformers::DlocalAuthType::try_from(val)?;
             Ok(())
         }
+        api_enums::Connector::Ebanx => {
+            ebanx::transformers::EbanxAuthType::try_from(val)?;
+            Ok(())
+        }
         api_enums::Connector::Fiserv => {
             fiserv::transformers::FiservAuthType::try_from(val)?;
             fiserv::transformers::FiservSessionObject::try_from(connector_meta_data)?;
@@ -1822,6 +1874,11 @@ pub(crate) fn validate_auth_and_metadata_type(
         }
         api_enums::Connector::Multisafepay => {
             multisafepay::transformers::MultisafepayAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Netcetera => {
+            netcetera::transformers::NetceteraAuthType::try_from(val)?;
+            netcetera::transformers::NetceteraMetaData::try_from(connector_meta_data)?;
             Ok(())
         }
         api_enums::Connector::Nexinets => {
@@ -1914,6 +1971,10 @@ pub(crate) fn validate_auth_and_metadata_type(
         }
         api_enums::Connector::Zen => {
             zen::transformers::ZenAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Zsl => {
+            zsl::transformers::ZslAuthType::try_from(val)?;
             Ok(())
         }
         api_enums::Connector::Signifyd => {

@@ -2,16 +2,6 @@ use std::str::FromStr;
 
 use api_models::enums::PayoutConnectors;
 use common_utils::{errors::CustomResult, ext_traits::Encode, fallback_reverse_lookup_not_found};
-use data_models::{
-    errors,
-    payouts::{
-        payout_attempt::{
-            PayoutAttempt, PayoutAttemptInterface, PayoutAttemptNew, PayoutAttemptUpdate,
-            PayoutListFilters,
-        },
-        payouts::Payouts,
-    },
-};
 use diesel_models::{
     enums::MerchantStorageScheme,
     kv,
@@ -22,6 +12,16 @@ use diesel_models::{
     ReverseLookupNew,
 };
 use error_stack::ResultExt;
+use hyperswitch_domain_models::{
+    errors,
+    payouts::{
+        payout_attempt::{
+            PayoutAttempt, PayoutAttemptInterface, PayoutAttemptNew, PayoutAttemptUpdate,
+            PayoutListFilters,
+        },
+        payouts::Payouts,
+    },
+};
 use redis_interface::HsetnxReply;
 use router_env::{instrument, logger, tracing};
 
@@ -29,7 +29,7 @@ use crate::{
     diesel_error_to_data_error,
     errors::RedisErrorExt,
     lookup::ReverseLookupInterface,
-    redis::kv_store::{kv_wrapper, KvOperation},
+    redis::kv_store::{kv_wrapper, KvOperation, PartitionKey},
     utils::{self, pg_connection_read, pg_connection_write},
     DataModelExt, DatabaseStore, KVRouterStore,
 };
@@ -40,19 +40,23 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
     async fn insert_payout_attempt(
         &self,
         new_payout_attempt: PayoutAttemptNew,
+        payouts: &Payouts,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PayoutAttempt, errors::StorageError> {
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
-                    .insert_payout_attempt(new_payout_attempt, storage_scheme)
+                    .insert_payout_attempt(new_payout_attempt, payouts, storage_scheme)
                     .await
             }
             MerchantStorageScheme::RedisKv => {
-                let key = format!(
-                    "mid_{}_poa_{}",
-                    new_payout_attempt.merchant_id, new_payout_attempt.payout_id
-                );
+                let merchant_id = new_payout_attempt.merchant_id.clone();
+                let payout_attempt_id = new_payout_attempt.payout_id.clone();
+                let key = PartitionKey::MerchantIdPayoutAttemptId {
+                    merchant_id: &merchant_id,
+                    payout_attempt_id: &payout_attempt_id,
+                };
+                let key_str = key.to_string();
                 let now = common_utils::date_time::now();
                 let created_attempt = PayoutAttempt {
                     payout_attempt_id: new_payout_attempt.payout_attempt_id.clone(),
@@ -91,7 +95,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                         "poa_{}_{}",
                         &created_attempt.merchant_id, &created_attempt.payout_attempt_id,
                     ),
-                    pk_id: key.clone(),
+                    pk_id: key_str.clone(),
                     sk_id: field.clone(),
                     source: "payout_attempt".to_string(),
                     updated_by: storage_scheme.to_string(),
@@ -106,15 +110,15 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                         &created_attempt.clone().to_storage_model(),
                         redis_entry,
                     ),
-                    &key,
+                    key,
                 )
                 .await
-                .map_err(|err| err.to_redis_failed_response(&key))?
+                .map_err(|err| err.to_redis_failed_response(&key_str))?
                 .try_into_hsetnx()
                 {
                     Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
                         entity: "payout attempt",
-                        key: Some(key),
+                        key: Some(key_str),
                     }
                     .into()),
                     Ok(HsetnxReply::KeySet) => Ok(created_attempt),
@@ -129,16 +133,21 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
         &self,
         this: &PayoutAttempt,
         payout_update: PayoutAttemptUpdate,
+        payouts: &Payouts,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PayoutAttempt, errors::StorageError> {
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
-                    .update_payout_attempt(this, payout_update, storage_scheme)
+                    .update_payout_attempt(this, payout_update, payouts, storage_scheme)
                     .await
             }
             MerchantStorageScheme::RedisKv => {
-                let key = format!("mid_{}_poa_{}", this.merchant_id, this.payout_id);
+                let key = PartitionKey::MerchantIdPayoutAttemptId {
+                    merchant_id: &this.merchant_id,
+                    payout_attempt_id: &this.payout_id,
+                };
+                let key_str = key.to_string();
                 let field = format!("poa_{}", this.payout_attempt_id);
 
                 let diesel_payout_update = payout_update.to_storage_model();
@@ -167,10 +176,10 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                 kv_wrapper::<(), _, _>(
                     self,
                     KvOperation::<DieselPayoutAttempt>::Hset((&field, redis_value), redis_entry),
-                    &key,
+                    key,
                 )
                 .await
-                .map_err(|err| err.to_redis_failed_response(&key))?
+                .map_err(|err| err.to_redis_failed_response(&key_str))?
                 .try_into_hset()
                 .change_context(errors::StorageError::KVError)?;
 
@@ -209,7 +218,9 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                         )
                         .await
                 );
-                let key = &lookup.pk_id;
+                let key = PartitionKey::CombinationKey {
+                    combination: &lookup.pk_id,
+                };
                 Box::pin(utils::try_redis_get_else_try_database_get(
                     async {
                         kv_wrapper(
@@ -254,6 +265,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for crate::RouterStore<T> {
     async fn insert_payout_attempt(
         &self,
         new: PayoutAttemptNew,
+        _payouts: &Payouts,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PayoutAttempt, errors::StorageError> {
         let conn = pg_connection_write(self).await?;
@@ -272,6 +284,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for crate::RouterStore<T> {
         &self,
         this: &PayoutAttempt,
         payout: PayoutAttemptUpdate,
+        _payouts: &Payouts,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PayoutAttempt, errors::StorageError> {
         let conn = pg_connection_write(self).await?;

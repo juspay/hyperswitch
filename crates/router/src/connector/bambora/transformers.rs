@@ -5,12 +5,45 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
-    connector::utils::{BrowserInformationData, PaymentsAuthorizeRequestData},
+    connector::utils::{
+        AddressDetailsData, BrowserInformationData, CardData as OtherCardData,
+        PaymentsAuthorizeRequestData, RouterData,
+    },
     consts,
     core::errors,
     services,
-    types::{self, api, storage::enums},
+    types::{self, api, domain, storage::enums},
 };
+
+pub struct BamboraRouterData<T> {
+    pub amount: f64,
+    pub router_data: T,
+}
+
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for BamboraRouterData<T>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (currency_unit, currency, amount, item): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let amount = crate::connector::utils::get_amount_as_f64(currency_unit, amount, currency)?;
+        Ok(Self {
+            amount,
+            router_data: item,
+        })
+    }
+}
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct BamboraCard {
@@ -46,14 +79,19 @@ pub struct BamboraBrowserInfo {
     javascript_enabled: bool,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize)]
 pub struct BamboraPaymentsRequest {
     order_number: String,
-    amount: i64,
+    amount: f64,
     payment_method: PaymentMethod,
     customer_ip: Option<Secret<String, IpAddress>>,
     term_url: Option<String>,
     card: BamboraCard,
+}
+
+#[derive(Default, Debug, Serialize)]
+pub struct BamboraVoidRequest {
+    amount: f64,
 }
 
 fn get_browser_info(
@@ -102,41 +140,41 @@ impl TryFrom<&types::CompleteAuthorizeData> for BamboraThreedsContinueRequest {
     }
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest {
+impl TryFrom<BamboraRouterData<&types::PaymentsAuthorizeRouterData>> for BamboraPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(req_card) => {
-                let three_ds = match item.auth_type {
+    fn try_from(
+        item: BamboraRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        match item.router_data.request.payment_method_data.clone() {
+            domain::PaymentMethodData::Card(req_card) => {
+                let three_ds = match item.router_data.auth_type {
                     enums::AuthenticationType::ThreeDs => Some(ThreeDSecure {
                         enabled: true,
-                        browser: get_browser_info(item)?,
+                        browser: get_browser_info(item.router_data)?,
                         version: Some(2),
                         auth_required: Some(true),
                     }),
                     enums::AuthenticationType::NoThreeDs => None,
                 };
                 let bambora_card = BamboraCard {
-                    name: req_card
-                        .card_holder_name
-                        .unwrap_or(Secret::new("".to_string())),
+                    name: item.router_data.get_billing_address()?.get_full_name()?,
+                    expiry_year: req_card.get_card_expiry_year_2_digit()?,
                     number: req_card.card_number,
                     expiry_month: req_card.card_exp_month,
-                    expiry_year: req_card.card_exp_year,
                     cvd: req_card.card_cvc,
                     three_d_secure: three_ds,
-                    complete: item.request.is_auto_capture()?,
+                    complete: item.router_data.request.is_auto_capture()?,
                 };
-                let browser_info = item.request.get_browser_info()?;
+                let browser_info = item.router_data.request.get_browser_info()?;
                 Ok(Self {
-                    order_number: item.connector_request_reference_id.clone(),
-                    amount: item.request.amount,
+                    order_number: item.router_data.connector_request_reference_id.clone(),
+                    amount: item.amount,
                     payment_method: PaymentMethod::Card,
                     card: bambora_card,
                     customer_ip: browser_info
                         .ip_address
                         .map(|ip_address| Secret::new(format!("{ip_address}"))),
-                    term_url: item.request.complete_authorize_url.clone(),
+                    term_url: item.router_data.request.complete_authorize_url.clone(),
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
@@ -144,12 +182,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest {
     }
 }
 
-impl TryFrom<&types::PaymentsCancelRouterData> for BamboraPaymentsRequest {
+impl TryFrom<BamboraRouterData<&types::PaymentsCancelRouterData>> for BamboraVoidRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(_item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: BamboraRouterData<&types::PaymentsCancelRouterData>,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: 0,
-            ..Default::default()
+            amount: item.amount,
         })
     }
 }
@@ -417,15 +456,19 @@ pub enum PaymentMethod {
 // Capture
 #[derive(Default, Debug, Clone, Serialize, PartialEq)]
 pub struct BamboraPaymentsCaptureRequest {
-    amount: Option<i64>,
+    amount: Option<f64>,
     payment_method: PaymentMethod,
 }
 
-impl TryFrom<&types::PaymentsCaptureRouterData> for BamboraPaymentsCaptureRequest {
+impl TryFrom<BamboraRouterData<&types::PaymentsCaptureRouterData>>
+    for BamboraPaymentsCaptureRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: BamboraRouterData<&types::PaymentsCaptureRouterData>,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: Some(item.request.amount_to_capture),
+            amount: Some(item.amount),
             payment_method: PaymentMethod::Card,
         })
     }
@@ -433,16 +476,18 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for BamboraPaymentsCaptureReques
 
 // REFUND :
 // Type definition for RefundRequest
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize)]
 pub struct BamboraRefundRequest {
-    amount: i64,
+    amount: f64,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for BamboraRefundRequest {
+impl<F> TryFrom<BamboraRouterData<&types::RefundsRouterData<F>>> for BamboraRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: BamboraRouterData<&types::RefundsRouterData<F>>,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.request.refund_amount,
+            amount: item.amount,
         })
     }
 }

@@ -197,7 +197,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut headers = self.build_headers(req, connectors)?;
         let api_headers = match req.request.payment_method_data {
-            api_models::payments::PaymentMethodData::Wallet(_) => None,
+            domain::payments::PaymentMethodData::Wallet(_) => None,
             _ => Some(Self::get_default_header()),
         };
         if let Some(api_header) = api_headers {
@@ -216,7 +216,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = match &req.request.payment_method_data {
-            api_models::payments::PaymentMethodData::Wallet(_) => {
+            domain::payments::PaymentMethodData::Wallet(_) => {
                 let base_url = connectors
                     .zen
                     .secondary_base_url
@@ -710,7 +710,9 @@ impl services::ConnectorRedirectResponse for Zen {
         action: services::PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
         match action {
-            services::PaymentAction::PSync | services::PaymentAction::CompleteAuthorize => {
+            services::PaymentAction::PSync
+            | services::PaymentAction::CompleteAuthorize
+            | services::PaymentAction::PaymentAuthenticateCompleteAuthorize => {
                 Ok(payments::CallConnectorAction::Trigger)
             }
         }

@@ -1,5 +1,6 @@
 use std::{marker::PhantomData, str::FromStr};
 
+use api_models::payments::{Address, AddressDetails, PhoneDetails};
 use masking::Secret;
 use router::{
     configs::settings::Settings,
@@ -32,15 +33,13 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         description: Some("This is a test".to_string()),
         return_url: None,
         payment_method_status: None,
-        payment_method_id: None,
         request: types::PaymentsAuthorizeData {
             amount: 1000,
             currency: enums::Currency::USD,
-            payment_method_data: types::api::PaymentMethodData::Card(types::api::Card {
+            payment_method_data: types::domain::PaymentMethodData::Card(types::domain::Card {
                 card_number: cards::CardNumber::from_str("4200000000000000").unwrap(),
                 card_exp_month: Secret::new("10".to_string()),
                 card_exp_year: Secret::new("2025".to_string()),
-                card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
                 card_cvc: Secret::new("999".to_string()),
                 card_issuer: None,
                 card_network: None,
@@ -78,7 +77,22 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
             customer_acceptance: None,
         },
         response: Err(types::ErrorResponse::default()),
-        address: PaymentAddress::default(),
+        address: PaymentAddress::new(
+            None,
+            None,
+            Some(Address {
+                address: Some(AddressDetails {
+                    first_name: Some(Secret::new("John".to_string())),
+                    last_name: Some(Secret::new("Doe".to_string())),
+                    ..Default::default()
+                }),
+                phone: Some(PhoneDetails {
+                    number: Some(Secret::new("8056594427".to_string())),
+                    country_code: Some("+351".to_string()),
+                }),
+                email: None,
+            }),
+        ),
         connector_meta_data: None,
         amount_captured: None,
         access_token: None,
@@ -118,7 +132,6 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         connector: "aci".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
         attempt_id: uuid::Uuid::new_v4().to_string(),
-        payment_method_id: None,
         payment_method_status: None,
         status: enums::AttemptStatus::default(),
         payment_method: enums::PaymentMethod::Card,
@@ -240,11 +253,10 @@ async fn payments_create_failure() {
         > = connector.connector.get_connector_integration();
         let mut request = construct_payment_router_data();
         request.request.payment_method_data =
-            types::api::PaymentMethodData::Card(types::api::Card {
+            types::domain::PaymentMethodData::Card(types::domain::Card {
                 card_number: cards::CardNumber::from_str("4200000000000000").unwrap(),
                 card_exp_month: Secret::new("10".to_string()),
                 card_exp_year: Secret::new("2025".to_string()),
-                card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
                 card_cvc: Secret::new("99".to_string()),
                 card_issuer: None,
                 card_network: None,

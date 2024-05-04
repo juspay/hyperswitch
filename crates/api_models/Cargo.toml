@@ -23,22 +23,22 @@ openapi = ["common_enums/openapi", "olap", "backwards_compatibility", "business_
 recon = []
 
 [dependencies]
-actix-web = { version = "4.3.1", optional = true }
+actix-web = { version = "4.5.1", optional = true }
 error-stack = "0.4.1"
 mime = "0.3.17"
 reqwest = { version = "0.12.2", optional = true }
-serde = { version = "1.0.193", features = ["derive"] }
-serde_json = "1.0.108"
-strum = { version = "0.25", features = ["derive"] }
-time = { version = "0.3.21", features = ["serde", "serde-well-known", "std"] }
-url = { version = "2.4.0", features = ["serde"] }
-utoipa = { version = "3.5.0", features = ["preserve_order", "preserve_path_order"] }
-frunk = "0.4.1"
-frunk_core = "0.4.1"
+serde = { version = "1.0.197", features = ["derive"] }
+serde_json = "1.0.115"
+strum = { version = "0.26", features = ["derive"] }
+time = { version = "0.3.35", features = ["serde", "serde-well-known", "std"] }
+url = { version = "2.5.0", features = ["serde"] }
+utoipa = { version = "4.2.0", features = ["preserve_order", "preserve_path_order"] }
+frunk = "0.4.2"
+frunk_core = "0.4.2"
 
 # First party crates
 cards = { version = "0.1.0", path = "../cards" }
-common_enums = { path = "../common_enums" }
+common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
 euclid = { version = "0.1.0", path = "../euclid" }
 masking = { version = "0.1.0", path = "../masking", default-features = false, features = ["alloc", "serde"] }

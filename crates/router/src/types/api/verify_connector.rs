@@ -8,7 +8,7 @@ use crate::{
     core::errors,
     services,
     services::ConnectorIntegration,
-    types::{self, api, storage::enums as storage_enums},
+    types::{self, api, domain, storage::enums as storage_enums},
     AppState,
 };
 
@@ -16,13 +16,13 @@ use crate::{
 pub struct VerifyConnectorData {
     pub connector: &'static (dyn types::api::Connector + Sync),
     pub connector_auth: types::ConnectorAuthType,
-    pub card_details: api::Card,
+    pub card_details: domain::Card,
 }
 
 impl VerifyConnectorData {
     fn get_payment_authorize_data(&self) -> types::PaymentsAuthorizeData {
         types::PaymentsAuthorizeData {
-            payment_method_data: api::PaymentMethodData::Card(self.card_details.clone()),
+            payment_method_data: domain::PaymentMethodData::Card(self.card_details.clone()),
             email: None,
             customer_name: None,
             amount: 1000,
@@ -81,7 +81,6 @@ impl VerifyConnectorData {
             payment_method: storage_enums::PaymentMethod::Card,
             amount_captured: None,
             preprocessing_id: None,
-            payment_method_id: None,
             connector_customer: None,
             connector_auth_type: self.connector_auth.clone(),
             connector_meta_data: None,
