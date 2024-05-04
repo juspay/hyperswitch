@@ -1007,10 +1007,7 @@ impl services::ConnectorRedirectResponse for Nmi {
                     }
                 }
             }
-            services::PaymentAction::PSync
-            | services::PaymentAction::PaymentAuthenticateCompleteAuthorize => {
-                Ok(payments::CallConnectorAction::Trigger)
-            }
+            services::PaymentAction::PSync => Ok(payments::CallConnectorAction::Trigger),
         }
     }
 }

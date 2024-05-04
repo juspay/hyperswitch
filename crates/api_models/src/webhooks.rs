@@ -38,7 +38,6 @@ pub enum IncomingWebhookEvent {
     MandateActive,
     MandateRevoked,
     EndpointVerification,
-    ExternalAuthenticationARes,
 }
 
 pub enum WebhookFlow {
@@ -49,7 +48,6 @@ pub enum WebhookFlow {
     ReturnResponse,
     BankTransfer,
     Mandate,
-    ExternalAuthentication,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -118,7 +116,6 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             IncomingWebhookEvent::EndpointVerification => Self::ReturnResponse,
             IncomingWebhookEvent::SourceChargeable
             | IncomingWebhookEvent::SourceTransactionCreated => Self::BankTransfer,
-            IncomingWebhookEvent::ExternalAuthenticationARes => Self::ExternalAuthentication,
         }
     }
 }
@@ -138,17 +135,10 @@ pub enum MandateIdType {
 }
 
 #[derive(Clone)]
-pub enum AuthenticationIdType {
-    AuthenticationId(String),
-    ConnectorAuthenticationId(String),
-}
-
-#[derive(Clone)]
 pub enum ObjectReferenceId {
     PaymentId(payments::PaymentIdType),
     RefundId(RefundIdType),
     MandateId(MandateIdType),
-    ExternalAuthenticationID(AuthenticationIdType),
 }
 
 pub struct IncomingWebhookDetails {

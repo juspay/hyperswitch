@@ -11,7 +11,7 @@ pub use euclid::{
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::enums::{RoutableConnectors, TransactionType};
+use crate::enums::{self, RoutableConnectors, TransactionType};
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
@@ -299,12 +299,34 @@ impl From<RoutableConnectorChoice> for ast::ConnectorChoice {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DetailedConnectorChoice {
-    pub enabled: bool,
+    pub connector: RoutableConnectors,
+    pub business_label: Option<String>,
+    pub business_country: Option<enums::CountryAlpha2>,
+    pub business_sub_label: Option<String>,
 }
 
-impl common_utils::events::ApiEventMetric for DetailedConnectorChoice {}
+impl DetailedConnectorChoice {
+    pub fn get_connector_label(&self) -> Option<String> {
+        self.business_country
+            .as_ref()
+            .zip(self.business_label.as_ref())
+            .map(|(business_country, business_label)| {
+                let mut base_label = format!(
+                    "{}_{:?}_{}",
+                    self.connector, business_country, business_label
+                );
+
+                if let Some(ref sub_label) = self.business_sub_label {
+                    base_label.push('_');
+                    base_label.push_str(sub_label);
+                }
+
+                base_label
+            })
+    }
+}
 
 #[derive(Debug, Copy, Clone, serde::Serialize, serde::Deserialize, strum::Display, ToSchema)]
 #[serde(rename_all = "snake_case")]

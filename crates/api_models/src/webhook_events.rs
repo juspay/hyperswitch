@@ -94,14 +94,6 @@ pub struct EventRetrieveResponse {
     pub delivery_attempt: Option<WebhookDeliveryAttempt>,
 }
 
-impl common_utils::events::ApiEventMetric for EventRetrieveResponse {
-    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
-        Some(common_utils::events::ApiEventsType::Events {
-            merchant_id_or_profile_id: self.event_information.merchant_id.clone(),
-        })
-    }
-}
-
 /// The request information (headers and body) sent in the webhook.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct OutgoingWebhookRequestContent {
@@ -122,24 +114,20 @@ pub struct OutgoingWebhookRequestContent {
 #[derive(Debug, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct OutgoingWebhookResponseContent {
     /// The response body received for the webhook sent.
-    #[schema(value_type = Option<String>)]
+    #[schema(value_type = String)]
     #[serde(alias = "payload")]
-    pub body: Option<Secret<String>>,
+    pub body: Secret<String>,
 
     /// The response headers received for the webhook sent.
     #[schema(
-        value_type = Option<Vec<(String, String)>>,
+        value_type = Vec<(String, String)>,
         example = json!([["content-type", "application/json"], ["content-length", "1024"]]))
     ]
-    pub headers: Option<Vec<(String, Secret<String>)>>,
+    pub headers: Vec<(String, Secret<String>)>,
 
     /// The HTTP status code for the webhook sent.
     #[schema(example = 200)]
-    pub status_code: Option<u16>,
-
-    /// Error message in case any error occurred when trying to deliver the webhook.
-    #[schema(example = 200)]
-    pub error_message: Option<String>,
+    pub status_code: u16,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -163,20 +151,6 @@ pub struct WebhookDeliveryAttemptListRequestInternal {
 }
 
 impl common_utils::events::ApiEventMetric for WebhookDeliveryAttemptListRequestInternal {
-    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
-        Some(common_utils::events::ApiEventsType::Events {
-            merchant_id_or_profile_id: self.merchant_id_or_profile_id.clone(),
-        })
-    }
-}
-
-#[derive(Debug, serde::Serialize)]
-pub struct WebhookDeliveryRetryRequestInternal {
-    pub merchant_id_or_profile_id: String,
-    pub event_id: String,
-}
-
-impl common_utils::events::ApiEventMetric for WebhookDeliveryRetryRequestInternal {
     fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
         Some(common_utils::events::ApiEventsType::Events {
             merchant_id_or_profile_id: self.merchant_id_or_profile_id.clone(),

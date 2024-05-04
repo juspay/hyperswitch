@@ -18,7 +18,6 @@ use crate::{
     },
     db::StorageInterface,
     errors,
-    routes::app::ReqState,
     types::{
         api::fraud_check as frm_api,
         domain,
@@ -105,7 +104,6 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPre {
                     metadata: None,
                     modified_at: common_utils::date_time::now(),
                     last_step: FraudCheckLastStep::Processing,
-                    payment_capture_method: payment_data.payment_attempt.capture_method,
                 })
                 .await
             }
@@ -140,7 +138,6 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPre {
     async fn post_payment_frm<'a>(
         &'a self,
         state: &'a AppState,
-        _req_state: ReqState,
         payment_data: &mut payments::PaymentData<F>,
         frm_data: &mut FrmData,
         merchant_account: &domain::MerchantAccount,
@@ -170,7 +167,6 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPre {
                 error_code: router_data.request.error_code,
                 error_message: router_data.request.error_message,
                 connector_transaction_id: router_data.request.connector_transaction_id,
-                connector: router_data.request.connector,
             }),
             response: FrmResponse::Transaction(router_data.response),
         }))
@@ -252,7 +248,6 @@ impl<F: Clone + Send> UpdateTracker<FrmData, F> for FraudCheckPre {
                             metadata: connector_metadata,
                             modified_at: common_utils::date_time::now(),
                             last_step: frm_data.fraud_check.last_step,
-                            payment_capture_method: frm_data.fraud_check.payment_capture_method,
                         };
                         Some(fraud_check_update)
                     }
@@ -305,7 +300,6 @@ impl<F: Clone + Send> UpdateTracker<FrmData, F> for FraudCheckPre {
                             metadata: connector_metadata,
                             modified_at: common_utils::date_time::now(),
                             last_step: frm_data.fraud_check.last_step,
-                            payment_capture_method: None,
                         };
                         Some(fraud_check_update)
                     }

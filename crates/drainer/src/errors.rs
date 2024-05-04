@@ -48,8 +48,8 @@ impl From<error_stack::Report<redis::errors::RedisError>> for DrainerError {
 }
 
 impl actix_web::ResponseError for HealthCheckError {
-    fn status_code(&self) -> reqwest::StatusCode {
-        use reqwest::StatusCode;
+    fn status_code(&self) -> actix_web::http::StatusCode {
+        use actix_web::http::StatusCode;
 
         match self {
             Self::DbError { .. } | Self::RedisError { .. } => StatusCode::INTERNAL_SERVER_ERROR,

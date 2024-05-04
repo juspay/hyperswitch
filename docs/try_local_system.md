@@ -222,7 +222,6 @@ Once you're done with setting up the dependencies, proceed with
 
 [postgresql-install]: https://www.postgresql.org/download/
 [redis-install]: https://redis.io/docs/getting-started/installation/
-[wsl-config]: https://learn.microsoft.com/en-us/windows/wsl/wsl-config/
 
 ### Set up dependencies on Windows (Ubuntu on WSL2)
 
@@ -241,8 +240,6 @@ packages for your distribution and follow along.
    Launch the WSL instance and set up your username and password.
    The following steps assume that you are running the commands within the WSL
    shell environment.
-
-   > Note that a `SIGKILL` error may occur when compiling certain crates if WSL is unable to use sufficient memory. It may be necessary to allow up to 24GB of memory, but your mileage may vary. You may increase the amount of memory WSL can use via a `.wslconfig` file in your Windows user folder, or by creating a swap file in WSL itself. Refer to the [WSL configuration documentation][wsl-config] for more information.
 
 2. Install the stable Rust toolchain using `rustup`:
 

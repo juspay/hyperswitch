@@ -2,9 +2,9 @@ use api_models::{
     enums::Connector::{DummyConnector4, DummyConnector7},
     user::sample_data::SampleDataRequest,
 };
+use data_models::payments::payment_intent::PaymentIntentNew;
 use diesel_models::{user::sample_data::PaymentAttemptBatchNew, RefundNew};
 use error_stack::ResultExt;
-use hyperswitch_domain_models::payments::payment_intent::PaymentIntentNew;
 use rand::{prelude::SliceRandom, thread_rng, Rng};
 use time::OffsetDateTime;
 
@@ -187,9 +187,7 @@ pub async fn generate_sample_data(
             client_secret: Some(client_secret),
             business_country: business_country_default,
             business_label: business_label_default.clone(),
-            active_attempt: hyperswitch_domain_models::RemoteStorageObject::ForeignID(
-                attempt_id.clone(),
-            ),
+            active_attempt: data_models::RemoteStorageObject::ForeignID(attempt_id.clone()),
             attempt_count: 1,
             customer_id: Some("hs-dashboard-user".to_string()),
             amount_captured: Some(amount * 100),

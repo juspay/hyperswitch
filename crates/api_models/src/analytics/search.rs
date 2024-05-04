@@ -30,7 +30,7 @@ pub struct GetSearchRequestWithIndex {
     pub search_req: GetSearchRequest,
 }
 
-#[derive(Debug, strum::EnumIter, Clone, serde::Deserialize, serde::Serialize, Copy)]
+#[derive(Debug, strum::EnumIter, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SearchIndex {
     PaymentAttempts,

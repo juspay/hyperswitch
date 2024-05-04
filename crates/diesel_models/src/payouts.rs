@@ -32,7 +32,6 @@ pub struct Payouts {
     pub attempt_count: i16,
     pub profile_id: String,
     pub status: storage_enums::PayoutStatus,
-    pub confirm: Option<bool>,
 }
 
 #[derive(
@@ -68,10 +67,9 @@ pub struct PayoutsNew {
     pub created_at: Option<PrimitiveDateTime>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_modified_at: Option<PrimitiveDateTime>,
-    pub attempt_count: i16,
     pub profile_id: String,
     pub status: storage_enums::PayoutStatus,
-    pub confirm: Option<bool>,
+    pub attempt_count: i16,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -88,19 +86,15 @@ pub enum PayoutsUpdate {
         metadata: Option<pii::SecretSerdeValue>,
         profile_id: Option<String>,
         status: Option<storage_enums::PayoutStatus>,
-        confirm: Option<bool>,
     },
     PayoutMethodIdUpdate {
-        payout_method_id: String,
+        payout_method_id: Option<String>,
     },
     RecurringUpdate {
         recurring: bool,
     },
     AttemptCountUpdate {
         attempt_count: i16,
-    },
-    StatusUpdate {
-        status: storage_enums::PayoutStatus,
     },
 }
 
@@ -121,7 +115,6 @@ pub struct PayoutsUpdateInternal {
     pub status: Option<storage_enums::PayoutStatus>,
     pub last_modified_at: PrimitiveDateTime,
     pub attempt_count: Option<i16>,
-    pub confirm: Option<bool>,
 }
 
 impl Default for PayoutsUpdateInternal {
@@ -141,7 +134,6 @@ impl Default for PayoutsUpdateInternal {
             status: None,
             last_modified_at: common_utils::date_time::now(),
             attempt_count: None,
-            confirm: None,
         }
     }
 }
@@ -161,7 +153,6 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 metadata,
                 profile_id,
                 status,
-                confirm,
             } => Self {
                 amount: Some(amount),
                 destination_currency: Some(destination_currency),
@@ -174,11 +165,10 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 metadata,
                 profile_id,
                 status,
-                confirm,
                 ..Default::default()
             },
             PayoutsUpdate::PayoutMethodIdUpdate { payout_method_id } => Self {
-                payout_method_id: Some(payout_method_id),
+                payout_method_id,
                 ..Default::default()
             },
             PayoutsUpdate::RecurringUpdate { recurring } => Self {
@@ -187,10 +177,6 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
             },
             PayoutsUpdate::AttemptCountUpdate { attempt_count } => Self {
                 attempt_count: Some(attempt_count),
-                ..Default::default()
-            },
-            PayoutsUpdate::StatusUpdate { status } => Self {
-                status: Some(status),
                 ..Default::default()
             },
         }
@@ -214,7 +200,6 @@ impl PayoutsUpdate {
             status,
             last_modified_at,
             attempt_count,
-            confirm,
         } = self.into();
         Payouts {
             amount: amount.unwrap_or(source.amount),
@@ -231,7 +216,6 @@ impl PayoutsUpdate {
             status: status.unwrap_or(source.status),
             last_modified_at,
             attempt_count: attempt_count.unwrap_or(source.attempt_count),
-            confirm: confirm.or(source.confirm),
             ..source
         }
     }

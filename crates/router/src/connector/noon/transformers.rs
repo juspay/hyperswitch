@@ -10,7 +10,7 @@ use crate::{
     },
     core::{errors, mandate::MandateBehaviour},
     services,
-    types::{self, api, domain, storage::enums, transformers::ForeignFrom, ErrorResponse},
+    types::{self, api, storage::enums, transformers::ForeignFrom, ErrorResponse},
 };
 
 // These needs to be accepted from SDK, need to be done after 1.0.0 stability as API contract will change
@@ -239,17 +239,15 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
             ),
             _ => (
                 match item.request.payment_method_data.clone() {
-                    domain::PaymentMethodData::Card(req_card) => {
-                        Ok(NoonPaymentData::Card(NoonCard {
-                            name_on_card: item.get_optional_billing_full_name(),
-                            number_plain: req_card.card_number.clone(),
-                            expiry_month: req_card.card_exp_month.clone(),
-                            expiry_year: req_card.get_expiry_year_4_digit(),
-                            cvv: req_card.card_cvc,
-                        }))
-                    }
-                    domain::PaymentMethodData::Wallet(wallet_data) => match wallet_data.clone() {
-                        domain::WalletData::GooglePay(google_pay_data) => {
+                    api::PaymentMethodData::Card(req_card) => Ok(NoonPaymentData::Card(NoonCard {
+                        name_on_card: req_card.card_holder_name.clone(),
+                        number_plain: req_card.card_number.clone(),
+                        expiry_month: req_card.card_exp_month.clone(),
+                        expiry_year: req_card.get_expiry_year_4_digit(),
+                        cvv: req_card.card_cvc,
+                    })),
+                    api::PaymentMethodData::Wallet(wallet_data) => match wallet_data.clone() {
+                        api_models::payments::WalletData::GooglePay(google_pay_data) => {
                             Ok(NoonPaymentData::GooglePay(NoonGooglePay {
                                 api_version_minor: GOOGLEPAY_API_VERSION_MINOR,
                                 api_version: GOOGLEPAY_API_VERSION,
@@ -258,7 +256,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                                 ),
                             }))
                         }
-                        domain::WalletData::ApplePay(apple_pay_data) => {
+                        api_models::payments::WalletData::ApplePay(apple_pay_data) => {
                             let payment_token_data = NoonApplePayTokenData {
                                 token: NoonApplePayData {
                                     payment_data: wallet_data
@@ -281,51 +279,51 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                                 payment_info: Secret::new(payment_token),
                             }))
                         }
-                        domain::WalletData::PaypalRedirect(_) => {
+                        api_models::payments::WalletData::PaypalRedirect(_) => {
                             Ok(NoonPaymentData::PayPal(NoonPayPal {
                                 return_url: item.request.get_router_return_url()?,
                             }))
                         }
-                        domain::WalletData::AliPayQr(_)
-                        | domain::WalletData::AliPayRedirect(_)
-                        | domain::WalletData::AliPayHkRedirect(_)
-                        | domain::WalletData::MomoRedirect(_)
-                        | domain::WalletData::KakaoPayRedirect(_)
-                        | domain::WalletData::GoPayRedirect(_)
-                        | domain::WalletData::GcashRedirect(_)
-                        | domain::WalletData::ApplePayRedirect(_)
-                        | domain::WalletData::ApplePayThirdPartySdk(_)
-                        | domain::WalletData::DanaRedirect {}
-                        | domain::WalletData::GooglePayRedirect(_)
-                        | domain::WalletData::GooglePayThirdPartySdk(_)
-                        | domain::WalletData::MbWayRedirect(_)
-                        | domain::WalletData::MobilePayRedirect(_)
-                        | domain::WalletData::PaypalSdk(_)
-                        | domain::WalletData::SamsungPay(_)
-                        | domain::WalletData::TwintRedirect {}
-                        | domain::WalletData::VippsRedirect {}
-                        | domain::WalletData::TouchNGoRedirect(_)
-                        | domain::WalletData::WeChatPayRedirect(_)
-                        | domain::WalletData::WeChatPayQr(_)
-                        | domain::WalletData::CashappQr(_)
-                        | domain::WalletData::SwishQr(_) => {
+                        api_models::payments::WalletData::AliPayQr(_)
+                        | api_models::payments::WalletData::AliPayRedirect(_)
+                        | api_models::payments::WalletData::AliPayHkRedirect(_)
+                        | api_models::payments::WalletData::MomoRedirect(_)
+                        | api_models::payments::WalletData::KakaoPayRedirect(_)
+                        | api_models::payments::WalletData::GoPayRedirect(_)
+                        | api_models::payments::WalletData::GcashRedirect(_)
+                        | api_models::payments::WalletData::ApplePayRedirect(_)
+                        | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
+                        | api_models::payments::WalletData::DanaRedirect {}
+                        | api_models::payments::WalletData::GooglePayRedirect(_)
+                        | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
+                        | api_models::payments::WalletData::MbWayRedirect(_)
+                        | api_models::payments::WalletData::MobilePayRedirect(_)
+                        | api_models::payments::WalletData::PaypalSdk(_)
+                        | api_models::payments::WalletData::SamsungPay(_)
+                        | api_models::payments::WalletData::TwintRedirect {}
+                        | api_models::payments::WalletData::VippsRedirect {}
+                        | api_models::payments::WalletData::TouchNGoRedirect(_)
+                        | api_models::payments::WalletData::WeChatPayRedirect(_)
+                        | api_models::payments::WalletData::WeChatPayQr(_)
+                        | api_models::payments::WalletData::CashappQr(_)
+                        | api_models::payments::WalletData::SwishQr(_) => {
                             Err(errors::ConnectorError::NotImplemented(
                                 conn_utils::get_unimplemented_payment_method_error_message("Noon"),
                             ))
                         }
                     },
-                    domain::PaymentMethodData::CardRedirect(_)
-                    | domain::PaymentMethodData::PayLater(_)
-                    | domain::PaymentMethodData::BankRedirect(_)
-                    | domain::PaymentMethodData::BankDebit(_)
-                    | domain::PaymentMethodData::BankTransfer(_)
-                    | domain::PaymentMethodData::Crypto(_)
-                    | domain::PaymentMethodData::MandatePayment {}
-                    | domain::PaymentMethodData::Reward {}
-                    | domain::PaymentMethodData::Upi(_)
-                    | domain::PaymentMethodData::Voucher(_)
-                    | domain::PaymentMethodData::GiftCard(_)
-                    | domain::PaymentMethodData::CardToken(_) => {
+                    api::PaymentMethodData::CardRedirect(_)
+                    | api::PaymentMethodData::PayLater(_)
+                    | api::PaymentMethodData::BankRedirect(_)
+                    | api::PaymentMethodData::BankDebit(_)
+                    | api::PaymentMethodData::BankTransfer(_)
+                    | api::PaymentMethodData::Crypto(_)
+                    | api::PaymentMethodData::MandatePayment {}
+                    | api::PaymentMethodData::Reward {}
+                    | api::PaymentMethodData::Upi(_)
+                    | api::PaymentMethodData::Voucher(_)
+                    | api::PaymentMethodData::GiftCard(_)
+                    | api::PaymentMethodData::CardToken(_) => {
                         Err(errors::ConnectorError::NotImplemented(
                             conn_utils::get_unimplemented_payment_method_error_message("Noon"),
                         ))
@@ -373,13 +371,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
             .get_setup_mandate_details()
             .map(|mandate_data| {
                 let max_amount = match &mandate_data.mandate_type {
-                    Some(hyperswitch_domain_models::mandates::MandateDataType::SingleUse(
-                        mandate,
-                    ))
-                    | Some(hyperswitch_domain_models::mandates::MandateDataType::MultiUse(Some(
-                        mandate,
-                    ))) => conn_utils::to_currency_base_unit(mandate.amount, mandate.currency),
-                    Some(hyperswitch_domain_models::mandates::MandateDataType::MultiUse(None)) => {
+                    Some(data_models::mandates::MandateDataType::SingleUse(mandate))
+                    | Some(data_models::mandates::MandateDataType::MultiUse(Some(mandate))) => {
+                        conn_utils::to_currency_base_unit(mandate.amount, mandate.currency)
+                    }
+                    Some(data_models::mandates::MandateDataType::MultiUse(None)) => {
                         Err(errors::ConnectorError::MissingRequiredField {
                             field_name:
                                 "setup_future_usage.mandate_data.mandate_type.multi_use.amount",

@@ -23,6 +23,8 @@ use super::blocklist;
 use super::dummy_connector::*;
 #[cfg(feature = "payouts")]
 use super::payouts::*;
+#[cfg(feature = "oltp")]
+use super::pm_auth;
 #[cfg(feature = "olap")]
 use super::routing as cloud_routing;
 #[cfg(feature = "olap")]
@@ -39,10 +41,6 @@ use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 use super::{currency, payment_methods::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, webhooks::*};
-#[cfg(feature = "oltp")]
-use super::{pm_auth, poll::retrieve_poll_status};
-#[cfg(feature = "olap")]
-pub use crate::analytics::opensearch::OpenSearchClient;
 use crate::configs::secrets_transformers;
 #[cfg(all(feature = "frm", feature = "oltp"))]
 use crate::routes::fraud_check as frm_routes;
@@ -60,11 +58,6 @@ pub use crate::{
 };
 
 #[derive(Clone)]
-pub struct ReqState {
-    pub event_context: events::EventContext<crate::events::EventType, EventsHandler>,
-}
-
-#[derive(Clone)]
 pub struct AppState {
     pub flow_name: String,
     pub store: Box<dyn StorageInterface>,
@@ -75,8 +68,6 @@ pub struct AppState {
     pub api_client: Box<dyn crate::services::ApiClient>,
     #[cfg(feature = "olap")]
     pub pool: crate::analytics::AnalyticsProvider,
-    #[cfg(feature = "olap")]
-    pub opensearch_client: OpenSearchClient,
     pub request_id: Option<RequestId>,
     pub file_storage_client: Box<dyn FileStorageInterface>,
     pub encryption_client: Box<dyn EncryptionManagementInterface>,
@@ -181,14 +172,6 @@ impl AppState {
                 .await
                 .expect("Failed to create event handler");
 
-            #[allow(clippy::expect_used)]
-            #[cfg(feature = "olap")]
-            let opensearch_client = conf
-                .opensearch
-                .get_opensearch_client()
-                .await
-                .expect("Failed to create opensearch client");
-
             let store: Box<dyn StorageInterface> = match storage_impl {
                 StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match &event_handler {
                     EventsHandler::Kafka(kafka_client) => Box::new(
@@ -235,8 +218,6 @@ impl AppState {
                 event_handler,
                 #[cfg(feature = "olap")]
                 pool,
-                #[cfg(feature = "olap")]
-                opensearch_client,
                 request_id: None,
                 file_storage_client,
                 encryption_client,
@@ -257,12 +238,6 @@ impl AppState {
             api_client,
         ))
         .await
-    }
-
-    pub fn get_req_state(&self) -> ReqState {
-        ReqState {
-            event_context: events::EventContext::new(self.event_handler.clone()),
-        }
     }
 }
 
@@ -332,7 +307,6 @@ impl Payments {
                         .route(web::post().to(payments_list_by_filter)),
                 )
                 .service(web::resource("/filter").route(web::post().to(get_filters_for_payments)))
-                .service(web::resource("/filter_v2").route(web::get().to(get_payment_filters)))
         }
         #[cfg(feature = "oltp")]
         {
@@ -396,9 +370,6 @@ impl Payments {
                 )
                 .service(
                     web::resource("/{payment_id}/3ds/authentication").route(web::post().to(payments_external_authentication)),
-                )
-                .service(
-                    web::resource("/{payment_id}/extended_card_info").route(web::get().to(retrieve_extended_card_info)),
                 );
         }
         route
@@ -465,10 +436,6 @@ impl Routing {
                             &TransactionType::Payment,
                         )
                     })),
-            )
-            .service(
-                web::resource("/business_profile/{business_profile_id}/configs/pg_agnostic_mit")
-                    .route(web::post().to(cloud_routing::upsert_connector_agnostic_mandate_config)),
             )
             .service(
                 web::resource("/default")
@@ -793,15 +760,8 @@ impl PaymentMethods {
                 .service(
                     web::resource("/{payment_method_id}")
                         .route(web::get().to(payment_method_retrieve_api))
+                        .route(web::post().to(payment_method_update_api))
                         .route(web::delete().to(payment_method_delete_api)),
-                )
-                .service(
-                    web::resource("/{payment_method_id}/update")
-                        .route(web::post().to(payment_method_update_api)),
-                )
-                .service(
-                    web::resource("/{payment_method_id}/save")
-                        .route(web::post().to(save_payment_method_api)),
                 )
                 .service(
                     web::resource("/auth/link").route(web::post().to(pm_auth::link_token_create)),
@@ -999,17 +959,6 @@ impl Configs {
     }
 }
 
-pub struct Poll;
-
-#[cfg(feature = "oltp")]
-impl Poll {
-    pub fn server(config: AppState) -> Scope {
-        web::scope("/poll")
-            .app_data(web::Data::new(config))
-            .service(web::resource("/status/{poll_id}").route(web::get().to(retrieve_poll_status)))
-    }
-}
-
 pub struct ApiKeys;
 
 #[cfg(feature = "olap")]
@@ -1121,17 +1070,10 @@ impl BusinessProfile {
                     .route(web::get().to(business_profiles_list)),
             )
             .service(
-                web::scope("/{profile_id}")
-                    .service(
-                        web::resource("")
-                            .route(web::get().to(business_profile_retrieve))
-                            .route(web::post().to(business_profile_update))
-                            .route(web::delete().to(business_profile_delete)),
-                    )
-                    .service(
-                        web::resource("/toggle_extended_card_info")
-                            .route(web::post().to(toggle_extended_card_info)),
-                    ),
+                web::resource("/{profile_id}")
+                    .route(web::get().to(business_profile_retrieve))
+                    .route(web::post().to(business_profile_update))
+                    .route(web::delete().to(business_profile_delete)),
             )
     }
 }
@@ -1177,7 +1119,9 @@ impl User {
         let mut route = web::scope("/user").app_data(web::Data::new(state));
 
         route = route
-            .service(web::resource("").route(web::get().to(get_user_details)))
+            .service(
+                web::resource("/signin").route(web::post().to(user_signin_without_invite_checks)),
+            )
             .service(web::resource("/v2/signin").route(web::post().to(user_signin)))
             .service(web::resource("/signout").route(web::post().to(signout)))
             .service(web::resource("/change_password").route(web::post().to(change_password)))
@@ -1187,9 +1131,7 @@ impl User {
                 web::resource("/create_merchant")
                     .route(web::post().to(user_merchant_account_create)),
             )
-            // TODO: Remove this endpoint once migration to /merchants/list is done
-            .service(web::resource("/switch/list").route(web::get().to(list_merchants_for_user)))
-            .service(web::resource("/merchants/list").route(web::get().to(list_merchants_for_user)))
+            .service(web::resource("/switch/list").route(web::get().to(list_merchant_ids_for_user)))
             .service(web::resource("/permission_info").route(web::get().to(get_authorization_info)))
             .service(web::resource("/update").route(web::post().to(update_user_account_details)))
             .service(
@@ -1209,6 +1151,10 @@ impl User {
                 .service(
                     web::resource("/signup_with_merchant_id")
                         .route(web::post().to(user_signup_with_merchant_id)),
+                )
+                .service(
+                    web::resource("/verify_email")
+                        .route(web::post().to(verify_email_without_invite_checks)),
                 )
                 .service(web::resource("/v2/verify_email").route(web::post().to(verify_email)))
                 .service(
@@ -1233,6 +1179,7 @@ impl User {
                 .service(
                     web::resource("/list").route(web::get().to(list_users_for_merchant_account)),
                 )
+                .service(web::resource("/invite").route(web::post().to(invite_user)))
                 .service(
                     web::resource("/invite_multiple").route(web::post().to(invite_multiple_user)),
                 )
@@ -1296,15 +1243,8 @@ impl WebhookEvents {
             .app_data(web::Data::new(config))
             .service(web::resource("").route(web::get().to(list_initial_webhook_delivery_attempts)))
             .service(
-                web::scope("/{event_id}")
-                    .service(
-                        web::resource("attempts")
-                            .route(web::get().to(list_webhook_delivery_attempts)),
-                    )
-                    .service(
-                        web::resource("retry")
-                            .route(web::post().to(retry_webhook_delivery_attempt)),
-                    ),
+                web::resource("/{event_id}/attempts")
+                    .route(web::get().to(list_webhook_delivery_attempts)),
             )
     }
 }

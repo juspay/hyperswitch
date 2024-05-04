@@ -68,27 +68,3 @@ pub fn list_initial_webhook_delivery_attempts() {}
     security(("admin_api_key" = []))
 )]
 pub fn list_webhook_delivery_attempts() {}
-
-/// Events - Manual Retry
-///
-/// Manually retry the delivery of the specified Event.
-#[utoipa::path(
-    post,
-    path = "/events/{merchant_id_or_profile_id}/{event_id}/retry",
-    params(
-        ("merchant_id_or_profile_id" = String, Path, description = "The unique identifier for the Merchant Account or Business Profile"),
-        ("event_id" = String, Path, description = "The unique identifier for the Event"),
-    ),
-    responses(
-        (
-            status = 200,
-            description = "The delivery of the Event was attempted. \
-                           Check the `response` field in the response payload to identify the status of the delivery attempt.",
-            body = EventRetrieveResponse
-        ),
-    ),
-    tag = "Event",
-    operation_id = "Manually retry the delivery of an Event",
-    security(("admin_api_key" = []))
-)]
-pub fn retry_webhook_delivery_attempt() {}

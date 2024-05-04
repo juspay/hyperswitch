@@ -56,7 +56,6 @@ impl From<enums::WalletType> for global_enums::PaymentMethodType {
             enums::WalletType::TouchNGo => Self::TouchNGo,
             enums::WalletType::Swish => Self::Swish,
             enums::WalletType::Cashapp => Self::Cashapp,
-            enums::WalletType::Venmo => Self::Venmo,
         }
     }
 }
@@ -116,7 +115,6 @@ impl From<enums::BankTransferType> for global_enums::PaymentMethodType {
             enums::BankTransferType::DanamonVa => Self::DanamonVa,
             enums::BankTransferType::MandiriVa => Self::MandiriVa,
             enums::BankTransferType::PermataBankTransfer => Self::PermataBankTransfer,
-            enums::BankTransferType::LocalBankTransfer => Self::LocalBankTransfer,
         }
     }
 }

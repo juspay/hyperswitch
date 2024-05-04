@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
-use diesel_models::{self as store};
-use error_stack::ResultExt;
-use futures::lock::Mutex;
-use hyperswitch_domain_models::{
+use data_models::{
     errors::StorageError,
     payments::{payment_attempt::PaymentAttempt, PaymentIntent},
 };
+use diesel_models::{self as store};
+use error_stack::ResultExt;
+use futures::lock::Mutex;
 use redis_interface::RedisSettings;
 
 use crate::redis::RedisStore;
@@ -19,7 +19,7 @@ pub mod payout_attempt;
 pub mod payouts;
 pub mod redis_conn;
 #[cfg(not(feature = "payouts"))]
-use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
+use data_models::{PayoutAttemptInterface, PayoutsInterface};
 
 #[derive(Clone)]
 pub struct MockDb {

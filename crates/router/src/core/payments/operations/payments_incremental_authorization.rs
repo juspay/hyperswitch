@@ -17,10 +17,7 @@ use crate::{
             PaymentAddress,
         },
     },
-    routes::{
-        app::{ReqState, StorageInterface},
-        AppState,
-    },
+    routes::{app::StorageInterface, AppState},
     services,
     types::{
         api::{self, PaymentIdTypeExt},
@@ -45,6 +42,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         request: &PaymentsIncrementalAuthorizationRequest,
+        _mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
         _key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
@@ -155,7 +153,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             authentication: None,
             frm_metadata: None,
             recurring_details: None,
-            poll_config: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -163,7 +160,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             customer_details: None,
             payment_data,
             business_profile,
-            mandate_type: None,
         };
 
         Ok(get_trackers_response)
@@ -179,7 +175,6 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     async fn update_trackers<'b>(
         &'b self,
         db: &'b AppState,
-        _req_state: ReqState,
         mut payment_data: payments::PaymentData<F>,
         _customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
@@ -280,6 +275,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             operations::ValidateResult {
                 merchant_id: &merchant_account.merchant_id,
                 payment_id: api::PaymentIdType::PaymentIntentId(request.payment_id.to_owned()),
+                mandate_type: None,
                 storage_scheme: merchant_account.storage_scheme,
                 requeue: false,
             },
@@ -298,7 +294,6 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve>
         _payment_data: &mut payments::PaymentData<F>,
         _request: Option<CustomerDetails>,
         _merchant_key_store: &domain::MerchantKeyStore,
-        _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, PaymentsIncrementalAuthorizationRequest, Ctx>,

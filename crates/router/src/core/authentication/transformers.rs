@@ -43,7 +43,6 @@ pub fn construct_authentication_router_data(
     sdk_information: Option<api_models::payments::SdkInformation>,
     threeds_method_comp_ind: api_models::payments::ThreeDsCompletionIndicator,
     email: Option<common_utils::pii::Email>,
-    webhook_url: String,
 ) -> RouterResult<types::authentication::ConnectorAuthenticationRouterData> {
     let authentication_details: api_models::admin::AuthenticationConnectorDetails =
         business_profile
@@ -57,7 +56,7 @@ pub fn construct_authentication_router_data(
             })
             .attach_printable("Error while parsing authentication_details from merchant_account")?;
     let router_request = types::authentication::ConnectorAuthenticationRequestData {
-        payment_method_data: From::from(payment_method_data),
+        payment_method_data,
         billing_address,
         shipping_address,
         browser_details,
@@ -73,7 +72,6 @@ pub fn construct_authentication_router_data(
         email,
         three_ds_requestor_url: authentication_details.three_ds_requestor_url,
         threeds_method_comp_ind,
-        webhook_url,
     };
     construct_router_data(
         authentication_connector,
@@ -168,6 +166,7 @@ pub fn construct_router_data<F: Clone, Req, Res>(
         connector_api_version: None,
         request: request_data,
         response: Err(types::ErrorResponse::default()),
+        payment_method_id: None,
         connector_request_reference_id:
             IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_AUTHENTICATION_FLOW.to_owned(),
         #[cfg(feature = "payouts")]

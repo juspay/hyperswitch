@@ -11,7 +11,7 @@ macro_rules! metrics_context {
     };
 }
 
-/// Create a global [`Meter`][Meter] with the specified name and an optional description.
+/// Create a global [`Meter`][Meter] with the specified name and and an optional description.
 ///
 /// [Meter]: opentelemetry::metrics::Meter
 #[macro_export]

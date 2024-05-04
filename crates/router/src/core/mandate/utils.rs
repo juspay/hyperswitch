@@ -59,6 +59,7 @@ pub async fn construct_mandate_revoke_router_data(
             connector_mandate_id: mandate.connector_mandate_id,
         },
         response: Err(types::ErrorResponse::get_not_implemented()),
+        payment_method_id: None,
         connector_request_reference_id:
             IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_MANDATE_REVOKE_FLOW.to_string(),
         test_mode: None,

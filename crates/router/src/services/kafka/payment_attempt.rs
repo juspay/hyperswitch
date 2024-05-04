@@ -1,8 +1,6 @@
 // use diesel_models::enums::MandateDetails;
+use data_models::{mandates::MandateDetails, payments::payment_attempt::PaymentAttempt};
 use diesel_models::enums as storage_enums;
-use hyperswitch_domain_models::{
-    mandates::MandateDetails, payments::payment_attempt::PaymentAttempt,
-};
 use time::OffsetDateTime;
 
 #[derive(serde::Serialize, Debug)]

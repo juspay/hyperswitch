@@ -22,8 +22,9 @@
     "Scenario15-Incremental auth with partial capture",
     "Scenario16-Verify PML for mandate",
     "Scenario17-Revoke mandates",
-    "Scenario18-Create 3ds payment",
-    "Scenario19-Create 3ds mandate",
-    "Scenario20-Create a mandate without customer acceptance"
+    "Scenario18-Update mandate card details",
+    "Scenario19-Create 3ds payment",
+    "Scenario20-Create 3ds mandate",
+    "Scenario21-Create a mandate without customer acceptance"
   ]
 }

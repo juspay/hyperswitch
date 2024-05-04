@@ -103,8 +103,6 @@ pub struct FraudCheckTransactionData {
     pub error_code: Option<String>,
     pub error_message: Option<String>,
     pub connector_transaction_id: Option<String>,
-    //The name of the payment gateway or financial institution that processed the transaction.
-    pub connector: Option<String>,
 }
 
 pub type FrmFulfillmentRouterData =

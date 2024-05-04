@@ -12,11 +12,10 @@ use crate::user::{
     },
     AcceptInviteFromEmailRequest, AuthorizeResponse, ChangePasswordRequest, ConnectAccountRequest,
     CreateInternalUserRequest, DashboardEntryResponse, ForgotPasswordRequest,
-    GetUserDetailsResponse, GetUserRoleDetailsRequest, GetUserRoleDetailsResponse,
-    InviteUserRequest, ListUsersResponse, ReInviteUserRequest, ResetPasswordRequest,
-    SendVerifyEmailRequest, SignInResponse, SignInWithTokenResponse, SignUpRequest,
-    SignUpWithMerchantIdRequest, SwitchMerchantIdRequest, UpdateUserAccountDetailsRequest,
-    UserMerchantCreate, VerifyEmailRequest,
+    GetUserDetailsRequest, GetUserDetailsResponse, InviteUserRequest, InviteUserResponse,
+    ListUsersResponse, ReInviteUserRequest, ResetPasswordRequest, SendVerifyEmailRequest,
+    SignInResponse, SignUpRequest, SignUpWithMerchantIdRequest, SwitchMerchantIdRequest,
+    UpdateUserAccountDetailsRequest, UserMerchantCreate, VerifyEmailRequest,
 };
 
 impl ApiEventMetric for DashboardEntryResponse {
@@ -55,16 +54,15 @@ common_utils::impl_misc_api_event_type!(
     ForgotPasswordRequest,
     ResetPasswordRequest,
     InviteUserRequest,
+    InviteUserResponse,
     ReInviteUserRequest,
     VerifyEmailRequest,
     SendVerifyEmailRequest,
     AcceptInviteFromEmailRequest,
     SignInResponse,
     UpdateUserAccountDetailsRequest,
-    GetUserDetailsResponse,
-    SignInWithTokenResponse,
-    GetUserRoleDetailsRequest,
-    GetUserRoleDetailsResponse
+    GetUserDetailsRequest,
+    GetUserDetailsResponse
 );
 
 #[cfg(feature = "dummy_connector")]

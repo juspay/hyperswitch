@@ -7,9 +7,9 @@ use common_utils::{
     ext_traits::{Encode, OptionExt},
     types as common_types,
 };
+use data_models::payments::payment_attempt::PaymentAttempt;
 use diesel_models::business_profile::BusinessProfile;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
 use redis_interface::errors::RedisError;
 use router_env::{instrument, tracing};
 

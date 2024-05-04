@@ -69,7 +69,7 @@ mod storage {
     use error_stack::{report, ResultExt};
     use redis_interface::SetnxReply;
     use router_env::{instrument, tracing};
-    use storage_impl::redis::kv_store::{kv_wrapper, KvOperation, PartitionKey};
+    use storage_impl::redis::kv_store::{kv_wrapper, KvOperation};
 
     use super::{ReverseLookupInterface, Store};
     use crate::{
@@ -115,12 +115,7 @@ mod storage {
                     match kv_wrapper::<ReverseLookup, _, _>(
                         self,
                         KvOperation::SetNx(&created_rev_lookup, redis_entry),
-                        PartitionKey::CombinationKey {
-                            combination: &format!(
-                                "reverse_lookup_{}",
-                                &created_rev_lookup.lookup_id
-                            ),
-                        },
+                        format!("reverse_lookup_{}", &created_rev_lookup.lookup_id),
                     )
                     .await
                     .map_err(|err| err.to_redis_failed_response(&created_rev_lookup.lookup_id))?
@@ -158,9 +153,7 @@ mod storage {
                         kv_wrapper(
                             self,
                             KvOperation::<ReverseLookup>::Get,
-                            PartitionKey::CombinationKey {
-                                combination: &format!("reverse_lookup_{id}"),
-                            },
+                            format!("reverse_lookup_{id}"),
                         )
                         .await?
                         .try_into_get()

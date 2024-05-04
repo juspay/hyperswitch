@@ -1,10 +1,9 @@
 use std::time::Duration;
 
 use error_stack::ResultExt;
-use http::{HeaderValue, Method};
 use masking::PeekInterface;
 use once_cell::sync::OnceCell;
-use reqwest::multipart::Form;
+use reqwest::{multipart::Form, Method};
 use router_env::tracing_actix_web::RequestId;
 
 use super::{request::Maskable, Request};
@@ -83,8 +82,8 @@ fn get_base_client(
 pub(super) fn create_client(
     proxy_config: &Proxy,
     should_bypass_proxy: bool,
-    client_certificate: Option<masking::Secret<String>>,
-    client_certificate_key: Option<masking::Secret<String>>,
+    client_certificate: Option<String>,
+    client_certificate_key: Option<String>,
 ) -> CustomResult<reqwest::Client, ApiClientError> {
     match (client_certificate, client_certificate_key) {
         (Some(encoded_certificate), Some(encoded_certificate_key)) => {
@@ -154,8 +153,8 @@ where
         &self,
         method: Method,
         url: String,
-        certificate: Option<masking::Secret<String>>,
-        certificate_key: Option<masking::Secret<String>>,
+        certificate: Option<String>,
+        certificate_key: Option<String>,
     ) -> CustomResult<Box<dyn RequestBuilder>, ApiClientError>;
 
     async fn send_request(
@@ -223,8 +222,8 @@ impl ProxyClient {
     pub fn get_reqwest_client(
         &self,
         base_url: String,
-        client_certificate: Option<masking::Secret<String>>,
-        client_certificate_key: Option<masking::Secret<String>>,
+        client_certificate: Option<String>,
+        client_certificate_key: Option<String>,
     ) -> CustomResult<reqwest::Client, ApiClientError> {
         match (client_certificate, client_certificate_key) {
             (Some(certificate), Some(certificate_key)) => {
@@ -280,11 +279,13 @@ impl RequestBuilder for RouterRequestBuilder {
 
     fn header(&mut self, key: String, value: Maskable<String>) -> CustomResult<(), ApiClientError> {
         let header_value = match value {
-            Maskable::Masked(hvalue) => HeaderValue::from_str(hvalue.peek()).map(|mut h| {
-                h.set_sensitive(true);
-                h
-            }),
-            Maskable::Normal(hvalue) => HeaderValue::from_str(&hvalue),
+            Maskable::Masked(hvalue) => {
+                reqwest::header::HeaderValue::from_str(hvalue.peek()).map(|mut h| {
+                    h.set_sensitive(true);
+                    h
+                })
+            }
+            Maskable::Normal(hvalue) => reqwest::header::HeaderValue::from_str(&hvalue),
         }
         .change_context(ApiClientError::HeaderMapConstructionFailed)?;
 
@@ -323,8 +324,8 @@ impl ApiClient for ProxyClient {
         &self,
         method: Method,
         url: String,
-        certificate: Option<masking::Secret<String>>,
-        certificate_key: Option<masking::Secret<String>>,
+        certificate: Option<String>,
+        certificate_key: Option<String>,
     ) -> CustomResult<Box<dyn RequestBuilder>, ApiClientError> {
         let client_builder = self
             .get_reqwest_client(url.clone(), certificate, certificate_key)
@@ -378,8 +379,8 @@ impl ApiClient for MockApiClient {
         &self,
         _method: Method,
         _url: String,
-        _certificate: Option<masking::Secret<String>>,
-        _certificate_key: Option<masking::Secret<String>>,
+        _certificate: Option<String>,
+        _certificate_key: Option<String>,
     ) -> CustomResult<Box<dyn RequestBuilder>, ApiClientError> {
         // [#2066]: Add Mock implementation for ApiClient
         Err(ApiClientError::UnexpectedState.into())

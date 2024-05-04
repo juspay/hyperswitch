@@ -1,21 +1,18 @@
 use std::sync::Arc;
 
+use data_models::errors::{StorageError, StorageResult};
 use diesel_models as store;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::errors::{StorageError, StorageResult};
 use masking::StrongSecret;
 use redis::{kv_store::RedisConnInterface, RedisStore};
 mod address;
 pub mod config;
 pub mod connection;
-pub mod customers;
 pub mod database;
 pub mod errors;
 mod lookup;
-pub mod mandate;
 pub mod metrics;
 pub mod mock_db;
-pub mod payment_method;
 pub mod payments;
 #[cfg(feature = "payouts")]
 pub mod payouts;
@@ -25,9 +22,9 @@ mod reverse_lookup;
 mod utils;
 
 use common_utils::errors::CustomResult;
-use database::store::PgPool;
 #[cfg(not(feature = "payouts"))]
-use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
+use data_models::{PayoutAttemptInterface, PayoutsInterface};
+use database::store::PgPool;
 pub use mock_db::MockDb;
 use redis_interface::{errors::RedisError, SaddReply};
 
@@ -361,36 +358,6 @@ impl UniqueConstraints for diesel_models::PayoutAttempt {
     }
     fn table_name(&self) -> &str {
         "PayoutAttempt"
-    }
-}
-
-impl UniqueConstraints for diesel_models::PaymentMethod {
-    fn unique_constraints(&self) -> Vec<String> {
-        vec![format!("paymentmethod_{}", self.payment_method_id)]
-    }
-    fn table_name(&self) -> &str {
-        "PaymentMethod"
-    }
-}
-
-impl UniqueConstraints for diesel_models::Mandate {
-    fn unique_constraints(&self) -> Vec<String> {
-        vec![format!("mand_{}_{}", self.merchant_id, self.mandate_id)]
-    }
-    fn table_name(&self) -> &str {
-        "Mandate"
-    }
-}
-
-impl UniqueConstraints for diesel_models::Customer {
-    fn unique_constraints(&self) -> Vec<String> {
-        vec![format!(
-            "customer_{}_{}",
-            self.customer_id, self.merchant_id
-        )]
-    }
-    fn table_name(&self) -> &str {
-        "Customer"
     }
 }
 

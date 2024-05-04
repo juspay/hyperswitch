@@ -63,6 +63,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
             connector_auth_type: auth_type,
             description: None,
             return_url: None,
+            payment_method_id: None,
             payment_method_status: None,
             address: self.address.clone(),
             auth_type: storage_enums::AuthenticationType::NoThreeDs,

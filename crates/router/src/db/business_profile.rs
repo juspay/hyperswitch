@@ -30,7 +30,7 @@ pub trait BusinessProfileInterface {
     async fn update_business_profile_by_profile_id(
         &self,
         current_state: business_profile::BusinessProfile,
-        business_profile_update: business_profile::BusinessProfileUpdate,
+        business_profile_update: business_profile::BusinessProfileUpdateInternal,
     ) -> CustomResult<business_profile::BusinessProfile, errors::StorageError>;
 
     async fn delete_business_profile_by_profile_id_merchant_id(
@@ -90,7 +90,7 @@ impl BusinessProfileInterface for Store {
     async fn update_business_profile_by_profile_id(
         &self,
         current_state: business_profile::BusinessProfile,
-        business_profile_update: business_profile::BusinessProfileUpdate,
+        business_profile_update: business_profile::BusinessProfileUpdateInternal,
     ) -> CustomResult<business_profile::BusinessProfile, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         storage::business_profile::BusinessProfile::update_by_profile_id(
@@ -169,7 +169,7 @@ impl BusinessProfileInterface for MockDb {
     async fn update_business_profile_by_profile_id(
         &self,
         current_state: business_profile::BusinessProfile,
-        business_profile_update: business_profile::BusinessProfileUpdate,
+        business_profile_update: business_profile::BusinessProfileUpdateInternal,
     ) -> CustomResult<business_profile::BusinessProfile, errors::StorageError> {
         self.business_profiles
             .lock()

@@ -55,10 +55,6 @@ pub enum ConnectorAuthType {
     CurrencyAuthKey {
         auth_key_map: HashMap<String, CurrencyAuthKeyType>,
     },
-    CertificateAuth {
-        certificate: String,
-        private_key: String,
-    },
     #[default]
     NoKey,
 }
@@ -87,9 +83,6 @@ pub struct ConfigMetadata {
     pub merchant_name: Option<String>,
     pub acquirer_bin: Option<String>,
     pub acquirer_merchant_id: Option<String>,
-    pub three_ds_requestor_name: Option<String>,
-    pub three_ds_requestor_id: Option<String>,
-    pub pull_mechanism_for_external_3ds_enabled: Option<bool>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -137,7 +130,6 @@ pub struct ConnectorConfig {
     pub opennode: Option<ConnectorTomlConfig>,
     pub bambora: Option<ConnectorTomlConfig>,
     pub dlocal: Option<ConnectorTomlConfig>,
-    pub ebanx_payout: Option<ConnectorTomlConfig>,
     pub fiserv: Option<ConnectorTomlConfig>,
     pub forte: Option<ConnectorTomlConfig>,
     pub globalpay: Option<ConnectorTomlConfig>,
@@ -153,8 +145,6 @@ pub struct ConnectorConfig {
     pub nuvei: Option<ConnectorTomlConfig>,
     pub payme: Option<ConnectorTomlConfig>,
     pub paypal: Option<ConnectorTomlConfig>,
-    #[cfg(feature = "payouts")]
-    pub paypal_payout: Option<ConnectorTomlConfig>,
     pub payu: Option<ConnectorTomlConfig>,
     pub placetopay: Option<ConnectorTomlConfig>,
     pub plaid: Option<ConnectorTomlConfig>,
@@ -164,25 +154,21 @@ pub struct ConnectorConfig {
     pub rapyd: Option<ConnectorTomlConfig>,
     pub shift4: Option<ConnectorTomlConfig>,
     pub stripe: Option<ConnectorTomlConfig>,
-    #[cfg(feature = "payouts")]
-    pub stripe_payout: Option<ConnectorTomlConfig>,
     pub signifyd: Option<ConnectorTomlConfig>,
     pub trustpay: Option<ConnectorTomlConfig>,
     pub threedsecureio: Option<ConnectorTomlConfig>,
-    pub netcetera: Option<ConnectorTomlConfig>,
     pub tsys: Option<ConnectorTomlConfig>,
     pub volt: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub wise_payout: Option<ConnectorTomlConfig>,
     pub worldline: Option<ConnectorTomlConfig>,
     pub worldpay: Option<ConnectorTomlConfig>,
+    pub zen: Option<ConnectorTomlConfig>,
     pub square: Option<ConnectorTomlConfig>,
     pub stax: Option<ConnectorTomlConfig>,
     pub dummy_connector: Option<ConnectorTomlConfig>,
     pub stripe_test: Option<ConnectorTomlConfig>,
     pub paypal_test: Option<ConnectorTomlConfig>,
-    pub zen: Option<ConnectorTomlConfig>,
-    pub zsl: Option<ConnectorTomlConfig>,
 }
 
 impl ConnectorConfig {
@@ -219,10 +205,7 @@ impl ConnectorConfig {
         let connector_data = Self::new()?;
         match connector {
             PayoutConnectors::Adyen => Ok(connector_data.adyen_payout),
-            PayoutConnectors::Stripe => Ok(connector_data.stripe_payout),
             PayoutConnectors::Wise => Ok(connector_data.wise_payout),
-            PayoutConnectors::Paypal => Ok(connector_data.paypal_payout),
-            PayoutConnectors::Ebanx => Ok(connector_data.ebanx_payout),
         }
     }
 
@@ -232,7 +215,6 @@ impl ConnectorConfig {
         let connector_data = Self::new()?;
         match connector {
             AuthenticationConnectors::Threedsecureio => Ok(connector_data.threedsecureio),
-            AuthenticationConnectors::Netcetera => Ok(connector_data.netcetera),
         }
     }
 
@@ -246,7 +228,7 @@ impl ConnectorConfig {
             Connector::Airwallex => Ok(connector_data.airwallex),
             Connector::Authorizedotnet => Ok(connector_data.authorizedotnet),
             Connector::Bankofamerica => Ok(connector_data.bankofamerica),
-            Connector::Billwerk => Ok(connector_data.billwerk),
+            // Connector::Billwerk => Ok(connector_data.billwerk), Added as template code for future usage
             Connector::Bitpay => Ok(connector_data.bitpay),
             Connector::Bluesnap => Ok(connector_data.bluesnap),
             Connector::Boku => Ok(connector_data.boku),
@@ -260,7 +242,6 @@ impl ConnectorConfig {
             Connector::Opennode => Ok(connector_data.opennode),
             Connector::Bambora => Ok(connector_data.bambora),
             Connector::Dlocal => Ok(connector_data.dlocal),
-            Connector::Ebanx => Ok(connector_data.ebanx_payout),
             Connector::Fiserv => Ok(connector_data.fiserv),
             Connector::Forte => Ok(connector_data.forte),
             Connector::Globalpay => Ok(connector_data.globalpay),
@@ -296,7 +277,6 @@ impl ConnectorConfig {
             Connector::Worldline => Ok(connector_data.worldline),
             Connector::Worldpay => Ok(connector_data.worldpay),
             Connector::Zen => Ok(connector_data.zen),
-            Connector::Zsl => Ok(connector_data.zsl),
             #[cfg(feature = "dummy_connector")]
             Connector::DummyConnector1 => Ok(connector_data.dummy_connector),
             #[cfg(feature = "dummy_connector")]
@@ -311,7 +291,6 @@ impl ConnectorConfig {
             Connector::DummyConnector6 => Ok(connector_data.dummy_connector),
             #[cfg(feature = "dummy_connector")]
             Connector::DummyConnector7 => Ok(connector_data.paypal_test),
-            Connector::Netcetera => Ok(connector_data.netcetera),
         }
     }
 }

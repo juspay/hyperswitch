@@ -23,8 +23,7 @@ use crate::{
             mandates::{self, MandateResponseExt},
             ConnectorData, GetToken,
         },
-        domain,
-        storage::{self, enums::MerchantStorageScheme},
+        domain, storage,
         transformers::ForeignFrom,
     },
     utils::OptionExt,
@@ -40,21 +39,11 @@ pub async fn get_mandate(
     let mandate = state
         .store
         .as_ref()
-        .find_mandate_by_merchant_id_mandate_id(
-            &merchant_account.merchant_id,
-            &req.mandate_id,
-            merchant_account.storage_scheme,
-        )
+        .find_mandate_by_merchant_id_mandate_id(&merchant_account.merchant_id, &req.mandate_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
     Ok(services::ApplicationResponse::Json(
-        mandates::MandateResponse::from_db_mandate(
-            &state,
-            key_store,
-            mandate,
-            merchant_account.storage_scheme,
-        )
-        .await?,
+        mandates::MandateResponse::from_db_mandate(&state, key_store, mandate).await?,
     ))
 }
 
@@ -67,11 +56,7 @@ pub async fn revoke_mandate(
 ) -> RouterResponse<mandates::MandateRevokedResponse> {
     let db = state.store.as_ref();
     let mandate = db
-        .find_mandate_by_merchant_id_mandate_id(
-            &merchant_account.merchant_id,
-            &req.mandate_id,
-            merchant_account.storage_scheme,
-        )
+        .find_mandate_by_merchant_id_mandate_id(&merchant_account.merchant_id, &req.mandate_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
     match mandate.mandate_status {
@@ -132,8 +117,6 @@ pub async fn revoke_mandate(
                             storage::MandateUpdate::StatusUpdate {
                                 mandate_status: storage::enums::MandateStatus::Revoked,
                             },
-                            mandate,
-                            merchant_account.storage_scheme,
                         )
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
@@ -173,7 +156,6 @@ pub async fn update_connector_mandate_id(
     mandate_ids_opt: Option<String>,
     payment_method_id: Option<String>,
     resp: Result<types::PaymentsResponseData, types::ErrorResponse>,
-    storage_scheme: MerchantStorageScheme,
 ) -> RouterResponse<mandates::MandateResponse> {
     let mandate_details = Option::foreign_from(resp);
     let connector_mandate_id = mandate_details
@@ -188,7 +170,7 @@ pub async fn update_connector_mandate_id(
     //Ignore updation if the payment_attempt mandate_id or connector_mandate_id is not present
     if let Some((mandate_id, connector_id)) = mandate_ids_opt.zip(connector_mandate_id) {
         let mandate = db
-            .find_mandate_by_merchant_id_mandate_id(&merchant_account, &mandate_id, storage_scheme)
+            .find_mandate_by_merchant_id_mandate_id(&merchant_account, &mandate_id)
             .await
             .change_context(errors::ApiErrorResponse::MandateNotFound)?;
 
@@ -211,8 +193,6 @@ pub async fn update_connector_mandate_id(
                 &merchant_account,
                 &mandate_id,
                 update_mandate_details,
-                mandate,
-                storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::MandateUpdateFailed)?;
@@ -246,13 +226,8 @@ pub async fn get_customer_mandates(
         let mut response_vec = Vec::with_capacity(mandates.len());
         for mandate in mandates {
             response_vec.push(
-                mandates::MandateResponse::from_db_mandate(
-                    &state,
-                    key_store.clone(),
-                    mandate,
-                    merchant_account.storage_scheme,
-                )
-                .await?,
+                mandates::MandateResponse::from_db_mandate(&state, key_store.clone(), mandate)
+                    .await?,
             );
         }
         Ok(services::ApplicationResponse::Json(response_vec))
@@ -261,12 +236,12 @@ pub async fn get_customer_mandates(
 
 fn get_insensitive_payment_method_data_if_exists<F, FData>(
     router_data: &types::RouterData<F, FData, types::PaymentsResponseData>,
-) -> Option<domain::PaymentMethodData>
+) -> Option<payments::PaymentMethodData>
 where
     FData: MandateBehaviour,
 {
     match &router_data.request.get_payment_method_data() {
-        domain::PaymentMethodData::Card(_) => None,
+        api_models::payments::PaymentMethodData::Card(_) => None,
         _ => Some(router_data.request.get_payment_method_data()),
     }
 }
@@ -276,7 +251,6 @@ pub async fn update_mandate_procedure<F, FData>(
     mandate: Mandate,
     merchant_id: &str,
     pm_id: Option<String>,
-    storage_scheme: MerchantStorageScheme,
 ) -> errors::RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     FData: MandateBehaviour,
@@ -291,14 +265,13 @@ where
     };
 
     let old_record = payments::UpdateHistory {
-        connector_mandate_id: mandate.connector_mandate_id.clone(),
-        payment_method_id: mandate.payment_method_id.clone(),
-        original_payment_id: mandate.original_payment_id.clone(),
+        connector_mandate_id: mandate.connector_mandate_id,
+        payment_method_id: mandate.payment_method_id,
+        original_payment_id: mandate.original_payment_id,
     };
 
     let mandate_ref = mandate
         .connector_mandate_ids
-        .clone()
         .parse_value::<payments::ConnectorMandateReferenceId>("Connector Reference Id")
         .change_context(errors::ApiErrorResponse::MandateDeserializationFailed)?;
 
@@ -318,12 +291,11 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .map(masking::Secret::new)?;
 
-    let mandate_id = mandate.mandate_id.clone();
     let _update_mandate_details = state
         .store
         .update_mandate_by_merchant_id_mandate_id(
             merchant_id,
-            &mandate_id,
+            &mandate.mandate_id,
             diesel_models::MandateUpdate::ConnectorMandateIdUpdate {
                 connector_mandate_id: mandate_details
                     .as_ref()
@@ -333,141 +305,155 @@ where
                     .unwrap_or("Error retrieving the payment_method_id".to_string()),
                 original_payment_id: Some(resp.payment_id.clone()),
             },
-            mandate,
-            storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::MandateUpdateFailed)?;
     Ok(resp)
 }
-
 pub async fn mandate_procedure<F, FData>(
     state: &AppState,
-    resp: &types::RouterData<F, FData, types::PaymentsResponseData>,
-    customer_id: &Option<String>,
+    mut resp: types::RouterData<F, FData, types::PaymentsResponseData>,
+    maybe_customer: &Option<domain::Customer>,
     pm_id: Option<String>,
     merchant_connector_id: Option<String>,
-    storage_scheme: MerchantStorageScheme,
-) -> errors::RouterResult<Option<String>>
+) -> errors::RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     FData: MandateBehaviour,
 {
-    let Ok(ref response) = resp.response else {
-        return Ok(None);
-    };
+    match resp.response {
+        Err(_) => {}
+        Ok(_) => match resp.request.get_mandate_id() {
+            Some(mandate_id) => {
+                if let Some(ref mandate_id) = mandate_id.mandate_id {
+                    let mandate = state
+                        .store
+                        .find_mandate_by_merchant_id_mandate_id(
+                            resp.merchant_id.as_ref(),
+                            mandate_id,
+                        )
+                        .await
+                        .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
+                    let mandate = match mandate.mandate_type {
+                        storage_enums::MandateType::SingleUse => state
+                            .store
+                            .update_mandate_by_merchant_id_mandate_id(
+                                &resp.merchant_id,
+                                mandate_id,
+                                storage::MandateUpdate::StatusUpdate {
+                                    mandate_status: storage_enums::MandateStatus::Revoked,
+                                },
+                            )
+                            .await
+                            .change_context(errors::ApiErrorResponse::MandateUpdateFailed),
+                        storage_enums::MandateType::MultiUse => state
+                            .store
+                            .update_mandate_by_merchant_id_mandate_id(
+                                &resp.merchant_id,
+                                mandate_id,
+                                storage::MandateUpdate::CaptureAmountUpdate {
+                                    amount_captured: Some(
+                                        mandate.amount_captured.unwrap_or(0)
+                                            + resp.request.get_amount(),
+                                    ),
+                                },
+                            )
+                            .await
+                            .change_context(errors::ApiErrorResponse::MandateUpdateFailed),
+                    }?;
+                    metrics::SUBSEQUENT_MANDATE_PAYMENT.add(
+                        &metrics::CONTEXT,
+                        1,
+                        &[metrics::request::add_attributes(
+                            "connector",
+                            mandate.connector,
+                        )],
+                    );
+                    resp.payment_method_id = Some(mandate.payment_method_id);
+                }
+            }
+            None => {
+                if resp.request.get_setup_mandate_details().is_some() {
+                    resp.payment_method_id = pm_id.clone();
+                    let (mandate_reference, network_txn_id) = match resp.response.as_ref().ok() {
+                        Some(types::PaymentsResponseData::TransactionResponse {
+                            mandate_reference,
+                            network_txn_id,
+                            ..
+                        }) => (mandate_reference.clone(), network_txn_id.clone()),
+                        _ => (None, None),
+                    };
 
-    match resp.request.get_mandate_id() {
-        Some(mandate_id) => {
-            let Some(ref mandate_id) = mandate_id.mandate_id else {
-                return Ok(None);
-            };
-            let orig_mandate = state
-                .store
-                .find_mandate_by_merchant_id_mandate_id(
-                    resp.merchant_id.as_ref(),
-                    mandate_id,
-                    storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
-            let mandate = match orig_mandate.mandate_type {
-                storage_enums::MandateType::SingleUse => state
-                    .store
-                    .update_mandate_by_merchant_id_mandate_id(
-                        &resp.merchant_id,
-                        mandate_id,
-                        storage::MandateUpdate::StatusUpdate {
-                            mandate_status: storage_enums::MandateStatus::Revoked,
-                        },
-                        orig_mandate,
-                        storage_scheme,
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::MandateUpdateFailed),
-                storage_enums::MandateType::MultiUse => state
-                    .store
-                    .update_mandate_by_merchant_id_mandate_id(
-                        &resp.merchant_id,
-                        mandate_id,
-                        storage::MandateUpdate::CaptureAmountUpdate {
-                            amount_captured: Some(
-                                orig_mandate.amount_captured.unwrap_or(0)
-                                    + resp.request.get_amount(),
-                            ),
-                        },
-                        orig_mandate,
-                        storage_scheme,
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::MandateUpdateFailed),
-            }?;
-            metrics::SUBSEQUENT_MANDATE_PAYMENT.add(
-                &metrics::CONTEXT,
-                1,
-                &[metrics::request::add_attributes(
-                    "connector",
-                    mandate.connector,
-                )],
-            );
-            Ok(Some(mandate_id.clone()))
-        }
-        None => {
-            let Some(_mandate_details) = resp.request.get_setup_mandate_details() else {
-                return Ok(None);
-            };
-            let (mandate_reference, network_txn_id) = match &response {
-                types::PaymentsResponseData::TransactionResponse {
-                    mandate_reference,
-                    network_txn_id,
-                    ..
-                } => (mandate_reference.clone(), network_txn_id.clone()),
-                _ => (None, None),
-            };
+                    let mandate_ids = mandate_reference
+                        .as_ref()
+                        .map(|md| {
+                            md.encode_to_value()
+                                .change_context(
+                                    errors::ApiErrorResponse::MandateSerializationFailed,
+                                )
+                                .map(masking::Secret::new)
+                        })
+                        .transpose()?;
 
-            let mandate_ids = mandate_reference
-                .as_ref()
-                .map(|md| {
-                    md.encode_to_value()
-                        .change_context(errors::ApiErrorResponse::MandateSerializationFailed)
-                        .map(masking::Secret::new)
-                })
-                .transpose()?;
+                    if let Some(new_mandate_data) = payment_helper::generate_mandate(
+                        resp.merchant_id.clone(),
+                        resp.payment_id.clone(),
+                        resp.connector.clone(),
+                        resp.request.get_setup_mandate_details().cloned(),
+                        maybe_customer,
+                        pm_id.get_required_value("payment_method_id")?,
+                        mandate_ids,
+                        network_txn_id,
+                        get_insensitive_payment_method_data_if_exists(&resp),
+                        mandate_reference,
+                        merchant_connector_id,
+                    )? {
+                        let connector = new_mandate_data.connector.clone();
+                        logger::debug!("{:?}", new_mandate_data);
+                        resp.request
+                        .set_mandate_id(Some(api_models::payments::MandateIds {
+                            mandate_id: Some(new_mandate_data.mandate_id.clone()),
+                            mandate_reference_id: new_mandate_data
+                                .connector_mandate_ids
+                                .clone()
+                            .map(|ids| {
+                                Some(ids)
+                                    .parse_value::<api_models::payments::ConnectorMandateReferenceId>(
+                                        "ConnectorMandateId",
+                                    )
+                                    .change_context(errors::ApiErrorResponse::MandateDeserializationFailed)
+                            })
+                            .transpose()?
+                            .map_or(
+                                new_mandate_data.network_transaction_id.clone().map(|id| {
+                                    api_models::payments::MandateReferenceId::NetworkMandateId(
+                                        id,
+                                    )
+                                }),
+                                |connector_id| Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
+                                    api_models::payments::ConnectorMandateReferenceId {
+                                        connector_mandate_id: connector_id.connector_mandate_id,
+                                        payment_method_id: connector_id.payment_method_id,
+                                        update_history:None,
 
-            let Some(new_mandate_data) = payment_helper::generate_mandate(
-                resp.merchant_id.clone(),
-                resp.payment_id.clone(),
-                resp.connector.clone(),
-                resp.request.get_setup_mandate_details().cloned(),
-                customer_id,
-                pm_id.get_required_value("payment_method_id")?,
-                mandate_ids,
-                network_txn_id,
-                get_insensitive_payment_method_data_if_exists(resp),
-                mandate_reference,
-                merchant_connector_id,
-            )?
-            else {
-                return Ok(None);
-            };
-
-            let connector = new_mandate_data.connector.clone();
-            logger::debug!("{:?}", new_mandate_data);
-
-            let res_mandate_id = new_mandate_data.mandate_id.clone();
-
-            state
-                .store
-                .insert_mandate(new_mandate_data, storage_scheme)
-                .await
-                .to_duplicate_response(errors::ApiErrorResponse::DuplicateMandate)?;
-            metrics::MANDATE_COUNT.add(
-                &metrics::CONTEXT,
-                1,
-                &[metrics::request::add_attributes("connector", connector)],
-            );
-            Ok(Some(res_mandate_id))
-        }
+                                    }
+                                )))
+                        }));
+                        state
+                            .store
+                            .insert_mandate(new_mandate_data)
+                            .await
+                            .to_duplicate_response(errors::ApiErrorResponse::DuplicateMandate)?;
+                        metrics::MANDATE_COUNT.add(
+                            &metrics::CONTEXT,
+                            1,
+                            &[metrics::request::add_attributes("connector", connector)],
+                        );
+                    };
+                }
+            }
+        },
     }
+    Ok(resp)
 }
 
 #[instrument(skip(state))]
@@ -485,12 +471,7 @@ pub async fn retrieve_mandates_list(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to retrieve mandates")?;
     let mandates_list = future::try_join_all(mandates.into_iter().map(|mandate| {
-        mandates::MandateResponse::from_db_mandate(
-            &state,
-            key_store.clone(),
-            mandate,
-            merchant_account.storage_scheme,
-        )
+        mandates::MandateResponse::from_db_mandate(&state, key_store.clone(), mandate)
     }))
     .await?;
     Ok(services::ApplicationResponse::Json(mandates_list))
@@ -514,9 +495,7 @@ pub trait MandateBehaviour {
     fn get_setup_future_usage(&self) -> Option<diesel_models::enums::FutureUsage>;
     fn get_mandate_id(&self) -> Option<&api_models::payments::MandateIds>;
     fn set_mandate_id(&mut self, new_mandate_id: Option<api_models::payments::MandateIds>);
-    fn get_payment_method_data(&self) -> domain::payments::PaymentMethodData;
-    fn get_setup_mandate_details(
-        &self,
-    ) -> Option<&hyperswitch_domain_models::mandates::MandateData>;
+    fn get_payment_method_data(&self) -> api_models::payments::PaymentMethodData;
+    fn get_setup_mandate_details(&self) -> Option<&data_models::mandates::MandateData>;
     fn get_customer_acceptance(&self) -> Option<api_models::payments::CustomerAcceptance>;
 }

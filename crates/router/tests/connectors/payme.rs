@@ -3,7 +3,7 @@ use std::str::FromStr;
 use api_models::payments::{Address, AddressDetails, OrderDetailsWithAmount};
 use common_utils::pii::Email;
 use masking::Secret;
-use router::types::{self, domain, storage::enums, PaymentAddress};
+use router::types::{self, api, storage::enums, PaymentAddress};
 
 use crate::{
     connector_auth,
@@ -90,11 +90,12 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
         router_return_url: Some("https://hyperswitch.io".to_string()),
         webhook_url: Some("https://hyperswitch.io".to_string()),
         email: Some(Email::from_str("test@gmail.com").unwrap()),
-        payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+        payment_method_data: types::api::PaymentMethodData::Card(api::Card {
             card_number: cards::CardNumber::from_str("4111111111111111").unwrap(),
             card_cvc: Secret::new("123".to_string()),
             card_exp_month: Secret::new("10".to_string()),
             card_exp_year: Secret::new("2025".to_string()),
+            card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
             ..utils::CCardType::default().0
         }),
         amount: 1000,
@@ -362,7 +363,7 @@ async fn should_sync_refund() {
     );
 }
 
-// Cards Negative scenarios
+// Cards Negative scenerios
 // Creates a payment with incorrect CVC.
 #[actix_web::test]
 async fn should_fail_payment_for_incorrect_cvc() {
@@ -371,7 +372,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
             Some(types::PaymentsAuthorizeData {
                 amount: 100,
                 currency: enums::Currency::ILS,
-                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
                     card_cvc: Secret::new("12345".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -409,7 +410,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
             Some(types::PaymentsAuthorizeData {
                 amount: 100,
                 currency: enums::Currency::ILS,
-                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
                     card_exp_month: Secret::new("20".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -447,7 +448,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
             Some(types::PaymentsAuthorizeData {
                 amount: 100,
                 currency: enums::Currency::ILS,
-                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
                     card_exp_year: Secret::new("2012".to_string()),
                     ..utils::CCardType::default().0
                 }),
