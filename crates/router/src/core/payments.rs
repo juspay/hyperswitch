@@ -12,7 +12,8 @@ pub mod transformers;
 pub mod types;
 
 #[cfg(feature = "olap")]
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
+use std::collections::HashSet;
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant, vec::IntoIter};
 
 #[cfg(feature = "olap")]
