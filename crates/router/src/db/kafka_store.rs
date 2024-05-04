@@ -73,7 +73,7 @@ use crate::{
 };
 
 #[derive(Clone)]
-pub struct TenantID(String)
+pub struct TenantID(pub String);
 
 #[derive(Clone)]
 pub struct KafkaStore {
