@@ -329,9 +329,9 @@ pub async fn get_domain_address_for_payments(
     payment_id: &str,
     key: &[u8],
     storage_scheme: enums::MerchantStorageScheme,
-) -> CustomResult<domain::Address, common_utils::errors::CryptoError> {
+) -> CustomResult<domain::PaymentAddress, common_utils::errors::CryptoError> {
     async {
-        Ok(domain::Address {
+        let address = domain::Address {
             id: None,
             phone_number: address
                 .phone
@@ -383,6 +383,12 @@ pub async fn get_domain_address_for_payments(
                 .cloned()
                 .async_lift(|inner| types::encrypt_optional(inner.map(|inner| inner.expose()), key))
                 .await?,
+            payment_method_id: None,
+        };
+
+        Ok(domain::PaymentAddress {
+            address,
+            payment_id: payment_id.to_owned(),
         })
     }
     .await
@@ -4322,4 +4328,24 @@ pub fn validate_mandate_data_and_future_usage(
 
 pub fn get_redis_key_for_extended_card_info(merchant_id: &str, payment_id: &str) -> String {
     format!("{merchant_id}_{payment_id}_extended_card_info")
+}
+
+pub async fn get_recurring_billing_details(
+    store: &dyn StorageInterface,
+    key_store: &domain::MerchantKeyStore,
+    payment_method_info: &diesel_models::PaymentMethod,
+) -> CustomResult<Option<domain::Address>, errors::ApiErrorResponse> {
+    payment_method_info
+        .payment_method_billing_address_id
+        .as_ref()
+        .async_map(|payment_method_billing_address_id| async move {
+            // Cannot support KV feature for this lookup
+            store
+                .find_address_by_address_id(payment_method_billing_address_id, key_store)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Error while fetching address")
+        })
+        .await
+        .transpose()
 }

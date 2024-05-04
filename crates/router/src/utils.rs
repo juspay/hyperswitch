@@ -698,6 +698,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                     .cloned()
                     .async_lift(|inner| encrypt_optional(inner.map(|inner| inner.expose()), key))
                     .await?,
+                payment_method_id: None,
             })
         }
         .await

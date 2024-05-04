@@ -554,25 +554,23 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         // In case payment method billing details are not passed in the request
         // get the saved payment method billing from payment method info
-        let payment_method_billing = match payment_method_billing {
-            Some(payment_method_billing) => Some(payment_method_billing),
-            None => payment_method_info
+        let payment_method_billing = if let Some(payment_method_billing) = payment_method_billing {
+            Some(payment_method_billing)
+        } else {
+            payment_method_info
                 .as_ref()
-                .and_then(|payment_method_info| {
-                    payment_method_info
-                        .payment_method_billing_address_id
-                        .as_ref()
-                })
-                .async_map(|payment_method_billing_address_id| async move {
-                    // Cannot support KV feature for this lookup
-                    store
-                        .find_address_by_address_id(payment_method_billing_address_id, key_store)
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Error while fetching address")
+                .async_map(|payment_method_billing_address_id| async {
+                    helpers::get_recurring_billing_details(
+                        &*store,
+                        key_store,
+                        payment_method_billing_address_id,
+                    )
+                    .await
                 })
                 .await
-                .transpose()?,
+                .transpose()
+                .attach_printable("cannot fetch recurring billing address")?
+                .flatten()
         };
 
         // The operation merges mandate data from both request and payment_attempt

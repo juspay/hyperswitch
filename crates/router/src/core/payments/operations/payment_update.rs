@@ -216,35 +216,13 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         )
         .await?;
 
-        // If request billing address is not passed, use saved billing address id
-        let is_payment_method_billing_address_passed = request
-            .payment_method_data
-            .as_ref()
-            .is_some_and(|payment_method_data| payment_method_data.billing.is_some());
-
-        let recurring_payment_method_billing_address_id =
-            if is_payment_method_billing_address_passed {
-                None
-            } else {
-                payment_method_info
-                    .as_ref()
-                    .and_then(|payment_method_info| {
-                        payment_method_info
-                            .payment_method_billing_address_id
-                            .as_deref()
-                    })
-            };
-
         let payment_method_billing = helpers::create_or_update_address_for_payment_by_request(
             db,
             request
                 .payment_method_data
                 .as_ref()
                 .and_then(|pmd| pmd.billing.as_ref()),
-            payment_attempt
-                .payment_method_billing_address_id
-                .as_deref()
-                .or(recurring_payment_method_billing_address_id),
+            payment_attempt.payment_method_billing_address_id.as_deref(),
             merchant_id,
             payment_intent
                 .customer_id
@@ -255,6 +233,28 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             merchant_account.storage_scheme,
         )
         .await?;
+
+        // In case payment method billing details are not passed in the request
+        // get the saved payment method billing from payment method info
+        let payment_method_billing =
+            if let Some(payment_method_billing_address) = payment_method_billing {
+                Some(payment_method_billing_address)
+            } else {
+                payment_method_info
+                    .as_ref()
+                    .async_map(|payment_method_billing_address_id| async {
+                        helpers::get_recurring_billing_details(
+                            db,
+                            key_store,
+                            payment_method_billing_address_id,
+                        )
+                        .await
+                    })
+                    .await
+                    .transpose()
+                    .attach_printable("cannot fetch recurring billing address")?
+                    .flatten()
+            };
 
         payment_intent.shipping_address_id = shipping_address.clone().map(|x| x.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|x| x.address_id);

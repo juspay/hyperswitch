@@ -44,7 +44,7 @@ where
     async fn insert_address_for_payments(
         &self,
         payment_id: &str,
-        address: domain::Address,
+        address: domain::PaymentAddress,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Address, errors::StorageError>;
@@ -190,7 +190,7 @@ mod storage {
         async fn insert_address_for_payments(
             &self,
             _payment_id: &str,
-            address: domain::Address,
+            address: domain::PaymentAddress,
             key_store: &domain::MerchantKeyStore,
             _storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<domain::Address, errors::StorageError> {
@@ -456,7 +456,7 @@ mod storage {
         async fn insert_address_for_payments(
             &self,
             payment_id: &str,
-            address: domain::Address,
+            address: domain::PaymentAddress,
             key_store: &domain::MerchantKeyStore,
             storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<domain::Address, errors::StorageError> {
@@ -508,6 +508,7 @@ mod storage {
                         payment_id: address_new.payment_id.clone(),
                         updated_by: storage_scheme.to_string(),
                         email: address_new.email.clone(),
+                        payment_method_id: None,
                     };
 
                     let redis_entry = kv::TypedSql {
@@ -721,7 +722,7 @@ impl AddressInterface for MockDb {
     async fn insert_address_for_payments(
         &self,
         _payment_id: &str,
-        address_new: domain::Address,
+        address_new: domain::PaymentAddress,
         key_store: &domain::MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Address, errors::StorageError> {

@@ -40,6 +40,120 @@ pub struct Address {
     pub payment_id: Option<String>,
     pub updated_by: String,
     pub email: crypto::OptionalEncryptableEmail,
+    pub payment_method_id: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PaymentAddress {
+    pub address: Address,
+    pub payment_id: String,
+}
+
+#[async_trait]
+impl behaviour::Conversion for PaymentAddress {
+    type DstType = diesel_models::address::Address;
+    type NewDstType = diesel_models::address::AddressNew;
+
+    async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
+        Ok(diesel_models::address::Address {
+            id: self.address.id,
+            address_id: self.address.address_id,
+            city: self.address.city,
+            country: self.address.country,
+            line1: self.address.line1.map(Encryption::from),
+            line2: self.address.line2.map(Encryption::from),
+            line3: self.address.line3.map(Encryption::from),
+            state: self.address.state.map(Encryption::from),
+            zip: self.address.zip.map(Encryption::from),
+            first_name: self.address.first_name.map(Encryption::from),
+            last_name: self.address.last_name.map(Encryption::from),
+            phone_number: self.address.phone_number.map(Encryption::from),
+            country_code: self.address.country_code,
+            created_at: self.address.created_at,
+            modified_at: self.address.modified_at,
+            customer_id: None,
+            merchant_id: self.address.merchant_id,
+            payment_id: Some(self.payment_id),
+            updated_by: self.address.updated_by,
+            email: self.address.email.map(Encryption::from),
+            payment_method_id: None,
+        })
+    }
+
+    async fn convert_back(
+        other: Self::DstType,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<Self, ValidationError> {
+        let payment_id = other
+            .payment_id
+            .ok_or(ValidationError::MissingRequiredField {
+                field_name: "payment_id".to_string(),
+            })?;
+
+        async {
+            let inner_decrypt = |inner| types::decrypt(inner, key.peek());
+            let inner_decrypt_email = |inner| types::decrypt(inner, key.peek());
+
+            let address = Address {
+                id: other.id,
+                address_id: other.address_id,
+                city: other.city,
+                country: other.country,
+                line1: other.line1.async_lift(inner_decrypt).await?,
+                line2: other.line2.async_lift(inner_decrypt).await?,
+                line3: other.line3.async_lift(inner_decrypt).await?,
+                state: other.state.async_lift(inner_decrypt).await?,
+                zip: other.zip.async_lift(inner_decrypt).await?,
+                first_name: other.first_name.async_lift(inner_decrypt).await?,
+                last_name: other.last_name.async_lift(inner_decrypt).await?,
+                phone_number: other.phone_number.async_lift(inner_decrypt).await?,
+                country_code: other.country_code,
+                created_at: other.created_at,
+                modified_at: other.modified_at,
+                customer_id: other.customer_id,
+                merchant_id: other.merchant_id,
+                payment_id: Some(payment_id.clone()),
+                updated_by: other.updated_by,
+                email: other.email.async_lift(inner_decrypt_email).await?,
+                payment_method_id: other.payment_method_id,
+            };
+
+            Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
+                address,
+                payment_id,
+            })
+        }
+        .await
+        .change_context(ValidationError::InvalidValue {
+            message: "Failed while decrypting".to_string(),
+        })
+    }
+
+    async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
+        let now = date_time::now();
+        Ok(Self::NewDstType {
+            address_id: self.address.address_id,
+            city: self.address.city,
+            country: self.address.country,
+            line1: self.address.line1.map(Encryption::from),
+            line2: self.address.line2.map(Encryption::from),
+            line3: self.address.line3.map(Encryption::from),
+            state: self.address.state.map(Encryption::from),
+            zip: self.address.zip.map(Encryption::from),
+            first_name: self.address.first_name.map(Encryption::from),
+            last_name: self.address.last_name.map(Encryption::from),
+            phone_number: self.address.phone_number.map(Encryption::from),
+            country_code: self.address.country_code,
+            customer_id: self.address.customer_id,
+            merchant_id: self.address.merchant_id,
+            payment_id: Some(self.payment_id),
+            created_at: now,
+            modified_at: now,
+            updated_by: self.address.updated_by,
+            email: self.address.email.map(Encryption::from),
+            payment_method_id: None,
+        })
+    }
 }
 
 #[async_trait]
@@ -69,6 +183,7 @@ impl behaviour::Conversion for Address {
             payment_id: self.payment_id,
             updated_by: self.updated_by,
             email: self.email.map(Encryption::from),
+            payment_method_id: self.payment_method_id,
         })
     }
 
@@ -100,6 +215,7 @@ impl behaviour::Conversion for Address {
                 payment_id: other.payment_id,
                 updated_by: other.updated_by,
                 email: other.email.async_lift(inner_decrypt_email).await?,
+                payment_method_id: other.payment_method_id,
             })
         }
         .await
@@ -130,6 +246,7 @@ impl behaviour::Conversion for Address {
             modified_at: now,
             updated_by: self.updated_by,
             email: self.email.map(Encryption::from),
+            payment_method_id: self.payment_method_id,
         })
     }
 }
