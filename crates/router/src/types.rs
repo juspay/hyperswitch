@@ -24,8 +24,8 @@ pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 use common_enums::MandateStatus;
 pub use common_utils::request::RequestContent;
 use common_utils::{pii, pii::Email};
-use data_models::mandates::{CustomerAcceptance, MandateData};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::mandates::{CustomerAcceptance, MandateData};
 use masking::Secret;
 use serde::Serialize;
 

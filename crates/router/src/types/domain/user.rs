@@ -3,6 +3,7 @@ use std::{collections::HashSet, ops, str::FromStr};
 use api_models::{
     admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
 };
+use common_enums::TokenPurpose;
 use common_utils::{errors::CustomResult, pii};
 use diesel_models::{
     enums::UserStatus,
@@ -31,6 +32,8 @@ use crate::{
 };
 
 pub mod dashboard_metadata;
+pub mod decision_manager;
+pub use decision_manager::*;
 
 #[derive(Clone)]
 pub struct UserName(Secret<String>);
@@ -785,6 +788,29 @@ impl UserFromStorage {
             .find_user_role_by_user_id_merchant_id(self.get_user_id(), merchant_id)
             .await
     }
+
+    pub async fn get_preferred_or_active_user_role_from_db(
+        &self,
+        state: &AppState,
+    ) -> CustomResult<UserRole, errors::StorageError> {
+        if let Some(preferred_merchant_id) = self.get_preferred_merchant_id() {
+            self.get_role_from_db_by_merchant_id(state, &preferred_merchant_id)
+                .await
+        } else {
+            state
+                .store
+                .list_user_roles_by_user_id(&self.0.user_id)
+                .await?
+                .into_iter()
+                .find(|role| role.status == UserStatus::Active)
+                .ok_or(
+                    errors::StorageError::ValueNotFound(
+                        "No active role found for user".to_string(),
+                    )
+                    .into(),
+                )
+        }
+    }
 }
 
 impl From<info::ModuleInfo> for user_role_api::ModuleInfo {
@@ -910,8 +936,10 @@ impl SignInWithMultipleRolesStrategy {
             user_api::MerchantSelectResponse {
                 name: self.user.get_name(),
                 email: self.user.get_email(),
-                token: auth::UserAuthToken::new_token(
+                token: auth::SinglePurposeToken::new_token(
                     self.user.get_user_id().to_string(),
+                    TokenPurpose::AcceptInvite,
+                    Origin::SignIn,
                     &state.conf,
                 )
                 .await?

@@ -2525,7 +2525,7 @@ pub async fn list_payment_methods(
             payment_methods: payment_method_responses,
             mandate_payment: payment_attempt.and_then(|inner| inner.mandate_details).map(
                 |d| match d {
-                    data_models::mandates::MandateDataType::SingleUse(i) => {
+                    hyperswitch_domain_models::mandates::MandateDataType::SingleUse(i) => {
                         api::MandateType::SingleUse(api::MandateAmountData {
                             amount: i.amount,
                             currency: i.currency,
@@ -2534,7 +2534,7 @@ pub async fn list_payment_methods(
                             metadata: i.metadata,
                         })
                     }
-                    data_models::mandates::MandateDataType::MultiUse(Some(i)) => {
+                    hyperswitch_domain_models::mandates::MandateDataType::MultiUse(Some(i)) => {
                         api::MandateType::MultiUse(Some(api::MandateAmountData {
                             amount: i.amount,
                             currency: i.currency,
@@ -2543,7 +2543,7 @@ pub async fn list_payment_methods(
                             metadata: i.metadata,
                         }))
                     }
-                    data_models::mandates::MandateDataType::MultiUse(None) => {
+                    hyperswitch_domain_models::mandates::MandateDataType::MultiUse(None) => {
                         api::MandateType::MultiUse(None)
                     }
                 },
@@ -3211,7 +3211,7 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
         .await
     } else {
         let cloned_secret = req.and_then(|r| r.client_secret.as_ref().cloned());
-        let payment_intent: Option<data_models::payments::PaymentIntent> =
+        let payment_intent: Option<hyperswitch_domain_models::payments::PaymentIntent> =
             helpers::verify_payment_intent_time_and_client_secret(
                 db,
                 &merchant_account,
