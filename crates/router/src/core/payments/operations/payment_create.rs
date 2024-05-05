@@ -258,7 +258,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 .as_ref()
                 .map(|address| address.address_id.clone()),
             attempt_id,
-            profile_id,
+            profile_id.clone(),
             session_expiry,
         )
         .await?;
@@ -277,6 +277,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 .map(|address| address.address_id.clone()),
             &payment_method_info,
             merchant_key_store,
+            profile_id,
         )
         .await?;
 
@@ -771,6 +772,7 @@ impl PaymentCreate {
         payment_method_billing_address_id: Option<String>,
         payment_method_info: &Option<PaymentMethod>,
         key_store: &domain::MerchantKeyStore,
+        profile_id: String,
     ) -> RouterResult<(
         storage::PaymentAttemptNew,
         Option<api_models::payments::AdditionalPaymentData>,
@@ -794,7 +796,12 @@ impl PaymentCreate {
                 payment_method_data_request.payment_method_data.as_ref()
             })
             .async_map(|payment_method_data| async {
-                helpers::get_additional_payment_data(payment_method_data, &*state.store).await
+                helpers::get_additional_payment_data(
+                    payment_method_data,
+                    &*state.store,
+                    &profile_id,
+                )
+                .await
             })
             .await;
 

@@ -415,13 +415,23 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .and_then(|pmd| pmd.payment_method_data.clone());
 
         let store = state.clone().store;
+        let profile_id = payment_intent
+            .profile_id
+            .clone()
+            .get_required_value("profile_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("'profile_id' not set in payment intent")?;
 
         let additional_pm_data_fut = tokio::spawn(
             async move {
                 Ok(n_request_payment_method_data
                     .async_map(|payment_method_data| async move {
-                        helpers::get_additional_payment_data(&payment_method_data, store.as_ref())
-                            .await
+                        helpers::get_additional_payment_data(
+                            &payment_method_data,
+                            store.as_ref(),
+                            profile_id.as_ref(),
+                        )
+                        .await
                     })
                     .await)
             }
@@ -1059,12 +1069,19 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             .clone();
         let payment_token = payment_data.token.clone();
         let payment_method_type = payment_data.payment_attempt.payment_method_type;
+        let profile_id = payment_data
+            .payment_intent
+            .profile_id
+            .as_ref()
+            .get_required_value("profile_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
         let payment_experience = payment_data.payment_attempt.payment_experience;
         let additional_pm_data = payment_data
             .payment_method_data
             .as_ref()
             .async_map(|payment_method_data| async {
-                helpers::get_additional_payment_data(payment_method_data, &*state.store).await
+                helpers::get_additional_payment_data(payment_method_data, &*state.store, profile_id)
+                    .await
             })
             .await
             .as_ref()
