@@ -213,6 +213,7 @@ pub async fn create_or_update_address_for_payment_by_request(
                         storage_scheme,
                     )
                     .await
+                    .map(|payment_address| payment_address.address)
                     .to_not_found_response(errors::ApiErrorResponse::AddressNotFound)?,
                 )
             }
@@ -224,7 +225,8 @@ pub async fn create_or_update_address_for_payment_by_request(
                     merchant_key_store,
                     storage_scheme,
                 )
-                .await,
+                .await
+                .map(|payment_address| payment_address.address),
             )
             .transpose()
             .to_not_found_response(errors::ApiErrorResponse::AddressNotFound)?,
@@ -252,6 +254,7 @@ pub async fn create_or_update_address_for_payment_by_request(
                         storage_scheme,
                     )
                     .await
+                    .map(|payment_address| payment_address.address)
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed while inserting new address")?,
                 )
@@ -284,7 +287,8 @@ pub async fn create_or_find_address_for_payment_by_request(
                 merchant_key_store,
                 storage_scheme,
             )
-            .await,
+            .await
+            .map(|payment_address| payment_address.address),
         )
         .transpose()
         .to_not_found_response(errors::ApiErrorResponse::AddressNotFound)?,
@@ -312,6 +316,7 @@ pub async fn create_or_find_address_for_payment_by_request(
                         storage_scheme,
                     )
                     .await
+                    .map(|payment_address| payment_address.address)
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed while inserting new address")?,
                 )
@@ -340,7 +345,6 @@ pub async fn get_domain_address_for_payments(
                 .async_lift(|inner| types::encrypt_optional(inner, key))
                 .await?,
             country_code: address.phone.as_ref().and_then(|a| a.country_code.clone()),
-            customer_id: customer_id.cloned(),
             merchant_id: merchant_id.to_string(),
             address_id: generate_id(consts::ID_LENGTH, "add"),
             city: address_details.city,
@@ -375,7 +379,6 @@ pub async fn get_domain_address_for_payments(
                 .zip
                 .async_lift(|inner| types::encrypt_optional(inner, key))
                 .await?,
-            payment_id: Some(payment_id.to_owned()),
             updated_by: storage_scheme.to_string(),
             email: address
                 .email
@@ -383,12 +386,12 @@ pub async fn get_domain_address_for_payments(
                 .cloned()
                 .async_lift(|inner| types::encrypt_optional(inner.map(|inner| inner.expose()), key))
                 .await?,
-            payment_method_id: None,
         };
 
         Ok(domain::PaymentAddress {
             address,
             payment_id: payment_id.to_owned(),
+            customer_id: customer_id.cloned(),
         })
     }
     .await
@@ -413,6 +416,7 @@ pub async fn get_address_by_id(
                 storage_scheme,
             )
             .await
+            .map(|payment_address| payment_address.address)
             .ok()),
     }
 }

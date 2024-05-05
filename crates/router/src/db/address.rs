@@ -28,12 +28,12 @@ where
 
     async fn update_address_for_payments(
         &self,
-        this: domain::Address,
+        this: domain::PaymentAddress,
         address: domain::AddressUpdate,
         payment_id: String,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<domain::Address, errors::StorageError>;
+    ) -> CustomResult<domain::PaymentAddress, errors::StorageError>;
 
     async fn find_address_by_address_id(
         &self,
@@ -47,11 +47,11 @@ where
         address: domain::PaymentAddress,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<domain::Address, errors::StorageError>;
+    ) -> CustomResult<domain::PaymentAddress, errors::StorageError>;
 
     async fn insert_address_for_customers(
         &self,
-        address: domain::Address,
+        address: domain::CustomerAddress,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Address, errors::StorageError>;
 
@@ -62,7 +62,7 @@ where
         address_id: &str,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<domain::Address, errors::StorageError>;
+    ) -> CustomResult<domain::PaymentAddress, errors::StorageError>;
 
     async fn update_address_by_merchant_id_customer_id(
         &self,
@@ -121,7 +121,7 @@ mod storage {
             address_id: &str,
             key_store: &domain::MerchantKeyStore,
             _storage_scheme: MerchantStorageScheme,
-        ) -> CustomResult<domain::Address, errors::StorageError> {
+        ) -> CustomResult<domain::PaymentAddress, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             storage_types::Address::find_by_merchant_id_payment_id_address_id(
                 &conn,
@@ -163,12 +163,12 @@ mod storage {
         #[instrument(skip_all)]
         async fn update_address_for_payments(
             &self,
-            this: domain::Address,
+            this: domain::PaymentAddress,
             address_update: domain::AddressUpdate,
             _payment_id: String,
             key_store: &domain::MerchantKeyStore,
             _storage_scheme: MerchantStorageScheme,
-        ) -> CustomResult<domain::Address, errors::StorageError> {
+        ) -> CustomResult<domain::PaymentAddress, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
             let address = Conversion::convert(this)
                 .await
@@ -193,7 +193,7 @@ mod storage {
             address: domain::PaymentAddress,
             key_store: &domain::MerchantKeyStore,
             _storage_scheme: MerchantStorageScheme,
-        ) -> CustomResult<domain::Address, errors::StorageError> {
+        ) -> CustomResult<domain::PaymentAddress, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
             address
                 .construct_new()
@@ -214,7 +214,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn insert_address_for_customers(
             &self,
-            address: domain::Address,
+            address: domain::CustomerAddress,
             key_store: &domain::MerchantKeyStore,
         ) -> CustomResult<domain::Address, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
@@ -320,7 +320,7 @@ mod storage {
             address_id: &str,
             key_store: &domain::MerchantKeyStore,
             storage_scheme: MerchantStorageScheme,
-        ) -> CustomResult<domain::Address, errors::StorageError> {
+        ) -> CustomResult<domain::PaymentAddress, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             let database_call = || async {
                 storage_types::Address::find_by_merchant_id_payment_id_address_id(
@@ -384,12 +384,12 @@ mod storage {
         #[instrument(skip_all)]
         async fn update_address_for_payments(
             &self,
-            this: domain::Address,
+            this: domain::PaymentAddress,
             address_update: domain::AddressUpdate,
             payment_id: String,
             key_store: &domain::MerchantKeyStore,
             storage_scheme: MerchantStorageScheme,
-        ) -> CustomResult<domain::Address, errors::StorageError> {
+        ) -> CustomResult<domain::PaymentAddress, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
             let address = Conversion::convert(this)
                 .await
@@ -459,7 +459,7 @@ mod storage {
             address: domain::PaymentAddress,
             key_store: &domain::MerchantKeyStore,
             storage_scheme: MerchantStorageScheme,
-        ) -> CustomResult<domain::Address, errors::StorageError> {
+        ) -> CustomResult<domain::PaymentAddress, errors::StorageError> {
             let address_new = address
                 .clone()
                 .construct_new()
@@ -548,7 +548,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn insert_address_for_customers(
             &self,
-            address: domain::Address,
+            address: domain::CustomerAddress,
             key_store: &domain::MerchantKeyStore,
         ) -> CustomResult<domain::Address, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
@@ -636,7 +636,7 @@ impl AddressInterface for MockDb {
         address_id: &str,
         key_store: &domain::MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<domain::Address, errors::StorageError> {
+    ) -> CustomResult<domain::PaymentAddress, errors::StorageError> {
         match self
             .addresses
             .lock()
@@ -689,18 +689,18 @@ impl AddressInterface for MockDb {
 
     async fn update_address_for_payments(
         &self,
-        this: domain::Address,
+        this: domain::PaymentAddress,
         address_update: domain::AddressUpdate,
         _payment_id: String,
         key_store: &domain::MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<domain::Address, errors::StorageError> {
+    ) -> CustomResult<domain::PaymentAddress, errors::StorageError> {
         let updated_addr = self
             .addresses
             .lock()
             .await
             .iter_mut()
-            .find(|address| address.address_id == this.address_id)
+            .find(|address| address.address_id == this.address.address_id)
             .map(|a| {
                 let address_updated =
                     AddressUpdateInternal::from(address_update).create_address(a.clone());
@@ -725,7 +725,7 @@ impl AddressInterface for MockDb {
         address_new: domain::PaymentAddress,
         key_store: &domain::MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<domain::Address, errors::StorageError> {
+    ) -> CustomResult<domain::PaymentAddress, errors::StorageError> {
         let mut addresses = self.addresses.lock().await;
 
         let address = Conversion::convert(address_new)
@@ -742,7 +742,7 @@ impl AddressInterface for MockDb {
 
     async fn insert_address_for_customers(
         &self,
-        address_new: domain::Address,
+        address_new: domain::CustomerAddress,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Address, errors::StorageError> {
         let mut addresses = self.addresses.lock().await;
