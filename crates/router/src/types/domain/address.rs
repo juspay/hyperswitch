@@ -57,12 +57,6 @@ pub struct CustomerAddress {
     pub customer_id: String,
 }
 
-#[derive(Debug, Clone)]
-pub struct PaymentMethodAddress {
-    pub address: Address,
-    pub payment_method_id: String,
-}
-
 #[async_trait]
 impl behaviour::Conversion for CustomerAddress {
     type DstType = diesel_models::address::Address;
@@ -73,7 +67,6 @@ impl behaviour::Conversion for CustomerAddress {
         Ok(diesel_models::address::Address {
             customer_id: Some(self.customer_id),
             payment_id: None,
-            payment_method_id: None,
             ..converted_address
         })
     }
@@ -103,13 +96,11 @@ impl behaviour::Conversion for CustomerAddress {
 
         Ok(Self::NewDstType {
             customer_id: Some(self.customer_id),
-            payment_method_id: None,
             payment_id: None,
             ..address_new
         })
     }
 }
-
 #[async_trait]
 impl behaviour::Conversion for PaymentAddress {
     type DstType = diesel_models::address::Address;
@@ -120,7 +111,6 @@ impl behaviour::Conversion for PaymentAddress {
         Ok(diesel_models::address::Address {
             customer_id: self.customer_id,
             payment_id: Some(self.payment_id),
-            payment_method_id: None,
             ..converted_address
         })
     }
@@ -153,7 +143,6 @@ impl behaviour::Conversion for PaymentAddress {
         Ok(Self::NewDstType {
             customer_id: self.customer_id,
             payment_id: Some(self.payment_id),
-            payment_method_id: None,
             ..address_new
         })
     }
@@ -186,7 +175,6 @@ impl behaviour::Conversion for Address {
             email: self.email.map(Encryption::from),
             payment_id: None,
             customer_id: None,
-            payment_method_id: None,
         })
     }
 
@@ -246,7 +234,6 @@ impl behaviour::Conversion for Address {
             email: self.email.map(Encryption::from),
             customer_id: None,
             payment_id: None,
-            payment_method_id: None,
         })
     }
 }

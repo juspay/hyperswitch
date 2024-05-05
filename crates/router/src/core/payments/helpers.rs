@@ -233,23 +233,21 @@ pub async fn create_or_update_address_for_payment_by_request(
         },
         None => match req_address {
             Some(address) => {
-                // generate a new address here
-                let address_details = address.address.clone().unwrap_or_default();
+                let address = get_domain_address(address, merchant_id, key, storage_scheme)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed while encrypting address while insert")?;
+
+                let payment_address = domain::PaymentAddress {
+                    address,
+                    payment_id: payment_id.to_string(),
+                    customer_id: customer_id.cloned(),
+                };
+
                 Some(
                     db.insert_address_for_payments(
                         payment_id,
-                        get_domain_address_for_payments(
-                            address_details,
-                            address,
-                            merchant_id,
-                            customer_id,
-                            payment_id,
-                            key,
-                            storage_scheme,
-                        )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed while encrypting address while insert")?,
+                        payment_address,
                         merchant_key_store,
                         storage_scheme,
                     )
@@ -259,6 +257,7 @@ pub async fn create_or_update_address_for_payment_by_request(
                     .attach_printable("Failed while inserting new address")?,
                 )
             }
+
             None => None,
         },
     })
@@ -295,23 +294,21 @@ pub async fn create_or_find_address_for_payment_by_request(
         None => match req_address {
             Some(address) => {
                 // generate a new address here
+                let address = get_domain_address(address, merchant_id, key, storage_scheme)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed while encrypting address while insert")?;
 
-                let address_details = address.address.clone().unwrap_or_default();
+                let payment_address = domain::PaymentAddress {
+                    address,
+                    payment_id: payment_id.to_string(),
+                    customer_id: customer_id.cloned(),
+                };
+
                 Some(
                     db.insert_address_for_payments(
                         payment_id,
-                        get_domain_address_for_payments(
-                            address_details,
-                            address,
-                            merchant_id,
-                            customer_id,
-                            payment_id,
-                            key,
-                            storage_scheme,
-                        )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed while encrypting address while insert")?,
+                        payment_address,
                         merchant_key_store,
                         storage_scheme,
                     )
@@ -326,17 +323,15 @@ pub async fn create_or_find_address_for_payment_by_request(
     })
 }
 
-pub async fn get_domain_address_for_payments(
-    address_details: api_models::payments::AddressDetails,
+pub async fn get_domain_address(
     address: &api_models::payments::Address,
     merchant_id: &str,
-    customer_id: Option<&String>,
-    payment_id: &str,
     key: &[u8],
     storage_scheme: enums::MerchantStorageScheme,
-) -> CustomResult<domain::PaymentAddress, common_utils::errors::CryptoError> {
+) -> CustomResult<domain::Address, common_utils::errors::CryptoError> {
     async {
-        let address = domain::Address {
+        let address_details = address.address.as_ref();
+        Ok(domain::Address {
             id: None,
             phone_number: address
                 .phone
@@ -347,36 +342,36 @@ pub async fn get_domain_address_for_payments(
             country_code: address.phone.as_ref().and_then(|a| a.country_code.clone()),
             merchant_id: merchant_id.to_string(),
             address_id: generate_id(consts::ID_LENGTH, "add"),
-            city: address_details.city,
-            country: address_details.country,
+            city: address_details.and_then(|address_details| address_details.city.clone()),
+            country: address_details.and_then(|address_details| address_details.country),
             line1: address_details
-                .line1
+                .and_then(|address_details| address_details.line1.clone())
                 .async_lift(|inner| types::encrypt_optional(inner, key))
                 .await?,
             line2: address_details
-                .line2
+                .and_then(|address_details| address_details.line2.clone())
                 .async_lift(|inner| types::encrypt_optional(inner, key))
                 .await?,
             line3: address_details
-                .line3
+                .and_then(|address_details| address_details.line3.clone())
                 .async_lift(|inner| types::encrypt_optional(inner, key))
                 .await?,
             state: address_details
-                .state
+                .and_then(|address_details| address_details.state.clone())
                 .async_lift(|inner| types::encrypt_optional(inner, key))
                 .await?,
             created_at: common_utils::date_time::now(),
             first_name: address_details
-                .first_name
+                .and_then(|address_details| address_details.first_name.clone())
                 .async_lift(|inner| types::encrypt_optional(inner, key))
                 .await?,
             last_name: address_details
-                .last_name
+                .and_then(|address_details| address_details.last_name.clone())
                 .async_lift(|inner| types::encrypt_optional(inner, key))
                 .await?,
             modified_at: common_utils::date_time::now(),
             zip: address_details
-                .zip
+                .and_then(|address_details| address_details.zip.clone())
                 .async_lift(|inner| types::encrypt_optional(inner, key))
                 .await?,
             updated_by: storage_scheme.to_string(),
@@ -386,12 +381,6 @@ pub async fn get_domain_address_for_payments(
                 .cloned()
                 .async_lift(|inner| types::encrypt_optional(inner.map(|inner| inner.expose()), key))
                 .await?,
-        };
-
-        Ok(domain::PaymentAddress {
-            address,
-            payment_id: payment_id.to_owned(),
-            customer_id: customer_id.cloned(),
         })
     }
     .await
@@ -4368,24 +4357,4 @@ pub fn validate_mandate_data_and_future_usage(
 
 pub fn get_redis_key_for_extended_card_info(merchant_id: &str, payment_id: &str) -> String {
     format!("{merchant_id}_{payment_id}_extended_card_info")
-}
-
-pub async fn get_recurring_billing_details(
-    store: &dyn StorageInterface,
-    key_store: &domain::MerchantKeyStore,
-    payment_method_info: &diesel_models::PaymentMethod,
-) -> CustomResult<Option<domain::Address>, errors::ApiErrorResponse> {
-    payment_method_info
-        .payment_method_billing_address_id
-        .as_ref()
-        .async_map(|payment_method_billing_address_id| async move {
-            // Cannot support KV feature for this lookup
-            store
-                .find_address_by_address_id(payment_method_billing_address_id, key_store)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error while fetching address")
-        })
-        .await
-        .transpose()
 }

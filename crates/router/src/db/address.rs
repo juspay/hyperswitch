@@ -508,7 +508,6 @@ mod storage {
                         payment_id: address_new.payment_id.clone(),
                         updated_by: storage_scheme.to_string(),
                         email: address_new.email.clone(),
-                        payment_method_id: None,
                     };
 
                     let redis_entry = kv::TypedSql {

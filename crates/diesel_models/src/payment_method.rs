@@ -40,7 +40,7 @@ pub struct PaymentMethod {
     pub status: storage_enums::PaymentMethodStatus,
     pub network_transaction_id: Option<String>,
     pub client_secret: Option<String>,
-    pub payment_method_billing_address_id: Option<String>,
+    pub payment_method_billing_address: Option<Encryption>,
 }
 
 #[derive(
@@ -76,45 +76,7 @@ pub struct PaymentMethodNew {
     pub status: storage_enums::PaymentMethodStatus,
     pub network_transaction_id: Option<String>,
     pub client_secret: Option<String>,
-    pub payment_method_billing_address_id: Option<String>,
-}
-
-impl Default for PaymentMethodNew {
-    fn default() -> Self {
-        let now = common_utils::date_time::now();
-
-        Self {
-            customer_id: String::default(),
-            merchant_id: String::default(),
-            payment_method_id: String::default(),
-            locker_id: Option::default(),
-            payment_method: Option::default(),
-            payment_method_type: Option::default(),
-            payment_method_issuer: Option::default(),
-            payment_method_issuer_code: Option::default(),
-            accepted_currency: Option::default(),
-            scheme: Option::default(),
-            token: Option::default(),
-            cardholder_name: Option::default(),
-            issuer_name: Option::default(),
-            issuer_country: Option::default(),
-            payer_country: Option::default(),
-            is_stored: Option::default(),
-            swift_code: Option::default(),
-            direct_debit_token: Option::default(),
-            created_at: now,
-            last_modified: now,
-            metadata: Option::default(),
-            payment_method_data: Option::default(),
-            last_used_at: now,
-            connector_mandate_details: Option::default(),
-            customer_acceptance: Option::default(),
-            status: storage_enums::PaymentMethodStatus::Active,
-            network_transaction_id: Option::default(),
-            client_secret: Option::default(),
-            payment_method_billing_address_id: Option::default(),
-        }
-    }
+    pub payment_method_billing_address: Option<Encryption>,
 }
 
 #[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -320,8 +282,8 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             status: payment_method_new.status,
             network_transaction_id: payment_method_new.network_transaction_id.clone(),
             client_secret: payment_method_new.client_secret.clone(),
-            payment_method_billing_address_id: payment_method_new
-                .payment_method_billing_address_id
+            payment_method_billing_address: payment_method_new
+                .payment_method_billing_address
                 .clone(),
         }
     }

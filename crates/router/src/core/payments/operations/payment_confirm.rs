@@ -520,8 +520,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             payment_method_info,
         } = mandate_details;
 
-        let store = state.clone().store;
-
         payment_attempt.payment_method = payment_method.or(payment_attempt.payment_method);
 
         payment_attempt.payment_method_type = payment_method_type
@@ -561,27 +559,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             (Some(token_data), payment_method_info)
         } else {
             (None, payment_method_info)
-        };
-
-        // In case payment method billing details are not passed in the request
-        // get the saved payment method billing from payment method info
-        let payment_method_billing = if let Some(payment_method_billing) = payment_method_billing {
-            Some(payment_method_billing)
-        } else {
-            payment_method_info
-                .as_ref()
-                .async_map(|payment_method_billing_address_id| async {
-                    helpers::get_recurring_billing_details(
-                        &*store,
-                        key_store,
-                        payment_method_billing_address_id,
-                    )
-                    .await
-                })
-                .await
-                .transpose()
-                .attach_printable("cannot fetch recurring billing address")?
-                .flatten()
         };
 
         // The operation merges mandate data from both request and payment_attempt

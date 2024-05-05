@@ -423,7 +423,7 @@ async fn store_bank_details_in_payment_methods(
 
             let payment_method_data = payment_methods::PaymentMethodsData::BankDetails(pmd);
             let encrypted_data =
-                cards::create_encrypted_payment_method_data(&key_store, Some(payment_method_data))
+                cards::create_encrypted_data(&key_store, Some(payment_method_data))
                     .await
                     .ok_or(ApiErrorResponse::InternalServerError)?;
             let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
@@ -434,21 +434,42 @@ async fn store_bank_details_in_payment_methods(
         } else {
             let payment_method_data = payment_methods::PaymentMethodsData::BankDetails(pmd);
             let encrypted_data =
-                cards::create_encrypted_payment_method_data(&key_store, Some(payment_method_data))
+                cards::create_encrypted_data(&key_store, Some(payment_method_data))
                     .await
                     .ok_or(ApiErrorResponse::InternalServerError)?;
             let pm_id = generate_id(consts::ID_LENGTH, "pm");
+            let now = common_utils::date_time::now();
             let pm_new = storage::PaymentMethodNew {
                 customer_id: customer_id.clone(),
                 merchant_id: merchant_account.merchant_id.clone(),
                 payment_method_id: pm_id,
                 payment_method: Some(enums::PaymentMethod::BankDebit),
                 payment_method_type: Some(creds.payment_method_type),
+                status: enums::PaymentMethodStatus::Active,
                 payment_method_issuer: None,
                 scheme: None,
                 metadata: None,
                 payment_method_data: Some(encrypted_data),
-                ..storage::PaymentMethodNew::default()
+                payment_method_issuer_code: None,
+                accepted_currency: None,
+                token: None,
+                cardholder_name: None,
+                issuer_name: None,
+                issuer_country: None,
+                payer_country: None,
+                is_stored: None,
+                swift_code: None,
+                direct_debit_token: None,
+                created_at: now,
+                last_modified: now,
+                locker_id: None,
+                last_used_at: now,
+                connector_mandate_details: None,
+                customer_acceptance: None,
+
+                network_transaction_id: None,
+                client_secret: None,
+                payment_method_billing_address: None,
             };
 
             new_entries.push(pm_new);

@@ -450,7 +450,7 @@ pub async fn save_payout_data_to_locker(
                     )
                 });
             (
-                cards::create_encrypted_payment_method_data(key_store, Some(pm_data)).await,
+                cards::create_encrypted_data(key_store, Some(pm_data)).await,
                 payment_method,
             )
         } else {

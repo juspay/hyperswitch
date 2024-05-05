@@ -234,28 +234,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         )
         .await?;
 
-        // In case payment method billing details are not passed in the request
-        // get the saved payment method billing from payment method info
-        let payment_method_billing =
-            if let Some(payment_method_billing_address) = payment_method_billing {
-                Some(payment_method_billing_address)
-            } else {
-                payment_method_info
-                    .as_ref()
-                    .async_map(|payment_method_billing_address_id| async {
-                        helpers::get_recurring_billing_details(
-                            db,
-                            key_store,
-                            payment_method_billing_address_id,
-                        )
-                        .await
-                    })
-                    .await
-                    .transpose()
-                    .attach_printable("cannot fetch recurring billing address")?
-                    .flatten()
-            };
-
         payment_intent.shipping_address_id = shipping_address.clone().map(|x| x.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|x| x.address_id);
 
