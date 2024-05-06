@@ -1,0 +1,105 @@
+api:
+  enabled: true
+  address: 0.0.0.0:8686
+sources:
+  demo_logs:
+    type: demo_logs
+    interval: 1
+    format: json
+  kafka_payments:
+    type: kafka
+    bootstrap_servers: kafka0:29092
+    group_id: sessionizer
+    topics:
+      - ^hyperswitch-.+
+    decoding:
+      codec: json
+transforms:
+  my_transform_id:
+    type: lua
+    inputs:
+      - kafka_payments
+    version: "2"
+
+    hooks:
+      init: init
+      process: process
+      shutdown: shutdown
+    source: |-
+      function init(emit)
+
+        local cassandra = require "cassandra"
+        
+        client = assert(cassandra.new {
+          host = "cassandra0",
+          port = 9042,
+          keyspace = "sessionizer"
+        })
+
+        client:settimeout(1000)
+        assert(client:connect())
+
+      end
+
+      function db_get(id, id_type, version)
+        version = version or 1
+        local rows = assert(client:execute("SELECT * FROM payments WHERE id = ? and id_type = ?", {
+          id,
+          id_type
+        }))
+        return rows
+      end
+
+      function db_set(state, id, id_type, version)
+        version = version or 1
+        local res = assert(client:execute("INSERT INTO payments (id, id_type, state, version) VALUES (?, ?, ?, ?)", {
+          id,
+          id_type,
+          state,
+          version
+        }))
+        return res
+      end
+
+      function copy(obj, seen)
+        if type(obj) ~= 'table' then return obj end
+        if seen and seen[obj] then return seen[obj] end
+        local s = seen or {}
+        local res = setmetatable({}, getmetatable(obj))
+        s[obj] = res
+        for k, v in pairs(obj) do res[copy(k, s)] = copy(v, s) end
+        return res
+      end
+
+
+      function process(event, emit)
+        local json = require "json"
+        local new_event = copy(event)
+
+        local old_event = db_get(string.format("%s_%s", event.log.log.merchant_id, event.log.log.payment_id), "merchant_payment")
+        if not old_event then
+          print("no old event")
+        else
+          emit_signed_log(emit, event, json.decode(old_event[1].state), -1)
+        end
+        local new_event_insert = db_set(json.encode(new_event.log.log), string.format("%s_%s", new_event.log.log.merchant_id, new_event.log.log.payment_id), "merchant_payment")
+        emit_signed_log(emit, new_event, new_event.log.log, 1)
+      end
+
+      function shutdown(emit)
+        client:close()
+      end
+
+      function emit_signed_log(emit, event, log, sign)
+        event.log.log = log
+        event.log.sign = sign
+        emit(event)
+      end
+sinks:
+  console:
+    inputs:
+      - my_transform_id
+    target: stdout
+    type: console
+    encoding:
+      codec: json

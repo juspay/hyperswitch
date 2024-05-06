@@ -3,6 +3,7 @@ version: "3.8"
 volumes:
   pg_data:
   redisinsight_store:
+  cassandra_data:
 
 networks:
   router_net:
@@ -333,3 +334,42 @@ services:
       nofile:
         soft: 262144
         hard: 262144
+
+  vector:
+    image: timberio/vector:latest-debian
+    ports:
+      - "8686:8686"
+    networks:
+      - router_net
+    volumes:
+      - ./docker/vector/vector.yaml:/etc/vector/vector.yaml
+      - ./docker/lua/usr-local-lib-lua/:/usr/local/lib/lua/5.4/
+      - ./docker/lua/usr-local-share-lua/:/usr/local/share/lua/5.4/
+
+  cassandra:
+    image: cassandra:latest
+    hostname: cassandra0
+    ports:
+      - "9042:9042"
+    networks:
+      - router_net
+    environment:
+      - "MAX_HEAP_SIZE=256M"
+      - "HEAP_NEWSIZE=128M"
+    restart: always
+    healthcheck:
+      test: ["CMD", "cqlsh", "-e describe keyspaces"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
+  cassandra-load-keyspace:
+    image: cassandra:latest
+    networks:
+      - router_net
+    depends_on:
+      cassandra:
+        condition: service_healthy
+    volumes:
+      - ./docker/cassandra/setup.cql:/scripts/setup.cql
+    command: /bin/bash -c "echo loading sessionizer keyspace && cqlsh cassandra -f /scripts/setup.cql"
