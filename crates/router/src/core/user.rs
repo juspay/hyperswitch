@@ -94,7 +94,7 @@ pub async fn get_user_details(
 pub async fn signup(
     state: AppState,
     request: user_api::SignUpRequest,
-) -> UserResponse<user_api::SignUpResponse> {
+) -> UserResponse<user_api::TokenOrPayloadResponse<user_api::SignUpResponse>> {
     let new_user = domain::NewUser::try_from(request)?;
     new_user
         .get_new_merchant()
@@ -117,13 +117,38 @@ pub async fn signup(
     let response =
         utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token.clone())?;
 
+    auth::cookies::set_cookie_response(user_api::TokenOrPayloadResponse::Payload(response), token)
+}
+
+pub async fn signup_token_only_flow(
+    state: AppState,
+    request: user_api::SignUpRequest,
+) -> UserResponse<user_api::TokenOrPayloadResponse<user_api::SignUpResponse>> {
+    let user_from_db: domain::UserFromStorage = state
+        .store
+        .find_user_by_email(&request.email)
+        .await
+        .to_not_found_response(UserErrors::InvalidCredentials)?
+        .into();
+
+    user_from_db.compare_password(request.password)?;
+
+    let next_flow =
+        domain::NextFlow::from_origin(domain::Origin::SignIn, user_from_db.clone(), &state).await?;
+
+    let token = next_flow.get_token(&state).await?;
+
+    let response = user_api::TokenOrPayloadResponse::Token(user_api::TokenResponse {
+        token: token.clone(),
+        token_type: next_flow.get_flow().into(),
+    });
     auth::cookies::set_cookie_response(response, token)
 }
 
 pub async fn signin(
     state: AppState,
     request: user_api::SignInRequest,
-) -> UserResponse<user_api::SignInWithTokenResponse> {
+) -> UserResponse<user_api::TokenOrPayloadResponse<user_api::SignInResponse>> {
     let user_from_db: domain::UserFromStorage = state
         .store
         .find_user_by_email(&request.email)
@@ -161,16 +186,13 @@ pub async fn signin(
 
     let response = signin_strategy.get_signin_response(&state).await?;
     let token = utils::user::get_token_from_signin_response(&response);
-    auth::cookies::set_cookie_response(
-        user_api::SignInWithTokenResponse::SignInResponse(response),
-        token,
-    )
+    auth::cookies::set_cookie_response(user_api::TokenOrPayloadResponse::Payload(response), token)
 }
 
 pub async fn signin_token_only_flow(
     state: AppState,
     request: user_api::SignInRequest,
-) -> UserResponse<user_api::SignInWithTokenResponse> {
+) -> UserResponse<user_api::TokenOrPayloadResponse<user_api::SignInResponse>> {
     let user_from_db: domain::UserFromStorage = state
         .store
         .find_user_by_email(&request.email)
@@ -185,7 +207,7 @@ pub async fn signin_token_only_flow(
 
     let token = next_flow.get_token(&state).await?;
 
-    let response = user_api::SignInWithTokenResponse::Token(user_api::TokenResponse {
+    let response = user_api::TokenOrPayloadResponse::Token(user_api::TokenResponse {
         token: token.clone(),
         token_type: next_flow.get_flow().into(),
     });
@@ -820,6 +842,80 @@ pub async fn accept_invite_from_email(
     auth::cookies::set_cookie_response(response, token)
 }
 
+#[cfg(feature = "email")]
+pub async fn accept_invite_from_email_token_only_flow(
+    state: AppState,
+    user: auth::UserFromSinglePurposeToken,
+    request: user_api::AcceptInviteFromEmailRequest,
+) -> UserResponse<user_api::TokenOrPayloadResponse<user_api::DashboardEntryResponse>> {
+    let token = request.token.expose();
+
+    let email_token = auth::decode_jwt::<email_types::EmailToken>(&token, &state)
+        .await
+        .change_context(UserErrors::LinkInvalid)?;
+
+    auth::blacklist::check_email_token_in_blacklist(&state, &token).await?;
+
+    let user_from_db: domain::UserFromStorage = state
+        .store
+        .find_user_by_email(
+            &email_token
+                .get_email()
+                .change_context(UserErrors::InternalServerError)?,
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .into();
+
+    if user_from_db.get_user_id() != user.user_id {
+        return Err(UserErrors::LinkInvalid.into());
+    }
+
+    let merchant_id = email_token
+        .get_merchant_id()
+        .ok_or(UserErrors::InternalServerError)?;
+
+    let user_role = state
+        .store
+        .update_user_role_by_user_id_merchant_id(
+            user_from_db.get_user_id(),
+            merchant_id,
+            UserRoleUpdate::UpdateStatus {
+                status: UserStatus::Active,
+                modified_by: user_from_db.get_user_id().to_string(),
+            },
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let _ = auth::blacklist::insert_email_token_in_blacklist(&state, &token)
+        .await
+        .map_err(|e| logger::error!(?e));
+
+    let user_from_db: domain::UserFromStorage = state
+        .store
+        .update_user_by_user_id(
+            user_from_db.get_user_id(),
+            storage_user::UserUpdate::VerifyUser,
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .into();
+
+    let next_flow =
+        domain::NextFlow::from_origin(domain::Origin::SignIn, user_from_db.clone(), &state).await?;
+
+    let token = next_flow
+        .get_token_with_user_role(&state, &user_role)
+        .await?;
+
+    let response = user_api::TokenOrPayloadResponse::Token(user_api::TokenResponse {
+        token: token.clone(),
+        token_type: next_flow.get_flow().into(),
+    });
+    auth::cookies::set_cookie_response(response, token)
+}
+
 pub async fn create_internal_user(
     state: AppState,
     request: user_api::CreateInternalUserRequest,
@@ -1193,6 +1289,62 @@ pub async fn verify_email(
 
     let response = signin_strategy.get_signin_response(&state).await?;
     let token = utils::user::get_token_from_signin_response(&response);
+    auth::cookies::set_cookie_response(response, token)
+}
+
+#[cfg(feature = "email")]
+pub async fn verify_email_token_only_flow(
+    state: AppState,
+    user: auth::UserFromSinglePurposeToken,
+    req: user_api::VerifyEmailRequest,
+) -> UserResponse<user_api::TokenOrPayloadResponse<user_api::SignInResponse>> {
+    let token = req.token.clone().expose();
+    let email_token = auth::decode_jwt::<email_types::EmailToken>(&token, &state)
+        .await
+        .change_context(UserErrors::LinkInvalid)?;
+
+    auth::blacklist::check_email_token_in_blacklist(&state, &token).await?;
+
+    let user_from_email = state
+        .store
+        .find_user_by_email(
+            &email_token
+                .get_email()
+                .change_context(UserErrors::InternalServerError)?,
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    if user_from_email.user_id != user.user_id {
+        return Err(UserErrors::LinkInvalid.into());
+    }
+
+    let user_from_db: domain::UserFromStorage = state
+        .store
+        .update_user_by_user_id(
+            user_from_email.user_id.as_str(),
+            storage_user::UserUpdate::VerifyUser,
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .into();
+
+    let _ = auth::blacklist::insert_email_token_in_blacklist(&state, &token)
+        .await
+        .map_err(|e| logger::error!(?e));
+
+    let current_flow = domain::CurrentFlow::new(
+        email_token.get_flow(),
+        domain::UserFlow::SPTFlow(domain::SPTFlow::VerifyEmail),
+    )?;
+    let next_flow = current_flow.next(user_from_db, &state).await?;
+    let token = next_flow.get_token(&state).await?;
+
+    let response = user_api::TokenOrPayloadResponse::Token(user_api::TokenResponse {
+        token: token.clone(),
+        token_type: next_flow.get_flow().into(),
+    });
+
     auth::cookies::set_cookie_response(response, token)
 }
 

@@ -57,15 +57,23 @@ pub async fn user_signup(
     state: web::Data<AppState>,
     http_req: HttpRequest,
     json_payload: web::Json<user_api::SignUpRequest>,
+    query: web::Query<user_api::TokenOnlyQueryParam>,
 ) -> HttpResponse {
     let flow = Flow::UserSignUp;
     let req_payload = json_payload.into_inner();
+    let is_token_only = query.into_inner().token_only;
     Box::pin(api::server_wrap(
         flow.clone(),
         state,
         &http_req,
         req_payload.clone(),
-        |state, _, req_body, _| user_core::signup(state, req_body),
+        |state, _, req_body, _| async move {
+            if let Some(true) = is_token_only {
+                user_core::signup_token_only_flow(state, req_body).await
+            } else {
+                user_core::signup(state, req_body).await
+            }
+        },
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -428,18 +436,37 @@ pub async fn accept_invite_from_email(
     state: web::Data<AppState>,
     req: HttpRequest,
     payload: web::Json<user_api::AcceptInviteFromEmailRequest>,
+    query: web::Query<user_api::TokenOnlyQueryParam>,
 ) -> HttpResponse {
     let flow = Flow::AcceptInviteFromEmail;
-    Box::pin(api::server_wrap(
-        flow,
-        state.clone(),
-        &req,
-        payload.into_inner(),
-        |state, _, request_payload, _| user_core::accept_invite_from_email(state, request_payload),
-        &auth::NoAuth,
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
+    let is_token_only = query.into_inner().token_only;
+    if let Some(true) = is_token_only {
+        Box::pin(api::server_wrap(
+            flow.clone(),
+            state,
+            &req,
+            payload.into_inner(),
+            |state, user, req_body, _| {
+                user_core::accept_invite_from_email_token_only_flow(state, user, req_body)
+            },
+            &auth::SinglePurposeJWTAuth(common_enums::TokenPurpose::VerifyEmail),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    } else {
+        Box::pin(api::server_wrap(
+            flow,
+            state.clone(),
+            &req,
+            payload.into_inner(),
+            |state, _, request_payload, _| {
+                user_core::accept_invite_from_email(state, request_payload)
+            },
+            &auth::NoAuth,
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
 }
 
 #[cfg(feature = "email")]
@@ -447,18 +474,35 @@ pub async fn verify_email(
     state: web::Data<AppState>,
     http_req: HttpRequest,
     json_payload: web::Json<user_api::VerifyEmailRequest>,
+    query: web::Query<user_api::TokenOnlyQueryParam>,
 ) -> HttpResponse {
     let flow = Flow::VerifyEmail;
-    Box::pin(api::server_wrap(
-        flow.clone(),
-        state,
-        &http_req,
-        json_payload.into_inner(),
-        |state, _, req_payload, _| user_core::verify_email(state, req_payload),
-        &auth::NoAuth,
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
+    let is_token_only = query.into_inner().token_only;
+    if let Some(true) = is_token_only {
+        Box::pin(api::server_wrap(
+            flow.clone(),
+            state,
+            &http_req,
+            json_payload.into_inner(),
+            |state, user, req_body, _| {
+                user_core::verify_email_token_only_flow(state, user, req_body)
+            },
+            &auth::SinglePurposeJWTAuth(common_enums::TokenPurpose::VerifyEmail),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    } else {
+        Box::pin(api::server_wrap(
+            flow.clone(),
+            state,
+            &http_req,
+            json_payload.into_inner(),
+            |state, _, req_payload, _| user_core::verify_email(state, req_payload),
+            &auth::NoAuth,
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
 }
 
 #[cfg(feature = "email")]

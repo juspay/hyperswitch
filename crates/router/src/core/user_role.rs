@@ -173,7 +173,7 @@ pub async fn accept_invitation(
     user_token: auth::UserFromSinglePurposeToken,
     req: user_role_api::AcceptInvitationRequest,
     _req_state: ReqState,
-) -> UserResponse<user_api::DashboardEntryResponse> {
+) -> UserResponse<user_api::TokenOrPayloadResponse<user_api::DashboardEntryResponse>> {
     let user_role = futures::future::join_all(req.merchant_ids.iter().map(|merchant_id| async {
         state
             .store
@@ -215,10 +215,73 @@ pub async fn accept_invitation(
             user_role,
             token.clone(),
         )?;
-        return auth::cookies::set_cookie_response(response, token);
+        return auth::cookies::set_cookie_response(
+            user_api::TokenOrPayloadResponse::Payload(response),
+            token,
+        );
     }
 
     Ok(ApplicationResponse::StatusOk)
+}
+
+pub async fn accept_invitation_token_only_flow(
+    state: AppState,
+    user_token: auth::UserFromSinglePurposeToken,
+    req: user_role_api::AcceptInvitationRequest,
+    _req_state: ReqState,
+) -> UserResponse<user_api::TokenOrPayloadResponse<user_api::DashboardEntryResponse>> {
+    let user_role = futures::future::join_all(req.merchant_ids.iter().map(|merchant_id| async {
+        state
+            .store
+            .update_user_role_by_user_id_merchant_id(
+                user_token.user_id.as_str(),
+                merchant_id,
+                UserRoleUpdate::UpdateStatus {
+                    status: UserStatus::Active,
+                    modified_by: user_token.user_id.clone(),
+                },
+            )
+            .await
+            .map_err(|e| {
+                logger::error!("Error while accepting invitation {}", e);
+            })
+            .ok()
+    }))
+    .await
+    .into_iter()
+    .reduce(Option::or)
+    .flatten()
+    .ok_or(UserErrors::MerchantIdNotFound)?;
+
+    let user_from_db: domain::UserFromStorage = state
+        .store
+        .find_user_by_id(user_token.user_id.as_str())
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .into();
+
+    let current_flow = domain::CurrentFlow::new(
+        user_token.origin,
+        domain::UserFlow::SPTFlow(domain::SPTFlow::AcceptInvitationFromEmail),
+    )?;
+    let next_flow = current_flow.next(user_from_db.clone(), &state).await?;
+
+    let token = match next_flow.get_flow() {
+        domain::UserFlow::SPTFlow(spt_flow) => spt_flow.generate_spt(&state, &next_flow).await,
+        domain::UserFlow::JWTFlow(jwt_flow) => {
+            #[cfg(feature = "email")]
+            {
+                user_from_db.get_verification_days_left(&state)?;
+            }
+            jwt_flow.generate_jwt(&state, &next_flow, &user_role).await
+        }
+    }?;
+
+    let response = user_api::TokenOrPayloadResponse::Token(user_api::TokenResponse {
+        token: token.clone(),
+        token_type: next_flow.get_flow().into(),
+    });
+    auth::cookies::set_cookie_response(response, token)
 }
 
 pub async fn delete_user_role(

@@ -244,6 +244,24 @@ impl NextFlow {
             }
         }
     }
+
+    pub async fn get_token_with_user_role(
+        &self,
+        state: &AppState,
+        user_role: &UserRole,
+    ) -> UserResult<Secret<String>> {
+        match self.next_flow {
+            UserFlow::SPTFlow(spt_flow) => spt_flow.generate_spt(state, self).await,
+            UserFlow::JWTFlow(jwt_flow) => {
+                #[cfg(feature = "email")]
+                {
+                    self.user.get_verification_days_left(state)?;
+                }
+
+                jwt_flow.generate_jwt(state, self, &user_role).await
+            }
+        }
+    }
 }
 
 impl From<UserFlow> for TokenPurpose {
