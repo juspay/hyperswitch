@@ -1063,11 +1063,11 @@ pub enum PayLaterData {
     /// For KlarnaRedirect as PayLater Option
     KlarnaRedirect {
         /// The billing email
-        #[schema(value_type = String)]
-        billing_email: Email,
+        #[schema(value_type = Option<String>)]
+        billing_email: Option<Email>,
         // The billing country code
-        #[schema(value_type = CountryAlpha2, example = "US")]
-        billing_country: api_enums::CountryAlpha2,
+        #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+        billing_country: Option<api_enums::CountryAlpha2>,
     },
     /// For Klarna Sdk as PayLater Option
     KlarnaSdk {
@@ -1079,11 +1079,11 @@ pub enum PayLaterData {
     /// For AfterpayClearpay redirect as PayLater Option
     AfterpayClearpayRedirect {
         /// The billing email
-        #[schema(value_type = String)]
-        billing_email: Email,
+        #[schema(value_type = Option<String>)]
+        billing_email: Option<Email>,
         /// The billing name
-        #[schema(value_type = String)]
-        billing_name: Secret<String>,
+        #[schema(value_type = Option<String>)]
+        billing_name: Option<Secret<String>>,
     },
     /// For PayBright Redirect as PayLater Option
     PayBrightRedirect {},
@@ -1102,13 +1102,13 @@ impl GetAddressFromPaymentMethodData for PayLaterData {
                 billing_country,
             } => {
                 let address_details = AddressDetails {
-                    country: Some(*billing_country),
+                    country: *billing_country,
                     ..AddressDetails::default()
                 };
 
                 Some(Address {
                     address: Some(address_details),
-                    email: Some(billing_email.clone()),
+                    email: billing_email.clone(),
                     phone: None,
                 })
             }
@@ -1117,13 +1117,13 @@ impl GetAddressFromPaymentMethodData for PayLaterData {
                 billing_name,
             } => {
                 let address_details = AddressDetails {
-                    first_name: Some(billing_name.clone()),
+                    first_name: billing_name.clone(),
                     ..AddressDetails::default()
                 };
 
                 Some(Address {
                     address: Some(address_details),
-                    email: Some(billing_email.clone()),
+                    email: billing_email.clone(),
                     phone: None,
                 })
             }
@@ -1444,7 +1444,7 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
             Self::Card(card_data) => card_data.get_billing_address(),
             Self::CardRedirect(_) => None,
             Self::Wallet(wallet_data) => wallet_data.get_billing_address(),
-            Self::PayLater(_) => None,
+            Self::PayLater(pay_later) => pay_later.get_billing_address(),
             Self::BankRedirect(_) => None,
             Self::BankDebit(_) => None,
             Self::BankTransfer(_) => None,
@@ -4871,8 +4871,8 @@ mod billing_from_payment_method_data {
 
         let klarna_paylater_payment_method_data =
             PaymentMethodData::PayLater(PayLaterData::KlarnaRedirect {
-                billing_email: test_email.clone(),
-                billing_country: TEST_COUNTRY,
+                billing_email: Some(test_email.clone()),
+                billing_country: Some(TEST_COUNTRY),
             });
 
         let billing_address = klarna_paylater_payment_method_data
