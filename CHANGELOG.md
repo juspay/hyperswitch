@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.107.1 (2024-05-06)
+
+### Bug Fixes
+
+- Fix(connector): [BAMBORA] Restrict Card Expiry Year to 2 Digits and pass Amount in Decimal Format ([#4552](https://github.com/juspay/hyperswitch/pull/4552)) ([`36c5251`](https://github.com/juspay/hyperswitch/commit/36c5251c213d1f119250a694d9b7ab679c0c987d))
+
+**Full Changelog:** [`v1.107.0...v1.107.1`](https://github.com/juspay/hyperswitch/compare/v1.107.0...v1.107.1)
+
 ## 2024.03.01.0-hotfix6
 
 ### Bug Fixes
