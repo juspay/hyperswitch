@@ -1027,7 +1027,7 @@ impl From<domain::GooglePayWalletData> for GooglePayWalletData {
     }
 }
 
-static CARD_REGEX: Lazy<HashMap<CardIssuer, Result<Regex, regex::Error>>> = Lazy::new(|| {
+pub static CARD_REGEX: Lazy<HashMap<CardIssuer, Result<Regex, regex::Error>>> = Lazy::new(|| {
     let mut map = HashMap::new();
     // Reference: https://gist.github.com/michaelkeevildown/9096cd3aac9029c4e6e05588448a8841
     // [#379]: Determine card issuer from card BIN number
@@ -1074,6 +1074,7 @@ pub trait CardData {
     fn get_expiry_date_as_mmyyyy(&self, delimiter: &str) -> Secret<String>;
     fn get_expiry_year_4_digit(&self) -> Secret<String>;
     fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, errors::ConnectorError>;
+    fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::ConnectorError>;
     fn get_expiry_month_as_i8(&self) -> Result<Secret<i8>, Error>;
     fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error>;
 }
@@ -1206,6 +1207,11 @@ impl CardData for domain::Card {
         let year = self.get_card_expiry_year_2_digit()?.expose();
         let month = self.card_exp_month.clone().expose();
         Ok(Secret::new(format!("{year}{month}")))
+    }
+    fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?.expose();
+        let month = self.card_exp_month.clone().expose();
+        Ok(Secret::new(format!("{month}{year}")))
     }
     fn get_expiry_month_as_i8(&self) -> Result<Secret<i8>, Error> {
         self.card_exp_month

@@ -972,7 +972,6 @@ macro_rules! default_imp_for_payouts {
 impl<const T: u8> api::Payouts for connector::DummyConnector<T> {}
 
 default_imp_for_payouts!(
-    connector::Payone,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1056,7 +1055,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_create!(
-    connector::Payone,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,

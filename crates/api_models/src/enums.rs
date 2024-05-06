@@ -109,7 +109,7 @@ pub enum Connector {
     Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
     Payme,
-    // Payone, added as template code for future usage
+    Payone,
     Paypal,
     Payu,
     Placetopay,
@@ -217,7 +217,7 @@ impl Connector {
             | Self::Nuvei
             | Self::Opennode
             | Self::Payme
-            // | Self::Payone  Added as a template code for future usage
+            | Self::Payone
             | Self::Paypal
             | Self::Payu
             | Self::Placetopay
@@ -244,6 +244,66 @@ impl Connector {
             | Self::Noon
             | Self::Stripe => false,
             Self::Checkout | Self::Nmi => true,
+        }
+        #[cfg(not(feature = "dummy_connector"))]
+        match self {
+            Self::Aci
+            | Self::Adyen
+            | Self::Airwallex
+            | Self::Authorizedotnet
+            | Self::Bambora
+            | Self::Bankofamerica
+            | Self::Billwerk
+            | Self::Bitpay
+            | Self::Bluesnap
+            | Self::Boku
+            | Self::Braintree
+            | Self::Cashtocode
+            | Self::Coinbase
+            | Self::Cryptopay
+            | Self::Dlocal
+            | Self::Fiserv
+            | Self::Forte
+            | Self::Globalpay
+            | Self::Globepay
+            | Self::Gocardless
+            | Self::Helcim
+            | Self::Iatapay
+            | Self::Klarna
+            | Self::Mollie
+            | Self::Multisafepay
+            | Self::Nexinets
+            | Self::Nmi
+            | Self::Nuvei
+            | Self::Opennode
+            | Self::Payone
+            | Self::Payme
+            | Self::Paypal
+            | Self::Payu
+            | Self::Placetopay
+            | Self::Powertranz
+            | Self::Prophetpay
+            | Self::Rapyd
+            | Self::Shift4
+            | Self::Square
+            | Self::Stax
+            | Self::Trustpay
+            | Self::Tsys
+            | Self::Volt
+            | Self::Wise
+            | Self::Worldline
+            | Self::Worldpay
+            | Self::Zen
+            | Self::Zsl
+            | Self::Signifyd
+            | Self::Plaid
+            | Self::Riskified
+            | Self::Threedsecureio
+            | Self::Cybersource
+            | Self::Noon
+            | Self::Netcetera
+            | Self::Stripe => false,
+            Self::Checkout => true,
         }
     }
 }
@@ -291,6 +351,7 @@ pub enum PayoutConnectors {
     Paypal,
     Ebanx,
     Cybersource,
+    Payone,
 }
 
 #[cfg(feature = "payouts")]
@@ -303,6 +364,7 @@ impl From<PayoutConnectors> for RoutableConnectors {
             PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Ebanx => Self::Ebanx,
             PayoutConnectors::Cybersource => Self::Cybersource,
+            PayoutConnectors::Payone => Self::Payone,
         }
     }
 }
@@ -317,6 +379,7 @@ impl From<PayoutConnectors> for Connector {
             PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Ebanx => Self::Ebanx,
             PayoutConnectors::Cybersource => Self::Cybersource,
+            PayoutConnectors::Payone => Self::Payone,
         }
     }
 }
@@ -332,6 +395,7 @@ impl TryFrom<Connector> for PayoutConnectors {
             Connector::Paypal => Ok(Self::Paypal),
             Connector::Ebanx => Ok(Self::Ebanx),
             Connector::Cybersource => Ok(Self::Cybersource),
+            Connector::Payone => Ok(Self::Payone),
             _ => Err(format!("Invalid payout connector {}", value)),
         }
     }
