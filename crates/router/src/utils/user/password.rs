@@ -8,7 +8,7 @@ use argon2::{
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
-use rand::Rng;
+use rand::{seq::SliceRandom, Rng};
 
 use crate::core::errors::UserErrors;
 
@@ -45,10 +45,7 @@ pub fn get_temp_password() -> String {
     let mut rng = rand::thread_rng();
 
     let special_chars: Vec<char> = "!@#$%^&*()-_=+[]{}|;:,.<>?".chars().collect();
-    let specialchars: char = match special_chars.get(rng.gen_range(0..special_chars.len())) {
-        Some(character) => *character,
-        None => '@',
-    };
+    let specialchars: char = special_chars.choose(&mut rng);
 
     let random_suffix = format!(
         "{}{}{}{}",
