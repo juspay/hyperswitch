@@ -754,6 +754,16 @@ pub async fn update_customer_payment_method(
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
+        if pm.status == enums::PaymentMethodStatus::AwaitingData {
+            return  Err(report!(errors::ApiErrorResponse::NotSupported {
+                message: "Payment method update for the given payment method is not supported".into()
+            }))
+        }
+
+        if pm.payment_method_data.is_none() {
+            return Err(report!(errors::ApiErrorResponse::GenericNotFoundError { message: "payment_method_data not found".to_string() }))
+        }
+
         // Fetch the existing payment method data from db
         let existing_card_data = decrypt::<serde_json::Value, masking::WithType>(
             pm.payment_method_data.clone(),
@@ -822,7 +832,7 @@ pub async fn update_customer_payment_method(
                 wallet: req.wallet,
                 metadata: req.metadata,
                 customer_id: Some(pm.customer_id.clone()),
-                client_secret: None,
+                client_secret: pm.client_secret.clone(),
                 payment_method_data: None,
                 card_network: req
                     .card_network
@@ -911,7 +921,7 @@ pub async fn update_customer_payment_method(
                 installment_payment_enabled: false,
                 payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
                 last_used_at: Some(common_utils::date_time::now()),
-                client_secret: None,
+                client_secret: pm.client_secret.clone(),
             }
         };
 
