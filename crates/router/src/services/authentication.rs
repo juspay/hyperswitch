@@ -347,6 +347,32 @@ where
     }
 }
 
+#[cfg(feature = "olap")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<(), A> for SinglePurposeJWTAuth
+where
+    A: AppStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<((), AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, SinglePurposeToken>(request_headers, state).await?;
+        if payload.check_in_blacklist(state).await? {
+            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+        }
+
+        Ok((
+            (),
+            AuthenticationType::SinglePurposeJWT {
+                user_id: payload.user_id,
+                purpose: payload.purpose,
+            },
+        ))
+    }
+}
+
 #[derive(Debug)]
 pub struct AdminApiAuth;
 

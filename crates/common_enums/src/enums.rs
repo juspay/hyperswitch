@@ -2716,6 +2716,7 @@ pub enum TokenPurpose {
     TOTP,
     VerifyEmail,
     AcceptInvitationFromEmail,
+    ForceSetPassword,
     ResetPassword,
     AcceptInvite,
     UserInfo,

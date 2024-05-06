@@ -5,6 +5,7 @@ use api_models::{
     errors::types::ApiErrorResponse,
     user::{self as user_api},
 };
+use common_enums::TokenPurpose;
 use common_utils::errors::ReportSwitchExt;
 use router_env::Flow;
 
@@ -349,6 +350,24 @@ pub async fn list_users_for_merchant_account(
     .await
 }
 
+pub async fn rotate_password(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Json<user_api::ResetPasswordRequest>,
+) -> HttpResponse {
+    let flow = Flow::RotatePassword;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload.into_inner(),
+        user_core::rotate_password,
+        &auth::SinglePurposeJWTAuth(TokenPurpose::ForceSetPassword),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[cfg(feature = "email")]
 pub async fn forgot_password(
     state: web::Data<AppState>,
@@ -373,15 +392,21 @@ pub async fn reset_password(
     state: web::Data<AppState>,
     req: HttpRequest,
     payload: web::Json<user_api::ResetPasswordRequest>,
+    query: web::Query<user_api::TokenOnlyQueryParam>,
 ) -> HttpResponse {
     let flow = Flow::ResetPassword;
+    let is_token_only = query.into_inner().token_only;
     Box::pin(api::server_wrap(
         flow,
         state.clone(),
         &req,
         payload.into_inner(),
         |state, _, payload, _| user_core::reset_password(state, payload),
-        &auth::NoAuth,
+        if let Some(true) = is_token_only {
+            &auth::SinglePurposeJWTAuth(TokenPurpose::ResetPassword)
+        } else {
+            &auth::NoAuth
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await

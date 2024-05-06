@@ -89,6 +89,7 @@ pub struct Settings<S: SecretState> {
     pub dummy_connector: DummyConnector,
     #[cfg(feature = "email")]
     pub email: EmailSettings,
+    pub user: UserSettings,
     pub cors: CorsSettings,
     pub mandates: Mandates,
     pub network_transaction_id_supported_connectors: NetworkTransactionIdSupportedConnectors,
@@ -382,6 +383,11 @@ pub struct Secrets {
     pub admin_api_key: Secret<String>,
     pub recon_admin_api_key: Secret<String>,
     pub master_enc_key: Secret<String>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct UserSettings {
+    pub password_validity_in_days: i64,
 }
 
 #[derive(Debug, Deserialize, Clone)]

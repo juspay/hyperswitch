@@ -384,21 +384,90 @@ pub async fn forgot_password(
     Ok(ApplicationResponse::StatusOk)
 }
 
+pub async fn rotate_password(
+    state: AppState,
+    user_token: auth::UserFromSinglePurposeToken,
+    request: user_api::ResetPasswordRequest,
+    _req_state: ReqState,
+) -> UserResponse<()> {
+    let user: domain::UserFromStorage = state
+        .store
+        .find_user_by_id(&user_token.user_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .into();
+
+    let password = domain::UserPassword::new(request.password.to_owned())?;
+    let hash_password = utils::user::password::generate_password_hash(password.get_secret())?;
+
+    if user.compare_password(request.password).is_ok() {
+        return Err(UserErrors::ChangePasswordError.into());
+    }
+
+    state
+        .store
+        .update_user_by_user_id(
+            &user_token.user_id,
+            storage_user::UserUpdate::PasswordUpdate {
+                password: Some(hash_password),
+            },
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let user = state
+        .store
+        .update_user_by_user_id(
+            &user_token.user_id,
+            storage_user::UserUpdate::AccountUpdate {
+                name: None,
+                is_verified: Some(true),
+                preferred_merchant_id: None,
+            },
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let _ = auth::blacklist::insert_user_in_blacklist(&state, &user.user_id)
+        .await
+        .map_err(|e| logger::error!(?e));
+
+    Ok(ApplicationResponse::StatusOk)
+}
+
 #[cfg(feature = "email")]
 pub async fn reset_password(
     state: AppState,
     request: user_api::ResetPasswordRequest,
 ) -> UserResponse<()> {
-    let token = request.token.expose();
-    let email_token = auth::decode_jwt::<email_types::EmailToken>(&token, &state)
-        .await
-        .change_context(UserErrors::LinkInvalid)?;
+    let (token, email_token) = if let Some(token) = request.token {
+        let token = token.expose();
+        let email_token = auth::decode_jwt::<email_types::EmailToken>(&token, &state)
+            .await
+            .change_context(UserErrors::LinkInvalid)?;
 
-    auth::blacklist::check_email_token_in_blacklist(&state, &token).await?;
+        auth::blacklist::check_email_token_in_blacklist(&state, &token).await?;
 
-    let password = domain::UserPassword::new(request.password)?;
+        let password = domain::UserPassword::new(request.password)?;
+        let hash_password = utils::user::password::generate_password_hash(password.get_secret())?;
 
-    let hash_password = utils::user::password::generate_password_hash(password.get_secret())?;
+        state
+            .store
+            .update_user_by_email(
+                &email_token
+                    .get_email()
+                    .change_context(UserErrors::InternalServerError)?,
+                storage_user::UserUpdate::PasswordUpdate {
+                    password: Some(hash_password),
+                },
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)?;
+
+        (token, email_token)
+    } else {
+        return Err(UserErrors::LinkInvalid.into());
+    };
 
     let user = state
         .store
@@ -408,7 +477,6 @@ pub async fn reset_password(
                 .change_context(UserErrors::InternalServerError)?,
             storage_user::UserUpdate::AccountUpdate {
                 name: None,
-                password: Some(hash_password),
                 is_verified: Some(true),
                 preferred_merchant_id: None,
             },
