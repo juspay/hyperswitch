@@ -81,7 +81,7 @@ pub struct CustomerUpdateInternal {
     pub phone_country_code: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub modified_at: Option<PrimitiveDateTime>,
-    pub connector_customer: Option<serde_json::Value>,
+    pub connector_customer: Option<Option<serde_json::Value>>,
     pub address_id: Option<String>,
     pub default_payment_method_id: Option<Option<String>>,
 }
@@ -109,7 +109,9 @@ impl CustomerUpdateInternal {
             phone_country_code: phone_country_code.map_or(source.phone_country_code, Some),
             metadata: metadata.map_or(source.metadata, Some),
             modified_at: common_utils::date_time::now(),
-            connector_customer: connector_customer.map_or(source.connector_customer, Some),
+            connector_customer: connector_customer
+                .flatten()
+                .map_or(source.connector_customer, Some),
             address_id: address_id.map_or(source.address_id, Some),
             default_payment_method_id: default_payment_method_id
                 .flatten()

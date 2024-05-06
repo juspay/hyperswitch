@@ -1533,6 +1533,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, Ctx>(
                                     connector_customer: None,
                                     metadata: None,
                                     address_id: None,
+                                    default_payment_method_id: None,
                                 },
                             )
                         }
