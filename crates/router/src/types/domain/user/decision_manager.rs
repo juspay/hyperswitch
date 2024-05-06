@@ -6,7 +6,8 @@ use super::UserFromStorage;
 use crate::{
     core::errors::{StorageErrorExt, UserErrors, UserResult},
     routes::AppState,
-    services::authentication as auth, utils,
+    services::authentication as auth,
+    utils,
 };
 
 #[derive(Eq, PartialEq, Clone, Copy)]
@@ -150,8 +151,9 @@ const VERIFY_EMAIL_FLOW: [UserFlow; 5] = [
     UserFlow::JWTFlow(JWTFlow::UserInfo),
 ];
 
-const ACCEPT_INVITATION_FROM_EMAIL_FLOW: [UserFlow; 4] = [
+const ACCEPT_INVITATION_FROM_EMAIL_FLOW: [UserFlow; 5] = [
     UserFlow::SPTFlow(SPTFlow::TOTP),
+    UserFlow::SPTFlow(SPTFlow::VerifyEmail),
     UserFlow::SPTFlow(SPTFlow::AcceptInvitationFromEmail),
     UserFlow::SPTFlow(SPTFlow::ForceSetPassword),
     UserFlow::JWTFlow(JWTFlow::UserInfo),

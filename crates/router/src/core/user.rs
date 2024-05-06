@@ -902,16 +902,6 @@ pub async fn accept_invite_from_email_token_only_flow(
         .await
         .map_err(|e| logger::error!(?e));
 
-    let user_from_db: domain::UserFromStorage = state
-        .store
-        .update_user_by_user_id(
-            user_from_db.get_user_id(),
-            storage_user::UserUpdate::VerifyUser,
-        )
-        .await
-        .change_context(UserErrors::InternalServerError)?
-        .into();
-
     let current_flow = domain::CurrentFlow::new(
         user.origin,
         domain::SPTFlow::AcceptInvitationFromEmail.into(),
