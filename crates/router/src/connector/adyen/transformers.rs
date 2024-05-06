@@ -2433,27 +2433,27 @@ impl<'a>
     ) -> Result<Self, Self::Error> {
         match bank_transfer_data {
             domain::BankTransferData::PermataBankTransfer {} => Ok(
-                AdyenPaymentMethod::PermataBankTransfer(DokuBankData::try_from(item)?),
+                AdyenPaymentMethod::PermataBankTransfer(Box::new(DokuBankData::try_from(item)?)),
             ),
 
             domain::BankTransferData::BcaBankTransfer {} => Ok(
-                AdyenPaymentMethod::BcaBankTransfer(DokuBankData::try_from(item)?),
+                AdyenPaymentMethod::BcaBankTransfer(Box::new(DokuBankData::try_from(item)?)),
             ),
-            domain::BankTransferData::BniVaBankTransfer {} => {
-                Ok(AdyenPaymentMethod::BniVa(DokuBankData::try_from(item)?))
-            }
-            domain::BankTransferData::BriVaBankTransfer {} => {
-                Ok(AdyenPaymentMethod::BriVa(DokuBankData::try_from(item)?))
-            }
-            domain::BankTransferData::CimbVaBankTransfer {} => {
-                Ok(AdyenPaymentMethod::CimbVa(DokuBankData::try_from(item)?))
-            }
-            domain::BankTransferData::DanamonVaBankTransfer {} => {
-                Ok(AdyenPaymentMethod::DanamonVa(DokuBankData::try_from(item)?))
-            }
-            domain::BankTransferData::MandiriVaBankTransfer {} => {
-                Ok(AdyenPaymentMethod::MandiriVa(DokuBankData::try_from(item)?))
-            }
+            domain::BankTransferData::BniVaBankTransfer {} => Ok(AdyenPaymentMethod::BniVa(
+                Box::new(DokuBankData::try_from(item)?),
+            )),
+            domain::BankTransferData::BriVaBankTransfer {} => Ok(AdyenPaymentMethod::BriVa(
+                Box::new(DokuBankData::try_from(item)?),
+            )),
+            domain::BankTransferData::CimbVaBankTransfer {} => Ok(AdyenPaymentMethod::CimbVa(
+                Box::new(DokuBankData::try_from(item)?),
+            )),
+            domain::BankTransferData::DanamonVaBankTransfer {} => Ok(
+                AdyenPaymentMethod::DanamonVa(Box::new(DokuBankData::try_from(item)?)),
+            ),
+            domain::BankTransferData::MandiriVaBankTransfer {} => Ok(
+                AdyenPaymentMethod::MandiriVa(Box::new(DokuBankData::try_from(item)?)),
+            ),
             domain::BankTransferData::Pix {} => {
                 Ok(AdyenPaymentMethod::Pix(Box::new(PmdForPaymentType {
                     payment_type: PaymentType::Pix,

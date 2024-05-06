@@ -1324,11 +1324,7 @@ fn create_stripe_payment_method<F, Req, Res>(
                 domain::BankTransferData::AchBankTransfer {} => Ok((
                     StripePaymentMethodData::BankTransfer(StripeBankTransferData::AchBankTransfer(
                         Box::new(AchTransferData {
-                            email: item.get_optional_billing_email().ok_or(
-                                errors::ConnectorError::MissingRequiredField {
-                                    field_name: "billing.email",
-                                },
-                            )?,
+                            email: item.get_billing_email()?,
                         }),
                     )),
                     None,
@@ -1338,11 +1334,7 @@ fn create_stripe_payment_method<F, Req, Res>(
                     StripePaymentMethodData::BankTransfer(
                         StripeBankTransferData::MultibancoBankTransfers(Box::new(
                             MultibancoTransferData {
-                                email: item.get_optional_billing_email().ok_or(
-                                    errors::ConnectorError::MissingRequiredField {
-                                        field_name: "billing.email",
-                                    },
-                                )?,
+                                email: item.get_billing_email()?,
                             },
                         )),
                     ),
