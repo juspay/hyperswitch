@@ -128,7 +128,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             Some(resp.request.currency),
             profile_id,
             billing_name.clone(),
-            payment_method_billing_address.clone(),
+            payment_method_billing_address,
         ));
 
         let is_connector_mandate = resp.request.customer_acceptance.is_some()

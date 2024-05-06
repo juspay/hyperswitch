@@ -953,7 +953,7 @@ pub struct CustomerPaymentMethod {
     pub default_payment_method_set: bool,
 
     /// The billing details of the payment method
-    #[schema(value_type = Address)]
+    #[schema(value_type = Option<Address>)]
     pub billing: Option<payments::Address>,
 }
 

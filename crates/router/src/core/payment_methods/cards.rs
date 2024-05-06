@@ -3558,14 +3558,12 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("unable to decrypt data")?;
 
-    let parsed_decrypted_data = decrypted_data
+    decrypted_data
         .map(|decrypted_data| decrypted_data.into_inner().expose())
         .map(|decrypted_value| decrypted_value.parse_value("generic_data"))
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("unable to parse generic data value");
-
-    parsed_decrypted_data
+        .attach_printable("unable to parse generic data value")
 }
 
 pub async fn get_card_details_with_locker_fallback(
