@@ -264,7 +264,9 @@ pub async fn update_business_profile_active_algorithm_ref(
         session_expiry: None,
         authentication_connector_details: None,
         extended_card_info_config: None,
+        use_billing_as_payment_method_billing: None,
     };
+
     db.update_business_profile_by_profile_id(current_business_profile, business_profile_update)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)

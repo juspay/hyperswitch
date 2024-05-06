@@ -79,6 +79,7 @@ impl ForeignTryFrom<storage::business_profile::BusinessProfile> for BusinessProf
                     authentication_connector_details.parse_value("AuthenticationDetails")
                 })
                 .transpose()?,
+            use_billing_as_payment_method_billing: item.use_billing_as_payment_method_billing,
         })
     }
 }
@@ -177,6 +178,9 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
                 })?,
             is_extended_card_info_enabled: None,
             extended_card_info_config: None,
+            use_billing_as_payment_method_billing: request
+                .use_billing_as_payment_method_billing
+                .or(Some(true)),
         })
     }
 }
