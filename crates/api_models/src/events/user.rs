@@ -15,8 +15,8 @@ use crate::user::{
     GetUserDetailsResponse, GetUserRoleDetailsRequest, GetUserRoleDetailsResponse,
     InviteUserRequest, ListUsersResponse, ReInviteUserRequest, ResetPasswordRequest,
     SendVerifyEmailRequest, SignInResponse, SignInWithTokenResponse, SignUpRequest,
-    SignUpWithMerchantIdRequest, SwitchMerchantIdRequest, UpdateUserAccountDetailsRequest,
-    UserMerchantCreate, VerifyEmailRequest,
+    SignUpWithMerchantIdRequest, SwitchMerchantIdRequest, TokenResponse,
+    UpdateUserAccountDetailsRequest, UserFromEmailRequest, UserMerchantCreate, VerifyEmailRequest,
 };
 
 impl ApiEventMetric for DashboardEntryResponse {
@@ -64,7 +64,9 @@ common_utils::impl_misc_api_event_type!(
     GetUserDetailsResponse,
     SignInWithTokenResponse,
     GetUserRoleDetailsRequest,
-    GetUserRoleDetailsResponse
+    GetUserRoleDetailsResponse,
+    TokenResponse,
+    UserFromEmailRequest
 );
 
 #[cfg(feature = "dummy_connector")]

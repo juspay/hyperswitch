@@ -512,3 +512,22 @@ pub async fn update_user_account_details(
     ))
     .await
 }
+
+#[cfg(feature = "email")]
+pub async fn user_from_email(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<user_api::UserFromEmailRequest>,
+) -> HttpResponse {
+    let flow = Flow::UserFromEmail;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        json_payload.into_inner(),
+        |state, _: (), req_body, _| user_core::user_from_email(state, req_body),
+        &auth::NoAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
