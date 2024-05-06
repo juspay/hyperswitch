@@ -3396,8 +3396,14 @@ pub async fn list_customer_payment_method(
             None
         };
 
-        //Need validation for enabled payment method ,querying MCA
+        let payment_method_billing = decrypt_generic_data::<api_models::payments::Address>(
+            pm.payment_method_billing_address,
+            key,
+        )
+        .await
+        .attach_printable("unable to decrypt payment method billing address details")?;
 
+        // Need validation for enabled payment method ,querying MCA
         let pma = api::CustomerPaymentMethod {
             payment_token: parent_payment_method_token.to_owned(),
             payment_method_id: pm.payment_method_id.clone(),
@@ -3421,6 +3427,7 @@ pub async fn list_customer_payment_method(
             last_used_at: Some(pm.last_used_at),
             default_payment_method_set: customer.default_payment_method_id.is_some()
                 && customer.default_payment_method_id == Some(pm.payment_method_id),
+            billing: payment_method_billing,
         };
         customer_pms.push(pma.to_owned());
 
@@ -3536,6 +3543,29 @@ pub async fn list_customer_payment_method(
     }
 
     Ok(services::ApplicationResponse::Json(response))
+}
+
+pub async fn decrypt_generic_data<T>(
+    data: Option<Encryption>,
+    key: &[u8],
+) -> errors::RouterResult<Option<T>>
+where
+    T: serde::de::DeserializeOwned,
+{
+    let decrypted_data = decrypt::<serde_json::Value, masking::WithType>(data, key)
+        .await
+        .change_context(errors::StorageError::DecryptionError)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("unable to decrypt data")?;
+
+    let parsed_decrypted_data = decrypted_data
+        .map(|decrypted_data| decrypted_data.into_inner().expose())
+        .map(|decrypted_value| decrypted_value.parse_value("generic_data"))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("unable to parse generic data value");
+
+    parsed_decrypted_data
 }
 
 pub async fn get_card_details_with_locker_fallback(

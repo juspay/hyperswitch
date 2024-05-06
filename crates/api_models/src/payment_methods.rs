@@ -951,6 +951,10 @@ pub struct CustomerPaymentMethod {
     /// Indicates if the payment method has been set to default or not
     #[schema(example = true)]
     pub default_payment_method_set: bool,
+
+    /// The billing details of the payment method
+    #[schema(value_type = Address)]
+    pub billing: Option<payments::Address>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
