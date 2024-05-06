@@ -1,3 +1,8 @@
+use async_trait::async_trait;
+use common_utils::{ext_traits::ValueExt, pii::Email};
+use error_stack::ResultExt;
+use masking::ExposeInterface;
+
 use crate::{
     core::{
         errors::{ConnectorErrorExt, RouterResult},
@@ -14,10 +19,6 @@ use crate::{
     },
     AppState,
 };
-use async_trait::async_trait;
-use common_utils::{ext_traits::ValueExt, pii::Email};
-use error_stack::ResultExt;
-use masking::ExposeInterface;
 
 #[async_trait]
 impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResponseData>
