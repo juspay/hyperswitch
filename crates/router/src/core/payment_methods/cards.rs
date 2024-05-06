@@ -755,13 +755,16 @@ pub async fn update_customer_payment_method(
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
         if pm.status == enums::PaymentMethodStatus::AwaitingData {
-            return  Err(report!(errors::ApiErrorResponse::NotSupported {
-                message: "Payment method update for the given payment method is not supported".into()
-            }))
+            return Err(report!(errors::ApiErrorResponse::NotSupported {
+                message: "Payment method update for the given payment method is not supported"
+                    .into()
+            }));
         }
 
         if pm.payment_method_data.is_none() {
-            return Err(report!(errors::ApiErrorResponse::GenericNotFoundError { message: "payment_method_data not found".to_string() }))
+            return Err(report!(errors::ApiErrorResponse::GenericNotFoundError {
+                message: "payment_method_data not found".to_string()
+            }));
         }
 
         // Fetch the existing payment method data from db
