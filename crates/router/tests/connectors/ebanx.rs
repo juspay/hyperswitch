@@ -12,10 +12,21 @@ impl utils::Connector for EbanxTest {
         use router::connector::Ebanx;
         types::api::ConnectorData {
             connector: Box::new(&Ebanx),
-            connector_name: types::Connector::Ebanx,
+            connector_name: types::Connector::Adyen,
             get_token: types::api::GetToken::Connector,
             merchant_connector_id: None,
         }
+    }
+
+    #[cfg(feature = "payouts")]
+    fn get_payout_data(&self) -> Option<types::api::ConnectorData> {
+        use router::connector::Ebanx;
+        Some(types::api::ConnectorData {
+            connector: Box::new(&Ebanx),
+            connector_name: types::Connector::Adyen,
+            get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
+        })
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
@@ -302,10 +313,12 @@ async fn should_fail_payment_for_incorrect_cvc() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::domain::PaymentMethodData::Card(types::domain::Card {
-                    card_cvc: Secret::new("12345".to_string()),
-                    ..utils::CCardType::default().0
-                }),
+                payment_method_data: types::domain::payments::PaymentMethodData::Card(
+                    types::domain::Card {
+                        card_cvc: Secret::new("12345".to_string()),
+                        ..utils::CCardType::default().0
+                    },
+                ),
                 ..utils::PaymentAuthorizeType::default().0
             }),
             get_default_payment_info(),
@@ -324,10 +337,12 @@ async fn should_fail_payment_for_invalid_exp_month() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::domain::PaymentMethodData::Card(types::domain::Card {
-                    card_exp_month: Secret::new("20".to_string()),
-                    ..utils::CCardType::default().0
-                }),
+                payment_method_data: types::domain::payments::PaymentMethodData::Card(
+                    types::domain::Card {
+                        card_exp_month: Secret::new("20".to_string()),
+                        ..utils::CCardType::default().0
+                    },
+                ),
                 ..utils::PaymentAuthorizeType::default().0
             }),
             get_default_payment_info(),
@@ -346,10 +361,12 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::domain::PaymentMethodData::Card(types::domain::Card {
-                    card_exp_year: Secret::new("2000".to_string()),
-                    ..utils::CCardType::default().0
-                }),
+                payment_method_data: types::domain::payments::PaymentMethodData::Card(
+                    types::domain::Card {
+                        card_exp_year: Secret::new("2000".to_string()),
+                        ..utils::CCardType::default().0
+                    },
+                ),
                 ..utils::PaymentAuthorizeType::default().0
             }),
             get_default_payment_info(),

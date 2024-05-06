@@ -5264,9 +5264,6 @@
           },
           {
             "$ref": "#/components/schemas/SepaBankTransfer"
-          },
-          {
-            "$ref": "#/components/schemas/PixBankTransfer"
           }
         ]
       },
@@ -7221,7 +7218,6 @@
           "cryptopay",
           "cybersource",
           "dlocal",
-          "ebanx",
           "fiserv",
           "forte",
           "globalpay",
@@ -15624,8 +15620,7 @@
           "adyen",
           "stripe",
           "wise",
-          "paypal",
-          "ebanx"
+          "paypal"
         ]
       },
       "PayoutCreateRequest": {
@@ -16334,43 +16329,6 @@
             "type": "string",
             "description": "The country code attached to the number",
             "example": "+1",
-            "nullable": true
-          }
-        }
-      },
-      "PixBankTransfer": {
-        "type": "object",
-        "required": [
-          "bank_account_number",
-          "pix_key"
-        ],
-        "properties": {
-          "bank_name": {
-            "type": "string",
-            "description": "Bank name",
-            "example": "Deutsche Bank",
-            "nullable": true
-          },
-          "bank_branch": {
-            "type": "string",
-            "description": "Bank branch",
-            "example": "3707",
-            "nullable": true
-          },
-          "bank_account_number": {
-            "type": "string",
-            "description": "Bank account number is an unique identifier assigned by a bank to a customer.",
-            "example": "000123456"
-          },
-          "pix_key": {
-            "type": "string",
-            "description": "Unique key for pix customer",
-            "example": "000123456"
-          },
-          "tax_id": {
-            "type": "string",
-            "description": "Individual taxpayer identification number",
-            "example": "000123456",
             "nullable": true
           }
         }
@@ -17182,7 +17140,6 @@
           "cryptopay",
           "cybersource",
           "dlocal",
-          "ebanx",
           "fiserv",
           "forte",
           "globalpay",

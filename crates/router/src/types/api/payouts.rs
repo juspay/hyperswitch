@@ -2,7 +2,7 @@ pub use api_models::payouts::{
     AchBankTransfer, BacsBankTransfer, Bank as BankPayout, Card as CardPayout, PayoutActionRequest,
     PayoutCreateRequest, PayoutCreateResponse, PayoutListConstraints, PayoutListFilterConstraints,
     PayoutListFilters, PayoutListResponse, PayoutMethodData, PayoutRequest, PayoutRetrieveBody,
-    PayoutRetrieveRequest, PixBankTransfer, SepaBankTransfer, Wallet as WalletPayout,
+    PayoutRetrieveRequest, SepaBankTransfer, Wallet as WalletPayout,
 };
 
 use crate::{services::api, types};

@@ -137,7 +137,6 @@ pub struct ConnectorConfig {
     pub opennode: Option<ConnectorTomlConfig>,
     pub bambora: Option<ConnectorTomlConfig>,
     pub dlocal: Option<ConnectorTomlConfig>,
-    pub ebanx_payout: Option<ConnectorTomlConfig>,
     pub fiserv: Option<ConnectorTomlConfig>,
     pub forte: Option<ConnectorTomlConfig>,
     pub globalpay: Option<ConnectorTomlConfig>,
@@ -220,7 +219,6 @@ impl ConnectorConfig {
             PayoutConnectors::Stripe => Ok(connector_data.stripe_payout),
             PayoutConnectors::Wise => Ok(connector_data.wise_payout),
             PayoutConnectors::Paypal => Ok(connector_data.paypal),
-            PayoutConnectors::Ebanx => Ok(connector_data.ebanx_payout),
         }
     }
 
@@ -258,7 +256,6 @@ impl ConnectorConfig {
             Connector::Opennode => Ok(connector_data.opennode),
             Connector::Bambora => Ok(connector_data.bambora),
             Connector::Dlocal => Ok(connector_data.dlocal),
-            Connector::Ebanx => Ok(connector_data.ebanx_payout),
             Connector::Fiserv => Ok(connector_data.fiserv),
             Connector::Forte => Ok(connector_data.forte),
             Connector::Globalpay => Ok(connector_data.globalpay),

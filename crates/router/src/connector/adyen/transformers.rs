@@ -4633,10 +4633,6 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
                         message: "Bank transfer via Bacs is not supported".to_string(),
                         connector: "Adyen",
                     })?,
-                    payouts::BankPayout::Pix(..) => Err(errors::ConnectorError::NotSupported {
-                        message: "Bank transfer via Pix is not supported".to_string(),
-                        connector: "Adyen",
-                    })?,
                 };
                 let bank_data = PayoutBankData { bank: bank_details };
                 let address: &payments::AddressDetails = item.router_data.get_billing_address()?;
