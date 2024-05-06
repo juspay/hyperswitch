@@ -11965,17 +11965,19 @@
               "klarna_redirect": {
                 "type": "object",
                 "description": "For KlarnaRedirect as PayLater Option",
-                "required": [
-                  "billing_email",
-                  "billing_country"
-                ],
                 "properties": {
                   "billing_email": {
                     "type": "string",
-                    "description": "The billing email"
+                    "description": "The billing email",
+                    "nullable": true
                   },
                   "billing_country": {
-                    "$ref": "#/components/schemas/CountryAlpha2"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/CountryAlpha2"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -12023,18 +12025,16 @@
               "afterpay_clearpay_redirect": {
                 "type": "object",
                 "description": "For AfterpayClearpay redirect as PayLater Option",
-                "required": [
-                  "billing_email",
-                  "billing_name"
-                ],
                 "properties": {
                   "billing_email": {
                     "type": "string",
-                    "description": "The billing email"
+                    "description": "The billing email",
+                    "nullable": true
                   },
                   "billing_name": {
                     "type": "string",
-                    "description": "The billing name"
+                    "description": "The billing name",
+                    "nullable": true
                   }
                 }
               }

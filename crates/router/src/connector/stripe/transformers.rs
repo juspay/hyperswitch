@@ -1095,6 +1095,37 @@ impl TryFrom<(&domain::payments::PayLaterData, StripePaymentMethodType)> for Str
     }
 }
 
+impl From<&domain::BankDebitBilling> for StripeBillingAddress {
+    fn from(item: &domain::BankDebitBilling) -> Self {
+        Self {
+            email: Some(item.email.to_owned()),
+            country: item
+                .address
+                .as_ref()
+                .and_then(|address| address.country.to_owned()),
+            name: Some(item.name.to_owned()),
+            city: item
+                .address
+                .as_ref()
+                .and_then(|address| address.city.to_owned()),
+            address_line1: item
+                .address
+                .as_ref()
+                .and_then(|address| address.line1.to_owned()),
+            address_line2: item
+                .address
+                .as_ref()
+                .and_then(|address| address.line2.to_owned()),
+            zip_code: item
+                .address
+                .as_ref()
+                .and_then(|address| address.zip.to_owned()),
+            state: None,
+            phone: None,
+        }
+    }
+}
+
 impl TryFrom<(&domain::BankRedirectData, Option<bool>)> for StripeBillingAddress {
     type Error = error_stack::Report<errors::ConnectorError>;
 
@@ -1272,7 +1303,7 @@ fn create_stripe_payment_method(
         }
         domain::PaymentMethodData::PayLater(pay_later_data) => {
             let stripe_pm_type = StripePaymentMethodType::try_from(pay_later_data)?;
-            let billing_address = StripeBillingAddress::try_from((pay_later_data, stripe_pm_type))?;
+
             Ok((
                 StripePaymentMethodData::PayLater(StripePayLaterData {
                     payment_method_data_type: stripe_pm_type,
