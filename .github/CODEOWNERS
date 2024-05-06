@@ -58,7 +58,9 @@ crates/router/src/core/payments/routing.rs @juspay/hyperswitch-routing
 crates/api_models/src/connector_onboarding.rs @juspay/hyperswitch-dashboard
 crates/api_models/src/user @juspay/hyperswitch-dashboard
 crates/api_models/src/user.rs @juspay/hyperswitch-dashboard
+crates/api_models/src/events/user.rs @juspay/hyperswitch-dashboard
 crates/api_models/src/user_role.rs @juspay/hyperswitch-dashboard
+crates/api_models/src/events/user_role.rs @juspay/hyperswitch-dashboard
 crates/api_models/src/verify_connector.rs @juspay/hyperswitch-dashboard
 crates/api_models/src/connector_onboarding.rs @juspay/hyperswitch-dashboard
 crates/diesel_models/src/query/dashboard_metadata.rs @juspay/hyperswitch-dashboard
