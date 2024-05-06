@@ -4,11 +4,8 @@ pub mod transformers;
 pub mod vault;
 
 use api_models::payments::CardToken;
-pub use api_models::{
-    enums::{Connector, PayoutConnectors},
-    payouts as payout_types,
-};
-pub use common_utils::request::RequestBody;
+#[cfg(feature = "payouts")]
+pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 use data_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 use diesel_models::enums;
 

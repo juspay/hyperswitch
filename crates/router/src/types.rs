@@ -22,7 +22,7 @@ pub use api_models::{
     mandates, payouts as payout_types,
 };
 use common_enums::MandateStatus;
-pub use common_utils::request::{RequestBody, RequestContent};
+pub use common_utils::request::RequestContent;
 use common_utils::{pii, pii::Email};
 use data_models::mandates::MandateData;
 use error_stack::{IntoReport, ResultExt};

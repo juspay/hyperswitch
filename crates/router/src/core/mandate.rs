@@ -396,7 +396,7 @@ where
                         resp.merchant_id.clone(),
                         resp.payment_id.clone(),
                         resp.connector.clone(),
-                        resp.request.get_setup_mandate_details().map(Clone::clone),
+                        resp.request.get_setup_mandate_details().cloned(),
                         maybe_customer,
                         pm_id.get_required_value("payment_method_id")?,
                         mandate_ids,
