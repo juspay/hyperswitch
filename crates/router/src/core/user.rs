@@ -855,7 +855,7 @@ pub async fn accept_invite_from_email(
 #[cfg(feature = "email")]
 pub async fn accept_invite_from_email_token_only_flow(
     state: AppState,
-    user: auth::UserFromSinglePurposeToken,
+    user_token: auth::UserFromSinglePurposeToken,
     request: user_api::AcceptInviteFromEmailRequest,
 ) -> UserResponse<user_api::TokenOrPayloadResponse<user_api::DashboardEntryResponse>> {
     let token = request.token.expose();
@@ -877,7 +877,7 @@ pub async fn accept_invite_from_email_token_only_flow(
         .change_context(UserErrors::InternalServerError)?
         .into();
 
-    if user_from_db.get_user_id() != user.user_id {
+    if user_from_db.get_user_id() != user_token.user_id {
         return Err(UserErrors::LinkInvalid.into());
     }
 
@@ -903,7 +903,7 @@ pub async fn accept_invite_from_email_token_only_flow(
         .map_err(|e| logger::error!(?e));
 
     let current_flow = domain::CurrentFlow::new(
-        user.origin,
+        user_token.origin,
         domain::SPTFlow::AcceptInvitationFromEmail.into(),
     )?;
     let next_flow = current_flow.next(user_from_db.clone(), &state).await?;
@@ -1298,7 +1298,7 @@ pub async fn verify_email(
 #[cfg(feature = "email")]
 pub async fn verify_email_token_only_flow(
     state: AppState,
-    user: auth::UserFromSinglePurposeToken,
+    user_token: auth::UserFromSinglePurposeToken,
     req: user_api::VerifyEmailRequest,
 ) -> UserResponse<user_api::TokenOrPayloadResponse<user_api::SignInResponse>> {
     let token = req.token.clone().expose();
@@ -1318,7 +1318,7 @@ pub async fn verify_email_token_only_flow(
         .await
         .change_context(UserErrors::InternalServerError)?;
 
-    if user_from_email.user_id != user.user_id {
+    if user_from_email.user_id != user_token.user_id {
         return Err(UserErrors::LinkInvalid.into());
     }
 
@@ -1337,7 +1337,7 @@ pub async fn verify_email_token_only_flow(
         .map_err(|e| logger::error!(?e));
 
     let current_flow =
-        domain::CurrentFlow::new(email_token.get_flow(), domain::SPTFlow::VerifyEmail.into())?;
+        domain::CurrentFlow::new(user_token.origin, domain::SPTFlow::VerifyEmail.into())?;
     let next_flow = current_flow.next(user_from_db, &state).await?;
     let token = next_flow.get_token(&state).await?;
 
