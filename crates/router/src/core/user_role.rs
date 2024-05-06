@@ -266,16 +266,9 @@ pub async fn accept_invitation_token_only_flow(
     )?;
     let next_flow = current_flow.next(user_from_db.clone(), &state).await?;
 
-    let token = match next_flow.get_flow() {
-        domain::UserFlow::SPTFlow(spt_flow) => spt_flow.generate_spt(&state, &next_flow).await,
-        domain::UserFlow::JWTFlow(jwt_flow) => {
-            #[cfg(feature = "email")]
-            {
-                user_from_db.get_verification_days_left(&state)?;
-            }
-            jwt_flow.generate_jwt(&state, &next_flow, &user_role).await
-        }
-    }?;
+    let token = next_flow
+        .get_token_with_user_role(&state, &user_role)
+        .await?;
 
     let response = user_api::TokenOrPayloadResponse::Token(user_api::TokenResponse {
         token: token.clone(),
