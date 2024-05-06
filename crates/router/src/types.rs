@@ -266,6 +266,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub flow: PhantomData<Flow>,
     pub merchant_id: String,
     pub customer_id: Option<String>,
+    pub money_amount: api_models::payments::Money,
     pub connector_customer: Option<String>,
     pub connector: String,
     pub payment_id: String,

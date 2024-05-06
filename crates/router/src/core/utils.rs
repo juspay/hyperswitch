@@ -283,6 +283,10 @@ pub async fn construct_refund_router_data<'a, F>(
 
     let router_data = types::RouterData {
         flow: PhantomData,
+        money_amount: api_models::payments::Money{
+            money_in_minor: payment_intent.amount.clone(),
+            currency
+        },
         merchant_id: merchant_account.merchant_id.clone(),
         customer_id: payment_intent.customer_id.to_owned(),
         connector: connector_id.to_string(),

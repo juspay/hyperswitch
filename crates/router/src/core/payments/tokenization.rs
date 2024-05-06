@@ -39,7 +39,7 @@ pub async fn save_payment_method<F: Clone, FData>(
     merchant_account: &domain::MerchantAccount,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     key_store: &domain::MerchantKeyStore,
-    amount: Option<i64>,
+    amount: Option<api_models::payments::Money>,
     currency: Option<storage_enums::Currency>,
     profile_id: Option<String>,
 ) -> RouterResult<(Option<String>, Option<common_enums::PaymentMethodStatus>)>

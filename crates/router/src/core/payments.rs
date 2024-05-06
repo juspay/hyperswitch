@@ -2344,6 +2344,7 @@ where
     pub payment_intent: storage::PaymentIntent,
     pub payment_attempt: storage::PaymentAttempt,
     pub multiple_capture_data: Option<types::MultipleCaptureData>,
+    pub money_amount: api_models::payments::Money,
     pub amount: api::Amount,
     pub mandate_id: Option<api_models::payments::MandateIds>,
     pub mandate_connector: Option<MandateConnectorDetails>,

@@ -1987,11 +1987,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             .map_or(Err(errors::ConnectorError::ParsingFailed), |new_amount| {
                 new_amount.extract_minor_unit_integer(|x| x)
                     .map_err(|_err| errors::ConnectorError::ParsingFailed)
-            });
+            })?;
     
 
         Ok(Self {
-            amount: amount_new?, //hopefully we don't loose some cents here
+            amount: amount_new, //hopefully we don't loose some cents here
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
             statement_descriptor_suffix: item.request.statement_descriptor_suffix.clone(),
             statement_descriptor: item.request.statement_descriptor.clone(),

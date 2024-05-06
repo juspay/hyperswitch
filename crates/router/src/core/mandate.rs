@@ -379,6 +379,7 @@ where
                             )
                             .await
                             .change_context(errors::ApiErrorResponse::MandateUpdateFailed),
+                        //sahkal
                         storage_enums::MandateType::MultiUse => state
                             .store
                             .update_mandate_by_merchant_id_mandate_id(

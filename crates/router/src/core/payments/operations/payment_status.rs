@@ -440,6 +440,10 @@ async fn get_tracker_for_sync<
 
     let payment_data = PaymentData {
         flow: PhantomData,
+        money_amount: api_models::payments::Money{
+            money_in_minor: payment_intent.amount,
+            currency: currency
+        },
         payment_intent,
         currency,
         amount,

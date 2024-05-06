@@ -92,6 +92,14 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
             let is_mandate = resp.request.setup_mandate_details.is_some();
 
+            let sahkal = self.clone().money_amount;
+            //sahkal
+            let amount = self.request.new_amount
+                .as_ref()
+                .map_or(Err(errors::ApiErrorResponse::InvalidHttpMethod), |new_amount| {
+                    new_amount.extract_minor_unit_integer(|x| x)
+                        .map_err(|_err| errors::ApiErrorResponse::InvalidHttpMethod)
+                })?;
             if is_mandate {
                 let (payment_method_id, payment_method_status) =
                     Box::pin(tokenization::save_payment_method(
@@ -102,7 +110,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                         merchant_account,
                         self.request.payment_method_type,
                         key_store,
-                        Some(resp.request.amount),
+                        Some(self.money_amount),
                         Some(resp.request.currency),
                         profile_id,
                     ))
@@ -125,6 +133,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
                 logger::info!("Call to save_payment_method in locker");
 
+                //sahkal
+             
                 let pm = Box::pin(tokenization::save_payment_method(
                     state,
                     connector,
@@ -133,7 +143,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     merchant_account,
                     self.request.payment_method_type,
                     key_store,
-                    Some(resp.request.amount),
+                    Some(amount),
                     Some(resp.request.currency),
                     profile_id,
                 ))

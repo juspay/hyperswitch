@@ -711,6 +711,13 @@ impl From<i64> for Amount {
     }
 }
 
+
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct Money {
+    pub money_in_minor: Minori64,
+    pub currency: enums::Currency
+}
+
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentsRedirectRequest {
