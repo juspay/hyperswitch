@@ -3691,21 +3691,13 @@ impl
             {
                 domain::BankTransferData::AchBankTransfer {} => Ok(Self::BankTransfer(
                     StripeBankTransferData::AchBankTransfer(Box::new(AchTransferData {
-                        email: item.get_optional_billing_email().ok_or(
-                            errors::ConnectorError::MissingRequiredField {
-                                field_name: "billing.email",
-                            },
-                        )?,
+                        email: item.get_billing_email()?,
                     })),
                 )),
                 domain::BankTransferData::MultibancoBankTransfer {} => Ok(Self::BankTransfer(
                     StripeBankTransferData::MultibancoBankTransfers(Box::new(
                         MultibancoTransferData {
-                            email: item.get_optional_billing_email().ok_or(
-                                errors::ConnectorError::MissingRequiredField {
-                                    field_name: "billing.email",
-                                },
-                            )?,
+                            email: item.get_billing_email()?,
                         },
                     )),
                 )),
